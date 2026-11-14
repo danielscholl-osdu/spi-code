@@ -520,9 +520,82 @@ ul.plain li{margin:3px 0}
 .app.narrow .side{display:none}
 .app.narrow .bar .tg{width:auto;padding:0 7px;color:var(--a-fg)}
 .app.narrow .scrim{inset:40px 0 0 0}
+/* ---------- shell pass: the top row's parts, the status capsule, pins and line icons ---------- */
+.app{--a-work:#24688c;--a-work-bg:#dcebf3}
+.app.dark{--a-work:#8cc8e8;--a-work-bg:#15293a}
+svg.i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.app .bar.parts{display:grid;grid-template-columns:232px 1fr 300px;gap:0;padding:0;background:none}
+.app .bar .pt{display:flex;align-items:center;gap:8px;height:100%;padding:0 10px;min-width:0}
+.app .bar .pt.s{background:var(--a-soft);border-right:1px solid var(--a-border)}
+.app .bar .pt.c{background:var(--a-card);padding:0 12px 0 16px}
+.app .bar .pt.c b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.app .bar .pt.r{background:var(--a-bg);border-left:1px solid var(--a-border);justify-content:flex-end}
+.app .tgi{position:relative;display:inline-grid;place-items:center;width:28px;height:28px;border-radius:6px;color:var(--a-muted);flex:none}
+.app .tgi.sm{width:22px;height:22px;margin-left:auto}
+.app .tgi .gd{position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:4px;background:var(--a-yellow);box-shadow:0 0 0 2px var(--a-soft)}
+.app .cap{display:inline-flex;align-items:center;gap:1px;height:28px;box-sizing:border-box;padding:0 3px;border:1px solid var(--a-border);border-radius:9px;background:var(--a-bg);font-size:12px;line-height:1.4;white-space:nowrap;color:var(--a-fg);flex:none;font-variant-numeric:tabular-nums}
+.app .cap .sg{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 7px;border-radius:6px}
+.app .cap svg.i{width:14px;height:14px;stroke-width:2}
+.app .cap .lb{color:var(--a-muted)}
+.app .cap .ok{color:var(--a-grn-ink)}
+.app .cap .un{color:var(--a-dim)}
+.app .cap .cp{padding:0 6px;border-radius:5px;font-weight:600;line-height:18px}
+.app .cap .cp.warn{color:var(--a-yel-ink);background:var(--a-yel-bg)}
+.app .cap .cp.bad{color:var(--a-red-ink);background:var(--a-red-bg)}
+.app .cap .cp.work{color:var(--a-work);background:var(--a-work-bg)}
+.app .cap .up{color:var(--a-up)}
+.app .cap .sy{color:var(--a-up-ink);font-weight:600}
+.app .cap .dv{width:1px;height:14px;margin:0 3px;background:var(--a-border)}
+.app .cap .swp{color:var(--a-muted)}
+.app .cap .swp.warn,.app .cap .swp.bad,.app .cap .swp.run{color:var(--a-fg)}
+.app .cap .swp.warn svg{color:var(--a-yellow)}
+.app .cap .swp.bad svg{color:var(--a-red)}
+.app .cap .swp.run svg{color:var(--a-accent)}
+.app.kit .prog{height:2px;width:420px;background:var(--a-bsoft);margin-top:4px}
+.app.kit .prog i{display:block;height:2px;width:33%;background:var(--a-accent)}
+.app .pins{width:232px;box-sizing:border-box;background:var(--a-soft);border:1px solid var(--a-border);border-radius:8px;padding:8px}
+.app .pins .fa{display:flex;align-items:center;gap:8px;height:30px;padding:0 9px;border:1px solid var(--a-border);border-radius:8px;background:var(--a-card);color:var(--a-muted);margin-bottom:6px}
+.app .pins .fa .kbd{margin-left:auto;font-family:var(--mono);font-size:10.5px;border:1px solid var(--a-border);border-radius:4px;padding:0 4px}
+.app .pins .it{gap:9px;height:28px;padding:0 8px}
+.app .pins .it svg.i{color:var(--a-muted)}
+.app .pins .it .wd{margin-left:auto;font-size:11px;font-weight:500;color:var(--a-muted)}
+.app .pins .it .wd.bad{color:var(--a-red-ink)}
+.app .pins .it .wd.warn{color:var(--a-yel-ink)}
+.app .pins .it.hv{background:var(--a-card2);position:relative}
+.app .pins .it.hv .grip{position:absolute;left:-3px;color:var(--a-dim);width:12px;height:12px}
+.app .pins .gh{display:flex;align-items:center;gap:4px;padding:10px 8px 3px;font-size:11px;font-weight:500;color:var(--a-muted)}
+.app .pins .gh svg.i{width:12px;height:12px}
+.app .pins .fe{display:flex;border-top:1px solid var(--a-border);margin-top:6px;padding-top:4px}
+.icons{display:grid;grid-template-columns:repeat(auto-fill,minmax(186px,1fr));gap:8px;margin-top:14px}
+.icons .ic{display:flex;align-items:flex-start;gap:10px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--surface);font-size:12.5px;color:var(--ink-2);line-height:1.35}
+.icons .ic svg.i{color:var(--ink);margin-top:1px}
+.icons .ic b{display:block;color:var(--ink);font-family:var(--mono);font-size:11.5px;font-weight:500}
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0 M9 12l2 2 4-4"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8 M21 3v5h-5 M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16 M8 16H3v5"/></symbol>
+  <symbol id="i-loader" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M21.73 18l-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z M12 9v4 M12 17h.01"/></symbol>
+  <symbol id="i-upstream" viewBox="0 0 24 24"><path d="M12 17V3 M6 11l6 6 6-6 M19 21H5"/></symbol>
+  <symbol id="i-panelLeft" viewBox="0 0 24 24"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M9 3v18"/></symbol>
+  <symbol id="i-panelRight" viewBox="0 0 24 24"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M15 3v18"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><path d="M3 11a8 8 0 1 0 16 0a8 8 0 1 0 -16 0 M21 21l-4.3-4.3"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0 M12 2v2 M12 20v2 M4.93 4.93l1.41 1.41 M17.66 17.66l1.41 1.41 M2 12h2 M20 12h2 M6.34 17.66l-1.41 1.41 M19.07 4.93l-1.41 1.41"/></symbol>
+  <symbol id="i-rows" viewBox="0 0 24 24"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M3 9h18 M3 15h18"/></symbol>
+  <symbol id="i-server" viewBox="0 0 24 24"><path d="M4 2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z M4 14h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2z M6 6h.01 M6 18h.01"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z M22 17.65l-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65 M22 12.65l-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z M7 7.5a.5.5 0 1 0 1 0a.5.5 0 1 0 -1 0"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.3 7l8.7 5 8.7-5 M12 22V12"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z M9 12a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/></symbol>
+  <symbol id="i-chevD" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-chevR" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></symbol>
+  <symbol id="i-grip" viewBox="0 0 24 24"><path d="M9 6h.01 M15 6h.01 M9 12h.01 M15 12h.01 M9 18h.01 M15 18h.01"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 17v5 M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></symbol>
+  <symbol id="i-pinOff" viewBox="0 0 24 24"><path d="M12 17v5 M15 9.34V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H7.89 M2 2l20 20 M9 9v1.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h11"/></symbol>
+</svg>
 <main class="wrap">
 <header>
     <p class="eyebrow">spi-code · visual design · v2, revision 3</p>
@@ -539,7 +612,7 @@ ul.plain li{margin:3px 0}
   </header>
 
   <div class="problem">
-    <p><b>This page holds the palette, the component kit and the design for threads, context hand-off and code threads.</b> The window itself (the top row, Today, places, the Line sheet, panes and Settings) is in the <a href="spi-code-window-design.html">window design</a> and the <a href="spi-code-window-layout.html">window layout</a>. Where a mockup or sentence here still shows the Inbox, lenses or the earlier layout, those two pages win.</p>
+    <p><b>This page holds the palettes, the line icons, the component kit and the design for threads, context hand-off and code threads.</b> The window itself (the top row, Today, places, the Line sheet, panes and Settings) is in the <a href="spi-code-window-design.html">window design</a> and the <a href="spi-code-window-layout.html">window layout</a>. Where a mockup or sentence here still shows the Inbox, lenses or the earlier layout, those two pages win.</p>
     <p>Five values the surfaces need and the contract does not carry are named as additions and are a hard predecessor of the surfaces that need them; no M2 surface ships on a placeholder (<a href="#gaps">Contract additions</a>). Every name, count and sentence in a mockup is an example, not a reading of the live program.</p>
   </div>
 
@@ -559,10 +632,10 @@ ul.plain li{margin:3px 0}
     <div class="flow" tabindex="0" role="region" aria-label="Layering, scroll horizontally on small screens">
       <svg viewBox="0 0 1000 430" role="img" aria-labelledby="lay-title" aria-describedby="lay-desc">
         <title id="lay-title">The three layers of SPI Code</title>
-        <desc id="lay-desc">Three horizontal bands. The top band is the SPI layer: sweep line, Inbox, thing pages, lenses, Detail and Evidence, fed by the Watch contract. The middle band is the bridge: anchors, context chips, cards, thread status and artifacts. The bottom band is the T3 Code workbench: sidebar with threads, timeline and composer, right panel, terminal drawer, worktrees, approvals, model picker and panel toggles. Arrows show a selection becoming a chip or an anchor going down, and thread status and artifacts coming back up.</desc>
+        <desc id="lay-desc">Three horizontal bands. The top band is the SPI layer: status capsule, Inbox, thing pages, lenses, Detail and Evidence, fed by the Watch contract. The middle band is the bridge: anchors, context chips, cards, thread status and artifacts. The bottom band is the T3 Code workbench: sidebar with threads, timeline and composer, right panel, terminal drawer, worktrees, approvals, model picker and panel toggles. Arrows show a selection becoming a chip or an anchor going down, and thread status and artifacts coming back up.</desc>
         <rect x="20" y="16" width="960" height="112" class="box b-o3"/>
         <text x="36" y="40" class="t">SPI layer · what the program is doing</text>
-        <text x="36" y="62" class="sub">Sweep line in the title bar · Inbox · a page per thing (service, Template, Environment, a release month) · lenses (Flow, Repositories, Horizon)</text>
+        <text x="36" y="62" class="sub">Status capsule in the top row · Inbox · a page per thing (service, Template, Environment, a release month) · lenses (Flow, Repositories, Horizon)</text>
         <text x="36" y="80" class="sub">Detail and Evidence tabs for the selection · attention dots and words in the sidebar</text>
         <text x="36" y="104" class="tiny">Data: the Watch contract (ViewSnapshot, InspectResult, sweep.status) from the host's sweeps; every text is core's output</text>
         <rect x="20" y="160" width="960" height="104" class="box b-o1"/>
@@ -574,7 +647,7 @@ ul.plain li{margin:3px 0}
         <text x="36" y="320" class="t">Base · T3 Code's workbench</text>
         <text x="36" y="342" class="sub">Sidebar of things with their threads, status per thread, a Settled shelf · timeline with tool, work and agent rows · composer with attachments,</text>
         <text x="36" y="360" class="sub">@ mentions, $ skills, / commands, model and effort picker · right panel: worktree and machine, Open in editor, branch and PR, git actions, Changes,</text>
-        <text x="36" y="378" class="sub">Checks, lineage · terminal drawer · worktrees · approvals · top-bar toggles for the sidebar, the terminal and the right panel · ⌘K</text>
+        <text x="36" y="378" class="sub">Checks, lineage · terminal drawer · worktrees · approvals · toggles for the sidebar, the terminal and the right panel beside each · ⌘K</text>
         <text x="36" y="402" class="tiny">Copilot is the only provider; T3 Code's projects become things; remote machines, side chats and MCP servers are left out (capability table)</text>
         <path d="M 300 128 L 300 160" class="arrow" marker-end="url(#ah)"/>
         <text x="308" y="148" class="tiny">selection → chip or anchor</text>
@@ -626,7 +699,7 @@ ul.plain li{margin:3px 0}
     </table></div>
     <div class="mockwrap">
       <div class="app" style="height:540px">
-        <div class="bar"><span class="dots"><i></i><i></i><i></i></span><b>SPI Code</b><span class="crumb">Why is the cascade stopped</span><span class="sp"></span><span class="sweep warn"><span class="d"></span>swept 2 min ago · 1 area cut · 3 stale</span><span class="kbd">⌘K</span><span class="tg">▯</span><span class="tg">▭</span><span class="tg">▯</span></div>
+        <div class="bar parts"><span class="pt s"><span class="dots"><i></i><i></i><i></i></span><span class="tgi" title="Hide the sidebar"><svg class="i" aria-hidden="true"><use href="#i-panelLeft"/></svg></span></span><span class="pt c"><b>Why is the cascade stopped</b><span class="sp"></span><span class="cap" title="Swept 09:12 · 1 cut, 3 stale"><span class="sg"><span class="lb">Env</span><svg class="i ok" aria-hidden="true"><use href="#i-check"/></svg></span><span class="sg"><span class="lb">Templates</span><span class="cp warn">3 pending</span></span><span class="sg"><span class="lb">Forks</span><span class="cp bad">1 stopped</span></span><span class="dv"></span><span class="sg swp warn"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg>09:12</span></span></span><span class="pt r"><span class="tgi" title="Close the right panel"><svg class="i" aria-hidden="true"><use href="#i-panelRight"/></svg></span></span></div>
         <div class="side"><div class="find"><span>⌕</span><span class="txt">Find or ask</span><span class="kbd">⌘K</span></div></div>
         <div class="main">
           <div class="body" style="padding-bottom:0"><div class="tlne">
@@ -685,7 +758,7 @@ ul.plain li{margin:3px 0}
     </div>
     <div class="mockwrap">
       <div class="app">
-        <div class="bar"><span class="dots"><i></i><i></i><i></i></span><b>SPI Code</b><span class="crumb">Why is the cascade stopped</span><span class="sp"></span><span class="sweep warn"><span class="d"></span>swept 2 min ago · 1 area cut · 3 stale</span><span class="kbd">⌘K</span><span class="tg">▯</span><span class="tg">▭</span><span class="tg">▯</span></div>
+        <div class="bar parts"><span class="pt s"><span class="dots"><i></i><i></i><i></i></span><span class="tgi" title="Hide the sidebar"><svg class="i" aria-hidden="true"><use href="#i-panelLeft"/></svg></span></span><span class="pt c"><b>Why is the cascade stopped</b><span class="sp"></span><span class="cap" title="Swept 09:12 · 1 cut, 3 stale"><span class="sg"><span class="lb">Env</span><svg class="i ok" aria-hidden="true"><use href="#i-check"/></svg></span><span class="sg"><span class="lb">Templates</span><span class="cp warn">3 pending</span></span><span class="sg"><span class="lb">Forks</span><span class="cp bad">1 stopped</span></span><span class="dv"></span><span class="sg swp warn"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg>09:12</span></span></span><span class="pt r"><span class="tgi" title="Close the right panel"><svg class="i" aria-hidden="true"><use href="#i-panelRight"/></svg></span></span></div>
         <div class="side">
           <div class="find"><span>⌕</span><span class="txt">Find or ask</span><span class="kbd">⌘K</span></div>
           <div class="scroll">
@@ -700,10 +773,10 @@ ul.plain li{margin:3px 0}
             <div class="grp">Lenses<span class="n">3 ▸</span></div>
             <div class="it shelf"><span class="lbl">Settled</span><span class="n">41 ›</span></div>
           </div>
-          <div class="foot"><div class="it"><span class="d"></span><span class="lbl">Setup</span><span class="n">ready</span></div><div class="stamp">swept 2 min ago</div></div>
+          <div class="foot"><span class="tgi" title="Settings" aria-label="Settings"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></span></div>
         </div>
         <div class="main">
-          <div class="thd"><b>Why is the cascade stopped</b><span class="chip">Operate thread</span><span class="chipx anc">⚓ entitlements · cascade stopped</span><span class="stt run">Working · 2 min</span><span style="margin-left:auto">swept 2 min ago</span></div>
+          <div class="thd"><b>Why is the cascade stopped</b><span class="chip">Operate thread</span><span class="chipx anc">⚓ entitlements · cascade stopped</span><span class="stt run">Working · 2 min</span></div>
           <div class="body"><div class="tlne">
             <div class="ctx"><b>Context</b> · from the sweep at 09:12 UTC: the anchor and 2 chips, 3,100 tokens</div>
             <div class="msg me"><div class="chips"><span class="chipx ctx">▣ Cascade stopped on a merge conflict</span><span class="chipx ctx">▣ cascade run 7718 · failed</span></div>Why does validation fail, and is it the same cause as on unit?</div>
@@ -735,7 +808,7 @@ ul.plain li{margin:3px 0}
     <p>A code thread is T3 Code's coding thread on a fork worktree. Its right panel leads with the <b>Thread</b> tab, which is T3 Code's thread details card with SPI Code's cards in place of direct git writes: environment and worktree (this machine, the worktree path), Open in editor, branch and pull request (the thread's branch, its target, the PR with its status once it exists), git actions (Commit and Push, each making a card), Changes against the target with +/− counts per file that open the diff in the middle panel, Checks at the pushed commit, and lineage (the thread it started from, delegated agents). The anchor's Detail and Evidence stay as tabs, and the same tabs are in the sheet below 980 px. The terminal drawer has two tabs here: Approved commands, read-only, and the login shell. Every thread has the drawer at M3 because T3 Code has it everywhere and the login shell is the operator's own; only code threads have commands to show in the first tab.</p>
     <div class="mockwrap">
       <div class="app dark tall" style="height:900px">
-        <div class="bar"><span class="dots"><i></i><i></i><i></i></span><b>SPI Code</b><span class="crumb">Fix the sync conflict</span><span class="sp"></span><span class="sweep warn"><span class="d"></span>swept 2 min ago · 1 area cut · 3 stale</span><span class="kbd">⌘K</span><span class="tg">▯</span><span class="tg">▭</span><span class="tg">▯</span></div>
+        <div class="bar parts"><span class="pt s"><span class="dots"><i></i><i></i><i></i></span><span class="tgi" title="Hide the sidebar"><svg class="i" aria-hidden="true"><use href="#i-panelLeft"/></svg></span></span><span class="pt c"><b>Fix the sync conflict</b><span class="sp"></span><span class="cap" title="Swept 09:12 · 1 cut, 3 stale"><span class="sg"><span class="lb">Env</span><svg class="i ok" aria-hidden="true"><use href="#i-check"/></svg></span><span class="sg"><span class="lb">Templates</span><span class="cp warn">3 pending</span></span><span class="sg"><span class="lb">Forks</span><span class="cp bad">1 stopped</span></span><span class="dv"></span><span class="sg swp warn"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg>09:12</span></span></span><span class="pt r"><span class="tgi" title="Close the right panel"><svg class="i" aria-hidden="true"><use href="#i-panelRight"/></svg></span></span></div>
         <div class="side">
           <div class="find"><span>⌕</span><span class="txt">Find or ask</span><span class="kbd">⌘K</span></div>
           <div class="scroll">
@@ -748,7 +821,7 @@ ul.plain li{margin:3px 0}
             <div class="grp">Lenses<span class="n">3 ▸</span></div>
             <div class="it shelf"><span class="lbl">Settled</span><span class="n">41 ›</span></div>
           </div>
-          <div class="foot"><div class="it"><span class="d"></span><span class="lbl">Setup</span><span class="n">ready</span></div><div class="stamp">swept 2 min ago</div></div>
+          <div class="foot"><span class="tgi" title="Settings" aria-label="Settings"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></span></div>
         </div>
         <div class="main">
           <div class="thd"><b>Fix the sync conflict</b><span class="chip code">Code thread</span><span class="chipx anc">⚓ entitlements · fork_integration</span><span><code>spi/sync-conflict</code> into <code>fork_integration</code></span><span class="stt wait">Waiting on you</span><span class="chip fresh">push lease held</span></div>
@@ -806,7 +879,7 @@ exit 0 · 38 s</div>
         <tr><td>Project scripts</td><td>Adapted</td><td>Fork scripts (build, test, verify) run as Command cards from the Thread tab</td><td>M5 · CT-16</td></tr>
         <tr><td>Approvals: timeline row and composer strip</td><td>Carried</td><td>Copied; one card, one state, decided once</td><td>M4 · AU-09, AU-10</td></tr>
         <tr><td>Delegated agents and lineage</td><td>Carried</td><td>Playbooks and hand-offs run as child threads; the Thread tab shows lineage</td><td>M4 · TH-09</td></tr>
-        <tr><td>Panel toggles: sidebar, terminal, right panel</td><td>Carried</td><td>In the title bar</td><td>M2 · PS-11</td></tr>
+        <tr><td>Panel toggles: sidebar, terminal, right panel</td><td>Carried</td><td>Each beside the pane it controls</td><td>M2 · PS-11</td></tr>
         <tr><td>Generic multi-provider projects</td><td>Left out</td><td>Copilot is the only provider; projects become things</td><td></td></tr>
         <tr><td>Remote machines and environments</td><td>Left out</td><td>One machine, this one; the Thread tab names it</td><td></td></tr>
         <tr><td>MCP servers, side chats, automations, guest sharing</td><td>Left out</td><td>No user-level MCP is visible (CP); the rest is after v1</td><td></td></tr>
@@ -824,7 +897,7 @@ exit 0 · 38 s</div>
     <p>⌘K opens one palette for going somewhere and for starting a thread. It searches every place, every queue item and every thread. Text that matches nothing, or reads as a sentence, becomes an Ask row that starts an operate thread anchored to the current selection, or to the current place when nothing is selected, with the selection as its first chip.</p>
     <div class="mockwrap">
       <div class="app" style="height:470px">
-        <div class="bar"><span class="dots"><i></i><i></i><i></i></span><b>SPI Code</b><span class="crumb">entitlements</span><span class="sp"></span><span class="sweep warn"><span class="d"></span>swept 2 min ago · 1 area cut · 3 stale</span><span class="kbd">⌘K</span><span class="tg">▯</span><span class="tg">▭</span><span class="tg">▯</span></div>
+        <div class="bar parts"><span class="pt s"><span class="dots"><i></i><i></i><i></i></span><span class="tgi" title="Hide the sidebar"><svg class="i" aria-hidden="true"><use href="#i-panelLeft"/></svg></span></span><span class="pt c"><b>entitlements</b><span class="sp"></span><span class="cap" title="Swept 09:12 · 1 cut, 3 stale"><span class="sg"><span class="lb">Env</span><svg class="i ok" aria-hidden="true"><use href="#i-check"/></svg></span><span class="sg"><span class="lb">Templates</span><span class="cp warn">3 pending</span></span><span class="sg"><span class="lb">Forks</span><span class="cp bad">1 stopped</span></span><span class="dv"></span><span class="sg swp warn"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg>09:12</span></span></span><span class="pt r"><span class="tgi" title="Close the right panel"><svg class="i" aria-hidden="true"><use href="#i-panelRight"/></svg></span></span></div>
         <div class="side"><div class="find"><span>⌕</span><span class="txt">Find or ask</span><span class="kbd">⌘K</span></div></div>
         <div class="main"></div>
         <div class="right"></div>
@@ -842,14 +915,14 @@ exit 0 · 38 s</div>
             <div class="g">Ask</div>
             <div class="r ask">Ask Copilot about <b>&nbsp;Cascade · stopped&nbsp;</b>: "ent"<span class="kind">new thread</span></div>
           </div>
-          <div class="hint"><span>↑↓ move</span><span>⏎ open</span><span>esc close</span><span>Type a sentence to ask Copilot about the selection</span></div>
+          <div class="hint"><span>↑↓ move</span><span>⏎ open</span><span>⌘↩ open and pin</span><span>esc close</span><span>Type a sentence to ask Copilot about the selection</span></div>
         </div></div>
       </div>
     </div>
     <div class="tblwrap"><table class="tbl compact">
       <thead><tr><th style="width:18%">Group</th><th style="width:50%">Rows</th><th>Milestone</th></tr></thead>
       <tbody>
-        <tr><td><b>Go to</b></td><td>Inbox, Template, Environment, Releases, Setup</td><td>M2</td></tr>
+        <tr><td><b>Go to</b></td><td>Today, Line, Upstream, Environment, Engineering system, Releases, Security; ⌘↩ opens one and pins it</td><td>M2</td></tr>
         <tr><td><b>Services</b></td><td>The 13 lines, each with its dot and word</td><td>M2</td></tr>
         <tr><td><b>Lenses</b></td><td>Flow, Repositories, Horizon</td><td>M2</td></tr>
         <tr><td><b>Queue</b></td><td>Every queue item by scope and title, with its priority</td><td>M2</td></tr>
@@ -866,7 +939,7 @@ exit 0 · 38 s</div>
     <div class="tblwrap"><table class="tbl compact">
       <thead><tr><th style="width:20%">Level</th><th style="width:46%">What is shown</th><th>Where</th></tr></thead>
       <tbody>
-        <tr><td><b>The sweep</b></td><td>One sentence: when it swept, how many areas failed, were cut or are stale, the next sync. Amber when anything is cut or stale, red when a read failed. The word inferred is added when every area is inferred. Clicking it opens the Evidence tab for the sweep: every area, every failed read, the API budget</td><td>Title bar; the sidebar stamp repeats the time</td></tr>
+        <tr><td><b>The sweep</b></td><td>The time, with an icon toned by the worst area: muted when fine, an amber alert when an area is stale, incomplete or cut, a red alert when a read failed. Its hover is the sentence ("Swept 08:58 · 1 failed, 1 incomplete, 1 stale"), and the word inferred is added when every area is inferred. Clicking it opens a popover of the sources with Sweep now and Evidence, which opens the Evidence tab for the sweep: every area, every failed read, the API budget</td><td>The status capsule's end, in the top row; said nowhere else</td></tr>
         <tr><td><b>A section</b></td><td>One line on the header naming the worst source in words and counting the rest, only when a source is not fresh; the word inferred when every feeding area is inferred. Hovering lists them</td><td>Section headers on pages and lenses, under the station strip</td></tr>
         <tr><td><b>A selection</b></td><td>A chip under the Detail title when any source is not fresh, or when every source is inferred; it opens the Evidence tab, which lists each area in words, then the reads for the repository</td><td>Right panel</td></tr>
         <tr><td><b>A chip</b></td><td>The sweep time it came from; dimmed and marked when older than the current sweep</td><td>Composer, timeline</td></tr>
@@ -915,23 +988,65 @@ exit 0 · 38 s</div>
   </section>
 
   <section>
-    <h2>Shore in semantic roles</h2>
-    <p>One palette, Shore, in a light and a dark appearance, following the system unless Settings pins one. Components name a role, after T3 Code's <code>themePalettes.ts</code>, cut to the roles this app uses plus success, agent and upstream. The Today briefing adds one role, <code>upstream</code>, for what is coming from upstream GitLab: it marks the horizon block, upstream chips and an upstream wait's slot, and nothing else. Chips, thread rows, the Thread tab and the toggles draw from the roles below.</p>
+    <h2>Palettes in semantic roles</h2>
+    <p>Two palettes, each in a light and a dark appearance: <b>Neutral</b>, zinc greys after T3 Code's, and <b>Warm</b>, Keelson's Shore. Neutral is the default; Settings › Appearance offers Warm beside it, and the theme follows the system unless Settings pins one. Palette and theme are independent, so the window has four looks, and every role below is defined in all four. Components name a role, after T3 Code's <code>themePalettes.ts</code>, cut to the roles this app uses plus success, agent, upstream and work, never a colour of their own.</p>
+    <p><code>upstream</code> marks what is coming from upstream GitLab: the On the horizon block, upstream chips with ⇣ (the capsule's Sync among them) and an upstream wait's slot, and nothing else. A pin's icon is never drawn in it, the Upstream pin included; every pin icon is muted. Chips, thread rows, the Thread tab and the toggles draw from the roles below.</p>
+    <h3>Neutral, the default</h3>
+    <div class="tblwrap"><table class="tbl compact">
+      <thead><tr><th style="width:17%">Role</th><th style="width:37%">Used for</th><th style="width:15%">Light</th><th style="width:15%">Dark</th><th>Tint, light · dark</th></tr></thead>
+      <tbody>
+        <tr><td><code>chrome</code></td><td>Right panel, tiles, stations, the popover's foot</td><td><code>#fafafa</code></td><td><code>#141416</code></td><td></td></tr>
+        <tr><td><code>sidebar</code></td><td>Sidebar and its part of the top row</td><td><code>#f4f4f5</code></td><td><code>#141416</code></td><td></td></tr>
+        <tr><td><code>surface</code></td><td>Centre and its part of the top row, cards, rows, the palette, popovers</td><td><code>#ffffff</code></td><td><code>#0d0d0f</code></td><td></td></tr>
+        <tr><td><code>surfaceRaised</code></td><td>Selected row, own messages</td><td><code>#f4f4f5</code></td><td><code>#1a1a1d</code></td><td></td></tr>
+        <tr><td><code>border</code>, <code>borderSoft</code></td><td>Panel edges, the top row's rule, card outlines, table rules</td><td><code>#e4e4e7</code> · <code>#efeff1</code></td><td><code>#27272a</code> · <code>#1d1d20</code></td><td></td></tr>
+        <tr><td><code>text</code>, <code>textStrong</code></td><td>Body text, titles</td><td><code>#27272a</code> · <code>#09090b</code></td><td><code>#e4e4e7</code> · <code>#fafafa</code></td><td></td></tr>
+        <tr><td><code>textMuted</code></td><td>Secondary lines, reasons, the capsule's labels, the idle sweep, pin icons</td><td><code>#5f5f68</code></td><td><code>#a1a1aa</code></td><td></td></tr>
+        <tr><td><code>placeholder</code>, <code>placeholderFill</code></td><td>Group labels, stamps, counts; the capsule's dash</td><td><code>#71717a</code> · <code>#a1a1aa</code></td><td><code>#8b8b93</code> · <code>#52525b</code></td><td></td></tr>
+        <tr><td><code>accent</code></td><td>Selection, primary action, the progress line, the running sweep's spinner</td><td><code>#1d7a6c</code></td><td><code>#5cc4b2</code></td><td><code>#e3f1ed</code> · <code>#14302b</code></td></tr>
+        <tr><td><code>error</code></td><td>P0, stopped, a failed read, a red count</td><td><code>#b42318</code></td><td><code>#fca5a5</code></td><td><code>#fde4e1</code> · <code>#311616</code></td></tr>
+        <tr><td><code>warning</code></td><td>P1, waiting on you, stale or cut evidence, an amber count, the gear's dot</td><td><code>#94560a</code></td><td><code>#fcd34d</code></td><td><code>#fdf0d5</code> · <code>#2b2410</code></td></tr>
+        <tr><td><code>success</code></td><td>The capsule's check, applied, settled</td><td><code>#15803d</code></td><td><code>#6ee7a0</code></td><td><code>#e3f5e8</code> · <code>#10291b</code></td></tr>
+        <tr><td><code>work</code></td><td>Work under way that needs nothing: Env Refreshing, a popover's sweeping row</td><td><code>#0369a1</code></td><td><code>#7dd3fc</code></td><td><code>#ddeefa</code> · <code>#0f2533</code></td></tr>
+        <tr><td><code>agent</code></td><td>Copilot's messages and proposals, a code thread's marker</td><td><code>#7e4cba</code></td><td><code>#c4b5fd</code></td><td></td></tr>
+        <tr><td><code>upstream</code></td><td>Upstream origin only, as above</td><td><code>#a33182</code></td><td><code>#f0abdc</code></td><td><code>#f8e3f0</code> · <code>#2d1727</code></td></tr>
+        <tr><td><code>onFill</code></td><td>Text on a filled accent, error or warning</td><td><code>#ffffff</code></td><td><code>#0d0d0f</code></td><td></td></tr>
+      </tbody>
+    </table></div>
+    <div class="swatches">
+      <div class="sw"><div class="c"><i style="background:#fafafa"></i><i style="background:#141416"></i></div><div class="l"><b>chrome</b><code>#fafafa · #141416</code></div></div>
+      <div class="sw"><div class="c"><i style="background:#ffffff"></i><i style="background:#0d0d0f"></i></div><div class="l"><b>surface</b><code>#ffffff · #0d0d0f</code></div></div>
+      <div class="sw"><div class="c"><i style="background:#27272a"></i><i style="background:#e4e4e7"></i></div><div class="l"><b>text</b><code>#27272a · #e4e4e7</code></div></div>
+      <div class="sw"><div class="c"><i style="background:#1d7a6c"></i><i style="background:#5cc4b2"></i></div><div class="l"><b>accent</b><code>#1d7a6c · #5cc4b2</code></div></div>
+      <div class="sw"><div class="c"><i style="background:#b42318"></i><i style="background:#fca5a5"></i></div><div class="l"><b>error · P0</b><code>#b42318 · #fca5a5</code></div></div>
+      <div class="sw"><div class="c"><i style="background:#94560a"></i><i style="background:#fcd34d"></i></div><div class="l"><b>warning · P1</b><code>#94560a · #fcd34d</code></div></div>
+      <div class="sw"><div class="c"><i style="background:#15803d"></i><i style="background:#6ee7a0"></i></div><div class="l"><b>success</b><code>#15803d · #6ee7a0</code></div></div>
+      <div class="sw"><div class="c"><i style="background:#0369a1"></i><i style="background:#7dd3fc"></i></div><div class="l"><b>work</b><code>#0369a1 · #7dd3fc</code></div></div>
+      <div class="sw"><div class="c"><i style="background:#7e4cba"></i><i style="background:#c4b5fd"></i></div><div class="l"><b>agent · Copilot</b><code>#7e4cba · #c4b5fd</code></div></div>
+      <div class="sw"><div class="c"><i style="background:#a33182"></i><i style="background:#f0abdc"></i></div><div class="l"><b>upstream · ⇣</b><code>#a33182 · #f0abdc</code></div></div>
+    </div>
+    <p>Neutral's tones are drawn at text strength, so a role's value is also its text value. The shell adds four states: <code>capsule</code> <code>#fafafa</code> · <code>#161619</code> behind the status capsule, <code>hover</code> <code>#e9e9ec</code> · <code>#232328</code>, <code>kbd</code> <code>#f4f4f5</code> · <code>#1f1f23</code> for key caps, and <code>active</code> <code>#ffffff</code> · <code>#232328</code> for the open pin, ringed in 1 px of <code>border</code> with a soft shadow in light and in <code>#2e2e33</code> in dark. CI checks Neutral's text pairs with the rule it applies to Warm (NF-07); a tone that falls short as small text on any of its surfaces or tints takes a darker text variant, as Warm's do.</p>
+
+  </section>
+
+  <section>
+    <h2>Shore in semantic roles: the Warm palette</h2>
+    <p>Warm is Keelson's Shore, offered beside Neutral, and the palette the mockups on this page are drawn in. Its text variants exist because Shore's light tones are too pale for small text.</p>
     <div class="tblwrap"><table class="tbl compact">
       <thead><tr><th style="width:17%">Role</th><th style="width:31%">Used for</th><th style="width:13%">Shore key</th><th style="width:13%">Light</th><th style="width:13%">Dark</th><th>Text variant</th></tr></thead>
       <tbody>
-        <tr><td><code>chrome</code></td><td>Title bar, right panel, tiles, stations</td><td><code>bg</code></td><td><code>#f3efe4</code></td><td><code>#0f1a1b</code></td><td></td></tr>
-        <tr><td><code>sidebar</code></td><td>Sidebar, title bar strip</td><td><code>bgSoft</code></td><td><code>#ece6d7</code></td><td><code>#132021</code></td><td></td></tr>
-        <tr><td><code>surface</code></td><td>Middle panel, cards, rows, the palette</td><td><code>card</code></td><td><code>#fbf9f3</code></td><td><code>#162324</code></td><td></td></tr>
+        <tr><td><code>chrome</code></td><td>Right panel, tiles, stations, the popover's foot</td><td><code>bg</code></td><td><code>#f3efe4</code></td><td><code>#0f1a1b</code></td><td></td></tr>
+        <tr><td><code>sidebar</code></td><td>Sidebar and its part of the top row</td><td><code>bgSoft</code></td><td><code>#ece6d7</code></td><td><code>#132021</code></td><td></td></tr>
+        <tr><td><code>surface</code></td><td>Centre and its part of the top row, cards, rows, the palette, popovers</td><td><code>card</code></td><td><code>#fbf9f3</code></td><td><code>#162324</code></td><td></td></tr>
         <tr><td><code>surfaceRaised</code></td><td>Selected row, hovered row, own messages</td><td><code>card2</code></td><td><code>#f2ede1</code></td><td><code>#1d2d2e</code></td><td></td></tr>
         <tr><td><code>border</code></td><td>Panel edges, card outlines, table rules</td><td><code>border</code>, <code>borderSoft</code></td><td><code>#dcd3bf</code></td><td><code>#2b3d3d</code></td><td></td></tr>
         <tr><td><code>text</code></td><td>Body text, titles</td><td><code>fg</code>, <code>fgStrong</code></td><td><code>#23211c</code></td><td><code>#e4dfd1</code></td><td>Same</td></tr>
-        <tr><td><code>textMuted</code></td><td>Secondary lines, reasons, the sweep line</td><td><code>muted</code></td><td><code>#665f4f</code></td><td><code>#a59d8a</code></td><td>Same</td></tr>
+        <tr><td><code>textMuted</code></td><td>Secondary lines, reasons, the capsule's labels, the idle sweep, pin icons</td><td><code>muted</code></td><td><code>#665f4f</code></td><td><code>#a59d8a</code></td><td>Same</td></tr>
         <tr><td><code>placeholder</code></td><td>Group labels, stamps, counts, the word beside a dot</td><td><code>dim</code></td><td><code>#8a8170</code></td><td><code>#7d7666</code></td><td><code>#6c6557</code> · <code>#9a927f</code></td></tr>
         <tr><td><code>accent</code></td><td>Selection, primary action, anchor, scope chip, P2, a working thread</td><td><code>accent</code></td><td><code>#1d7a6c</code></td><td><code>#5cc4b2</code></td><td><code>#1b7366</code> · same</td></tr>
         <tr><td><code>error</code></td><td>P0, stopped, binding failed, a failed read</td><td><code>red</code></td><td><code>#bb4a2b</code></td><td><code>#ec8a6e</code></td><td><code>#ac4428</code> · same</td></tr>
         <tr><td><code>warning</code></td><td>P1, waiting on you, a pending card, stale or cut evidence</td><td><code>yellow</code></td><td><code>#a07b3a</code></td><td><code>#e2b45c</code></td><td><code>#80622e</code> · same</td></tr>
-        <tr><td><code>success</code></td><td>Healthy, applied, settled, fresh evidence</td><td><code>green</code></td><td><code>#3a7633</code></td><td><code>#8fcf86</code></td><td><code>#356c2f</code> · same</td></tr>
+        <tr><td><code>success</code></td><td>The capsule's check, applied, settled, fresh evidence</td><td><code>green</code></td><td><code>#3a7633</code></td><td><code>#8fcf86</code></td><td><code>#356c2f</code> · same</td></tr>
         <tr><td><code>agent</code></td><td>Copilot's messages and proposals, a code thread's marker</td><td><code>magenta</code></td><td><code>#8a5cc0</code></td><td><code>#c3a2e8</code></td><td><code>#7e4cba</code> · same</td></tr>
         <tr><td><code>upstream</code></td><td>The horizon origin mark on Today: the On the horizon block, upstream chips with ⇣, an upstream wait's slot. Never an in-system item.</td><td>magenta family, apart from <code>agent</code></td><td><code>#a33182</code></td><td><code>#fabce0</code></td><td>Same · same</td></tr>
       </tbody>
@@ -947,8 +1062,37 @@ exit 0 · 38 s</div>
       <div class="sw"><div class="c"><i style="background:#8a5cc0"></i><i style="background:#c3a2e8"></i></div><div class="l"><b>agent · Copilot</b><code>#8a5cc0 · #c3a2e8</code></div></div>
       <div class="sw"><div class="c"><i style="background:#a33182"></i><i style="background:#fabce0"></i></div><div class="l"><b>upstream · ⇣</b><code>#a33182 · #fabce0</code></div></div>
     </div>
-    <p>The <code>upstream</code> badge fill is <code>upstream-surface</code>: <code>#f5deee</code> light, <code>#302032</code> dark.</p>
+    <p>The <code>upstream</code> badge fill is <code>upstream-surface</code>: <code>#f5deee</code> light, <code>#302032</code> dark. The shell adds what Shore lacks: <code>work</code>, a blue for work under way that needs nothing, <code>#24688c</code> · <code>#8cc8e8</code>, used as its own text; <code>success-surface</code> <code>#e1eedb</code> · <code>#1b2e1d</code>, <code>work-surface</code> <code>#dcebf3</code> · <code>#15293a</code>, <code>capsule</code> <code>#f3efe4</code> · <code>#132021</code>, <code>hover</code> <code>#e3dccb</code> · <code>#22393a</code>, <code>kbd</code> <code>#f2ede1</code> · <code>#1d2d2e</code>, and <code>active</code> <code>#fbf9f3</code> · <code>#22393a</code> ringed in 1 px of <code>#dcd3bf</code> · <code>#2b3d3d</code>.</p>
     <p>Each swatch shows light, then dark, from Keelson's <code>SHORE_LIGHT</code> and <code>SHORE_DARK</code>. Shore's light accent, red, yellow, green, magenta and dim fall below 4.5:1 as small text on at least one light surface, so each gets a darker text variant in the light appearance; dark values pass and are used unchanged, except <code>dim</code>, which is lightened. Appendix B has the ratios. CI checks every text pair with Keelson's <code>wcagContrast</code> (NF-07). <code>upstream</code> passes as small text in both appearances, so it needs no variant; the window's palette test also holds it apart from <code>agent</code> and every other role under protan and deutan simulation, because the two share a family. Colour never carries origin alone: the ⇣ glyph and the horizon block's position carry it too.</p>
+  </section>
+
+  <section>
+    <h2>Line icons</h2>
+    <p>The shell's icons are one small set of line drawings after Lucide, which T3 Code also uses: 24-unit paths drawn inline as SVG in <code>currentColor</code>, 16 px with a 1.75 stroke and round caps and joins; the capsule draws them at 14 px with a 2 stroke. No icon package is bundled, and nothing outside this set is drawn.</p>
+    <div class="icons">
+      <div class="ic"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg><span><b>search</b>Find or ask, in the sidebar</span></div>
+      <div class="ic"><svg class="i" aria-hidden="true"><use href="#i-panelLeft"/></svg><span><b>panelLeft</b>The sidebar toggle</span></div>
+      <div class="ic"><svg class="i" aria-hidden="true"><use href="#i-panelRight"/></svg><span><b>panelRight</b>The right-panel toggle; Detail's close</span></div>
+      <div class="ic"><svg class="i" aria-hidden="true"><use href="#i-chevD"/></svg><span><b>chevD</b>An open group: Pinned</span></div>
+      <div class="ic"><svg class="i" aria-hidden="true"><use href="#i-chevR"/></svg><span><b>chevR</b>A folded group</span></div>
+      <div class="ic"><svg class="i" aria-hidden="true"><use href="#i-sun"/></svg><span><b>sun</b>Today</span></div>
+      <div class="ic"><svg class="i" aria-hidden="true"><use href="#i-rows"/></svg><span><b>rows</b>Line</span></div>
+      <div class="ic"><svg class="i" aria-hidden="true"><use href="#i-upstream"/></svg><span><b>upstream</b>The Upstream pin, muted; the capsule's Sync, in upstream ink</span></div>
+      <div class="ic"><svg class="i" aria-hidden="true"><use href="#i-server"/></svg><span><b>server</b>Environment</span></div>
+      <div class="ic"><svg class="i" aria-hidden="true"><use href="#i-layers"/></svg><span><b>layers</b>Engineering system</span></div>
+      <div class="ic"><svg class="i" aria-hidden="true"><use href="#i-tag"/></svg><span><b>tag</b>Releases</span></div>
+      <div class="ic"><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg><span><b>shield</b>Security</span></div>
+      <div class="ic"><svg class="i" aria-hidden="true"><use href="#i-box"/></svg><span><b>box</b>A pinned service</span></div>
+      <div class="ic"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg><span><b>gear</b>Settings, in the sidebar footer</span></div>
+      <div class="ic"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><span><b>check</b>A capsule segment that is fine</span></div>
+      <div class="ic"><svg class="i" aria-hidden="true"><use href="#i-refresh"/></svg><span><b>refresh</b>The sweep when idle; Sweep now</span></div>
+      <div class="ic"><svg class="i" aria-hidden="true"><use href="#i-loader"/></svg><span><b>loader</b>A sweep running; it turns, and stops under reduced motion</span></div>
+      <div class="ic"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg><span><b>alert</b>The sweep when an area is stale, cut, incomplete or failed</span></div>
+      <div class="ic"><svg class="i" aria-hidden="true"><use href="#i-grip"/></svg><span><b>grip</b>A pin's drag handle, on hover</span></div>
+      <div class="ic"><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><span><b>pin</b>Pin, in a place's header</span></div>
+      <div class="ic"><svg class="i" aria-hidden="true"><use href="#i-pinOff"/></svg><span><b>pinOff</b>Unpin, on a pin's hover and in a place's header</span></div>
+    </div>
+    <p>An icon takes its role's ink and never carries a state alone. The sidebar's icons and the toggles are <code>textMuted</code>, every pin included. The check is <code>success</code> beside a segment's name; the sweep's alert is <code>warning</code> or <code>error</code> beside a time; the spinner is <code>accent</code> beside "Sweeping"; only Sync's icon is <code>upstream</code>. Every icon button has an accessible name and a hover title.</p>
   </section>
 
   <section>
@@ -958,8 +1102,13 @@ exit 0 · 38 s</div>
       <div class="app kit">
         <div class="kh">Sidebar rows: a thing with its threads</div>
         <div class="side"><div class="it"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">7</span></div><div class="it on"><span class="d r"></span><span class="lbl">entitlements</span><span class="n">conflict</span></div><div class="it th sub2 code"><span class="lbl">Fix the sync conflict<span class="br"><span class="stt wait">Waiting on you</span> · spi/sync-conflict · fork_integration</span></span></div><div class="it th sub2"><span class="lbl">Why is the cascade stopped<span class="br"><span class="stt run">Working</span> · cascade · conflict</span></span></div><div class="it"><span class="d m"></span><span class="lbl">workflow</span><span class="n">unread</span></div><div class="it shelf"><span class="lbl">Settled</span><span class="n">41 ›</span></div></div>
-        <div class="kh">Title bar: sweep line and toggles</div>
-        <div class="chips"><span class="bar" style="display:inline-flex;background:none;border:0;padding:0;gap:10px"><span class="sweep"><span class="d"></span>swept 2 min ago · all fresh</span><span class="sweep warn"><span class="d"></span>swept 2 min ago · 1 area cut · 3 stale</span><span class="sweep bad"><span class="d"></span>swept 2 min ago · 2 areas failed</span><span class="sweep inf"><span class="d"></span>swept 2 min ago · inferred</span><span class="tg">▯</span><span class="tg">▭</span><span class="tg">▯</span></span></div>
+        <div class="kh">Top row: the status capsule</div>
+        <div class="chips" style="gap:10px"><span class="cap" title="Swept 08:58 · every area fresh"><span class="sg"><span class="lb">Env</span><svg class="i ok" aria-hidden="true"><use href="#i-check"/></svg></span><span class="sg"><span class="lb">Templates</span><svg class="i ok" aria-hidden="true"><use href="#i-check"/></svg></span><span class="sg"><span class="lb">Forks</span><svg class="i ok" aria-hidden="true"><use href="#i-check"/></svg></span><span class="dv"></span><span class="sg swp idle"><svg class="i" aria-hidden="true"><use href="#i-refresh"/></svg>08:58</span></span><span class="cap" title="Swept 08:58 · 1 failed, 1 incomplete, 1 stale"><span class="sg"><span class="lb">Env</span><span class="cp warn">Maintenance 2d</span></span><span class="sg"><span class="lb">Templates</span><span class="cp bad">1 failed</span></span><span class="sg"><span class="lb">Forks</span><span class="cp bad">4 stopped</span></span><span class="dv"></span><span class="sg swp bad"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg>08:58</span></span><span class="cap" title="Swept 08:02 · sweeping, 4 of 12 sources done"><span class="sg"><span class="lb">Env</span><span class="cp work">Refreshing</span></span><span class="sg"><span class="lb">Templates</span><svg class="i ok" aria-hidden="true"><use href="#i-check"/></svg></span><span class="sg"><span class="lb">Forks</span><span class="cp warn">2 waiting</span></span><span class="sg"><svg class="i up" aria-hidden="true"><use href="#i-upstream"/></svg><span class="sy">Sync 1h 40m</span></span><span class="dv"></span><span class="sg swp run"><svg class="i" aria-hidden="true"><use href="#i-loader"/></svg>Sweeping</span></span><span class="cap" title="First sweep · 0 of 12 sources done"><span class="sg"><span class="lb">Env</span><span class="un">–</span></span><span class="sg"><span class="lb">Templates</span><span class="un">–</span></span><span class="sg"><span class="lb">Forks</span><span class="un">–</span></span><span class="dv"></span><span class="sg swp run"><svg class="i" aria-hidden="true"><use href="#i-loader"/></svg>First sweep</span></span></div>
+        <div class="prog" title="The sweep's progress line, 4 of 12 sources settled"><i></i></div>
+        <div class="kh">Toggles and the gear</div>
+        <div class="chips" style="gap:10px"><span class="tgi" title="Toggle the sidebar"><svg class="i" aria-hidden="true"><use href="#i-panelLeft"/></svg></span><span class="tgi" title="Toggle the right panel"><svg class="i" aria-hidden="true"><use href="#i-panelRight"/></svg></span><span class="tgi" title="Settings"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></span><span class="tgi" title="Settings · Readiness needs you"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg><span class="gd"></span></span></div>
+        <div class="kh">Sidebar: Find or ask, Today, Pinned</div>
+        <div class="pins"><div class="fa"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg>Find or ask<span class="kbd">⌘K</span></div><div class="it"><svg class="i" aria-hidden="true"><use href="#i-sun"/></svg><span class="lbl">Today</span><span class="pip">3</span></div><div class="gh"><svg class="i" aria-hidden="true"><use href="#i-chevD"/></svg>Pinned</div><div class="it on"><svg class="i" aria-hidden="true"><use href="#i-rows"/></svg><span class="lbl">Line</span></div><div class="it"><svg class="i" aria-hidden="true"><use href="#i-upstream"/></svg><span class="lbl">Upstream</span></div><div class="it"><svg class="i" aria-hidden="true"><use href="#i-server"/></svg><span class="lbl">Environment</span></div><div class="it"><svg class="i" aria-hidden="true"><use href="#i-layers"/></svg><span class="lbl">Engineering system</span></div><div class="it"><svg class="i" aria-hidden="true"><use href="#i-tag"/></svg><span class="lbl">Releases</span></div><div class="it"><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg><span class="lbl">Security</span></div><div class="it"><svg class="i" aria-hidden="true"><use href="#i-box"/></svg><span class="lbl">storage</span><span class="wd bad">stopped</span></div><div class="it hv"><svg class="i grip" aria-hidden="true"><use href="#i-grip"/></svg><svg class="i" aria-hidden="true"><use href="#i-box"/></svg><span class="lbl">indexer</span><span class="tgi sm" title="Unpin"><svg class="i" aria-hidden="true"><use href="#i-pinOff"/></svg></span></div><div class="fe"><span class="tgi" title="Settings"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></span></div></div>
         <div class="kh">Station tiles</div>
         <div class="stations" style="max-width:720px"><div class="st"><div class="k">Upstream</div><div class="w waiting">waiting</div><div class="x">6 behind</div></div><div class="st sel"><div class="k">Cascade</div><div class="w stopped">stopped</div><div class="x">conflict</div></div><div class="st"><div class="k">Sync to main</div><div class="w moving">moving</div><div class="x">run 12 min</div></div><div class="st"><div class="k">Release</div><div class="w">idle</div><div class="x">idle</div></div><div class="st"><div class="k">Stack lane</div><div class="w unknown">unknown</div><div class="x">not read yet</div></div></div>
         <div class="kh">Queue rows, a thread row, a pending artifact</div>
@@ -999,8 +1148,13 @@ exit 0 · 38 s</div>
       <div class="app kit dark">
         <div class="kh">Sidebar rows: a thing with its threads</div>
         <div class="side"><div class="it"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">7</span></div><div class="it on"><span class="d r"></span><span class="lbl">entitlements</span><span class="n">conflict</span></div><div class="it th sub2 code"><span class="lbl">Fix the sync conflict<span class="br"><span class="stt wait">Waiting on you</span> · spi/sync-conflict · fork_integration</span></span></div><div class="it th sub2"><span class="lbl">Why is the cascade stopped<span class="br"><span class="stt run">Working</span> · cascade · conflict</span></span></div><div class="it"><span class="d m"></span><span class="lbl">workflow</span><span class="n">unread</span></div><div class="it shelf"><span class="lbl">Settled</span><span class="n">41 ›</span></div></div>
-        <div class="kh">Title bar: sweep line and toggles</div>
-        <div class="chips"><span class="bar" style="display:inline-flex;background:none;border:0;padding:0;gap:10px"><span class="sweep"><span class="d"></span>swept 2 min ago · all fresh</span><span class="sweep warn"><span class="d"></span>swept 2 min ago · 1 area cut · 3 stale</span><span class="sweep bad"><span class="d"></span>swept 2 min ago · 2 areas failed</span><span class="sweep inf"><span class="d"></span>swept 2 min ago · inferred</span><span class="tg">▯</span><span class="tg">▭</span><span class="tg">▯</span></span></div>
+        <div class="kh">Top row: the status capsule</div>
+        <div class="chips" style="gap:10px"><span class="cap" title="Swept 08:58 · every area fresh"><span class="sg"><span class="lb">Env</span><svg class="i ok" aria-hidden="true"><use href="#i-check"/></svg></span><span class="sg"><span class="lb">Templates</span><svg class="i ok" aria-hidden="true"><use href="#i-check"/></svg></span><span class="sg"><span class="lb">Forks</span><svg class="i ok" aria-hidden="true"><use href="#i-check"/></svg></span><span class="dv"></span><span class="sg swp idle"><svg class="i" aria-hidden="true"><use href="#i-refresh"/></svg>08:58</span></span><span class="cap" title="Swept 08:58 · 1 failed, 1 incomplete, 1 stale"><span class="sg"><span class="lb">Env</span><span class="cp warn">Maintenance 2d</span></span><span class="sg"><span class="lb">Templates</span><span class="cp bad">1 failed</span></span><span class="sg"><span class="lb">Forks</span><span class="cp bad">4 stopped</span></span><span class="dv"></span><span class="sg swp bad"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg>08:58</span></span><span class="cap" title="Swept 08:02 · sweeping, 4 of 12 sources done"><span class="sg"><span class="lb">Env</span><span class="cp work">Refreshing</span></span><span class="sg"><span class="lb">Templates</span><svg class="i ok" aria-hidden="true"><use href="#i-check"/></svg></span><span class="sg"><span class="lb">Forks</span><span class="cp warn">2 waiting</span></span><span class="sg"><svg class="i up" aria-hidden="true"><use href="#i-upstream"/></svg><span class="sy">Sync 1h 40m</span></span><span class="dv"></span><span class="sg swp run"><svg class="i" aria-hidden="true"><use href="#i-loader"/></svg>Sweeping</span></span><span class="cap" title="First sweep · 0 of 12 sources done"><span class="sg"><span class="lb">Env</span><span class="un">–</span></span><span class="sg"><span class="lb">Templates</span><span class="un">–</span></span><span class="sg"><span class="lb">Forks</span><span class="un">–</span></span><span class="dv"></span><span class="sg swp run"><svg class="i" aria-hidden="true"><use href="#i-loader"/></svg>First sweep</span></span></div>
+        <div class="prog" title="The sweep's progress line, 4 of 12 sources settled"><i></i></div>
+        <div class="kh">Toggles and the gear</div>
+        <div class="chips" style="gap:10px"><span class="tgi" title="Toggle the sidebar"><svg class="i" aria-hidden="true"><use href="#i-panelLeft"/></svg></span><span class="tgi" title="Toggle the right panel"><svg class="i" aria-hidden="true"><use href="#i-panelRight"/></svg></span><span class="tgi" title="Settings"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></span><span class="tgi" title="Settings · Readiness needs you"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg><span class="gd"></span></span></div>
+        <div class="kh">Sidebar: Find or ask, Today, Pinned</div>
+        <div class="pins"><div class="fa"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg>Find or ask<span class="kbd">⌘K</span></div><div class="it"><svg class="i" aria-hidden="true"><use href="#i-sun"/></svg><span class="lbl">Today</span><span class="pip">3</span></div><div class="gh"><svg class="i" aria-hidden="true"><use href="#i-chevD"/></svg>Pinned</div><div class="it on"><svg class="i" aria-hidden="true"><use href="#i-rows"/></svg><span class="lbl">Line</span></div><div class="it"><svg class="i" aria-hidden="true"><use href="#i-upstream"/></svg><span class="lbl">Upstream</span></div><div class="it"><svg class="i" aria-hidden="true"><use href="#i-server"/></svg><span class="lbl">Environment</span></div><div class="it"><svg class="i" aria-hidden="true"><use href="#i-layers"/></svg><span class="lbl">Engineering system</span></div><div class="it"><svg class="i" aria-hidden="true"><use href="#i-tag"/></svg><span class="lbl">Releases</span></div><div class="it"><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg><span class="lbl">Security</span></div><div class="it"><svg class="i" aria-hidden="true"><use href="#i-box"/></svg><span class="lbl">storage</span><span class="wd bad">stopped</span></div><div class="it hv"><svg class="i grip" aria-hidden="true"><use href="#i-grip"/></svg><svg class="i" aria-hidden="true"><use href="#i-box"/></svg><span class="lbl">indexer</span><span class="tgi sm" title="Unpin"><svg class="i" aria-hidden="true"><use href="#i-pinOff"/></svg></span></div><div class="fe"><span class="tgi" title="Settings"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></span></div></div>
         <div class="kh">Station tiles</div>
         <div class="stations" style="max-width:720px"><div class="st"><div class="k">Upstream</div><div class="w waiting">waiting</div><div class="x">6 behind</div></div><div class="st sel"><div class="k">Cascade</div><div class="w stopped">stopped</div><div class="x">conflict</div></div><div class="st"><div class="k">Sync to main</div><div class="w moving">moving</div><div class="x">run 12 min</div></div><div class="st"><div class="k">Release</div><div class="w">idle</div><div class="x">idle</div></div><div class="st"><div class="k">Stack lane</div><div class="w unknown">unknown</div><div class="x">not read yet</div></div></div>
         <div class="kh">Queue rows, a thread row, a pending artifact</div>
@@ -1039,17 +1193,17 @@ exit 0 · 38 s</div>
     <div class="tblwrap"><table class="tbl compact">
       <thead><tr><th style="width:17%">Component</th><th style="width:45%">Behavior</th><th>Built from</th></tr></thead>
       <tbody>
-        <tr><td><b>Sidebar row</b></td><td>A dot for attention, the name, a word or count. A thread row under its thing: title, branch or anchor word, status word with a dot. Threads carry a square marker.</td><td>Ports <code>Sidebar.tsx</code>, <code>sidebar/SidebarThreadRow.tsx</code>, <code>ThreadStatusIndicators.tsx</code>; copies <code>ui/sidebar.tsx</code></td></tr>
-        <tr><td><b>Sweep line</b></td><td>One sentence with a dot; opens the sweep's Evidence tab</td><td>Emulated; the dot follows <code>ConnectionStatusDot.tsx</code></td></tr>
-        <tr><td><b>Panel toggles</b></td><td>Sidebar, terminal, right panel, named</td><td>Copies <code>chat/PanelLayoutControls.tsx</code></td></tr>
+        <tr><td><b>Sidebar row</b></td><td>A line icon, the name, and for a pinned single thing a state word when it is read and not fine; Today carries its count. Hover shows a pin's grip and unpin; right-click gives Open, Move up, Move down, Unpin. A thread row under its thing: title, branch or anchor word, status word with a dot. Threads carry a square marker.</td><td>Ports <code>Sidebar.tsx</code>, <code>sidebar/SidebarThreadRow.tsx</code>, <code>ThreadStatusIndicators.tsx</code>; copies <code>ui/sidebar.tsx</code></td></tr>
+        <tr><td><b>Status capsule</b></td><td>Env, Templates and Forks, each a check, a toned count or word, or a dash when not read; Sync within 2 h of the next upstream sync; the sweep at the end with its icon and time, a spinner while it runs, and a popover of its sources with Sweep now and Evidence. Each segment opens the place that explains it and carries its sentence in its hover and accessible name</td><td>Emulated; the popover follows T3 Code's popover</td></tr>
+        <tr><td><b>Progress line</b></td><td>2 px under the top row across the window while a sweep runs, filled by sources settled over sources</td><td>Emulated</td></tr>
+        <tr><td><b>Panel toggles</b></td><td>Icon buttons with names: the sidebar's after the window controls, the right panel's at the end of the centre's part or of the panel's tabs</td><td>Copies <code>chat/PanelLayoutControls.tsx</code></td></tr>
         <tr><td><b>Toolbar</b></td><td>The place's name, a sub line, Detail, Ask, Add to chat, + Thread</td><td>Emulates <code>chat/ChatHeader.tsx</code></td></tr>
         <tr><td><b>Station tile</b></td><td>Label, state word, text; selectable; three per row when narrow</td><td>Emulated; data from the Watch contract</td></tr>
         <tr><td><b>Queue row</b></td><td>Priority written, scope chip, title, class word, sub line with the owning thread's marker, age</td><td>Emulates the rib console's focus rows</td></tr>
-        <tr><td><b>Slot</b></td><td>One fork's state in a row of slots, in six states told apart by shape as well as colour: empty, a hollow circle; occupied, a filled circle; done, a filled <code>accent</code> circle with a check; waiting, a filled <code>warning</code> triangle, drawn in <code>upstream</code> when the wait is upstream-origin; broken, a filled <code>error</code> diamond; ran with an effect core can't prove, a hollow circle with a dot. Its sentence from core is its hover and accessible name.</td><td>Emulated, after the strip's pip marks; the window design's slot grammar</td></tr>
+        <tr><td><b>Slot</b></td><td>One fork's state in a row of slots, in six states told apart by shape as well as colour: empty, a hollow circle; occupied, a filled circle; done, a filled <code>accent</code> circle with a check; waiting, a filled <code>warning</code> triangle, drawn in <code>upstream</code> when the wait is upstream-origin; broken, a filled <code>error</code> diamond; ran with an effect core can't prove, a hollow circle with a dot. Its sentence from core is its hover and accessible name.</td><td>Emulated; the window design's slot grammar</td></tr>
         <tr><td><b>Slot row</b></td><td>A label, one slot per fork in fork order, and a count of what the row is about ("12/13 ran ok"). Its legend lists only the states drawn on the page.</td><td>Emulated</td></tr>
         <tr><td><b>Line glyph</b></td><td>An item's place on the service line: sync PR → release/upstream PR → main → release. Passed stages are one solid segment; only the item's own station is a slot shape, so a filled circle never means "passed". A one-line legend shows the first time it appears.</td><td>Emulated</td></tr>
-        <tr><td><b>Mark</b></td><td>The strip's ✕ ! ◐ ○ for a place's highest tier, with the tier named in words on hover</td><td>Emulated</td></tr>
-        <tr><td><b>Upstream chip</b></td><td>⇣ and a count or label in <code>upstream</code> on its badge fill; it scrolls to or opens On the horizon</td><td>Emulated</td></tr>
+                <tr><td><b>Upstream chip</b></td><td>⇣ and a count or label in <code>upstream</code> on its badge fill; it scrolls to or opens On the horizon</td><td>Emulated</td></tr>
         <tr><td><b>Thread row</b> (page)</td><td>Status dot and word, title, kind, branch, last activity</td><td>Emulated from <code>SidebarThreadRow.tsx</code></td></tr>
         <tr><td><b>Pending artifact</b></td><td>A dashed line for a PR, run or issue a thread created that no sweep has read yet</td><td>Emulated</td></tr>
         <tr><td><b>Section header</b></td><td>Name, count or state word, one evidence line when a source is not fresh</td><td>Emulated</td></tr>
@@ -1064,15 +1218,16 @@ exit 0 · 38 s</div>
         <tr><td><b>Diff</b></td><td>Opens in the middle panel over the timeline from a changed file</td><td>Ports <code>DiffPanel.tsx</code></td></tr>
         <tr><td><b>Terminal drawer</b></td><td>Login shell in every thread; Approved commands in code threads</td><td>Ports <code>ThreadTerminalDrawer.tsx</code>; copies <code>ChatTerminalDrawers.tsx</code>, <code>ShellCommandBlock.tsx</code></td></tr>
         <tr><td><b>Palette</b></td><td>⌘K: grouped rows, keyboard model, the Ask row</td><td>Ports <code>CommandPalette.tsx</code></td></tr>
-        <tr><td><b>Sheet and off-canvas sidebar</b></td><td>Below 980 px; named toggles, focus moves in and returns</td><td>Ports the popover branch of <code>rightPanelLayout.ts</code>; copies the mobile branch of <code>ui/sidebar.tsx</code></td></tr>
+        <tr><td><b>Sheet and off-canvas sidebar</b></td><td>When the width budget runs out (window layout); the same named toggles, focus moves in and returns</td><td>Ports the popover branch of <code>rightPanelLayout.ts</code>; copies the mobile branch of <code>ui/sidebar.tsx</code></td></tr>
         <tr><td><b>Setup row</b></td><td>Tool, state, reason, at most one action</td><td>Readiness from <code>CodexInstallation.ts</code></td></tr>
+        <tr><td><b>Settings gear</b></td><td>The sidebar footer's only control; a <code>warning</code> dot when Readiness is known to need the operator. ⌘, opens the same dialog</td><td>Emulated</td></tr>
       </tbody>
     </table></div>
   </section>
 
   <section>
     <h2>Type and spacing</h2>
-    <p>SPI Code uses T3 Code's type scale and geometry tokens from <code>apps/web/src/index.css</code>, so copied components keep their proportions: the sans and mono stacks, 14 px and 12 px reading and row text, 11 px and 10 px metadata and labels, 0.5rem radius, the sidebar at 232 px, the drawer easing <code>cubic-bezier(0.32, 0.72, 0, 1)</code> with reduced motion turning it off. Icons come from <code>lucide-react</code>. Whether to bundle Inter Variable is open.</p>
+    <p>SPI Code uses T3 Code's type scale and geometry tokens from <code>apps/web/src/index.css</code>, so copied components keep their proportions: the sans and mono stacks, 14 px and 12 px reading and row text, 11 px and 10 px metadata and labels, 0.5rem radius, the sidebar at 232 px, the drawer easing <code>cubic-bezier(0.32, 0.72, 0, 1)</code> with reduced motion turning it off. Icons are the line set above, inlined; no icon package is bundled. Whether to bundle Inter Variable is open.</p>
   </section>
 
   <section>
@@ -1098,7 +1253,7 @@ exit 0 · 38 s</div>
       <div class="tblwrap"><table class="tbl compact">
         <thead><tr><th style="width:24%">Piece</th><th style="width:40%">Source</th><th style="width:11%">Action</th><th>Notes</th></tr></thead>
         <tbody>
-          <tr><td>Title bar options</td><td>T3 <code>apps/desktop/src/window/DesktopWindow.ts</code> <code>getWindowTitleBarOptions</code></td><td><span class="tag">Emulate</span></td><td>hiddenInset on macOS, overlay on Windows; 40 px</td></tr>
+          <tr><td>Title bar options</td><td>T3 <code>apps/desktop/src/window/DesktopWindow.ts</code> <code>getWindowTitleBarOptions</code></td><td><span class="tag">Emulate</span></td><td>hiddenInset on macOS, overlay on Windows; one 44 px row each pane owns its part of</td></tr>
           <tr><td>App layout and panel toggles</td><td>T3 <code>apps/web/src/components/AppSidebarLayout.tsx</code>, <code>chat/PanelLayoutControls.tsx</code></td><td><span class="tag">Emulate</span> / <span class="tag">Copy</span></td><td>Layout imports Effect</td></tr>
           <tr><td>Sidebar, thread rows, status</td><td>T3 <code>components/Sidebar.tsx</code>, <code>sidebar/SidebarThreadRow.tsx</code>, <code>ThreadStatusIndicators.tsx</code>, <code>ui/sidebar.tsx</code></td><td><span class="tag">Port</span> / <span class="tag">Copy</span></td><td>Projects become things; the Settled shelf and Working shelf logic ported</td></tr>
           <tr><td>Toolbar</td><td>T3 <code>chat/ChatHeader.tsx</code></td><td><span class="tag">Emulate</span></td><td></td></tr>
@@ -1112,10 +1267,10 @@ exit 0 · 38 s</div>
           <tr><td>Terminal drawer</td><td>T3 <code>components/ThreadTerminalDrawer.tsx</code>, <code>chat/ChatTerminalDrawers.tsx</code>, <code>chat/ShellCommandBlock.tsx</code>, <code>apps/server/src/terminal/NodePtyAdapter.ts</code></td><td><span class="tag">Port</span> / <span class="tag">Copy</span></td><td>Renderer is open</td></tr>
           <tr><td>Command palette</td><td>T3 <code>components/CommandPalette.tsx</code>, <code>CommandPaletteContent.tsx</code>, <code>CommandPaletteLookups.ts</code></td><td><span class="tag">Port</span></td><td>Imports Effect</td></tr>
           <tr><td>Open in editor</td><td>T3 <code>chat/OpenInPicker.tsx</code></td><td><span class="tag">Copy</span></td><td></td></tr>
-          <tr><td>Status dot</td><td>T3 <code>components/ConnectionStatusDot.tsx</code></td><td><span class="tag">Reference</span></td><td>The sweep line's dot</td></tr>
+          <tr><td>Status dot</td><td>T3 <code>components/ConnectionStatusDot.tsx</code></td><td><span class="tag">Reference</span></td><td>The gear's Readiness dot</td></tr>
           <tr><td>Provider status banner</td><td>T3 <code>chat/ProviderStatusBanner.tsx</code></td><td><span class="tag">Copy</span></td><td>For a lapsed Copilot sign-in</td></tr>
           <tr><td>First run</td><td>T3 <code>components/onboarding/FirstRunGate.tsx</code>, <code>WelcomeWizard.tsx</code></td><td><span class="tag">Emulate</span></td><td>Leads into Setup</td></tr>
-          <tr><td>Appearance setting</td><td>T3 <code>components/settings/AppearanceSettingsPanel.tsx</code></td><td><span class="tag">Port</span></td><td>Cut to System, Light, Dark</td></tr>
+          <tr><td>Appearance setting</td><td>T3 <code>components/settings/AppearanceSettingsPanel.tsx</code></td><td><span class="tag">Port</span></td><td>Cut to theme (System, Light, Dark) and palette (Neutral, Warm)</td></tr>
           <tr><td>Theme role model</td><td>T3 <code>packages/shared/src/themePalettes.ts</code></td><td><span class="tag">Emulate</span></td><td>Cut down; adds success and agent</td></tr>
           <tr><td>Type and geometry tokens</td><td>T3 <code>apps/web/src/index.css</code></td><td><span class="tag">Copy</span></td><td></td></tr>
           <tr><td>Shore values</td><td>Keelson <code>packages/shared/src/design-tokens.ts</code></td><td><span class="tag">Copy</span></td><td>Plus the light text variants in appendix B</td></tr>
