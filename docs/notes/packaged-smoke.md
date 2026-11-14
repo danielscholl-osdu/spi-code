@@ -148,3 +148,10 @@ block; feed the packaged app a morning whose Held lane names an Interrupt to see
 The supervision step pins services under the legacy `spi-code.sidebar.pins` key after
 start; the pins store reads that key live until its first write under the `.v2` key,
 so it must never persist the seed on read.
+After the captures, `smoke-contrast.ts` measures every visible text on Today (Nov 6, its sweep popover, the three
+mornings and the busy morning with ok-toned lines), Upstream, the Line sheet, both Detail forms and
+Settings' three sections at 1440 px, in Warm and Neutral, light and dark, at rest and with every
+`:hover` target in the style sheets forced through CDP. It composites each text's ancestors and
+fails under AA, on unmeasured text, and on a view that measured nothing of its own; the
+exclusions are listed in the file and counted in `views/contrast.json`. Text drawn over a
+non-ancestor background is unmeasured: hit testing skips `pointer-events: none` layers.

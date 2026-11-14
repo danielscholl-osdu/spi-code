@@ -35,7 +35,11 @@
 .today-place-figure[data-tone="warn"] { color: var(--warning-text); }
 .today-place-figure[data-tone="ok"] { color: var(--success-text); }
 .today-place[data-unread] .today-place-figure { color: var(--text-muted); }
-.today-place[data-unread] [data-visual] { opacity: .6; }
+.today-place[data-unread] [data-visual] { color: var(--text-muted); }
+.today-place[data-unread] [data-visual] .kit-chip { border-color: var(--border); background: var(--surface); color: var(--text-muted); }
+.today-place[data-unread] [data-visual] :is(.kit-segment, .kit-cell--filled) { border-color: var(--placeholder-fill); background: var(--placeholder-fill); }
+.today-place[data-unread] [data-visual] .kit-slot { color: var(--placeholder-fill); }
+.today-place[data-unread] [data-visual] meter::-webkit-meter-optimum-value { background: var(--placeholder-fill); }
 .today-place-chips { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; margin-bottom: 10px; }
 .today-place-reason { min-width: 0; }
 .today-place-reason .kit-chip { white-space: normal; }

@@ -20,7 +20,10 @@ function leaks(file: string, source: string): boolean {
     if (!/var\(--upstream/.test(body)) continue;
     if (file === "views/today/horizon.css" && /^\s*\.(today-horizon|horizon-)/.test(selector))
       continue;
-    if (file === "components/capsule/capsule.css" && /^\s*\.capsule-(up|sync)\s*$/.test(selector))
+    if (
+      file === "components/capsule/capsule.css" &&
+      /^\s*\.capsule-(up|sync|seg\[data-field="next-sync"\]:hover)\s*$/.test(selector)
+    )
       continue;
     if (
       file === "components/kit/kit.css" &&
@@ -42,6 +45,19 @@ it("reserves upstream tokens and ⇣ for the horizon, upstream chips, upstream-o
   expect(leaks("views/security/index.tsx", "<span>⇣ upstream-owned</span>")).toBe(true);
   expect(leaks("views/line/index.tsx", "<span>{INBOUND_GLYPH}</span>")).toBe(true);
   expect(leaks("views/today/Places.tsx", "<span>⇣ upstream-owned</span>")).toBe(true);
+  for (const selector of [
+    ".capsule-seg:hover",
+    '.capsule-seg[data-field="next-sync"]',
+    '.capsule-seg[data-field="forks"]:hover',
+    ".capsule-pill",
+  ])
+    expect(
+      leaks(
+        "components/capsule/capsule.css",
+        `${selector} { background: var(--upstream-surface); }`,
+      ),
+      selector,
+    ).toBe(true);
   const kit = readFileSync(`${src}/components/kit/Slot.tsx`, "utf8");
   expect(kit).toContain('state === "waiting" && origin === "upstream"');
 });
