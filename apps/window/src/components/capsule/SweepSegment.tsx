@@ -17,7 +17,8 @@ import { shortWhen, sourceState, sweepFill, sweepSegment } from "./sweep.js";
 const plural = (n: number) => (n === 1 ? "source" : "sources");
 
 function SweepPopover({ now, onClose }: { now: number; onClose(): void }) {
-  const { snapshot, progress, sweep, sweepRequest, setup } = useStore(watchStore);
+  const { snapshot, progress, sweep, sweepRequest, sweepRequestError, setup } =
+    useStore(watchStore);
   const body = snapshot?.body ?? null;
   const live = progress?.outcome === "running" ? progress : null;
   const states = body
@@ -75,6 +76,11 @@ function SweepPopover({ now, onClose }: { now: number; onClose(): void }) {
           <dd data-next="sync">{nextSync ?? "not read yet"}</dd>
         </div>
       </dl>
+      {sweepRequestError && (
+        <p role="alert" className="capsule-pop-alert">
+          {sweepRequestError}
+        </p>
+      )}
       <div className="capsule-pop-foot">
         <button
           type="button"

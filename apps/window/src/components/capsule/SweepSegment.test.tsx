@@ -132,21 +132,48 @@ it("shows the sweep time with no count, lists its sources, and opens the sweep E
   expect(container.querySelector('#app-right-panel [data-evidence="sweep"]')).not.toBeNull();
 });
 
-it("sends Settings' Sweep now request from the popover, and reads Sweeping while one runs", async () => {
-  await mount();
-  await receive("setup.state", { tools: [], watchReady: true, disabledReason: null });
-  await receive("sweep.status", sweepStatus());
-  await openPopover();
-  const now = () => popover()?.querySelector<HTMLButtonElement>(".capsule-sweep-now");
-  expect(now()?.disabled).toBe(false);
-  await act(async () => now()?.click());
-  expect(window.spi.postMessage).toHaveBeenCalledWith(
-    expect.objectContaining({ type: "sweep.request", payload: { now: true } }),
-  );
-  await receive("sweep.progress", midSweep({ first: false, sweep: "sweep-2" }));
-  expect(now()?.disabled).toBe(true);
-  expect(now()?.textContent).toBe("Sweeping");
-});
+it.each([
+  ["a failed send", "Could not send the sweep request. Try again."],
+  ["a host refusal", "Could not request a sweep. Try again."],
+] as const)(
+  "sends Settings' Sweep now request from the popover, alerts safely on %s, and reads Sweeping while one runs",
+  async (failure, alert) => {
+    await mount();
+    await receive("setup.state", { tools: [], watchReady: true, disabledReason: null });
+    await receive("sweep.status", sweepStatus());
+    await openPopover();
+    const now = () => popover()?.querySelector<HTMLButtonElement>(".capsule-sweep-now");
+    const shown = () => popover()?.querySelector('[role="alert"]')?.textContent ?? null;
+    const sent = expect.objectContaining({ type: "sweep.request", payload: { now: true } });
+    if (failure === "a failed send")
+      harness.spi.postMessage.mockImplementationOnce(() => {
+        throw new Error("ipc channel closed");
+      });
+    expect(now()?.disabled).toBe(false);
+    await act(async () => now()?.click());
+    expect(harness.spi.postMessage).toHaveBeenCalledWith(sent);
+    if (failure === "a host refusal")
+      await act(async () =>
+        watchStore.getState().receive({
+          version: PROTOCOL_VERSION,
+          id: watchStore.getState().sweepRequest?.id,
+          kind: "response",
+          type: "error",
+          payload: { code: "host_failed", message: "ghp_FixtureSecret" },
+        }),
+      );
+    expect(shown()).toBe(alert);
+    expect(now()?.disabled).toBe(false);
+    await act(async () => now()?.click());
+    expect(shown()).toBeNull();
+    expect(
+      harness.spi.postMessage.mock.calls.filter(([message]) => sent.asymmetricMatch(message)),
+    ).toHaveLength(2);
+    await receive("sweep.progress", midSweep({ first: false, sweep: "sweep-2" }));
+    expect(now()?.disabled).toBe(true);
+    expect(now()?.textContent).toBe("Sweeping");
+  },
+);
 
 it("spins the first sweep's icon over its progress line, keeps its count in the name, and scrolls the list into view", async () => {
   const scrolled: Element[] = [];
