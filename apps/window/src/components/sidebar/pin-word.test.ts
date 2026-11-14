@@ -36,14 +36,16 @@ it("gives no word when a line station is unread, even beside a stopped one", () 
   expect(pinWord(unread, "partition")).toEqual({ text: "waiting", tone: "warn" });
 });
 
-it("ignores the stack lane, which neither stops nor reads a line", () => {
+it("ignores the stack lane, which neither stops nor leaves a line unread", () => {
   const lane = structuredClone(body);
-  const crs = lane.stations.find(({ service }) => service === "crs-catalog");
-  const last = crs?.stations[5];
-  if (!last) throw new Error("Recorded stations required");
-  last.substate = "stopped";
-  last.state = "unknown";
+  const crs = lane.stations.find(({ service }) => service === "crs-catalog")?.stations[5];
+  const entitlements = lane.stations.find(({ service }) => service === "entitlements")?.stations[5];
+  if (!crs || !entitlements) throw new Error("Recorded stations required");
+  crs.substate = "stopped";
+  crs.state = "stopped";
+  entitlements.state = "unknown";
   expect(pinWord(lane, "crs-catalog")).toBeUndefined();
+  expect(pinWord(lane, "entitlements")).toEqual({ text: "stopped", tone: "bad" });
 });
 
 it("gives no word without a snapshot, without station data, or for a service it does not name", () => {

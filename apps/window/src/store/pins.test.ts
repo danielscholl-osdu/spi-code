@@ -25,7 +25,7 @@ const SEED = [
 
 beforeEach(() => localStorage.clear());
 afterEach(() => {
-  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   localStorage.clear();
 });
 
@@ -41,6 +41,7 @@ it("seeds Line and the five places in order when nothing is stored", async () =>
 });
 
 it("keeps the legacy service pins after the seed, once", async () => {
+  expect(readPins()).toEqual(SEED);
   localStorage.setItem(LEGACY_PINS_STORAGE_KEY, JSON.stringify(["legal", "schema", "legal"]));
   expect(readPins()).toEqual([...SEED, "legal", "schema"]);
   pin("file");
@@ -84,12 +85,10 @@ it.each([
 });
 
 it("falls back to the seed when storage cannot be read, and holds writes for the window", () => {
-  vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+  const denied = () => {
     throw new Error("denied");
-  });
-  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-    throw new Error("denied");
-  });
+  };
+  vi.stubGlobal("localStorage", { getItem: denied, setItem: denied });
   expect(readPins()).toEqual(SEED);
   unpin("place:security");
   expect(readPins()).toEqual(SEED.slice(0, 5));

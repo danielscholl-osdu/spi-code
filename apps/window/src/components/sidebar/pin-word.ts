@@ -14,7 +14,7 @@ export function pinWord(snapshot: ViewSnapshot | undefined, service: string): Pi
     snapshot?.stations
       .find((row) => row.service === service)
       ?.stations.filter(({ id }) => id !== "lane") ?? [];
-  if (line.length === 0 || line.some(({ state }) => state === "unknown")) return undefined;
+  if (line.some(({ state }) => state === "unknown")) return undefined;
   if (line.some(({ substate }) => substate === "stopped")) return { text: "stopped", tone: "bad" };
   if (line.some(({ substate }) => substate === "waiting-on-person"))
     return { text: "waiting", tone: "warn" };
