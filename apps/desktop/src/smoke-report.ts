@@ -157,11 +157,11 @@ export const VIEW_SURFACES = [
   },
   {
     id: "strip-20",
-    name: "Top row / 20 services",
+    name: "Line pin / 20 services",
     route: "today",
     place: "Today",
     selector: '[data-sidebar-row=line][data-services="20"]',
-    designSection: "Layout / Top row at 740 px on Windows, 20 services",
+    designSection: "Layout / Top row: Where the capsule sits, at 740 px; Status on the pins",
     qualified: true,
   },
   {

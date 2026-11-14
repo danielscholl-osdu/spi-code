@@ -25,6 +25,7 @@ import { ProgramSidebar } from "./ProgramSidebar.js";
 import { SidebarProvider } from "./ui-sidebar.js";
 
 const recorded = watchFixtureText("snapshot-59d6895.json", readFixture);
+const acknowledgedText = watchFixtureText("snapshot-1106-acknowledged.json", readFixture);
 
 let container: HTMLDivElement;
 let root: Root;
@@ -487,6 +488,26 @@ it("puts each status field's sentence in its row's hover and description, a fine
     expect(sentence("upstream")).toMatch(/^Next upstream sync .+ \(in .+\)\.$/);
     expect(row("line")?.getAttribute("data-services")).toBe(String(currentBody.stations.length));
     expect(sentence("releases")).toBeNull();
+  }));
+
+it("keeps the Line pin's stopped count and Today's count once the Interrupt is acknowledged", () =>
+  nov6Evening(async () => {
+    const unacknowledged = structuredClone(currentBody);
+    const interrupt = unacknowledged.briefing.focus[0];
+    if (!interrupt) throw new Error("Recorded Interrupt missing");
+    unacknowledged.seen = { cursor: null, since: [interrupt.id] };
+    const { store } = await render(undefined, undefined, unacknowledged, vi.fn());
+    const line = () => marks().find(([key]) => key === "line");
+    const pip = () => row("today")?.querySelector(".sidebar-pip")?.textContent;
+    expect(line()).toEqual(["line", "count", "error", "1"]);
+    expect(pip()).toBe("1");
+    const acknowledged = ViewSnapshotSchema.parse(JSON.parse(acknowledgedText));
+    expect(acknowledged.seen).toMatchObject({ cursor: currentBody.cursor, since: [] });
+    await act(async () =>
+      store.setState({ snapshot: { cursor: acknowledged.cursor, body: acknowledged } }),
+    );
+    expect(line()).toEqual(["line", "count", "error", "1"]);
+    expect(pip()).toBe("1");
   }));
 
 it("keeps Cmd+L on the Line row", async () => {

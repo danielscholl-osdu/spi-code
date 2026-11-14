@@ -1417,7 +1417,8 @@ export async function captureSmokeViews(
 <h1>Packaged Watch views</h1><p>Nov 6 projection: ${snapshot.sweptAt}. Content bounds: 1440, 900 and 740 x 800.
 Appearance pinned in the app. Fixture clock: Nov 6, 09:04 America/Chicago, except scheduled
 Sweep surfaces: idle and not-ready at 08:04, sweeping at 08:08, saved-with-failure at 09:04.
-Setup sign-ins are intercepted fixtures, never live authentication. Related and 20-service probes vary the projection.
+Setup sign-ins are intercepted fixtures, never live authentication. Related and 20-service probes vary the projection;
+the 20-service probe reads its count from the Line pin and holds the top row and its drag span at 740 px.
 First-sweep surfaces inject schema-valid sweep.progress messages through the same smoke-only preload channel as
 view.snapshot and setup.state. This screenshot phase precedes host startup, so it cannot feed the real host progress path;
 the persisted-snapshot and supervision host proof runs separately, after these fixtures are removed.

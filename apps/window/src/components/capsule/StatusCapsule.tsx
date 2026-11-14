@@ -6,7 +6,7 @@ import "./capsule.css";
 
 export function StatusCapsule() {
   return (
-    <fieldset className="capsule" aria-label="Program status" data-strip="">
+    <fieldset className="capsule" aria-label="Sweep" data-strip="">
       <SweepSegment />
       <SweepProgressLine />
     </fieldset>

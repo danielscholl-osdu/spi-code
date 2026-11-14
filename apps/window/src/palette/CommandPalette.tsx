@@ -66,6 +66,7 @@ function PinControl({ pin: id, state }: { pin: string; state: PinState }) {
       title={PIN_TITLE[state]}
       onClick={(event) => {
         event.stopPropagation();
+        if (state === "always") return;
         togglePin(id);
       }}
     >
