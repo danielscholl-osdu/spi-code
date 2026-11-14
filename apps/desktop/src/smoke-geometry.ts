@@ -59,6 +59,8 @@ export type SmokeGeometry =
       clear: SmokeRect;
       viewport: SmokeRect;
       centre: SmokeRect;
+      /** Where the centre's part ends, inside its end padding. */
+      centreEnd: number;
       capsule: SmokeRect;
       detailSheet: boolean;
       regions: SmokeAppRegion[];
@@ -77,6 +79,9 @@ export interface SmokeAppRegion {
   appRegion: "drag" | "no-drag";
   rect: SmokeRect;
 }
+
+/** The `.centre-row` column gap in apps/window/src/style.css. */
+const CENTRE_ROW_GAP = 8;
 
 function record(value: unknown): asserts value is Record<string, unknown> {
   assert(value !== null && typeof value === "object", "Missing geometry");
@@ -400,15 +405,11 @@ export function assertSmokeGeometry(
       rect(value.clear);
       rect(value.viewport);
       rect(value.centre);
+      assert(
+        typeof value.centreEnd === "number" && Number.isFinite(value.centreEnd),
+        "Centre end missing",
+      );
       rect(value.capsule);
-      if (value.centre.width >= 1000) {
-        const capsule = value.capsule.x + value.capsule.width / 2;
-        const header = value.centre.x + value.centre.width / 2;
-        assert(
-          Math.abs(capsule - header) <= 1,
-          `Capsule midpoint ${capsule} is not the centre header's ${header}`,
-        );
-      }
       aligned(value.clear.y, 0, "Top row top");
       aligned(value.clear.height, 44, "Top row height");
       if (value.controls === "overlay")
@@ -423,6 +424,7 @@ export function assertSmokeGeometry(
       }
       assert(Array.isArray(value.targets), "Drag targets missing");
       const labels: string[] = [];
+      let panelToggle: SmokeRect | undefined;
       for (const target of value.targets) {
         record(target);
         rect(target.rect);
@@ -435,6 +437,8 @@ export function assertSmokeGeometry(
         );
         assert(!inDragShape(value.regions, target.rect), `${at} lies in a drag rectangle`);
         labels.push(String(target.label));
+        if (target.label === "Toggle right panel" && contains(value.centre, target.rect))
+          panelToggle = target.rect;
       }
       assert.equal(
         labels.filter((label) => label === "Toggle sidebar").length,
@@ -445,6 +449,12 @@ export function assertSmokeGeometry(
         labels.filter((label) => label === "Toggle right panel" || label === "Close detail").length,
         value.detailSheet ? 0 : 1,
         "Top row needs one right-panel toggle",
+      );
+      const capsuleEnd = value.capsule.x + value.capsule.width;
+      const endPosition = (panelToggle ? panelToggle.x : value.centreEnd) - CENTRE_ROW_GAP;
+      assert(
+        Math.abs(capsuleEnd - endPosition) <= 1,
+        `Capsule end ${capsuleEnd} is not its end position ${endPosition}`,
       );
       const left = Math.max(value.centre.x, value.clear.x);
       const right = Math.min(

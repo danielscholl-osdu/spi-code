@@ -368,9 +368,8 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
 .ctop{grid-row:1;position:relative;display:flex;align-items:center;gap:6px;padding:0 8px 0 12px;border-bottom:1px solid var(--border);background:var(--surface);white-space:nowrap;min-width:0}
 .ctop .nm{font-weight:600;color:var(--strong);font-size:11.5px}
 .ctop .chip,.ctop .pinb{color:var(--muted)}
-.ctop .grow{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:6px;overflow:hidden}
-.ctop .end{flex:1 1 0;display:flex;justify-content:flex-end;color:var(--muted)}
-.ctop.yield .grow{flex:1 1 auto} .ctop.yield .end{flex:none}
+.ctop .grow{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:6px;overflow:hidden}
+.ctop .end{flex:none;display:flex;justify-content:flex-end;color:var(--muted)}
 .rp .tabs .tg{margin-left:auto;color:var(--strong);background:var(--raised);border-radius:4px;width:18px;height:18px;display:grid;place-items:center}
 .win.shell .rp .tabs{height:31px}
 .win.shell .rp .tabs .on{border-bottom:none;padding:1px 6px;border-radius:4px;background:var(--surface);box-shadow:0 0 0 1px var(--border)}
@@ -383,9 +382,8 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
 .prog i{display:block;height:2px;background:var(--accent)}
 .rowstudy .shellrow{position:relative;height:44px;display:flex;align-items:center;gap:8px;padding:0 10px 0 16px;background:var(--surface);border-bottom:1px solid var(--border);white-space:nowrap;color:var(--muted)}
 .rowstudy .shellrow .nm{font-weight:600;color:var(--strong);font-size:14px}
-.rowstudy .shellrow .grow{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:8px;overflow:hidden}
-.rowstudy .shellrow .end{flex:1 1 0;display:flex;justify-content:flex-end}
-.rowstudy .shellrow.yield .grow{flex:1 1 auto} .rowstudy .shellrow.yield .end{flex:none}
+.rowstudy .shellrow .grow{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:8px;overflow:hidden}
+.rowstudy .shellrow .end{flex:none;display:flex;justify-content:flex-end}
 .rowstudy .shellrow .pinb{border:1px solid var(--border);border-radius:6px;padding:1px 8px;color:var(--muted);font-size:12px}
 .rowstudy .cap{height:30px;font-size:12.5px;border-radius:9px;padding:0 3px}
 .rowstudy .cap .sg{gap:6px;padding:0 8px}
@@ -502,7 +500,7 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
             <div class="row on"><span class="ic"><svg class="i"><use href="#i-box"/></svg>indexer</span></div>
             <div class="gear"><span class="gd calm"><svg class="i"><use href="#i-gear"/></svg></span></div>
           </div>
-          <div class="ctop yield">
+          <div class="ctop">
             <div class="grow"><span class="nm">indexer</span><span class="chip">Upstream sync · toolchain move · pilot decides</span><span class="pinb">Unpin</span></div>
             <span class="cap"><span class="sg sw bad"><svg class="i"><use href="#i-alert"/></svg>08:58</span></span>
             <div class="end"></div>
@@ -594,14 +592,14 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
     </div>
     <p>The capsule holds one segment, the sweep (PS-18, EV-03). The program's states are not in the top row: they are marks on the pins that explain them, in the sidebar (see <a href="#pins">Status on the pins</a>). Appearance is in Settings, and the stopped names are in the Line pin's hover and on the Line sheet. The row has no field for the lane's holder or the count of waiting cards in this design; spicode-cp0.1 decides their home.</p>
 
-    <p class="shot-cap">At 1280 px, Today on a calm morning · the centre is over 1000 px, so the capsule is centred</p>
+    <p class="shot-cap">At 1280 px, Today on a calm morning · the capsule sits at the end, before the right-panel toggle, and the title and its date take the room before it</p>
     <div class="shot"><div class="rowstudy">
       <div class="shellrow"><span class="sbpart"><span class="lights"><i></i><i></i><i></i></span><svg class="i"><use href="#i-panelLeft"/></svg></span><span class="grow"><span class="nm">Today</span><span>Wednesday 11 Nov</span></span><span class="cap"><span class="sg sw"><svg class="i"><use href="#i-refresh"/></svg>08:58</span></span><span class="end"><svg class="i"><use href="#i-panelRight"/></svg></span></div>
     </div></div>
 
-    <p class="shot-cap">At 1280 px with Detail open, a bad morning · the centre is under 800 px, so the capsule yields to the title and Pin hides</p>
+    <p class="shot-cap">At 1280 px with Detail open, a bad morning · the centre is under 800 px, so Pin hides; the capsule stays at the end of the centre's part, against the panel</p>
     <div class="shot"><div class="rowstudy">
-      <div class="shellrow yield"><span class="sbpart"><span class="lights"><i></i><i></i><i></i></span><svg class="i"><use href="#i-panelLeft"/></svg></span><span class="grow"><span class="nm">storage</span></span><span class="cap"><span class="sg sw bad"><svg class="i"><use href="#i-alert"/></svg>08:58</span></span><span class="rppart"><b style="color:var(--strong)">Detail</b><span>Evidence</span><span style="flex:1"></span><svg class="i"><use href="#i-panelRight"/></svg></span></div>
+      <div class="shellrow"><span class="sbpart"><span class="lights"><i></i><i></i><i></i></span><svg class="i"><use href="#i-panelLeft"/></svg></span><span class="grow"><span class="nm">storage</span></span><span class="cap"><span class="sg sw bad"><svg class="i"><use href="#i-alert"/></svg>08:58</span></span><span class="rppart"><b style="color:var(--strong)">Detail</b><span>Evidence</span><span style="flex:1"></span><svg class="i"><use href="#i-panelRight"/></svg></span></div>
     </div></div>
 
     <p class="shot-cap">At 1280 px on Environment, a later sweep running · Environment is always pinned, so its header has no Unpin; the progress line runs under the whole row</p>
@@ -611,7 +609,7 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
 
     <p class="shot-cap">At 740 px on Windows, two forks stopped · the sidebar is off-canvas, so its toggle starts the centre's part and carries the red dot; the capsule sits at the end beside the panel toggle, clear of the caption buttons</p>
     <div class="shot"><div class="rowstudy w740">
-      <div class="shellrow yield" style="padding-left:14px"><span class="tdot" title="Show the sidebar · something needs you"><svg class="i"><use href="#i-panelLeft"/></svg></span><span class="grow"><span class="nm">Upstream</span></span><span class="cap"><span class="sg sw"><svg class="i"><use href="#i-refresh"/></svg>08:58</span></span><svg class="i"><use href="#i-panelRight"/></svg><span class="caps"><i>—</i><i>▢</i><i>✕</i></span></div>
+      <div class="shellrow" style="padding-left:14px"><span class="tdot" title="Show the sidebar · something needs you"><svg class="i"><use href="#i-panelLeft"/></svg></span><span class="grow"><span class="nm">Upstream</span></span><span class="cap"><span class="sg sw"><svg class="i"><use href="#i-refresh"/></svg>08:58</span></span><svg class="i"><use href="#i-panelRight"/></svg><span class="caps"><i>—</i><i>▢</i><i>✕</i></span></div>
     </div></div>
 
     <h3>Where the capsule sits</h3>
@@ -619,8 +617,7 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
       <table class="tbl compact">
         <thead><tr><th>When the centre's part is</th><th>What gives</th></tr></thead>
         <tbody>
-          <tr><td>1000 px or wider</td><td>The capsule is centred in the centre's part, with the title and its chips at the start.</td></tr>
-          <tr><td>Under 1000 px</td><td>The capsule moves to the end, before the right-panel toggle when there is one, and the title takes the room before it.</td></tr>
+          <tr><td>Any width</td><td>The capsule sits at the end: before the right-panel toggle while the panel is closed, else at the part's end, on Windows clear of the caption buttons. The title and its chips take the room before it. No width moves the capsule.</td></tr>
           <tr><td>Under 800 px</td><td>The title's chips and Pin hide, and the title shortens with an ellipsis.</td></tr>
           <tr><td>At 740 px, the narrowest window</td><td>Everything stays on one row with at least 48 px of it left free as a window drag area. The capsule never wraps.</td></tr>
         </tbody>
@@ -735,7 +732,7 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
     <p>While the sidebar is hidden or off-canvas its marks are out of sight, so its toggle carries one dot: red when Today's count is above 0 or any mark is red, otherwise amber when any mark is amber, otherwise none, also when nothing has been read. A collapsed Pinned group's header carries the same dot for its rows' marks. The dot follows the marks and Today's count; it is not a count of its own.</p>
     <p class="shot-cap">At 740 px, Today with 1 Interrupt · the toggle carries the red dot</p>
     <div class="shot"><div class="rowstudy w740">
-          <div class="shellrow yield"><span class="lights"><i></i><i></i><i></i></span><span class="tdot" title="Show the sidebar · something needs you"><svg class="i"><use href="#i-panelLeft"/></svg></span><span class="grow"><span class="nm">Today</span><span>Friday 6 Nov</span></span><span class="cap"><span class="sg sw bad"><svg class="i"><use href="#i-alert"/></svg>08:02</span></span><svg class="i"><use href="#i-panelRight"/></svg></div>
+          <div class="shellrow"><span class="lights"><i></i><i></i><i></i></span><span class="tdot" title="Show the sidebar · something needs you"><svg class="i"><use href="#i-panelLeft"/></svg></span><span class="grow"><span class="nm">Today</span><span>Friday 6 Nov</span></span><span class="cap"><span class="sg sw bad"><svg class="i"><use href="#i-alert"/></svg>08:02</span></span><svg class="i"><use href="#i-panelRight"/></svg></div>
         </div></div>
     <div class="pinset">
       <figure>
@@ -1171,7 +1168,7 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
         <div class="shot" style="margin-top:8px">
           <div class="winwrap w740" style="padding-top:0">
             <div class="win shell nodetail fsw w740" role="img" aria-label="First launch at 740 px: the sidebar is off-canvas, so its toggle starts the top row, with no dot because nothing has been read; the capsule shows First sweep with a spinner, over the progress line; each source shows its outcome under its name; the failed Upstream GitLab row gives its reason on its own line with Open Settings; the closing line says the window can be closed.">
-              <div class="ctop yield"><span class="lights"><i></i><i></i><i></i></span><svg class="i"><use href="#i-panelLeft"/></svg><div class="grow"><span class="nm">Today</span></div><span class="cap"><span class="sg sw run"><svg class="i"><use href="#i-loader"/></svg>First sweep</span></span><svg class="i"><use href="#i-panelRight"/></svg><span class="prog"><i style="width:75%"></i></span></div>
+              <div class="ctop"><span class="lights"><i></i><i></i><i></i></span><svg class="i"><use href="#i-panelLeft"/></svg><div class="grow"><span class="nm">Today</span></div><span class="cap"><span class="sg sw run"><svg class="i"><use href="#i-loader"/></svg>First sweep</span></span><svg class="i"><use href="#i-panelRight"/></svg><span class="prog"><i style="width:75%"></i></span></div>
               <div class="mid">
                                 <div class="body">
                   <div class="fs-lead">First sweep is reading the program.</div>
@@ -1206,7 +1203,7 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
         <div class="shot" style="margin-top:8px">
           <div class="winwrap w740" style="padding-top:0">
             <div class="win shell nodetail fsw w740" role="img" aria-label="The first sweep stopped: the capsule shows First sweep stopped with a red alert icon. Today keeps the twelve rows under the heading The first sweep stopped, says it stopped while reading Workflow runs because GitHub did not answer in time, names the next attempt, and offers only Try again.">
-              <div class="ctop yield"><span class="lights"><i></i><i></i><i></i></span><svg class="i"><use href="#i-panelLeft"/></svg><div class="grow"><span class="nm">Today</span></div><span class="cap"><span class="sg sw bad"><svg class="i"><use href="#i-alert"/></svg>First sweep stopped</span></span><svg class="i"><use href="#i-panelRight"/></svg></div>
+              <div class="ctop"><span class="lights"><i></i><i></i><i></i></span><svg class="i"><use href="#i-panelLeft"/></svg><div class="grow"><span class="nm">Today</span></div><span class="cap"><span class="sg sw bad"><svg class="i"><use href="#i-alert"/></svg>First sweep stopped</span></span><svg class="i"><use href="#i-panelRight"/></svg></div>
               <div class="mid">
                                 <div class="body">
                   <div class="fs-lead">The first sweep stopped.</div>

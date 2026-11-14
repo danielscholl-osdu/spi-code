@@ -33,14 +33,15 @@ start at the window top, each header is 44 px across its pane's interior, and th
 rules under them are 1 px on one line. Every top-row target sits on the row, outside
 the drag shape and inside the titlebar area Windows reports beside its caption
 buttons; there is exactly one sidebar toggle and one right-panel toggle (none while
-Detail is a sheet), the centre keeps a contiguous 48 px drag span, and while the
-centre is at least 1000 px wide the capsule's midpoint is within 1 px of its header's. Only the
+Detail is a sheet), the centre keeps a contiguous 48 px drag span, and at every width the
+capsule ends within 1 px of its end position: the row's 8 px gap before the right-panel
+toggle in the centre, or before the centre's end padding when the toggle is not there. Only the
 Related and 20-service probes vary the projection; hand-made rect mutations exercise
 each failure rule in unit tests. The existing smoke artifact uploads all evidence on
 both platforms. Once per packaged run, in light, the renderer breaks four rules for
 real (a Related value squeezed to 159 px, the Detail header 4 px low at 1440, the
-centre's no-drag hole under the sidebar toggle removed at 740, and 96 px of leading
-padding outside the centre's equal columns with the sidebar hidden at 1440), records each expected
+centre's no-drag hole under the sidebar toggle removed at 740, and the centre's row given
+back its two equal side columns, centring the capsule, with the sidebar hidden at 1440), records each expected
 rejection in `rejectedGeometry`, then restores and re-measures before capturing.
 Missing rejection evidence fails.
 The fixture clock, pane preferences and sign-in interception

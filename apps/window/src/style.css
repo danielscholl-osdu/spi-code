@@ -31,8 +31,8 @@ body { margin: 0; background: var(--surface); color: var(--text); font: 14px/1.5
 .middle-frame { display: flex; flex-direction: column; grid-column: 2; grid-row: 1 / -1; padding: 0; overflow: hidden; min-width: 0; min-height: 0; background: var(--surface); }
 .shell[data-line-presentation="stacked"] .middle-frame { grid-row: 1 / 3; }
 .centre-bar { padding: 0; background: var(--surface); container-type: inline-size; }
-.centre-row { position: relative; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; width: 100%; height: 100%; white-space: nowrap; font-size: 13px; }
-/* Padding and the toggle's room sit inside the two equal side columns, so the capsule centres on the whole header. */
+.centre-row { position: relative; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; width: 100%; height: 100%; white-space: nowrap; font-size: 13px; }
+/* The toggle's room sits in the title's padding, not in a column of its own. */
 .centre-row > .toggle-room { position: absolute; top: 0; bottom: 0; left: var(--toggle-x); }
 .centre-title { min-width: 0; display: flex; align-items: center; gap: 8px; overflow: hidden; padding-left: 16px; }
 .toggle-room + .centre-title { padding-left: calc(var(--toggle-x) + 36px); }
@@ -43,10 +43,6 @@ body { margin: 0; background: var(--surface); color: var(--text); font: 14px/1.5
 .centre-title button:hover { background: var(--hover); color: var(--text); }
 .window-strip { display: flex; align-items: center; }
 .centre-end { min-width: 0; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; }
-/* The capsule stays centred while the centre is 1000 px wide, then moves to the end and gives the title its room. */
-@container (width < 1000px) {
-  .centre-row { grid-template-columns: minmax(0, 1fr) auto auto; }
-}
 @container (width < 800px) {
   .centre-title > :not(h1) { display: none; }
 }

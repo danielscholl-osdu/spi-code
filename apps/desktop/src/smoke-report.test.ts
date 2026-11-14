@@ -334,7 +334,8 @@ function geometry(surface: string, width: number): SmokeGeometry[] {
           clear: rect(0, 0, width, 44),
           viewport: rect(0, 0, width, 800),
           centre: rect(0, 0, width, 44),
-          capsule: rect(width / 2 - 240, 8, 480, 28),
+          centreEnd: width - 12,
+          capsule: rect(width - 168, 8, 120, 28),
           detailSheet: false,
           regions: [
             { appRegion: "drag", rect: rect(0, 0, width, 44) },
@@ -355,7 +356,7 @@ const rejected: Record<string, string> = {
   "detail-related/1440": "Related value squeezed to 159 px",
   "panes/1440": "Header top: 4 != 0",
   "strip-20/740": "Toggle sidebar at 76,8 28x28 lies in a drag rectangle",
-  "sidebar-hidden/1440": "Capsule midpoint 768 is not the centre header's 720",
+  "sidebar-hidden/1440": "Capsule end 780 is not its end position 1392",
 };
 
 const morningBlocks: Record<MorningSurface["morning"], MorningEvidence["blocks"]> = {

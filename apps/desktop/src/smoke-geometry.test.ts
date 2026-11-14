@@ -111,7 +111,7 @@ const settings: SmokeGeometry = {
   dialog: rect(24, 120, 692, 560),
 };
 const sidebarToggle = { label: "Toggle sidebar", rect: rect(76, 8, 28, 28) };
-const capsule = { label: "Line", rect: rect(400, 8, 240, 28) };
+const capsule = { label: "Line", rect: rect(542, 8, 240, 28) };
 const closeDetail = { label: "Close detail", rect: rect(1260, 8, 28, 28) };
 const drag: SmokeGeometry = {
   rule: "drag",
@@ -120,6 +120,7 @@ const drag: SmokeGeometry = {
   clear: rect(0, 0, 1302, 44),
   viewport: rect(0, 0, 1440, 800),
   centre: rect(232, 0, 568, 44),
+  centreEnd: 790,
   capsule: capsule.rect,
   detailSheet: false,
   regions: [
@@ -391,7 +392,7 @@ it("needs exactly one toggle for the sidebar and one for the right panel", () =>
   );
 });
 
-it("centres the capsule on the centre's header once the centre is 1000 px wide", () => {
+it("puts the capsule at the end of the centre's header at every width", () => {
   const hidden = (width: number, capsule: SmokeRect) => {
     const openDetail = { label: "Toggle right panel", rect: rect(width - 38, 8, 28, 28) };
     return {
@@ -400,6 +401,7 @@ it("centres the capsule on the centre's header once the centre is 1000 px wide",
       clear: rect(0, 0, width, 44),
       viewport: rect(0, 0, width, 800),
       centre: rect(0, 0, width, 44),
+      centreEnd: width - 10,
       capsule,
       regions: [
         { appRegion: "no-drag" as const, rect: sidebarToggle.rect },
@@ -411,27 +413,30 @@ it("centres the capsule on the centre's header once the centre is 1000 px wide",
       targets: [sidebarToggle, { label: "Line", rect: capsule }, openDetail],
     };
   };
-  for (const [width, centred, old] of [
-    [1000, 500, 551],
-    [1280, 640, 691],
-    [1440, 720, 771],
-  ] as const) {
-    expect(() => assertSmokeGeometry(hidden(width, rect(centred - 240, 8, 480, 28)))).not.toThrow();
-    expect(() => assertSmokeGeometry(hidden(width, rect(old - 240, 8, 480, 28)))).toThrow(
-      `Capsule midpoint ${old} is not the centre header's ${centred}`,
+  for (const width of [740, 999, 1000, 1280, 1440]) {
+    const end = width - 46;
+    const centred = width / 2 + 60;
+    expect(() => assertSmokeGeometry(hidden(width, rect(end - 120, 8, 120, 28)))).not.toThrow();
+    expect(() => assertSmokeGeometry(hidden(width, rect(centred - 120, 8, 120, 28)))).toThrow(
+      `Capsule end ${centred} is not its end position ${end}`,
     );
   }
-  expect(() => assertSmokeGeometry(hidden(1440, rect(481, 8, 480, 28)))).not.toThrow();
-  expect(() => assertSmokeGeometry(hidden(1440, rect(482, 8, 480, 28)))).toThrow(
-    "Capsule midpoint",
+  expect(() => assertSmokeGeometry(hidden(1440, rect(1275, 8, 120, 28)))).not.toThrow();
+  expect(() => assertSmokeGeometry(hidden(1440, rect(1272, 8, 120, 28)))).toThrow(
+    "Capsule end 1392 is not its end position 1394",
   );
-  expect(() => assertSmokeGeometry(hidden(999, rect(500, 8, 480, 28)))).not.toThrow();
+  expect(() => assertSmokeGeometry({ ...drag, capsule: rect(400, 8, 240, 28) })).toThrow(
+    "Capsule end 640 is not its end position 782",
+  );
 });
 
 it("requires a contiguous 48 px drag span in the centre, not a sum of smaller gaps", () => {
   const crowded = (...middle: SmokeRect[]) => ({
     ...drag,
-    regions: [...drag.regions, ...middle.map((rect) => ({ appRegion: "no-drag" as const, rect }))],
+    regions: [
+      ...drag.regions.filter((region) => region.rect !== capsule.rect),
+      ...middle.map((rect) => ({ appRegion: "no-drag" as const, rect })),
+    ],
     targets: [sidebarToggle, ...middle.map((rect) => ({ label: "Line", rect })), closeDetail],
   });
   expect(() => assertSmokeGeometry(crowded(rect(232, 8, 521, 28)))).toThrow(

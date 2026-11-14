@@ -503,8 +503,12 @@ async function measure(
             const label = item.getAttribute("aria-label") || item.textContent.replace(/\\s+/g, " ").trim().slice(0, 40) || item.tagName.toLowerCase();
             return bounds.width > 0 && bounds.height > 0 && bounds.y < 44 ? [{ label, rect: bounds }] : [];
           });
+        const end = element(".centre-bar .centre-end");
+        const endBox = rect(end);
         return { rule: "drag", services: Number(document.querySelector("[data-sidebar-row=line]")?.dataset.services ?? 0),
-          controls, clear, viewport, centre: rect(element(".centre-bar")), capsule: rect(element(".centre-bar .window-strip")),
+          controls, clear, viewport, centre: rect(element(".centre-bar")),
+          centreEnd: endBox.x + endBox.width - parseFloat(getComputedStyle(end).paddingRight),
+          capsule: rect(element(".centre-bar .window-strip")),
           detailSheet: Boolean(document.querySelector(".right-panel-frame[data-sheet]")), regions, targets };
       }
       case "overlay-drag": {
@@ -572,8 +576,8 @@ const BREAKS: Partial<Record<string, BrokenProof>> = {
   "sidebar-hidden/1440": {
     rule: "drag",
     selector: ".centre-row",
-    property: "padding-left",
-    value: "96px",
+    property: "grid-template-columns",
+    value: "minmax(0, 1fr) auto minmax(0, 1fr)",
   },
 };
 
