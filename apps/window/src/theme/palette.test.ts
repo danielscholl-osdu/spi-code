@@ -27,11 +27,17 @@ const textRoles = [
   "upstream-text",
 ];
 
-function tokens(mode: Appearance): Record<string, string> {
-  const block = css.match(new RegExp(`:root\\[data-theme="${mode}"\\] \\{([^}]+)\\}`))?.[1];
-  if (!block) throw new Error(`missing ${mode} tokens`);
+function tokens(mode: Appearance, palette: "warm" | "neutral" = "warm"): Record<string, string> {
+  const selector =
+    palette === "warm"
+      ? `:root[data-theme="${mode}"]`
+      : `:root[data-palette="neutral"][data-theme="${mode}"]`;
+  const block = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].find(([, selectors]) =>
+    selectors?.split(",").some((item) => item.trim() === selector),
+  )?.[2];
+  if (!block) throw new Error(`missing ${palette} ${mode} tokens`);
   return Object.fromEntries(
-    [...block.matchAll(/--([\w-]+):\s*(#[0-9a-f]{6});/g)].map(([, role, value]) => [role, value]),
+    [...block.matchAll(/--([\w-]+):\s*([^;]+);/g)].map(([, role, value]) => [role, value]),
   );
 }
 
@@ -68,11 +74,13 @@ describe.each(["light", "dark"] as const)("Shore %s", (mode) => {
   it("distinguishes upstream from every other palette role under CVD", () => {
     for (const [role, color] of Object.entries(theme)) {
       if (role.startsWith("upstream")) continue;
-      for (const variant of ["upstream", "upstream-text"]) {
-        expect(
-          minimumCvdDistance(value(theme, variant), color),
-          `${variant} versus ${role}`,
-        ).toBeGreaterThanOrEqual(12);
+      for (const [hex] of color.matchAll(/#[0-9a-f]{6}/g)) {
+        for (const variant of ["upstream", "upstream-text"]) {
+          expect(
+            minimumCvdDistance(value(theme, variant), hex),
+            `${variant} versus ${role}`,
+          ).toBeGreaterThanOrEqual(12);
+        }
       }
     }
     expect(minimumCvdDistance(value(theme, "upstream"), value(theme, "upstream"))).toBe(0);
@@ -115,5 +123,64 @@ describe.each(["light", "dark"] as const)("Shore %s", (mode) => {
     expect(textFailures({ ...theme, placeholder: value(theme, "placeholder-fill") })).toHaveLength(
       4,
     );
+  });
+});
+
+describe.each(["light", "dark"] as const)("Neutral %s", (mode) => {
+  const theme = tokens(mode, "neutral");
+
+  it("defines every Warm token without inheriting palette colours", () => {
+    expect(Object.keys(theme).sort()).toEqual(Object.keys(tokens(mode)).sort());
+  });
+
+  it("meets AA for every text role on all four surfaces and badge pairs", () => {
+    expect(textFailures(theme)).toEqual([]);
+    for (const role of ["accent", "error", "warning", "upstream"]) {
+      expect(
+        wcagContrast(value(theme, "on-fill"), value(theme, `${role}-text`)),
+      ).toBeGreaterThanOrEqual(4.5);
+      expect(
+        wcagContrast(value(theme, `${role}-text`), value(theme, `${role}-surface`)),
+      ).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+});
+
+describe.each(["warm", "neutral"] as const)("%s shell tokens", (palette) => {
+  it.each(["light", "dark"] as const)("supplies the shell roles in %s", (mode) => {
+    const theme = tokens(mode, palette);
+    for (const role of [
+      "work",
+      "work-surface",
+      "capsule",
+      "hover",
+      "kbd",
+      "active",
+      "active-shadow",
+      "success-surface",
+    ]) {
+      expect(value(theme, role).match(/#[0-9a-f]{6}/)).not.toBeNull();
+    }
+    for (const surface of [
+      "capsule",
+      "hover",
+      "kbd",
+      "active",
+      "success-surface",
+      "work-surface",
+    ]) {
+      for (const role of ["text", "text-strong"]) {
+        expect(
+          wcagContrast(value(theme, role), value(theme, surface)),
+          `${role} on ${surface}`,
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+    for (const role of ["success", "work"]) {
+      expect(
+        wcagContrast(value(theme, role), value(theme, `${role}-surface`)),
+        `${role} on ${role}-surface`,
+      ).toBeGreaterThanOrEqual(3);
+    }
   });
 });
