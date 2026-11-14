@@ -926,6 +926,31 @@ exit 0 · 38 s</div>
         </div></div>
       </div>
     </div>
+    <div class="mockwrap">
+      <div class="app dark" style="height:470px">
+        <div class="bar parts"><span class="pt s"><span class="dots"><i></i><i></i><i></i></span><span class="tgi" title="Hide the sidebar"><svg class="i" aria-hidden="true"><use href="#i-panelLeft"/></svg></span></span><span class="pt c"><b>indexer-queue</b><span class="sp"></span><span class="cap" title="Swept 09:12 · 1 cut, 3 stale"><span class="sg swp warn"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg>09:12</span></span></span><span class="pt r"><span class="tgi" title="Close the right panel"><svg class="i" aria-hidden="true"><use href="#i-panelRight"/></svg></span></span></div>
+        <div class="side"><div class="find"><span>⌕</span><span class="txt">Find or ask</span><span class="kbd">⌘K</span></div></div>
+        <div class="main"></div>
+        <div class="right"></div>
+        <div class="pal-bg"><div class="pal">
+          <div class="in">in<i>|</i></div>
+          <div class="res">
+            <div class="g">Go to</div>
+            <div class="r" aria-label="Engineering system, always pinned"><svg class="i" aria-hidden="true"><use href="#i-layers"/></svg>Engineering system<span class="kind">place</span><span class="pc lock" title="Always pinned"><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg></span></div>
+            <div class="g">Services</div>
+            <div class="r on" aria-label="indexer-queue, stopped, not pinned"><span class="d r"></span>indexer-queue<span class="kind">stopped</span><span class="pc" title="Pin to the sidebar"><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg></span></div>
+            <div class="r" aria-label="indexer, waiting, pinned"><span class="d y"></span>indexer<span class="kind">waiting</span><span class="pc on" title="Unpin from the sidebar"><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg></span></div>
+            <div class="g">Queue</div>
+            <div class="r"><span class="pr p0">P0</span>indexer-queue · Verify failed after the drain<span class="kind">P0</span></div>
+            <div class="g">Threads</div>
+            <div class="r">Why does indexer-queue's verify fail<span class="kind">Working</span></div>
+            <div class="g">Ask</div>
+            <div class="r ask">Ask Copilot about <b>&nbsp;indexer-queue · Verify&nbsp;</b>: "in"<span class="kind">new thread</span></div>
+          </div>
+          <div class="hint"><span>↑↓ move</span><span>⏎ open</span><span>⌘↩ open and pin</span><span>esc close</span><span>Type a sentence to ask Copilot about the selection</span></div>
+        </div></div>
+      </div>
+    </div>
     <div class="tblwrap"><table class="tbl compact">
       <thead><tr><th style="width:18%">Group</th><th style="width:50%">Rows</th><th>Milestone</th></tr></thead>
       <tbody>
@@ -937,7 +962,7 @@ exit 0 · 38 s</div>
         <tr><td><b>Ask</b></td><td>The typed text as a question to Copilot about the selection</td><td>M3</td></tr>
       </tbody>
     </table></div>
-    <p>A result that can be pinned, Line, a place or a service, ends in a <b>pin control</b>. It is hollow on hover and on the highlighted row while the result is unpinned, filled whenever it is pinned, and filled in placeholder ink, inert and titled "Always pinned" on Line, Environment and Engineering system. A click pins or unpins in place: the result does not open, the palette stays open, and the query, the highlight and focus stay where they were. The control is for the pointer only; ⌘↩ and the sidebar's context menu are the keyboard paths, and the result's accessible name says when it is pinned. In the drawing, indexer-queue is highlighted and unpinned, indexer is pinned, and Engineering system is always pinned.</p>
+    <p>A result that can be pinned, Line, a place or a service, ends in a <b>pin control</b>. It is hollow on hover and on the highlighted row while the result is unpinned, filled whenever it is pinned, and filled in placeholder ink, inert and titled "Always pinned" on Line, Environment and Engineering system. A click pins or unpins in place: the result does not open, the palette stays open, and the query, the highlight and focus stay where they were. The control is for the pointer only; ⌘↩ and the sidebar's context menu are the keyboard paths, and the result's accessible name says when it is pinned. In the drawings, light and dark, indexer-queue is highlighted and unpinned, indexer is pinned, and Engineering system is always pinned.</p>
     <p>There is no Actions group: a card made from the palette would have no place to be decided. Actions live on the Detail tab and in threads. T3 Code's <code>CommandPalette.tsx</code> is ported without projects, models or themes.</p>
   </section>
 
