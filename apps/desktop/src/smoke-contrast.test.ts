@@ -204,6 +204,7 @@ const report = (overrides: Partial<ContrastReport>): ContrastReport => ({
       examples: {},
       failures: 0,
       unmeasured: 0,
+      absent: [],
     },
   ],
   failures: [],
@@ -238,7 +239,7 @@ it("names each failure with its view, palette, theme, state, selector, colours a
   );
 });
 
-it("fails on unmeasured text and on a view that measured nothing of its own", () => {
+it("fails on unmeasured text, a view that measured nothing of its own, and a required text it missed", () => {
   expect(() =>
     assertContrast(
       report({
@@ -259,5 +260,12 @@ it("fails on unmeasured text and on a view that measured nothing of its own", ()
   const views = report({}).views.map((view) => ({ ...view, inScope: 0 }));
   expect(() => assertContrast(report({ views }))).toThrow(
     "today / neutral / dark / hovered: measured no text in the view",
+  );
+  const absent = report({}).views.map((view) => ({
+    ...view,
+    absent: ['sidebar-word[data-tone=bad] "stopped"'],
+  }));
+  expect(() => assertContrast(report({ views: absent }))).toThrow(
+    'today / neutral / dark / hovered: did not measure sidebar-word[data-tone=bad] "stopped"',
   );
 });

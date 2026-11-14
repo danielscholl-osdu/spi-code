@@ -18,18 +18,6 @@ const running = (progress: SweepProgress | null | undefined) =>
 
 const counted = (progress: SweepProgress) => `${settled(progress)} of ${progress.sources.length}`;
 
-/**
- * The first sweep's two display forms beside the spinning mark, "sweeping" and the folded mark
- * alone, or null when the field does not carry a first sweep.
- */
-export function firstSweepForms(
-  snapshot: SweepLineSnapshot | null,
-  progress: SweepProgress | null | undefined,
-): { full: string; short: string } | null {
-  if (snapshot !== null || !running(progress)) return null;
-  return { full: "sweeping", short: "" };
-}
-
 /** The freshness field's mark: a dot in the field's tone, spinning while a sweep runs. */
 export function SweepMark({ tone }: { tone: string }) {
   return (
@@ -43,22 +31,19 @@ export function SweepMark({ tone }: { tone: string }) {
 }
 
 /**
- * The title bar's freshness glyph (EV-03); a button that opens the sweep Evidence. While a sweep
- * runs its mark spins: beside "sweeping" before the first snapshot (the mark alone when the top
- * row's fold plan shortens it), beside the last sweep's time over an older one. The count stays in
- * the hover and accessible name.
+ * The centre header's freshness glyph (EV-03); a button that opens the sweep Evidence. While a
+ * sweep runs its mark spins: beside "sweeping" before the first snapshot, beside the last sweep's
+ * time over an older one. The count stays in the hover and accessible name.
  */
 export function SweepLine({
   snapshot,
   progress = null,
   nextSweepAt = null,
-  short = false,
   onOpen,
 }: {
   snapshot: SweepLineSnapshot | null;
   progress?: SweepProgress | null | undefined;
   nextSweepAt?: string | null | undefined;
-  short?: boolean;
   onOpen(): void;
 }) {
   const labelId = useId();
@@ -100,11 +85,7 @@ export function SweepLine({
       </span>
       <span data-sweep-display="" aria-hidden>
         {first ? (
-          short ? (
-            ""
-          ) : (
-            "sweeping"
-          )
+          "sweeping"
         ) : snapshot === null || glyph === null ? (
           text
         ) : (

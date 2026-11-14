@@ -161,3 +161,7 @@ Each view is mounted once and shaded in place; Settings is shaded through its ow
 which checks the in-place shading writes the same root attributes. Its waits watch DOM mutations: the
 smoke window is hidden, and on Windows every `requestAnimationFrame` or timer wait there cost about
 two seconds. The Windows smoke spends about 410 to 445 s of `SMOKE_TIMEOUT_MS`'s 480 before this rule.
+Today runs with a stopped service (entitlements) pinned under the `.v2` key, and fails unless it
+measures that pin's sidebar word at rest and its row hovered: `.pin-item:hover` hides the word, so
+hovered there is no word to measure. The key is restored after the rule, since supervision pins
+under the legacy key.

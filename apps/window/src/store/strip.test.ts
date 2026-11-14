@@ -133,6 +133,20 @@ const cases: [
     1,
   ],
   [
+    "waiting forks win over a fork not read",
+    (b) =>
+      forks(b, (s, id) =>
+        id === "sync" && WAITING.has(s)
+          ? { substate: "waiting-on-person", state: "waiting" }
+          : s === "file" && id === "sync"
+            ? { state: "unknown" }
+            : {},
+      ),
+    "forks",
+    "waiting",
+    2,
+  ],
+  [
     "stopped forks win over waiting",
     (b) =>
       forks(b, (s, id) =>
@@ -288,11 +302,21 @@ it.each([
   ["snapshot-1106-unread.json", "pending", 8],
   ["snapshot-1106-unverified.json", "failed", 1],
 ] as const)(
-  "classifies template counts on the recorded %s sweep",
+  "classifies template counts and names every service not done on the recorded %s sweep",
   (name, classification, count) => {
     const snapshot = fixtureLoader(readFixture)(name);
     const field = selectStrip(snapshot).template;
     expect(field.classification).toBe(classification);
     expect(field.count).toBe(count);
+    const visual = snapshot.briefing.places?.find(({ place }) => place === "engineering")?.visual;
+    if (visual?.kind !== "rollout") throw new Error("Missing recorded rollout");
+    const fleet = snapshot.stations.map(({ service }) => service);
+    const slotted = new Set(visual.slots.map(({ service }) => service));
+    const owed = [
+      ...visual.slots.filter(({ state }) => state !== "done").map(({ service }) => service),
+      ...fleet.filter((service) => !slotted.has(service)),
+    ];
+    const named = new Set(field.label.match(/[\w-]+/g)?.filter((word) => fleet.includes(word)));
+    expect([...named].sort()).toEqual([...new Set(owed)].sort());
   },
 );

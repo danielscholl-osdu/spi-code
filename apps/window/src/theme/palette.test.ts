@@ -139,6 +139,74 @@ describe.each(["light", "dark"] as const)("Shore design %s", (mode) => {
   });
 });
 
+const NEUTRAL_TABLE = "<h3>Neutral, the default";
+const SWATCHES = '<div class="swatches">';
+const kebab = (name: string) => name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+const codes = (html: string) =>
+  [...html.matchAll(/<code>([^<]+)<\/code>/g)].map(([, code]) => code);
+const hexes = (html: string) => [...html.matchAll(/#[0-9a-f]{6}/g)].map(([color]) => color);
+
+function between(from: string, start: string, end: string): string {
+  const at = design.indexOf(from);
+  if (at < 0) throw new Error(`missing design section ${from}`);
+  const open = design.indexOf(start, at);
+  return design.slice(open, design.indexOf(end, open));
+}
+
+describe.each(["light", "dark"] as const)("Neutral design %s", (mode) => {
+  const theme = tokens(mode, "neutral");
+  const index = mode === "light" ? 0 : 1;
+
+  it("matches the visual design role table, its tints and its listed text values", () => {
+    const rows = [...between(NEUTRAL_TABLE, "<tbody>", SWATCHES).matchAll(/<tr>[\s\S]*?<\/tr>/g)];
+    expect(rows.length).toBeGreaterThan(10);
+    for (const [row] of rows) {
+      const [roleCell = "", , light = "", dark = "", tint = ""] = [
+        ...row.matchAll(/<td>([\s\S]*?)<\/td>/g),
+      ].map(([, cell]) => cell ?? "");
+      const roles = codes(roleCell).map((role) => kebab(role ?? ""));
+      const colors = hexes(index === 0 ? light : dark);
+      roles.forEach((role, i) => {
+        expect(value(theme, role), role).toBe(colors[i]);
+      });
+      const [role] = roles;
+      if (roles.length !== 1 || !role) continue;
+      if (`${role}-text` in theme || colors[1])
+        expect(value(theme, `${role}-text`), `${role}-text`).toBe(colors[1] ?? colors[0]);
+      const tints = hexes(tint);
+      if (tints.length > 0)
+        expect(value(theme, `${role}-surface`), `${role}-surface`).toBe(tints[index]);
+    }
+  });
+});
+
+describe.each([
+  ["warm", "<h2>Shore in semantic roles"],
+  ["neutral", NEUTRAL_TABLE],
+] as const)("%s shell states on the design", (palette, heading) => {
+  it.each(["light", "dark"] as const)("match tokens.css in %s", (mode) => {
+    const theme = tokens(mode, palette);
+    const index = mode === "light" ? 0 : 1;
+    const prose = between(heading, SWATCHES, "</section>");
+    const shell = prose.slice(prose.indexOf("<p>"), prose.indexOf("</p>"));
+    const pairs = [
+      ...shell.matchAll(
+        /<code>([a-z][\w-]*)<\/code>(?:[^<]|<(?!code>))*?<code>(#[0-9a-f]{6})<\/code>[^<]*?<code>(#[0-9a-f]{6})<\/code>/g,
+      ),
+    ];
+    expect(pairs.map(([, role]) => role)).toEqual(
+      expect.arrayContaining(["capsule", "hover", "kbd", "active"]),
+    );
+    for (const [, role = "", light, dark] of pairs)
+      expect(value(theme, role), role).toBe(index === 0 ? light : dark);
+    const ringed = shell.slice(shell.indexOf("ringed in"));
+    const ring = codes(ringed.slice(0, ringed.indexOf(".")))[index] ?? "";
+    expect(value(theme, "active-shadow")).toContain(
+      ring.startsWith("#") ? ring : value(theme, ring),
+    );
+  });
+});
+
 describe.each(["light", "dark"] as const)("Neutral %s", (mode) => {
   const theme = tokens(mode, "neutral");
 

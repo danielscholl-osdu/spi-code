@@ -746,7 +746,7 @@ it.each([900, 1280])(
 );
 
 it.each([900, 1280])(
-  "opens title-bar sweep Evidence in the detail surface at %i px even with a selection",
+  "opens the capsule's sweep Evidence in the detail surface at %i px even with a selection",
   async (width) => {
     viewport(width);
     const previous = watchStore.getState();
@@ -792,7 +792,7 @@ it.each([900, 1280])(
   },
 );
 
-it("updates the title-bar sweep line from the live areas with the worst tone, and opens the sweep Evidence", async () => {
+it("updates the capsule's sweep segment from the live areas with the worst tone, and opens the sweep Evidence", async () => {
   const previousState = watchStore.getState();
   let receive: Parameters<typeof window.spi.onMessage>[0] | undefined;
   const harness = installSpi({
@@ -873,7 +873,7 @@ it("updates the title-bar sweep line from the live areas with the worst tone, an
 });
 
 it.each(["failed", "stale"] as const)(
-  "turns the title-bar freshness glyph on a %s non-area release envelope and clears it on recovery",
+  "turns the capsule's sweep segment on a %s non-area release envelope and clears it on recovery",
   async (state) => {
     const previousState = watchStore.getState();
     let receive: Parameters<typeof window.spi.onMessage>[0] | undefined;

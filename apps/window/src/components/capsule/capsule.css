@@ -10,7 +10,7 @@
 .capsule-pill { padding: 1px 6px; border-radius: 5px; font-weight: 600; }
 .capsule-pill[data-tone="warn"] { color: var(--warning-text); background: var(--warning-surface); }
 .capsule-pill[data-tone="bad"] { color: var(--error-text); background: var(--error-surface); }
-.capsule-pill[data-tone="work"] { color: var(--work, var(--accent-text)); background: var(--work-surface, var(--accent-surface)); }
+.capsule-pill[data-tone="work"] { color: var(--work); background: var(--work-surface); }
 .capsule-up { color: var(--upstream); flex: none; }
 .capsule-sync { color: var(--upstream-text); font-weight: 600; }
 .capsule-seg[data-field="next-sync"]:hover { background: var(--upstream-surface); }

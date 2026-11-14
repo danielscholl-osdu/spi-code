@@ -608,6 +608,7 @@ interface ContrastView {
   examples: Collected["examples"];
   failures: number;
   unmeasured: number;
+  absent: string[];
 }
 
 export interface ContrastReport {
@@ -619,15 +620,21 @@ export interface ContrastReport {
   durationMs: number;
 }
 
-/** Fails the views when one of them, at rest or hovered, measured nothing in its own scope. */
+/**
+ * Fails the views when one of them, at rest or hovered, measured nothing in its own scope or did not
+ * measure a text it requires.
+ */
 export function assertContrast(report: ContrastReport): void {
-  const empty = report.views.filter(({ inScope }) => inScope === 0);
+  const where = ({ view, palette, theme, state }: ContrastView) =>
+    `${view} / ${palette} / ${theme}${state === "hover" ? " / hovered" : ""}`;
   const lines = [
     ...report.failures.map(formatFinding),
     ...report.unmeasured.map(formatFinding),
-    ...empty.map(
-      ({ view, palette, theme, state }) =>
-        `${view} / ${palette} / ${theme}${state === "hover" ? " / hovered" : ""}: measured no text in the view`,
+    ...report.views
+      .filter(({ inScope }) => inScope === 0)
+      .map((view) => `${where(view)}: measured no text in the view`),
+    ...report.views.flatMap((view) =>
+      view.absent.map((text) => `${where(view)}: did not measure ${text}`),
     ),
   ];
   if (lines.length > 0)
@@ -747,6 +754,25 @@ async function rendered(window: BrowserWindow, condition: string): Promise<void>
 
 const STATES = ["rest", "hover"] as const;
 
+/** A text a view must measure in a state: a fragment of its selector, and its words. */
+type Required = Partial<Record<(typeof STATES)[number], { selector: string; text: string }[]>>;
+
+const PINS_KEY = "spi-code.sidebar.pins.v2";
+const PINNED_STOPPED = "entitlements";
+const PINS = [
+  "sheet:line",
+  "place:upstream",
+  "place:environment",
+  "place:engineering-system",
+  "place:releases",
+  "place:security",
+  PINNED_STOPPED,
+];
+const PINNED_WORD: Required = {
+  rest: [{ selector: "sidebar-word[data-tone=bad]", text: "stopped" }],
+  hover: [{ selector: "sidebar-row-label", text: PINNED_STOPPED }],
+};
+
 const ROOT_STATE = `(() => {
   const root = document.documentElement;
   return JSON.stringify({
@@ -849,7 +875,7 @@ export async function assertRenderedContrast(
   if (!attached) debug.attach("1.3");
   const [width, height] = window.getContentSize();
   const saved = await js<Record<string, string | null>>(
-    `Object.fromEntries(["spi-code.appearance", "spi-code.palette"].map(key => [key, localStorage.getItem(key)]))`,
+    `Object.fromEntries(["spi-code.appearance", "spi-code.palette", ${JSON.stringify(PINS_KEY)}].map(key => [key, localStorage.getItem(key)]))`,
   );
   const report: ContrastReport = {
     exclusions: EXCLUSIONS,
@@ -913,7 +939,7 @@ export async function assertRenderedContrast(
         );
       }
     };
-    const sample = async (ctx: ViewContext, scope: string) => {
+    const sample = async (ctx: ViewContext, scope: string, required: Required = {}) => {
       const collected = await js<Collected>(
         `(${settle.toString()})(), (${collect.toString()})(${JSON.stringify(scope)})`,
       );
@@ -935,17 +961,23 @@ export async function assertRenderedContrast(
         examples: collected.examples,
         failures: failures.size,
         unmeasured: missing.size,
+        absent: (required[ctx.state] ?? [])
+          .filter(
+            ({ selector, text }) =>
+              !judged.some((item) => item.selector.includes(selector) && item.text === text),
+          )
+          .map(({ selector, text }) => `${selector} "${text}"`),
       });
       console.log(
         `Packaged contrast ${ctx.view}/${ctx.palette}/${ctx.theme}/${ctx.state}: ${judged.length} measured, ${failures.size} below AA, ${missing.size} unmeasured, excluded ${JSON.stringify(collected.excluded)}`,
       );
     };
-    const everyShade = async (view: string, scope: string) => {
+    const everyShade = async (view: string, scope: string, required?: Required) => {
       for (const state of STATES)
         await hovered(state, async () => {
           for (const shading of SHADES) {
             await shade(shading);
-            await sample({ view, ...shading, state }, scope);
+            await sample({ view, ...shading, state }, scope, required);
           }
         });
       await shade({ palette: "warm", theme: "light" });
@@ -955,6 +987,7 @@ export async function assertRenderedContrast(
       localStorage.removeItem("spi-code.line-sheet.pinned");
       localStorage.setItem("spi-code.appearance", "light");
       localStorage.setItem("spi-code.palette", "warm");
+      localStorage.setItem(${JSON.stringify(PINS_KEY)}, ${JSON.stringify(JSON.stringify(PINS))});
       location.hash = "#today";
     }`);
     const loaded = once(window.webContents, "did-finish-load");
@@ -983,7 +1016,7 @@ export async function assertRenderedContrast(
       `Packaged contrast controls: ${report.controls.map(({ control, found }) => `${control}: ${found}`).join("; ")}`,
     );
     await shade({ palette: "warm", theme: "light" });
-    await everyShade("today", ".today");
+    await everyShade("today", ".today", PINNED_WORD);
     await js('document.querySelector("[data-strip] [data-sweep-line]").click()');
     await rendered(window, 'document.querySelector("[data-sweep-popover] .capsule-evidence")');
     await everyShade("sweep-popover", "[data-sweep-popover]");
