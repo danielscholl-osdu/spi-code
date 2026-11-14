@@ -174,6 +174,15 @@ export const VIEW_SURFACES = [
     qualified: true,
   },
   {
+    id: "sidebar-hidden",
+    name: "Sidebar hidden",
+    route: "today",
+    place: "Today",
+    selector: "#app-sidebar[data-state=collapsed] ~ main .centre-row > .toggle-room",
+    designSection: "Layout / Top row: the capsule centred with the sidebar hidden",
+    qualified: true,
+  },
+  {
     id: "first-sweep-running",
     name: "First sweep / Failed sign-in and deferred source",
     route: "today",
@@ -269,6 +278,7 @@ export const BROKEN_PROOFS: Partial<Record<string, RegExp>> = {
   "detail-related/1440": /^Related value squeezed to 159 px$/,
   "panes/1440": /^Header top: 4 != 0$/,
   "strip-20/740": /^Toggle sidebar at .* lies in a drag rectangle$/,
+  "sidebar-hidden/1440": /^Capsule midpoint .* is not the centre header's 720$/,
 };
 
 export function geometryRules(surface: string, width: number): SmokeGeometry["rule"][] {
@@ -281,7 +291,7 @@ export function geometryRules(surface: string, width: number): SmokeGeometry["ru
   if (surface.startsWith("settings")) return ["window", "settings"];
   if (surface === "detail-related") return ["window", "related"];
   if (surface === "panes" && width === 1440) return ["window", "panes", "headers", "drag"];
-  if (["today", "detail", "panes", "strip-20", "sidebar"].includes(surface))
+  if (["today", "detail", "panes", "strip-20", "sidebar", "sidebar-hidden"].includes(surface))
     return ["window", "headers", "drag"];
   return ["window"];
 }

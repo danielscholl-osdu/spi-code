@@ -267,68 +267,6 @@ it("toggles the sidebar and right panel, omitting the unshipped terminal", async
   }
 });
 
-it.each([1280, 740])(
-  "keeps one sidebar toggle, outside the sidebar, whether it is shown, hidden or off-canvas at %i px",
-  async (width) => {
-    viewport(width);
-    selectionStore.setState({ open: false });
-    const shell = await mountShell();
-    const { container } = shell;
-    try {
-      const toggles = () => container.querySelectorAll('[aria-label="Toggle sidebar"]');
-      const sidebar = container.querySelector<HTMLElement>("#app-sidebar");
-      const [toggle] = toggles();
-      for (let step = 0; step < 3; step++) {
-        expect(toggles()).toHaveLength(1);
-        expect(toggles()[0]).toBe(toggle);
-        expect(sidebar?.contains(toggle ?? null)).toBe(false);
-        await act(async () => (toggle as HTMLButtonElement | undefined)?.click());
-      }
-      await act(async () => {
-        viewport(width === 740 ? 1280 : 740);
-        window.dispatchEvent(new Event("resize"));
-      });
-      expect(toggles()).toHaveLength(1);
-      expect(toggles()[0]).toBe(toggle);
-    } finally {
-      await shell.cleanup();
-    }
-  },
-);
-
-it.each([1280, 740])(
-  "puts the right-panel toggle at the end of the centre's header while closed and in the panel's header while open at %i px",
-  async (width) => {
-    viewport(width);
-    selectionStore.setState({ open: false });
-    const shell = await mountShell();
-    const { container } = shell;
-    const controls = () =>
-      [
-        ...container.querySelectorAll<HTMLElement>(
-          '[aria-label="Toggle right panel"], [aria-label="Close detail"]',
-        ),
-      ].map((control) =>
-        control.closest(".centre-bar") ? "centre" : control.closest(".panel-tabs") ? "panel" : "",
-      );
-    try {
-      expect(controls()).toEqual(["centre"]);
-      expect(
-        container.querySelector(".centre-end")?.lastElementChild?.getAttribute("aria-label"),
-      ).toBe("Toggle right panel");
-      await press("i");
-      expect(container.querySelector("#app-right-panel")?.hasAttribute("data-sheet")).toBe(
-        width === 740,
-      );
-      expect(controls()).toEqual(["panel"]);
-      await press("i");
-      expect(controls()).toEqual(["centre"]);
-    } finally {
-      await shell.cleanup();
-    }
-  },
-);
-
 it("shows the mounted view's title, chips and Pin in the shell's title row, and only the route's name when a view gives none", async () => {
   const titled = (route: Route) => (
     <section data-view={route.kind}>

@@ -14,7 +14,11 @@ through `PaneTitle`, a store the shell renders without a portal; with no view ti
 shows the route's name. The OS title stays `SPI Code · <place>`. The one sidebar
 toggle sits outside the sidebar at a fixed x after the window controls; each header
 under it leaves a no-drag `toggle-room`, because Electron subtracts no-drag only from
-drag regions earlier in document order. The pips share one Line button with aggregate state counts;
+drag regions earlier in document order. The centre's header is a grid of two equal side
+columns around the capsule; its padding, the Windows caption inset and the toggle's room
+sit inside those columns, so the capsule centres on the whole header with or without the
+sidebar. Detail's tabs shrink before its toggle does, so the toggle stays clear of the caption.
+The pips share one Line button with aggregate state counts;
 each full-height pip target retains its service context menu, also reachable from
 the service's Line sheet row. Status field buttons open Line and Cmd-L still toggles it.
 Freshness is the last field: a muted, amber or red dot, the sweep time and an

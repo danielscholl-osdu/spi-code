@@ -28,17 +28,19 @@ Sign-in requests are intercepted in the smoke-only preload path: no live token,
 sign-in or tool probe is used. Dedicated probes measure a long Related label
 and values at a 280 px panel, flush panes with 1 px dividers, and Settings' 820 x 560
 maximum and 24 px edge margins. Today, Detail, the four panes, 20 services and the
-open sidebar run the top-row rules at every width: every visible pane and its header
+sidebar open and hidden run the top-row rules at every width: every visible pane and its header
 start at the window top, each header is 44 px across its pane's interior, and the
 rules under them are 1 px on one line. Every top-row target sits on the row, outside
 the drag shape and inside the titlebar area Windows reports beside its caption
 buttons; there is exactly one sidebar toggle and one right-panel toggle (none while
-Detail is a sheet), and the centre keeps a contiguous 48 px drag span. Only the
+Detail is a sheet), the centre keeps a contiguous 48 px drag span, and while the
+centre is at least 1000 px wide the capsule's midpoint is within 1 px of its header's. Only the
 Related and 20-service probes vary the projection; hand-made rect mutations exercise
 each failure rule in unit tests. The existing smoke artifact uploads all evidence on
-both platforms. Once per packaged run, in light, the renderer breaks three rules for
+both platforms. Once per packaged run, in light, the renderer breaks four rules for
 real (a Related value squeezed to 159 px, the Detail header 4 px low at 1440, the
-centre's no-drag hole under the sidebar toggle removed at 740), records each expected
+centre's no-drag hole under the sidebar toggle removed at 740, and 96 px of leading
+padding outside the centre's equal columns with the sidebar hidden at 1440), records each expected
 rejection in `rejectedGeometry`, then restores and re-measures before capturing.
 Missing rejection evidence fails.
 The fixture clock, pane preferences and sign-in interception

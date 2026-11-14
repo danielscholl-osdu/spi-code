@@ -120,6 +120,7 @@ const drag: SmokeGeometry = {
   clear: rect(0, 0, 1302, 44),
   viewport: rect(0, 0, 1440, 800),
   centre: rect(232, 0, 568, 44),
+  capsule: capsule.rect,
   detailSheet: false,
   regions: [
     { appRegion: "no-drag", rect: sidebarToggle.rect },
@@ -388,6 +389,43 @@ it("needs exactly one toggle for the sidebar and one for the right panel", () =>
   expect(() => assertSmokeGeometry({ ...drag, detailSheet: true })).toThrow(
     "one right-panel toggle",
   );
+});
+
+it("centres the capsule on the centre's header once the centre is 1000 px wide", () => {
+  const hidden = (width: number, capsule: SmokeRect) => {
+    const openDetail = { label: "Toggle right panel", rect: rect(width - 38, 8, 28, 28) };
+    return {
+      ...drag,
+      controls: "inset" as const,
+      clear: rect(0, 0, width, 44),
+      viewport: rect(0, 0, width, 800),
+      centre: rect(0, 0, width, 44),
+      capsule,
+      regions: [
+        { appRegion: "no-drag" as const, rect: sidebarToggle.rect },
+        { appRegion: "drag" as const, rect: rect(0, 0, width, 44) },
+        { appRegion: "no-drag" as const, rect: rect(76, 0, 28, 43) },
+        { appRegion: "no-drag" as const, rect: capsule },
+        { appRegion: "no-drag" as const, rect: openDetail.rect },
+      ],
+      targets: [sidebarToggle, { label: "Line", rect: capsule }, openDetail],
+    };
+  };
+  for (const [width, centred, old] of [
+    [1000, 500, 551],
+    [1280, 640, 691],
+    [1440, 720, 771],
+  ] as const) {
+    expect(() => assertSmokeGeometry(hidden(width, rect(centred - 240, 8, 480, 28)))).not.toThrow();
+    expect(() => assertSmokeGeometry(hidden(width, rect(old - 240, 8, 480, 28)))).toThrow(
+      `Capsule midpoint ${old} is not the centre header's ${centred}`,
+    );
+  }
+  expect(() => assertSmokeGeometry(hidden(1440, rect(481, 8, 480, 28)))).not.toThrow();
+  expect(() => assertSmokeGeometry(hidden(1440, rect(482, 8, 480, 28)))).toThrow(
+    "Capsule midpoint",
+  );
+  expect(() => assertSmokeGeometry(hidden(999, rect(500, 8, 480, 28)))).not.toThrow();
 });
 
 it("requires a contiguous 48 px drag span in the centre, not a sum of smaller gaps", () => {

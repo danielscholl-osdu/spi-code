@@ -429,7 +429,7 @@ async function measure(
             return bounds.width > 0 && bounds.height > 0 && bounds.y < 44 ? [{ label, rect: bounds }] : [];
           });
         return { rule: "drag", services: Number(document.querySelector("[data-strip] [data-field=forks]")?.dataset.services ?? 0),
-          controls, clear, viewport, centre: rect(element(".centre-bar")),
+          controls, clear, viewport, centre: rect(element(".centre-bar")), capsule: rect(element(".centre-bar .window-strip")),
           detailSheet: Boolean(document.querySelector(".right-panel-frame[data-sheet]")), regions, targets };
       }
       case "overlay-drag": {
@@ -493,6 +493,12 @@ const BREAKS: Partial<Record<string, BrokenProof>> = {
     selector: ".centre-row > .toggle-room",
     property: "-webkit-app-region",
     value: "initial",
+  },
+  "sidebar-hidden/1440": {
+    rule: "drag",
+    selector: ".centre-row",
+    property: "padding-left",
+    value: "96px",
   },
 };
 
@@ -1078,6 +1084,10 @@ export async function captureSmokeViews(
               ViewSnapshotSchema.parse({ ...snapshot, cursor: snapshot.cursor + 1, stations }),
             );
           }
+          if (surface.id === "sidebar-hidden")
+            await window.webContents.executeJavaScript(
+              'document.querySelector("#app-sidebar:not([data-mobile])[data-state=expanded]") && document.querySelector("[aria-label=\'Toggle sidebar\']").click()',
+            );
           if (surface.id === "sidebar") {
             await window.webContents.executeJavaScript(
               'document.querySelector("#app-sidebar[data-mobile][data-state=collapsed]") && document.querySelector("[aria-label=\'Toggle sidebar\']").click()',
@@ -1224,6 +1234,15 @@ export async function captureSmokeViews(
               'document.querySelector("#app-sidebar[data-mobile][data-state=expanded]") && document.querySelector(".sidebar-backdrop").click()',
             );
             await rendered(window, '!document.querySelector(".sidebar-backdrop")');
+          }
+          if (surface.id === "sidebar-hidden") {
+            await window.webContents.executeJavaScript(
+              'document.querySelector("#app-sidebar:not([data-mobile])[data-state=collapsed]") && document.querySelector("[aria-label=\'Toggle sidebar\']").click()',
+            );
+            await rendered(
+              window,
+              '!document.querySelector("#app-sidebar:not([data-mobile])[data-state=collapsed]")',
+            );
           }
           if (
             surface.id === "evidence-header-sweeping" ||

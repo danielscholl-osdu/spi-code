@@ -20,7 +20,7 @@ body { margin: 0; background: var(--surface); color: var(--text); font: 14px/1.5
 /* macOS traffic lights end near x 70; Windows caption buttons fill the overlay's right edge. */
 .shell[data-window-controls="inset"] { --toggle-x: 76px; }
 .shell[data-window-controls="overlay"] { --caption-inset: calc(100vw - env(titlebar-area-width, 100vw) - env(titlebar-area-x, 0px) + 8px); }
-.shell[data-window-controls="overlay"]:not([data-right-presentation="inline"], [data-line-presentation="inline"]) .centre-row { padding-right: var(--caption-inset); }
+.shell[data-window-controls="overlay"]:not([data-right-presentation="inline"], [data-line-presentation="inline"]) .centre-end { padding-right: var(--caption-inset); }
 .shell[data-window-controls="overlay"][data-right-presentation="inline"] .panel-tabs { padding-right: var(--caption-inset); }
 .shell[data-window-controls="overlay"]:not([data-right-presentation="inline"])[data-line-presentation="inline"] .line-toolbar { padding-right: var(--caption-inset); }
 .sidebar-toggle { position: absolute; top: 8px; left: var(--toggle-x); z-index: 3; }
@@ -31,20 +31,21 @@ body { margin: 0; background: var(--surface); color: var(--text); font: 14px/1.5
 .middle-frame { display: flex; flex-direction: column; grid-column: 2; grid-row: 1 / -1; padding: 0; overflow: hidden; min-width: 0; min-height: 0; background: var(--surface); }
 .shell[data-line-presentation="stacked"] .middle-frame { grid-row: 1 / 3; }
 .centre-bar { padding: 0; background: var(--surface); container-type: inline-size; }
-.centre-row { box-sizing: border-box; display: flex; align-items: center; gap: 8px; width: 100%; height: 100%; padding: 0 10px 0 16px; white-space: nowrap; font-size: 13px; }
-.centre-row > .toggle-room { margin-left: calc(var(--toggle-x) - 16px); }
-.centre-title { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 8px; overflow: hidden; }
+.centre-row { position: relative; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; width: 100%; height: 100%; white-space: nowrap; font-size: 13px; }
+/* Padding and the toggle's room sit inside the two equal side columns, so the capsule centres on the whole header. */
+.centre-row > .toggle-room { position: absolute; top: 0; bottom: 0; left: var(--toggle-x); }
+.centre-title { min-width: 0; display: flex; align-items: center; gap: 8px; overflow: hidden; padding-left: 16px; }
+.toggle-room + .centre-title { padding-left: calc(var(--toggle-x) + 36px); }
 .centre-title h1 { flex: 0 1 auto; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text-strong); font-size: 14px; font-weight: 600; }
 .centre-title > :not(h1) { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .centre-title time { margin-left: 0; color: var(--text-muted); font-size: 12.5px; }
 .centre-title button { flex: none; height: 24px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; }
 .centre-title button:hover { background: var(--hover); color: var(--text); }
-.window-strip { flex: none; display: flex; align-items: center; }
-.centre-end { flex: 1 1 0; min-width: 0; display: flex; align-items: center; justify-content: flex-end; }
+.window-strip { display: flex; align-items: center; }
+.centre-end { min-width: 0; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; }
 /* The capsule stays centred while the centre is 1000 px wide, then moves to the end and gives the title its room. */
 @container (width < 1000px) {
-  .centre-title { flex: 1 1 auto; }
-  .centre-end { flex: none; }
+  .centre-row { grid-template-columns: minmax(0, 1fr) auto auto; }
 }
 @container (width < 800px) {
   .centre-title > :not(h1) { display: none; }

@@ -3,7 +3,7 @@
 
 .right-panel { padding: 0; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .panel-tabs { gap: 2px; padding: 0 10px; }
-.panel-tabs [role="tab"] { height: 28px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); font-size: 12.5px; }
+.panel-tabs [role="tab"] { min-width: 0; height: 28px; padding: 0 10px; overflow: hidden; text-overflow: ellipsis; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); font-size: 12.5px; }
 .panel-tabs [role="tab"]:hover { background: var(--hover); color: var(--text); }
 .panel-tabs [role="tab"][aria-selected="true"] { background: var(--active); box-shadow: var(--active-shadow); color: var(--text-strong); font-weight: 500; }
 .panel-body { flex: 1; min-height: 0; padding: 12px 16px; overflow: auto; font-size: 12px; }

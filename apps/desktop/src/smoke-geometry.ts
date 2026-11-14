@@ -59,6 +59,7 @@ export type SmokeGeometry =
       clear: SmokeRect;
       viewport: SmokeRect;
       centre: SmokeRect;
+      capsule: SmokeRect;
       detailSheet: boolean;
       regions: SmokeAppRegion[];
       targets: { label: string; rect: SmokeRect }[];
@@ -399,6 +400,15 @@ export function assertSmokeGeometry(
       rect(value.clear);
       rect(value.viewport);
       rect(value.centre);
+      rect(value.capsule);
+      if (value.centre.width >= 1000) {
+        const capsule = value.capsule.x + value.capsule.width / 2;
+        const header = value.centre.x + value.centre.width / 2;
+        assert(
+          Math.abs(capsule - header) <= 1,
+          `Capsule midpoint ${capsule} is not the centre header's ${header}`,
+        );
+      }
       aligned(value.clear.y, 0, "Top row top");
       aligned(value.clear.height, 44, "Top row height");
       if (value.controls === "overlay")
