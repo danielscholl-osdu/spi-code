@@ -137,6 +137,16 @@ describe.each(["light", "dark"] as const)("Shore design %s", (mode) => {
       }
     }
   });
+
+  it("draws the mockups' work tone from the Warm tokens", () => {
+    const rule = design.match(
+      new RegExp(
+        `^\\.app${mode === "dark" ? "\\.dark" : ""}\\{--a-work:(#[0-9a-f]{6});--a-work-bg:(#[0-9a-f]{6})\\}$`,
+        "m",
+      ),
+    );
+    expect(rule?.slice(1)).toEqual([value(theme, "work"), value(theme, "work-surface")]);
+  });
 });
 
 const NEUTRAL_TABLE = "<h3>Neutral, the default";
