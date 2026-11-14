@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 import type { Appearance } from "../app/appearance.js";
 import { navigate } from "../app/navigation.js";
+import { type PaletteChoice, setPalette, usePalette } from "../app/palette-choice.js";
 import { useMediaQuery } from "../components/sidebar/ui-sidebar.js";
 import { openFreshness } from "../components/sweep/reveal.js";
 import { SweepNow } from "../components/sweep/SweepNow.js";
@@ -30,6 +31,11 @@ const THEMES: readonly { id: Appearance; label: string }[] = [
   { id: "dark", label: "Dark" },
 ];
 
+const PALETTES: readonly { id: PaletteChoice; label: string }[] = [
+  { id: "warm", label: "Warm" },
+  { id: "neutral", label: "Neutral" },
+];
+
 function Dot({ dot }: { dot: ReadinessDot | null }) {
   return dot ? (
     <span
@@ -48,6 +54,7 @@ function AppearanceSection({
   theme: Appearance | undefined;
   onTheme(theme: Appearance): void;
 }) {
+  const palette = usePalette();
   return (
     <div className="settings-group">
       <div className="settings-row">
@@ -64,6 +71,26 @@ function AppearanceSection({
                 value={id}
                 checked={theme === id}
                 onChange={() => onTheme(id)}
+              />
+              <span>{label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <div className="settings-row">
+        <span className="settings-row-name" id="settings-palette">
+          Palette
+        </span>
+        <span className="settings-row-why">Warm paper or neutral grey, in light and dark.</span>
+        <div className="settings-segments" role="radiogroup" aria-labelledby="settings-palette">
+          {PALETTES.map(({ id, label }) => (
+            <label key={id} className="settings-segment">
+              <input
+                type="radio"
+                name="settings-palette"
+                value={id}
+                checked={palette === id}
+                onChange={() => setPalette(id)}
               />
               <span>{label}</span>
             </label>

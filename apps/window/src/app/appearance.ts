@@ -1,6 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { applyPalette } from "./palette-choice.js";
+
 export type Appearance = "system" | "light" | "dark";
 export type Theme = "light" | "dark";
 export function createAppearance(
@@ -13,6 +15,7 @@ export function createAppearance(
   target: HTMLElement = document.documentElement,
   onTheme: (theme: Theme) => void = () => {},
 ) {
+  applyPalette();
   const saved = storage.getItem("spi-code.appearance");
   let pin: Appearance = saved === "light" || saved === "dark" ? saved : "system";
   let shown: Theme | undefined;
