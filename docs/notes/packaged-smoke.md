@@ -95,7 +95,10 @@ with 99.5% of pixels in one 4-bit-per-channel RGB bucket fail the smoke.
 Every shot must carry the title-bar sweep line (first-sweep captures carry its
 running or waiting form); Today, Upstream, the selected
 Detail's place and the affected service must also carry their failed-read or
-truncation qualifier. The report names the corresponding window-design section;
+truncation qualifier. The sweep segment opens a popover, so probes reach the sweep's
+Evidence through its Evidence button (`openSweepEvidence`); at 1440 px
+`views/sweep-states-<appearance>.html` holds the segment idle, stale, failed, sweeping
+and open. The report names the corresponding window-design section;
 the reviewer records match or mismatch per surface on the bead, not the smoke.
 The listener scan checks the main pid and every app descendant, including the
 Copilot runtime before it stops. Each scan takes one socket snapshot (`lsof` on

@@ -165,6 +165,94 @@ async function captureCapsuleStates(
   );
 }
 
+async function captureSweepStates(
+  window: BrowserWindow,
+  snapshot: ViewSnapshot,
+  progress: ReturnType<typeof smokeSweepProgress>,
+  output: string,
+  appearance: string,
+  now: number,
+  cursor: number,
+): Promise<void> {
+  const scenes = ["idle", "stale", "failed", "sweeping", "popover"] as const;
+  const images: string[] = [];
+  await window.webContents.executeJavaScript(`void (Date.now = () => ${now})`);
+  fixture(window, "sweep.status", {
+    remaining: 4865,
+    floor: 100,
+    resetAt: "2026-11-06T15:36:00.000Z",
+    deferredAreas: [],
+    nextSweepAt: new Date(now + 5 * 60_000).toISOString(),
+    schedule: sweepSchedule,
+    lastSweep: null,
+  });
+  for (const scene of scenes) {
+    const body = structuredClone(snapshot);
+    body.cursor = cursor++;
+    if (scene === "idle" || scene === "stale") {
+      const fresh = (source: string) => ({
+        source,
+        state: "fresh" as const,
+        observedAt: body.sweptAt,
+        completeness: { kind: "complete" as const },
+      });
+      body.areas = body.areas.map(({ area }) => ({ area, envelope: fresh(area) }));
+      body.provenance = body.provenance.map((entry) =>
+        entry.envelope ? { ...entry, envelope: fresh(entry.envelope.source) } : entry,
+      );
+      const runs = body.areas.find(({ area }) => area === "runs");
+      if (scene === "stale" && runs) runs.envelope = { ...fresh("runs"), state: "stale" };
+    }
+    fixture(window, "view.snapshot", ViewSnapshotSchema.parse(body));
+    fixture(window, "sweep.progress", scene === "sweeping" ? progress.refresh : progress.committed);
+    const tone = { idle: "fine", stale: "warn", failed: "bad", sweeping: "run", popover: "bad" }[
+      scene
+    ];
+    await rendered(
+      window,
+      `document.querySelector('[data-strip] [data-sweep-line][data-tone=${tone}]') && ${scene === "sweeping" ? "" : "!"}document.querySelector('[data-sweep-progress]')`,
+    );
+    if (scene === "popover") {
+      await window.webContents.executeJavaScript(
+        "document.querySelector('[data-strip] [data-sweep-line]').click()",
+      );
+      await rendered(window, "document.querySelector('[data-sweep-popover] .capsule-evidence')");
+    }
+    const bounds = await window.webContents.executeJavaScript(`(() => {
+      const rects = [document.querySelector('[data-strip]').closest('header'),
+        document.querySelector('[data-sweep-popover]')].filter(Boolean).map(item => item.getBoundingClientRect());
+      const top = Math.min(...rects.map(rect => rect.top));
+      const bottom = Math.max(...rects.map(rect => rect.bottom));
+      return { x: 0, y: Math.floor(top), width: innerWidth, height: Math.ceil(bottom - top) + 8 };
+    })()`);
+    const file = `sweep-${scene}-${appearance}.png`;
+    writeFileSync(join(output, file), (await window.webContents.capturePage(bounds)).toPNG());
+    images.push(
+      `<figure><figcaption>${scene}</figcaption><img src="${file}" alt="${scene}"></figure>`,
+    );
+    if (scene === "popover") {
+      await window.webContents.executeJavaScript(
+        "document.querySelector('[data-strip] [data-sweep-line]').click()",
+      );
+      await rendered(window, "!document.querySelector('[data-sweep-popover]')");
+    }
+  }
+  writeFileSync(
+    join(output, `sweep-states-${appearance}.html`),
+    `<!doctype html><meta charset="utf-8"><title>Sweep states</title><style>body{font:14px system-ui;padding:24px}figure{margin:24px 0}figcaption{margin-bottom:8px}img{max-width:100%}</style><h1>Sweep segment / ${appearance}</h1><p>Design: Status.dc.html rows 6 to 10 and the sweep popover.</p>${images.join("")}`,
+  );
+}
+
+/** The sweep segment opens a popover; its Evidence opens the sweep's Evidence. */
+async function openSweepEvidence(window: BrowserWindow): Promise<void> {
+  await window.webContents.executeJavaScript('document.querySelector("[data-sweep-line]").click()');
+  await rendered(window, 'document.querySelector("[data-sweep-popover] .capsule-evidence")');
+  await window.webContents.executeJavaScript(
+    'document.querySelector("[data-sweep-popover] .capsule-evidence").click()',
+  );
+  await rendered(window, '!document.querySelector("[data-sweep-popover]")');
+}
+
 async function settingsSection(
   window: BrowserWindow,
   section: "readiness" | "appearance" | "sweep",
@@ -690,11 +778,7 @@ export async function captureSmokeViews(
               fixture(window, "sweep.progress", scheduledSweep.progress);
             fixture(window, "sweep.status", scheduledSweep.status);
             await rendered(window, 'document.querySelector(".today .place-reading")');
-            if (surface.id === "evidence-header-idle") {
-              await window.webContents.executeJavaScript(
-                'document.querySelector("[data-sweep-line]").click()',
-              );
-            }
+            if (surface.id === "evidence-header-idle") await openSweepEvidence(window);
           }
           if (surface.id === "first-sweep-running") {
             await window.webContents.executeJavaScript(`{
@@ -791,9 +875,7 @@ export async function captureSmokeViews(
                 window,
                 'document.querySelector(".today .place-reading") && !document.querySelector(".today-leaving")',
               );
-              await window.webContents.executeJavaScript(
-                'document.querySelector("[data-sweep-line]").click()',
-              );
+              await openSweepEvidence(window);
               await rendered(window, `document.querySelector(${JSON.stringify(surface.selector)})`);
               const retained = await window.webContents.executeJavaScript(`[
                 ...document.querySelectorAll("[data-sweep-list=completed] .sweep-row")
@@ -814,7 +896,7 @@ export async function captureSmokeViews(
               fixture(window, "sweep.progress", progress.refresh);
               await rendered(
                 window,
-                'document.querySelector("[data-sweep-line] .evidence-dot[data-spin]")',
+                'document.querySelector("[data-sweep-line][data-tone=run]") && document.querySelector("[data-sweep-progress]")',
               );
               assert.equal(
                 await window.webContents.executeJavaScript(
@@ -1095,6 +1177,15 @@ export async function captureSmokeViews(
             appearance,
             Date.parse(checkedAt),
             scheduledCursor + 100,
+          );
+          await captureSweepStates(
+            window,
+            snapshot,
+            progress,
+            output,
+            appearance,
+            Date.parse(checkedAt),
+            scheduledCursor + 200,
           );
         }
       }

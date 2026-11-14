@@ -65,7 +65,34 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-it("adds only a future next sweep to the freshness hover and accessible name, expiring on time", async () => {
+const glyph = () => container.querySelector<HTMLButtonElement>("header [data-sweep-line]");
+const display = () => glyph()?.querySelector("[data-sweep-display]")?.textContent;
+const glyphName = () =>
+  document.getElementById(glyph()?.getAttribute("aria-labelledby") ?? "")?.textContent;
+const line = () => container.querySelector<HTMLElement>("[data-sweep-progress]");
+const popover = () => document.querySelector<HTMLElement>("[data-sweep-popover]");
+const popoverButton = (name: string) =>
+  [...(popover()?.querySelectorAll<HTMLButtonElement>("button") ?? [])].find(
+    (button) => button.textContent === name,
+  );
+const receive = (type: string, payload: unknown) =>
+  act(async () =>
+    watchStore
+      .getState()
+      .receive({ version: PROTOCOL_VERSION, id: "host", kind: "event", type, payload }),
+  );
+const openPopover = async () => {
+  await act(async () => glyph()?.click());
+  expect(popover()).not.toBeNull();
+};
+const openEvidence = async () => {
+  if (!popover()) await openPopover();
+  await act(async () => popoverButton("Evidence")?.click());
+  await act(() => new Promise((done) => setTimeout(done, 20)));
+  expect(popover()).toBeNull();
+};
+
+it("adds only a future next sweep to the sweep's hover and accessible name, expiring on time", async () => {
   vi.useFakeTimers();
   vi.setSystemTime(SWEEP_START + 130_000);
   const body = { ...fixture(), sweptAt: after(120) };
@@ -77,7 +104,7 @@ it("adds only a future next sweep to the freshness hover and accessible name, ex
   const next = `next sweep ${clockTime(after(135), { hint: false })}`;
   expect(freshness?.title).toContain(next);
   expect(label()?.textContent).toBe(freshness?.title);
-  expect(freshness?.querySelector("[data-sweep-display]")?.textContent).not.toContain("next sweep");
+  expect(display()).not.toContain("next sweep");
   await act(async () => vi.advanceTimersByTimeAsync(5000));
   expect(freshness?.title).not.toContain("next sweep");
   expect(label()?.textContent).toBe(freshness?.title);
@@ -87,34 +114,41 @@ it("adds only a future next sweep to the freshness hover and accessible name, ex
   expect(freshness?.title).not.toContain("next sweep");
 });
 
-it("shows the freshness glyph in the title bar and opens the sweep Evidence from it", async () => {
+it("shows the sweep time with no count, lists its sources, and opens the sweep Evidence", async () => {
   const body = fixture();
+  delete body.briefing.nextSyncAt;
+  show(body);
   await mount();
-  const glyph = container.querySelector<HTMLButtonElement>("header [data-sweep-line]");
-  expect(glyph?.querySelector("[data-sweep-display]")?.textContent).toBe(
-    `${clockTime(body.sweptAt)} · 1`,
-  );
-  expect(document.getElementById(glyph?.getAttribute("aria-labelledby") ?? "")?.textContent).toBe(
-    `Swept ${clockTime(body.sweptAt)} · 1 failed, 3 not read yet`,
-  );
-  expect(glyph?.getAttribute("data-tone")).toBe("bad");
+  expect(display()).toBe(clockTime(body.sweptAt));
+  expect(glyphName()).toBe(`Swept ${clockTime(body.sweptAt)} · 1 failed, 3 not read yet`);
+  expect(glyph()?.dataset.tone).toBe("bad");
+  expect(line()).toBeNull();
+  await openPopover();
+  expect(popover()?.querySelectorAll("[data-source]")).toHaveLength(12);
+  expect(popover()?.querySelector("[data-next=sync]")?.textContent).toBe("not read yet");
+  expect(popover()?.querySelector("[data-next=sweep]")?.textContent).toBe("not read yet");
   expect(container.querySelector('#app-right-panel [data-evidence="sweep"]')).toBeNull();
-  await act(async () => glyph?.click());
+  await openEvidence();
   expect(container.querySelector('#app-right-panel [data-evidence="sweep"]')).not.toBeNull();
 });
 
-const glyph = () => container.querySelector<HTMLButtonElement>("header [data-sweep-line]");
-const display = () => glyph()?.querySelector("[data-sweep-display]")?.textContent;
-const glyphName = () =>
-  document.getElementById(glyph()?.getAttribute("aria-labelledby") ?? "")?.textContent;
-const receive = (type: string, payload: unknown) =>
-  act(async () =>
-    watchStore
-      .getState()
-      .receive({ version: PROTOCOL_VERSION, id: "host", kind: "event", type, payload }),
+it("sends Settings' Sweep now request from the popover, and reads Sweeping while one runs", async () => {
+  await mount();
+  await receive("setup.state", { tools: [], watchReady: true, disabledReason: null });
+  await receive("sweep.status", sweepStatus());
+  await openPopover();
+  const now = () => popover()?.querySelector<HTMLButtonElement>(".capsule-sweep-now");
+  expect(now()?.disabled).toBe(false);
+  await act(async () => now()?.click());
+  expect(window.spi.postMessage).toHaveBeenCalledWith(
+    expect.objectContaining({ type: "sweep.request", payload: { now: true } }),
   );
+  await receive("sweep.progress", midSweep({ first: false, sweep: "sweep-2" }));
+  expect(now()?.disabled).toBe(true);
+  expect(now()?.textContent).toBe("Sweeping");
+});
 
-it("spins the first sweep's mark, keeps its count in the name, and scrolls the list into view", async () => {
+it("spins the first sweep's icon over its progress line, keeps its count in the name, and scrolls the list into view", async () => {
   const scrolled: Element[] = [];
   const scrollIntoView = Element.prototype.scrollIntoView;
   Element.prototype.scrollIntoView = function (this: Element) {
@@ -127,22 +161,23 @@ it("spins the first sweep's mark, keeps its count in the name, and scrolls the l
     window.location.hash = "#security";
     watchStore.setState({ snapshot: null, setup: null });
     await mount();
-    expect(display()).toBe("waiting for the first sweep");
+    expect(display()).toBe("Not swept");
+    expect(glyphName()).toBe("Waiting for the first sweep");
+    expect(line()).toBeNull();
     await receive("sweep.progress", midSweep());
-    expect(display()).toBe("sweeping");
-    expect(glyph()?.querySelector(".evidence-dot")?.hasAttribute("data-spin")).toBe(true);
+    expect(display()).toBe("First sweep");
     expect(glyphName()).toBe("First sweep · 9 of 12 sources done");
     expect(glyph()?.title).toBe("First sweep · 9 of 12 sources done");
     expect(glyph()?.dataset.tone).toBe("run");
-    expect(glyph()?.querySelector(".evidence-dot")?.getAttribute("data-tone")).toBe("run");
-    await act(async () => glyph()?.click());
-    await act(() => new Promise((done) => setTimeout(done, 20)));
+    expect(line()?.dataset.sweepProgress).toBe("0.75");
+    await openEvidence();
     expect(window.location.hash).toBe("#today");
     expect(scrolled).toEqual([container.querySelector(".today-first .sweep-sources")]);
     expect(container.querySelector('#app-right-panel [data-evidence="sweep"]')).toBeNull();
     await receive("sweep.progress", { ...midSweep(), outcome: "cancelled" });
-    expect(display()).toBe("first sweep stopped");
-    expect(glyph()?.querySelector(".evidence-dot")?.hasAttribute("data-spin")).toBe(false);
+    expect(display()).toBe("First sweep stopped");
+    expect(glyph()?.dataset.tone).toBe("bad");
+    expect(line()).toBeNull();
   } finally {
     Element.prototype.scrollIntoView = scrollIntoView;
   }
@@ -177,13 +212,11 @@ it.each(["failed", "cancelled"] as const)(
             nextAttemptAt: null,
           },
     );
-    expect(display()).toBe("first sweep stopped");
-    expect(glyphName()).toBe("first sweep stopped");
-    expect(glyph()?.title).toBe("first sweep stopped");
+    expect(display()).toBe("First sweep stopped");
+    expect(glyphName()).toBe("First sweep stopped");
+    expect(glyph()?.title).toBe("First sweep stopped");
     expect(glyph()?.dataset.tone).toBe("bad");
-    expect(glyph()?.querySelector(".evidence-dot")?.getAttribute("data-tone")).toBe("bad");
-    await act(async () => glyph()?.click());
-    await act(() => new Promise((done) => setTimeout(done, 20)));
+    await openEvidence();
     expect(window.location.hash).toBe("#today");
     expect(scrolled).toEqual([container.querySelector(".today-first")]);
     expect(container.querySelector('#app-right-panel [data-evidence="sweep"]')).toBeNull();
@@ -194,21 +227,21 @@ it.each(["failed", "cancelled"] as const)(
       expect.objectContaining({ type: "sweep.request", payload: {} }),
     );
     await receive("sweep.progress", midSweep({ sweep: "sweep-2" }));
-    expect(display()).toBe("sweeping");
+    expect(display()).toBe("First sweep");
     expect(glyph()?.dataset.tone).toBe("run");
   },
 );
 
-it("keeps the sweep time over an older snapshot while a later sweep runs and opens its live list", async () => {
+it("reads Sweeping over an older snapshot while a later sweep runs and opens its live list", async () => {
   const body = fixture();
   await mount();
   const later = midSweep({ first: false, sweep: "sweep-2" });
   await receive("sweep.progress", later);
-  expect(display()).toBe(clockTime(body.sweptAt));
-  expect(glyph()?.querySelector(".evidence-dot")?.hasAttribute("data-spin")).toBe(true);
+  expect(display()).toBe("Sweeping");
   expect(glyphName()).toBe(`Swept ${clockTime(body.sweptAt)} · sweeping, 9 of 12 sources done`);
   expect(glyph()?.dataset.tone).toBe("run");
-  await act(async () => glyph()?.click());
+  expect(line()?.dataset.sweepProgress).toBe("0.75");
+  await openEvidence();
   const evidence = () => container.querySelector('#app-right-panel [data-evidence="sweep"]');
   expect(evidence()?.querySelector("[data-sweep-list]")?.getAttribute("data-sweep-list")).toBe(
     "live",
@@ -226,7 +259,8 @@ it("keeps the sweep time over an older snapshot while a later sweep runs and ope
         : source,
     ),
   });
-  expect(display()).toBe(`${clockTime(body.sweptAt)} · 1`);
+  expect(display()).toBe(clockTime(body.sweptAt));
+  expect(line()).toBeNull();
   expect(evidence()?.querySelector("[data-sweep-list]")?.getAttribute("data-sweep-list")).toBe(
     "completed",
   );
@@ -247,7 +281,7 @@ it("shows a newer sweep that stopped over the last completed list, with its reas
         : source,
     ),
   });
-  await act(async () => glyph()?.click());
+  await openEvidence();
   const list = () =>
     container.querySelector<HTMLElement>(
       '#app-right-panel [data-evidence="sweep"] [data-sweep-list]',
@@ -318,8 +352,8 @@ it("opens the first sweep's retained list in Evidence after hand-over", async ()
     ),
   });
   await receive("view.snapshot", body);
-  expect(display()).toBe(`${clockTime(body.sweptAt)} · 1`);
-  await act(async () => glyph()?.click());
+  expect(display()).toBe(clockTime(body.sweptAt));
+  await openEvidence();
   const list = container.querySelector(
     '#app-right-panel [data-evidence="sweep"] [data-sweep-list]',
   );

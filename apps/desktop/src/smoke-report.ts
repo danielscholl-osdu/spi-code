@@ -389,7 +389,7 @@ function assertSmokeQualifiers(surfaceId: string, qualifiers: unknown): void {
   for (const pattern of states[surfaceId] ?? [])
     assert(pattern.test(text), `Missing state qualifier: ${surfaceId} (${pattern})`);
   if (["first-sweep-stopped", "first-sweep-stopped-saving"].includes(surfaceId)) {
-    assert(qualifiers[0] === "first sweep stopped", `Missing stopped qualifier: ${surfaceId}`);
+    assert(qualifiers[0] === "First sweep stopped", `Missing stopped qualifier: ${surfaceId}`);
   }
   if (surfaceId === "first-sweep-stopped") {
     assert(!/Open Settings/.test(text), `Unfixable stop offers Settings: ${surfaceId}`);
