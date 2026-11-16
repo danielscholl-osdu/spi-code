@@ -254,12 +254,12 @@ export const HorizonSchema = z.strictObject({
       upstream: z.strictObject({ count: z.int().nonnegative(), text: z.string() }),
       nextSync: z.strictObject({
         at: ObservedAtSchema.optional(),
-        count: z.int().nonnegative(),
+        count: z.int().nonnegative().nullable(),
         services: z.array(IdentifierSchema),
         text: z.string(),
       }),
       held: z.strictObject({
-        count: z.int().nonnegative(),
+        count: z.int().nonnegative().nullable(),
         prs: z.array(z.strictObject({ service: IdentifierSchema, pr: PrRefSchema })),
         services: z.array(IdentifierSchema),
         text: z.string(),

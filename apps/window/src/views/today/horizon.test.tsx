@@ -68,10 +68,10 @@ it.each(["busy", "calm", "bad", "owed"] as const)(
     }
     const s = h.stages;
     expect(block?.querySelector(".horizon-stage--nextSync strong")?.textContent).toBe(
-      String(s?.nextSync.count),
+      String(s?.nextSync.count ?? "unknown"),
     );
     expect(block?.querySelector(".horizon-stage--held strong")?.textContent).toBe(
-      String(s?.held.count),
+      String(s?.held.count ?? "unknown"),
     );
     expect(block?.querySelectorAll(".horizon-wont-land .kit-slot--broken")).toHaveLength(
       s?.wontLand.length ?? 0,

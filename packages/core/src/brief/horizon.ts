@@ -14,9 +14,9 @@ export type Origin = "system" | "upstream";
 
 export interface HorizonStages {
   upstream: { count: number; text: string };
-  nextSync: { at?: string; count: number; services: string[]; text: string };
+  nextSync: { at?: string; count: number | null; services: string[]; text: string };
   held: {
-    count: number;
+    count: number | null;
     prs: { service: string; pr: { number: number; url?: string; inspect?: string } }[];
     services: string[];
     text: string;
@@ -71,6 +71,9 @@ export function horizonWaitServices(model: Model, facts: Facts, items: readonly 
 
 export function horizonStages(model: Model): HorizonStages {
   const forks = model.upstream.forks;
+  const splitKnown = forks.every((fork) => !fork.syncPr || fork.syncPr.holds !== undefined);
+  let nextSyncCount = 0;
+  let heldCount = 0;
   const stages: HorizonStages = {
     upstream: { count: 0, text: "" },
     nextSync: {
@@ -105,13 +108,14 @@ export function horizonStages(model: Model): HorizonStages {
       });
       continue;
     }
+    if (fork.syncPr && fork.syncPr.holds === undefined) continue;
     const split = syncSplit(fork);
     if (split.next > 0) {
-      stages.nextSync.count += split.next;
+      nextSyncCount += split.next;
       stages.nextSync.services.push(fork.service);
     }
     if (split.held > 0 && fork.syncPr) {
-      stages.held.count += split.held;
+      heldCount += split.held;
       stages.held.services.push(fork.service);
       const gate = model.queue.items.find(
         (q) => q.kind === "gate1" && q.scope === fork.service && q.url === fork.syncPr?.url,
@@ -126,16 +130,22 @@ export function horizonStages(model: Model): HorizonStages {
       });
     }
   }
+  stages.nextSync.count = splitKnown ? nextSyncCount : null;
+  stages.held.count = splitKnown ? heldCount : null;
   const unread = forks.filter((f) => f.behind === undefined).length;
   stages.upstream.text = unread === forks.length
     ? "Upstream not read yet"
     : `${plural(stages.upstream.count, "commit")} behind upstream${unread ? ` · ${plural(unread, "fork")} not read yet` : ""}`;
   stages.nextSync.text = unread === forks.length
     ? "Next sync not read yet"
-    : `${plural(stages.nextSync.count, "commit")} at the next sync · ${plural(stages.nextSync.services.length, "fork")}`;
+    : stages.nextSync.count === null
+      ? "Next sync count unknown"
+      : `${plural(stages.nextSync.count, "commit")} at the next sync · ${plural(stages.nextSync.services.length, "fork")}`;
   stages.held.text = unread === forks.length
     ? "Open sync PRs not read yet"
-    : `${plural(stages.held.count, "commit")} in ${plural(stages.held.prs.length, "open sync PR")} · ${plural(stages.held.services.length, "fork")}`;
+    : stages.held.count === null
+      ? "Open sync PR counts unknown"
+      : `${plural(stages.held.count, "commit")} in ${plural(stages.held.prs.length, "open sync PR")} · ${plural(stages.held.services.length, "fork")}`;
   stages.forks.text = unread === forks.length
     ? "Forks not read yet"
     : `${plural(stages.forks.services.length, "fork")} with nothing queued upstream`;
@@ -145,16 +155,19 @@ export function horizonStages(model: Model): HorizonStages {
 // What the stages hold, in one sentence: it counts every queued commit, not only a theme's.
 export function horizonHeadline(stages: HorizonStages, unread: number, total: number): string {
   if (unread >= total) return "Upstream not read yet.";
+  const nextCount = stages.nextSync.count;
+  const heldCount = stages.held.count;
+  if (nextCount === null || heldCount === null) return "Next sync and open sync PR counts unknown.";
   const wontLand = stages.wontLand.reduce((sum, f) => sum + f.count, 0);
   const parts = [
-    stages.nextSync.count > 0
-      ? `${plural(stages.nextSync.count, "commit")} reach ${plural(stages.nextSync.services.length, "fork")} at the next sync`
+    nextCount > 0
+      ? `${plural(nextCount, "commit")} reach ${plural(stages.nextSync.services.length, "fork")} at the next sync`
       : undefined,
-    stages.held.count > 0
-      ? `${stages.nextSync.count > 0 ? stages.held.count : plural(stages.held.count, "commit")} wait in ${plural(stages.held.prs.length, "open sync PR")}`
+    heldCount > 0
+      ? `${nextCount > 0 ? heldCount : plural(heldCount, "commit")} wait in ${plural(stages.held.prs.length, "open sync PR")}`
       : undefined,
     wontLand > 0
-      ? `${stages.nextSync.count + stages.held.count > 0 ? wontLand : plural(wontLand, "commit")} won't land`
+      ? `${nextCount + heldCount > 0 ? wontLand : plural(wontLand, "commit")} won't land`
       : undefined,
   ].filter((part): part is string => part !== undefined);
   const notRead = unread > 0 ? `${plural(unread, "fork")} not read yet` : undefined;

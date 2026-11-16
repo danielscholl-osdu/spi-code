@@ -96,6 +96,15 @@ describe("upstream horizon", () => {
         compact: { nextSyncCount: null, heldCount: null, heldPrCount: null },
       });
       if (missing !== "order") expect(h).toMatchObject({ compact: { currentForkCount: null } });
+      if (missing === "order") {
+        expect(h.stages).toMatchObject({ nextSync: { count: null }, held: { count: null } });
+        expect(h.stages?.nextSync.services).not.toContain("storage");
+        expect(h.stages?.held.services).not.toContain("storage");
+        expect(h.stages?.nextSync.text).toMatch(/unknown/i);
+        expect(h.stages?.held.text).toMatch(/unknown/i);
+        expect(h.headline).toMatch(/unknown/i);
+        expect(HorizonSchema.safeParse(h).success).toBe(true);
+      }
     },
   );
 
@@ -149,35 +158,45 @@ describe("upstream horizon", () => {
     });
   });
 
-  it.each(["unread", "disordered"])("counts an unprovable %s split under next sync", (state) => {
-    const f = structuredClone(facts);
-    if (state === "unread") {
-      const repo = f.github.data?.repos["Azure/osdu-spi-storage"];
-      if (!repo) throw new Error("No storage repository");
-      repo.prs = repo.prs.filter((p) => p.number !== 58);
-    } else {
-      const commits = f.upstream.data?.storage?.commits;
-      const first = commits?.[0];
-      const target = commits?.at(-1);
-      if (!first || !target) throw new Error("No storage commits");
-      first.at = new Date(Date.parse(target.at) + 60_000).toISOString();
-    }
-    const m = buildModel(f, now, {}, context);
-    m.upstream.forks = [fork(m, "storage")];
-    expect(horizonStages(m)).toMatchObject({
-      nextSync: { count: 11, services: ["storage"] },
-      held: { count: 0, prs: [], services: [] },
-    });
-  });
+  it.each(["unread", "disordered"])(
+    "distinguishes an absent PR from an unproved %s split",
+    (state) => {
+      const f = structuredClone(facts);
+      if (state === "unread") {
+        const repo = f.github.data?.repos["Azure/osdu-spi-storage"];
+        if (!repo) throw new Error("No storage repository");
+        repo.prs = repo.prs.filter((p) => p.number !== 58);
+      } else {
+        const commits = f.upstream.data?.storage?.commits;
+        const first = commits?.[0];
+        const target = commits?.at(-1);
+        if (!first || !target) throw new Error("No storage commits");
+        first.at = new Date(Date.parse(target.at) + 60_000).toISOString();
+      }
+      const m = buildModel(f, now, {}, context);
+      m.upstream.forks = [fork(m, "storage")];
+      expect(horizonStages(m)).toMatchObject({
+        nextSync: {
+          count: state === "unread" ? 11 : null,
+          services: state === "unread" ? ["storage"] : [],
+        },
+        held: { count: state === "unread" ? 0 : null, prs: [], services: [] },
+      });
+    },
+  );
 
   it("uses the same station totals for the conveyor and Upstream figure", () => {
     const m = model();
     const stages = horizonStages(m);
+    expect(brief(m).horizon).toMatchObject({
+      compact: { nextSyncCount: 65, heldCount: 37, heldPrCount: 3, currentForkCount: 2 },
+      stages: { nextSync: { count: 65 }, held: { count: 37 } },
+    });
     const total = m.lines.reduce((sum, line) => sum + (line.upstream?.lag ?? 0), 0);
     expect(stages.upstream.count).toBe(total);
     expect(
-      stages.nextSync.count +
-        stages.held.count +
+      (stages.nextSync.count ?? 0) +
+        (stages.held.count ?? 0) +
         stages.wontLand.reduce((sum, f) => sum + f.count, 0),
     ).toBe(total);
     const reading = upstreamReading({

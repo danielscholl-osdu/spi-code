@@ -243,7 +243,7 @@ export function Horizon({
               <h3>
                 next sync {stages.nextSync.at && <Time at={stages.nextSync.at} hint={false} />}
               </h3>
-              <strong>{stages.nextSync.count}</strong>
+              <strong>{stages.nextSync.count ?? "unknown"}</strong>
               <div className="horizon-stage-forks">
                 {stages.nextSync.services.map((service, i) => (
                   <span data-pointer={`${ROOT}/stages/nextSync/services/${i}`} key={service}>
@@ -276,7 +276,7 @@ export function Horizon({
               title={plainTitle(stages.held.text)}
             >
               <h3>in open sync PRs</h3>
-              <strong>{stages.held.count}</strong>
+              <strong>{stages.held.count ?? "unknown"}</strong>
               <div className="horizon-stage-forks">
                 {stages.held.services.map((service, i) => {
                   const prIndex = stages.held.prs.findIndex((ref) => ref.service === service);

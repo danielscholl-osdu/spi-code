@@ -116,10 +116,10 @@ describe("Upstream reading on the recorded 6 Nov sweep", () => {
     expect(held((f) => f.service === "storage")).toBe("11 commits wait in 1 open sync PR.");
     expect(held((f) => f.service === "schema")).toBe(`At ${SYNC}, 16 commits reach 1 fork.`);
     expect(held((f) => f.service === "storage", unaimed.model)).toBe(
-      `At ${SYNC}, 11 commits reach 1 fork.`,
+      "Next sync and open sync PR counts unknown.",
     );
     expect(held((f) => f.service === "indexer", reordered.model)).toBe(
-      `At ${SYNC}, 25 commits reach 1 fork.`,
+      "Next sync and open sync PR counts unknown.",
     );
     expect(
       upstreamReading({ model: reordered.model, items, radar, fleet: context.fleet, campaigns: [] })
@@ -127,7 +127,7 @@ describe("Upstream reading on the recorded 6 Nov sweep", () => {
     ).toEqual({
       label: "Incoming",
       value: "110",
-      counts: `commits behind upstream · 14 in 2 sync PRs · 88 at ${SYNC} · 8 won't land`,
+      counts: `commits behind upstream · unknown in sync PRs · unknown at ${SYNC} · 8 won't land`,
     });
   });
 

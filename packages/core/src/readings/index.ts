@@ -342,12 +342,14 @@ export function upstreamReading<T extends ReadingItem>(
       : "";
   const unreadNote = unread > 0 ? ` · ${unread} ${NOT_READ}` : "";
   const when = at ? `At ${at}` : "At the next sync";
-  const reach = `${when}, ${plural(queued, "commit")} reach ${plural(arriving.length, "fork")}`;
-  const wait = `${plural(inPrs, "commit")} wait in ${plural(prs, "open sync PR")}`;
+  const reach = queued === null ? stages.nextSync.text : `${when}, ${plural(queued, "commit")} reach ${plural(arriving.length, "fork")}`;
+  const wait = inPrs === null ? stages.held.text : `${plural(inPrs, "commit")} wait in ${plural(prs, "open sync PR")}`;
   const inSync = prs === 1 ? "a sync PR" : "sync PRs";
   const headline = none
     ? `Upstream ${NOT_READ}.${first}`
-    : commits === 0
+    : queued === null || inPrs === null
+      ? `Next sync and open sync PR counts unknown.${first}`
+      : commits === 0
       ? unread > 0
         ? `Nothing queued on the forks read; ${unread} ${NOT_READ}.${first}`
         : `Nothing queued upstream for the next sync.${first}`
@@ -387,7 +389,7 @@ export function upstreamReading<T extends ReadingItem>(
         {
           label: "Incoming",
           value: String(commits),
-          counts: `commits behind upstream${prs ? ` · ${inPrs} in ${plural(prs, "sync PR")}` : ""} · ${queued} ${at ? `at ${at}` : "at the next sync"}${wontLand ? ` · ${wontLand} won't land` : ""}${unreadNote}`,
+          counts: `commits behind upstream${inPrs === null ? " · unknown in sync PRs" : prs ? ` · ${inPrs} in ${plural(prs, "sync PR")}` : ""} · ${queued ?? "unknown"} ${at ? `at ${at}` : "at the next sync"}${wontLand ? ` · ${wontLand} won't land` : ""}${unreadNote}`,
         },
         lead
           ? {
