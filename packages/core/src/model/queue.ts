@@ -5,7 +5,7 @@ import { forkOf, githubUrl, shortRepo, TEMPLATE_REPO } from "../config.js";
 import type { CoreContext } from "../context.js";
 import type { OutsidePr, PrFact, RepoFact, WaitingRun } from "../facts.js";
 import { governing, type Judgement } from "../rollout.js";
-import { clip, plural, releaseTag, short, stamp, dailySyncTime, timeClause } from "../util.js";
+import { clip, plural, releaseTag, short, dailySyncTime, timeClause } from "../util.js";
 import {
   CLASS_LABEL,
   type Failure,
@@ -1230,7 +1230,7 @@ function radarItems(
       blocks: r.queued,
     };
     // A sync PR taking the commits quiets the item, so it must not resurface a dismissal.
-    item.fingerprint = itemFingerprint(item, now, context);
+    item.fingerprint = fingerprintOf(item);
     if (held) {
       const wait = (n: number) => (n === 1 ? "waits" : "wait");
       const inPr = `${plural(held.held, "commit")} ${wait(held.held)} in sync PR #${held.pr}`;
@@ -1375,7 +1375,7 @@ function securityItems(repositories: ReposModel | undefined): QueueItem[] {
   });
 }
 
-export function buildQueue(input: {
+interface QueueInput {
   stack: StackModel;
   lines: readonly LineModel[];
   template: TemplateModel;
@@ -1388,7 +1388,35 @@ export function buildQueue(input: {
   repositories?: ReposModel;
   dismissed?: readonly DismissEntry[];
   now: Date;
-}, context: CoreContext): Queue {
+}
+
+export function buildQueue(input: QueueInput, context: CoreContext): Queue {
+  const items = queueItems(input, context);
+  // Dismissals hash the clock-style prose, so an instant-style item takes its clock twin's inputs.
+  const clock = context.timeStyle === "clock"
+    ? items
+    : queueItems(input, { ...context, timeStyle: "clock" });
+  items.forEach((item, i) => {
+    const twin = clock[i]?.id === item.id ? clock[i] : item;
+    item.fingerprint = twin.fingerprint ?? fingerprintOf(twin);
+  });
+  items.sort(
+    (a, b) =>
+      a.rung - b.rung ||
+      b.blocks - a.blocks ||
+      Date.parse(a.since ?? "") - Date.parse(b.since ?? ""),
+  );
+  const dismissed: Queue["dismissed"] = [];
+  const live: QueueItem[] = [];
+  for (const item of items) {
+    const entry = quieted(item, input.dismissed ?? [], input.now);
+    if (entry) dismissed.push({ item, entry });
+    else live.push(item);
+  }
+  return finish(live, dismissed, input.stack);
+}
+
+function queueItems(input: QueueInput, context: CoreContext): QueueItem[] {
   const { stack, lines, template, repos, details, approvals, radar, now } = input;
   const items: QueueItem[] = [];
   items.push(...stackItems(stack, lines, now, context).items);
@@ -1406,36 +1434,7 @@ export function buildQueue(input: {
   const bump = bumpItem(stack);
   if (bump) items.push(bump);
   items.push(...securityItems(input.repositories));
-
-  items.sort(
-    (a, b) =>
-      a.rung - b.rung ||
-      b.blocks - a.blocks ||
-      Date.parse(a.since ?? "") - Date.parse(b.since ?? ""),
-  );
-  const dismissed: Queue["dismissed"] = [];
-  const live: QueueItem[] = [];
-  for (const item of items) {
-    item.fingerprint ??= itemFingerprint(item, now, context);
-    const entry = quieted(item, input.dismissed ?? [], now);
-    if (entry) dismissed.push({ item, entry });
-    else live.push(item);
-  }
-  return finish(live, dismissed, stack);
-}
-
-// Dismissals depend on inputs, so both display styles hash the same clock-neutral prose.
-function itemFingerprint(item: QueueItem, now: Date, context: CoreContext): string {
-  if (context.timeStyle === "clock") return fingerprintOf(item);
-  const instant = /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\b/g;
-  const clockText = (text: string) => text
-    .replace(/(next Sync Upstream at )\d{4}-\d{2}-\d{2}T00:00:00\.000Z/g, "$100:00Z")
-    .replace(instant, (at) => stamp(at, now) ?? "");
-  return fingerprintOf({
-    ...item,
-    cause: item.cause.map((fact) => ({ ...fact, value: clockText(fact.value) })),
-    effects: item.effects.map((effect) => ({ ...effect, text: clockText(effect.text) })),
-  });
+  return items;
 }
 
 function finish(items: QueueItem[], dismissed: Queue["dismissed"], stack: StackModel): Queue {

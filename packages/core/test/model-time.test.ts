@@ -8,6 +8,7 @@ import { buildBriefing } from "../src/brief/index.js";
 import { builtInFleet, fleetOf } from "../src/config.js";
 import { type CoreContext, createContext } from "../src/context.js";
 import { emptyFacts, type Facts } from "../src/facts.js";
+import type { DismissEntry } from "../src/model/dismiss.js";
 import { buildModel, type Model } from "../src/model/index.js";
 import { buildQueue } from "../src/model/queue.js";
 import { dailySyncTime, stamp, timeClause } from "../src/util.js";
@@ -188,5 +189,51 @@ it("preserves dismissal fingerprints when the app selects instant text", () => {
   const app = buildModel(facts(), now, {}, context("instant")).queue.items;
   expect(app.map(({ id, fingerprint }) => ({ id, fingerprint }))).toEqual(
     legacy.map(({ id, fingerprint }) => ({ id, fingerprint })),
+  );
+});
+
+it("keeps an instant quoted by a source failure in one fingerprint across styles", () => {
+  const repo = "Azure/osdu-spi-entitlements";
+  const reason = "lease expired at 2026-11-05T09:15:00.000Z";
+  const release = (ctx: CoreContext, dismissed: DismissEntry[] = []) => {
+    const model = buildModel(facts(), now, {}, ctx);
+    const built = buildQueue(
+      {
+        ...model,
+        repos: facts().github.data?.repos ?? {},
+        details: {
+          [`${repo}#127532471691`]: {
+            id: 127532471691,
+            name: "📊 Code Coverage",
+            status: "completed",
+            conclusion: "failure",
+            url: "https://github.com/Azure/osdu-spi-entitlements/actions/runs/42109055691",
+            steps: [],
+            reason,
+          },
+        },
+        approvals: {},
+        dismissed,
+        now,
+        forks: model.upstream.forks,
+      },
+      ctx,
+    );
+    const id = `release-red:${repo}#89`;
+    const item = [...built.items, ...built.dismissed.map((d) => d.item)].find((i) => i.id === id);
+    if (!item?.fingerprint) throw new Error("Release failure must reach the queue");
+    return { item, dismissedIds: built.dismissed.map((d) => d.item.id) };
+  };
+  const clock = release(context());
+  const instant = release(context("instant"));
+  expect(instant.item.cause).toContainEqual({ label: "reason", value: reason });
+  expect(clock.item.cause).toContainEqual({ label: "reason", value: reason });
+  expect(instant.item.fingerprint).toBe(clock.item.fingerprint);
+  const entry = (fingerprint: string) => [{ id: clock.item.id, fingerprint }];
+  expect(
+    release(context("instant"), entry(clock.item.fingerprint as string)).dismissedIds,
+  ).toContain(clock.item.id);
+  expect(release(context(), entry(instant.item.fingerprint as string)).dismissedIds).toContain(
+    clock.item.id,
   );
 });
