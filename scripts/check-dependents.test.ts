@@ -55,9 +55,12 @@ it("runs every package and the script tests whole when a fixture changes", () =>
   );
 });
 
-it("runs every package and the script tests whole when a source of the generated watch fixtures changes", () => {
+it("runs every package and the script tests whole when a file the watch fixture generator loads or reads changes", () => {
   for (const path of [
     "packages/core/src/brief/places.ts",
+    "packages/core/package.json",
+    "packages/core/test/fixtures/rib-59d6895/facts.json",
+    "packages/host/src/watch/project.ts",
     "packages/host/test/watch/snapshot-fixture.ts",
     "pnpm-lock.yaml",
     "scripts/watch-snapshot.mjs",
@@ -68,14 +71,16 @@ it("runs every package and the script tests whole when a source of the generated
   }
 });
 
-it("runs no more whole for a test or hidden file inside a source folder of the generated watch fixtures", () => {
-  expect(wholeProjects(["packages/host/src/watch/project.test.ts"], dependencies)).toEqual([
-    "apps/desktop",
-  ]);
-  expect(wholeProjects(["packages/core/src/.eslintrc"], dependencies)).toEqual([
-    "apps/desktop",
-    "packages/host",
-  ]);
+it("runs only the dependents of a package file the watch fixture generator neither loads nor reads", () => {
+  for (const path of ["packages/tools/src/git/installer.ts", "packages/tools/package.json"])
+    expect(wholeProjects([path], dependencies), path).toEqual(["apps/desktop", "packages/host"]);
+  for (const path of [
+    "packages/host/src/copilot/runtime.ts",
+    "packages/host/src/setup/signin.ts",
+    "packages/host/src/watch/README.md",
+    "packages/host/src/watch/project.test.ts",
+  ])
+    expect(wholeProjects([path], dependencies), path).toEqual(["apps/desktop"]);
 });
 
 it("leaves to the import-following run every project that does not run whole", () => {

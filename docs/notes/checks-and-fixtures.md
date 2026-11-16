@@ -37,8 +37,10 @@ Only `snapshot-1106.json` and `inspect-1106.json` are committed.
 `fixtures/watch/generated` with a digest of the sources it read. Tests read those files
 through `scripts/watch-generated.mjs`, which refuses them, naming the command, when the
 folder is missing or the digest no longer matches the checkout. `scripts/check` and
-packaging run it first. Its sources are listed in `scripts/watch-inputs.mjs`; a change
-to one makes `--quick` run every project whole, as a change under `fixtures/` does.
+packaging run it first. The digest covers the broad source folders listed in
+`scripts/watch-inputs.mjs`. `--quick` runs every project whole only for a change the
+generator can see: a module `packages/host/test/watch/outputs.ts` imports, directly or
+not, its package's manifest or build settings, a fixture it reads, or its scripts.
 Recompute the models digest with
 `SPI_RECORD_MODEL_DIGEST=1 pnpm vitest run packages/core/test/inspect/identity.test.ts`.
 The frozen rib oracle stays unchanged; its comparison ignores only U+00A0.
