@@ -18,7 +18,9 @@
       "!**/dist",
       "!**/build",
       "!design",
-      "!packages/core/test/fixtures/rib-59d6895"
+      "!packages/core/test/fixtures/rib-59d6895",
+      "!packages/core/test/fixtures/upstream.json",
+      "!packages/core/test/fixtures/upstream-1106.json"
     ]
   },
   "formatter": {

@@ -12,6 +12,7 @@ The scaffold uses Node 22.16 or newer, matching `engines` in `package.json`, and
 `scripts/**/*.test.ts` (`vitest.config.ts`).
 The header check covers tracked and untracked, non-ignored sources, including
 extensionless shebang scripts. Build output and dependencies are ignored.
+Biome excludes only the oversized recorded inputs `packages/core/test/fixtures/upstream.json` and `packages/core/test/fixtures/upstream-1106.json`: they are captured verbatim and never hand-edited.
 
 The window's text rules render every Watch snapshot named in
 `test-utils/watch-fixtures.test-helper.ts`, one `app/text-rules.<stem>.test.tsx` per
