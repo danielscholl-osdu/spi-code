@@ -652,7 +652,7 @@ export function motionCases(snapshot: ViewSnapshot): Reach[] {
             opens: detail,
           });
       if (!line.service) return;
-      const service = `${li} .today-motion-service .kit-chip--service`;
+      const service = `${li} .today-motion-service .today-motion-fork`;
       add(`${pointer}/service`, line.service, TODAY, service);
       const place: Route = { kind: "service", id: line.service };
       for (const [item, entry] of items)
