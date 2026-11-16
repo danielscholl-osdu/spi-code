@@ -92,4 +92,23 @@ describe("Today version states", () => {
       expect(today.platform.text).not.toContain("→");
     },
   );
+
+  it.each(["release-2026", "storage-v1.4.1"])(
+    "proposes nothing over a released %s that does not parse as a version",
+    (released) => {
+      const data = input("released", released);
+      data.documents = [
+        { month: "2026-11", rows: [{ id: "spi-template", state: "released", version: released }] },
+      ];
+      const today = releasesToday(data);
+      for (const pair of [today.versions[0], today.platform.template]) {
+        expect(pair).toMatchObject({ released });
+        expect(pair).not.toHaveProperty("proposed");
+        expect(pair).not.toHaveProperty("pr");
+      }
+      expect(today.versions[0]?.text).toBe(`released ${released}`);
+      expect(today.platform.text).toContain(`template ${released}`);
+      expect(today.platform.text).not.toContain("→");
+    },
+  );
 });

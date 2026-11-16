@@ -45,9 +45,11 @@ export interface ReleasesTodayInput {
   context: CoreContext;
 }
 
+const RELEASED_VERSION = /^v?\d+(?:\.\d+){1,2}(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+
 function proposed(pr: Pr | undefined, released: string | undefined) {
   const version = pr && /\brelease\s+(?:\S+\s+)?v?(\d+(?:\.\d+){1,2}(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)\s*$/i.exec(pr.title)?.[1];
-  return pr && version && released && compareVersions(version, released) > 0
+  return pr && version && released && RELEASED_VERSION.test(released) && compareVersions(version, released) > 0
     ? { proposed: version, pr: { number: pr.number, url: pr.url } }
     : {};
 }
