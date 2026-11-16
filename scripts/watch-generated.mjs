@@ -19,6 +19,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { INPUTS, notInput } from "./watch-inputs.mjs";
 
 // Not new URL("../", import.meta.url): the DOM test environments replace URL.
 const repository = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -27,36 +28,13 @@ export const GENERATED = "fixtures/watch/generated";
 export const GENERATOR = "pnpm build && node scripts/watch-generated.mjs";
 const STAMP = "inputs.sha256";
 
-/** What the generator compiles or reads; a change to any of them makes the generated files stale. */
-const INPUTS = [
-  "fixtures/rib-59d6895",
-  "packages/contracts/package.json",
-  "packages/contracts/src",
-  "packages/contracts/tsconfig.json",
-  "packages/core/package.json",
-  "packages/core/src",
-  "packages/core/test/fixtures",
-  "packages/core/tsconfig.build.json",
-  "packages/host/package.json",
-  "packages/host/src",
-  "packages/host/test",
-  "packages/host/tsconfig.build.json",
-  "packages/tools/package.json",
-  "packages/tools/src",
-  "packages/tools/tsconfig.json",
-  "pnpm-lock.yaml",
-  "scripts/watch-generated.mjs",
-  "scripts/watch-snapshot.mjs",
-  "tsconfig.base.json",
-];
-
 /** @param {string} root @param {string} path @returns {string[]} */
 function inputFiles(root, path) {
   const absolute = join(root, path);
   if (!existsSync(absolute)) return [];
   if (!statSync(absolute).isDirectory()) return [path];
   return readdirSync(absolute, { recursive: true, withFileTypes: true })
-    .filter((entry) => entry.isFile() && !/^\.|\.test\.tsx?$/.test(entry.name))
+    .filter((entry) => entry.isFile() && !notInput(entry.name))
     .map((entry) => relative(root, join(entry.parentPath, entry.name)).split(sep).join("/"));
 }
 

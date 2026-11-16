@@ -48,10 +48,8 @@ function fixture() {
   cpSync(join(root, "scripts/check"), join(directory, "check"));
   mkdirSync(join(directory, "node_modules"));
   mkdirSync(join(directory, "scripts"));
-  cpSync(
-    join(root, "scripts/check-dependents.mjs"),
-    join(directory, "scripts/check-dependents.mjs"),
-  );
+  for (const script of ["check-dependents.mjs", "watch-inputs.mjs"])
+    cpSync(join(root, "scripts", script), join(directory, "scripts", script));
   mkdirSync(join(directory, "apps"));
   mkdirSync(join(directory, "packages"));
   writeFileSync(join(directory, ".gitignore"), "node_modules\ncalls.log\n");
