@@ -757,21 +757,14 @@ const STATES = ["rest", "hover"] as const;
 /** A text a view must measure in a state: a fragment of its selector, and its words. */
 type Required = Partial<Record<(typeof STATES)[number], { selector: string; text: string }[]>>;
 
-const PINS_KEY = "spi-code.sidebar.pins.v2";
+const PINS_KEY = "spi-code.sidebar.pins.v3";
 const PINNED_STOPPED = "entitlements";
-const PINS = [
-  "sheet:line",
-  "place:upstream",
-  "place:environment",
-  "place:engineering-system",
-  "place:releases",
-  "place:security",
-  PINNED_STOPPED,
-];
+const PINS = ["place:upstream", "place:releases", "place:security", PINNED_STOPPED];
 const PINNED: Required = {
   rest: [{ selector: "sidebar-word[data-tone=bad]", text: "stopped" }],
   hover: [
     { selector: "sidebar-row-label", text: PINNED_STOPPED },
+    { selector: "sidebar-word[data-tone=bad]", text: "stopped" },
     { selector: "sidebar-mark[data-tone=error]", text: "1" },
     { selector: "sidebar-mark[data-tone=warning]", text: "13" },
   ],

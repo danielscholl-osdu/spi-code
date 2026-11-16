@@ -155,8 +155,9 @@ the Stops the line block and hold that count equal to the sidebar's Today count.
 None of the smoke mornings holds the environment, so no packaged capture draws the
 block; feed the packaged app a morning whose Held lane names an Interrupt to see it.
 The supervision step pins services under the legacy `spi-code.sidebar.pins` key after
-start; the pins store reads that key live until its first write under the `.v2` key,
-so it must never persist the seed on read.
+start; the pins store reads that key live while `.v3` and `.v2` are absent and migrates it
+into `.v3` once, so it must never persist the seed on read, and every smoke step that writes
+`.v3` restores it (removes it when it was absent).
 After the captures, `smoke-contrast.ts` measures every visible text on Today (Nov 6, its sweep popover
 and the three mornings), Upstream, the Line sheet, both Detail forms and Settings' three sections at
 1440 px, in Warm and Neutral, light and dark, at rest and with every `:hover` target in the style
@@ -169,14 +170,19 @@ white-on-white text inside aria-hidden, generated words) must fail, or the rule 
 Each view is mounted once and shaded in place; Settings is shaded through its own Appearance radios,
 which checks the in-place shading writes the same root attributes. It runs after the
 screencast stops, so its waits watch DOM mutations rather than animation frames.
-Today runs with a stopped service (entitlements) pinned under the `.v2` key, and fails unless it
-measures that pin's sidebar word at rest and its row hovered: `.pin-item:hover` hides the word, so
-hovered there is no word to measure. The key is restored after the rule, since supervision pins
-under the legacy key. Line, Environment and Engineering system have no unpin button, so their marks
-stay drawn on hover, and the rule requires Line's and Engineering system's hovered digits.
-Find or ask is the last view: its results carry `data-pin-state`, which the collector names in
-selectors, and the rule requires an always-pinned, a pinned and the highlighted unpinned result.
+Today runs with a stopped service (entitlements) pinned under the `.v3` key, and fails unless it
+measures that pin's sidebar word at rest and hovered, and Line's and Engineering system's hovered
+digits. The key is restored after the rule, since supervision pins under the legacy key.
+Find or ask is the last view: its results carry `data-pin-state` (`always` on the sidebar's fixed
+block, which draws no pin control), which the collector names in selectors, and the rule requires
+a fixed, a pinned and the highlighted unpinned result.
 `views/find-pins-<appearance>.html` captures the same at 1440 px.
+`smoke-sidebar.ts` then pins six rows under `.v3` and holds the hover rule: hovering a fixed or
+Pinned row keeps every mark, word and count in its box and adds none. CDP forces `:hover` on the
+row and each ancestor, as a pointer would, since `.pin-item:hover` sits on the row's list item.
+In light, the old hover hide injected as a style sheet must be rejected
+(`views/sidebar-hover-light.json`). `views/sidebar-pins-<appearance>.html` captures the sidebar at
+rest, with entitlements hovered, and with its menu open.
 The top row's capsule holds only the sweep, so the program status is read from the status pins:
 the 20-service probe reads `[data-sidebar-row=line]`'s `data-services`, the Line sheet opens from
 that pin, and the status scenes wait on each pin's `data-status`, `data-classification` and title

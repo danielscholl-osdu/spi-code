@@ -26,6 +26,7 @@ import {
   VIEW_SURFACES,
   VIEW_WIDTHS,
 } from "./smoke-report.js";
+import { captureSidebarPins } from "./smoke-sidebar.js";
 import { smokeScheduledSweep, smokeSweepProgress } from "./smoke-sweep.js";
 import { captureMornings, loadMornings } from "./smoke-today.js";
 
@@ -268,11 +269,11 @@ async function captureSweepStates(
   );
 }
 
-const PINS_KEY = "spi-code.sidebar.pins.v2";
+const PINS_KEY = "spi-code.sidebar.pins.v3";
 
 /**
- * Find or ask with Line, Environment and Engineering system always pinned, Upstream and
- * entitlements pinned, and the unpinned partition highlighted, so its hollow pin shows.
+ * Find or ask with Line, Environment and Engineering system in the sidebar's fixed block, Upstream
+ * and entitlements pinned, and the unpinned partition highlighted, so its hollow pin shows.
  */
 async function captureFindPins(
   window: BrowserWindow,
@@ -283,13 +284,7 @@ async function captureFindPins(
   const saved: string | null = await window.webContents.executeJavaScript(
     `localStorage.getItem(${key})`,
   );
-  const pins = [
-    "sheet:line",
-    "place:upstream",
-    "place:environment",
-    "place:engineering-system",
-    "entitlements",
-  ];
+  const pins = ["place:upstream", "entitlements"];
   const store = (value: string | null) =>
     window.webContents.executeJavaScript(`{
       const value = ${JSON.stringify(value)};
@@ -327,7 +322,7 @@ async function captureFindPins(
     writeFileSync(join(output, file), (await window.webContents.capturePage(bounds)).toPNG());
     writeFileSync(
       join(output, `find-pins-${appearance}.html`),
-      `<!doctype html><meta charset="utf-8"><title>Find or ask pins</title><style>body{font:14px system-ui;padding:24px}img{max-width:100%}</style><h1>Find or ask pins / ${appearance}</h1><p>Design: epic spicode-8i9 and its rulings. Line, Environment and Engineering system are always pinned (filled, placeholder ink); Upstream and entitlements are pinned (filled); partition is highlighted and unpinned (hollow).</p><img src="${file}" alt="Find or ask with pinned, unpinned and always-pinned results">`,
+      `<!doctype html><meta charset="utf-8"><title>Find or ask pins</title><style>body{font:14px system-ui;padding:24px}img{max-width:100%}</style><h1>Find or ask pins / ${appearance}</h1><p>Design: epic spicode-8i9 and its rulings. Line, Environment and Engineering system sit in the sidebar's fixed block and draw no pin; Upstream and entitlements are pinned (filled); partition is highlighted and unpinned (hollow).</p><img src="${file}" alt="Find or ask with pinned and unpinned results and the fixed block's places">`,
     );
     await window.webContents.executeJavaScript(
       'document.querySelector("[role=dialog].palette input").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))',
@@ -1281,7 +1276,7 @@ export async function captureSmokeViews(
             qualifiers.push(
               ...(await window.webContents.executeJavaScript(`[
                 document.querySelector(".today .today-headline")?.textContent.trim() ?? "",
-                document.querySelector('ul[aria-label="Today"] .sidebar-pip')?.textContent.trim() ?? "",
+                document.querySelector('[data-sidebar-row=today] .sidebar-pip')?.textContent.trim() ?? "",
                 String(document.querySelectorAll(".today .today-needs .today-need, .today .today-stop").length)
               ]`)),
               seen,
@@ -1367,7 +1362,11 @@ export async function captureSmokeViews(
             scheduledCursor + 200,
           );
           await captureFindPins(window, output, appearance);
-          section(`status, sweep and Find captures ${viewportWidth}/${appearance}`);
+          fixture(window, "view.snapshot", { ...snapshot, cursor: scheduledCursor + 300 });
+          await captureSidebarPins(window, output, appearance, (condition) =>
+            rendered(window, condition),
+          );
+          section(`status, sweep, Find and sidebar captures ${viewportWidth}/${appearance}`);
         }
       }
     }
