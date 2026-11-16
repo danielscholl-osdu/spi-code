@@ -8,7 +8,9 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isWatchInput } from "./watch-inputs.mjs";
+import { generatorInputs } from "./watch-inputs.mjs";
+
+const repository = fileURLToPath(new URL("..", import.meta.url));
 
 /**
  * @param {string} root
@@ -42,11 +44,16 @@ export function workspaceDependencies(root) {
 /**
  * @param {string[]} changed repository-relative paths, forward slashes
  * @param {Map<string, string[]>} dependencies
+ * @param {(path: string) => boolean} [isGeneratorInput] whether a change to the path can change the generated watch fixtures
  * @returns {string[]} vitest project names to run whole, sorted
  */
-export function wholeProjects(changed, dependencies) {
+export function wholeProjects(
+  changed,
+  dependencies,
+  isGeneratorInput = generatorInputs(repository),
+) {
   const directories = [...dependencies.keys()];
-  if (changed.some((path) => path.startsWith("fixtures/") || isWatchInput(path)))
+  if (changed.some((path) => path.startsWith("fixtures/") || isGeneratorInput(path)))
     return [...directories, "scripts"].sort();
   const touched = directories.filter((directory) =>
     changed.some((path) => path.startsWith(`${directory}/`)),
@@ -82,8 +89,8 @@ export function restProjects(whole, dependencies) {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const changed = readFileSync(0, "utf8").split("\n").filter(Boolean);
-  const dependencies = workspaceDependencies(fileURLToPath(new URL("..", import.meta.url)));
-  const whole = wholeProjects(changed, dependencies);
+  const dependencies = workspaceDependencies(repository);
+  const whole = wholeProjects(changed, dependencies, generatorInputs(repository));
   for (const project of process.argv[2] === "--rest" ? restProjects(whole, dependencies) : whole) {
     console.log(project);
   }
