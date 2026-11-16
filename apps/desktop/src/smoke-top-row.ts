@@ -46,8 +46,8 @@ export const PIN_END_PROBE = `(() => {
 
 /**
  * The top row's pin control on a pinned place and an unpinned service, with the right panel closed
- * and open: the pin-end geometry at each width, captures at 1440 and 740 px, and the two broken
- * rules rejected in light.
+ * and open: the pin-end geometry at each width, captures at 1440 and 740 px (and the pinned control
+ * hovered), and the two broken rules rejected in light.
  */
 export async function captureTopRowPins(
   window: BrowserWindow,
@@ -93,6 +93,8 @@ export async function captureTopRowPins(
             (await window.webContents.capturePage({ x: 0, y: 0, width, height: 44 })).toPNG(),
           );
           figures.push(`<figure><figcaption>${state}</figcaption><img src="${file}"></figure>`);
+          if (pinned && panel === "closed")
+            figures.push(await captureHover(window, output, width, appearance));
         }
         if (panel === "open") {
           await js(`document.querySelector("[aria-label='Close detail']").click()`);
@@ -118,6 +120,48 @@ export async function captureTopRowPins(
       join(output, `top-row-pins-${width}-${appearance}.html`),
       `<!doctype html><meta charset="utf-8"><title>Top-row pin control</title><style>body{font:14px system-ui;padding:24px}figure{margin:16px 0}img{max-width:100%;border:1px solid #888}</style><h1>Top-row pin control / ${width} px / ${appearance}</h1><p>Design: epic spicode-1l9, PS-11 and PS-17. Upstream pinned (filled), partition unpinned (hollow); the control ends 6 px before the right-panel toggle, or last with the panel open.</p>${figures.join("")}`,
     );
+}
+
+/** The pinned control under a forced hover, which must show pin-off in place of the filled pin. */
+async function captureHover(
+  window: BrowserWindow,
+  output: string,
+  width: number,
+  appearance: "light" | "dark",
+): Promise<string> {
+  const debug = window.webContents.debugger;
+  await debug.sendCommand("DOM.enable");
+  await debug.sendCommand("CSS.enable");
+  const { root }: { root: { nodeId: number } } = await debug.sendCommand("DOM.getDocument", {
+    depth: 0,
+  });
+  const { nodeId }: { nodeId: number } = await debug.sendCommand("DOM.querySelector", {
+    nodeId: root.nodeId,
+    selector: ".centre-end > .pin-control[data-pinned=true]",
+  });
+  await debug.sendCommand("CSS.forcePseudoState", { nodeId, forcedPseudoClasses: ["hover"] });
+  try {
+    const shown = await window.webContents.executeJavaScript(`(() => {
+      const pin = document.querySelector(".centre-end > .pin-control[data-pinned=true]");
+      const seen = (name) => getComputedStyle(pin.querySelector(name)).visibility === "visible";
+      return { pin: seen(".pin-control-pin"), off: seen(".pin-control-off") };
+    })()`);
+    assert.deepEqual(
+      shown,
+      { pin: false, off: true },
+      "Hovered pinned control does not show pin-off",
+    );
+    const file = `top-row-pinned-hover-${width}-${appearance}.png`;
+    writeFileSync(
+      join(output, file),
+      (await window.webContents.capturePage({ x: 0, y: 0, width, height: 44 })).toPNG(),
+    );
+    return `<figure><figcaption>pinned-hover (pin-off)</figcaption><img src="${file}"></figure>`;
+  } finally {
+    await debug.sendCommand("CSS.forcePseudoState", { nodeId, forcedPseudoClasses: [] });
+    await debug.sendCommand("CSS.disable");
+    await debug.sendCommand("DOM.disable");
+  }
 }
 
 async function rejectBroken(
