@@ -93,6 +93,17 @@ describe("Today version states", () => {
     },
   );
 
+  it.each(["1", "v1"])("proposes a newer version over a one-part released %s", (released) => {
+    const data = input("released", released);
+    data.documents = [
+      { month: "2026-11", rows: [{ id: "spi-template", state: "released", version: released }] },
+    ];
+    const today = releasesToday(data);
+    for (const pair of [today.versions[0], today.platform.template]) {
+      expect(pair).toMatchObject({ released, proposed: "1.5.0" });
+    }
+  });
+
   it.each(["release-2026", "storage-v1.4.1"])(
     "proposes nothing over a released %s that does not parse as a version",
     (released) => {
