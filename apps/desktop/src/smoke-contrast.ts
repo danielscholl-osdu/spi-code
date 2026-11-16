@@ -917,6 +917,7 @@ export async function assertRenderedContrast(
     };
     const force = async (): Promise<number[]> => {
       const selectors = await js<string[]>(`(${hoverTargets.toString()})()`);
+      selectors.push("[data-slot=sidebar-footer] [data-sweep-line]");
       const { root }: { root: { nodeId: number } } = await debug.sendCommand("DOM.getDocument", {
         depth: 0,
       });
