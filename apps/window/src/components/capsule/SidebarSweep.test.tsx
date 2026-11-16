@@ -9,7 +9,7 @@ import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { selectStrip } from "../../store/strip.js";
 import { watchStore } from "../../store/watch.js";
 import { fixtureLoader } from "../../test-utils/harness.js";
-import { StatusCapsule } from "./StatusCapsule.js";
+import { SidebarSweep } from "./SweepSegment.js";
 
 const previous = watchStore.getState();
 let cleanup: (() => Promise<void>) | undefined;
@@ -97,26 +97,32 @@ async function render(body: ViewSnapshot | null) {
     await act(async () => root.unmount());
     container.remove();
   };
-  await act(async () => root.render(<StatusCapsule />));
-  return container.querySelector<HTMLElement>("[data-strip]");
+  await act(async () =>
+    root.render(
+      <footer>
+        <SidebarSweep />
+      </footer>,
+    ),
+  );
+  return container.querySelector<HTMLElement>("footer");
 }
 
-it("draws only the sweep segment for every strip classification and with no snapshot", async () => {
+it("draws only the footer sweep for every strip classification and with no snapshot", async () => {
   const seen = new Set<string>();
   for (const [name, change] of scenes) {
     const body = change(fixtureLoader(readFixture)("snapshot-1106.json"));
     const strip = selectStrip(body);
     for (const field of [strip.environment, strip.template, strip.forks])
       seen.add(field.classification);
-    const capsule = await render(body);
+    const footer = await render(body);
     expect(
-      [...(capsule?.querySelectorAll<HTMLElement>("[data-field]") ?? [])].map(
+      [...(footer?.querySelectorAll<HTMLElement>("[data-field]") ?? [])].map(
         (element) => element.dataset.field,
       ),
       name,
     ).toEqual(["freshness"]);
-    expect(capsule?.querySelectorAll("button, a, [role=button]").length, name).toBe(1);
-    expect(capsule?.querySelector("button")?.hasAttribute("data-sweep-line"), name).toBe(true);
+    expect(footer?.querySelectorAll("button, a, [role=button]").length, name).toBe(1);
+    expect(footer?.querySelector("button")?.hasAttribute("data-sweep-line"), name).toBe(true);
     await cleanup?.();
     cleanup = undefined;
   }
@@ -132,9 +138,9 @@ it("draws only the sweep segment for every strip classification and with no snap
       "waiting",
     ].sort(),
   );
-  const capsule = await render(null);
+  const footer = await render(null);
   expect(
-    [...(capsule?.querySelectorAll<HTMLElement>("[data-field]") ?? [])].map(
+    [...(footer?.querySelectorAll<HTMLElement>("[data-field]") ?? [])].map(
       (element) => element.dataset.field,
     ),
   ).toEqual(["freshness"]);

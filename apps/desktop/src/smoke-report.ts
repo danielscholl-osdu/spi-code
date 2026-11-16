@@ -41,11 +41,11 @@ export const VIEW_SURFACES = [
   },
   {
     id: "strip",
-    name: "The strip",
+    name: "Footer sweep",
     route: "today",
     place: "Today",
-    selector: "[data-strip]",
-    designSection: "The window; A / New: strip",
+    selector: "[data-slot=sidebar-footer] [data-sweep-line]",
+    designSection: "The window / Footer sweep",
     qualified: true,
   },
   {
@@ -180,7 +180,7 @@ export const VIEW_SURFACES = [
     route: "today",
     place: "Today",
     selector: '[data-sidebar-row=line][data-services="20"]',
-    designSection: "Layout / Top row: Where the capsule sits, at 740 px; Status on the pins",
+    designSection: "Layout / Top row at 740 px; Status on the pins",
     qualified: true,
   },
   {
@@ -198,7 +198,7 @@ export const VIEW_SURFACES = [
     route: "today",
     place: "Today",
     selector: "#app-sidebar[data-state=collapsed] ~ main .centre-row > .toggle-room",
-    designSection: "Layout / Top row: Where the capsule sits, with the sidebar hidden",
+    designSection: "Layout / Top row with the sidebar hidden",
     qualified: true,
   },
   {
@@ -297,7 +297,6 @@ export const BROKEN_PROOFS: Partial<Record<string, RegExp>> = {
   "detail-related/1440": /^Related value squeezed to 159 px$/,
   "panes/1440": /^Header top: 4 != 0$/,
   "strip-20/740": /^Toggle sidebar at .* lies in a drag rectangle$/,
-  "sidebar-hidden/1440": /^Capsule end .* is not its end position .*$/,
 };
 
 export function geometryRules(surface: string, width: number): SmokeGeometry["rule"][] {

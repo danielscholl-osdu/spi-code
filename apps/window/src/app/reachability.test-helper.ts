@@ -104,7 +104,7 @@ const start = (name: string, route: Destination, surface: string = route.kind): 
 
 export const STARTS = {
   today: start("Today", { kind: "today" }),
-  strip: start("Strip", { kind: "today" }, "strip"),
+  strip: start("Footer sweep", { kind: "today" }, "strip"),
   line: start("Line sheet", { kind: "line" }, "sheet"),
   upstream: start("Upstream", { kind: "upstream" }),
   environment: start("Environment", { kind: "environment" }),
@@ -132,7 +132,7 @@ function home(name: string, from: Start, step?: Selector, detail?: InspectResult
 }
 
 const TODAY = home("Today", STARTS.today);
-const STRIP = home("Strip", STARTS.strip);
+const STRIP = home("Footer sweep", STARTS.strip);
 const PINS = home("Pinned", STARTS.today);
 const LINE = home("Line sheet", STARTS.line);
 const LINE_UNFOLDED = home("Line sheet, unfolded", STARTS.line, ".line-fold");
@@ -242,9 +242,15 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
       { attribute: "dateTime" },
     );
   }
-  add("/briefing/sweptAt", briefing.sweptAt, STRIP, "[data-strip] [data-sweep-line] time", {
-    attribute: "dateTime",
-  });
+  add(
+    "/briefing/sweptAt",
+    briefing.sweptAt,
+    STRIP,
+    "[data-slot=sidebar-footer] [data-sweep-line] time",
+    {
+      attribute: "dateTime",
+    },
+  );
 
   const verdict = briefing.verdict;
   if (verdict && !bandHolds(snapshot)) {

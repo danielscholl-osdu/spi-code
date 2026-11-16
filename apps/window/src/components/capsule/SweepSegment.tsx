@@ -13,6 +13,7 @@ import { Icon } from "../icons/Icon.js";
 import { openFreshness } from "../sweep/reveal.js";
 import { settled } from "../sweep/words.js";
 import { shortWhen, sourceState, sweepFill, sweepSegment } from "./sweep.js";
+import "./capsule.css";
 
 const plural = (n: number) => (n === 1 ? "source" : "sources");
 
@@ -112,8 +113,8 @@ function SweepPopover({ now, onClose }: { now: number; onClose(): void }) {
   );
 }
 
-/** The capsule's last segment: the sweep's time and tone, opening a popover of its sources. */
-export function SweepSegment() {
+/** The footer sweep opens its sources above the button. */
+export function SidebarSweep() {
   const labelId = useId();
   const [open, setOpen] = useState(false);
   const snapshot = useStore(watchStore, (state) => state.snapshot?.body ?? null);
@@ -124,7 +125,7 @@ export function SweepSegment() {
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger
-        className="capsule-seg capsule-sweep"
+        className="sidebar-sweep capsule-sweep"
         data-sweep-line=""
         data-field="freshness"
         data-tone={view.tone}
@@ -140,7 +141,7 @@ export function SweepSegment() {
         </span>
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Positioner sideOffset={8} align="end" className="capsule-positioner">
+        <Popover.Positioner side="top" sideOffset={8} align="end" className="capsule-positioner">
           <Popover.Popup className="capsule-popup" data-sweep-popover="">
             <SweepPopover now={now} onClose={() => setOpen(false)} />
           </Popover.Popup>

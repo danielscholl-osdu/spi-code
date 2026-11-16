@@ -515,6 +515,37 @@ it("opens the sidebar on the first Command+B after collapsing inline and narrowi
   }
 });
 
+it.each([600, 1280])(
+  "keeps a running sweep's line with the sidebar out of sight at %i px",
+  async (width) => {
+    viewport(width);
+    const previous = watchStore.getState();
+    watchStore.setState({ progress: null });
+    const shell = await mountShell();
+    try {
+      if (width === 1280)
+        await act(async () =>
+          shell.container
+            .querySelector<HTMLButtonElement>('[aria-label="Toggle sidebar"]')
+            ?.click(),
+        );
+      const sidebar = shell.container.querySelector("#app-sidebar");
+      expect(sidebar?.getAttribute("data-state")).toBe("collapsed");
+      expect(sidebar?.hasAttribute("data-mobile")).toBe(width === 600);
+      await act(async () => watchStore.setState({ progress: midSweep() }));
+      const line = shell.container.querySelector<HTMLElement>("[data-sweep-progress]");
+      expect(line?.dataset.sweepProgress).toBe("0.75");
+      expect(line?.closest("#app-sidebar")).toBeNull();
+      expect(shell.container.querySelector(".centre-bar [data-sweep-line]")).toBeNull();
+      await act(async () => watchStore.setState({ progress: null }));
+      expect(shell.container.querySelector("[data-sweep-progress]")).toBeNull();
+    } finally {
+      await shell.cleanup();
+      watchStore.setState(previous, true);
+    }
+  },
+);
+
 it.each([900, 1280])(
   "closes cleared selection Evidence on navigation only when presented as a sheet at %i px",
   async (width) => {
@@ -746,7 +777,7 @@ it.each([900, 1280])(
 );
 
 it.each([900, 1280])(
-  "opens the capsule's sweep Evidence in the detail surface at %i px even with a selection",
+  "opens the footer sweep Evidence in the detail surface at %i px even with a selection",
   async (width) => {
     viewport(width);
     const previous = watchStore.getState();
@@ -761,7 +792,9 @@ it.each([900, 1280])(
         await act(async () => selectionStore.getState().setOpen(false));
         expect(shell.container.querySelector("#app-right-panel")).toBeNull();
         await act(async () =>
-          shell.container.querySelector<HTMLButtonElement>("header [data-sweep-line]")?.click(),
+          shell.container
+            .querySelector<HTMLButtonElement>("[data-slot=sidebar-footer] [data-sweep-line]")
+            ?.click(),
         );
         await act(async () =>
           document
@@ -792,7 +825,7 @@ it.each([900, 1280])(
   },
 );
 
-it("updates the capsule's sweep segment from the live areas with the worst tone, and opens the sweep Evidence", async () => {
+it("updates the footer sweep from the live areas with the worst tone, and opens the sweep Evidence", async () => {
   const previousState = watchStore.getState();
   let receive: Parameters<typeof window.spi.onMessage>[0] | undefined;
   const harness = installSpi({
@@ -825,7 +858,8 @@ it("updates the capsule's sweep segment from the live areas with the worst tone,
   const recovered = testSnapshot(briefing, releases, { cursor: 2, areas: freshAreas });
   try {
     await act(async () => root.render(<Shell />));
-    const line = () => container.querySelector<HTMLButtonElement>("header [data-sweep-line]");
+    const line = () =>
+      container.querySelector<HTMLButtonElement>("[data-slot=sidebar-footer] [data-sweep-line]");
     expect(line()?.getAttribute("data-tone")).toBe("fine");
     expect(line()?.textContent).toContain("Waiting for the first sweep");
     for (const [snapshot, tone, words] of [
@@ -873,7 +907,7 @@ it("updates the capsule's sweep segment from the live areas with the worst tone,
 });
 
 it.each(["failed", "stale"] as const)(
-  "turns the capsule's sweep segment on a %s non-area release envelope and clears it on recovery",
+  "turns the footer sweep on a %s non-area release envelope and clears it on recovery",
   async (state) => {
     const previousState = watchStore.getState();
     let receive: Parameters<typeof window.spi.onMessage>[0] | undefined;
@@ -929,7 +963,7 @@ it.each(["failed", "stale"] as const)(
             payload: snapshot,
           }),
         );
-        const line = container.querySelector("header [data-sweep-line]");
+        const line = container.querySelector("[data-slot=sidebar-footer] [data-sweep-line]");
         expect(line?.getAttribute("data-tone")).toBe(expected);
         const name = document.getElementById(
           line?.getAttribute("aria-labelledby") ?? "",

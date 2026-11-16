@@ -205,7 +205,7 @@ describe.each([
       ),
     ];
     expect(pairs.map(([, role]) => role)).toEqual(
-      expect.arrayContaining(["capsule", "hover", "kbd", "active"]),
+      expect.arrayContaining(["hover", "kbd", "active"]),
     );
     for (const [, role = "", light, dark] of pairs)
       expect(value(theme, role), role).toBe(index === 0 ? light : dark);
@@ -231,7 +231,6 @@ describe.each(["warm", "neutral"] as const)("%s shell tokens", (palette) => {
     for (const role of [
       "work",
       "work-surface",
-      "capsule",
       "hover",
       "kbd",
       "active",
@@ -240,14 +239,7 @@ describe.each(["warm", "neutral"] as const)("%s shell tokens", (palette) => {
     ]) {
       expect(value(theme, role).match(/#[0-9a-f]{6}/)).not.toBeNull();
     }
-    for (const surface of [
-      "capsule",
-      "hover",
-      "kbd",
-      "active",
-      "success-surface",
-      "work-surface",
-    ]) {
+    for (const surface of ["hover", "kbd", "active", "success-surface", "work-surface"]) {
       for (const role of ["text", "text-strong"]) {
         expect(
           wcagContrast(value(theme, role), value(theme, surface)),

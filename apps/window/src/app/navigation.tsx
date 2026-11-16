@@ -60,7 +60,7 @@ export type Registry = {
   readonly sheet?:
     | ((origin: Route, presentation: Exclude<SheetPresentation, "closed">) => ReactNode)
     | undefined;
-  /** Drawn in the top row on every route and beside either sheet; nothing when absent. */
+  /** Drawn at the end of the sidebar footer on every route and beside either sheet. */
   readonly strip?: (() => ReactNode) | undefined;
   /** Where an unknown or unregistered hash lands; it must be registered. */
   readonly fallback: Route;

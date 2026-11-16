@@ -23,6 +23,7 @@
 
 import { useCallback, useEffect } from "react";
 import { useStore } from "zustand";
+import { sweepSegment } from "../components/capsule/sweep.js";
 import { Icon } from "../components/icons/Icon.js";
 import { StatusDotMark } from "../components/sidebar/ProgramSidebar.js";
 import { statusDot, statusRows } from "../components/sidebar/status-marks.js";
@@ -82,12 +83,16 @@ export function PanelShortcuts({
   return null;
 }
 
-/** Today's count and the status marks, as one dot for a sidebar that is out of sight. */
+/** Today's count, marks and sweep tone while the sidebar is out of sight. */
 function useHiddenSidebarDot() {
-  const body = useStore(watchStore, (state) => state.snapshot?.body);
-  if (!body) return undefined;
-  const marks = Object.values(statusRows(selectStrip(body), Date.now())).map(({ mark }) => mark);
-  return statusDot(countInterrupts(body.briefing), marks);
+  const body = useStore(watchStore, (state) => state.snapshot?.body ?? null);
+  const progress = useStore(watchStore, (state) => state.progress);
+  const tone = sweepSegment(body, progress, undefined, Date.now()).tone;
+  const sweep = tone === "bad" ? "error" : tone === "warn" ? "warning" : undefined;
+  const marks = body
+    ? Object.values(statusRows(selectStrip(body), Date.now())).map(({ mark }) => mark)
+    : [];
+  return statusDot(body ? countInterrupts(body.briefing) : 0, [...marks, sweep && { tone: sweep }]);
 }
 
 /**

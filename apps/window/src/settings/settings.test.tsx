@@ -294,7 +294,7 @@ it("opens on Readiness from the footer row and from Find, even after Appearance 
   }
 });
 
-it("dots the footer gear only when Readiness needs the operator, shows no sweep time there, and reaches no Setup place", async () => {
+it("dots the footer gear only when Readiness needs the operator, keeps its dot separate from the footer sweep, and reaches no Setup place", async () => {
   const shell = await mountShell();
   const footer = () => shell.container.querySelector('[data-slot="sidebar-footer"]');
   const dot = () => footer()?.querySelector<HTMLElement>(".sidebar-readiness-dot");
@@ -311,8 +311,8 @@ it("dots the footer gear only when Readiness needs the operator, shows no sweep 
     );
     expect(dot()?.dataset.readiness).toBe("failure");
     expect(dialog()).toBeNull();
-    expect(footer()?.querySelector("time")).toBeNull();
-    expect(footer()?.textContent).not.toMatch(/swept/i);
+    expect(footer()?.querySelector(".sidebar-settings time")).toBeNull();
+    expect(footer()?.querySelector("[data-sweep-line]")).not.toBeNull();
     expect(shell.container.querySelector('[data-sidebar-row="setup"]')).toBeNull();
     await act(async () => {
       window.location.hash = "#setup";

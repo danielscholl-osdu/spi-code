@@ -46,10 +46,8 @@ it("reserves upstream tokens and ⇣ for the horizon, upstream chips, upstream-o
   expect(leaks("views/line/index.tsx", "<span>{INBOUND_GLYPH}</span>")).toBe(true);
   expect(leaks("views/today/Places.tsx", "<span>⇣ upstream-owned</span>")).toBe(true);
   for (const selector of [
-    ".capsule",
-    ".capsule-seg:hover",
-    ".capsule-up",
-    ".capsule-sync",
+    ".sidebar-sweep",
+    ".sidebar-sweep:hover",
     ".capsule-sweep-text",
     ".capsule-popup",
   ])

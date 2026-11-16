@@ -3,6 +3,7 @@
 
 import { type CSSProperties, useCallback, useState } from "react";
 import { useStore } from "zustand";
+import { SweepProgressLine } from "../components/capsule/SweepSegment.js";
 import { SweepEvidence } from "../components/evidence/EvidenceTab.js";
 import { SweepLine } from "../components/evidence/SweepLine.js";
 import { ProgramSidebar } from "../components/sidebar/ProgramSidebar.js";
@@ -121,8 +122,21 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
             onNavigate={navigate}
             onFind={() => setFindOpen(true)}
             onSettings={openReadiness}
+            sweep={
+              registry.strip ? (
+                registry.strip()
+              ) : (
+                <SweepLine
+                  snapshot={snapshot ?? null}
+                  progress={progress}
+                  nextSweepAt={sweep?.nextSweepAt}
+                  onOpen={openSweepLine}
+                />
+              )
+            }
             {...(registry.sheet ? { onLine: () => navigate(LINE) } : {})}
           />
+          <SweepProgressLine />
           <CommandPalette
             store={watchStore}
             open={findOpen}
@@ -146,18 +160,6 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
                 )}
                 <div className="centre-title">
                   <TitleRow store={titles} fallback={routeLabel(route)} />
-                </div>
-                <div className="window-strip">
-                  {registry.strip ? (
-                    registry.strip()
-                  ) : (
-                    <SweepLine
-                      snapshot={snapshot ?? null}
-                      progress={progress}
-                      nextSweepAt={sweep?.nextSweepAt}
-                      onOpen={openSweepLine}
-                    />
-                  )}
                 </div>
                 <div className="centre-end">
                   {!rightPanelOpen && <RightPanelToggle onToggleRightPanel={toggleRightPanel} />}

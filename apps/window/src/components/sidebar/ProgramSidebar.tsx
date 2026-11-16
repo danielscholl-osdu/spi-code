@@ -22,7 +22,15 @@
 // SOFTWARE.
 
 import { ContextMenu } from "@base-ui/react/context-menu";
-import { type KeyboardEvent, type Ref, useEffect, useId, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  type ReactNode,
+  type Ref,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { useStore } from "zustand";
 import { treeServices } from "../../app/queue.js";
 import { isReachable, type Route, routeLabel, useRegistry } from "../../app/routes.js";
@@ -327,6 +335,7 @@ export function ProgramSidebar({
   onFind,
   onLine,
   onSettings,
+  sweep,
 }: {
   store: ReturnType<typeof createWatchStore>;
   route: Route;
@@ -336,6 +345,7 @@ export function ProgramSidebar({
   onLine?(): void;
   /** Opens Settings on Readiness; without it the sidebar has no footer. */
   onSettings?(): void;
+  sweep?: ReactNode;
 }) {
   const body = useStore(store, (state) => state.snapshot?.body);
   const dot = readinessDot(useStore(store, (state) => state.setup));
@@ -550,6 +560,7 @@ export function ProgramSidebar({
               />
             )}
           </button>
+          {sweep}
         </SidebarFooter>
       )}
     </Sidebar>

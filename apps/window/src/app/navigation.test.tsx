@@ -222,29 +222,31 @@ it("pins the Line sheet beside a live centre across navigation and a reload; unp
   expect(lineSheet()).toBeNull();
 });
 
-it("draws a registered strip in the top row on every route and beside either sheet", async () => {
+it("draws a registered sweep in the footer on every route and beside either sheet", async () => {
   const strip = vi.fn(() => <p>line state</p>);
   await mount({ views: every, sheet, strip, fallback: { kind: "today" } });
   const header = () => container.querySelector("header.centre-bar");
   const drawn = () => {
-    const slot = header()?.querySelector(".window-strip");
-    return slot?.matches(".window-strip") && !slot.closest("[inert]") ? slot.textContent : null;
+    expect(header()?.querySelector("[data-sweep-line]")).toBeNull();
+    const slot = container.querySelector('[data-slot="sidebar-footer"]');
+    return slot && !slot.closest("[inert]") ? slot.textContent : null;
   };
   for (const route of [{ kind: "today" }, { kind: "service", id: "legal" }] as const) {
     await go(route);
-    expect(drawn()).toBe("line state");
+    expect(drawn()).toContain("line state");
   }
   await go(LINE);
   expect(lineSheet()?.dataset.presentation).toBe("overlay");
-  expect(drawn()).toBe("line state");
+  expect(drawn()).toContain("line state");
   await act(async () => pinSheet());
   expect(lineSheet()?.dataset.presentation).toBe("pinned");
-  expect(drawn()).toBe("line state");
+  expect(drawn()).toContain("line state");
 
   await unmount();
   await mount({ views: every, sheet, fallback: { kind: "today" } });
   expect(container.querySelector("[data-strip]")).toBeNull();
-  expect(header()?.querySelector("[data-sweep-line]")).not.toBeNull();
+  expect(header()?.querySelector("[data-sweep-line]")).toBeNull();
+  expect(container.querySelector('[data-slot="sidebar-footer"] [data-sweep-line]')).not.toBeNull();
 });
 
 it("closes the Line sheet when the operator goes somewhere else", async () => {

@@ -1023,10 +1023,15 @@ export async function assertRenderedContrast(
     );
     await shade({ palette: "warm", theme: "light" });
     await everyShade("today", ".today", PINNED);
-    await js('document.querySelector("[data-strip] [data-sweep-line]").click()');
+    const sweepRequired = { selector: "capsule-sweep-text", text: "08:02" };
+    await everyShade("footer-sweep", "[data-slot=sidebar-footer] [data-sweep-line]", {
+      rest: [sweepRequired],
+      hover: [sweepRequired],
+    });
+    await js('document.querySelector("[data-slot=sidebar-footer] [data-sweep-line]").click()');
     await rendered(window, 'document.querySelector("[data-sweep-popover] .capsule-evidence")');
     await everyShade("sweep-popover", "[data-sweep-popover]");
-    await js('document.querySelector("[data-strip] [data-sweep-line]").click()');
+    await js('document.querySelector("[data-slot=sidebar-footer] [data-sweep-line]").click()');
     await rendered(window, '!document.querySelector("[data-sweep-popover]")');
     for (const [morning, snapshot] of mornings) {
       await push(snapshot);

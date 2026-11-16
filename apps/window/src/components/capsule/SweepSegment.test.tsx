@@ -37,8 +37,8 @@ async function mount() {
   };
 }
 
-const strip = () => container.querySelector<HTMLElement>(".window-strip [data-strip]");
-const field = (name: string) => strip()?.querySelector<HTMLElement>(`[data-field="${name}"]`);
+const footer = () => container.querySelector<HTMLElement>('[data-slot="sidebar-footer"]');
+const field = (name: string) => footer()?.querySelector<HTMLElement>(`[data-field="${name}"]`);
 const sheet = () => container.querySelector(".line-sheet");
 
 beforeEach(() => {
@@ -65,7 +65,8 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-const glyph = () => container.querySelector<HTMLButtonElement>("header [data-sweep-line]");
+const glyph = () =>
+  container.querySelector<HTMLButtonElement>("[data-slot=sidebar-footer] [data-sweep-line]");
 const display = () => glyph()?.querySelector("[data-sweep-display]")?.textContent;
 const glyphName = () =>
   document.getElementById(glyph()?.getAttribute("aria-labelledby") ?? "")?.textContent;

@@ -38,7 +38,7 @@ const running = (progress: SweepProgress | null | undefined) =>
 
 const count = (progress: SweepProgress) => `${settled(progress)} of ${progress.sources.length}`;
 
-/** The capsule's last segment: its icon, tone and words, and the sentence its hover reads. */
+/** The sweep's icon, tone and words, and the sentence its hover reads. */
 export function sweepSegment(
   snapshot: SweepLineSnapshot | null,
   progress: SweepProgress | null | undefined,

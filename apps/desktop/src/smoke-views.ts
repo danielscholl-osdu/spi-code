@@ -200,7 +200,16 @@ async function captureSweepStates(
   now: number,
   cursor: number,
 ): Promise<void> {
-  const scenes = ["idle", "stale", "failed", "sweeping", "popover"] as const;
+  const scenes = [
+    "idle",
+    "stale",
+    "failed",
+    "sweeping",
+    "popover",
+    "sweeping-hidden",
+    "failed-hidden",
+    "stale-hidden",
+  ] as const;
   const images: string[] = [];
   await window.webContents.executeJavaScript(`void (Date.now = () => ${now})`);
   fixture(window, "sweep.status", {
@@ -213,9 +222,11 @@ async function captureSweepStates(
     lastSweep: null,
   });
   for (const scene of scenes) {
+    const state = scene.replace("-hidden", "");
+    const hidden = scene.endsWith("-hidden");
     const body = structuredClone(snapshot);
     body.cursor = cursor++;
-    if (scene === "idle" || scene === "stale") {
+    if (state === "idle" || state === "stale" || hidden) {
       const fresh = (source: string) => ({
         source,
         state: "fresh" as const,
@@ -227,45 +238,79 @@ async function captureSweepStates(
         entry.envelope ? { ...entry, envelope: fresh(entry.envelope.source) } : entry,
       );
       const runs = body.areas.find(({ area }) => area === "runs");
-      if (scene === "stale" && runs) runs.envelope = { ...fresh("runs"), state: "stale" };
+      if (runs && (state === "stale" || state === "failed"))
+        runs.envelope = { ...fresh("runs"), state: state === "stale" ? "stale" : "failed" };
+    }
+    if (hidden) {
+      for (const item of [...body.briefing.focus, ...body.briefing.rest])
+        item.attention = "ambient";
+      for (const row of body.stations)
+        for (const station of row.stations) {
+          station.state = "idle";
+          station.substate = "ready";
+        }
+      for (const place of body.briefing.places ?? [])
+        if (place.visual?.kind === "rollout")
+          for (const slot of place.visual.slots) slot.state = "done";
     }
     fixture(window, "view.snapshot", ViewSnapshotSchema.parse(body));
-    fixture(window, "sweep.progress", scene === "sweeping" ? progress.refresh : progress.committed);
+    fixture(window, "sweep.progress", state === "sweeping" ? progress.refresh : progress.committed);
     const tone = { idle: "fine", stale: "warn", failed: "bad", sweeping: "run", popover: "bad" }[
-      scene
+      state as "idle" | "stale" | "failed" | "sweeping" | "popover"
     ];
     await rendered(
       window,
-      `document.querySelector('[data-strip] [data-sweep-line][data-tone=${tone}]') && ${scene === "sweeping" ? "" : "!"}document.querySelector('[data-sweep-progress]')`,
+      `document.querySelector('[data-slot=sidebar-footer] [data-sweep-line][data-tone=${tone}]') && ${state === "sweeping" ? "" : "!"}document.querySelector('[data-sweep-progress]')`,
     );
+    if (hidden) {
+      await window.webContents.executeJavaScript(
+        "document.querySelector(\"[aria-label='Toggle sidebar']\").click()",
+      );
+      await rendered(window, 'document.querySelector("#app-sidebar[data-state=collapsed]")');
+      const dot = await window.webContents.executeJavaScript(
+        'document.querySelector(".sidebar-toggle-dot")?.dataset.tone ?? null',
+      );
+      assert.equal(
+        dot,
+        state === "failed" ? "error" : state === "stale" ? "warning" : null,
+        `Hidden sidebar must read only the ${state} sweep's tone`,
+      );
+    }
     if (scene === "popover") {
       await window.webContents.executeJavaScript(
-        "document.querySelector('[data-strip] [data-sweep-line]').click()",
+        "document.querySelector('[data-slot=sidebar-footer] [data-sweep-line]').click()",
       );
       await rendered(window, "document.querySelector('[data-sweep-popover] .capsule-evidence')");
     }
     const bounds = await window.webContents.executeJavaScript(`(() => {
-      const rects = [document.querySelector('[data-strip]').closest('header'),
+      if (${hidden}) return { x: 0, y: 0, width: innerWidth, height: innerHeight };
+      const rects = [document.querySelector('[data-slot=sidebar-footer]'),
         document.querySelector('[data-sweep-popover]')].filter(Boolean).map(item => item.getBoundingClientRect());
       const top = Math.min(...rects.map(rect => rect.top));
       const bottom = Math.max(...rects.map(rect => rect.bottom));
-      return { x: 0, y: Math.floor(top), width: innerWidth, height: Math.ceil(bottom - top) + 8 };
+      return { x: 0, y: Math.floor(top), width: innerWidth, height: Math.min(innerHeight, Math.ceil(bottom)) - Math.floor(top) };
     })()`);
     const file = `sweep-${scene}-${appearance}.png`;
     writeFileSync(join(output, file), (await window.webContents.capturePage(bounds)).toPNG());
+    if (hidden) {
+      await window.webContents.executeJavaScript(
+        "document.querySelector(\"[aria-label='Toggle sidebar']\").click()",
+      );
+      await rendered(window, 'document.querySelector("#app-sidebar[data-state=expanded]")');
+    }
     images.push(
       `<figure><figcaption>${scene}</figcaption><img src="${file}" alt="${scene}"></figure>`,
     );
     if (scene === "popover") {
       await window.webContents.executeJavaScript(
-        "document.querySelector('[data-strip] [data-sweep-line]').click()",
+        "document.querySelector('[data-slot=sidebar-footer] [data-sweep-line]').click()",
       );
       await rendered(window, "!document.querySelector('[data-sweep-popover]')");
     }
   }
   writeFileSync(
     join(output, `sweep-states-${appearance}.html`),
-    `<!doctype html><meta charset="utf-8"><title>Sweep states</title><style>body{font:14px system-ui;padding:24px}figure{margin:24px 0}figcaption{margin-bottom:8px}img{max-width:100%}</style><h1>Sweep segment / ${appearance}</h1><p>Design: Status.dc.html rows 6 to 10 and the sweep popover.</p>${images.join("")}`,
+    `<!doctype html><meta charset="utf-8"><title>Sweep states</title><style>body{font:14px system-ui;padding:24px}figure{margin:24px 0}figcaption{margin-bottom:8px}img{max-width:100%}</style><h1>Footer sweep / ${appearance}</h1><p>Design: spicode-e2z footer sweep and its sources popover.</p>${images.join("")}`,
   );
 }
 
@@ -516,12 +561,8 @@ async function measure(
             const label = item.getAttribute("aria-label") || item.textContent.replace(/\\s+/g, " ").trim().slice(0, 40) || item.tagName.toLowerCase();
             return bounds.width > 0 && bounds.height > 0 && bounds.y < 44 ? [{ label, rect: bounds }] : [];
           });
-        const end = element(".centre-bar .centre-end");
-        const endBox = rect(end);
         return { rule: "drag", services: Number(document.querySelector("[data-sidebar-row=line]")?.dataset.services ?? 0),
           controls, clear, viewport, centre: rect(element(".centre-bar")),
-          centreEnd: endBox.x + endBox.width - parseFloat(getComputedStyle(end).paddingRight),
-          capsule: rect(element(".centre-bar .window-strip")),
           detailSheet: Boolean(document.querySelector(".right-panel-frame[data-sheet]")), regions, targets };
       }
       case "overlay-drag": {
@@ -585,12 +626,6 @@ const BREAKS: Partial<Record<string, BrokenProof>> = {
     selector: ".centre-row > .toggle-room",
     property: "-webkit-app-region",
     value: "initial",
-  },
-  "sidebar-hidden/1440": {
-    rule: "drag",
-    selector: ".centre-row",
-    property: "grid-template-columns",
-    value: "minmax(0, 1fr) auto minmax(0, 1fr)",
   },
 };
 
@@ -1194,7 +1229,10 @@ export async function captureSmokeViews(
           }
           await rendered(window, `document.querySelector(${JSON.stringify(surface.selector)})`);
           if (surface.id === "strip" || surface.id === "strip-20")
-            await rendered(window, "document.querySelector('[data-strip] [data-sweep-line]')");
+            await rendered(
+              window,
+              "document.querySelector('[data-slot=sidebar-footer] [data-sweep-line]')",
+            );
           if (scheduled) {
             await window.webContents.executeJavaScript(`{
               const settings = document.querySelector("[data-settings-section=sweep]");

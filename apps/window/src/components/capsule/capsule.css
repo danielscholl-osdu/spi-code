@@ -1,9 +1,6 @@
 /* Copyright 2026, Daniel Scholl */
 /* SPDX-License-Identifier: MIT */
 
-.capsule { flex: none; margin: 0; width: max-content; min-width: 0; display: flex; align-items: center; gap: 1px; height: 30px; box-sizing: border-box; padding: 0 3px; border: 1px solid var(--border); border-radius: 9px; background: var(--capsule); font-size: 12.5px; line-height: 1.4; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.capsule-seg { display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--text); font: inherit; white-space: nowrap; cursor: default; }
-.capsule-seg:hover { background: var(--hover); }
 .capsule-sweep-icon { flex: none; color: var(--text-muted); }
 .capsule-sweep[data-tone="run"] .capsule-sweep-icon { color: var(--accent); animation: capsule-spin 1s linear infinite; }
 .capsule-sweep[data-tone="warn"] .capsule-sweep-icon { color: var(--warning); }
@@ -12,6 +9,11 @@
 .capsule-sweep:not([data-tone="fine"]) .capsule-sweep-text { color: var(--text); }
 @keyframes capsule-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .capsule-sweep[data-tone="run"] .capsule-sweep-icon { animation: none; } }
+
+.sidebar-sweep { flex: 0 1 auto; min-width: 0; display: flex; align-items: center; gap: 6px; height: 28px; margin-left: auto; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--text); font: inherit; font-size: 12.5px; line-height: 1.4; white-space: nowrap; font-variant-numeric: tabular-nums; cursor: default; }
+.sidebar-sweep:is(:hover, [data-popup-open]) { background: var(--hover); }
+.sidebar-sweep:is(:hover, [data-popup-open]) .capsule-sweep-text { color: var(--text); }
+.sidebar-sweep .capsule-sweep-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 .capsule-positioner { z-index: 60; }
 .capsule-popup { width: 320px; max-width: calc(100vw - 32px); box-sizing: border-box; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); box-shadow: 0 8px 24px rgb(0 0 0 / 0.08), 0 1px 2px rgb(0 0 0 / 0.05); overflow: hidden; font-size: 13px; line-height: 1.4; white-space: normal; outline: none; }
