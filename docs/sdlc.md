@@ -36,7 +36,7 @@ The maintainer changes the design pages and these process docs directly on `main
 
 Skill: `epic-breakdown`. One agent breaks the epic into beads:
 
-- **Size:** one behaviour that one reviewer can hold, in one worktree: up to about 800 changed lines. A bead costs about an hour of review and CI whatever its size, so split by behaviour, never by file.
+- **Size:** one behaviour that one reviewer can hold, in one worktree: up to about 800 changed lines of product code, not tests, smoke or fixtures. A bead costs about an hour of review and CI whatever its size, so split by behaviour, never by file.
 - **Requirements:** each bead names the requirement IDs it satisfies. Its acceptance criteria are their "Verified by" checks, made concrete, including the case the code cannot prove.
 - **Dependencies:** set with `bd dep`, so `bd ready` shows what can run at once. `bd swarm validate` confirms the graph.
 - **Risk:** label `risk:high` for credentials, the sandbox, approvals and tiers, durability and intents, and the Copilot session boundary. Label everything else `risk:std`.
@@ -56,17 +56,21 @@ Every bead in flight carries one stage label, swapped by the orchestrator as it 
 
 Skill: `bead-build`. Work happens only in the bead's worktree, on branch `bead/<id>`, never in the main checkout. Commits use `aipr` with a `Bead: <id>` trailer and no AI attribution.
 
-The builder runs `scripts/check --quick`, pushes the branch so CI runs the full check and the packaged smoke on both platforms, and hands off with evidence: for each acceptance line, the test that proves it and how the builder saw it fail. Anything outside the bead's acceptance is a follow-up.
+The builder runs `scripts/check --quick`, pushes the branch so CI runs the full check and the packaged smoke on both platforms, and hands off with evidence: for each acceptance line, the test and its result, or the capture or command that proves it. Break-and-restore evidence is required only for stores, state machines, parsing and gates. Anything outside the bead's acceptance is a follow-up.
 
 ## 5. Review
 
 Skill: `bead-review`. The reviewer comes from a different provider than the author. The review is read-only against the bead's acceptance and `git diff main...bead/<id>`. The reviewer checks the builder's evidence, runs its own probes, and does not rerun the full check.
 
+Only wrong behaviour against acceptance, a broken gate or red CI blocks a pass. Nits, test tidy-ups, evidence gaps and captures go as comments to the epic's sweep bead. Reviewers check CI once: red blocks, running is fine. They don't wait; `scripts/land --wait` still lands only a commit CI passed.
+
 | Tier | Review |
 |---|---|
-| `risk:std` | One reviewer from another provider, up to 3 rounds. Round 1 is full; later rounds cover only the fix and the open findings. Nits are taken in the fix round or dropped. |
-| `risk:high` | Two seats from different providers, in parallel on the same head, then one synthesis and one fix round. Or Keelson `adversarial-review`. |
+| `risk:std` | One reviewer from another provider. One review round; no recheck after a fix round. |
+| `risk:high` | Two seats from different providers, in parallel on the same head, then one synthesis, one fix round and one seat's recheck. Or Keelson `adversarial-review`. |
 | `review:exempt` | None. Only for Markdown and the pages in `design/`, which `scripts/land` enforces. The maintainer's approval of the design or the breakdown is the review. |
+
+After a `risk:std` fix round, the orchestrator reads the fix diff, confirms CI green and records the pass citing the review, with the reviewer's `review.provider` and `review.model`. It pins the fixed head with `scripts/review-head`. `risk:high` keeps a recheck.
 
 A pass is recorded as bead metadata, which `scripts/land` reads:
 
@@ -75,10 +79,10 @@ A pass is recorded as bead metadata, which `scripts/land` reads:
 | `build.provider`, `build.model` | Who built the bead (set at claim) |
 | `review.provider`, `review.model` | Who reviewed it |
 | `review.verdict` | `pass` |
-| `review.head` | The reviewed commit, pinned and printed by `scripts/review-head` |
+| `review.head` | The passed commit, pinned and printed by `scripts/review-head` |
 | `land.sha` | The commit `scripts/land` put on `main`, so a rerun after a failed push can finish |
 
-`scripts/land` merges the reviewed commit onto the `main` it lands on and requires the bead to equal the result, apart from the generated watch fixtures, which `scripts/check` compares with a fresh projection. A rebase, a neighbour's landing and a fixture regeneration keep the review. Anything else written after it, whitespace included, voids it.
+`scripts/land` merges the passed commit onto the `main` it lands on and requires the bead to equal the result, apart from the generated watch fixtures, which `scripts/check` compares with a fresh projection. A rebase, a neighbour's landing and a fixture regeneration keep the review. Anything else written after the pass, whitespace included, voids it: the orchestrator checks a `risk:std` fix as above; `risk:high` needs a recheck pass.
 
 The gate guards against ordinary work landing unreviewed: a late commit, an amend, a conflict resolution. It is not a boundary against someone who tampers with the repository or writes the review metadata by hand.
 

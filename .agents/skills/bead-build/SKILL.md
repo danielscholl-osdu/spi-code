@@ -51,6 +51,7 @@ Never edit files in the main checkout.
 
 - Read the acceptance against the design or requirement it names before you write code. If they disagree, or a line can be read two ways, stop and ask the orchestrator; a ruling now costs minutes, and the same question found in review costs a round.
 - Do what the acceptance criteria ask, and nothing more. Something else you notice becomes a new bead: `bd create "<title>" -t task --parent <epic> --deps discovered-from:<id>`.
+- The roughly 800-line size cap counts product code only, not tests, smoke or fixtures.
 - Write the test named in the acceptance first when you can. "What to test" in `.agents/orchestration/rules.md` says which lines get a test and which a capture proves instead.
 - Follow `AGENTS.md` and `.agents/orchestration/rules.md`: the MIT header on new source files, no comments that narrate the change.
 - What you learn that a later builder could not get from the code and tests goes in `docs/notes/<area>.md`, in a line or two. Never in `docs/sdlc.md`.
@@ -79,19 +80,21 @@ Then write the evidence a reviewer will check, as a bead note:
 
 ```bash
 bd note <id> "Built <sha> on main <sha>. CI run <run id>.
-1. <acceptance line>: <test file:line>; fails when <the change you made to see it fail>.
+1. <acceptance line>: <test file:line and result>; for stores, state machines, parsing and gates, fails when <the change you made to see it fail>.
 2. ...
 Not proven: <anything the acceptance asks that no test shows, and why>."
 ```
 
-For each acceptance line, break the code the test guards, run that one test, see it fail, and restore the code (`git checkout -- <file>`; the shared stash is off limits). When the test lives in another package, rebuild the package you broke first (`pnpm --filter <package> build`), or the test runs the old build and passes; rebuild again after restoring. A line whose test you could not make fail is not done. Include the case the code cannot prove: when it cannot know an order, a read or a membership, it must report the quieter state, and a test must show that.
+Break-and-restore evidence is required only for stores, state machines, parsing and gates. For those acceptance lines, break the code the test guards, run that one test, see it fail, and restore the code (`git checkout -- <file>`; the shared stash is off limits). When the test lives in another package, rebuild the package you broke first (`pnpm --filter <package> build`), or the test runs the old build and passes; rebuild again after restoring. For other behaviour, cite the test and its result. Include the case the code cannot prove: when it cannot know an order, a read or a membership, it must report the quieter state, and a test must show that.
 
-Two kinds of line have no failing test, and the note says so instead:
+Two kinds of line need a capture or command instead of a test:
 
 - a line about how a place looks or reads (copy, markup, layout, spacing), which the reviewer judges from a capture compared with the design: write "reviewer's: <what you looked at and saw>". Don't add a test for it;
 - a line only a command can show, such as a lint warning gone: write the command and its output.
 
-Don't wait for CI before handing off; give the run id. The reviewer reads the run, and `scripts/land` waits for one.
+Don't wait for CI before handing off; give the run id. The reviewer checks once: red blocks a pass, running is fine. Reviewers don't wait; `scripts/land --wait` still lands only a commit CI passed.
+
+Only wrong behaviour against acceptance, a broken gate or red CI blocks a pass. Nits, test tidy-ups, evidence gaps and captures go as comments to the epic's sweep bead.
 
 ## 5. Hand off
 
@@ -99,6 +102,6 @@ Stop here when an orchestrator dispatched you: reply with the worktree path, the
 
 When you work alone, follow `.agents/skills/bead-review/SKILL.md` to get that review yourself, fix the findings that hold up, push back on the ones that don't, and land with `.agents/skills/bead-land/SKILL.md` once the pass is recorded.
 
-In a fix round you work in the bead's existing worktree, under your own `--actor` name; the claim stays with the bead. Change only what the findings name, take the nits that cost a line, and add to the evidence note a line per finding: the test, and that it fails without the fix.
+One review round. In a fix round you work in the bead's existing worktree, under your own `--actor` name; the claim stays with the bead. Change only what the findings name, and add to the evidence note a line per finding: the test and its result, with break-and-restore evidence only for stores, state machines, parsing and gates. After a `risk:std` fix round, the orchestrator reads the fix diff, confirms CI green and records the pass citing the review, with the reviewer's `review.provider` and `review.model`. No recheck. `risk:high` keeps a recheck.
 
 If you stop early, leave a note saying where you got to (`bd note <id> "<state>"`) and keep the claim, so the next agent can pick it up.

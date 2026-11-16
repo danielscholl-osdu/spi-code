@@ -27,6 +27,7 @@ Builders, reviewers and orchestrators all follow these. A brief can add to them;
 Several agents share this machine. The full `scripts/check` runs every test twice and belongs to CI, which `scripts/land` waits on.
 
 - Run `scripts/check --quick`. It takes one to six minutes depending on how much depends on what you changed; give it a ten-minute timeout. A builder pushes its branch and lets CI run the rest, and puts the run id in a bead note. A reviewer pushes nothing.
+- Reviewers check CI once. Red blocks a pass; running is fine. They don't wait. `scripts/land --wait` still lands only a commit CI passed.
 - CI is one workflow, named Packaged smoke. Its `check` jobs run the full `scripts/check` and its `package` jobs build and smoke the app, each on macOS and Windows.
 - To see which test files are slow, read a run's timings instead of running the suite: the check job's summary lists the ten slowest, and `gh run download <run id> -R <owner>/<repo> -n timings-macos-latest-<head sha>` (or `windows-latest`) gives every file's seconds in both passes.
 - To run one test file: from the repository root, `pnpm vitest run <path>`. Tests in one package run another package's built output, so after changing a package run `pnpm --filter <package> build` (or `pnpm build`) first.
@@ -37,9 +38,11 @@ Several agents share this machine. The full `scripts/check` runs every test twic
 ## Scope
 
 - Build or review exactly the bead's description and acceptance. Something else you notice is a follow-up; see "Follow-ups" in `.agents/skills/bead-review/SKILL.md` for when it earns its own bead.
+- The roughly 800-line size cap counts product code only, not tests, smoke or fixtures.
 - When code cannot prove something (an order, a read, a membership), it reports the quieter, honest state: not read, unknown, holds nothing. It never reports a claim. Test that case.
 - Don't edit a package's `index.ts`, `package.json`, root config, `vitest.config.ts` or `pnpm-lock.yaml` unless your bead owns that package. Don't add a dependency unless the bead cannot be done without it.
-- If the same kind of finding survives two fix rounds, stop and tell the orchestrator. The approach is wrong, not the patch.
+- One review round. After a `risk:std` fix round, the orchestrator reads the fix diff, confirms CI green and records the pass citing the review, with the reviewer's `review.provider` and `review.model`. No recheck. `risk:high` keeps a recheck.
+- Only wrong behaviour against acceptance, a broken gate or red CI blocks a pass. Nits, test tidy-ups, evidence gaps and captures go as comments to the epic's sweep bead.
 
 ## What to test
 
@@ -48,6 +51,7 @@ A test is code the next redesign has to rewrite. Write the ones that guard behav
 - Test behaviour that can break: the model and briefing, projections, parsing of forge and tool output, stores and state machines, credentials, tiers and durability, and the logic a bug fix changed.
 - Leave out tests for what the types already guarantee, copy text, static markup, class names, layout, spacing and callback wiring. The packaged smoke's capture is the proof of how a place looks and reads.
 - Extend before you add. When an existing test or table covers the behaviour, add a row there.
+- Break-and-restore evidence is required only for stores, state machines, parsing and gates.
 - Test at one layer, the lowest one that fails without the change. A rule proven in core is not proven again in the host and the window.
 - A rule that holds across the whole window stays one test over every fixture: the text rules, the upstream boundary, reachability. Add the case there, not a copy beside each view.
 
