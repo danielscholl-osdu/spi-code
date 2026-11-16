@@ -28,6 +28,7 @@ import {
   type Ref,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -36,6 +37,7 @@ import { treeServices } from "../../app/queue.js";
 import { isReachable, type Route, routeLabel, useRegistry } from "../../app/routes.js";
 import { ariaShortcut, shortcutLabel } from "../../app/shortcuts.js";
 import { READINESS_DOT_LABEL, readinessDot } from "../../settings/readiness.js";
+import { observePinFeedback, useJustPinned } from "../../store/pin-feedback.js";
 import {
   LINE_PIN,
   movePin,
@@ -52,6 +54,7 @@ import { countInterrupts } from "../../views/today/selectors.js";
 import { useNow } from "../evidence/useNow.js";
 import { Icon, type IconName } from "../icons/Icon.js";
 import { isContextMenuKey } from "../pin/PinMenu.js";
+import { PinNotice } from "../pin/PinNotice.js";
 import { useGroupCollapse } from "./collapse.js";
 import { type PinWord, pinWord } from "./pin-word.js";
 import {
@@ -230,6 +233,7 @@ function PinItem({
   onMoved(): void;
   onUnpinned(): void;
 }) {
+  const justPinned = useJustPinned();
   const [over, setOver] = useState<"before" | "after" | null>(null);
   const move = (target: string | undefined) => {
     if (!target) return;
@@ -240,6 +244,7 @@ function PinItem({
     <SidebarMenuItem
       className="pin-item"
       data-pin={row.pin}
+      data-just-pinned={justPinned === row.pin || undefined}
       data-drop={over ?? undefined}
       draggable
       onDragStart={(event) => {
@@ -354,8 +359,16 @@ export function ProgramSidebar({
   const now = useNow(30_000, syncDeadline(strip?.nextSync, Date.now()));
   const status = statusRows(strip, now);
   const interrupts = briefing ? countInterrupts(briefing) : 0;
-  const { isMobile, setOpenMobile } = useSidebar();
+  const { isMobile, setOpenMobile, visible } = useSidebar();
   const { collapsed, toggle } = useGroupCollapse();
+  const presentation = useRef({ visible, expanded: !collapsed("pinned") });
+  useLayoutEffect(() => {
+    presentation.current = { visible, expanded: !collapsed("pinned") };
+  });
+  useLayoutEffect(
+    () => observePinFeedback(() => presentation.current.visible && presentation.current.expanded),
+    [],
+  );
   const pinnedId = useId();
   const active = rowFor(route);
   const registry = useRegistry();
@@ -535,6 +548,7 @@ export function ProgramSidebar({
           </SidebarGroup>
         )}
       </SidebarContent>
+      <PinNotice placement="sidebar" />
       {onSettings && (
         <SidebarFooter>
           <button

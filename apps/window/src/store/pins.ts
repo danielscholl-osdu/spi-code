@@ -160,13 +160,39 @@ export function isPinned(id: string, pins: readonly string[] = readPins()) {
 export function pin(id: string) {
   if (isFixedPin(id)) return;
   const pins = readPins();
-  if (!pins.includes(id)) writePins([...pins, id]);
+  if (pins.includes(id)) return;
+  writePins([...pins, id]);
+  changed({ kind: "pinned", pin: id, index: pins.length });
 }
 
 export function unpin(id: string) {
   if (isFixedPin(id)) return;
   const pins = readPins();
-  if (pins.includes(id)) writePins(pins.filter((pinned) => pinned !== id));
+  const index = pins.indexOf(id);
+  if (index < 0) return;
+  writePins(pins.filter((pinned) => pinned !== id));
+  changed({ kind: "unpinned", pin: id, index });
+}
+
+/** The window's change, independent of whether storage accepted its write. */
+export type PinChange = { kind: "pinned" | "unpinned"; pin: string; index: number };
+const changeListeners = new Set<(change: PinChange) => void>();
+function changed(change: PinChange) {
+  for (const listener of changeListeners) listener(change);
+}
+export function subscribePinChanges(listener: (change: PinChange) => void) {
+  changeListeners.add(listener);
+  return () => {
+    changeListeners.delete(listener);
+  };
+}
+
+/** Restores a removed pin at its old index, bounded by the current list. */
+export function restorePin(id: string, index: number) {
+  if (isFixedPin(id) || isPinned(id)) return;
+  const pins = [...readPins()];
+  pins.splice(Math.max(0, Math.min(index, pins.length)), 0, id);
+  writePins(pins);
 }
 
 export function togglePin(id: string) {

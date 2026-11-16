@@ -1017,6 +1017,17 @@ export async function assertRenderedContrast(
           for (const shading of SHADES) {
             await shade(shading);
             await sample({ view, ...shading, state }, scope, required);
+            if (view.startsWith("pin-notice-") && state === "rest") {
+              mkdirSync(join(dirname(reportPath), "views"), { recursive: true });
+              writeFileSync(
+                join(
+                  dirname(reportPath),
+                  "views",
+                  `${view}-${shading.palette}-${shading.theme}.png`,
+                ),
+                (await window.webContents.capturePage()).toPNG(),
+              );
+            }
           }
         });
       await shade({ palette: "warm", theme: "light" });
@@ -1096,6 +1107,44 @@ export async function assertRenderedContrast(
       `document.querySelector(".place[aria-label=${FIND_UNPINNED}] .place-reading") && document.querySelector(".centre-end > .pin-control")`,
     );
     await everyShade("service", ".place", { rest: [TOP_UNPINNED], hover: [TOP_UNPINNED] });
+    const noticeRequired = [
+      { selector: "pin-notice-text", text: `Unpinned ${FIND_UNPINNED}` },
+      { selector: "pin-notice-undo", text: "Undo" },
+    ];
+    await js('document.querySelector(".centre-end > .pin-control").click()');
+    await rendered(
+      window,
+      'document.querySelector(".centre-end > .pin-control[data-pinned=true]")',
+    );
+    await js('document.querySelector(".centre-end > .pin-control").click()');
+    await rendered(window, 'document.querySelector(".pin-notice[data-placement=sidebar] button")');
+    // Hold the notice through the four shades without changing its focus appearance.
+    await js(
+      'document.querySelector(".pin-notice[data-placement=sidebar]").dispatchEvent(new MouseEvent("mouseover", { bubbles: true }))',
+    );
+    await everyShade("pin-notice-sidebar", '.pin-notice[data-placement="sidebar"]', {
+      rest: noticeRequired,
+      hover: noticeRequired,
+    });
+    await js('document.querySelector(".pin-notice-undo").click()');
+    await js('document.querySelector("[data-sidebar=trigger]").click()');
+    await rendered(window, 'document.querySelector("#app-sidebar[data-state=collapsed]")');
+    await js('document.querySelector(".centre-end > .pin-control").click()');
+    await rendered(window, 'document.querySelector(".pin-notice[data-placement=window] button")');
+    await js(
+      'document.querySelector(".pin-notice[data-placement=window]").dispatchEvent(new MouseEvent("mouseover", { bubbles: true }))',
+    );
+    await everyShade("pin-notice-window", '.pin-notice[data-placement="window"]', {
+      rest: noticeRequired,
+      hover: noticeRequired,
+    });
+    await js('document.querySelector(".pin-notice[data-placement=window] button").click()');
+    await js('document.querySelector("[data-sidebar=trigger]").click()');
+    await rendered(window, 'document.querySelector("#app-sidebar[data-state=expanded]")');
+    await js(`{
+      localStorage.setItem(${JSON.stringify(PINS_KEY)}, ${JSON.stringify(JSON.stringify(PINS))});
+      window.dispatchEvent(new StorageEvent("storage", { key: ${JSON.stringify(PINS_KEY)} }));
+    }`);
     fixture(window, "setup.state", notReady);
     await js(`{
       const mac = /Mac|iPhone|iPad/.test(navigator.userAgent);

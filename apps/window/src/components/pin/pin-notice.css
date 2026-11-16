@@ -1,0 +1,18 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+.pin-notice:empty { pointer-events: none; }
+.pin-notice[data-placement="sidebar"] { flex: none; min-width: 0; }
+.pin-notice[data-placement="sidebar"]:not(:empty) { padding: 6px 16px 8px; }
+.pin-notice[data-placement="window"] { position: fixed; left: 12px; bottom: 12px; z-index: 90; }
+.pin-notice[data-placement="window"]:not(:empty) { position: fixed; left: 12px; bottom: 12px; z-index: 90; max-width: calc(100vw - 24px); box-sizing: border-box; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-raised); box-shadow: 0 8px 24px rgb(0 0 0 / 0.25); }
+.pin-notice-body { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12px; line-height: 1.4; white-space: nowrap; }
+.pin-notice-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text-muted); }
+.pin-notice[data-placement="window"] .pin-notice-text { color: var(--text); }
+.pin-notice-dot { flex: none; color: var(--text-muted); }
+.pin-notice-undo { flex: none; padding: 2px; border: 0; border-radius: 4px; background: transparent; color: var(--accent-text); font: inherit; font-weight: 600; cursor: default; }
+.pin-notice-undo:hover { text-decoration: underline; }
+.pin-notice-undo:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+.pin-item[data-just-pinned] [data-sidebar="menu-button"] { animation: pin-flash 1s ease-out; }
+@keyframes pin-flash { from { background: var(--accent-surface); } }
+@media (prefers-reduced-motion: reduce) { .pin-item[data-just-pinned] [data-sidebar="menu-button"] { animation: none; background: var(--accent-surface); } }

@@ -76,3 +76,6 @@ the one named tooling exception is `scripts/watch-generated.mjs`, in desktop tes
 `core-diff-rib.sh` is a historical extraction audit against 59d6895, not a current parity gate.
 
 `CoreContext.words` is the wording twin of `timeStyle`: the default `"boards"` keeps the rib oracle's words, and the host and `appStyle` set `"app"` (ready, in maintenance). A changed string in code the rib also runs (brief/index.ts, brief/words.ts, model/queue.ts) goes behind it, with a paired test of both words; brief/places.ts, brief/verdict.ts and the readings are app-only.
+
+Happy DOM binds Storage methods on each instance: a spy on `Storage.prototype.setItem` does not
+refuse writes. Stub `localStorage` itself and assert the stored list before Undo as well as after it.

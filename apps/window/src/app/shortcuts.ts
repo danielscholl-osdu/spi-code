@@ -1,6 +1,12 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import {
+  pinUndoClaimsShortcut,
+  releasePinUndoShortcut,
+  undoPinChange,
+} from "../store/pin-feedback.js";
+
 /** macOS binds the window's shortcuts to ⌘; Windows binds the same letters to Ctrl. */
 export function isMacPlatform(userAgent = navigator.userAgent): boolean {
   return /Mac|iPhone|iPad/.test(userAgent);
@@ -45,4 +51,23 @@ export function matchesShiftShortcut(
   if (event.altKey || !event.shiftKey) return false;
   if (mac ? !event.metaKey || event.ctrlKey : !event.ctrlKey || event.metaKey) return false;
   return event.key.toLowerCase() === key.toLowerCase();
+}
+
+/** A fresh pin notice takes Undo even in Find, until another non-modifier key is pressed. */
+export function listenPinUndo() {
+  const onKey = (event: KeyboardEvent) => {
+    if (["Meta", "Control", "Shift", "Alt"].includes(event.key)) return;
+    if (
+      !event.isComposing &&
+      event.keyCode !== 229 &&
+      matchesShortcut(event, "z") &&
+      pinUndoClaimsShortcut()
+    ) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      undoPinChange();
+    } else releasePinUndoShortcut();
+  };
+  window.addEventListener("keydown", onKey, true);
+  return () => window.removeEventListener("keydown", onKey, true);
 }

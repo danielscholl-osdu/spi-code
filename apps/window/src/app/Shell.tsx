@@ -6,6 +6,7 @@ import { useStore } from "zustand";
 import { SweepProgressLine } from "../components/capsule/SweepSegment.js";
 import { SweepEvidence } from "../components/evidence/EvidenceTab.js";
 import { SweepLine } from "../components/evidence/SweepLine.js";
+import { WindowPinNotice } from "../components/pin/PinNotice.js";
 import { ProgramSidebar } from "../components/sidebar/ProgramSidebar.js";
 import { SidebarProvider } from "../components/sidebar/ui-sidebar.js";
 import { openFreshness } from "../components/sweep/reveal.js";
@@ -117,6 +118,7 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
             onToggleRightPanel={toggleRightPanel}
             onToggleFind={toggleFind}
           />
+          <WindowPinNotice />
           <SidebarToggle rightPanelOpen={rightPanelOpen} onToggleRightPanel={toggleRightPanel} />
           <ProgramSidebar
             store={watchStore}
