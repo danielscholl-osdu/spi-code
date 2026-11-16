@@ -83,6 +83,17 @@ it("runs only the dependents of a package file the watch fixture generator neith
     expect(wholeProjects([path], dependencies), path).toEqual(["apps/desktop"]);
 });
 
+it("runs whole the projects whose tests read a changed design page, and no other", () => {
+  expect(wholeProjects(["design/spi-code-visual-design.html"], dependencies)).toEqual([
+    "apps/window",
+  ]);
+  expect(wholeProjects(["design/spi-code-prd.md"], dependencies)).toEqual(["packages/host"]);
+});
+
+it("runs nothing whole for a design page no test reads", () => {
+  expect(wholeProjects(["design/spi-code-window-layout.html"], dependencies)).toEqual([]);
+});
+
 it("leaves to the import-following run every project that does not run whole", () => {
   const whole = wholeProjects(["packages/core/README.md"], dependencies);
   const rest = restProjects(whole, dependencies);

@@ -5,6 +5,7 @@
 // or with --rest the projects it leaves to vitest --changed.
 // Packages import each other's built output, which vitest --changed does not follow, and tests
 // read fixtures and shell scripts from disk.
+import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -42,15 +43,38 @@ export function workspaceDependencies(root) {
 }
 
 /**
+ * @param {string} root
+ * @returns {Map<string, string[]>} each design/ file a workspace test names to the projects of those tests
+ */
+export function designReaders(root) {
+  const tests = execFileSync(
+    "git",
+    ["ls-files", "--cached", "--others", "--exclude-standard", "--", "apps", "packages"],
+    { cwd: root, encoding: "utf8" },
+  );
+  /** @type {Map<string, Set<string>>} */
+  const readers = new Map();
+  for (const test of tests.split("\n").filter((path) => /\.test\.tsx?$/.test(path))) {
+    const project = test.split("/").slice(0, 2).join("/");
+    for (const [read] of readFileSync(join(root, test), "utf8").matchAll(/\bdesign\/[\w.-]+/g)) {
+      readers.set(read, (readers.get(read) ?? new Set()).add(project));
+    }
+  }
+  return new Map([...readers].map(([read, projects]) => [read, [...projects]]));
+}
+
+/**
  * @param {string[]} changed repository-relative paths, forward slashes
  * @param {Map<string, string[]>} dependencies
  * @param {(path: string) => boolean} [isGeneratorInput] whether a change to the path can change the generated watch fixtures
+ * @param {Map<string, string[]>} [readersOfDesign] each design/ file a test reads to the projects of those tests
  * @returns {string[]} vitest project names to run whole, sorted
  */
 export function wholeProjects(
   changed,
   dependencies,
   isGeneratorInput = generatorInputs(repository),
+  readersOfDesign = designReaders(repository),
 ) {
   const directories = [...dependencies.keys()];
   if (changed.some((path) => path.startsWith("fixtures/") || isGeneratorInput(path)))
@@ -74,6 +98,8 @@ export function wholeProjects(
   if (changed.some((path) => path.startsWith("scripts/") && !/\.tsx?$/.test(path))) {
     whole.add("scripts");
   }
+  for (const path of changed)
+    for (const project of readersOfDesign.get(path) ?? []) whole.add(project);
   return [...whole].sort();
 }
 
@@ -90,7 +116,12 @@ export function restProjects(whole, dependencies) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const changed = readFileSync(0, "utf8").split("\n").filter(Boolean);
   const dependencies = workspaceDependencies(repository);
-  const whole = wholeProjects(changed, dependencies, generatorInputs(repository));
+  const whole = wholeProjects(
+    changed,
+    dependencies,
+    generatorInputs(repository),
+    designReaders(repository),
+  );
   for (const project of process.argv[2] === "--rest" ? restProjects(whole, dependencies) : whole) {
     console.log(project);
   }
