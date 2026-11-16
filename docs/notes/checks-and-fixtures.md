@@ -42,6 +42,7 @@ packaging run it first. The digest covers the broad source folders listed in
 `scripts/watch-inputs.mjs`. `--quick` runs every project whole only for a change the
 generator can see: a module `packages/host/test/watch/outputs.ts` imports, directly or
 not, its package's manifest or build settings, a fixture it reads, or its scripts.
+A change to a `design/` file runs whole only the workspace projects whose tests name it.
 Recompute the models digest with
 `SPI_RECORD_MODEL_DIGEST=1 pnpm vitest run packages/core/test/inspect/identity.test.ts`.
 The frozen rib oracle stays unchanged; its comparison ignores only U+00A0.
