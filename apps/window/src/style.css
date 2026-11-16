@@ -41,7 +41,7 @@ body { margin: 0; background: var(--surface); color: var(--text); font: 14px/1.5
 .centre-title time { margin-left: 0; color: var(--text-muted); font-size: 12.5px; }
 .centre-title button { flex: none; height: 24px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; }
 .centre-title button:hover { background: var(--hover); color: var(--text); }
-.centre-end { min-width: 0; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; }
+.centre-end { min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 6px; padding-right: 10px; }
 @container (width < 800px) {
   .centre-title > :not(h1) { display: none; }
 }

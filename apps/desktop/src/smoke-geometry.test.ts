@@ -202,6 +202,32 @@ const overlayDrag: SmokeGeometry = {
   targets: [{ label: "Close settings", rect: rect(684, 32, 24, 24) }],
 };
 
+const pinEnd: SmokeGeometry = {
+  rule: "pin-end",
+  end: 1430,
+  clear: 1440,
+  title: rect(248, 12, 80, 20),
+  pin: rect(1372, 10, 24, 24),
+  toggle: rect(1402, 8, 28, 28),
+};
+
+it("puts the top row's pin control 6 px before the panel toggle, or at the part's end", () => {
+  expect(() => assertSmokeGeometry(pinEnd)).not.toThrow();
+  expect(() =>
+    assertSmokeGeometry({ ...pinEnd, toggle: null, pin: rect(1406, 10, 24, 24) }),
+  ).not.toThrow();
+  expect(() => assertSmokeGeometry({ ...pinEnd, pin: null })).toThrow(
+    "Top-row pin control is not drawn",
+  );
+  expect(() => assertSmokeGeometry({ ...pinEnd, pin: rect(336, 10, 24, 24) })).toThrow(
+    "Top-row pin control ends at 360, not 1396",
+  );
+  expect(() => assertSmokeGeometry({ ...pinEnd, pin: rect(1370.5, 10, 24, 24) })).toThrow(
+    "Top-row pin control ends at",
+  );
+  expect(() => assertSmokeGeometry({ ...pinEnd, clear: 1390 })).toThrow("window controls");
+});
+
 it.each([window, related, panes, headers, settings, drag, failedReads, overlayDrag])(
   "accepts measured $rule geometry",
   (value) => {

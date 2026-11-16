@@ -562,13 +562,13 @@ it("keeps each pip menu action on its service row in the Line sheet for the keyb
   await act(async () => service?.focus());
   await keydown(service, { key: "F10", shiftKey: true });
   expect(menu("entitlements")).not.toBeNull();
-  expect(menu("entitlements")?.textContent).toBe("Pin entitlements");
+  expect(menu("entitlements")?.textContent).toBe("OpenPin to sidebar");
   await act(async () =>
-    menu("entitlements")?.querySelector<HTMLElement>("[role='menuitem']")?.click(),
+    menu("entitlements")?.querySelectorAll<HTMLElement>("[role='menuitem']")[1]?.click(),
   );
   expect(readPins()).toEqual([...SEED_PINS, "entitlements"]);
   await keydown(service, { key: "ContextMenu" });
-  expect(menu("entitlements")?.textContent).toBe("Unpin entitlements");
+  expect(menu("entitlements")?.textContent).toBe("OpenUnpin from sidebar");
   await keydown(document.activeElement, { key: "Escape" });
   expect(menu("entitlements")).toBeNull();
   expect(lineSheet()).not.toBeNull();

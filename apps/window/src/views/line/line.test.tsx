@@ -129,13 +129,21 @@ it("opens with Cmd-L over every registered surface and Escape restores its centr
   }
 });
 
-it("pins beside a live centre without replacing its surface or selection", async () => {
+it("docks beside a live centre without replacing its surface or selection", async () => {
   await mount();
   await act(async () => navigate({ kind: "service", id: "legal" }));
   await act(async () => selectionStore.getState().select("station:legal:sync"));
   const surface = main()?.firstElementChild;
   await open();
-  await click(button("Pin"));
+  const toolbar = () =>
+    [...(sheet()?.querySelectorAll(".line-toolbar button") ?? [])].map(
+      (item) =>
+        `${item.getAttribute("aria-label") ?? ""} ${item.textContent} ${item.getAttribute("title") ?? ""}`,
+    );
+  expect(toolbar().some((text) => /\b(Pin|Unpin)\b/.test(text))).toBe(false);
+  await click(button("Dock"));
+  expect(toolbar().some((text) => /\b(Pin|Unpin)\b/.test(text))).toBe(false);
+  expect(readPins()).toEqual(SEED_PINS);
   expect(sheet()?.dataset.presentation).toBe("pinned");
   expect(main()?.hasAttribute("inert")).toBe(false);
   expect(main()?.firstElementChild).toBe(surface);
@@ -149,25 +157,25 @@ it("pins beside a live centre without replacing its surface or selection", async
   expect(sheet()?.dataset.presentation).toBe("pinned");
 });
 
-it("unpin closes the sheet and removes its saved pin without changing the centre", async () => {
+it("Undock closes the sheet and removes its saved dock without changing the centre", async () => {
   await mount();
   const surface = main()?.firstElementChild;
   await open();
-  await click(button("Pin"));
-  await click(button("Unpin"));
+  await click(button("Dock"));
+  await click(button("Undock"));
   expect(sheet()).toBeNull();
   expect(localStorage.getItem(PINNED_KEY)).toBeNull();
   expect(main()?.firstElementChild).toBe(surface);
 });
 
-it("restores a pinned sheet on reload from the persisted pin", async () => {
+it("restores a docked sheet on reload from the persisted dock", async () => {
   await mount();
   await act(async () => navigate({ kind: "service", id: "legal" }));
   await open();
-  await click(button("Pin"));
+  await click(button("Dock"));
   const saved = localStorage.getItem(PINNED_KEY);
   expect(saved).toBe("1");
-  if (saved === null) throw new Error("Missing saved pin");
+  if (saved === null) throw new Error("Missing saved dock");
   await unmount?.();
   // Clear the module state, then start with only the saved browser state.
   closeSheet();
@@ -179,12 +187,31 @@ it("restores a pinned sheet on reload from the persisted pin", async () => {
   expect(window.location.hash).toBe("#service/legal");
 });
 
-it("pins and unpins a row's service from its context menu, by pointer and keyboard, keeping the sheet open", async () => {
+it("pins and unpins a service from the control after its name, keeping the sheet open", async () => {
+  await mount();
+  await open();
+  const name = sheet()?.querySelector<HTMLButtonElement>('tr[data-service="legal"] th button');
+  const control = () => name?.nextElementSibling;
+  expect(control()?.className).toBe("pin-control");
+  expect(control()?.getAttribute("aria-label")).toBe("Pin legal to sidebar");
+  expect(control()?.getAttribute("title")).toBe("Pin legal to sidebar");
+  await click(control() as HTMLElement);
+  expect(readPins()).toEqual([...SEED_PINS, "legal"]);
+  expect(control()?.getAttribute("aria-label")).toBe("Unpin legal from sidebar");
+  expect(control()?.getAttribute("data-pinned")).toBe("true");
+  await click(control() as HTMLElement);
+  expect(readPins()).toEqual(SEED_PINS);
+  expect(sheet()).not.toBeNull();
+  expect(window.location.hash).toBe("#today");
+});
+
+it("opens, pins and unpins a row's service from its context menu, by pointer and keyboard, keeping the sheet open", async () => {
   await mount();
   await open();
   const row = () => sheet()?.querySelector<HTMLElement>('tbody tr[data-service="legal"]');
   const menu = () => document.querySelector<HTMLElement>('[data-pin-menu="legal"]');
-  const item = () => menu()?.querySelector<HTMLElement>("[role='menuitem']");
+  const items = () => [...(menu()?.querySelectorAll<HTMLElement>("[role='menuitem']") ?? [])];
+  const item = () => items()[1];
   const pinned = () =>
     [...container.querySelectorAll('ul[aria-label="Pinned"] [data-sidebar-row]')].map((pin) =>
       pin.getAttribute("data-sidebar-row"),
@@ -196,7 +223,7 @@ it("pins and unpins a row's service from its context menu, by pointer and keyboa
         new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 8, clientY: 8 }),
       );
   });
-  expect(item()?.textContent).toBe("Pin legal");
+  expect(items().map((entry) => entry.textContent)).toEqual(["Open", "Pin to sidebar"]);
   await act(async () => item()?.click());
   expect(readPins()).toEqual([...SEED_PINS, "legal"]);
   expect(pinned().at(-1)).toBe("service/legal");
@@ -206,7 +233,7 @@ it("pins and unpins a row's service from its context menu, by pointer and keyboa
   const name = row()?.querySelector<HTMLButtonElement>("th button");
   await act(async () => name?.focus());
   await press("F10", { shiftKey: true });
-  expect(item()?.textContent).toBe("Unpin legal");
+  expect(item()?.textContent).toBe("Unpin from sidebar");
   await press("Escape");
   expect(menu()).toBeNull();
   expect(sheet()).not.toBeNull();
@@ -216,6 +243,11 @@ it("pins and unpins a row's service from its context menu, by pointer and keyboa
   expect(readPins()).toEqual(SEED_PINS);
   expect(pinned()).not.toContain("service/legal");
   expect(sheet()).not.toBeNull();
+  await act(async () => name?.focus());
+  await press("ContextMenu");
+  await act(async () => items()[0]?.click());
+  expect(window.location.hash).toBe("#service/legal");
+  expect(readPins()).toEqual(SEED_PINS);
 });
 
 it("folds quiet rows into one named line and expands them in fleet order", async () => {
@@ -517,7 +549,7 @@ it("opens a new column or an unfiltered sheet over a pinned sheet without keepin
   watchStore.setState({ snapshot: { cursor: body.cursor, body } });
   await mount();
   await open();
-  await click(button("Pin"));
+  await click(button("Dock"));
   await click(button("os-core-common 8.5.0 · 10 forks"));
   await act(async () => navigate({ kind: "line", column: "upstream" }));
   expect(sheet()?.dataset.presentation).toBe("pinned");

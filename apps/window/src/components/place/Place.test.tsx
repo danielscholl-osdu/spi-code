@@ -6,6 +6,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import { navigate } from "../../app/navigation.js";
+import { createTitleStore, TitleEnd, TitleProvider, TitleRow } from "../../app/title-row.js";
 import { isFixedPin, readPins } from "../../store/pins.js";
 import { Place, type PlaceProps } from "./Place.js";
 
@@ -175,26 +176,67 @@ it.each([
   ["Upstream", "place:upstream"],
   ["Releases", "place:releases"],
   ["Security", "place:security"],
-])("omits Pin without a pin and toggles %s's pin from the header", async (name, pin) => {
-  const { container, render } = await mount();
-  expect(container.querySelector("header button")).toBeNull();
-  await render({ name, pin });
-  const button = container.querySelector<HTMLButtonElement>("header button");
-  expect(button?.getAttribute("aria-label")).toBe(`Unpin ${name}`);
-  await act(async () => button?.click());
-  expect(readPins()).not.toContain(pin);
-  expect(button?.getAttribute("aria-label")).toBe(`Pin ${name}`);
-  await act(async () => button?.click());
-  expect(readPins().at(-1)).toBe(pin);
-  await render({ name });
-  expect(container.querySelector("header button")).toBeNull();
+])(
+  "draws no pin control without a pin, and pins and unpins %s from its control",
+  async (name, pin) => {
+    const { container, render } = await mount();
+    const control = () => container.querySelector<HTMLButtonElement>("header .pin-control");
+    expect(control()).toBeNull();
+    await render({ name, pin });
+    expect(control()?.getAttribute("aria-label")).toBe(`Unpin ${name} from sidebar (Ctrl+Shift+P)`);
+    expect(control()?.title).toBe(control()?.getAttribute("aria-label"));
+    expect(control()?.hasAttribute("aria-pressed")).toBe(false);
+    await act(async () => control()?.click());
+    expect(readPins()).not.toContain(pin);
+    expect(control()?.getAttribute("aria-label")).toBe(`Pin ${name} to sidebar (Ctrl+Shift+P)`);
+    expect(control()?.title).toBe(`Pin ${name} to sidebar (Ctrl+Shift+P)`);
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue(
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+    );
+    await act(async () => control()?.click());
+    expect(readPins().at(-1)).toBe(pin);
+    expect(control()?.getAttribute("aria-label")).toBe(`Unpin ${name} from sidebar (⌘⇧P)`);
+    vi.restoreAllMocks();
+    await render({ name });
+    expect(control()).toBeNull();
+  },
+);
+
+it("hands the pin control to the top row's end slot, not beside the title", async () => {
+  const titles = createTitleStore();
+  const top = document.createElement("div");
+  document.body.append(top);
+  const root = createRoot(top);
+  cleanups.push(async () => {
+    await act(async () => root.unmount());
+    top.remove();
+  });
+  await act(async () =>
+    root.render(
+      <TitleProvider value={titles}>
+        <div className="centre-title">
+          <TitleRow store={titles} fallback="" />
+        </div>
+        <div className="centre-end">
+          <TitleEnd store={titles} />
+        </div>
+        <Place name="Upstream" reading={reading} pin="place:upstream" onNavigate={vi.fn()} />
+      </TitleProvider>,
+    ),
+  );
+  expect(top.querySelector(".centre-title h1")?.textContent).toBe("Upstream");
+  expect(top.querySelector(".centre-title .pin-control")).toBeNull();
+  expect(top.querySelector(".centre-end > .pin-control")?.getAttribute("aria-label")).toBe(
+    "Unpin Upstream from sidebar (Ctrl+Shift+P)",
+  );
+  expect(top.querySelector(".place header")).toBeNull();
 });
 
 it.each([
   ["Environment", "place:environment"],
   ["Engineering system", "place:engineering-system"],
 ])(
-  "draws no Pin or Unpin in %s's header, which sits in the sidebar's fixed block",
+  "draws no pin control in %s's header, which sits in the sidebar's fixed block",
   async (name, pin) => {
     const { container, render } = await mount();
     await render({ name, pin });
@@ -204,7 +246,7 @@ it.each([
   },
 );
 
-it("renders supplied header actions beside Pin, with no action space when absent", async () => {
+it("renders supplied header actions beside the title, with no action space when absent", async () => {
   const onAction = vi.fn();
   const { container, render } = await mount();
   const header = container.querySelector("header");
@@ -220,7 +262,10 @@ it("renders supplied header actions beside Pin, with no action space when absent
   await act(async () => action?.click());
   expect(onAction).toHaveBeenCalledExactlyOnceWith();
   await render({ actions, pin: "legal" });
-  expect(text(container, "header > *")).toEqual(["Upstream", "Line view", "Pin"]);
+  expect(text(container, "header > *")).toEqual(["Upstream", "Line view", ""]);
+  expect(header?.lastElementChild?.getAttribute("aria-label")).toBe(
+    "Pin Upstream to sidebar (Ctrl+Shift+P)",
+  );
   await render({});
   expect(text(container, "header > *")).toEqual(["Upstream"]);
 });

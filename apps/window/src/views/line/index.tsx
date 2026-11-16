@@ -13,6 +13,8 @@ import {
   unpinSheet,
   useLineSheetRequest,
 } from "../../app/navigation.js";
+import { Icon } from "../../components/icons/Icon.js";
+import { PinControl } from "../../components/pin/PinControl.js";
 import { PinMenu } from "../../components/pin/PinMenu.js";
 import { FreshItems } from "../../components/place/FreshItems.js";
 import { selectionStore } from "../../panels/selection.js";
@@ -85,8 +87,13 @@ function LineContent({
         <h1>Line</h1>
         {rows.length > 0 && <span>{rows.length} services</span>}
         <div className="line-controls">
-          <button type="button" onClick={presentation === "pinned" ? unpinSheet : pinSheet}>
-            {presentation === "pinned" ? "Unpin" : "Pin"}
+          <button
+            type="button"
+            className="line-dock"
+            onClick={presentation === "pinned" ? unpinSheet : pinSheet}
+          >
+            <Icon name="panelRight" size={14} />
+            {presentation === "pinned" ? "Undock" : "Dock"}
           </button>
           <button type="button" aria-label="Close Line" onClick={closeSheet}>
             Close
@@ -143,15 +150,19 @@ function LineContent({
                   <PinMenu
                     key={service}
                     service={service}
+                    onOpen={() => navigate({ kind: "service", id: service })}
                     render={
                       <tr data-service={service}>
                         <th scope="row">
-                          <button
-                            type="button"
-                            onClick={() => navigate({ kind: "service", id: service })}
-                          >
-                            {service}
-                          </button>
+                          <span className="line-service">
+                            <button
+                              type="button"
+                              onClick={() => navigate({ kind: "service", id: service })}
+                            >
+                              {service}
+                            </button>
+                            <PinControl pin={service} name={service} size="row" shortcut={false} />
+                          </span>
                         </th>
                         {populatedColumns.map(({ id, label }) => {
                           const station = stations.find((station) => station.id === id);

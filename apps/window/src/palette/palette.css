@@ -116,35 +116,16 @@
   color: var(--text-muted);
   font-size: 11px;
 }
-.palette-pin {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
+.palette-row > .pin-control {
   margin-left: -4px;
-  padding: 0;
-  border: 0;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: default;
+}
+.palette-label + .pin-control {
+  margin-left: auto;
+}
+.palette-row .pin-control[data-pinned="false"] {
   visibility: hidden;
 }
-.palette-row:hover .palette-pin,
-.palette-row[data-highlighted] .palette-pin,
-.palette-row:not([data-pin-state="unpinned"]) .palette-pin {
+.palette-row:hover .pin-control,
+.palette-row[data-highlighted] .pin-control {
   visibility: visible;
-}
-.palette-row:not([data-pin-state="unpinned"]) .palette-pin svg {
-  fill: currentColor;
-}
-.palette-row[data-pin-state="pinned"] .palette-pin {
-  color: var(--text);
-}
-.palette-row[data-pin-state="always"] .palette-pin {
-  color: var(--placeholder);
-}
-.palette-pin:not([aria-disabled]):hover {
-  background: var(--hover);
 }

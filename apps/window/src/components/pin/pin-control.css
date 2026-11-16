@@ -1,0 +1,12 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+.pin-control { flex: none; display: inline-grid; place-items: center; box-sizing: border-box; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: default; }
+.pin-control[data-size="row"] { width: 22px; height: 22px; border-radius: 5px; }
+.pin-control[data-pinned="true"] { color: var(--text); }
+.pin-control:hover { background: var(--hover); color: var(--text); }
+.pin-control > svg { grid-area: 1 / 1; }
+.pin-control-off { visibility: hidden; }
+.pin-control[data-pinned="true"]:not([data-fresh]):is(:hover, :focus-visible) .pin-control-pin { visibility: hidden; }
+.pin-control[data-pinned="true"]:not([data-fresh]):is(:hover, :focus-visible) .pin-control-off { visibility: visible; }
+.place-header > .pin-control { padding: 0; }

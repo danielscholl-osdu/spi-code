@@ -4,11 +4,11 @@
 import type { PlaceRow, Reading, Tone, ViewSnapshot } from "@spi-code/contracts";
 import type { ReactNode } from "react";
 import { type Navigation, PLACES, routeLabel } from "../../app/navigation.js";
-import { PlacePin } from "../../app/PlacePin.js";
 import { scopeRoute } from "../../app/queue.js";
 import { PaneTitle } from "../../app/title-row.js";
 import { plainTitle } from "../../text.js";
 import { instantsIn, TimedText, timedText } from "../../time.js";
+import { PinControl } from "../pin/PinControl.js";
 import { FreshChip, FreshItems, freshItemIds } from "./FreshItems.js";
 import "./place.css";
 
@@ -34,7 +34,7 @@ export type PlaceProps = {
   onSelect?: (id: string) => void;
   selectedId?: string;
   actions?: ReactNode;
-  /** The pin this place is kept under in the sidebar; without it the header has no Pin. */
+  /** The pin this place is kept under in the sidebar; without it the top row has no pin control. */
   pin?: string | undefined;
   /** Tiles drawn in place of the reading's own. */
   tiles?: readonly PlaceTile[] | undefined;
@@ -79,10 +79,9 @@ export function Place({
   }
   return (
     <section className="place" aria-label={name}>
-      <PaneTitle>
+      <PaneTitle end={pin && <PinControl pin={pin} name={name} />}>
         <h1 data-place>{name}</h1>
         {actions}
-        {pin && <PlacePin pin={pin} name={name} />}
       </PaneTitle>
       {(content || tiles || belowTiles) && (
         <section className="place-reading" aria-label={`${name} reading`}>

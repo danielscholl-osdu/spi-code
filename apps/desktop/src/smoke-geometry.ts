@@ -64,6 +64,16 @@ export type SmokeGeometry =
       targets: { label: string; rect: SmokeRect }[];
     }
   | {
+      rule: "pin-end";
+      /** The end of the centre's part of the top row, inside its padding. */
+      end: number;
+      /** The right edge of the row clear of Windows' caption buttons. */
+      clear: number;
+      title: SmokeRect;
+      pin: SmokeRect | null;
+      toggle: SmokeRect | null;
+    }
+  | {
       rule: "overlay-drag";
       overlay: string;
       viewport: SmokeRect;
@@ -454,6 +464,31 @@ export function assertSmokeGeometry(
           height: 1,
         }),
         `Drag area at ${gap.x} is not a drag rectangle`,
+      );
+      break;
+    }
+    case "pin-end": {
+      assert(typeof value.end === "number" && typeof value.clear === "number", "Row end missing");
+      rect(value.title);
+      assert(value.pin !== null && value.pin !== undefined, "Top-row pin control is not drawn");
+      rect(value.pin);
+      const { x, y, width, height } = value.pin;
+      assert(y >= -0.02 && y + height <= 44.02, `Top-row pin control off the row at y ${y}`);
+      assert(x + width <= value.clear + 0.02, "Top-row pin control under the window controls");
+      assert(x >= value.title.x + value.title.width, "Top-row pin control overlaps the title");
+      let toggle: SmokeRect | null = null;
+      if (value.toggle !== null && value.toggle !== undefined) {
+        rect(value.toggle);
+        toggle = value.toggle;
+      }
+      const expected = toggle ? value.end - toggle.width - 6 : value.end;
+      assert(
+        Math.abs(x + width - expected) <= 1,
+        `Top-row pin control ends at ${x + width}, not ${expected}`,
+      );
+      assert(
+        !toggle || Math.abs(toggle.x - 6 - (x + width)) <= 1,
+        "Top-row pin control is not 6 px before the right-panel toggle",
       );
       break;
     }

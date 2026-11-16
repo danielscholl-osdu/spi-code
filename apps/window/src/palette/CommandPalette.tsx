@@ -26,9 +26,9 @@ import { Dialog } from "@base-ui/react/dialog";
 import { useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { type Destination, LINE, useRegistry } from "../app/routes.js";
-import { isMacPlatform } from "../app/shortcuts.js";
+import { isMacPlatform, matchesShiftShortcut, shiftShortcutLabel } from "../app/shortcuts.js";
 import { AttentionDot } from "../components/AttentionDot.js";
-import { Icon } from "../components/icons/Icon.js";
+import { PinControl } from "../components/pin/PinControl.js";
 import { useSidebarAttention } from "../components/sidebar/attention.js";
 import { isFixedPin, pin, togglePin, usePins } from "../store/pins.js";
 import type { createWatchStore } from "../store/watch.js";
@@ -43,42 +43,17 @@ const PIN_STATE_NAME: Readonly<Record<PinState, string>> = {
   always: "always in the sidebar",
 };
 
-const PIN_TITLE: Readonly<Record<Exclude<PinState, "always">, string>> = {
-  unpinned: "Pin to the sidebar",
-  pinned: "Unpin from the sidebar",
-};
-
 function pinStateOf(id: string, pins: readonly string[]): PinState {
   if (isFixedPin(id)) return "always";
   return pins.includes(id) ? "pinned" : "unpinned";
-}
-
-/** Pins or unpins its result in place, without opening it. */
-function PinControl({ pin: id, state }: { pin: string; state: Exclude<PinState, "always"> }) {
-  return (
-    <button
-      type="button"
-      className="palette-pin"
-      tabIndex={-1}
-      aria-hidden
-      title={PIN_TITLE[state]}
-      onClick={(event) => {
-        event.stopPropagation();
-        togglePin(id);
-      }}
-    >
-      <Icon name="pin" size={14} stroke={2} />
-    </button>
-  );
 }
 
 /**
  * Find (PS-12): Go to, Services and Queue. The shell opens it from ⌘K or Ctrl+K (through
  * PanelControls' shortcuts) and from the sidebar's field. ⏎ opens a result; ⌘↩ (Ctrl+Enter) opens
  * a place or a service and pins it, leaving a pin where it is; the sidebar's fixed block opens
- * unpinned. A result that can be pinned ends in a pointer-only pin control that pins or unpins it
- * in place. Esc closes it and focus
- * returns to the opener.
+ * unpinned. ⌘⇧P (Ctrl+Shift+P) pins or unpins the highlighted result in place, as its pointer-only
+ * pin control does. Esc closes it and focus returns to the opener.
  */
 export function CommandPalette({
   store,
@@ -190,6 +165,12 @@ function PaletteContent({
             event.preventDefault();
             if (highlightedItem.pin) pin(highlightedItem.pin);
             run(highlightedItem);
+            return;
+          }
+          if (matchesShiftShortcut(event, "p")) {
+            event.preventDefault();
+            const id = highlightedItem?.pin;
+            if (id && !isFixedPin(id)) togglePin(id);
           }
         }}
       />
@@ -231,8 +212,8 @@ function PaletteContent({
                       {kind}
                     </span>
                   )}
-                  {item.pin !== undefined && pinState && pinState !== "always" && (
-                    <PinControl pin={item.pin} state={pinState} />
+                  {item.pin !== undefined && (
+                    <PinControl pin={item.pin} name={item.label} size="row" inList />
                   )}
                 </Autocomplete.Item>
               );
@@ -244,6 +225,7 @@ function PaletteContent({
         <span>↑↓ move</span>
         <span>⏎ open</span>
         <span>{isMacPlatform() ? "⌘↩" : "Ctrl+Enter"} open and pin</span>
+        <span>{shiftShortcutLabel("p")} pin</span>
         <span>esc close</span>
       </div>
     </Autocomplete.Root>

@@ -27,10 +27,11 @@ import {
   useNavigation,
   useSetupLanding,
 } from "./routes.js";
-import { createTitleStore, TitleProvider, TitleRow } from "./title-row.js";
+import { createTitleStore, TitleEnd, TitleProvider, TitleRow } from "./title-row.js";
 import { useDocumentTitle } from "./useDocumentTitle.js";
 import { useHostConnection } from "./useHostConnection.js";
 import { usePaneLayout } from "./usePaneLayout.js";
+import { usePinShortcut } from "./usePinShortcut.js";
 import { useRouteScroll } from "./useRouteScroll.js";
 import { useShellShortcuts } from "./useShellShortcuts.js";
 import { windowControls } from "./window-controls.js";
@@ -73,6 +74,7 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
   const openReadiness = useCallback(() => openSettings("readiness"), [openSettings]);
   useSetupLanding(openReadiness);
   useShellShortcuts(registry, toggleSheet, openSettings);
+  usePinShortcut(route, settingsOpen || findOpen || sheet === "overlay");
   useDocumentTitle(route);
   const { middle, onScrollCapture } = useRouteScroll(route, snapshot);
   const { theme, pinTheme, error } = useHostConnection({
@@ -162,6 +164,7 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
                   <TitleRow store={titles} fallback={routeLabel(route)} />
                 </div>
                 <div className="centre-end">
+                  <TitleEnd store={titles} />
                   {!rightPanelOpen && <RightPanelToggle onToggleRightPanel={toggleRightPanel} />}
                 </div>
               </div>

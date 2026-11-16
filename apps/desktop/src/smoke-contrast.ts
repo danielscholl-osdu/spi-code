@@ -68,6 +68,8 @@ export interface Sample {
   weight: number;
   layers: number[];
   inScope: boolean;
+  /** An icon-only control, held to WCAG 1.4.11's 3:1 for graphics. */
+  graphic?: boolean;
 }
 
 export interface Collected {
@@ -289,7 +291,7 @@ export function judge(collected: Collected): {
       color: hex(drawn.text),
       background: hex(drawn.background),
       ratio: contrastRatio(drawn.text, drawn.background),
-      needs: requiredRatio(sample.size, sample.weight),
+      needs: sample.graphic ? 3 : requiredRatio(sample.size, sample.weight),
     });
   }
   return { judged, unmeasured };
@@ -370,6 +372,7 @@ function collect(scope: string): Collected {
     color: () => string;
     size: number;
     weight: number;
+    graphic?: boolean;
   };
   const candidates: Candidate[] = [];
   const parents = new Map<Element, Text[]>();
@@ -430,6 +433,19 @@ function collect(scope: string): Collected {
     });
   }
 
+  for (const control of document.querySelectorAll(".pin-control")) {
+    const s = style(control);
+    candidates.push({
+      element: control,
+      rects: () => [control.getBoundingClientRect()],
+      text: clean(control.getAttribute("aria-label") ?? ""),
+      color: () => s.color,
+      size: Number.parseFloat(s.fontSize),
+      weight: Number(s.fontWeight),
+      graphic: true,
+    });
+  }
+
   const unmeasured: Collected["unmeasured"] = [];
   const reasons = new Map<Element, Exclusion | "measured" | "unmeasured">();
   const samples: Sample[] = [];
@@ -485,6 +501,7 @@ function collect(scope: string): Collected {
       weight: candidate.weight,
       layers: path(element),
       inScope: element.closest(scope) !== null,
+      ...(candidate.graphic ? { graphic: true } : {}),
     });
     return "measured";
   };
@@ -770,13 +787,28 @@ const PINNED: Required = {
   ],
 };
 const FIND_UNPINNED = "partition";
+const SHORTCUT = process.platform === "darwin" ? "⌘⇧P" : "Ctrl+Shift+P";
+/** The pin control, measured as a graphic by its name. */
+const pinControl = (name: string, pinned: boolean, shortcut = true) => ({
+  selector: "button.pin-control",
+  text: `${pinned ? `Unpin ${name} from sidebar` : `Pin ${name} to sidebar`}${shortcut ? ` (${SHORTCUT})` : ""}`,
+});
 const FIND_ROWS = [
   { selector: "[data-pin-state=always]", text: "Line" },
   { selector: "[data-pin-state=pinned]", text: "Upstream" },
   { selector: "[data-pin-state=pinned]", text: PINNED_STOPPED },
   { selector: "[data-pin-state=unpinned]", text: FIND_UNPINNED },
+  pinControl("Upstream", true),
+  pinControl(FIND_UNPINNED, false),
 ];
 const FIND: Required = { rest: FIND_ROWS, hover: FIND_ROWS };
+const LINE_PINNED = pinControl(PINNED_STOPPED, true, false);
+const LINE: Required = {
+  rest: [LINE_PINNED, { selector: "line-dock", text: "Dock" }],
+  hover: [LINE_PINNED, pinControl(FIND_UNPINNED, false, false)],
+};
+const TOP_PINNED = pinControl("Upstream", true);
+const TOP_UNPINNED = pinControl(FIND_UNPINNED, false);
 
 const ROOT_STATE = `(() => {
   const root = document.documentElement;
@@ -1041,11 +1073,11 @@ export async function assertRenderedContrast(
     await push(nov6);
     await js('document.querySelector("[data-sidebar-row=line]").click()');
     await rendered(window, 'document.querySelector(".line-sheet .line-grid")');
-    await everyShade("line", ".line-sheet");
+    await everyShade("line", ".line-sheet", LINE);
     await js("document.querySelector(\"[aria-label='Close Line']\").click()");
     await js('location.hash = "#upstream"');
     await rendered(window, 'document.querySelector(".upstream .place-reading")');
-    await everyShade("upstream", ".upstream");
+    await everyShade("upstream", ".upstream", { rest: [TOP_PINNED], hover: [TOP_PINNED] });
     await js(
       "document.querySelector(\".place-item-content[data-selection-id='campaign:toolchain:os-core-common%208.5.0']\").click()",
     );
@@ -1058,6 +1090,12 @@ export async function assertRenderedContrast(
     );
     await everyShade("detail-reading", "aside[aria-label=Detail]");
     await js("document.querySelector(\"[aria-label='Close detail']\").click()");
+    await js(`location.hash = "#service/${FIND_UNPINNED}"`);
+    await rendered(
+      window,
+      `document.querySelector(".place[aria-label=${FIND_UNPINNED}] .place-reading") && document.querySelector(".centre-end > .pin-control")`,
+    );
+    await everyShade("service", ".place", { rest: [TOP_UNPINNED], hover: [TOP_UNPINNED] });
     fixture(window, "setup.state", notReady);
     await js(`{
       const mac = /Mac|iPhone|iPad/.test(navigator.userAgent);

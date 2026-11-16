@@ -151,7 +151,7 @@ it("composites translucent backgrounds and opacity groups up the ancestors", () 
   expect(group).toEqual({ text: [0, 0, 0], background: [0.5, 0.5, 0.5] });
 });
 
-it("holds large text to 3:1 and other text to 4.5:1", () => {
+it("holds large text and icon-only controls to 3:1 and other text to 4.5:1", () => {
   const grey = [layer("rgb(255, 255, 255)")];
   const ratio = (size: number, weight: number) =>
     judge(sample(grey, "rgb(136, 136, 136)", size, weight)).judged[0]?.needs;
@@ -159,6 +159,9 @@ it("holds large text to 3:1 and other text to 4.5:1", () => {
   expect(ratio(18.66, 700)).toBe(3);
   expect(ratio(18.66, 600)).toBe(4.5);
   expect(ratio(23.9, 400)).toBe(4.5);
+  const icon = sample(grey, "rgb(136, 136, 136)");
+  const graphic = { ...icon, samples: icon.samples.map((item) => ({ ...item, graphic: true })) };
+  expect(judge(graphic).judged[0]?.needs).toBe(3);
 });
 
 it.each([

@@ -43,12 +43,15 @@ export function Icon({
   name,
   size = 16,
   stroke = 1.75,
+  filled = false,
   className,
   style,
 }: {
   name: IconName;
   size?: number;
   stroke?: number;
+  /** Fills the closed shapes in the stroke colour, as a pinned pin is drawn. */
+  filled?: boolean;
   className?: string;
   style?: CSSProperties;
 }) {
@@ -60,7 +63,7 @@ export function Icon({
       aria-hidden="true"
       className={className}
       style={style}
-      fill="none"
+      fill={filled ? "currentColor" : "none"}
       stroke="currentColor"
       strokeWidth={stroke}
       strokeLinecap="round"

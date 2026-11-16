@@ -8,6 +8,13 @@ import { afterEach, expect, it, vi } from "vitest";
 import recorded from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { treeServices } from "../../app/queue.js";
 import { DEFAULT_REGISTRY } from "../../app/routes.js";
+import {
+  createTitleStore,
+  TitleEnd,
+  TitleProvider,
+  TitleRow,
+  type TitleStore,
+} from "../../app/title-row.js";
 import { inScope } from "../../components/sidebar/attention.js";
 import { RightPanel } from "../../panels/RightPanel.js";
 import { createSelectionStore } from "../../panels/selection.js";
@@ -20,7 +27,7 @@ import ServicePlace from "./index.js";
 const cleanups: (() => Promise<void>)[] = [];
 const snapshot = () => ViewSnapshotSchema.parse(JSON.parse(recorded));
 
-async function mount(body: ViewSnapshot = snapshot(), id = "legal") {
+async function mount(body: ViewSnapshot = snapshot(), id = "legal", titles?: TitleStore) {
   const container = document.createElement("div");
   document.body.append(container);
   const selection = createSelectionStore({ postMessage: vi.fn() });
@@ -29,10 +36,20 @@ async function mount(body: ViewSnapshot = snapshot(), id = "legal") {
   const root = createRoot(container);
   await act(async () =>
     root.render(
-      <>
+      <TitleProvider value={titles ?? null}>
+        {titles && (
+          <>
+            <div className="centre-title">
+              <TitleRow store={titles} fallback="" />
+            </div>
+            <div className="centre-end">
+              <TitleEnd store={titles} />
+            </div>
+          </>
+        )}
         <ServicePlace id={id} store={watch} selection={selection} />
         <RightPanel store={selection} snapshot={body} />
-      </>,
+      </TitleProvider>,
     ),
   );
   cleanups.push(async () => {
@@ -53,24 +70,23 @@ afterEach(async () => {
   localStorage.removeItem(PINS_STORAGE_KEY);
 });
 
-it("pins the service from its place header, labels the control Unpin, and unpins it", async () => {
-  const { container } = await mount();
-  const pinButton = () =>
-    [...container.querySelectorAll<HTMLButtonElement>(".place header button")].find((button) =>
-      /^(Pin|Unpin)$/.test(button.textContent ?? ""),
-    );
-  expect(pinButton()?.getAttribute("aria-label")).toBe("Pin legal");
-  await act(async () => pinButton()?.click());
+it("puts the service's pin control at the top row's end, and pins and unpins it there", async () => {
+  const titles = createTitleStore();
+  const { container } = await mount(snapshot(), "legal", titles);
+  const control = () => container.querySelector<HTMLButtonElement>(".centre-end > .pin-control");
+  expect(container.querySelector(".centre-title h1")?.textContent).toBe("legal");
+  expect(container.querySelector(".centre-title .pin-control")).toBeNull();
+  expect(control()?.getAttribute("aria-label")).toBe("Pin legal to sidebar (Ctrl+Shift+P)");
+  await act(async () => control()?.click());
   expect(readPins()).toEqual([...SEED_PINS, "legal"]);
   expect(JSON.parse(localStorage.getItem(PINS_STORAGE_KEY) ?? "[]")).toEqual([
     ...SEED_PINS,
     "legal",
   ]);
-  expect(pinButton()?.textContent).toBe("Unpin");
-  expect(pinButton()?.getAttribute("aria-label")).toBe("Unpin legal");
-  await act(async () => pinButton()?.click());
+  expect(control()?.getAttribute("aria-label")).toBe("Unpin legal from sidebar (Ctrl+Shift+P)");
+  await act(async () => control()?.click());
   expect(readPins()).toEqual(SEED_PINS);
-  expect(pinButton()?.getAttribute("aria-label")).toBe("Pin legal");
+  expect(control()?.getAttribute("aria-label")).toBe("Pin legal to sidebar (Ctrl+Shift+P)");
 });
 
 it("renders legal's recorded service reading, including 17 incoming commits and Release #48 ready", async () => {

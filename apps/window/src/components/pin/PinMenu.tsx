@@ -27,12 +27,20 @@ function openFromKeyboard(event: KeyboardEvent<HTMLElement>) {
 }
 
 /**
- * A service's context menu (PS-08): one item, Pin or Unpin. `render` is the element the menu
- * opens on, by right click, long press, Shift-F10 or the ContextMenu key; Escape closes it.
+ * A service's context menu (PS-10): Open, then Pin to sidebar or Unpin from sidebar. `render` is
+ * the element the menu opens on, by right click, long press, Shift-F10 or the ContextMenu key;
+ * Escape closes it.
  */
-export function PinMenu({ service, render }: { service: string; render: ReactElement }) {
+export function PinMenu({
+  service,
+  render,
+  onOpen,
+}: {
+  service: string;
+  render: ReactElement;
+  onOpen(): void;
+}) {
   const pinned = usePins().includes(service);
-  const label = `${pinned ? "Unpin" : "Pin"} ${service}`;
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger render={render} onKeyDown={openFromKeyboard} />
@@ -43,8 +51,11 @@ export function PinMenu({ service, render }: { service: string; render: ReactEle
             data-pin-menu={service}
             onClick={(event) => event.stopPropagation()}
           >
+            <ContextMenu.Item className="pin-menu-item" onClick={onOpen}>
+              Open
+            </ContextMenu.Item>
             <ContextMenu.Item className="pin-menu-item" onClick={() => togglePin(service)}>
-              {label}
+              {pinned ? "Unpin from sidebar" : "Pin to sidebar"}
             </ContextMenu.Item>
           </ContextMenu.Popup>
         </ContextMenu.Positioner>

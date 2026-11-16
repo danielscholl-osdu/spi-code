@@ -352,7 +352,7 @@ const option = (text: string) =>
   [...(palette()?.querySelectorAll<HTMLElement>(".palette-row") ?? [])].find(
     (row) => row.textContent === text,
   );
-const pinControl = (text: string) => option(text)?.querySelector<HTMLButtonElement>(".palette-pin");
+const pinControl = (text: string) => option(text)?.querySelector<HTMLButtonElement>(".pin-control");
 
 it("pins and unpins a result in place from its pin control, leaving Find as it was", async () => {
   await shortcut({ ctrlKey: true });
@@ -361,6 +361,7 @@ it("pins and unpins a result in place from its pin control, leaving Find as it w
   expect(option("Releasespage")?.getAttribute("aria-label")).toBe("Releases, page, not pinned");
   const control = pinControl("Releasespage");
   expect(control?.tabIndex).toBe(-1);
+  expect(control?.getAttribute("aria-label")).toBe("Pin Releases to sidebar (Ctrl+Shift+P)");
   await act(async () => control?.click());
   expect(readPins()).toContain("place:releases");
   expect(container.querySelector('[data-sidebar-row="releases"]')).not.toBeNull();
@@ -406,8 +407,38 @@ it("draws no pin control on Line, Environment or Engineering system, and none on
   await type("schemathesis");
   const queue = palette()?.querySelector<HTMLElement>('[data-group="queue"] .palette-row');
   expect(queue).toBeTruthy();
-  expect(queue?.querySelector(".palette-pin")).toBeNull();
+  expect(queue?.querySelector(".pin-control")).toBeNull();
   expect(queue?.hasAttribute("aria-label")).toBe(false);
+});
+
+it("pins and unpins the highlighted result in place on Ctrl+Shift+P, and nothing on a fixed one", async () => {
+  await shortcut({ ctrlKey: true });
+  await type("Releases");
+  expect(hint()).toContain("Ctrl+Shift+P pin");
+  await key("P", { ctrlKey: true, shiftKey: true });
+  expect(readPins()).toContain("place:releases");
+  expect(option("Releasespage")?.getAttribute("aria-label")).toBe("Releases, page, pinned");
+  expect(palettes()).toHaveLength(1);
+  expect(input()?.value).toBe("Releases");
+  expect(highlighted()).toBe("Releasespage");
+  expect(document.activeElement).toBe(input());
+  expect(window.location.hash).toBe("");
+  await key("P", { ctrlKey: true, shiftKey: true });
+  expect(readPins()).not.toContain("place:releases");
+  await type("Environment");
+  const before = localStorage.getItem(PINS_STORAGE_KEY);
+  await key("P", { ctrlKey: true, shiftKey: true });
+  expect(localStorage.getItem(PINS_STORAGE_KEY)).toBe(before);
+  expect(window.location.hash).toBe("");
+
+  vi.spyOn(navigator, "userAgent", "get").mockReturnValue(
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+  );
+  await type("legal");
+  expect(hint()).toContain("⌘⇧P pin");
+  await key("p", { metaKey: true, shiftKey: true });
+  expect(readPins()).not.toContain("legal");
+  expect(palettes()).toHaveLength(1);
 });
 
 it("finds every place and every service of the Nov 6 fleet", async () => {

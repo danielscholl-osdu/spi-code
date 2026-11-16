@@ -29,6 +29,7 @@ import {
 import { captureSidebarPins } from "./smoke-sidebar.js";
 import { smokeScheduledSweep, smokeSweepProgress } from "./smoke-sweep.js";
 import { captureMornings, loadMornings } from "./smoke-today.js";
+import { captureTopRowPins, PIN_END_PROBE } from "./smoke-top-row.js";
 
 const sweepSchedule = {
   sweepMs: 300_000,
@@ -367,7 +368,7 @@ async function captureFindPins(
     writeFileSync(join(output, file), (await window.webContents.capturePage(bounds)).toPNG());
     writeFileSync(
       join(output, `find-pins-${appearance}.html`),
-      `<!doctype html><meta charset="utf-8"><title>Find or ask pins</title><style>body{font:14px system-ui;padding:24px}img{max-width:100%}</style><h1>Find or ask pins / ${appearance}</h1><p>Design: epic spicode-8i9 and its rulings. Line, Environment and Engineering system sit in the sidebar's fixed block and draw no pin; Upstream and entitlements are pinned (filled); partition is highlighted and unpinned (hollow).</p><img src="${file}" alt="Find or ask with pinned and unpinned results and the fixed block's places">`,
+      `<!doctype html><meta charset="utf-8"><title>Find or ask pins</title><style>body{font:14px system-ui;padding:24px}img{max-width:100%}</style><h1>Find or ask pins / ${appearance}</h1><p>Design: epic spicode-1l9 and its rulings. Line, Environment and Engineering system sit in the sidebar's fixed block and draw no pin control; Upstream and entitlements are pinned (filled); partition is highlighted and unpinned (hollow).</p><img src="${file}" alt="Find or ask with pinned and unpinned results and the fixed block's places">`,
     );
     await window.webContents.executeJavaScript(
       'document.querySelector("[role=dialog].palette input").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))',
@@ -565,6 +566,8 @@ async function measure(
           controls, clear, viewport, centre: rect(element(".centre-bar")),
           detailSheet: Boolean(document.querySelector(".right-panel-frame[data-sheet]")), regions, targets };
       }
+      case "pin-end":
+        return ${PIN_END_PROBE};
       case "overlay-drag": {
         const root = element(${JSON.stringify(overlay)});
         const box = rect(root);
@@ -1115,7 +1118,7 @@ export async function captureSmokeViews(
           if (surface.id === "detail-related" || surface.id === "panes") {
             if (surface.id === "panes") {
               await window.webContents.executeJavaScript(
-                '[...document.querySelectorAll(".line-toolbar button")].find(button => button.textContent === "Pin").click()',
+                '[...document.querySelectorAll(".line-toolbar button")].find(button => button.textContent === "Dock").click()',
               );
               await rendered(
                 window,
@@ -1380,6 +1383,15 @@ export async function captureSmokeViews(
             );
         }
         section(`captures ${viewportWidth}/${appearance}`);
+        await captureTopRowPins(
+          window,
+          output,
+          viewportWidth,
+          appearance,
+          () => measure(window, "pin-end"),
+          (condition) => rendered(window, condition),
+        );
+        section(`top-row pin ${viewportWidth}/${appearance}`);
         if (viewportWidth === 1440) {
           fixture(window, "sweep.progress", progress.committed);
           await captureStatusStates(
