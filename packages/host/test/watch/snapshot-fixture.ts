@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   AREAS,
+  buildModel,
   builtInFleet,
   CORE_LIB_REPO,
   createContext,
@@ -21,11 +22,13 @@ import {
   type ReleaseReads,
   type RepoFact,
   releaseBodyKey,
+  runsObservedAt,
   type SweepReads,
+  sinceOf,
   TEMPLATE_REPO,
 } from "@spi-code/core";
 import { projectWatch, type WatchInput } from "../../src/watch/project.js";
-import { baselineItems } from "../../src/watch/seen.js";
+import { baselineItems, seenBriefing } from "../../src/watch/seen.js";
 
 export const fixtureRoot = fileURLToPath(
   new URL("../../../core/test/fixtures/rib-59d6895/", import.meta.url),
@@ -185,14 +188,35 @@ export const acknowledgedSnapshotPath = fileURLToPath(
  */
 export function acknowledgedInput(): WatchInput {
   const input = recordedInput();
+  const observedAt = runsObservedAt(input.facts, input.reads);
   return {
     ...input,
     cursor: input.cursor + 1,
     baseline: {
       cursor: input.cursor,
       at: "2026-11-06T14:05:00.000Z",
+      ...(observedAt ? { observedAt } : {}),
       items: baselineItems(projectWatch(input).briefing),
     },
+  };
+}
+
+export function acknowledgedSnapshot(input = appStyle(acknowledgedInput())) {
+  const view = projectWatch(input);
+  const now = new Date(view.sweptAt);
+  return {
+    ...view,
+    briefing: seenBriefing(view.briefing, input.baseline, (at) => {
+      if (!view.briefing.since || view.briefing.since.basis === "stale") return undefined;
+      return sinceOf(
+        buildModel(input.facts, now, {}, input.context),
+        input.facts,
+        now,
+        input.intervalMs,
+        at,
+        input.reads,
+      );
+    }),
   };
 }
 
