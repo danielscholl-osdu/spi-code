@@ -904,6 +904,12 @@
     ],
     "horizon": {
       "headline": "65 commits reach 8 forks at the next sync.",
+      "compact": {
+        "nextSyncCount": 65,
+        "heldCount": 37,
+        "heldPrCount": 3,
+        "currentForkCount": 2
+      },
       "stages": {
         "upstream": {
           "count": 110,
@@ -14248,6 +14254,10 @@
         "template",
         "security"
       ]
+    },
+    {
+      "path": "/briefing/horizon/compact",
+      "areas": ["github", "runs", "upstream", "radar"]
     },
     {
       "path": "/briefing/horizon/stages/upstream",

@@ -32,6 +32,10 @@ export function horizonFields(horizon: Horizon): LensField[] {
     const key = pointer.slice(pointer.lastIndexOf("/") + 1);
     const root = at(parent);
     if (key === "headline") return;
+    if (parent.endsWith("/compact")) {
+      add(pointer, value ?? "unknown", at(pointer));
+      return;
+    }
     if (/\/itemIds\/\d+$/.test(pointer) || ["id", "url", "inspect", "surfaceItems"].includes(key)) {
       add(pointer, value, root, {
         exempt:

@@ -143,7 +143,7 @@ export function Horizon({
   const [expanded, setExpanded] = useState(false);
   const stagesId = useId();
   const horizon = snapshot.briefing.horizon;
-  const { stages, cards, counts, owed } = horizon;
+  const { stages, compact, cards, counts, owed } = horizon;
   const selected = useStore(inspector, (state) => state.selected);
   const fold = useFold(cards ?? [], selected, (row) => [
     `theme:${row.id}`,
@@ -196,7 +196,9 @@ export function Horizon({
             onClick={() => setExpanded(!expanded)}
           >
             <span title={plainTitle(stages.nextSync.text)}>
-              {stages.nextSync.count}
+              <span data-pointer={`${ROOT}/compact/nextSyncCount`}>
+                {compact?.nextSyncCount ?? "unknown"}
+              </span>
               {stages.nextSync.at && (
                 <>
                   {" "}
@@ -205,9 +207,23 @@ export function Horizon({
               )}
             </span>
             <span aria-hidden="true">→</span>
-            <span title={plainTitle(stages.held.text)}>{stages.held.count} held</span>
+            <span title={plainTitle(stages.held.text)}>
+              <span data-pointer={`${ROOT}/compact/heldCount`}>
+                {compact?.heldCount ?? "unknown"}
+              </span>{" "}
+              in{" "}
+              <span data-pointer={`${ROOT}/compact/heldPrCount`}>
+                {compact?.heldPrCount ?? "unknown"}
+              </span>{" "}
+              PRs
+            </span>
             <span aria-hidden="true">→</span>
-            <span title={plainTitle(stages.forks.text)}>{stages.forks.text}</span>
+            <span title={plainTitle(stages.forks.text)}>
+              <span data-pointer={`${ROOT}/compact/currentForkCount`}>
+                {compact?.currentForkCount ?? "unknown"}
+              </span>{" "}
+              current
+            </span>
             <span aria-hidden="true">{expanded ? "⌃" : "⌄"}</span>
           </button>
           <div className="horizon-stages" id={stagesId}>

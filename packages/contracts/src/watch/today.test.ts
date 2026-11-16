@@ -118,6 +118,7 @@ const briefing = {
   ],
   horizon: {
     headline: base.briefing.horizon.headline,
+    compact: { nextSyncCount: 4, heldCount: 67, heldPrCount: 1, currentForkCount: 2 },
     stages: {
       upstream: { count: 71, text: "71 commits behind upstream" },
       nextSync: { at, count: 4, services: ["partition"], text: "4 at the 18:00 sync" },
