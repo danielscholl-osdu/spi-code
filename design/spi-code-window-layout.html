@@ -343,7 +343,7 @@ code{font-family:var(--mono);font-size:.9em}
 .fs-acts{display:flex;gap:6px;margin:2px 0 10px}
 .fs-acts .btn{font-size:10px;padding:1px 9px}
 @media (max-width:520px){ p.lead{font-size:16px} }
-/* the shell: pane-owned top row, the sweep's capsule, pins and their status marks */
+/* the shell: pane-owned top row, fixed status block, pins and footer sweep */
 :root{--up:#a33182;--work:#24688c;--work-surface:#dcebf3}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){--up:#fabce0;--work:#8cc8e8;--work-surface:#15293a} }
 :root[data-theme="dark"]{--up:#fabce0;--work:#8cc8e8;--work-surface:#15293a}
@@ -361,7 +361,7 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
 .sb .row.on{background:var(--surface);box-shadow:0 0 0 1px var(--border);color:var(--strong);font-weight:500}
 .sb .pgrp{display:flex;justify-content:space-between;color:var(--muted);font-size:9.5px;padding:10px 6px 3px}
 .sb .word{font-size:9px;font-weight:500;color:var(--muted)} .sb .word.bad{color:var(--error-text)} .sb .word.warn{color:var(--warning-text)}
-.sb .gear{margin-top:auto;height:31px;flex:none;display:flex;align-items:center;padding-left:6px;border-top:1px solid var(--border-soft);color:var(--muted)}
+.sb .gear{margin-top:auto;justify-content:space-between;height:31px;flex:none;display:flex;align-items:center;padding-left:6px;border-top:1px solid var(--border-soft);color:var(--muted)}
 .sb .gear .gd{position:relative;display:inline-flex}
 .sb .gear .gd::after{content:"";position:absolute;top:-2px;right:-3px;width:5px;height:5px;border-radius:50%;background:var(--warning);box-shadow:0 0 0 1.5px var(--sidebar)}
 .sb .gear .gd.calm::after{display:none}
@@ -373,11 +373,11 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
 .rp .tabs .tg{margin-left:auto;color:var(--strong);background:var(--raised);border-radius:4px;width:18px;height:18px;display:grid;place-items:center}
 .win.shell .rp .tabs{height:31px}
 .win.shell .rp .tabs .on{border-bottom:none;padding:1px 6px;border-radius:4px;background:var(--surface);box-shadow:0 0 0 1px var(--border)}
-.cap{display:inline-flex;align-items:center;gap:1px;flex:none;height:21px;padding:0 2px;border:1px solid var(--border);border-radius:6px;background:var(--chrome);font-size:9.5px;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
-.cap .sg{display:inline-flex;align-items:center;gap:4px;padding:0 5px}
-.cap .sw{color:var(--muted)} .cap .sw svg.i{color:var(--muted)}
-.cap .sw.run,.cap .sw.warn,.cap .sw.bad{color:var(--text)}
-.cap .sw.run svg.i{color:var(--accent)} .cap .sw.warn svg.i{color:var(--warning)} .cap .sw.bad svg.i{color:var(--error)}
+.footer-sweep{display:inline-flex;align-items:center;gap:1px;flex:none;height:21px;padding:0 2px;border:0;border-radius:4px;background:transparent;font-size:9.5px;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
+.footer-sweep .sg{display:inline-flex;align-items:center;gap:4px;padding:0 5px}
+.footer-sweep .sw{color:var(--muted)} .footer-sweep .sw svg.i{color:var(--muted)}
+.footer-sweep .sw.run,.footer-sweep .sw.warn,.footer-sweep .sw.bad{color:var(--text)}
+.footer-sweep .sw.run svg.i{color:var(--accent)} .footer-sweep .sw.warn svg.i{color:var(--warning)} .footer-sweep .sw.bad svg.i{color:var(--error)}
 .prog{position:absolute;left:0;right:0;top:30px;height:2px;background:var(--border-soft);z-index:3}
 .prog i{display:block;height:2px;background:var(--accent)}
 .rowstudy .shellrow{position:relative;height:44px;display:flex;align-items:center;gap:8px;padding:0 10px 0 16px;background:var(--surface);border-bottom:1px solid var(--border);white-space:nowrap;color:var(--muted)}
@@ -385,8 +385,8 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
 .rowstudy .shellrow .grow{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:8px;overflow:hidden}
 .rowstudy .shellrow .end{flex:none;display:flex;justify-content:flex-end}
 .rowstudy .shellrow .pinb{border:1px solid var(--border);border-radius:6px;padding:1px 8px;color:var(--muted);font-size:12px}
-.rowstudy .cap{height:30px;font-size:12.5px;border-radius:9px;padding:0 3px}
-.rowstudy .cap .sg{gap:6px;padding:0 8px}
+.rowstudy .footer-sweep{height:30px;font-size:12.5px;border-radius:9px;padding:0 3px}
+.rowstudy .footer-sweep .sg{gap:6px;padding:0 8px}
 .rowstudy svg.i{width:14px;height:14px}
 .rowstudy .shellrow .prog{top:42px}
 .rowstudy .sbpart{width:232px;height:44px;flex:none;display:flex;align-items:center;gap:22px;padding-left:16px;margin-left:-16px;margin-right:8px;background:var(--sidebar);border-right:1px solid var(--border);align-self:stretch;color:var(--muted)}
@@ -403,7 +403,7 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
 .pop .pf .go.off{opacity:.55}
 .pop .pf a{margin-left:auto;color:var(--accent-text);font-weight:500}
 .win.shell .sb{grid-column:1} .win.shell .ctop,.win.shell .mid{grid-column:2} .win.shell .rp{grid-column:3}
-.win.shell.w740{grid-template-columns:minmax(0,1fr)} .win.shell.w740 .ctop,.win.shell.w740 .mid{grid-column:1} .win.shell.w740 .cap{font-size:9px} .win.shell.w740 .cap .sg{padding:0 3px}
+.win.shell.w740{grid-template-columns:minmax(0,1fr)} .win.shell.w740 .ctop,.win.shell.w740 .mid{grid-column:1} .win.shell.w740 .footer-sweep{font-size:9px} .win.shell.w740 .footer-sweep .sg{padding:0 3px}
 .sb .oc{flex:none;display:inline-grid;place-items:center;min-width:12px;height:12px;padding:0 3px;border:1.25px solid;border-radius:6px;font-size:8px;font-weight:650;line-height:1;font-variant-numeric:tabular-nums}
 .oc.bad{border-color:var(--error);color:var(--error-text)} .oc.warn{border-color:var(--warning);color:var(--warning-text)}
 .smk{flex:none;display:inline-grid;place-items:center}
@@ -434,8 +434,19 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
 .psb .smk{width:18px}
 .psb .smk svg.i{width:15px;height:15px;stroke-width:2}
 .rowstudy .rppart{width:360px;flex:none;align-self:stretch;margin:0 -10px 0 8px;display:flex;align-items:center;gap:14px;padding:0 10px;background:var(--chrome);border-left:1px solid var(--border)}
+.pin-control{display:inline-grid;place-items:center;flex:none;width:17px;height:17px;border:0;border-radius:4px;background:transparent;color:var(--muted);padding:0}
+.pin-control.filled{color:var(--text)} .pin-control.filled svg{fill:currentColor}
+.rowstudy .pin-control{width:24px;height:24px;margin-right:-2px}
+.pin-notice{margin-top:auto;display:flex;align-items:center;gap:4px;padding:7px 6px;color:var(--muted);font-size:9px;white-space:nowrap}
+.pin-notice button{border:0;padding:0;background:transparent;color:var(--accent-text);font:inherit;font-weight:600}
+.sb .pin-notice + .gear{margin-top:0}
+.footer-demo{width:232px;margin-top:8px;background:var(--sidebar);border:1px solid var(--border);border-radius:8px;padding:0 10px}
+.footer-demo .pin-notice{font-size:12px;padding:8px 0}
+.footer-row{height:44px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border-soft)}
+.footer-row .footer-sweep{height:28px;font-size:12.5px}
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 17v5 M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16h14v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7l1-1V2H8v4l1 1z"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0 M9 12l2 2 4-4"/></symbol>
   <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8 M21 3v5h-5 M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16 M8 16H3v5"/></symbol>
   <symbol id="i-loader" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></symbol>
@@ -461,12 +472,12 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
 <div class="wrap">
   <p class="eyebrow">spi-code · window shell · design</p>
   <h1>SPI Code Window Layout</h1>
-  <p class="lead">What the window looks like after the M2 layout, sweep-settings and shell passes: one top row that each pane owns its part of, holding the title and the sweep, flush panes that resize, a sidebar of pins that carry the program's status, a Detail panel that reads at any width, and Settings for Readiness, Sweep and Appearance behind a gear.</p>
+  <p class="lead">What the window looks like after the M2 layout, sweep-settings and shell passes: one top row that each pane owns its part of, holding the title and a pin control at the centre's right end, flush panes that resize, a fixed status block above removable pins and a sweep beside the footer gear, a Detail panel that reads at any width, and Settings for Readiness, Sweep and Appearance behind a gear.</p>
 
   <div class="problem">
     <p>The window used to spend 71 px on two status rows before any work showed, said when it last swept in three places, framed the centre as a floating card, fixed the Detail panel at 300 px and stated readiness in five full-width cards. The layout pass merged the rows, drew the panes flush and resizable within a width budget, and turned Setup into the Readiness section of a Settings dialog opened with ⌘,. After it, the top row still read as a sentence of states, dates and counts, both panel toggles sat at the far right from the sidebar they open, and the sidebar held permanent links to places, each with a value Today already shows.</p>
-    <p>The shell pass of 2026-11-13 (epic spicode-44k, prototype spicode-bx8) settles the shell drawn here. Each pane owns its part of one 44 px top row, and its capsule holds the sweep. Each panel toggle sits by the pane it controls. The sidebar holds Find or ask, Today and one Pinned list, and its footer is a gear for Settings. Appearance offers a Neutral palette beside Warm.</p>
-    <p>The pinned-status pass of 2026-11-14 (epic spicode-8i9) puts the program's state on the pins it opens, so the top row keeps only the title and the sweep. Line and Engineering system carry an outlined count, Environment a check, a wrench or the refresh icon, and Upstream a clock when the next upstream sync is near. Line, Environment and Engineering system are always pinned, Find or ask pins and unpins in place, and a hidden sidebar's toggle carries a dot in the most urgent tone.</p>
+    <p>Each pane owns its part of one 44 px top row. Each panel toggle sits by the pane it controls, and a place or service declares its pin control at the right end of the centre's part. Appearance offers a Neutral palette beside Warm.</p>
+    <p>The sidebar leads with Find or ask and a fixed block: Today, Line, Environment and Engineering system. Pinned follows with only removable pins. The status marks keep their meanings: Line and Engineering system carry outlined counts, Environment a check, wrench or refresh icon, and Upstream a clock near the next sync. Hover never displaces a mark or a service's word. The footer holds the gear and sweep; an Undo band sits just above it.</p>
     <p>The sweep-settings pass adds next-sweep feedback, the tray menu, the Today badge and notifications for new Interrupts or a program the app can no longer read. It adds no editable schedule, pause, quiet hours, notifications switch or sweep history. Service-page station cells, right-panel editor tabs, the Models section and the GitHub token override stay outside this page.</p>
   </div>
 
@@ -484,26 +495,27 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
 
     <div class="shot">
       <div class="winwrap">
-        <div class="win shell" role="img" aria-label="The window at 1440 px: each pane starts at the window's top. The sidebar's part holds the window controls and the sidebar toggle, then Find or ask, Today with a count of 1, and a Pinned list of Line with an outlined 2 in red, Upstream, Environment with a green check, Engineering system with an outlined 1 in amber, Releases, Security, storage marked stopped and indexer open; a gear sits in the footer. The centre's part of the top row holds indexer, its chip and Unpin, then the status capsule holding the sweep at 08:58 with a red alert icon. The right panel's part holds Detail and Evidence tabs and its toggle; its Related list stacks label over value.">
+        <div class="win shell" role="img" aria-label="The window at 1440 px: Find or ask, then the fixed block Today, Line with a red outlined 2, Environment with a green check, Engineering system with an amber outlined 1; Pinned holds Upstream, Releases, Security, storage marked stopped and indexer open. Unpinned partition and Undo sit above the footer, whose gear is at its start and sweep 08:58 with a red alert at its end. The centre's title is indexer with its chip; a filled pin control ends its part of the top row. Detail and Evidence start at the window's top, and Related stacks labels above values.">
           <div class="sb">
             <div class="sbtop"><span class="lights"><i></i><i></i><i></i></span><svg class="i"><use href="#i-panelLeft"/></svg></div>
             <div class="find"><span><svg class="i"><use href="#i-search"/></svg>Find or ask</span><span>⌘K</span></div>
             <div class="row"><span class="ic"><svg class="i"><use href="#i-sun"/></svg>Today</span><span class="badge">1</span></div>
-            <div class="pgrp"><span>Pinned</span><span>⌄</span></div>
             <div class="row"><span class="ic"><svg class="i"><use href="#i-rows"/></svg>Line</span><span class="oc bad">2</span></div>
-            <div class="row"><span class="ic"><svg class="i"><use href="#i-upstream"/></svg>Upstream</span></div>
             <div class="row"><span class="ic"><svg class="i"><use href="#i-server"/></svg>Environment</span><span class="smk ok"><svg class="i"><use href="#i-check"/></svg></span></div>
             <div class="row"><span class="ic"><svg class="i"><use href="#i-layers"/></svg>Engineering system</span><span class="oc warn">1</span></div>
+            <div class="pgrp"><span>Pinned</span><span>⌄</span></div>
+            <div class="row"><span class="ic"><svg class="i"><use href="#i-upstream"/></svg>Upstream</span></div>
             <div class="row"><span class="ic"><svg class="i"><use href="#i-tag"/></svg>Releases</span></div>
             <div class="row"><span class="ic"><svg class="i"><use href="#i-shield"/></svg>Security</span></div>
             <div class="row"><span class="ic"><svg class="i"><use href="#i-box"/></svg>storage</span><span class="word bad">stopped</span></div>
             <div class="row on"><span class="ic"><svg class="i"><use href="#i-box"/></svg>indexer</span></div>
-            <div class="gear"><span class="gd calm"><svg class="i"><use href="#i-gear"/></svg></span></div>
+            <div class="pin-notice">Unpinned partition · <button>Undo</button></div>
+            <div class="gear"><span class="gd calm"><svg class="i"><use href="#i-gear"/></svg></span><span class="footer-sweep"><span class="sg sw bad"><svg class="i"><use href="#i-alert"/></svg>08:58</span></span></div>
           </div>
           <div class="ctop">
-            <div class="grow"><span class="nm">indexer</span><span class="chip">Upstream sync · toolchain move · pilot decides</span><span class="pinb">Unpin</span></div>
-            <span class="cap"><span class="sg sw bad"><svg class="i"><use href="#i-alert"/></svg>08:58</span></span>
-            <div class="end"></div>
+            <div class="grow"><span class="nm">indexer</span><span class="chip">Upstream sync · toolchain move · pilot decides</span></div>
+
+            <div class="end"><button class="pin-control filled" title="Unpin indexer from sidebar (⌘⇧P)" aria-label="Unpin indexer from sidebar (⌘⇧P)"><svg class="i"><use href="#i-pin"/></svg></button></div>
           </div>
           <div class="mid">
             <div class="body">
@@ -544,7 +556,7 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
           </div>
         </div>
         <span class="mk k-prd" style="left:300px;top:0">1</span>
-        <span class="mk k-prd" style="left:590px;top:0">2</span>
+        <span class="mk k-prd" style="left:140px;top:528px">2</span>
         <span class="mk k-prd" style="left:155px;top:180px">3</span>
         <span class="mk k-fix" style="left:880px;top:500px">4</span>
         <span class="mk k-lay" style="left:62px;top:0">5</span>
@@ -560,16 +572,16 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
       <table class="tbl">
         <thead><tr><th>#</th><th>What it shows</th><th>Kind</th></tr></thead>
         <tbody>
-          <tr><td class="num">1</td><td><b>One top row, each pane's own.</b> The sidebar, the centre, a pinned Line sheet and the right panel each start at the window's top and draw their own part of one 44 px row, with one bottom rule. The centre's part is its header: the place's title, chips and Pin or Unpin. There is no title bar, strip row or separate centre header. The OS window title keeps "SPI Code · indexer".</td><td><span class="tag kind k-prd">Design change</span></td></tr>
-          <tr><td class="num">2</td><td><b>A status capsule that holds the sweep.</b> A toned icon and the sweep time; a spinner and a progress line under the row while a sweep runs; a click opens a popover of the sources. The sweep time appears once, with no count after it, and the sweep is the capsule's only segment.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
-          <tr><td class="num">3</td><td><b>Status marks on the pins.</b> Line carries an outlined count of forks stopped or waiting, Engineering system of forks failed or pending, Environment a check, a wrench or the refresh icon, and Upstream a clock when the next upstream sync is near. Today keeps its filled count. The Status on the pins section has every mark.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
+          <tr><td class="num">1</td><td><b>One top row, each pane's own.</b> The sidebar, centre, docked Line sheet and right panel each start at the window's top and draw their own part of one 44 px row with one bottom rule. The centre's part holds the title and chips, with the pin control at its right end. The OS title keeps "SPI Code · indexer".</td><td><span class="tag kind k-prd">Design change</span></td></tr>
+          <tr><td class="num">2</td><td><b>The sweep beside the gear.</b> A plain 28 px button at the footer's end holds a toned icon and time, or a spinner while running, and opens its sources upward. The 2 px progress line stays under the top row across the whole window.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
+          <tr><td class="num">3</td><td><b>Status marks on the sidebar rows.</b> Line carries an outlined count of forks stopped or waiting, Engineering system of forks failed or pending, Environment a check, a wrench or the refresh icon, and Upstream a clock when the next upstream sync is near. Today keeps its filled count. The Status on the sidebar rows section has every mark.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
           <tr><td class="num">4</td><td><b>Flush panes.</b> The centre is no longer a bordered card. It fills its column on <code>surface</code>, the right panel sits on <code>chrome</code> as the visual design's token table assigns it, and panes meet at 1 px <code>border</code> lines.</td><td><span class="tag kind k-fix">Defect fix</span></td></tr>
           <tr><td class="num">5</td><td><b>Each toggle by what it controls.</b> The sidebar toggle sits just after the window controls, whether the sidebar is shown, hidden or off-canvas. The right-panel toggle sits at the end of the centre's part while the panel is closed and at the end of the panel's tabs while it is open.</td><td><span class="tag kind k-lay">Layout change</span></td></tr>
           <tr><td class="num">6</td><td><b>Sidebar resizes.</b> A drag edge on the sidebar's right border, 200 to 320 px.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
           <tr><td class="num">7</td><td><b>Detail resizes and reads.</b> A drag edge on the panel's left border, 360 px by default. Related lists each entry with its label above the value. Values keep sentence case ("Prepared", not "PREPARED").</td><td><span class="tag kind k-fix">Defect fix</span><span class="tag kind k-prd">Design change</span></td></tr>
           <tr><td class="num">8</td><td><b>Section headers.</b> Attention, Repository, Release and Runs get the sidebar's chevron, label and right-aligned count in place of the browser's disclosure triangle. Attention opens by default when it has items.</td><td><span class="tag kind k-lay">Layout change</span></td></tr>
-          <tr><td class="num">9</td><td><b>One Pinned list.</b> Find or ask, Today with its count, then Pinned, seeded on first run with Line and the five places, each with its line icon in muted ink. Line, Environment and Engineering system are always pinned. Line, Upstream, Environment and Engineering system carry their status marks; a pinned single thing, such as a service, carries a state word only when it is not fine; Releases and Security carry nothing. The <a href="spi-code-window-design.html">window design</a>'s sidebar section has the rules.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
-          <tr><td class="num">10</td><td><b>Settings is a gear.</b> The sidebar's 44 px footer holds a gear that opens the Settings dialog, with a dot when Readiness needs the operator. The Settled shelf is hidden until threads ship at M3.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
+          <tr><td class="num">9</td><td><b>A fixed block, then Pinned.</b> Today, Line, Environment and Engineering system stay in that order with no header, grip, menu or pin control. Pinned is seeded with Upstream, Releases and Security, then holds the operator's removable pins in their order. A row's mark or word stays in place on hover; only Pinned rows gain a grip. Unpin is in the row menu and offers Undo.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
+          <tr><td class="num">10</td><td><b>Footer and Undo.</b> The 44 px footer's gear opens Settings, with its Readiness dot unchanged, and the sweep sits at the other end. Every unpin offers an 8 s Undo band just above the row, or a notice at the window's bottom left while the sidebar is out of sight. The Settled shelf waits for M3.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -584,48 +596,49 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
         <thead><tr><th>Pane</th><th>Its part of the top row</th></tr></thead>
         <tbody>
           <tr><td><b>Sidebar</b></td><td>The macOS window controls, then the sidebar toggle. No rule under it; Find or ask follows.</td></tr>
-          <tr><td><b>Centre</b></td><td>The sidebar toggle just after the window controls while the sidebar is hidden or off-canvas; the place's title, its chips and, on Upstream, Releases and Security, Pin or Unpin for the sidebar; the status capsule, which holds the sweep; the right-panel toggle at the end while the panel is closed.</td></tr>
-          <tr><td><b>Pinned Line sheet</b></td><td>Its toolbar, whose Pin keeps the sheet beside the centre. It has no sidebar Pin: Line is always pinned in the sidebar.</td></tr>
+          <tr><td><b>Centre</b></td><td>The sidebar toggle after the window controls while the sidebar is hidden or off-canvas; title and chips; a pinnable place's or service's icon control at the right end, 6 px before the right-panel toggle while the panel is closed, else last.</td></tr>
+          <tr><td><b>Docked Line sheet</b></td><td>Its toolbar, with a panel icon and Dock or Undock. Line lives in the fixed block, with no sidebar pin control.</td></tr>
           <tr><td><b>Right panel</b></td><td>Its tabs, then its toggle at the end, which closes it.</td></tr>
         </tbody>
       </table>
     </div>
-    <p>The capsule holds one segment, the sweep (PS-18, EV-03). The program's states are not in the top row: they are marks on the pins that explain them, in the sidebar (see <a href="#pins">Status on the pins</a>). Appearance is in Settings, and the stopped names are in the Line pin's hover and on the Line sheet. The row has no field for the lane's holder or the count of waiting cards in this design; spicode-cp0.1 decides their home.</p>
+    <p>The sweep lives beside the footer gear (PS-18, EV-03). The program's states sit on the sidebar rows that explain them (see <a href="#pins">Status on the sidebar rows</a>). Appearance is in Settings; the stopped names are in the fixed Line row's hover and on the Line sheet. The lane's holder and waiting-card count wait for spicode-cp0.1.</p>
 
-    <p class="shot-cap">At 1280 px, Today on a calm morning · the capsule sits at the end, before the right-panel toggle, and the title and its date take the room before it</p>
+    <p class="shot-cap">At 1280 px, Today on a calm morning · title and date take the room before the right-panel toggle; Today has no pin control</p>
     <div class="shot"><div class="rowstudy">
-      <div class="shellrow"><span class="sbpart"><span class="lights"><i></i><i></i><i></i></span><svg class="i"><use href="#i-panelLeft"/></svg></span><span class="grow"><span class="nm">Today</span><span>Wednesday 11 Nov</span></span><span class="cap"><span class="sg sw"><svg class="i"><use href="#i-refresh"/></svg>08:58</span></span><span class="end"><svg class="i"><use href="#i-panelRight"/></svg></span></div>
+      <div class="shellrow"><span class="sbpart"><span class="lights"><i></i><i></i><i></i></span><svg class="i"><use href="#i-panelLeft"/></svg></span><span class="grow"><span class="nm">Today</span><span>Wednesday 11 Nov</span></span><span class="end"><svg class="i"><use href="#i-panelRight"/></svg></span></div>
     </div></div>
 
-    <p class="shot-cap">At 1280 px with Detail open, a bad morning · the centre is under 800 px, so Pin hides; the capsule stays at the end of the centre's part, against the panel</p>
+    <p class="shot-cap">At 1280 px with Detail open · the centre is under 800 px; chips hide, but storage's pin control stays at its end against the panel</p>
     <div class="shot"><div class="rowstudy">
-      <div class="shellrow"><span class="sbpart"><span class="lights"><i></i><i></i><i></i></span><svg class="i"><use href="#i-panelLeft"/></svg></span><span class="grow"><span class="nm">storage</span></span><span class="cap"><span class="sg sw bad"><svg class="i"><use href="#i-alert"/></svg>08:58</span></span><span class="rppart"><b style="color:var(--strong)">Detail</b><span>Evidence</span><span style="flex:1"></span><svg class="i"><use href="#i-panelRight"/></svg></span></div>
+      <div class="shellrow"><span class="sbpart"><span class="lights"><i></i><i></i><i></i></span><svg class="i"><use href="#i-panelLeft"/></svg></span><span class="grow"><span class="nm">storage</span></span><button class="pin-control filled" title="Unpin storage from sidebar (⌘⇧P)" aria-label="Unpin storage from sidebar (⌘⇧P)"><svg class="i"><use href="#i-pin"/></svg></button><span class="rppart"><b style="color:var(--strong)">Detail</b><span>Evidence</span><span style="flex:1"></span><svg class="i"><use href="#i-panelRight"/></svg></span></div>
     </div></div>
 
-    <p class="shot-cap">At 1280 px on Environment, a later sweep running · Environment is always pinned, so its header has no Unpin; the progress line runs under the whole row</p>
+    <p class="shot-cap">At 1280 px on Environment, a later sweep running · the fixed place has no pin control; the progress line spans the whole row</p>
     <div class="shot"><div class="rowstudy">
-      <div class="shellrow"><span class="sbpart"><span class="lights"><i></i><i></i><i></i></span><svg class="i"><use href="#i-panelLeft"/></svg></span><span class="grow"><span class="nm">Environment</span></span><span class="cap"><span class="sg sw run"><svg class="i"><use href="#i-loader"/></svg>Sweeping</span></span><span class="end"><svg class="i"><use href="#i-panelRight"/></svg></span><span class="prog"><i style="width:60%"></i></span></div>
+      <div class="shellrow"><span class="sbpart"><span class="lights"><i></i><i></i><i></i></span><svg class="i"><use href="#i-panelLeft"/></svg></span><span class="grow"><span class="nm">Environment</span></span><span class="end"><svg class="i"><use href="#i-panelRight"/></svg></span><span class="prog"><i style="width:60%"></i></span></div>
     </div></div>
 
-    <p class="shot-cap">At 740 px on Windows, two forks stopped · the sidebar is off-canvas, so its toggle starts the centre's part and carries the red dot; the capsule sits at the end beside the panel toggle, clear of the caption buttons</p>
+    <p class="shot-cap">At 740 px on Windows · the off-canvas sidebar's toggle carries the urgent dot; Upstream's pin control stays before the panel toggle, clear of the caption buttons</p>
     <div class="shot"><div class="rowstudy w740">
-      <div class="shellrow" style="padding-left:14px"><span class="tdot" title="Show the sidebar · something needs you"><svg class="i"><use href="#i-panelLeft"/></svg></span><span class="grow"><span class="nm">Upstream</span></span><span class="cap"><span class="sg sw"><svg class="i"><use href="#i-refresh"/></svg>08:58</span></span><svg class="i"><use href="#i-panelRight"/></svg><span class="caps"><i>—</i><i>▢</i><i>✕</i></span></div>
+      <div class="shellrow" style="padding-left:14px"><span class="tdot" title="Show the sidebar · something needs you"><svg class="i"><use href="#i-panelLeft"/></svg></span><span class="grow"><span class="nm">Upstream</span></span><button class="pin-control" title="Pin Upstream to sidebar (Ctrl+Shift+P)" aria-label="Pin Upstream to sidebar (Ctrl+Shift+P)"><svg class="i"><use href="#i-pin"/></svg></button><svg class="i"><use href="#i-panelRight"/></svg><span class="caps"><i>—</i><i>▢</i><i>✕</i></span></div>
     </div></div>
 
-    <h3>Where the capsule sits</h3>
+    <h3>Where the pin control sits</h3>
     <div class="tblwrap">
       <table class="tbl compact">
         <thead><tr><th>When the centre's part is</th><th>What gives</th></tr></thead>
         <tbody>
-          <tr><td>Any width</td><td>The capsule sits at the end: before the right-panel toggle while the panel is closed, else at the part's end, on Windows clear of the caption buttons. The title and its chips take the room before it. No width moves the capsule.</td></tr>
-          <tr><td>Under 800 px</td><td>The title's chips and Pin hide, and the title shortens with an ellipsis.</td></tr>
-          <tr><td>At 740 px, the narrowest window</td><td>Everything stays on one row with at least 48 px of it left free as a window drag area. The capsule never wraps.</td></tr>
+          <tr><td>Any width</td><td>The view declares an end slot beside its title. Its 24 px pin control sits at the end of the centre's part: 6 px before the right-panel toggle while closed, else last, clear of Windows caption buttons. Title and chips take the room before it.</td></tr>
+          <tr><td>Under 800 px</td><td>The title's chips hide and its text ellipsizes; the pin control stays.</td></tr>
+          <tr><td>At 740 px, the narrowest window</td><td>Everything stays on one row with at least 48 px of it left free as a window drag area. The end controls never wrap.</td></tr>
         </tbody>
       </table>
     </div>
     <p>The row never grows a second row, so a refresh never changes its height.</p>
 
-    <h3>The sweep segment</h3>
+    <h3>The footer sweep</h3>
+    <p>A plain 28 px button at the end of the 44 px footer row, opposite the gear. It takes the hover background, with no capsule border or fill. Its hover and accessible name are the sweep's full sentence. The gear keeps its separate Readiness dot.</p>
     <div class="tblwrap">
       <table class="tbl compact">
         <thead><tr><th>Sweep</th><th>Icon</th><th>Shows</th><th>Hover and accessible name</th></tr></thead>
@@ -643,7 +656,7 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
     <p>A failed area wins over a stale, incomplete or cut one, which wins over fine. While a sweep runs, a 2 px line runs the full width of the window under the top row, filled by the share of sources settled; with no progress read there is no line. Under reduced motion the spinner stands still.</p>
 
     <div class="twoup">
-      <div class="pop" role="img" aria-label="The sweep popover: Swept 18:27 with 1 source failed; rows for GitHub issues and PRs failed, last read 18:12, Workflow runs read 18:27, Upstream GitLab read 18:26 and Template read 18:26; Next sweep 18:32 and Next upstream sync Sat 18:00 · in 23h; Sweep now and Evidence.">
+      <div><div class="pop" role="img" aria-label="The sweep popover: Swept 18:27 with 1 source failed; rows for GitHub issues and PRs failed, last read 18:12, Workflow runs read 18:27, Upstream GitLab read 18:26 and Template read 18:26; Next sweep 18:32 and Next upstream sync Sat 18:00 · in 23h; Sweep now and Evidence.">
         <div class="ph"><b>Swept 18:27</b><span class="bad">1 source failed</span></div>
         <div class="pr"><span>GitHub issues and PRs</span><span class="bad">failed, last read 18:12</span></div>
         <div class="pr"><span>Workflow runs</span><span>read 18:27</span></div>
@@ -652,34 +665,35 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
         <div class="pt"><span>Next sweep</span><span>18:32 (in 5 min)</span><span>Next upstream sync</span><span>Sat 18:00 · in 23h</span></div>
         <div class="pf"><span class="go">Sweep now</span><a>Evidence</a></div>
       </div>
+      <div class="footer-demo"><div class="pin-notice">Unpinned partition · <button>Undo</button></div><div class="footer-row"><svg class="i"><use href="#i-gear"/></svg><span class="footer-sweep"><span class="sg sw bad"><svg class="i"><use href="#i-alert"/></svg>18:27</span></span></div></div></div>
       <div style="flex:1;min-width:260px">
-        <p>Clicking the segment opens a 320 px popover under it, aligned to its end. It reads, top to bottom: the sweep time and, when a source failed or is stale or cut, how many; a progress row ("Sweeping · 4 of 12 done") while a sweep runs; one row per source with its state from the snapshot's area envelopes (read 18:27, stale, cut, failed with its last read, or not read yet); the next sweep and the next upstream sync in short form, or "not read yet" when unknown; then Sweep now and Evidence.</p>
+        <p>Clicking the footer button opens a 320 px popover upward, aligned to its end; Base UI may flip it to the button's start to keep it in the window. It reads, top to bottom: the sweep time and, when a source failed or is stale or cut, how many; a progress row ("Sweeping · 4 of 12 done") while a sweep runs; one row per source with its state from the snapshot's area envelopes (read 18:27, stale, cut, failed with its last read, or not read yet); the next sweep and the next upstream sync in short form, or "not read yet" when unknown; then Sweep now and Evidence.</p>
         <p>Sweep now sends the same request as Settings › Sweep and reads Sweeping, disabled, while a sweep runs. Evidence closes the popover and opens the sweep's Evidence; before the first snapshot it scrolls Today's list into view instead. Escape or a click outside closes the popover. Example values; the popover lists every source.</p>
       </div>
     </div>
 
     <h3>Targets</h3>
-    <p>The sweep is the capsule's one button, the capsule's height, and opens its popover. The status pins open what explains their marks: Line the Line sheet, carrying ⌘L as its shortcut and the sheet as what it controls; Upstream, Environment and Engineering system their places. A service's pin and its other actions are on its Line sheet row, which is also the keyboard path.</p>
+    <p>The footer sweep opens its popover. The status rows open what explains their marks: Line the Line sheet, carrying ⌘L as its shortcut and the sheet as what it controls; Upstream, Environment and Engineering system their places. A service's pin and its other actions are on its Line sheet row, which is also the keyboard path.</p>
 
     <h3>Windows</h3>
-    <p>On Windows the row is the 44 px <code>titleBarOverlay</code> height and there are no window controls on the left, so the sidebar toggle starts the row. The caption buttons take about 140 px at the right of whichever part ends the row: the right panel's tabs when the panel is inline, else a pinned Line sheet's toolbar, else the centre's part. That part pads clear of them, so its toggle sits to their left. The fold steps measure the centre's part, so they need no separate threshold.</p>
+    <p>On Windows the row is the 44 px <code>titleBarOverlay</code> height and there are no window controls on the left, so the sidebar toggle starts the row. The caption buttons take about 140 px at the right of whichever part ends the row: the right panel's tabs when the panel is inline, else a docked Line sheet's toolbar, else the centre's part. That part pads clear of them, so its toggle sits to their left. The fold steps measure the centre's part, so they need no separate threshold.</p>
   </section>
 
   <!-- ================= STATUS ON THE PINS ================= -->
   <section id="pins">
-    <h2>Status on the pins</h2>
-    <p>The program's state sits on the pins that open what explains it, at the row's end where Today's count sits. Line, Upstream, Environment and Engineering system carry a mark wherever the operator has moved them in the list; an unpinned Upstream draws its clock nowhere. A mark is a number or an icon, never words. Today keeps its filled count, the one count that means act; the pins' counts are outlined.</p>
+    <h2>Status on the sidebar rows</h2>
+    <p>The program's state sits at the ends of the rows that open what explains it. Line, Environment and Engineering system keep their marks in the fixed block; Upstream keeps its clock wherever the operator moves its removable pin, and an unpinned Upstream draws it nowhere. A mark is a number or icon. Today keeps its filled count, the count that means act; the status counts are outlined.</p>
     <div class="pinset">
       <figure>
         <figcaption><b>A busy morning</b>Environment ready · 13 forks pending the template · 1 fork stopped · sync at 18:00, 1 h 40 min away</figcaption>
-        <div class="psb" role="img" aria-label="Sidebar on a busy morning: Today with a filled count of 1; Pinned holds Line with an outlined 1 in red, Upstream with a clock in the upstream tone, Environment with a green check, Engineering system with an outlined 13 in amber, Releases and Security with nothing.">
+        <div class="psb" role="img" aria-label="Sidebar on a busy morning: Today with a filled count of 1; the fixed block holds Line with an outlined 1 in red, Environment with a green check and Engineering system with an outlined 13 in amber; Pinned holds Upstream with its clock, Releases and Security.">
           <div class="fa"><svg class="i"><use href="#i-search"/></svg>Find or ask<span class="kbd">⌘K</span></div>
           <div class="it on"><svg class="i"><use href="#i-sun"/></svg><span class="pn">Today</span><span class="fc">1</span></div>
-          <div class="gh"><span class="gl">Pinned</span><svg class="i"><use href="#i-chevD"/></svg></div>
           <div class="it" title="Forks: 1 stopped. Stopped: entitlements."><svg class="i"><use href="#i-rows"/></svg><span class="pn">Line</span><span class="oc bad">1</span></div>
-          <div class="it" title="Next upstream sync at 18:00, in 1h 40m."><svg class="i"><use href="#i-upstream"/></svg><span class="pn">Upstream</span><span class="smk up"><svg class="i"><use href="#i-clock"/></svg></span></div>
           <div class="it" title="Environment: v0.35.5 is ready."><svg class="i"><use href="#i-server"/></svg><span class="pn">Environment</span><span class="smk ok"><svg class="i"><use href="#i-check"/></svg></span></div>
           <div class="it" title="Templates: 13 pending. Template 7d269b5 is pending on all 13 forks."><svg class="i"><use href="#i-layers"/></svg><span class="pn">Engineering system</span><span class="oc warn">13</span></div>
+          <div class="gh"><span class="gl">Pinned</span><svg class="i"><use href="#i-chevD"/></svg></div>
+          <div class="it" title="Next upstream sync at 18:00, in 1h 40m."><svg class="i"><use href="#i-upstream"/></svg><span class="pn">Upstream</span><span class="smk up"><svg class="i"><use href="#i-clock"/></svg></span></div>
           <div class="it"><svg class="i"><use href="#i-tag"/></svg><span class="pn">Releases</span></div>
           <div class="it"><svg class="i"><use href="#i-shield"/></svg><span class="pn">Security</span></div>
         </div>
@@ -689,24 +703,24 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
         <div class="psb" role="img" aria-label="Sidebar on a maintenance morning: Today with no count; Line with an outlined 2 in amber, Environment with an amber wrench, and no mark on Upstream, Engineering system, Releases or Security.">
           <div class="fa"><svg class="i"><use href="#i-search"/></svg>Find or ask<span class="kbd">⌘K</span></div>
           <div class="it on"><svg class="i"><use href="#i-sun"/></svg><span class="pn">Today</span></div>
-          <div class="gh"><span class="gl">Pinned</span><svg class="i"><use href="#i-chevD"/></svg></div>
           <div class="it" title="Forks: 2 waiting. Waiting on a person: search, legal."><svg class="i"><use href="#i-rows"/></svg><span class="pn">Line</span><span class="oc warn">2</span></div>
-          <div class="it"><svg class="i"><use href="#i-upstream"/></svg><span class="pn">Upstream</span></div>
           <div class="it" title="Environment: v0.35.5 has been in maintenance for 2d, and nothing is running to clear it."><svg class="i"><use href="#i-server"/></svg><span class="pn">Environment</span><span class="smk warn"><svg class="i"><use href="#i-wrench"/></svg></span></div>
           <div class="it" title="Templates: current. Every fork is on template 7d269b5."><svg class="i"><use href="#i-layers"/></svg><span class="pn">Engineering system</span></div>
+          <div class="gh"><span class="gl">Pinned</span><svg class="i"><use href="#i-chevD"/></svg></div>
+          <div class="it"><svg class="i"><use href="#i-upstream"/></svg><span class="pn">Upstream</span></div>
           <div class="it"><svg class="i"><use href="#i-tag"/></svg><span class="pn">Releases</span></div>
           <div class="it"><svg class="i"><use href="#i-shield"/></svg><span class="pn">Security</span></div>
         </div>
       </figure>
       <figure>
         <figcaption><b>The operator's order, Upstream unpinned</b>A refresh running · the template failed on 1 fork · forks flowing</figcaption>
-        <div class="psb" role="img" aria-label="Sidebar in the operator's order with Upstream unpinned: Today with a filled count of 1; Pinned holds Environment with the refresh icon in the work tone, Engineering system with an outlined 1 in red, Line with no mark, Releases, and the indexer service.">
+        <div class="psb" role="img" aria-label="Sidebar in the operator's order with Upstream unpinned: Today with a filled count of 1; the fixed block holds Line with no mark, Environment with the refresh icon and Engineering system with an outlined 1 in red; Pinned holds Releases and indexer.">
           <div class="fa"><svg class="i"><use href="#i-search"/></svg>Find or ask<span class="kbd">⌘K</span></div>
           <div class="it on"><svg class="i"><use href="#i-sun"/></svg><span class="pn">Today</span><span class="fc">1</span></div>
-          <div class="gh"><span class="gl">Pinned</span><svg class="i"><use href="#i-chevD"/></svg></div>
+          <div class="it" title="Forks: flowing. All 13 forks are flowing."><svg class="i"><use href="#i-rows"/></svg><span class="pn">Line</span></div>
           <div class="it" title="Environment: v0.35.5 is in maintenance; refresh run 4412 is clearing it."><svg class="i"><use href="#i-server"/></svg><span class="pn">Environment</span><span class="smk work"><svg class="i"><use href="#i-refresh"/></svg></span></div>
           <div class="it" title="Templates: 1 failed. Template 7d269b5 failed on crs-catalog."><svg class="i"><use href="#i-layers"/></svg><span class="pn">Engineering system</span><span class="oc bad">1</span></div>
-          <div class="it" title="Forks: flowing. All 13 forks are flowing."><svg class="i"><use href="#i-rows"/></svg><span class="pn">Line</span></div>
+          <div class="gh"><span class="gl">Pinned</span><svg class="i"><use href="#i-chevD"/></svg></div>
           <div class="it"><svg class="i"><use href="#i-tag"/></svg><span class="pn">Releases</span></div>
           <div class="it"><svg class="i"><use href="#i-box"/></svg><span class="pn">indexer</span></div>
         </div>
@@ -714,10 +728,10 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
     </div>
     <p class="note">Example values; each mark's sentence is its row's hover in these drawings. The figures draw the window's sidebar at full size.</p>
 
-    <h3>The marks, pin by pin</h3>
+    <h3>The marks, row by row</h3>
     <div class="tblwrap">
       <table class="tbl compact">
-        <thead><tr><th>Pin</th><th>Its mark, worst first</th><th>No mark</th></tr></thead>
+        <thead><tr><th>Row</th><th>Its mark, worst first</th><th>No mark</th></tr></thead>
         <tbody>
           <tr><td><b>Line</b></td><td>An outlined count of forks stopped, in red; otherwise of forks waiting on a person, in amber</td><td>Every fork flowing, or the forks' stations unread, empty or missing</td></tr>
           <tr><td><b>Engineering system</b></td><td>An outlined count of forks the rollout failed on, in red; otherwise of forks not yet verified on the target revision, in amber</td><td>Every fork on the target revision, or the rollout's slots unknown</td></tr>
@@ -726,27 +740,34 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
         </tbody>
       </table>
     </div>
-    <p>An outlined count is the number in its tone's text colour inside a 1.75 px ring in the tone, as tall as the 15 px icons, and its digits pass the contrast rule on <code>sidebar</code>, <code>hover</code> and <code>active</code>. The sentence behind a mark is the row's hover and is in its accessible name, a fine Environment's included, so a check is never the only thing said. It names the forks behind a count ("Forks: 2 stopped. Stopped: storage, indexer-queue."), the target revision for Engineering system and the open hold's length for maintenance. A snapshot that read some forks and not others keeps the count it can prove and names the forks not read. Nothing unread is drawn as a check. On a pin that shows the hover unpin button, Upstream among the four, the mark hides while the row is hovered, as a service's word does. Releases and Security carry nothing.</p>
+    <p>An outlined count is the number in its tone's text colour inside a 1.75 px ring in the tone, as tall as the 15 px icons, and its digits pass the contrast rule on <code>sidebar</code>, <code>hover</code> and <code>active</code>. The sentence behind a mark is the row's hover and is in its accessible name, a fine Environment's included, so a check is never the only thing said. It names the forks behind a count ("Forks: 2 stopped. Stopped: storage, indexer-queue."), the target revision for Engineering system and the open hold's length for maintenance. A snapshot that read some forks and not others keeps the count it can prove and names the forks not read. Nothing unread is drawn as a check. Hover and focus leave the icon, label, mark and service word visible in the same boxes; they add only the background and, on Pinned rows, the grip. Keyboard focus adds its ring. Unpin is a menu action. Releases and Security carry nothing.</p>
 
     <h3>The dot when the sidebar is hidden</h3>
-    <p>While the sidebar is hidden or off-canvas its marks are out of sight, so its toggle carries one dot: red when Today's count is above 0 or any mark is red, otherwise amber when any mark is amber, otherwise none, also when nothing has been read. A collapsed Pinned group's header carries the same dot for its rows' marks. The dot follows the marks and Today's count; it is not a count of its own.</p>
+    <p>While the sidebar is hidden or off-canvas its toggle carries one dot: error when Today's count is above 0, a status mark is error or the sweep is bad; otherwise warning when a mark is warning or the sweep is warn. Error wins across sources. An unread sweep adds nothing, so with nothing else read there is no dot. The collapsed Pinned header reads its own rows' marks and service words: stopped is error, waiting warning, no word read gives none. It does not read the fixed block. Neither dot is a count.</p>
     <p class="shot-cap">At 740 px, Today with 1 Interrupt · the toggle carries the red dot</p>
     <div class="shot"><div class="rowstudy w740">
-          <div class="shellrow"><span class="lights"><i></i><i></i><i></i></span><span class="tdot" title="Show the sidebar · something needs you"><svg class="i"><use href="#i-panelLeft"/></svg></span><span class="grow"><span class="nm">Today</span><span>Friday 6 Nov</span></span><span class="cap"><span class="sg sw bad"><svg class="i"><use href="#i-alert"/></svg>08:02</span></span><svg class="i"><use href="#i-panelRight"/></svg></div>
+          <div class="shellrow"><span class="lights"><i></i><i></i><i></i></span><span class="tdot" title="Show the sidebar · something needs you"><svg class="i"><use href="#i-panelLeft"/></svg></span><span class="grow"><span class="nm">Today</span><span>Friday 6 Nov</span></span><svg class="i"><use href="#i-panelRight"/></svg></div>
         </div></div>
     <div class="pinset">
       <figure>
-        <figcaption><b>Pinned collapsed</b>2 forks waiting · the header carries the amber dot</figcaption>
-        <div class="psb" role="img" aria-label="Sidebar with the Pinned group collapsed: its header carries an amber dot because Line's mark is amber.">
+        <figcaption><b>Pinned collapsed</b>A pinned service waiting · the header carries the amber dot</figcaption>
+        <div class="psb" role="img" aria-label="Sidebar with the Pinned group collapsed: the fixed block stays visible, and its header carries an amber dot because a pinned service is waiting.">
           <div class="fa"><svg class="i"><use href="#i-search"/></svg>Find or ask<span class="kbd">⌘K</span></div>
           <div class="it on"><svg class="i"><use href="#i-sun"/></svg><span class="pn">Today</span></div>
+          <div class="it"><svg class="i"><use href="#i-rows"/></svg><span class="pn">Line</span></div>
+          <div class="it"><svg class="i"><use href="#i-server"/></svg><span class="pn">Environment</span></div>
+          <div class="it"><svg class="i"><use href="#i-layers"/></svg><span class="pn">Engineering system</span></div>
           <div class="gh"><span class="gl">Pinned</span><span class="gdot warn" title="Something in Pinned waits on a person"></span><svg class="i"><use href="#i-chevR"/></svg></div>
         </div>
       </figure>
     </div>
 
-    <h3>Always pinned</h3>
-    <p>Line, Environment and Engineering system are always pinned. They show no unpin button on hover, have no Unpin in their context menu and no Pin or Unpin in their headers, and still move by drag and by Move up and Move down. A stored list that lacks one reads with it added at the start, in seed order, ahead of the operator's other pins in their order, so unpinning everything leaves those three. Upstream, Releases, Security and services pin and unpin as before. Find or ask draws a pin control at the end of each result that can be pinned, filled and locked on these three; the <a href="spi-code-visual-design.html">visual design</a>'s Find or ask section draws it.</p>
+    <h3>The fixed block and Pinned</h3>
+    <p>Today, Line, Environment and Engineering system form one block with no header. They have no grip, context menu or pin control anywhere, including Find, and never reorder. Pinned follows, collapsible and hidden when empty, with Upstream, Releases and Security on first run and then the operator's removable pins. Right click, long press, Shift-F10 or Menu key on a Pinned row opens Open, Move up, Move down, a separator and Unpin from sidebar. Alt+Up and Alt+Down move a focused pin. Drag inserts only within Pinned; dropping on the fixed block or outside the list does nothing. After Unpin, focus goes to the next row, else the previous, else the Pinned header, else the fixed block's last row, without a timed page query.</p>
+    <p>The stored list uses <code>spi-code.sidebar.pins.v3</code>. A readable v3 list wins; a corrupt v3 gives the seed and never falls back. With no v3, migrate v2 by removing <code>sheet:line</code>, <code>place:environment</code> and <code>place:engineering-system</code>, retaining the operator's other pins and order, including removed seed places. Otherwise read legacy services after the seed; corrupt older entries give seed. Migration writes v3 once and leaves the old keys untouched. Refused reads give seed with window-only writes; a refused migration write keeps the migrated list here and retries next launch.</p>
+    <h3>One control and its feedback</h3>
+    <p>The top row's 24 px control, Find's result-end control and the Line sheet's after-name control share the same hollow, filled and pin-off states (22 px in lists, 14 px glyph). Its action name and title include the item: "Pin partition to sidebar (⌘⇧P)" or "Unpin partition from sidebar (⌘⇧P)", with Ctrl+Shift+P on Windows; no <code>aria-pressed</code> with a changing name. A click keeps the new glyph until pointer or focus leaves. None on Today, a release month or the fixed places. Find toggles in place, ⌘↩ opens and pins without unpinning, and ⌘⇧P toggles the highlighted result. Outside Find the shortcut toggles the open centre place or service, except under another dialog or the overlay Line sheet; shell state decides the exclusion.</p>
+    <p>Every unpin offers "Unpinned partition · Undo" for 8 s. Undo or ⌘Z (Ctrl+Z) returns the pin to its old index. A pin appends and flashes the new row's accent background for about 1 s when Pinned is visible and open; otherwise "Pinned partition · Undo" offers to unpin. The newest notice replaces the last. The sidebar band sits immediately above the footer; with the sidebar hidden or off-canvas it becomes a notice at the window's bottom left. Its status region is mounted empty before filling, Undo is a keyboard button, and hover or focus pauses the timer. The shown notice owns ⌘Z, inside Find too, until another key; elsewhere normal Undo remains. Sidebar-owned state tracks whether Pinned is visible. Changes and Undo update this window immediately even if best-effort storage writes fail; the words name the change and make no saved claim, and reload uses the last list storage accepted.</p>
   </section>
 
   <!-- ================= PANES ================= -->
@@ -757,14 +778,14 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
       <table class="tbl compact">
         <thead><tr><th>Pane</th><th>Surface</th><th>Its part of the top row, and what follows</th></tr></thead>
         <tbody>
-          <tr><td><b>Sidebar</b></td><td><code>sidebar</code></td><td>Window controls and the sidebar toggle, then Find or ask, Today and Pinned; a 44 px footer with the gear on a soft rule</td></tr>
-          <tr><td><b>Centre</b></td><td><code>surface</code> edge to edge</td><td>Its header is its part of the top row: title, chips, Pin, the capsule with the sweep and, while the panel is closed, the right-panel toggle. Content below is padded 20 px by 24 px and at most 960 px wide, left-aligned; Today alone uses the full centre width.</td></tr>
+          <tr><td><b>Sidebar</b></td><td><code>sidebar</code></td><td>Window controls and sidebar toggle; Find or ask, the fixed block, then Pinned; an Undo band above the 44 px footer with gear and sweep on a soft rule</td></tr>
+          <tr><td><b>Centre</b></td><td><code>surface</code> edge to edge</td><td>Its header is its part of the top row: title and chips, pin control at the end and, while the panel is closed, the right-panel toggle. Content below is padded 20 px by 24 px and at most 960 px wide, left-aligned; Today alone uses the full centre width.</td></tr>
           <tr><td><b>Right panel</b></td><td><code>chrome</code></td><td>Its tabs and its toggle, then the selection's Detail or Evidence</td></tr>
-          <tr><td><b>Pinned Line sheet</b></td><td><code>chrome</code>, with a left border</td><td>Its toolbar, then the fleet table</td></tr>
+          <tr><td><b>Docked Line sheet</b></td><td><code>chrome</code>, with a left border</td><td>Its toolbar, then the fleet table</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="note">Every pane's header starts at the window's top and is 44 px tall, so there is one rule under the whole top row and no second header line. The capsule draws on <code>capsule</code>, a step off <code>surface</code>. Toggles and the panel's close are 28 px icon buttons with the line icons from the <a href="spi-code-visual-design.html">visual design</a>; the open panel's toggle sits on <code>hover</code> to show it is pressed.</p>
+    <p class="note">Every pane's header starts at the window's top and is 44 px tall, so there is one rule under the whole top row and no second header line. Toggles and the panel's close are 28 px icon buttons with the line icons from the <a href="spi-code-visual-design.html">visual design</a>; the open panel's toggle sits on <code>hover</code> to show it is pressed.</p>
     <h3>Today's width</h3>
     <p>Today is the one exception to the 960 px content cap. The daily briefing (<a href="spi-code-window-design.html">window design</a>, PS-03) uses the full centre width, so its full-width bands and the four place cards have room at 1440 px. The places, threads and Settings keep the cap. Today's layout follows the centre's width, not the window's:</p>
     <div class="tblwrap">
@@ -782,7 +803,7 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
   <!-- ================= RESIZING ================= -->
   <section>
     <h2>Resizing</h2>
-    <p>The sidebar, the right panel and a pinned Line sheet each have a drag edge on the line they share with their neighbour. The edge is an 8 px target straddling the 1 px divider; on hover, focus or drag the divider turns accent and the cursor becomes a column resize. The width a drag ends on is the pane's preferred width, saved and restored on the next launch on the same machine together with whether each pane was open or collapsed.</p>
+    <p>The sidebar, the right panel and a docked Line sheet each have a drag edge on the line they share with their neighbour. The edge is an 8 px target straddling the 1 px divider; on hover, focus or drag the divider turns accent and the cursor becomes a column resize. The width a drag ends on is the pane's preferred width, saved and restored on the next launch on the same machine together with whether each pane was open or collapsed.</p>
     <div class="edge">
       <figure><div class="e"><div class="l"></div><div class="r"></div><span class="hz"></span></div><figcaption>At rest: a 1 px divider. The dashed area is the 8 px drag target and is not drawn in the app.</figcaption></figure>
       <figure><div class="e"><div class="l"></div><div class="r"></div><span class="ln"></span></div><figcaption>Hover, keyboard focus or dragging: the divider turns accent; the centre reflows live while dragging.</figcaption></figure>
@@ -793,7 +814,7 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
         <tbody>
           <tr><td><b>Sidebar</b></td><td class="num">232 px</td><td class="num">200 px</td><td class="num">320 px</td><td>Back to 232 px</td></tr>
           <tr><td><b>Right panel</b></td><td class="num">360 px</td><td class="num">280 px</td><td>55% of the window</td><td>Back to 360 px</td></tr>
-          <tr><td><b>Pinned Line sheet</b></td><td class="num">360 px</td><td class="num">320 px</td><td>55% of the window</td><td>Back to 360 px</td></tr>
+          <tr><td><b>Docked Line sheet</b></td><td class="num">360 px</td><td class="num">320 px</td><td>55% of the window</td><td>Back to 360 px</td></tr>
         </tbody>
       </table>
     </div>
@@ -808,18 +829,18 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
       <table class="tbl compact">
         <thead><tr><th>Step</th><th>What happens</th></tr></thead>
         <tbody>
-          <tr><td class="num">1</td><td><b>Narrow.</b> The right panel narrows toward 280 px, then the pinned Line sheet toward 320 px.</td></tr>
+          <tr><td class="num">1</td><td><b>Narrow.</b> The right panel narrows toward 280 px, then the docked Line sheet toward 320 px.</td></tr>
           <tr><td class="num">2</td><td><b>Detail becomes a sheet.</b> The right panel opens as a sheet over the right edge of the window at its preferred width, at most the window width less 48 px. The panes still inline go back to their preferred widths, then step 1's narrowing applies again to them.</td></tr>
-          <tr><td class="num">3</td><td><b>Line sheet stacks.</b> A pinned Line sheet moves under the centre; the two split the height equally.</td></tr>
+          <tr><td class="num">3</td><td><b>Line sheet stacks.</b> A docked Line sheet moves under the centre; the two split the height equally.</td></tr>
           <tr><td class="num">4</td><td><b>Sidebar off-canvas.</b> The sidebar slides away behind ⌘B and its toggle, which stays just after the window controls in the centre's part of the top row.</td></tr>
         </tbody>
       </table>
     </div>
     <div class="budget">
-      <svg viewBox="0 0 1080 532" role="img" aria-label="Pane widths at eight cases, drawn to one scale. Detail open at 1600, 1100, 980 and 740 px; Line pinned with Detail open at 1440, 1280, 1100 and 900 px.">
+      <svg viewBox="0 0 1080 532" role="img" aria-label="Pane widths at eight cases, drawn to one scale. Detail open at 1600, 1100, 980 and 740 px; Line rowned with Detail open at 1440, 1280, 1100 and 900 px.">
         <rect x="110" y="6" width="14" height="12" class="sbar"/><text x="130" y="16" class="sm">sidebar</text>
         <rect x="190" y="6" width="14" height="12" class="cbar"/><text x="210" y="16" class="sm">centre</text>
-        <rect x="262" y="6" width="14" height="12" class="lbar"/><text x="282" y="16" class="sm">pinned Line sheet</text>
+        <rect x="262" y="6" width="14" height="12" class="lbar"/><text x="282" y="16" class="sm">docked Line sheet</text>
         <rect x="392" y="6" width="14" height="12" class="pbar"/><text x="412" y="16" class="sm">Detail inline</text>
         <rect x="502" y="6" width="14" height="12" class="obar"/><text x="522" y="16" class="sm">Detail as a sheet over the window</text>
 
@@ -1031,13 +1052,13 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
     </div>
     <p class="note">View sweep opens Evidence. These are small in-place completions, never OS notifications. All future times come from the host; an expired next, retry or reset time is never shown as a promise.</p>
 
-    <h3>Evidence and the sweep segment</h3>
-    <div class="sweep-evidence" role="img" aria-label="Evidence header while idle: Swept 08:02, next sweep 08:07, with Sweep now. While running: Sweeping since 08:07, with no Sweep now. The sweep segment's popover gives the next sweep beside each source's state.">
+    <h3>Evidence and the footer sweep</h3>
+    <div class="sweep-evidence" role="img" aria-label="Evidence header while idle: Swept 08:02, next sweep 08:07, with Sweep now. While running: Sweeping since 08:07, with no Sweep now. The footer sweep's popover gives the next sweep beside each source's state.">
       <header><b>Swept 08:02 · next sweep 08:07</b><span class="btn">Sweep now</span></header>
       <p>While running: <b>Sweeping since 08:07</b></p>
       <p>Sweep popover: <b>Next sweep 08:07 (in 5 min)</b>, under each source's state</p>
     </div>
-    <p class="note">The existing Evidence list stays live during later sweeps; the capsule's progress line is the only other progress surface. No history is needed.</p>
+    <p class="note">The existing Evidence list stays live during later sweeps; the full-window progress line is the only other progress surface. No history is needed.</p>
 
     <h3>The tray and badge</h3>
     <div class="tray-study">
@@ -1100,21 +1121,21 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
     <p class="shot-cap">In a 1440 px window, mid-sweep · nine of twelve settled, one partly failed, one failed on sign-in</p>
     <div class="shot">
       <div class="winwrap">
-        <div class="win shell nodetail fsw" role="img" aria-label="First launch at 1440 px: the capsule shows First sweep with a spinner, with the progress line under the top row. The sidebar's pins keep their order, carry no marks because nothing has been read, and stay clickable, and the gear carries a dot. Today lists twelve sources in sweep order with their marks, what each reads and its outcome; Template read but 2 reads failed and names unit and crs-catalog on its own line; Upstream GitLab failed because glab is not signed in and offers Open Settings; Upstream radar is reading; two sources wait.">
+        <div class="win shell nodetail fsw" role="img" aria-label="First launch at 1440 px: the footer sweep shows First sweep with a spinner, with the progress line under the top row. The sidebar's fixed block and pins keep their order, carry no marks because nothing has been read, and stay clickable, and the gear carries a dot. Today lists twelve sources in sweep order with their marks, what each reads and its outcome; Template read but 2 reads failed and names unit and crs-catalog on its own line; Upstream GitLab failed because glab is not signed in and offers Open Settings; Upstream radar is reading; two sources wait.">
           <div class="sb">
             <div class="sbtop"><span class="lights"><i></i><i></i><i></i></span><svg class="i"><use href="#i-panelLeft"/></svg></div>
             <div class="find"><span><svg class="i"><use href="#i-search"/></svg>Find or ask</span><span>⌘K</span></div>
             <div class="row on"><span class="ic"><svg class="i"><use href="#i-sun"/></svg>Today</span></div>
-            <div class="pgrp"><span>Pinned</span><span>⌄</span></div>
             <div class="row"><span class="ic"><svg class="i"><use href="#i-rows"/></svg>Line</span></div>
-            <div class="row"><span class="ic"><svg class="i"><use href="#i-upstream"/></svg>Upstream</span></div>
             <div class="row"><span class="ic"><svg class="i"><use href="#i-server"/></svg>Environment</span></div>
             <div class="row"><span class="ic"><svg class="i"><use href="#i-layers"/></svg>Engineering system</span></div>
+            <div class="pgrp"><span>Pinned</span><span>⌄</span></div>
+            <div class="row"><span class="ic"><svg class="i"><use href="#i-upstream"/></svg>Upstream</span></div>
             <div class="row"><span class="ic"><svg class="i"><use href="#i-tag"/></svg>Releases</span></div>
             <div class="row"><span class="ic"><svg class="i"><use href="#i-shield"/></svg>Security</span></div>
-            <div class="gear"><span class="gd"><svg class="i"><use href="#i-gear"/></svg></span></div>
+            <div class="gear"><span class="gd"><svg class="i"><use href="#i-gear"/></svg></span><span class="footer-sweep"><span class="sg sw run"><svg class="i"><use href="#i-loader"/></svg>First sweep</span></span></div>
           </div>
-          <div class="ctop"><div class="grow"><span class="nm">Today</span></div><span class="cap"><span class="sg sw run"><svg class="i"><use href="#i-loader"/></svg>First sweep</span></span><div class="end"><svg class="i"><use href="#i-panelRight"/></svg></div><span class="prog" style="left:-161px"><i style="width:80%"></i></span></div>
+          <div class="ctop"><div class="grow"><span class="nm">Today</span></div><div class="end"><svg class="i"><use href="#i-panelRight"/></svg></div><span class="prog" style="left:-161px"><i style="width:80%"></i></span></div>
           <div class="mid">
                         <div class="body">
               <div class="fs-lead">First sweep is reading the program.</div>
@@ -1153,8 +1174,8 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
       <table class="tbl">
         <thead><tr><th>#</th><th>What it shows</th><th>Kind</th></tr></thead>
         <tbody>
-          <tr><td class="num">1</td><td><b>The capsule carries the sweep.</b> Before the first snapshot nothing is read, so the pins carry no marks, and the sweep segment shows a spinner and "First sweep" over the progress line; the hover counts the sources settled so far. Its popover's Evidence scrolls Today's list into view.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
-          <tr><td class="num">2</td><td><b>Places stay reachable.</b> The pins keep their order and stay clickable. Each place opens one line, such as "Upstream opens after the first sweep. It is read 9th of 12."; the Line sheet says "Service rows appear after the first sweep." The gear, Find and the panel toggles stay live.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
+          <tr><td class="num">1</td><td><b>The footer carries the sweep.</b> Before the first snapshot nothing is read, so the pins carry no marks, and the footer sweep shows a spinner and "First sweep" over the progress line; the hover counts the sources settled so far. Its popover's Evidence scrolls Today's list into view.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
+          <tr><td class="num">2</td><td><b>Places stay reachable.</b> The fixed block and pins keep their order and stay clickable. Each place opens one line, such as "Upstream opens after the first sweep. It is read 9th of 12."; the Line sheet says "Service rows appear after the first sweep." The gear, Find and the panel toggles stay live.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
           <tr><td class="num">3</td><td><b>One segment per source.</b> The bar has twelve segments toned like their rows. No percentage and no countdown: sources take from 1 s to 80 s, so either would mislead.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
           <tr><td class="num">4</td><td><b>Twelve rows in sweep order.</b> Mark, the Evidence tab's name, a fixed line saying what the source reads, and its outcome. Rows never reorder; a source put off for budget keeps its place.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
           <tr><td class="num">5</td><td><b>Failures say why.</b> A failed source puts its plain reason on the next line. A sign-in failure adds Open Settings, which opens Readiness.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
@@ -1167,8 +1188,8 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
         <p class="shot-cap" style="margin-top:0">At 740 px · the middle column drops, outcomes sit under the name</p>
         <div class="shot" style="margin-top:8px">
           <div class="winwrap w740" style="padding-top:0">
-            <div class="win shell nodetail fsw w740" role="img" aria-label="First launch at 740 px: the sidebar is off-canvas, so its toggle starts the top row, with no dot because nothing has been read; the capsule shows First sweep with a spinner, over the progress line; each source shows its outcome under its name; the failed Upstream GitLab row gives its reason on its own line with Open Settings; the closing line says the window can be closed.">
-              <div class="ctop"><span class="lights"><i></i><i></i><i></i></span><svg class="i"><use href="#i-panelLeft"/></svg><div class="grow"><span class="nm">Today</span></div><span class="cap"><span class="sg sw run"><svg class="i"><use href="#i-loader"/></svg>First sweep</span></span><svg class="i"><use href="#i-panelRight"/></svg><span class="prog"><i style="width:75%"></i></span></div>
+            <div class="win shell nodetail fsw w740" role="img" aria-label="First launch at 740 px: the sidebar is off-canvas, so its toggle starts the top row, with no dot while the sweep adds no bad or warn tone; the footer is off-canvas and the progress line stays under the top row; each source shows its outcome under its name; the failed Upstream GitLab row gives its reason on its own line with Open Settings; the closing line says the window can be closed.">
+              <div class="ctop"><span class="lights"><i></i><i></i><i></i></span><svg class="i"><use href="#i-panelLeft"/></svg><div class="grow"><span class="nm">Today</span></div><svg class="i"><use href="#i-panelRight"/></svg><span class="prog"><i style="width:75%"></i></span></div>
               <div class="mid">
                                 <div class="body">
                   <div class="fs-lead">First sweep is reading the program.</div>
@@ -1202,8 +1223,8 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
         <p class="shot-cap" style="margin-top:0">Stopped · the first sweep failed outright</p>
         <div class="shot" style="margin-top:8px">
           <div class="winwrap w740" style="padding-top:0">
-            <div class="win shell nodetail fsw w740" role="img" aria-label="The first sweep stopped: the capsule shows First sweep stopped with a red alert icon. Today keeps the twelve rows under the heading The first sweep stopped, says it stopped while reading Workflow runs because GitHub did not answer in time, names the next attempt, and offers only Try again.">
-              <div class="ctop"><span class="lights"><i></i><i></i><i></i></span><svg class="i"><use href="#i-panelLeft"/></svg><div class="grow"><span class="nm">Today</span></div><span class="cap"><span class="sg sw bad"><svg class="i"><use href="#i-alert"/></svg>First sweep stopped</span></span><svg class="i"><use href="#i-panelRight"/></svg></div>
+            <div class="win shell nodetail fsw w740" role="img" aria-label="The first sweep stopped: the sidebar is off-canvas and its toggle carries the sweep's red error dot. Today keeps the twelve rows under the heading The first sweep stopped, says it stopped while reading Workflow runs because GitHub did not answer in time, names the next attempt, and offers only Try again.">
+              <div class="ctop"><span class="lights"><i></i><i></i><i></i></span><span class="tdot"><svg class="i"><use href="#i-panelLeft"/></svg></span><div class="grow"><span class="nm">Today</span></div><svg class="i"><use href="#i-panelRight"/></svg></div>
               <div class="mid">
                                 <div class="body">
                   <div class="fs-lead">The first sweep stopped.</div>
@@ -1232,25 +1253,25 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
       </div>
     </div>
 
-    <p class="shot-cap">A later sweep at 1280 px · the brief stays; only the sweep segment and the progress line change</p>
+    <p class="shot-cap">A later sweep at 1280 px · the brief stays; only the footer sweep and the progress line change</p>
     <div class="shot"><div class="rowstudy">
-      <div class="shellrow"><span class="sbpart"><span class="lights"><i></i><i></i><i></i></span><svg class="i"><use href="#i-panelLeft"/></svg></span><span class="grow"><span class="nm">Today</span><span>Wednesday 11 Nov</span></span><span class="cap"><span class="sg sw run"><svg class="i"><use href="#i-loader"/></svg>Sweeping</span></span><span class="end"><svg class="i"><use href="#i-panelRight"/></svg></span><span class="prog"><i style="width:35%"></i></span></div>
+      <div class="shellrow"><span class="sbpart"><span class="lights"><i></i><i></i><i></i></span><svg class="i"><use href="#i-panelLeft"/></svg></span><span class="grow"><span class="nm">Today</span><span>Wednesday 11 Nov</span></span><span class="end"><svg class="i"><use href="#i-panelRight"/></svg></span><span class="prog"><i style="width:35%"></i></span></div>
     </div></div>
 
     <div class="tblwrap">
       <table class="tbl compact">
         <thead><tr><th>State</th><th>Today shows</th><th>Top row, pins and tray</th></tr></thead>
         <tbody>
-          <tr><td><b>First sweep running</b></td><td>"First sweep is reading the program." · "A first sweep takes a few minutes. Today opens here when it's done.", or "Usually about 2 min." once a usual duration is known · "{elapsed} so far · {n} source(s) failed" · the bar and twelve rows · the closing line</td><td>No marks on the pins and no dot on the toggle; a spinner and "First sweep" in the capsule, and the progress line under the row. The popover's Evidence scrolls the list into view.</td></tr>
+          <tr><td><b>First sweep running</b></td><td>"First sweep is reading the program." · "A first sweep takes a few minutes. Today opens here when it's done.", or "Usually about 2 min." once a usual duration is known · "{elapsed} so far · {n} source(s) failed" · the bar and twelve rows · the closing line</td><td>No status marks before the first snapshot; a bad or warn sweep can still light the hidden-sidebar toggle; a spinner and "First sweep" in the footer, and the progress line under the row. The popover's Evidence scrolls the list into view.</td></tr>
           <tr><td><b>A source</b></td><td>○ waiting · ◐ "reading · 22 s", "still reading · 1 min 10 s" past a minute · ✓ "read · 31 s" · ⚠ "read · 52 s · 6 run lists cut short; rest read", or "read · 12 s · 1 job log cut short; rest read", with the complete-read count and the cut's reason and read/total on hover and in its accessible description · ⚠ "read · 6 s · 2 reads failed", or "read · 12 s · 14 diffs cut short; 3 reads failed", when some reads failed and the rest read, with the failed services on the next line ("Reads failed for 2 services: unit, crs-catalog.") · – "waits for GitHub budget · after 09:10", or skipped · ✕ "failed" when nothing read or the source named its cause, with its reason on the next line, and Open Settings for a sign-in failure. The filled dot and the diamond are not used, because Today's slots use them for occupied and broken.</td><td>The hover's count and the progress line rise as each source settles: read, cut, put off or failed</td></tr>
           <tr><td><b>Throttled</b></td><td>"GitHub asked SPI Code to slow down. Resumes at 08:04." under the meta line</td><td>Unchanged</td></tr>
-          <tr><td><b>Hand-over</b></td><td>The brief replaces the list in place when <code>view.snapshot</code> lands. If some sources failed it still hands over, and the subline names what failed.</td><td>The pins take their marks and the sweep segment becomes the sweep time; its popover's Evidence opens the completed list, kept with each source's final state. The tray tooltip reads "Today is ready"; if the window is hidden, one notification says "Today is ready", with the interruption count when there is one.</td></tr>
-          <tr><td><b>Stopped</b></td><td>"The first sweep stopped." over the rows, each keeping its state · "It stopped while reading {source}: {reason}. SPI Code tries again at {time}." · Try again sends <code>sweep.request</code> through the non-forced path and the readiness gate. The panel and each stopped source offer Open Settings only when their reason code points to a Readiness fix; in the current contract that set is <code>signin</code>. Readiness checks Copilot, git, gh and glab, not fleet configuration; there is no separate missing-tool or fleet stop code. Network, unavailable-forge, timeout, save and host errors offer Try again only, with their plain reason, never Settings inferred from prose.</td><td>A red alert icon and "First sweep stopped", at every width. The popover's Evidence scrolls Today to the stopped panel, including its reason and actions. A retry that starts reading returns the segment to "First sweep". The tray shows failed.</td></tr>
+          <tr><td><b>Hand-over</b></td><td>The brief replaces the list in place when <code>view.snapshot</code> lands. If some sources failed it still hands over, and the subline names what failed.</td><td>The pins take their marks and the footer sweep becomes the sweep time; its popover's Evidence opens the completed list, kept with each source's final state. The tray tooltip reads "Today is ready"; if the window is hidden, one notification says "Today is ready", with the interruption count when there is one.</td></tr>
+          <tr><td><b>Stopped</b></td><td>"The first sweep stopped." over the rows, each keeping its state · "It stopped while reading {source}: {reason}. SPI Code tries again at {time}." · Try again sends <code>sweep.request</code> through the non-forced path and the readiness gate. The panel and each stopped source offer Open Settings only when their reason code points to a Readiness fix; in the current contract that set is <code>signin</code>. Readiness checks Copilot, git, gh and glab, not fleet configuration; there is no separate missing-tool or fleet stop code. Network, unavailable-forge, timeout, save and host errors offer Try again only, with their plain reason, never Settings inferred from prose.</td><td>The footer shows a red alert and "First sweep stopped"; the hidden-sidebar toggle takes the error dot. The popover's Evidence scrolls Today to the stopped panel, including its reason and actions. A retry that starts reading returns the segment to "First sweep". The tray shows failed.</td></tr>
           <tr><td><b>Later sweeps</b></td><td>The brief, unchanged until the sweep commits; items then change in place</td><td>A spinner and "Sweeping", with the time in the hover and the popover; the popover's Evidence opens the live list beside each source's last good read</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="note">Before any snapshot, a cancelled first sweep is stopped too, unless a new first sweep is already running. The capsule says "First sweep stopped"; opening sweep Evidence with nothing selected shows the same stopped panel as Today, with its reason, source list, Try again and only the Settings actions a Readiness fix allows. A cancelled sweep says "The sweep was cancelled." and uses the next attempt from <code>sweep.status.nextSweepAt</code>, since cancelled progress carries no retry time. A failed sweep uses <code>nextAttemptAt</code>. Neither promises an expired time; an unscheduled retry has no time. A new running first sweep shows its live list in both places, never the older stop or a waiting message.</p>
+    <p class="note">Before any snapshot, a cancelled first sweep is stopped too, unless a new first sweep is already running. The footer sweep says "First sweep stopped"; opening sweep Evidence with nothing selected shows the same stopped panel as Today, with its reason, source list, Try again and only the Settings actions a Readiness fix allows. A cancelled sweep says "The sweep was cancelled." and uses the next attempt from <code>sweep.status.nextSweepAt</code>, since cancelled progress carries no retry time. A failed sweep uses <code>nextAttemptAt</code>. Neither promises an expired time; an unscheduled retry has no time. A new running first sweep shows its live list in both places, never the older stop or a waiting message.</p>
     <p class="note">A missing or signed-out glab is a Readiness fix. Failed Upstream GitLab and Upstream radar reads carry the existing <code>signin</code> code and offer Open Settings, where glab can be installed or signed in. No separate missing-tool stop code is needed: the code is reused, not replaced with <code>other</code>. Unrelated transport failures do not gain a Settings action from sign-in words in their reason.</p>
     <p class="note">Example values throughout. The rows' names are the Evidence tab's area names, and the second column is fixed copy per source. Progress is never stored: the host sends at most four updates a second and replays the latest to a window that subscribes late; the Sweep section above extends <code>sweep.status</code> with the schedule, not the source list. Every time and count comes from a field, never from prose: a cut source names the read kind from <code>cutKind</code> and counts from <code>incomplete</code> (cut reads of the total), says "rest read" only when other reads completed and none failed, and gives the complete-read count and safe cut detail on hover in Today and Evidence. A job log cut at its character limit reads "1 job log cut short; rest read"; its hover says "68 of 69 reads complete. Job log character limit: 64,000 of 92,438 characters read." A source where some reads failed while the rest read is partial, not failed: it counts the failed reads from <code>incomplete.failed</code>, and the next line is the host's <code>failure</code> sentence naming services by fleet id, never core's failure text; a source that read nothing stays failed with its real reason code. A put-off or throttled source's "after 09:10" or "Resumes at 08:04" comes from <code>resumeAt</code>, and the stopped sweep's "tries again at" from <code>nextAttemptAt</code>, the real retry time, not the budget reset in <code>sweep.status</code>.</p>
   </section>
@@ -1260,7 +1281,10 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
   <section>
     <h2>Validation</h2>
     <p>The width budget is a pure function from window width, preferred widths and open panes to displayed widths and presentations, tested at the eight cases drawn above and at the thresholds either side of each step. The separators have component tests for pointer drag, arrow keys, double-click reset, the announced values, and a displayed width narrower than the saved one without the saved one changing. The Detail panel has a test that renders a long Related label at 280 px and asserts every value keeps at least 160 px.</p>
-    <p>The status marks are tested over snapshots, not made-up tones (spicode-8i9.1): the strip still classifies each field as fine, not fine with its worst count, or unread, and a table at the mapping layer gives each pin its mark, stopped over waiting and failed over pending, the clock at exactly 2 hours, inside it, past and unknown with a fixed clock, and no mark, never a check, for unknown, empty or missing data. Component tests draw each mark on its own pin wherever it sits and nowhere else, put its sentence in the row's accessible name, keep ⌘L on the Line pin, and show the toggle's dot only while the sidebar is hidden or off-canvas and the collapsed Pinned header's only while collapsed; the dot's decision has its own test. The capsule renders exactly the sweep for every classification (spicode-8i9.3); the sweep tone puts failed over stale, incomplete or cut over fine; the progress line fills by sources settled over sources and is absent with no progress; the popover's source states and its short next-sync form. The pins store is tested for its seed, the always-pinned rows restored at the start of a stored list that lacks them, an emptied list holding those three, a corrupt value and the order across a restart, and Find's pin control for pinning and unpinning in place (spicode-8i9.2); the pinned service's state word over snapshots; the gear's dot on the Readiness decision; and the palette choice for stored, missing and unknown values. The packaged smoke holds one top row, every pane header at the window's top and in line, and the 48 px drag span at 740 px, with a 20-service snapshot read from the Line pin's service count. Glyphs, the marks' look, hover copy and layout are judged from captures, the sidebar's in each scene in light and dark among them, and the rendered contrast rule measures every mark's digits at rest and hovered. The first sweep has tests for every row state and copy line, Try again and Open Settings in the stopped state, hand-over only on <code>view.snapshot</code>, each place's one line before the first snapshot, both sweeping states of the sweep segment and where the popover's Evidence lands, and the tray's "Today is ready". Settings has tests for ⌘, and the footer gear, focus moving in and returning on close, the first-launch open over the Watch gate, the banner turning green, and each row state drawn above. The packaged screenshot suite captures every surface, Settings and the first sweep (running with a failed source, stopped, and the top row during a later sweep) included, at 1440, 900 and 740 px in light and dark on macOS and Windows; those captures are the maintainer's visual check against this page.</p>
+    <p>The status mapping still uses snapshots (spicode-8i9.1): stopped over waiting, failed over pending, the clock at exactly 2 hours, inside, past and unknown, and no check for unread, empty or missing data. Store tests in <code>store/pins.test.ts</code> (spicode-1l9.1) cover every v3, v2 and legacy storage ruling, corrupt values, untouched old keys, refused reads and writes, fixed-id no-ops and persisted moves. Sidebar tests in <code>components/sidebar/ProgramSidebar.test.tsx</code> (spicode-1l9.1) cover fixed order and no affordances, empty Pinned hidden, row menu, Alt+Up/Down, focus after Unpin, drop boundaries and service-word dots; the named compatibility tests are rewritten, never deleted. The packaged hover rule checks that every mark or word drawn at rest stays visible in the same box, and rows with none still have none; it rejects the old hover-hide proof. Captures show rest, hover and menu, light and dark.</p>
+    <p><code>SweepSegment.test.tsx</code>, Shell, PanelControls, navigation, reachability and settings tests named by spicode-1l9.7 are rewritten for the footer: no route or sheet has a top-row sweep, each tone and spinner opens the same popover actions, progress spans the hidden or off-canvas sidebar, and bad/warn/unread dot cases obey error precedence. Text rules, upstream boundary and reachability move their selectors to the footer. Packaged smoke retires the capsule's end-position rule and drag record; the 740 px one-row and 48 px drag-span rules stay unedited. It captures each footer tone, the popover, the hidden-sidebar running line and its dot and measures contrast at rest and hovered in both palettes and themes.</p>
+    <p>Pin-control, Place, service-place, palette, Line and shortcut tests (spicode-1l9.2) cover state names and titles, pin/unpin, excluded routes, the declared end slot, Find's unchanged query/highlight/focus and no open, ⌘↩ never unpinning, ⌘⇧P and dialog/overlay exclusions, and Dock/Undock. Packaged geometry at 1440, 900 and 740 px checks the end slot within 1 px, panel open/closed and both pin states, rejecting both under-800 px hiding and beside-title placement. Captures prove pin-off on hover; contrast measures Find, top-row and Line controls. Feedback path tests (spicode-1l9.3) exercise every unpin, Undo and ⌘Z at the old index, pin flash versus hidden/collapsed notice, normal Undo after expiry or another key, the pre-mounted status region, paused 8 s timer and refused writes retaining the words and Undo without a saved claim. Its packaged captures show the band and hidden-sidebar notice in both palettes and themes.</p>
+    <p>The first-sweep state, copy, retry, hand-over, retained Evidence and tray tests stay, with the sweep target in the footer. Settings keeps its keyboard, focus-return, Watch gate, banner and row-state tests. Packaged smoke on macOS and Windows captures the shell and first-sweep surfaces at 1440, 900 and 740 px; the reviewer compares these figures and the maintainer judges the running window.</p>
     <p>The sweep-settings pass checks ST-07's contract extension and protocol rules, forced all-source reads with the readiness gate and budget floor, timer restart and cooldown joins, resume and unlock, and no persistence of session status. Window tests cover every drawn Sweep now state, expired times, the moved budget and link, and the 740 px column fold. Desktop tests cover tray actions and committed dot tone, the badge, coalesced notifications, focus suppression, rung dedupe and relaunch, both outage triggers and reset on commit, click targets and every never-notify case. Its document-only bead renders this page in headless Chrome at 1440 and 740 px in light and dark; it does not run a packaged smoke.</p>
   </section>
 
