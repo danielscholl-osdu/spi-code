@@ -17,11 +17,11 @@ it("reads which workspace packages depend on which", () => {
 });
 
 it("runs whole every package that depends, directly or not, on a changed one", () => {
-  expect(wholeProjects(["packages/core/src/brief/places.ts"], dependencies)).toEqual([
+  expect(wholeProjects(["packages/core/test/releases.test.ts"], dependencies)).toEqual([
     "apps/desktop",
     "packages/host",
   ]);
-  expect(wholeProjects(["packages/contracts/src/watch/today.ts"], dependencies)).toEqual([
+  expect(wholeProjects(["packages/contracts/src/watch/today.test.ts"], dependencies)).toEqual([
     "apps/desktop",
     "apps/window",
     "packages/core",
@@ -32,7 +32,10 @@ it("runs whole every package that depends, directly or not, on a changed one", (
 
 it("runs a dependent whole even when it has changes of its own", () => {
   expect(
-    wholeProjects(["packages/core/src/brief/places.ts", "packages/host/README.md"], dependencies),
+    wholeProjects(
+      ["packages/core/README.md", "packages/host/src/watch/project.test.ts"],
+      dependencies,
+    ),
   ).toEqual(["apps/desktop", "packages/host"]);
 });
 
@@ -52,8 +55,31 @@ it("runs every package and the script tests whole when a fixture changes", () =>
   );
 });
 
+it("runs every package and the script tests whole when a source of the generated watch fixtures changes", () => {
+  for (const path of [
+    "packages/core/src/brief/places.ts",
+    "packages/host/test/watch/snapshot-fixture.ts",
+    "pnpm-lock.yaml",
+    "scripts/watch-snapshot.mjs",
+  ]) {
+    expect(wholeProjects([path], dependencies), path).toEqual(
+      [...dependencies.keys(), "scripts"].sort(),
+    );
+  }
+});
+
+it("runs no more whole for a test or hidden file inside a source folder of the generated watch fixtures", () => {
+  expect(wholeProjects(["packages/host/src/watch/project.test.ts"], dependencies)).toEqual([
+    "apps/desktop",
+  ]);
+  expect(wholeProjects(["packages/core/src/.eslintrc"], dependencies)).toEqual([
+    "apps/desktop",
+    "packages/host",
+  ]);
+});
+
 it("leaves to the import-following run every project that does not run whole", () => {
-  const whole = wholeProjects(["packages/core/src/brief/places.ts"], dependencies);
+  const whole = wholeProjects(["packages/core/README.md"], dependencies);
   const rest = restProjects(whole, dependencies);
 
   expect(rest).toEqual([

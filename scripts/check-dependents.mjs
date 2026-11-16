@@ -8,6 +8,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isWatchInput } from "./watch-inputs.mjs";
 
 /**
  * @param {string} root
@@ -45,7 +46,7 @@ export function workspaceDependencies(root) {
  */
 export function wholeProjects(changed, dependencies) {
   const directories = [...dependencies.keys()];
-  if (changed.some((path) => path.startsWith("fixtures/")))
+  if (changed.some((path) => path.startsWith("fixtures/") || isWatchInput(path)))
     return [...directories, "scripts"].sort();
   const touched = directories.filter((directory) =>
     changed.some((path) => path.startsWith(`${directory}/`)),
