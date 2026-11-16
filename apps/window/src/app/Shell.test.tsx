@@ -825,6 +825,39 @@ it.each([900, 1280])(
   },
 );
 
+it("closes the off-canvas sidebar under the Evidence the footer sweep opens", async () => {
+  viewport(740);
+  const previous = watchStore.getState();
+  const body = testSnapshot(briefing, releases);
+  watchStore.setState({ snapshot: { cursor: body.cursor, body } });
+  const shell = await mountShell();
+  try {
+    const sidebar = () => shell.container.querySelector<HTMLElement>('nav[aria-label="Sidebar"]');
+    await act(async () =>
+      shell.container
+        .querySelector<HTMLButtonElement>('button[aria-label="Toggle sidebar"]')
+        ?.click(),
+    );
+    expect(sidebar()?.getAttribute("data-state")).toBe("expanded");
+    await act(async () =>
+      shell.container
+        .querySelector<HTMLButtonElement>("[data-slot=sidebar-footer] [data-sweep-line]")
+        ?.click(),
+    );
+    await act(async () =>
+      document.querySelector<HTMLButtonElement>("[data-sweep-popover] .capsule-evidence")?.click(),
+    );
+    expect(sidebar()?.getAttribute("data-state")).toBe("collapsed");
+    expect(shell.container.querySelector('[data-slot="sidebar-backdrop"]')).toBeNull();
+    expect(
+      shell.container.querySelector('#app-right-panel [data-evidence="sweep"]'),
+    ).not.toBeNull();
+  } finally {
+    await shell.cleanup();
+    watchStore.setState(previous);
+  }
+});
+
 it("updates the footer sweep from the live areas with the worst tone, and opens the sweep Evidence", async () => {
   const previousState = watchStore.getState();
   let receive: Parameters<typeof window.spi.onMessage>[0] | undefined;

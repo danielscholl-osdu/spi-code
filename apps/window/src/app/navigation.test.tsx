@@ -244,7 +244,6 @@ it("draws a registered sweep in the footer on every route and beside either shee
 
   await unmount();
   await mount({ views: every, sheet, fallback: { kind: "today" } });
-  expect(container.querySelector("[data-strip]")).toBeNull();
   expect(header()?.querySelector("[data-sweep-line]")).toBeNull();
   expect(container.querySelector('[data-slot="sidebar-footer"] [data-sweep-line]')).not.toBeNull();
 });

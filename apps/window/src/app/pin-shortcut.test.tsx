@@ -257,6 +257,20 @@ it("mounts empty status regions, pauses expiry under hover and focus, and preser
   expect(readPins()).toEqual([]);
 });
 
+it("does not pause a later notice for focus that arrived while the region was empty", async () => {
+  vi.useFakeTimers();
+  const region = document.querySelector('.pin-notice[data-placement="sidebar"]');
+  expect(region?.textContent).toBe("");
+  await act(async () => region?.dispatchEvent(new FocusEvent("focusin", { bubbles: true })));
+  await go({ kind: "upstream" });
+  await act(async () => control()?.click());
+  expect(notice()).toBe(region);
+  await act(async () => {
+    vi.advanceTimersByTime(8_000);
+  });
+  expect(notice()).toBeNull();
+});
+
 it.each(["Macintosh", "Windows"])(
   "a fresh notice owns Undo inside Find on %s until another key, leaving text Undo alone afterwards",
   async (platform) => {

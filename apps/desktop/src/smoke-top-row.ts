@@ -94,7 +94,7 @@ export async function captureTopRowPins(
           );
           figures.push(`<figure><figcaption>${state}</figcaption><img src="${file}"></figure>`);
           if (pinned && panel === "closed")
-            figures.push(await captureHover(window, output, width, appearance));
+            figures.push(await captureHover(window, output, width, appearance, rendered));
         }
         if (panel === "open") {
           await js(`document.querySelector("[aria-label='Close detail']").click()`);
@@ -128,6 +128,7 @@ async function captureHover(
   output: string,
   width: number,
   appearance: "light" | "dark",
+  rendered: (condition: string) => Promise<void>,
 ): Promise<string> {
   const debug = window.webContents.debugger;
   await debug.sendCommand("DOM.enable");
@@ -141,6 +142,9 @@ async function captureHover(
   });
   await debug.sendCommand("CSS.forcePseudoState", { nodeId, forcedPseudoClasses: ["hover"] });
   try {
+    await rendered(
+      `getComputedStyle(document.querySelector(".centre-end > .pin-control[data-pinned=true] .pin-control-off")).visibility === "visible"`,
+    ).catch(() => {});
     const shown = await window.webContents.executeJavaScript(`(() => {
       const pin = document.querySelector(".centre-end > .pin-control[data-pinned=true]");
       const seen = (name) => getComputedStyle(pin.querySelector(name)).visibility === "visible";

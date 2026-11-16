@@ -10,6 +10,7 @@ import { clockTime, Time } from "../../time.js";
 import { useNow } from "../evidence/useNow.js";
 import { sweepSources } from "../evidence/words.js";
 import { Icon } from "../icons/Icon.js";
+import { useSidebar } from "../sidebar/ui-sidebar.js";
 import { openFreshness } from "../sweep/reveal.js";
 import { settled } from "../sweep/words.js";
 import { shortWhen, sourceState, sweepFill, sweepSegment } from "./sweep.js";
@@ -20,6 +21,7 @@ const plural = (n: number) => (n === 1 ? "source" : "sources");
 function SweepPopover({ now, onClose }: { now: number; onClose(): void }) {
   const { snapshot, progress, sweep, sweepRequest, sweepRequestError, setup } =
     useStore(watchStore);
+  const { isMobile, setOpenMobile } = useSidebar();
   const body = snapshot?.body ?? null;
   const live = progress?.outcome === "running" ? progress : null;
   const states = body
@@ -103,6 +105,7 @@ function SweepPopover({ now, onClose }: { now: number; onClose(): void }) {
           className="capsule-evidence"
           onClick={() => {
             onClose();
+            if (isMobile) setOpenMobile(false);
             openFreshness(body);
           }}
         >

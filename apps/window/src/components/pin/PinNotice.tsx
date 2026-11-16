@@ -33,7 +33,9 @@ export function PinNotice({ placement }: { placement: "sidebar" | "window" }) {
         if (notice) pausePinNotice(hover, true);
       }}
       onMouseLeave={() => pausePinNotice(hover, false)}
-      onFocus={() => pausePinNotice(focus, true)}
+      onFocus={() => {
+        if (notice) pausePinNotice(focus, true);
+      }}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) pausePinNotice(focus, false);
       }}
