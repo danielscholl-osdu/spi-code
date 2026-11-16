@@ -240,6 +240,15 @@ const total = (counts: readonly number[]) => counts.reduce((sum, count) => sum +
 const forkCount = z.strictObject({ service: IdentifierSchema, count: z.int().positive() });
 export const HorizonSchema = z.strictObject({
   headline: z.string(),
+  /** Compact conveyor totals; null when a missing read or unproved split prevents a total. */
+  compact: z
+    .strictObject({
+      nextSyncCount: z.int().nonnegative().nullable(),
+      heldCount: z.int().nonnegative().nullable(),
+      heldPrCount: z.int().nonnegative().nullable(),
+      currentForkCount: z.int().nonnegative().nullable(),
+    })
+    .optional(),
   stages: z
     .strictObject({
       upstream: z.strictObject({ count: z.int().nonnegative(), text: z.string() }),

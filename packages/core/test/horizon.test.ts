@@ -43,6 +43,62 @@ describe("upstream horizon", () => {
     expect(q && radarSyncPr(m, q)?.id).toBe("gate1:storage");
   });
 
+  it("supplies compact counts for held commits, distinct sync PRs and current forks", () => {
+    const m = model();
+    const storage = fork(m, "storage");
+    storage.behind = 17;
+    m.upstream.forks = [storage, fork(m, "entitlements"), fork(m, "crs-catalog")];
+    expect(brief(m).horizon).toMatchObject({
+      compact: { nextSyncCount: 6, heldCount: 11, heldPrCount: 1, currentForkCount: 2 },
+    });
+    const current = m.upstream.forks[1];
+    if (!current) throw new Error("No current fork");
+    current.behind = 3;
+    current.phase = "prepared";
+    delete current.halt;
+    const sync = m.lines
+      .find((line) => line.fork.id === current.service)
+      ?.stations.find((station) => station.id === "sync");
+    if (!sync) throw new Error("No current sync station");
+    sync.state = "waiting";
+    current.syncPr = {
+      number: 91,
+      url: "https://example.com/pr/91",
+      headSha: "abc",
+      verdict: "green",
+      holds: 3,
+    };
+    expect(brief(m).horizon).toMatchObject({
+      compact: { nextSyncCount: 6, heldCount: 14, heldPrCount: 2, currentForkCount: 1 },
+    });
+    m.upstream.forks = [fork(m, "crs-catalog")];
+    expect(brief(m).horizon).toMatchObject({
+      compact: { nextSyncCount: 0, heldCount: 0, heldPrCount: 0, currentForkCount: 1 },
+    });
+  });
+
+  it.each(["all", "upstream", "upstream-fork", "github", "repository", "order"])(
+    "keeps compact counts unknown with a missing %s read or unproved split",
+    (missing) => {
+      const f = structuredClone(facts);
+      if (missing === "all" || missing === "upstream") f.upstream = {};
+      if (missing === "all" || missing === "github") f.github = {};
+      if (missing === "upstream-fork" && f.upstream.data) delete f.upstream.data.storage;
+      if (missing === "repository" && f.github.data)
+        delete f.github.data.repos["Azure/osdu-spi-storage"];
+      if (missing === "order") {
+        const commits = f.upstream.data?.storage?.commits;
+        if (!commits?.[0]) throw new Error("No storage commits");
+        commits[0].at = "not a date";
+      }
+      const h = brief(buildModel(f, now, {}, context)).horizon;
+      expect(h).toMatchObject({
+        compact: { nextSyncCount: null, heldCount: null, heldPrCount: null },
+      });
+      if (missing !== "order") expect(h).toMatchObject({ compact: { currentForkCount: null } });
+    },
+  );
+
   it("joins only the same fork's Gate-1 item and never calls a will-halt item held", () => {
     const m = model();
     const q = m.queue.items.find((q) => q.id === "radar:storage");

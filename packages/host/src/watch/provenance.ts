@@ -148,6 +148,7 @@ export function briefingProvenance(briefing: Briefing, stack: StackModel): Value
   each(briefing.ready, "/briefing/ready", MODEL);
   each(briefing.themes, "/briefing/themes", MODEL);
   add("/briefing/horizon/headline", MODEL);
+  if (briefing.horizon.compact) add("/briefing/horizon/compact", PHASE);
   if (briefing.horizon.stages) {
     add("/briefing/horizon/stages/upstream", ["upstream"]);
     add("/briefing/horizon/stages/nextSync", PHASE);

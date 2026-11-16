@@ -27,6 +27,12 @@ export interface HorizonStages {
 
 export interface Horizon {
   headline: string;
+  compact: {
+    nextSyncCount: number | null;
+    heldCount: number | null;
+    heldPrCount: number | null;
+    currentForkCount: number | null;
+  };
   stages: HorizonStages;
   owed: { count: number; services: { service: string; count: number }[]; text: string };
 }
@@ -180,6 +186,12 @@ export function upstreamHorizon(model: Model, headline?: string): Horizon {
   const count = services.reduce((sum, f) => sum + f.count, 0);
   const read = Object.values(model.radar.services).some((service) => service.ports !== undefined);
   const stages = horizonStages(model);
+  const countsRead = model.upstream.forks.length > 0 && model.upstream.forks.every((fork) =>
+    fork.behind !== undefined && model.lines.some((line) => line.fork.id === fork.service && line.repoRead),
+  );
+  const splitKnown = countsRead && model.upstream.forks.every((fork) =>
+    !fork.syncPr || fork.syncPr.holds !== undefined,
+  );
   return {
     headline: headline ?? horizonHeadline(
       stages,
@@ -187,6 +199,12 @@ export function upstreamHorizon(model: Model, headline?: string): Horizon {
       model.upstream.forks.length,
     ),
     stages,
+    compact: {
+      nextSyncCount: splitKnown ? stages.nextSync.count : null,
+      heldCount: splitKnown ? stages.held.count : null,
+      heldPrCount: splitKnown ? stages.held.prs.length : null,
+      currentForkCount: countsRead ? stages.forks.services.length : null,
+    },
     owed: {
       count,
       services,
