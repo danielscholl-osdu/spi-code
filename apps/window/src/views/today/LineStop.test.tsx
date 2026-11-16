@@ -208,7 +208,7 @@ describe("Stops the line", () => {
     const { container } = await band(body);
     expect(container.querySelectorAll(".today-stop")).toHaveLength(1);
     expect(needIds(container)).toHaveLength(1);
-    expect(sidebar.querySelector('ul[aria-label="Today"] .sidebar-pip')?.textContent).toBe("2");
+    expect(sidebar.querySelector('[data-sidebar-row="today"] .sidebar-pip')?.textContent).toBe("2");
   });
 
   it.each([

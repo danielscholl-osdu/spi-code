@@ -3,27 +3,22 @@
 
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
-  ALWAYS_PINNED,
+  FIXED_PINS,
   LEGACY_PINS_STORAGE_KEY,
   LINE_PIN,
   movePin,
+  movePinBeside,
   PINS_STORAGE_KEY,
   pin,
   pinOf,
   readPins,
   SEED_PINS,
   unpin,
+  V2_PINS_STORAGE_KEY,
 } from "./pins.js";
 
-const ALWAYS = [LINE_PIN, "place:environment", "place:engineering-system"];
-const SEED = [
-  LINE_PIN,
-  "place:upstream",
-  "place:environment",
-  "place:engineering-system",
-  "place:releases",
-  "place:security",
-];
+const FIXED = [LINE_PIN, "place:environment", "place:engineering-system"];
+const SEED = ["place:upstream", "place:releases", "place:security"];
 
 beforeEach(() => localStorage.clear());
 afterEach(() => {
@@ -36,144 +31,164 @@ async function restart() {
   return (await import("./pins.js")).readPins();
 }
 
-it("seeds Line and the five places in order when nothing is stored", async () => {
+/** Stands in for storage, recording each write; `refuse` makes writes throw. */
+function watchWrites() {
+  const real = localStorage;
+  const writes: [string, string][] = [];
+  const control = { writes, refuse: false };
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => real.getItem(key),
+    setItem: (key: string, value: string) => {
+      if (control.refuse) throw new Error("quota");
+      writes.push([key, value]);
+      real.setItem(key, value);
+    },
+  });
+  return control;
+}
+
+const stored = (key = PINS_STORAGE_KEY) => JSON.parse(localStorage.getItem(key) ?? "null");
+
+it("seeds Upstream, Releases and Security when nothing is stored, and writes nothing", async () => {
   expect(SEED_PINS).toEqual(SEED);
+  expect(FIXED_PINS).toEqual(FIXED);
+  expect(readPins()).toEqual(SEED);
+  expect(await restart()).toEqual(SEED);
+  expect(localStorage.length).toBe(0);
+});
+
+it("reads a readable v3 list over v2 and the legacy key, dropping a fixed id", async () => {
+  localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(["legal", LINE_PIN, "place:releases"]));
+  localStorage.setItem(V2_PINS_STORAGE_KEY, JSON.stringify(["schema"]));
+  localStorage.setItem(LEGACY_PINS_STORAGE_KEY, JSON.stringify(["file"]));
+  expect(readPins()).toEqual(["legal", "place:releases"]);
+  expect(await restart()).toEqual(["legal", "place:releases"]);
+});
+
+it.each([
+  ["not JSON", "[legal"],
+  ["null", "null"],
+  ["not a list", '"legal"'],
+  ["a list with a non-name", '["legal", 3]'],
+  ["a list with an empty name", '["legal", ""]'],
+])("gives the seed, never v2, from a corrupt v3 entry: %s", async (_, raw) => {
+  localStorage.setItem(PINS_STORAGE_KEY, raw);
+  localStorage.setItem(V2_PINS_STORAGE_KEY, JSON.stringify(["schema"]));
   expect(readPins()).toEqual(SEED);
   expect(await restart()).toEqual(SEED);
 });
 
-it("keeps the legacy service pins after the seed, once", async () => {
-  expect(readPins()).toEqual(SEED);
+it("migrates v2 without the fixed block, keeping the other pins in order and an unpinned place unpinned", async () => {
+  const v2 = JSON.stringify([
+    "place:security",
+    LINE_PIN,
+    "legal",
+    "place:environment",
+    "place:upstream",
+    "place:engineering-system",
+  ]);
+  localStorage.setItem(V2_PINS_STORAGE_KEY, v2);
+  localStorage.setItem(LEGACY_PINS_STORAGE_KEY, JSON.stringify(["file"]));
+  const migrated = ["place:security", "legal", "place:upstream"];
+  expect(readPins()).toEqual(migrated);
+  expect(stored()).toEqual(migrated);
+  expect(localStorage.getItem(V2_PINS_STORAGE_KEY)).toBe(v2);
+  expect(await restart()).toEqual(migrated);
+});
+
+it("migrates the legacy services after the seed, once", async () => {
   localStorage.setItem(LEGACY_PINS_STORAGE_KEY, JSON.stringify(["legal", "schema", "legal"]));
   expect(readPins()).toEqual([...SEED, "legal", "schema"]);
   pin("file");
-  expect(JSON.parse(localStorage.getItem(PINS_STORAGE_KEY) ?? "null")).toEqual([
-    ...SEED,
-    "legal",
-    "schema",
-    "file",
-  ]);
   localStorage.setItem(LEGACY_PINS_STORAGE_KEY, JSON.stringify(["storage"]));
   expect(await restart()).toEqual([...SEED, "legal", "schema", "file"]);
 });
 
 it.each([
-  ["not JSON", "{"],
-  ["not a list", '{"legal":true}'],
-  ["a list with a non-name", '["legal", 3]'],
-])("drops a corrupt legacy entry (%s) and keeps the seed", (_, raw) => {
-  localStorage.setItem(LEGACY_PINS_STORAGE_KEY, raw);
+  [V2_PINS_STORAGE_KEY, "not JSON", "{"],
+  [V2_PINS_STORAGE_KEY, "not a list", '{"legal":true}'],
+  [V2_PINS_STORAGE_KEY, "a list with an empty name", '["legal", ""]'],
+  [LEGACY_PINS_STORAGE_KEY, "not JSON", "{"],
+  [LEGACY_PINS_STORAGE_KEY, "a list with a non-name", '["legal", 3]'],
+])("gives the seed from a corrupt %s entry: %s", (key, _, raw) => {
+  localStorage.setItem(key, raw);
   expect(readPins()).toEqual(SEED);
 });
 
-it("keeps Line, Environment and Engineering system in an emptied list across a restart", async () => {
-  for (const id of SEED) unpin(id);
-  expect(readPins()).toEqual(ALWAYS);
-  expect(JSON.parse(localStorage.getItem(PINS_STORAGE_KEY) ?? "null")).toEqual(ALWAYS);
-  localStorage.setItem(PINS_STORAGE_KEY, "[]");
-  localStorage.setItem(LEGACY_PINS_STORAGE_KEY, JSON.stringify(["legal"]));
-  expect(readPins()).toEqual(ALWAYS);
-  expect(await restart()).toEqual(ALWAYS);
+it("writes v3 once on migration and leaves v2 and the legacy key as they were", async () => {
+  const v2 = JSON.stringify(["legal", LINE_PIN]);
+  const legacy = JSON.stringify(["schema"]);
+  localStorage.setItem(V2_PINS_STORAGE_KEY, v2);
+  localStorage.setItem(LEGACY_PINS_STORAGE_KEY, legacy);
+  const storage = watchWrites();
+  readPins();
+  readPins();
+  expect(await restart()).toEqual(["legal"]);
+  expect(storage.writes).toEqual([[PINS_STORAGE_KEY, '["legal"]']]);
+  expect(localStorage.getItem(V2_PINS_STORAGE_KEY)).toBe(v2);
+  expect(localStorage.getItem(LEGACY_PINS_STORAGE_KEY)).toBe(legacy);
 });
 
-it("refuses to unpin Line, Environment and Engineering system, and writes nothing", async () => {
-  expect(ALWAYS_PINNED).toEqual(ALWAYS);
-  for (const id of ALWAYS) unpin(id);
-  expect(readPins()).toEqual(SEED);
-  expect(localStorage.getItem(PINS_STORAGE_KEY)).toBeNull();
-  const stored = JSON.stringify(["place:upstream", ...ALWAYS, "legal"]);
-  localStorage.setItem(PINS_STORAGE_KEY, stored);
-  for (const id of ALWAYS) unpin(id);
-  expect(localStorage.getItem(PINS_STORAGE_KEY)).toBe(stored);
-  expect(await restart()).toEqual(JSON.parse(stored));
-});
-
-it.each([
-  ["none of them", ["legal", "place:releases"], [...ALWAYS, "legal", "place:releases"]],
-  [
-    "one of them",
-    ["legal", "place:environment", "place:upstream"],
-    [LINE_PIN, "place:engineering-system", "legal", "place:environment", "place:upstream"],
-  ],
-])(
-  "puts back the always-pinned ids a stored list lacks (%s), first and in seed order",
-  async (_, stored, read) => {
-    localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(stored));
-    expect(readPins()).toEqual(read);
-    expect(await restart()).toEqual(read);
-  },
-);
-
-it("moves an always-pinned row and keeps it there across a restart", async () => {
-  movePin("place:environment", "place:security");
-  const moved = [
-    LINE_PIN,
-    "place:upstream",
-    "place:engineering-system",
-    "place:releases",
-    "place:security",
-    "place:environment",
-  ];
-  expect(readPins()).toEqual(moved);
-  expect(await restart()).toEqual(moved);
-});
-
-it("adds a pin once when it is pinned again", () => {
-  pin("legal");
-  pin("legal");
-  pin(LINE_PIN);
-  expect(JSON.parse(localStorage.getItem(PINS_STORAGE_KEY) ?? "null")).toEqual([...SEED, "legal"]);
-});
-
-it.each([
-  ["not JSON", "[line"],
-  ["not a list", '"line"'],
-  ["null", "null"],
-  ["a list with an empty name", '["sheet:line", ""]'],
-  ["a list with a non-name", '["sheet:line", null]'],
-])("falls back to the seed from a corrupt entry: %s", (_, raw) => {
-  localStorage.setItem(PINS_STORAGE_KEY, raw);
-  localStorage.setItem(LEGACY_PINS_STORAGE_KEY, JSON.stringify(["legal"]));
-  expect(readPins()).toEqual(SEED);
-});
-
-it("falls back to the seed when storage cannot be read, and holds writes for the window", () => {
+it("gives the seed when storage refuses the read, and holds writes in the window", () => {
   const denied = () => {
     throw new Error("denied");
   };
   vi.stubGlobal("localStorage", { getItem: denied, setItem: denied });
   expect(readPins()).toEqual(SEED);
   unpin("place:security");
-  expect(readPins()).toEqual(SEED.slice(0, 5));
+  pin("legal");
+  expect(readPins()).toEqual(["place:upstream", "place:releases", "legal"]);
 });
 
-it("persists an unpin, a pin again and a move across a restart", async () => {
+it("holds the migrated list when storage refuses its write, and migrates again on the next launch", async () => {
+  localStorage.setItem(V2_PINS_STORAGE_KEY, JSON.stringify([LINE_PIN, "legal"]));
+  const storage = watchWrites();
+  storage.refuse = true;
+  expect(readPins()).toEqual(["legal"]);
+  pin("schema");
+  expect(readPins()).toEqual(["legal", "schema"]);
+  expect(localStorage.getItem(PINS_STORAGE_KEY)).toBeNull();
+  storage.refuse = false;
+  expect(await restart()).toEqual(["legal"]);
+  expect(stored()).toEqual(["legal"]);
+});
+
+it("refuses to pin or unpin Line, Environment and Engineering system, and writes nothing", async () => {
+  const storage = watchWrites();
+  const tryFixed = () => {
+    for (const id of FIXED) {
+      pin(id);
+      unpin(id);
+    }
+  };
+  tryFixed();
+  expect(readPins()).toEqual(SEED);
+  expect(storage.writes).toEqual([]);
+  localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(["legal"]));
+  storage.writes.length = 0;
+  tryFixed();
+  expect(readPins()).toEqual(["legal"]);
+  expect(storage.writes).toEqual([]);
+  expect(await restart()).toEqual(["legal"]);
+});
+
+it("adds a pin once when it is pinned again", () => {
+  pin("legal");
+  pin("legal");
+  expect(stored()).toEqual([...SEED, "legal"]);
+});
+
+it("persists an unpin, a pin again and moves across a restart", async () => {
   unpin("place:releases");
   pin("legal");
   movePin("legal", "place:upstream");
-  movePin("place:security", "place:environment");
   pin("place:releases");
-  expect(await restart()).toEqual([
-    LINE_PIN,
-    "legal",
-    "place:upstream",
-    "place:security",
-    "place:environment",
-    "place:engineering-system",
-    "place:releases",
-  ]);
+  movePinBeside("place:security", "place:releases", "after");
+  expect(await restart()).toEqual(["legal", "place:upstream", "place:releases", "place:security"]);
   const pins = await import("./pins.js");
-  pins.movePin(LINE_PIN, "legal");
+  pins.movePinBeside("place:security", "legal", "before");
   pins.movePin("place:releases", "place:upstream");
-  expect(await restart()).toEqual([
-    "legal",
-    LINE_PIN,
-    "place:releases",
-    "place:upstream",
-    "place:security",
-    "place:environment",
-    "place:engineering-system",
-  ]);
+  expect(await restart()).toEqual(["place:security", "legal", "place:releases", "place:upstream"]);
 });
 
 it("names a pin for Line, the places and services, and none for Today or a month", () => {

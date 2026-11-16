@@ -9,7 +9,6 @@ import current from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import type { Route } from "../../app/routes.js";
 import {
-  isAlwaysPinned,
   LINE_PIN,
   movePin,
   PINS_STORAGE_KEY,
@@ -45,7 +44,8 @@ afterEach(async () => {
 
 const recordedBody = ViewSnapshotSchema.parse(JSON.parse(recorded));
 const currentBody = ViewSnapshotSchema.parse(JSON.parse(current));
-const PLACE_LABELS = ["Upstream", "Environment", "Engineering system", "Releases", "Security"];
+const FIXED_LABELS = ["Today", "Line", "Environment", "Engineering system"];
+const SEED_LABELS = ["Upstream", "Releases", "Security"];
 const storePins = (pins: readonly string[]) =>
   localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(pins));
 
@@ -100,15 +100,30 @@ const openMenu = (key: string) =>
       new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 8, clientY: 8 }),
     );
   });
+const menuItems = (pinId: string) =>
+  [...document.querySelectorAll(`[data-pin-menu="${pinId}"] > *`)].map((item) =>
+    item.getAttribute("role") === "separator" ? "—" : item.textContent,
+  );
+const unpinFromMenu = async (key: string, pinId: string) => {
+  await openMenu(key);
+  await act(async () => menuItem(pinId, "Unpin from sidebar")?.click());
+};
+const altKey = (key: string, arrow: "ArrowUp" | "ArrowDown") =>
+  act(async () => {
+    row(key)?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: arrow, altKey: true, bubbles: true, cancelable: true }),
+    );
+  });
+const focused = () => document.activeElement?.getAttribute("data-sidebar-row");
 
-it("lists Find or ask first, Today with its count, and one Pinned list seeded with Line and the places", async () => {
+it("leads with Find or ask, then a headerless fixed block, then Pinned seeded with Upstream, Releases and Security", async () => {
   const onLine = vi.fn();
   await render({ kind: "service", id: "legal" }, vi.fn(), recordedBody, onLine);
   const nav = container.querySelector('nav[aria-label="Sidebar"]');
   expect(nav?.querySelector("button")?.textContent).toContain("Find or ask");
-  expect(rows("Today")).toEqual(["Today"]);
-  expect(container.querySelector('ul[aria-label="Today"] .sidebar-pip')?.textContent).toBe("2");
-  expect(rows("Pinned")).toEqual(["Line", ...PLACE_LABELS]);
+  expect(rows("Program")).toEqual(FIXED_LABELS);
+  expect(row("today")?.querySelector(".sidebar-pip")?.textContent).toBe("2");
+  expect(rows("Pinned")).toEqual(SEED_LABELS);
   expect(container.querySelector('ul[aria-label="Places"]')).toBeNull();
   expect(
     [...container.querySelectorAll('[data-slot="section-header"]')].map((h) => h.textContent),
@@ -120,9 +135,23 @@ it("lists Find or ask first, Today with its count, and one Pinned list seeded wi
   await act(async () => row("line")?.click());
   expect(onLine).toHaveBeenCalledExactlyOnceWith();
   await render();
-  expect(rows("Pinned")).toEqual(PLACE_LABELS);
+  expect(rows("Program")).toEqual(["Today", "Environment", "Engineering system"]);
 });
 
+it("draws the fixed block with no grip, menu or pin control, and no row with an unpin button", async () => {
+  storePins([...SEED_PINS, "entitlements"]);
+  await render(undefined, undefined, undefined, vi.fn());
+  const fixed = container.querySelector('ul[aria-label="Program"]');
+  expect(fixed?.querySelectorAll("button")).toHaveLength(FIXED_LABELS.length);
+  expect(fixed?.querySelector(".pin-grip, [draggable]")).toBeNull();
+  for (const key of ["today", "line", "environment", "engineering-system"]) {
+    await openMenu(key);
+    expect(document.querySelector("[data-pin-menu]"), key).toBeNull();
+  }
+  expect(container.querySelector('[aria-label^="Unpin"], .pin-unpin')).toBeNull();
+  const pinned = [...container.querySelectorAll('ul[aria-label="Pinned"] > li')];
+  expect(pinned.map((item) => item.querySelectorAll("button").length)).toEqual([1, 1, 1, 1]);
+});
 it("counts the recorded Interrupt, not the P0 and P1 total", async () => {
   const { store } = await render(undefined, undefined, currentBody);
   const pip = () => row("today")?.querySelector(".sidebar-pip");
@@ -172,16 +201,10 @@ it.each(["ambient", "interrupt"] as const)(
   },
 );
 
-it("draws a service pin only while the sweep names it, in pin order, and lights the open one", async () => {
+it("draws a service pin only while the sweep names it, in pin order, lights the open one, and hides Pinned when empty", async () => {
   storePins(["gone", "schema", "place:releases", "entitlements"]);
   await render({ kind: "release", month: "2026-10" });
-  expect(rows("Pinned")).toEqual([
-    "Environment",
-    "Engineering system",
-    "schema",
-    "Releases",
-    "entitlements",
-  ]);
+  expect(rows("Pinned")).toEqual(["schema", "Releases", "entitlements"]);
   expect(row("releases")?.getAttribute("aria-current")).toBe("true");
   const { onNavigate } = await render({ kind: "service", id: "schema" });
   expect(container.querySelector('[aria-current="page"]')?.textContent).toContain("schema");
@@ -190,10 +213,11 @@ it("draws a service pin only while the sweep names it, in pin order, and lights 
   await act(async () => row("releases")?.click());
   expect(onNavigate).toHaveBeenLastCalledWith({ kind: "releases" });
   for (const id of ["schema", "place:releases", "entitlements"]) await act(async () => unpin(id));
-  expect(rows("Pinned")).toEqual(["Environment", "Engineering system"]);
-  expect(readPins()).toEqual([LINE_PIN, "place:environment", "place:engineering-system", "gone"]);
+  expect(container.querySelector('[data-group="pinned"]')).toBeNull();
+  expect(header("Pinned")).toBeUndefined();
+  expect(rows("Program")).toEqual(["Today", "Environment", "Engineering system"]);
+  expect(readPins()).toEqual(["gone"]);
 });
-
 it("words a pinned service only when its line is read and not fine, and never a place", async () => {
   const body = structuredClone(recordedBody);
   storePins(["place:environment", ...body.stations.map(({ service }) => service)]);
@@ -211,13 +235,10 @@ it("words a pinned service only when its line is read and not fine, and never a 
   expect(row("environment")?.querySelector(".sidebar-word")).toBeNull();
 });
 
-it("unpins Upstream from its row and pins it again at the end, across a reload", async () => {
+it("unpins Upstream from its menu and pins it again at the end, across a reload", async () => {
   await render(undefined, undefined, undefined, vi.fn());
-  const unpinUpstream = container.querySelector<HTMLButtonElement>(
-    'button[aria-label="Unpin Upstream"]',
-  );
-  await act(async () => unpinUpstream?.click());
-  expect(rows("Pinned")).toEqual(["Line", ...PLACE_LABELS.filter((label) => label !== "Upstream")]);
+  await unpinFromMenu("upstream", "place:upstream");
+  expect(rows("Pinned")).toEqual(["Releases", "Security"]);
   expect(readPins()).not.toContain("place:upstream");
   await act(async () => pin("place:upstream"));
   await act(async () => root.unmount());
@@ -242,123 +263,85 @@ it("unpins Upstream from its row and pins it again at the end, across a reload",
       </ui.SidebarProvider>,
     ),
   );
-  expect(rows("Pinned")).toEqual([
-    "Line",
-    ...PLACE_LABELS.filter((label) => label !== "Upstream"),
-    "Upstream",
-  ]);
+  expect(rows("Program")).toEqual(FIXED_LABELS);
+  expect(rows("Pinned")).toEqual(["Releases", "Security", "Upstream"]);
 });
-
-it("keeps Line, Environment and Engineering system with Open and moves but no unpin; the others unpin", async () => {
+it("offers Open, Move up, Move down and Unpin from sidebar on each Pinned row, and Unpin removes it", async () => {
   storePins([...SEED_PINS, "entitlements"]);
-  await render(undefined, undefined, undefined, vi.fn());
-  const items = (pinId: string) =>
-    [...document.querySelectorAll(`[data-pin-menu="${pinId}"] [role="menuitem"]`)].map(
-      (item) => item.textContent,
-    );
-  const unpinButton = (label: string) =>
-    container.querySelector<HTMLButtonElement>(`button[aria-label="Unpin ${label}"]`);
-  for (const [key, pinId, label] of [
-    ["line", LINE_PIN, "Line"],
-    ["environment", "place:environment", "Environment"],
-    ["engineering-system", "place:engineering-system", "Engineering system"],
-    ["upstream", "place:upstream", "Upstream"],
-    ["releases", "place:releases", "Releases"],
-    ["security", "place:security", "Security"],
-    ["service/entitlements", "entitlements", "entitlements"],
+  const { onNavigate } = await render(undefined, undefined, undefined, vi.fn());
+  for (const [key, pinId] of [
+    ["upstream", "place:upstream"],
+    ["releases", "place:releases"],
+    ["security", "place:security"],
+    ["service/entitlements", "entitlements"],
   ] as const) {
-    const fixed = isAlwaysPinned(pinId);
-    expect(unpinButton(label) === null, label).toBe(fixed);
     await openMenu(key);
-    expect(items(pinId)).toEqual(["Open", "Move up", "Move down", ...(fixed ? [] : ["Unpin"])]);
+    expect(menuItems(pinId)).toEqual(["Open", "Move up", "Move down", "—", "Unpin from sidebar"]);
     await act(async () => menuItem(pinId, "Open")?.click());
   }
-  await act(async () => unpinButton("Upstream")?.click());
-  await openMenu("service/entitlements");
-  await act(async () => menuItem("entitlements", "Unpin")?.click());
-  await act(async () => unpinButton("Security")?.click());
-  await openMenu("releases");
-  await act(async () => menuItem("place:releases", "Unpin")?.click());
-  expect(rows("Pinned")).toEqual(["Line", "Environment", "Engineering system"]);
+  expect(onNavigate).toHaveBeenLastCalledWith({ kind: "service", id: "entitlements" });
+  await unpinFromMenu("releases", "place:releases");
+  expect(rows("Pinned")).toEqual(["Upstream", "Security", "entitlements"]);
+  expect(readPins()).toEqual(["place:upstream", "place:security", "entitlements"]);
 });
 
-it("moves a pin up and down from its context menu, past a pin the sweep does not name", async () => {
-  storePins([
-    "place:environment",
-    "place:engineering-system",
-    LINE_PIN,
-    "gone",
-    "place:upstream",
-    "place:security",
-  ]);
-  const onLine = vi.fn();
-  await render(undefined, undefined, undefined, onLine);
-  await openMenu("environment");
-  expect(menuItem("place:environment", "Move up")?.hasAttribute("data-disabled")).toBe(true);
-  await act(async () => menuItem("place:environment", "Open")?.click());
-  await openMenu("line");
-  await act(async () => menuItem(LINE_PIN, "Move down")?.click());
-  expect(rows("Pinned")).toEqual([
-    "Environment",
-    "Engineering system",
-    "Upstream",
-    "Line",
-    "Security",
-  ]);
-  await openMenu("security");
-  await act(async () => menuItem("place:security", "Move up")?.click());
-  expect(rows("Pinned")).toEqual([
-    "Environment",
-    "Engineering system",
-    "Upstream",
-    "Security",
-    "Line",
-  ]);
-  expect(readPins()).toEqual([
-    "place:environment",
-    "place:engineering-system",
-    "gone",
-    "place:upstream",
-    "place:security",
-    LINE_PIN,
-  ]);
-  await openMenu("line");
-  expect(menuItem(LINE_PIN, "Move down")?.hasAttribute("data-disabled")).toBe(true);
-  await act(async () => menuItem(LINE_PIN, "Open")?.click());
-  expect(onLine).toHaveBeenCalledOnce();
-  await openMenu("security");
-  await act(async () => menuItem("place:security", "Unpin")?.click());
-  expect(rows("Pinned")).toEqual(["Environment", "Engineering system", "Upstream", "Line"]);
-});
-
-it("reorders by dragging one pin onto another", async () => {
-  storePins([LINE_PIN, "place:upstream", "place:security"]);
+it("moves a pin from its menu and with Alt+Up and Alt+Down, past a pin the sweep does not name, and keeps the order", async () => {
+  storePins(["place:security", "gone", "place:upstream", "place:releases"]);
   await render(undefined, undefined, undefined, vi.fn());
-  const item = (id: string) => container.querySelector<HTMLElement>(`li[data-pin="${id}"]`);
-  const drag = (id: string, type: string) =>
-    act(async () => {
-      item(id)?.dispatchEvent(new Event(type, { bubbles: true, cancelable: true }));
-    });
-  expect(item("place:security")?.getAttribute("draggable")).toBe("true");
-  await drag("place:security", "dragstart");
-  await drag(LINE_PIN, "dragover");
-  await drag(LINE_PIN, "drop");
-  expect(readPins()).toEqual([
-    "place:environment",
-    "place:engineering-system",
-    "place:security",
-    LINE_PIN,
-    "place:upstream",
-  ]);
-  expect(rows("Pinned")).toEqual([
-    "Environment",
-    "Engineering system",
-    "Security",
-    "Line",
-    "Upstream",
-  ]);
+  await openMenu("security");
+  expect(menuItem("place:security", "Move up")?.hasAttribute("data-disabled")).toBe(true);
+  await act(async () => menuItem("place:security", "Move down")?.click());
+  expect(rows("Pinned")).toEqual(["Upstream", "Security", "Releases"]);
+  await openMenu("releases");
+  expect(menuItem("place:releases", "Move down")?.hasAttribute("data-disabled")).toBe(true);
+  await act(async () => menuItem("place:releases", "Move up")?.click());
+  expect(rows("Pinned")).toEqual(["Upstream", "Releases", "Security"]);
+  await altKey("upstream", "ArrowDown");
+  expect(rows("Pinned")).toEqual(["Releases", "Upstream", "Security"]);
+  expect(focused()).toBe("upstream");
+  await altKey("security", "ArrowUp");
+  expect(rows("Pinned")).toEqual(["Releases", "Security", "Upstream"]);
+  expect(focused()).toBe("security");
+  await altKey("releases", "ArrowUp");
+  expect(readPins()).toEqual(["gone", "place:releases", "place:security", "place:upstream"]);
+  vi.resetModules();
+  expect((await import("../../store/pins.js")).readPins()).toEqual(readPins());
 });
 
+it("moves focus after Unpin to the next Pinned row, else the previous, else the fixed block's last row", async () => {
+  await render(undefined, undefined, undefined, vi.fn());
+  await unpinFromMenu("upstream", "place:upstream");
+  expect(focused()).toBe("releases");
+  await unpinFromMenu("security", "place:security");
+  expect(focused()).toBe("releases");
+  await unpinFromMenu("releases", "place:releases");
+  expect(header("Pinned")).toBeUndefined();
+  expect(focused()).toBe("engineering-system");
+});
+
+it("reorders by dragging within Pinned, and a drop on the fixed block or outside the list changes nothing", async () => {
+  await render(undefined, undefined, undefined, vi.fn());
+  const pinItem = (id: string) => container.querySelector<HTMLElement>(`li[data-pin="${id}"]`);
+  const drag = (target: Element | null | undefined, type: string, clientY = 0) =>
+    act(async () => {
+      const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientY });
+      target?.dispatchEvent(event);
+    });
+  expect(pinItem("place:security")?.getAttribute("draggable")).toBe("true");
+  await drag(pinItem("place:security"), "dragstart");
+  for (const target of [row("engineering-system")?.closest("li"), container, document.body]) {
+    await drag(target, "dragover");
+    await drag(target, "drop");
+  }
+  await drag(pinItem("place:security"), "dragend");
+  expect(readPins()).toEqual(SEED_PINS);
+  await drag(pinItem("place:security"), "dragstart");
+  await drag(pinItem("place:upstream"), "dragover", -1);
+  expect(pinItem("place:upstream")?.getAttribute("data-drop")).toBe("before");
+  await drag(pinItem("place:upstream"), "drop");
+  expect(readPins()).toEqual(["place:security", "place:upstream", "place:releases"]);
+  expect(rows("Pinned")).toEqual(["Security", "Upstream", "Releases"]);
+});
 it("ends with a gear that opens Settings, and no sweep time", async () => {
   const onSettings = vi.fn();
   await render(undefined, undefined, undefined, undefined, onSettings);
@@ -440,28 +423,20 @@ async function nov6Evening(run: () => Promise<void>) {
   }
 }
 
-it("draws each status mark on its own pin wherever that pin sits, and nowhere else", () =>
+it("draws each status mark on its own row, the fixed block's and a Pinned place's wherever it sits, and nowhere else", () =>
   nov6Evening(async () => {
-    storePins([
-      "place:releases",
-      "place:engineering-system",
-      "entitlements",
-      "place:environment",
-      "place:security",
-      LINE_PIN,
-      "place:upstream",
-    ]);
+    storePins(["place:releases", "entitlements", "place:security", "place:upstream"]);
     await render(undefined, undefined, currentBody, vi.fn());
     expect(marks()).toEqual([
-      ["engineering-system", "count", "warning", "13"],
-      ["environment", "check", "success", ""],
       ["line", "count", "error", "1"],
+      ["environment", "check", "success", ""],
+      ["engineering-system", "count", "warning", "13"],
       ["upstream", "clock", "sync", ""],
     ]);
-    await act(async () => movePin(LINE_PIN, "place:releases"));
-    expect(marks()[0]).toEqual(["line", "count", "error", "1"]);
+    await act(async () => movePin("place:upstream", "place:releases"));
+    expect(marks()[3]).toEqual(["upstream", "clock", "sync", ""]);
+    expect(rows("Pinned")[0]).toBe("Upstream");
   }));
-
 it("draws an unpinned status pin's mark nowhere", () =>
   nov6Evening(async () => {
     await render(undefined, undefined, currentBody, vi.fn());
@@ -515,18 +490,40 @@ it("keeps Cmd+L on the Line row", async () => {
   expect(row("line")?.getAttribute("aria-keyshortcuts")).toMatch(/^(Meta|Control)\+L$/);
 });
 
-it("dots a collapsed Pinned header for its own rows only, and only while collapsed", () =>
-  nov6Evening(async () => {
-    await render(undefined, undefined, currentBody, vi.fn());
-    const dot = () => header("Pinned")?.querySelector(".sidebar-status-dot");
-    expect(dot()).toBeNull();
-    await act(async () => header("Pinned")?.click());
-    expect(dot()?.getAttribute("data-tone")).toBe("error");
-    await render(undefined, undefined, currentBody);
-    expect(row("today")?.querySelector(".sidebar-pip")?.textContent).toBe("1");
-    expect(dot()?.getAttribute("data-tone")).toBe("warning");
-    await render(undefined, undefined, currentBody, vi.fn());
-    expect(dot()?.getAttribute("data-tone")).toBe("error");
-    await act(async () => header("Pinned")?.click());
-    expect(dot()).toBeNull();
-  }));
+it("dots a collapsed Pinned header error for a stopped service, warning for a waiting one, and none for its fixed neighbours", async () => {
+  const body = structuredClone(recordedBody);
+  const entitlements = body.stations.find(({ service }) => service === "entitlements");
+  const legal = body.stations.find(({ service }) => service === "legal");
+  if (!entitlements || !legal) throw new Error("Recorded stations required");
+  for (const station of [...entitlements.stations, ...legal.stations]) {
+    station.state = "idle";
+    station.substate = "ready";
+  }
+  const stop = entitlements.stations[1];
+  if (!stop) throw new Error("Recorded station required");
+  stop.substate = "stopped";
+  storePins(["place:releases", "legal"]);
+  const { store } = await render(undefined, undefined, body, vi.fn());
+  const dot = () => header("Pinned")?.querySelector(".sidebar-status-dot");
+  const swap = (next: typeof body) =>
+    act(async () => store.setState({ snapshot: { cursor: next.cursor, body: next } }));
+  expect(dot()).toBeNull();
+  await act(async () => header("Pinned")?.click());
+  expect(dot()).toBeNull();
+  const waiting = structuredClone(body);
+  const sync = waiting.stations.find(({ service }) => service === "legal")?.stations[1];
+  if (!sync) throw new Error("Recorded station required");
+  sync.substate = "waiting-on-person";
+  await swap(waiting);
+  expect(dot()?.getAttribute("data-tone")).toBe("warning");
+  await act(async () => pin("entitlements"));
+  expect(dot()?.getAttribute("data-tone")).toBe("error");
+  const unread = structuredClone(waiting);
+  for (const row of unread.stations)
+    if (row.service === "entitlements" || row.service === "legal")
+      for (const station of row.stations) station.state = "unknown";
+  await swap(unread);
+  expect(dot()).toBeNull();
+  await act(async () => header("Pinned")?.click());
+  expect(dot()).toBeNull();
+});

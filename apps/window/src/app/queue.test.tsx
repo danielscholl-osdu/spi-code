@@ -72,7 +72,7 @@ it("keeps Today's distinct Interrupt count after acknowledgement, until resoluti
   vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
   watchStore.setState({ snapshot: { cursor: fixture.cursor, body: fixture } });
   await act(async () => root.render(<Shell />));
-  const pip = () => container.querySelector('ul[aria-label="Today"] .sidebar-pip');
+  const pip = () => container.querySelector('[data-sidebar-row="today"] .sidebar-pip');
   const interrupts = new Set(
     [...fixture.briefing.focus, ...fixture.briefing.rest]
       .filter(({ attention }) => attention === "interrupt")

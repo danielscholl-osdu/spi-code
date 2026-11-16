@@ -289,11 +289,10 @@ it("lists only registered places in the sidebar and Find, and falls back from th
     [...(nav?.querySelectorAll(`ul[aria-label="${group}"] .sidebar-row-label`) ?? [])].map(
       (row) => row.textContent,
     );
-  expect(rows("Today")).toEqual(["Today"]);
+  expect(rows("Program")).toEqual(["Today", "Engineering system"]);
   expect(rows("Inbox")).toEqual([]);
   expect(rows("Places")).toEqual([]);
   expect(rows("Pinned")).toEqual([
-    "Engineering system",
     "Releases",
     "partition",
     "entitlements",

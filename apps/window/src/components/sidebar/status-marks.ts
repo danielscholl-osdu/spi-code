@@ -127,7 +127,7 @@ export const STATUS_DOT_LABEL: Readonly<Record<StatusDot, string>> = {
 /** One dot for what a hidden list holds: error over warning, and none when nothing is marked. */
 export function statusDot(
   interrupts: number,
-  marks: Iterable<StatusMark | undefined>,
+  marks: Iterable<{ readonly tone: StatusMark["tone"] } | undefined>,
 ): StatusDot | undefined {
   const tones = new Set([...marks].map((mark) => mark?.tone));
   if (interrupts > 0 || tones.has("error")) return "error";

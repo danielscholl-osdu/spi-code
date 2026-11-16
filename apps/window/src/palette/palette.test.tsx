@@ -9,7 +9,7 @@ import { readFixture } from "../../../../scripts/watch-generated.mjs";
 import { PLACES, routeLabel } from "../app/navigation.js";
 import { Shell } from "../app/Shell.js";
 import { selectionStore } from "../panels/selection.js";
-import { LINE_PIN, PINS_STORAGE_KEY, readPins } from "../store/pins.js";
+import { PINS_STORAGE_KEY, readPins } from "../store/pins.js";
 import { watchStore } from "../store/watch.js";
 import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import { buildPaletteGroups, filterPaletteGroups } from "./palette.logic.js";
@@ -57,7 +57,6 @@ const rows = (group: string) =>
   );
 const highlighted = () => palette()?.querySelector("[data-highlighted]")?.textContent;
 const serviceIds = ["partition", "entitlements", "legal", "schema", "file"];
-const ALWAYS = [LINE_PIN, "place:environment", "place:engineering-system"];
 const serviceAttention = (id: string) => {
   const row = [...(palette()?.querySelectorAll('[data-group="services"] .palette-row') ?? [])].find(
     (element) => element.querySelector(".palette-label")?.textContent === id,
@@ -296,14 +295,14 @@ it("opens a service result and pins it on Ctrl+Enter, and keeps it pinned when p
   await key("Enter", { ctrlKey: true });
   expect(palettes()).toHaveLength(0);
   expect(window.location.hash).toBe("#service/legal");
-  expect(readPins()).toEqual([...ALWAYS, "legal"]);
+  expect(readPins()).toEqual(["legal"]);
   expect(container.querySelector('[data-sidebar-row="service/legal"]')).not.toBeNull();
 
   await shortcut({ ctrlKey: true });
   await type("Today");
   await key("Enter", { ctrlKey: true });
   expect(window.location.hash).toBe("#today");
-  expect(readPins()).toEqual([...ALWAYS, "legal"]);
+  expect(readPins()).toEqual(["legal"]);
 
   await shortcut({ ctrlKey: true });
   await type("legal");
@@ -311,7 +310,7 @@ it("opens a service result and pins it on Ctrl+Enter, and keeps it pinned when p
   await key("Enter", { ctrlKey: true });
   expect(palettes()).toHaveLength(0);
   expect(window.location.hash).toBe("#service/legal");
-  expect(readPins()).toEqual([...ALWAYS, "legal"]);
+  expect(readPins()).toEqual(["legal"]);
   expect(container.querySelector('[data-sidebar-row="service/legal"]')).not.toBeNull();
 
   vi.spyOn(navigator, "userAgent", "get").mockReturnValue(
@@ -321,14 +320,14 @@ it("opens a service result and pins it on Ctrl+Enter, and keeps it pinned when p
   await type("schema");
   expect(hint()).toContain("⌘↩ open and pin");
   await key("Enter", { ctrlKey: true });
-  expect(readPins()).toEqual([...ALWAYS, "legal"]);
+  expect(readPins()).toEqual(["legal"]);
   expect(palettes()).toHaveLength(1);
   await key("Enter", { metaKey: true });
   expect(window.location.hash).toBe("#service/schema");
-  expect(readPins()).toEqual([...ALWAYS, "legal", "schema"]);
+  expect(readPins()).toEqual(["legal", "schema"]);
 });
 
-it("opens Line and each place and pins it on Ctrl+Enter, in the order pinned", async () => {
+it("opens Line and each place on Ctrl+Enter, pinning only those outside the fixed block, in the order pinned", async () => {
   localStorage.setItem(PINS_STORAGE_KEY, "[]");
   const pinned = () =>
     [...container.querySelectorAll('ul[aria-label="Pinned"] .sidebar-row-label')].map(
@@ -344,22 +343,9 @@ it("opens Line and each place and pins it on Ctrl+Enter, in the order pinned", a
       expect(container.querySelector("#app-line-sheet h1")?.textContent).toBe("Line");
     else expect(container.querySelector("main h1")?.textContent).toBe(name);
   }
-  expect(readPins()).toEqual([
-    LINE_PIN,
-    "place:environment",
-    "place:engineering-system",
-    "place:releases",
-    "place:upstream",
-    "place:security",
-  ]);
-  expect(pinned()).toEqual([
-    "Line",
-    "Environment",
-    "Engineering system",
-    "Releases",
-    "Upstream",
-    "Security",
-  ]);
+  expect(readPins()).toEqual(["place:releases", "place:upstream", "place:security"]);
+  expect(JSON.parse(localStorage.getItem(PINS_STORAGE_KEY) ?? "null")).toEqual(readPins());
+  expect(pinned()).toEqual(["Releases", "Upstream", "Security"]);
 });
 
 const option = (text: string) =>
@@ -404,8 +390,7 @@ it("pins and unpins a result in place from its pin control, leaving Find as it w
   expect(window.location.hash).toBe("#releases");
 });
 
-it("does nothing on an always-pinned result's control, and draws none on Queue results", async () => {
-  const before = readPins();
+it("draws no pin control on Line, Environment or Engineering system, and none on Queue results", async () => {
   await shortcut({ ctrlKey: true });
   for (const [query, text, name] of [
     ["Line", "Linepage", "Line"],
@@ -413,13 +398,11 @@ it("does nothing on an always-pinned result's control, and draws none on Queue r
     ["Engineering", "Engineering systempage", "Engineering system"],
   ] as const) {
     await type(query);
-    expect(option(text)?.getAttribute("aria-label")).toBe(`${name}, page, always pinned`);
-    await act(async () => pinControl(text)?.click());
-    expect(readPins()).toEqual(before);
-    expect(palettes()).toHaveLength(1);
-    expect(input()?.value).toBe(query);
-    expect(window.location.hash).toBe("");
+    expect(option(text)?.getAttribute("aria-label")).toBe(`${name}, page, always in the sidebar`);
+    expect(pinControl(text)).toBeNull();
   }
+  await type("Releases");
+  expect(pinControl("Releasespage")).not.toBeNull();
   await type("schemathesis");
   const queue = palette()?.querySelector<HTMLElement>('[data-group="queue"] .palette-row');
   expect(queue).toBeTruthy();

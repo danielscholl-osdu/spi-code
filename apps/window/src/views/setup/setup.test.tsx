@@ -1095,9 +1095,9 @@ it("opens Settings on Readiness when the first host state is not ready and gates
   ].filter((button) => !["line", "settings"].includes(button.dataset.sidebarRow ?? ""));
   expect(watchRoutes.map((button) => button.textContent)).toEqual([
     "Today",
-    "Upstream",
     "Environment",
     "Engineering system",
+    "Upstream",
     "Releases",
     "Security",
   ]);

@@ -12,12 +12,12 @@
 .app-sidebar [data-slot="sidebar-group"] { display: flex; flex-direction: column; }
 .app-sidebar [data-slot="sidebar-menu-button"] { display: flex; align-items: center; gap: 9px; width: 100%; height: 30px; box-sizing: border-box; padding: 0 8px; border: 0; border-radius: 7px; background: transparent; color: var(--text); font: inherit; font-size: 13px; text-align: left; cursor: default; }
 .app-sidebar [data-slot="sidebar-menu-button"][data-before-sweep] { color: var(--text-muted); }
-.app-sidebar [data-slot="sidebar-menu-button"]:hover { background: var(--hover); }
+.app-sidebar [data-slot="sidebar-menu-button"]:is(:hover, :focus-visible) { background: var(--hover); }
 .app-sidebar [data-slot="sidebar-menu-button"][data-active="true"] { background: var(--active); box-shadow: var(--active-shadow); color: var(--text-strong); font-weight: 500; }
 .app-sidebar [data-slot="sidebar-header"] ul { margin: 0 -2px; }
 .sidebar-icon { flex: none; color: var(--text-muted); }
 .sidebar-row-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sidebar-word { flex: none; font-size: 11.5px; font-weight: 500; color: var(--text-muted); }
+.sidebar-word { flex: none; margin: 0 -4px; padding: 0 4px; border-radius: 4px; font-size: 11.5px; font-weight: 500; color: var(--text-muted); }
 .sidebar-word[data-tone="bad"] { color: var(--error-text); }
 .sidebar-word[data-tone="warn"] { color: var(--warning-text); }
 .find-or-ask { display: flex; align-items: center; gap: 8px; width: 100%; height: 34px; box-sizing: border-box; padding: 0 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text-muted); font: inherit; font-size: 13px; text-align: left; cursor: default; }
@@ -30,13 +30,11 @@
 .section-header:hover { color: var(--text); }
 .section-header-chevron { width: 5px; height: 5px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); transition: transform .12s ease-out; }
 .pin-item { position: relative; }
-.pin-item[data-drop-over] { box-shadow: inset 0 2px 0 var(--accent); border-radius: 2px; }
-.pin-grip { display: none; position: absolute; left: -2px; top: 9px; color: var(--placeholder); }
-.pin-item:hover .pin-grip { display: flex; }
-.pin-unpin { display: none; position: absolute; right: 4px; top: 4px; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--text-muted); place-items: center; }
-.pin-item:hover .pin-unpin, .pin-unpin:focus-visible { display: grid; }
-.pin-item:hover:has(.pin-unpin) :is(.sidebar-word, .sidebar-mark) { visibility: hidden; }
-.pin-unpin:hover { background: var(--surface); color: var(--text); }
+.pin-item[data-drop="before"] { box-shadow: 0 -1px 0 0 var(--accent), inset 0 1px 0 var(--accent); border-radius: 2px; }
+.pin-item[data-drop="after"] { box-shadow: 0 1px 0 0 var(--accent), inset 0 -1px 0 var(--accent); border-radius: 2px; }
+.pin-grip { display: none; position: absolute; left: -2px; top: 9px; color: var(--placeholder); pointer-events: none; }
+.pin-item:is(:hover, :has(:focus-visible)) .pin-grip { display: flex; }
+.sidebar-menu-separator { height: 1px; margin: 4px 2px; background: var(--border-soft); }
 .app-sidebar [data-slot="sidebar-footer"] { flex: none; display: flex; align-items: center; gap: 2px; height: 44px; box-sizing: border-box; padding: 0 10px; border-top: 1px solid var(--border-soft); }
 .sidebar-settings { position: relative; flex: none; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: default; }
 .sidebar-settings:hover { background: var(--hover); color: var(--text); }
@@ -50,7 +48,7 @@
 .sidebar-mark[data-mark="count"] { min-width: 17px; height: 17px; box-sizing: border-box; padding: 0 4px; border: 1.75px solid; border-radius: 9px; font-size: 10.5px; font-weight: 650; line-height: 1; font-variant-numeric: tabular-nums; }
 .sidebar-mark[data-mark="count"][data-tone="error"] { border-color: var(--error); color: var(--error-text); }
 .sidebar-mark[data-mark="count"][data-tone="warning"] { border-color: var(--warning); color: var(--warning-text); }
-.app-sidebar [data-slot="sidebar-menu-button"]:hover:not([data-active="true"]) .sidebar-mark[data-mark="count"] { background: var(--sidebar); }
+.app-sidebar [data-slot="sidebar-menu-button"]:is(:hover, :focus-visible):not([data-active="true"]) :is(.sidebar-mark[data-mark="count"], .sidebar-word[data-tone]) { background: var(--sidebar); }
 .sidebar-mark[data-mark="check"] { color: var(--success-text); }
 .sidebar-mark[data-mark="wrench"] { color: var(--warning-text); }
 .sidebar-mark[data-mark="refresh"] { color: var(--work); }

@@ -22,18 +22,19 @@
 // SOFTWARE.
 
 import { ContextMenu } from "@base-ui/react/context-menu";
-import { type DragEvent, type KeyboardEvent, useId, useState } from "react";
+import { type KeyboardEvent, type Ref, useEffect, useId, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { treeServices } from "../../app/queue.js";
 import { isReachable, type Route, routeLabel, useRegistry } from "../../app/routes.js";
 import { ariaShortcut, shortcutLabel } from "../../app/shortcuts.js";
 import { READINESS_DOT_LABEL, readinessDot } from "../../settings/readiness.js";
 import {
-  isAlwaysPinned,
   LINE_PIN,
   movePin,
+  movePinBeside,
   type PinnedPlace,
   pinnedPlace,
+  placePin,
   unpin,
   usePins,
 } from "../../store/pins.js";
@@ -89,7 +90,7 @@ const PLACE_ICONS: Readonly<Record<PinnedPlace, IconName>> = {
   security: "shield",
 };
 
-type PinRow = {
+type Row = {
   pin: string;
   /** `line`, a place's route kind, or `service/<id>`. */
   key: string;
@@ -100,6 +101,12 @@ type PinRow = {
   status?: StatusRow | undefined;
   shortcut?: string;
   open(): void;
+};
+
+/** A collapsed Pinned header reads a service's word as a mark in its tone. */
+const WORD_TONE: Readonly<Record<PinWord["tone"], StatusMark["tone"]>> = {
+  bad: "error",
+  warn: "warning",
 };
 
 const MARK_ICONS: Readonly<Record<Exclude<StatusMark["kind"], "count">, IconName>> = {
@@ -128,8 +135,8 @@ export function StatusDotMark({ dot, className }: { dot: StatusDot; className: s
   );
 }
 
-function openMenuFromKeyboard(event: KeyboardEvent<HTMLElement>) {
-  if (!isContextMenuKey(event)) return;
+function openMenuFromKeyboard(event: KeyboardEvent<HTMLElement>): boolean {
+  if (!isContextMenuKey(event)) return false;
   event.preventDefault();
   const box = event.currentTarget.getBoundingClientRect();
   event.currentTarget.dispatchEvent(
@@ -140,6 +147,58 @@ function openMenuFromKeyboard(event: KeyboardEvent<HTMLElement>) {
       clientY: box.bottom,
     }),
   );
+  return true;
+}
+
+/** Icon, label and status at the end; nothing on the row hides, moves or swaps. */
+function RowContent({ row }: { row: Row }) {
+  return (
+    <>
+      <Icon name={row.icon} className="sidebar-icon" />
+      <span className="sidebar-row-label">{row.label}</span>
+      {row.word && (
+        <span className="sidebar-word" data-tone={row.word.tone}>
+          {row.word.text}
+        </span>
+      )}
+      {row.status?.mark && <Mark mark={row.status.mark} />}
+    </>
+  );
+}
+
+function rowButtonProps(row: Row, ariaCurrent: "page" | "true" | undefined) {
+  return {
+    isActive: ariaCurrent !== undefined,
+    "data-sidebar-row": row.key,
+    "data-before-sweep": row.beforeSweep ? "" : undefined,
+    "data-status": row.status?.status,
+    "data-classification": row.status?.classification,
+    "data-services": row.status?.services,
+    title: row.status?.sentence,
+    "aria-description": row.status?.sentence,
+    "aria-keyshortcuts": row.shortcut,
+    "aria-current": ariaCurrent,
+    onClick: row.open,
+  };
+}
+
+/** A row of the fixed block: no grip, no pin control and no menu. */
+function FixedItem({
+  row,
+  ariaCurrent,
+  buttonRef,
+}: {
+  row: Row;
+  ariaCurrent: "page" | "true" | undefined;
+  buttonRef: Ref<HTMLButtonElement> | undefined;
+}) {
+  return (
+    <SidebarMenuItem data-fixed={row.pin}>
+      <SidebarMenuButton ref={buttonRef} {...rowButtonProps(row, ariaCurrent)}>
+        <RowContent row={row} />
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
 }
 
 function PinItem({
@@ -148,28 +207,32 @@ function PinItem({
   prev,
   next,
   dragging,
+  buttonRef,
   onDrag,
+  onMoved,
+  onUnpinned,
 }: {
-  row: PinRow;
+  row: Row;
   ariaCurrent: "page" | "true" | undefined;
   prev: string | undefined;
   next: string | undefined;
   dragging: string | null;
+  buttonRef: Ref<HTMLButtonElement>;
   onDrag(pin: string | null): void;
+  onMoved(): void;
+  onUnpinned(): void;
 }) {
-  const [over, setOver] = useState(false);
-  const fixed = isAlwaysPinned(row.pin);
-  const drop = (event: DragEvent) => {
-    event.preventDefault();
-    setOver(false);
-    if (dragging) movePin(dragging, row.pin);
-    onDrag(null);
+  const [over, setOver] = useState<"before" | "after" | null>(null);
+  const move = (target: string | undefined) => {
+    if (!target) return;
+    movePin(row.pin, target);
+    onMoved();
   };
   return (
     <SidebarMenuItem
       className="pin-item"
       data-pin={row.pin}
-      data-drop-over={over || undefined}
+      data-drop={over ?? undefined}
       draggable
       onDragStart={(event) => {
         if (event.dataTransfer) {
@@ -182,41 +245,37 @@ function PinItem({
       onDragOver={(event) => {
         if (!dragging || dragging === row.pin) return;
         event.preventDefault();
-        setOver(true);
+        const box = event.currentTarget.getBoundingClientRect();
+        setOver(event.clientY < box.top + box.height / 2 ? "before" : "after");
       }}
-      onDragLeave={() => setOver(false)}
-      onDrop={drop}
+      onDragLeave={() => setOver(null)}
+      onDrop={(event) => {
+        event.preventDefault();
+        if (dragging && over) movePinBeside(dragging, row.pin, over);
+        setOver(null);
+        onDrag(null);
+      }}
     >
       <ContextMenu.Root>
         <ContextMenu.Trigger
           render={
             <SidebarMenuButton
-              isActive={ariaCurrent !== undefined}
-              data-sidebar-row={row.key}
-              data-before-sweep={row.beforeSweep ? "" : undefined}
-              data-status={row.status?.status}
-              data-classification={row.status?.classification}
-              data-services={row.status?.services}
-              title={row.status?.sentence}
-              aria-description={row.status?.sentence}
-              aria-keyshortcuts={row.shortcut}
-              aria-current={ariaCurrent}
-              onClick={row.open}
-              onKeyDown={openMenuFromKeyboard}
+              ref={buttonRef}
+              {...rowButtonProps(row, ariaCurrent)}
+              onKeyDown={(event) => {
+                if (openMenuFromKeyboard(event)) return;
+                if (!event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) return;
+                if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+                event.preventDefault();
+                move(event.key === "ArrowUp" ? prev : next);
+              }}
             />
           }
         >
           <span className="pin-grip" aria-hidden>
             <Icon name="grip" size={12} stroke={2.5} />
           </span>
-          <Icon name={row.icon} className="sidebar-icon" />
-          <span className="sidebar-row-label">{row.label}</span>
-          {row.word && (
-            <span className="sidebar-word" data-tone={row.word.tone}>
-              {row.word.text}
-            </span>
-          )}
-          {row.status?.mark && <Mark mark={row.status.mark} />}
+          <RowContent row={row} />
         </ContextMenu.Trigger>
         <ContextMenu.Portal>
           <ContextMenu.Positioner>
@@ -227,44 +286,38 @@ function PinItem({
               <ContextMenu.Item
                 className="pin-menu-item"
                 disabled={!prev}
-                onClick={() => prev && movePin(row.pin, prev)}
+                onClick={() => move(prev)}
               >
                 Move up
               </ContextMenu.Item>
               <ContextMenu.Item
                 className="pin-menu-item"
                 disabled={!next}
-                onClick={() => next && movePin(row.pin, next)}
+                onClick={() => move(next)}
               >
                 Move down
               </ContextMenu.Item>
-              {!fixed && (
-                <ContextMenu.Item className="pin-menu-item" onClick={() => unpin(row.pin)}>
-                  Unpin
-                </ContextMenu.Item>
-              )}
+              <ContextMenu.Separator className="sidebar-menu-separator" />
+              <ContextMenu.Item
+                className="pin-menu-item"
+                onClick={() => {
+                  unpin(row.pin);
+                  onUnpinned();
+                }}
+              >
+                Unpin from sidebar
+              </ContextMenu.Item>
             </ContextMenu.Popup>
           </ContextMenu.Positioner>
         </ContextMenu.Portal>
       </ContextMenu.Root>
-      {!fixed && (
-        <button
-          type="button"
-          className="pin-unpin"
-          aria-label={`Unpin ${row.label}`}
-          title={`Unpin ${row.label}`}
-          onClick={() => unpin(row.pin)}
-        >
-          <Icon name="pinOff" size={13} />
-        </button>
-      )}
     </SidebarMenuItem>
   );
 }
 
 /**
- * The sidebar (PS-08): Find or ask, Today with its count, one Pinned list in the operator's order,
- * and a footer gear that opens Settings, with a dot only when Readiness needs the operator. The
+ * The sidebar (PS-08): Find or ask; Today with its count, Line, Environment and Engineering system
+ * as one fixed block; one Pinned list in the operator's order; and a footer gear that opens Settings, with a dot only when Readiness needs the operator. The
  * Settled shelf waits for threads (M3).
  */
 export function ProgramSidebar({
@@ -279,7 +332,7 @@ export function ProgramSidebar({
   route: Route;
   onNavigate(route: Route): void;
   onFind?(): void;
-  /** Opens the Line sheet; without it the Line pin has no row. */
+  /** Opens the Line sheet; without it the fixed block has no Line row. */
   onLine?(): void;
   /** Opens Settings on Readiness; without it the sidebar has no footer. */
   onSettings?(): void;
@@ -298,6 +351,17 @@ export function ProgramSidebar({
   const registry = useRegistry();
   const services = treeServices(tree);
   const [dragging, setDragging] = useState<string | null>(null);
+  const rowRefs = useRef(new Map<string, HTMLButtonElement>());
+  const pinnedHeader = useRef<HTMLButtonElement>(null);
+  const fixedEnd = useRef<HTMLButtonElement>(null);
+  /** The Pinned row to focus after the list changes; the header, then the fixed block, if it is gone. */
+  const [focusPin, setFocusPin] = useState<{ pin: string | undefined } | null>(null);
+  useEffect(() => {
+    if (!focusPin) return;
+    setFocusPin(null);
+    const row = focusPin.pin === undefined ? undefined : rowRefs.current.get(focusPin.pin);
+    (row ?? pinnedHeader.current ?? fixedEnd.current)?.focus();
+  }, [focusPin]);
   const closeMobile = () => {
     if (isMobile) setOpenMobile(false);
   };
@@ -305,40 +369,47 @@ export function ProgramSidebar({
     onNavigate(target);
     closeMobile();
   };
-  const rows = usePins().flatMap((pin): PinRow[] => {
-    if (pin === LINE_PIN)
-      return onLine
-        ? [
-            {
-              pin,
-              key: "line",
-              label: "Line",
-              icon: "rows",
-              status: status[LINE_PIN],
-              shortcut: ariaShortcut("l"),
-              open: () => {
-                onLine();
-                closeMobile();
-              },
-            },
-          ]
-        : [];
+  const ariaCurrent = (row: Row) =>
+    active === row.key ? (route.kind === "release" ? "true" : "page") : undefined;
+  const placeRow = (pin: string): Row[] => {
     const place = pinnedPlace(pin);
-    if (place) {
-      const target: Route = { kind: place };
-      if (!isReachable(target, registry)) return [];
-      return [
-        {
-          pin,
-          key: place,
-          label: routeLabel(target),
-          icon: PLACE_ICONS[place],
-          beforeSweep: !body,
-          status: (status as Readonly<Partial<Record<string, StatusRow>>>)[pin],
-          open: go(target),
-        },
-      ];
-    }
+    if (!place) return [];
+    const target: Route = { kind: place };
+    if (!isReachable(target, registry)) return [];
+    return [
+      {
+        pin,
+        key: place,
+        label: routeLabel(target),
+        icon: PLACE_ICONS[place],
+        beforeSweep: !body,
+        status: (status as Readonly<Partial<Record<string, StatusRow>>>)[pin],
+        open: go(target),
+      },
+    ];
+  };
+  const fixed: Row[] = [
+    ...(onLine
+      ? [
+          {
+            pin: LINE_PIN,
+            key: "line",
+            label: "Line",
+            icon: "rows" as const,
+            status: status[LINE_PIN],
+            shortcut: ariaShortcut("l"),
+            open: () => {
+              onLine();
+              closeMobile();
+            },
+          },
+        ]
+      : []),
+    ...placeRow(placePin("environment")),
+    ...placeRow(placePin("engineering-system")),
+  ];
+  const rows = usePins().flatMap((pin): Row[] => {
+    if (pinnedPlace(pin)) return placeRow(pin);
     const target: Route = { kind: "service", id: pin };
     if (!services.includes(pin) || !isReachable(target, registry)) return [];
     return [
@@ -355,8 +426,9 @@ export function ProgramSidebar({
 
   const pinnedDot = statusDot(
     0,
-    rows.map((row) => row.status?.mark),
+    rows.flatMap((row) => [row.status?.mark, row.word && { tone: WORD_TONE[row.word.tone] }]),
   );
+  const todayReachable = isReachable({ kind: "today" }, registry);
 
   return (
     <Sidebar id="app-sidebar" aria-label="Sidebar" className="app-sidebar">
@@ -378,10 +450,11 @@ export function ProgramSidebar({
           <span className="find-or-ask-label">Find or ask</span>
           <kbd>{shortcutLabel("k")}</kbd>
         </button>
-        {isReachable({ kind: "today" }, registry) && (
-          <SidebarMenu aria-label="Today">
+        <SidebarMenu aria-label="Program" data-group="fixed">
+          {todayReachable && (
             <SidebarMenuItem>
               <SidebarMenuButton
+                ref={fixed.length === 0 ? fixedEnd : undefined}
                 isActive={active === "today"}
                 data-sidebar-row="today"
                 aria-current={active === "today" ? "page" : undefined}
@@ -399,13 +472,22 @@ export function ProgramSidebar({
                 )}
               </SidebarMenuButton>
             </SidebarMenuItem>
-          </SidebarMenu>
-        )}
+          )}
+          {fixed.map((row, index) => (
+            <FixedItem
+              key={row.pin}
+              row={row}
+              ariaCurrent={ariaCurrent(row)}
+              buttonRef={index === fixed.length - 1 ? fixedEnd : undefined}
+            />
+          ))}
+        </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
         {rows.length > 0 && (
           <SidebarGroup data-group="pinned">
             <CollapsibleSectionHeader
+              ref={pinnedHeader}
               expanded={!collapsed("pinned")}
               aria-controls={pinnedId}
               onClick={() => toggle("pinned")}
@@ -423,13 +505,19 @@ export function ProgramSidebar({
                   <PinItem
                     key={row.pin}
                     row={row}
-                    ariaCurrent={
-                      active === row.key ? (route.kind === "release" ? "true" : "page") : undefined
-                    }
+                    ariaCurrent={ariaCurrent(row)}
                     prev={rows[index - 1]?.pin}
                     next={rows[index + 1]?.pin}
                     dragging={dragging}
+                    buttonRef={(button) => {
+                      if (button) rowRefs.current.set(row.pin, button);
+                      else rowRefs.current.delete(row.pin);
+                    }}
                     onDrag={setDragging}
+                    onMoved={() => setFocusPin({ pin: row.pin })}
+                    onUnpinned={() =>
+                      setFocusPin({ pin: rows[index + 1]?.pin ?? rows[index - 1]?.pin })
+                    }
                   />
                 ))}
               </SidebarMenu>

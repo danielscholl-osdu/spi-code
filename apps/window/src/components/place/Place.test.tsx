@@ -6,7 +6,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import { navigate } from "../../app/navigation.js";
-import { readPins } from "../../store/pins.js";
+import { isFixedPin, readPins } from "../../store/pins.js";
 import { Place, type PlaceProps } from "./Place.js";
 
 type Content = NonNullable<Reading["content"]>;
@@ -193,12 +193,16 @@ it.each([
 it.each([
   ["Environment", "place:environment"],
   ["Engineering system", "place:engineering-system"],
-])("draws no Pin or Unpin in %s's header, which is always pinned", async (name, pin) => {
-  const { container, render } = await mount();
-  await render({ name, pin });
-  expect(container.querySelector("header button")).toBeNull();
-  expect(readPins()).toContain(pin);
-});
+])(
+  "draws no Pin or Unpin in %s's header, which sits in the sidebar's fixed block",
+  async (name, pin) => {
+    const { container, render } = await mount();
+    await render({ name, pin });
+    expect(container.querySelector("header button")).toBeNull();
+    expect(isFixedPin(pin)).toBe(true);
+    expect(readPins()).not.toContain(pin);
+  },
+);
 
 it("renders supplied header actions beside Pin, with no action space when absent", async () => {
   const onAction = vi.fn();

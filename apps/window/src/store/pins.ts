@@ -5,12 +5,15 @@ import { useSyncExternalStore } from "react";
 import type { Destination } from "../app/navigation.js";
 
 /**
- * Pins (PS-08): the one Pinned list in the sidebar, in the operator's order. A pin is the Line
- * sheet, a place, or a service by its id. A service pin stays in storage when the snapshot stops
- * naming that service; the sidebar draws only the pins it can open.
+ * Pins (PS-08): the sidebar's Pinned list, in the operator's order. A pin is a place or a service by
+ * its id. Line, Environment and Engineering system sit in the sidebar's fixed block and are never in
+ * the list. A service pin stays in storage when the snapshot stops naming that service; the sidebar
+ * draws only the pins it can open.
  */
-export const PINS_STORAGE_KEY = "spi-code.sidebar.pins.v2";
-/** Services only; read until the first write under PINS_STORAGE_KEY, after the seed. */
+export const PINS_STORAGE_KEY = "spi-code.sidebar.pins.v3";
+/** The list before the fixed block, migrated once into PINS_STORAGE_KEY. */
+export const V2_PINS_STORAGE_KEY = "spi-code.sidebar.pins.v2";
+/** Services only, from before V2_PINS_STORAGE_KEY. */
 export const LEGACY_PINS_STORAGE_KEY = "spi-code.sidebar.pins";
 
 export const LINE_PIN = "sheet:line";
@@ -23,16 +26,20 @@ const PLACE_KINDS = [
 ] as const;
 export type PinnedPlace = (typeof PLACE_KINDS)[number];
 export const placePin = (kind: PinnedPlace) => `place:${kind}`;
-export const SEED_PINS: readonly string[] = [LINE_PIN, ...PLACE_KINDS.map(placePin)];
-/** Pins the operator cannot remove, in seed order; a stored list missing one gets it back first. */
-export const ALWAYS_PINNED: readonly string[] = [
+export const SEED_PINS: readonly string[] = [
+  placePin("upstream"),
+  placePin("releases"),
+  placePin("security"),
+];
+/** The sidebar's fixed block below Today: never pinned, unpinned or stored. */
+export const FIXED_PINS: readonly string[] = [
   LINE_PIN,
   placePin("environment"),
   placePin("engineering-system"),
 ];
 
-export function isAlwaysPinned(id: string) {
-  return ALWAYS_PINNED.includes(id);
+export function isFixedPin(id: string) {
+  return FIXED_PINS.includes(id);
 }
 
 /** The pin a destination is kept under; Today and a release month have none. */
@@ -74,47 +81,62 @@ function parse(raw: string): string[] | undefined {
   return undefined;
 }
 
-function withAlwaysPinned(pins: readonly string[]): readonly string[] {
-  const missing = ALWAYS_PINNED.filter((id) => !pins.includes(id));
-  return missing.length > 0 ? [...missing, ...pins] : pins;
+function withoutFixed(pins: readonly string[]): readonly string[] {
+  return pins.some(isFixedPin) ? pins.filter((id) => !isFixedPin(id)) : pins;
 }
 
-function resolve(current: string | null | undefined, legacy: string | null | undefined) {
-  if (current === undefined) return SEED_PINS;
-  if (current !== null) {
-    const stored = parse(current);
-    return stored ? withAlwaysPinned(stored) : SEED_PINS;
-  }
-  const kept = typeof legacy === "string" ? (parse(legacy) ?? []) : [];
-  return [...new Set([...SEED_PINS, ...kept])];
+/** What each key held at a read; `undefined` when storage refused it, `null` when absent. */
+type Raw = { current: Read; v2: Read; legacy: Read };
+type Read = string | null | undefined;
+
+function resolve({ current, v2, legacy }: Raw): readonly string[] {
+  if (typeof current === "string") return withoutFixed(parse(current) ?? SEED_PINS);
+  if (typeof v2 === "string") return withoutFixed(parse(v2) ?? SEED_PINS);
+  if (typeof legacy !== "string") return SEED_PINS;
+  const services = parse(legacy);
+  return services ? withoutFixed([...new Set([...SEED_PINS, ...services])]) : SEED_PINS;
 }
+
+function readRaw(): Raw {
+  const current = read(PINS_STORAGE_KEY);
+  const v2 = current === null ? read(V2_PINS_STORAGE_KEY) : null;
+  const legacy = current === null && v2 === null ? read(LEGACY_PINS_STORAGE_KEY) : null;
+  return { current, v2, legacy };
+}
+
+const sameRaw = (a: Raw, b: Raw) =>
+  a.current === b.current && a.v2 === b.v2 && a.legacy === b.legacy;
 
 const listeners = new Set<() => void>();
-let cached:
-  | {
-      current: string | null | undefined;
-      legacy: string | null | undefined;
-      pins: readonly string[];
-    }
-  | undefined;
+/** The list last read or written, with the storage it came from; a refused write holds it here. */
+let cached: { raw: Raw; pins: readonly string[] } | undefined;
+
+/** `false` when storage refused the write. */
+function store(pins: readonly string[]): boolean {
+  const value = JSON.stringify(pins);
+  try {
+    window.localStorage.setItem(PINS_STORAGE_KEY, value);
+  } catch {
+    cached = { raw: readRaw(), pins };
+    return false;
+  }
+  cached = { raw: { current: value, v2: null, legacy: null }, pins };
+  return true;
+}
 
 export function readPins(): readonly string[] {
-  const current = read(PINS_STORAGE_KEY);
-  const legacy = current === null ? read(LEGACY_PINS_STORAGE_KEY) : null;
-  if (cached && cached.current === current && cached.legacy === legacy) return cached.pins;
-  const pins = resolve(current, legacy);
-  cached = { current, legacy, pins };
+  const raw = readRaw();
+  if (cached && sameRaw(cached.raw, raw)) return cached.pins;
+  const pins = resolve(raw);
+  cached = { raw, pins };
+  // Migration: an older key is read once into the new one and left as it was.
+  if (raw.current === null && (typeof raw.v2 === "string" || typeof raw.legacy === "string"))
+    store(pins);
   return pins;
 }
 
 function writePins(pins: readonly string[]) {
-  try {
-    window.localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(pins));
-  } catch {
-    // Storage refused: the pins hold for this window only.
-    const current = read(PINS_STORAGE_KEY);
-    cached = { current, legacy: current === null ? read(LEGACY_PINS_STORAGE_KEY) : null, pins };
-  }
+  store(pins);
   for (const listener of listeners) listener();
 }
 
@@ -122,13 +144,15 @@ export function isPinned(id: string, pins: readonly string[] = readPins()) {
   return pins.includes(id);
 }
 
+/** Appends a pin; the fixed block's ids are refused. */
 export function pin(id: string) {
+  if (isFixedPin(id)) return;
   const pins = readPins();
   if (!pins.includes(id)) writePins([...pins, id]);
 }
 
 export function unpin(id: string) {
-  if (isAlwaysPinned(id)) return;
+  if (isFixedPin(id)) return;
   const pins = readPins();
   if (pins.includes(id)) writePins(pins.filter((pinned) => pinned !== id));
 }
@@ -149,13 +173,24 @@ export function movePin(id: string, target: string) {
   writePins(pins);
 }
 
+/** Moves a pin to sit just before or just after `target`. */
+export function movePinBeside(id: string, target: string, side: "before" | "after") {
+  const all = readPins();
+  if (id === target || !all.includes(id) || !all.includes(target)) return;
+  const pins = all.filter((pinned) => pinned !== id);
+  const at = pins.indexOf(target);
+  pins.splice(side === "before" ? at : at + 1, 0, id);
+  if (pins.some((pinned, index) => pinned !== all[index])) writePins(pins);
+}
+
 function subscribe(listener: () => void) {
   listeners.add(listener);
   const onStorage = (event: StorageEvent) => {
     if (
+      event.key === null ||
       event.key === PINS_STORAGE_KEY ||
-      event.key === LEGACY_PINS_STORAGE_KEY ||
-      event.key === null
+      event.key === V2_PINS_STORAGE_KEY ||
+      event.key === LEGACY_PINS_STORAGE_KEY
     )
       listener();
   };

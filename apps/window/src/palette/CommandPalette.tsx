@@ -30,7 +30,7 @@ import { isMacPlatform } from "../app/shortcuts.js";
 import { AttentionDot } from "../components/AttentionDot.js";
 import { Icon } from "../components/icons/Icon.js";
 import { useSidebarAttention } from "../components/sidebar/attention.js";
-import { isAlwaysPinned, pin, togglePin, usePins } from "../store/pins.js";
+import { isFixedPin, pin, togglePin, usePins } from "../store/pins.js";
 import type { createWatchStore } from "../store/watch.js";
 import { buildPaletteGroups, filterPaletteGroups, type PaletteItem } from "./palette.logic.js";
 import "./palette.css";
@@ -40,33 +40,30 @@ type PinState = "unpinned" | "pinned" | "always";
 const PIN_STATE_NAME: Readonly<Record<PinState, string>> = {
   unpinned: "not pinned",
   pinned: "pinned",
-  always: "always pinned",
+  always: "always in the sidebar",
 };
 
-const PIN_TITLE: Readonly<Record<PinState, string>> = {
+const PIN_TITLE: Readonly<Record<Exclude<PinState, "always">, string>> = {
   unpinned: "Pin to the sidebar",
   pinned: "Unpin from the sidebar",
-  always: "Always pinned",
 };
 
 function pinStateOf(id: string, pins: readonly string[]): PinState {
-  if (isAlwaysPinned(id)) return "always";
+  if (isFixedPin(id)) return "always";
   return pins.includes(id) ? "pinned" : "unpinned";
 }
 
-/** Pins or unpins its result in place, without opening it; inert on an always-pinned result. */
-function PinControl({ pin: id, state }: { pin: string; state: PinState }) {
+/** Pins or unpins its result in place, without opening it. */
+function PinControl({ pin: id, state }: { pin: string; state: Exclude<PinState, "always"> }) {
   return (
     <button
       type="button"
       className="palette-pin"
       tabIndex={-1}
       aria-hidden
-      aria-disabled={state === "always" || undefined}
       title={PIN_TITLE[state]}
       onClick={(event) => {
         event.stopPropagation();
-        if (state === "always") return;
         togglePin(id);
       }}
     >
@@ -78,8 +75,9 @@ function PinControl({ pin: id, state }: { pin: string; state: PinState }) {
 /**
  * Find (PS-12): Go to, Services and Queue. The shell opens it from ⌘K or Ctrl+K (through
  * PanelControls' shortcuts) and from the sidebar's field. ⏎ opens a result; ⌘↩ (Ctrl+Enter) opens
- * Line, a place or a service and pins it, leaving a pin where it is. A result that can be pinned
- * ends in a pointer-only pin control that pins or unpins it in place. Esc closes it and focus
+ * a place or a service and pins it, leaving a pin where it is; the sidebar's fixed block opens
+ * unpinned. A result that can be pinned ends in a pointer-only pin control that pins or unpins it
+ * in place. Esc closes it and focus
  * returns to the opener.
  */
 export function CommandPalette({
@@ -233,7 +231,7 @@ function PaletteContent({
                       {kind}
                     </span>
                   )}
-                  {item.pin !== undefined && pinState && (
+                  {item.pin !== undefined && pinState && pinState !== "always" && (
                     <PinControl pin={item.pin} state={pinState} />
                   )}
                 </Autocomplete.Item>
