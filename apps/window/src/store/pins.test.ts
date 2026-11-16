@@ -31,13 +31,16 @@ async function restart() {
   return (await import("./pins.js")).readPins();
 }
 
-/** Stands in for storage, recording each write; `refuse` makes writes throw. */
+/** Stands in for storage, recording each write; `refuse` makes writes throw, `refuseRead` reads of a key. */
 function watchWrites() {
   const real = localStorage;
   const writes: [string, string][] = [];
-  const control = { writes, refuse: false };
+  const control = { writes, refuse: false, refuseRead: undefined as string | undefined };
   vi.stubGlobal("localStorage", {
-    getItem: (key: string) => real.getItem(key),
+    getItem: (key: string) => {
+      if (key === control.refuseRead) throw new Error("denied");
+      return real.getItem(key);
+    },
     setItem: (key: string, value: string) => {
       if (control.refuse) throw new Error("quota");
       writes.push([key, value]);
@@ -129,15 +132,35 @@ it("writes v3 once on migration and leaves v2 and the legacy key as they were", 
   expect(localStorage.getItem(LEGACY_PINS_STORAGE_KEY)).toBe(legacy);
 });
 
-it("gives the seed when storage refuses the read, and holds writes in the window", () => {
-  const denied = () => {
-    throw new Error("denied");
-  };
-  vi.stubGlobal("localStorage", { getItem: denied, setItem: denied });
-  expect(readPins()).toEqual(SEED);
-  unpin("place:security");
-  pin("legal");
-  expect(readPins()).toEqual(["place:upstream", "place:releases", "legal"]);
+it.each([PINS_STORAGE_KEY, V2_PINS_STORAGE_KEY, LEGACY_PINS_STORAGE_KEY])(
+  "gives the seed when storage refuses the read of %s, and holds writes in the window though it would take them",
+  async (key) => {
+    const storage = watchWrites();
+    storage.refuseRead = key;
+    vi.resetModules();
+    const pins = await import("./pins.js");
+    expect(pins.readPins()).toEqual(SEED);
+    pins.unpin("place:security");
+    pins.pin("legal");
+    pins.movePin("legal", "place:upstream");
+    expect(pins.readPins()).toEqual(["legal", "place:upstream", "place:releases"]);
+    expect(storage.writes).toEqual([]);
+    storage.refuseRead = undefined;
+    expect(pins.readPins()).toEqual(["legal", "place:upstream", "place:releases"]);
+    expect(await restart()).toEqual(SEED);
+  },
+);
+
+it("holds a change in the window when storage refuses its write, and reads the stored list on the next launch", async () => {
+  localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(["legal"]));
+  const storage = watchWrites();
+  storage.refuse = true;
+  pin("schema");
+  unpin("legal");
+  expect(readPins()).toEqual(["schema"]);
+  expect(stored()).toEqual(["legal"]);
+  storage.refuse = false;
+  expect(await restart()).toEqual(["legal"]);
 });
 
 it("holds the migrated list when storage refuses its write, and migrates again on the next launch", async () => {

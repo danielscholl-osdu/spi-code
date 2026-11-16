@@ -310,11 +310,11 @@ it("moves a pin from its menu and with Alt+Up and Alt+Down, past a pin the sweep
 
 it("moves focus after Unpin to the next Pinned row, else the previous, else the fixed block's last row", async () => {
   await render(undefined, undefined, undefined, vi.fn());
-  await unpinFromMenu("upstream", "place:upstream");
-  expect(focused()).toBe("releases");
-  await unpinFromMenu("security", "place:security");
-  expect(focused()).toBe("releases");
   await unpinFromMenu("releases", "place:releases");
+  expect(focused()).toBe("security");
+  await unpinFromMenu("security", "place:security");
+  expect(focused()).toBe("upstream");
+  await unpinFromMenu("upstream", "place:upstream");
   expect(header("Pinned")).toBeUndefined();
   expect(focused()).toBe("engineering-system");
 });

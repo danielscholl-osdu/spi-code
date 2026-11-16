@@ -111,8 +111,15 @@ const listeners = new Set<() => void>();
 /** The list last read or written, with the storage it came from; a refused write holds it here. */
 let cached: { raw: Raw; pins: readonly string[] } | undefined;
 
+/** The window's list once storage refuses a read; nothing is written for the rest of the session. */
+let held: readonly string[] | undefined;
+
 /** `false` when storage refused the write. */
 function store(pins: readonly string[]): boolean {
+  if (held) {
+    held = pins;
+    return false;
+  }
   const value = JSON.stringify(pins);
   try {
     window.localStorage.setItem(PINS_STORAGE_KEY, value);
@@ -125,7 +132,12 @@ function store(pins: readonly string[]): boolean {
 }
 
 export function readPins(): readonly string[] {
+  if (held) return held;
   const raw = readRaw();
+  if (raw.current === undefined || raw.v2 === undefined || raw.legacy === undefined) {
+    held = cached?.pins ?? resolve(raw);
+    return held;
+  }
   if (cached && sameRaw(cached.raw, raw)) return cached.pins;
   const pins = resolve(raw);
   cached = { raw, pins };
