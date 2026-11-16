@@ -361,6 +361,9 @@ it("pins and unpins a result in place from its pin control, leaving Find as it w
   expect(option("Releasespage")?.getAttribute("aria-label")).toBe("Releases, page, not pinned");
   const control = pinControl("Releasespage");
   expect(control?.tabIndex).toBe(-1);
+  const press = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+  control?.dispatchEvent(press);
+  expect(press.defaultPrevented).toBe(true);
   expect(control?.getAttribute("aria-label")).toBe("Pin Releases to sidebar (Ctrl+Shift+P)");
   await act(async () => control?.click());
   expect(readPins()).toContain("place:releases");
