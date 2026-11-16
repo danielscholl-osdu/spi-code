@@ -4,6 +4,7 @@
 import {
   AttentionTierSchema,
   type SeenState,
+  type Since,
   type WatchBriefing,
   type WatchItem,
 } from "@spi-code/contracts";
@@ -120,4 +121,29 @@ export function sinceStart(baseline: SeenBaseline | undefined): string | undefin
 
 export function seenState(_model: Model, input: WatchInput, briefing: WatchBriefing): SeenState {
   return seenSince(input.baseline, briefing);
+}
+
+/**
+ * The briefing as of the operator's last look: each place's fresh items, and the since pips
+ * from the baseline's start. Without a prior baseline nothing is fresh and since stays at 24 hours.
+ */
+export function seenBriefing(
+  briefing: WatchBriefing,
+  prior: SeenBaseline | undefined,
+  sinceFrom: (at: string) => Since | undefined,
+): WatchBriefing {
+  const start = sinceStart(prior);
+  const since = start === undefined ? undefined : sinceFrom(start);
+  return {
+    ...briefing,
+    ...(briefing.places
+      ? {
+          places: briefing.places.map((row) => ({
+            ...row,
+            fresh: { itemIds: freshIds(prior, row.itemIds, briefing) },
+          })),
+        }
+      : {}),
+    ...(since ? { since } : {}),
+  };
 }

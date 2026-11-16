@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { projectWatch } from "../../src/watch/project.js";
 import { detailFeed, recordedDetailAnswers } from "./detail-feed.js";
 import {
-  acknowledgedInput,
+  acknowledgedSnapshot,
   acknowledgedSnapshotPath,
   appStyle,
   badInput,
@@ -49,7 +49,7 @@ export const watchOutputs: readonly WatchOutput[] = [
   output(snapshotPath, () => projectWatch(appStyle(fixtureInput()))),
   output(mixedSnapshotPath, () => projectWatch(appStyle(mixedFixtureInput()))),
   output(recordedSnapshotPath, () => projectWatch(appStyle(recordedInput()))),
-  output(acknowledgedSnapshotPath, () => projectWatch(appStyle(acknowledgedInput()))),
+  output(acknowledgedSnapshotPath, () => acknowledgedSnapshot()),
   output(unreadSnapshotPath, () => projectWatch(appStyle(unreadForksInput()))),
   output(unverifiedSnapshotPath, () => projectWatch(appStyle(unverifiedForkInput()))),
   output(detailFeedPath, async () =>

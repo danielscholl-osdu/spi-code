@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { readFixture } from "../../../../scripts/watch-generated.mjs";
 import {
   acknowledgedInput,
+  acknowledgedSnapshot,
   acknowledgedSnapshotPath,
   appStyle,
   recordedInput,
@@ -116,7 +117,28 @@ describe("the 6 Nov sweep pushed again after its first push was acknowledged", (
   const acknowledged: ViewSnapshot = JSON.parse(readFixture(acknowledgedSnapshotPath));
 
   it("matches a fresh projection", () => {
-    expect(projectWatch(appStyle(acknowledgedInput()))).toEqual(acknowledged);
+    expect(acknowledgedSnapshot()).toEqual(acknowledged);
+  });
+
+  it("uses the earlier runs observation when the last look predates the latest read", () => {
+    const input = appStyle(acknowledgedInput());
+    if (!input.baseline) throw new Error("Missing acknowledged baseline");
+    const view = acknowledgedSnapshot({
+      ...input,
+      baseline: { ...input.baseline, observedAt: "2026-11-06T14:02:00.133Z" },
+    });
+    expect(view.briefing.since).toMatchObject({
+      basis: "seen",
+      from: "2026-11-06T14:02:00.133Z",
+    });
+  });
+
+  it("keeps the quieter fallback when the same runs read is pushed again", () => {
+    expect(acknowledgedInput().baseline?.observedAt).toBe("2026-11-06T14:02:14.914Z");
+    expect(acknowledged.briefing.since).toMatchObject({
+      basis: "fallback",
+      from: "2026-11-05T14:02:14.914Z",
+    });
   });
 
   it("holds the acknowledged baseline with nothing new and its Interrupt still open (AU-09)", () => {

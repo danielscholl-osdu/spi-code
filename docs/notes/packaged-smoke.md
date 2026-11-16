@@ -187,3 +187,8 @@ The top row's capsule holds only the sweep, so the program status is read from t
 the 20-service probe reads `[data-sidebar-row=line]`'s `data-services`, the Line sheet opens from
 that pin, and the status scenes wait on each pin's `data-status`, `data-classification` and title
 before their `sidebar-status-<scene>` shots.
+
+The acknowledged Nov 6 capture replays the same runs observation (14:02:14.914Z) after the 14:05
+acknowledgement. Its shared `seenBriefing` path intentionally keeps the 24-hour fallback: equal
+observation bounds cannot prove a last-look window; do not invent a later read to obtain a `seen` basis.
+Today no longer draws since pips (spicode-eib R2); the capture cannot visually prove this contract field.

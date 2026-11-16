@@ -12,7 +12,6 @@ import {
   SweepStatusSchema,
   type ViewSnapshot,
   ViewSnapshotSchema,
-  type WatchBriefing,
 } from "@spi-code/contracts";
 import {
   buildModel,
@@ -37,11 +36,10 @@ import { sweepEvidence } from "../sweep/evidence.js";
 import { emptySweepStatus, SWEEP_SCHEDULE, type SweepSchedulerStatus } from "../sweep/status.js";
 import {
   baselineItems,
-  freshIds,
   parseSeenItems,
   type SeenBaseline,
+  seenBriefing,
   seenSince,
-  sinceStart,
 } from "../watch/seen.js";
 import type { HostRoutes, HostSend } from "./port.js";
 
@@ -342,28 +340,6 @@ export class WatchRoutes {
     );
   }
 
-  /**
-   * The briefing as of the operator's last look: each place's fresh items, and the since pips
-   * from the baseline's start. Without a prior baseline nothing is fresh and since stays at 24 hours.
-   */
-  private seenBriefing(latest: Persisted, prior: SeenBaseline | undefined): WatchBriefing {
-    const { briefing } = latest.view;
-    const start = sinceStart(prior);
-    const since = start === undefined ? undefined : this.sinceFrom(latest, start);
-    return {
-      ...briefing,
-      ...(briefing.places
-        ? {
-            places: briefing.places.map((row) => ({
-              ...row,
-              fresh: { itemIds: freshIds(prior, row.itemIds, briefing) },
-            })),
-          }
-        : {}),
-      ...(since ? { since } : {}),
-    };
-  }
-
   /** The since pips rebuilt from the persisted sweep from `at`; undefined keeps the stored ones. */
   private sinceFrom(latest: Persisted, at: string): Since | undefined {
     const stored = latest.view.briefing.since;
@@ -397,7 +373,7 @@ export class WatchRoutes {
       type: "view.snapshot",
       payload: {
         ...latest.view,
-        briefing: this.seenBriefing(latest, prior),
+        briefing: seenBriefing(latest.view.briefing, prior, (at) => this.sinceFrom(latest, at)),
         seen: seenSince(baseline, latest.view.briefing),
       },
     });
