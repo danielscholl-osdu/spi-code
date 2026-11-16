@@ -1,10 +1,19 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
 import config from "../vitest.config.js";
-import { restProjects, wholeProjects, workspaceDependencies } from "./check-dependents.mjs";
+import {
+  designReaders,
+  restProjects,
+  wholeProjects,
+  workspaceDependencies,
+} from "./check-dependents.mjs";
 import { configuredProjects } from "./vitest-projects.mjs";
 
 const dependencies = workspaceDependencies(fileURLToPath(new URL("..", import.meta.url)));
@@ -115,4 +124,19 @@ it("knows every project vitest is configured with, so none is left out of both r
   const configured = configuredProjects(config.test?.projects).map((project) => project.name);
 
   expect([...dependencies.keys(), "scripts"].sort()).toEqual([...configured].sort());
+});
+
+it("skips a test the working tree deleted but the index still lists", () => {
+  const root = mkdtempSync(join(tmpdir(), "design-readers-"));
+  try {
+    mkdirSync(join(root, "apps/window"), { recursive: true });
+    writeFileSync(join(root, "apps/window/gone.test.ts"), 'read("design/page.html");\n');
+    writeFileSync(join(root, "apps/window/kept.test.ts"), 'read("design/other.html");\n');
+    execFileSync("git", ["init", "-q"], { cwd: root });
+    execFileSync("git", ["add", "."], { cwd: root });
+    rmSync(join(root, "apps/window/gone.test.ts"));
+    expect(designReaders(root)).toEqual(new Map([["design/other.html", ["apps/window"]]]));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

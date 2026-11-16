@@ -6,7 +6,7 @@
 // Packages import each other's built output, which vitest --changed does not follow, and tests
 // read fixtures and shell scripts from disk.
 import { execFileSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { generatorInputs } from "./watch-inputs.mjs";
@@ -56,6 +56,8 @@ export function designReaders(root) {
   const readers = new Map();
   for (const test of tests.split("\n").filter((path) => /\.test\.tsx?$/.test(path))) {
     const project = test.split("/").slice(0, 2).join("/");
+    // The index still lists a test deleted or renamed in the working tree.
+    if (!existsSync(join(root, test))) continue;
     for (const [read] of readFileSync(join(root, test), "utf8").matchAll(/\bdesign\/[\w.-]+/g)) {
       readers.set(read, (readers.get(read) ?? new Set()).add(project));
     }
