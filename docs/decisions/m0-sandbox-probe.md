@@ -6,11 +6,24 @@ spike, not the complete M5 command sandbox.
 
 ## Reproduce
 
-From the bead worktree, run:
+From a prepared worktree (`pnpm install --frozen-lockfile`), run the current
+Seatbelt tests:
 
 ```sh
 pnpm exec vitest run --project packages/host packages/host/src/sandbox/seatbelt.test.ts
-pnpm run typecheck
+```
+
+`packages/host/src/sandbox/seatbelt.test.ts` imports `runSandboxProbe` and
+`ghConfigPath` from `sandbox/probe.ts`. It uses the former as the macOS
+confinement harness and the latter to check gh configuration path resolution.
+Keep this harness: the absence of a package script or packaged-smoke caller
+does not make it unused.
+
+The original manual CLI remains available for a JSON report of the same probe
+on macOS. Build its output first:
+
+```sh
+pnpm build
 node packages/host/dist/sandbox/probe.js
 ```
 
@@ -22,6 +35,20 @@ Controlled, public fixture files prove all five deny rules against files that
 are readable before confinement, including inside an otherwise readable tree.
 An absent real path also reports `readable: false`; that alone is not denial
 evidence.
+
+## Current probe inventory
+
+No unused probe implementation is presently identified:
+
+| Implementation (under `packages/host/src/`) | Current caller |
+|---|---|
+| `sandbox/probe.ts` | `sandbox/seatbelt.test.ts`; the manual CLI above |
+| `process/store-probe.ts` | `host.ts` calls `probeStore` for the packaged persistence smoke in `apps/desktop/src/smoke-run.ts` |
+| `copilot/probe.ts` | The host package's `probe:copilot` script (`pnpm --filter @spi-code/host probe:copilot`) |
+
+Before removing a proposed unused entry point, name it and prove it is
+unreferenced. Absence of a package-script or packaged-smoke caller is
+insufficient; include test imports and documented manual commands in the check.
 
 ## Observed evidence
 
