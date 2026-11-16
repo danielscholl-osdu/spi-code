@@ -90,5 +90,7 @@ The host package emits declarations, so an exported watch step whose inferred re
 M0 probes still live: `process/store-probe.ts` runs through the packaged persistence smoke;
 `copilot/probe.ts` runs through the host's `probe:copilot` script. `sandbox/probe.ts` supplies
 `runSandboxProbe` and `ghConfigPath` to `sandbox/seatbelt.test.ts`, including the macOS
-confinement checks. The historical sandbox decision also documents its manual command.
-No unused probe is identified; spicode-xzf.31 reconciles this inventory and its instructions.
+confinement checks. The [sandbox decision](../decisions/m0-sandbox-probe.md) documents
+the current test command and the historical manual CLI, which still runs after a build.
+No unused probe implementation is presently identified. Name and prove an entry point
+unreferenced before removal; a missing package-script or packaged-smoke caller is insufficient.
