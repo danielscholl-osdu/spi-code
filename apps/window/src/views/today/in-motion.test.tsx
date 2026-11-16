@@ -192,11 +192,12 @@ describe("In motion and Can wait draw core's fields only", () => {
     const { container } = await mount(moving());
     const root = motion(container);
     const sync = root?.querySelector('[data-line-id="ambient:gate1:workflow"]');
-    expect(sync?.querySelector(".today-motion-service .kit-chip--service")?.textContent).toBe(
+    expect(sync?.querySelector(".today-motion-service .today-motion-fork")?.textContent).toBe(
       "workflow",
     );
+    expect(sync?.querySelector(".today-motion-service .kit-chip")).toBeNull();
     expect(sync?.querySelector('[data-station="sync-pr"] .kit-slot--waiting')).not.toBeNull();
-    expect(sync?.querySelector(".kit-slot--upstream")).not.toBeNull();
+    expect(sync?.querySelector(".kit-slot--upstream")).toBeNull();
     expect(sync?.querySelector(".kit-pr")?.textContent).toBe("#59");
     expect(sync?.querySelector(".today-motion-state > .kit-chip--warn")?.textContent).toBe(
       "review",
@@ -277,11 +278,11 @@ describe("openers", () => {
     expect(selection.getState().selected).toBe("rollout");
   });
 
-  it("opens a fork's place from its chip, and a next merge's place from the rollout chip", async () => {
+  it("opens a fork's place from its name, and a next merge's place from the rollout chip", async () => {
     const { container, selection } = await mount(moving());
     await click(
       motion(container)?.querySelector(
-        '[data-line-id="ambient:gate2:search"] .today-motion-service .kit-chip--service',
+        '[data-line-id="ambient:gate2:search"] .today-motion-service .today-motion-fork',
       ),
     );
     expect(window.location.hash).toBe("#service/search");

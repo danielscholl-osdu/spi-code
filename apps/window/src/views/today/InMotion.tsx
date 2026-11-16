@@ -133,11 +133,14 @@ function Line({
     >
       <span className="today-motion-service">
         {line.service && (
-          <ServiceChip
-            service={line.service}
-            text={line.service}
-            onOpen={() => openService(line.service ?? "")}
-          />
+          <button
+            type="button"
+            className="today-motion-fork"
+            title={`Open ${line.service}`}
+            onClick={() => openService(line.service ?? "")}
+          >
+            {line.service}
+          </button>
         )}
       </span>
       {plain ? (
@@ -151,7 +154,6 @@ function Line({
               <LineGlyph
                 station={GLYPH_STATION[line.station]}
                 state={slotState(line)}
-                origin={line.origin}
                 text={text}
               />
             )}
