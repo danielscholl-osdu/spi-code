@@ -7,6 +7,8 @@ import {
   type AreaName,
   type Briefing,
   envelopeOf,
+  itemEvidence,
+  type Model,
   type PlatformSource,
   RELEASES_EVERY_MS,
   type ReadRecord,
@@ -116,7 +118,11 @@ export function stationAreas(station: { id: string; state: string; text: string 
 }
 
 /** Provenance for every briefing value the Watch views draw, keyed by RFC 6901 pointer. */
-export function briefingProvenance(briefing: Briefing, stack: StackModel): ValueSource[] {
+export function briefingProvenance(
+  briefing: Briefing,
+  stack: StackModel,
+  model?: Model,
+): ValueSource[] {
   const sources: ValueSource[] = [];
   const add = (path: string, areas: readonly AreaName[]): void => {
     sources.push({ path, areas: ordered(areas) });
@@ -124,13 +130,18 @@ export function briefingProvenance(briefing: Briefing, stack: StackModel): Value
   const each = (items: readonly unknown[], prefix: string, areas: readonly AreaName[]): void => {
     for (const i of items.keys()) add(`${prefix}/${i}`, areas);
   };
-  // The headline, summary, focus queue, themes and horizon read buildQueue and themes, which
-  // judge every area together.
+  // The headline, summary, themes and horizon judge every area together.
   add("/briefing/headline", MODEL);
   add("/briefing/summary", MODEL);
   if ("since" in briefing && briefing.since) add("/briefing/since", ["runs", "github", "template"]);
-  each(briefing.focus, "/briefing/focus", MODEL);
-  each(briefing.rest, "/briefing/rest", MODEL);
+  for (const list of ["focus", "rest"] as const) {
+    for (const [index, item] of briefing[list].entries()) {
+      const { areas, attributed } = model
+        ? itemEvidence(model, item.ids)
+        : { areas: ordered(MODEL), attributed: "sweep" as const };
+      sources.push({ path: `/briefing/${list}/${index}`, areas, attributed });
+    }
+  }
   each(briefing.themes, "/briefing/themes", MODEL);
   add("/briefing/horizon/headline", MODEL);
   if (briefing.horizon.compact) add("/briefing/horizon/compact", PHASE);

@@ -34,7 +34,7 @@ export function snapshotProvenance(
   { briefing, places, stations, releases, platform, services, runs }: ProvenanceView,
 ) {
   return [
-    ...briefingProvenance(briefing, model.stack),
+    ...briefingProvenance(briefing, model.stack, model),
     ...places.map((row, i) => ({ path: `/briefing/places/${i}`, areas: row.areas })),
     ...stationProvenance(stations),
     ...releaseProvenance(releases.lines, input.releaseRecords, now),

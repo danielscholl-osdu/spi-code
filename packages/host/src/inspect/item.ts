@@ -18,6 +18,7 @@ import {
   type InspectOptions,
   inspectItem,
   inspectTitle,
+  itemEvidence,
   type Model,
   type QueueItem,
   verbsOf,
@@ -25,11 +26,7 @@ import {
 import { appActions } from "../watch/project.js";
 import { readRecord, webUrl } from "./shared.js";
 
-/**
- * Core inspection mapped to the contract, with the FILTERS read for a checkable halt. Areas are
- * the sweep's stored envelopes. Provenance is empty: no value is bound to a source until core
- * records which reads produced it, so the window shows none as inferred.
- */
+/** Core inspection with item attribution and the on-demand FILTERS read for a checkable halt. */
 export async function inspectResult(
   model: Model,
   item: QueueItem,
@@ -55,6 +52,7 @@ export async function inspectResult(
     const parsed = readRecord(record);
     evidence.set(JSON.stringify(parsed), parsed);
   }
+  const { notRead, ...attribution } = itemEvidence(model, [item.id]);
   return InspectResultSchema.parse({
     id: item.id,
     title: inspectTitle(item),
@@ -87,6 +85,10 @@ export async function inspectResult(
       ...(approvals?.items.flatMap((entry) => entry.actions) ?? []),
     ]),
     areas,
-    provenance: [],
+    notRead,
+    provenance: ["title", "class", "cause", "effect", "next", "why"].map((field) => ({
+      path: `/${field}`,
+      ...attribution,
+    })),
   });
 }

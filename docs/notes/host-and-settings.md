@@ -99,3 +99,8 @@ When spicode-djg.14 moves the Detail action, preserve the mirrored external-link
 its desktop parity table in `panels/detail-kinds.test.tsx`; it checks the real desktop
 handler without crossing package build boundaries. Both gates require HTTPS explicitly:
 `blob:https://github.com/id` has an allowed origin but must never open.
+
+Item evidence uses core's `itemEvidence` for both inspect fields and briefing rows;
+`provenance[].attributed` distinguishes an item attribution from the unchanged whole-model
+area fallback (`sweep`). Lane occupancy in a sweep does not confirm that the other lanes
+have drained before a re-run; those items keep that question in inspect's `notRead` list.

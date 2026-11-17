@@ -64,6 +64,7 @@ export const InspectResultSchema = z
     next: z.string(),
     why: z.string(),
     evidence: z.array(ReadRecordSchema),
+    notRead: z.array(IdentifierSchema).optional(),
     related: z.array(RelatedSchema),
     approval: ApprovalSchema.nullable(),
     actions: z.array(ActionItemSchema),

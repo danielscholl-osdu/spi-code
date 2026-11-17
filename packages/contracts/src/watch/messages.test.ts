@@ -812,8 +812,8 @@ describe("Watch protocol", () => {
       false,
     );
   });
-  it("bumps the version for a new optional key, so a version 4 peer fails on the envelope", () => {
-    expect(PROTOCOL_VERSION).toBe(5);
+  it("bumps the version for a new optional key, so a version 5 peer fails on the envelope", () => {
+    expect(PROTOCOL_VERSION).toBe(6);
     const message = messages[8];
     if (message?.type !== "view.snapshot") throw new Error("messages[8] must be the snapshot");
     const verdict = { text: "Nothing urgent needs you.", mark: "nothing-due" };
@@ -823,7 +823,7 @@ describe("Watch protocol", () => {
     };
     expect(parseMessage(current).ok).toBe(true);
     for (const payload of [snapshot, current.payload]) {
-      const result = parseMessage({ ...message, version: 4, payload });
+      const result = parseMessage({ ...message, version: 5, payload });
       expect(result.ok).toBe(false);
       if (!result.ok)
         expect(result.rejection.issues.map(({ path }) => path)).toEqual([["version"]]);
@@ -882,6 +882,30 @@ describe("Watch protocol", () => {
         true,
       );
     });
+    it.each(["item", "sweep"])(
+      "accepts explicit %s attribution with reads not made",
+      (attributed) => {
+        const payload = {
+          ...inspect,
+          areas,
+          notRead: ["Validation Summary job"],
+          provenance: [{ path: "/cause", areas: ["github"], attributed }],
+        };
+        expect(parseMessage({ ...messages[1], payload }).ok).toBe(true);
+        expect(parseMessage({ ...messages[1], payload: { ...payload, notRead: [""] } }).ok).toBe(
+          false,
+        );
+        expect(
+          parseMessage({
+            ...messages[1],
+            payload: {
+              ...payload,
+              provenance: [{ ...payload.provenance[0], attributed: "guessed" }],
+            },
+          }).ok,
+        ).toBe(false);
+      },
+    );
     it.each([
       [{ ...inspect, areas }, "Areas and provenance must be present together"],
       [{ ...inspect, provenance }, "Areas and provenance must be present together"],

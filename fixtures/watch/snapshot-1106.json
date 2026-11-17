@@ -14002,7 +14002,8 @@
         "radar",
         "template",
         "security"
-      ]
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/briefing/focus/1",
@@ -14016,7 +14017,8 @@
         "radar",
         "template",
         "security"
-      ]
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/briefing/focus/2",
@@ -14030,7 +14032,8 @@
         "radar",
         "template",
         "security"
-      ]
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/briefing/focus/3",
@@ -14044,7 +14047,8 @@
         "radar",
         "template",
         "security"
-      ]
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/briefing/focus/4",
@@ -14058,7 +14062,8 @@
         "radar",
         "template",
         "security"
-      ]
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/briefing/rest/0",
@@ -14072,7 +14077,8 @@
         "radar",
         "template",
         "security"
-      ]
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/briefing/rest/1",
@@ -14086,7 +14092,8 @@
         "radar",
         "template",
         "security"
-      ]
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/briefing/rest/2",
@@ -14100,7 +14107,8 @@
         "radar",
         "template",
         "security"
-      ]
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/briefing/rest/3",
@@ -14114,7 +14122,8 @@
         "radar",
         "template",
         "security"
-      ]
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/briefing/rest/4",
@@ -14128,7 +14137,8 @@
         "radar",
         "template",
         "security"
-      ]
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/briefing/rest/5",
@@ -14142,7 +14152,8 @@
         "radar",
         "template",
         "security"
-      ]
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/briefing/rest/6",
@@ -14156,7 +14167,8 @@
         "radar",
         "template",
         "security"
-      ]
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/briefing/rest/7",
@@ -14170,49 +14182,23 @@
         "radar",
         "template",
         "security"
-      ]
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/briefing/rest/8",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["github", "upstream"],
+      "attributed": "item"
     },
     {
       "path": "/briefing/rest/9",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["github", "upstream"],
+      "attributed": "item"
     },
     {
       "path": "/briefing/rest/10",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["github", "upstream"],
+      "attributed": "item"
     },
     {
       "path": "/briefing/rest/11",
@@ -14226,7 +14212,8 @@
         "radar",
         "template",
         "security"
-      ]
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/briefing/themes/0",

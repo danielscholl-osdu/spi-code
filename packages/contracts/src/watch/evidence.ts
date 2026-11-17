@@ -88,6 +88,7 @@ export const ValueSourceSchema = z.strictObject({
     .refine((areas) => new Set(areas).size === areas.length, { message: "Areas repeat" }),
   // Collectors outside Facts (the release reader) carry their own evidence alongside areas.
   envelope: EnvelopeSchema.optional(),
+  attributed: z.enum(["item", "sweep"]).optional(),
 });
 
 /** Resolves an RFC 6901 pointer; array indices must be canonical and in range. */

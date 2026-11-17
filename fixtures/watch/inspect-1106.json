@@ -8,6 +8,7 @@
     "next": "Resolve the conflict named in the issue on the fork, then dispatch the cascade.",
     "why": "Issue: #121 · cascade-blocked, high-priority, human-required, validation-failed · opened 2026-11-05T16:30:59.000Z",
     "evidence": [],
+    "notRead": [],
     "related": [],
     "approval": null,
     "actions": [],
@@ -138,7 +139,98 @@
         }
       }
     ],
-    "provenance": []
+    "provenance": [
+      {
+        "path": "/title",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/class",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/cause",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/effect",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/next",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/why",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      }
+    ]
   },
   {
     "id": "rollout",
@@ -149,6 +241,7 @@
     "next": "Merge partition, entitlements, legal, schema and file. Five lanes are free.",
     "why": "Main: 7d269b5 · v1.4.0 +80; Forks on: 5398e93 · 1 merge behind",
     "evidence": [],
+    "notRead": [],
     "related": [],
     "approval": null,
     "actions": [],
@@ -279,7 +372,98 @@
         }
       }
     ],
-    "provenance": []
+    "provenance": [
+      {
+        "path": "/title",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/class",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/cause",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/effect",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/next",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/why",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      }
+    ]
   },
   {
     "id": "release-red:Azure/osdu-spi-entitlements#89",
@@ -290,6 +474,7 @@
     "next": "Open the failed job (📊 Code Coverage › Setup Maven); the reason is in the cause above.",
     "why": "Pull request: #89 · chore: release 1.2.2 · opened 2026-10-20T18:45:39.000Z; Failed check: 📊 Code Coverage › Setup Maven; Head: 37da05a",
     "evidence": [],
+    "notRead": [],
     "related": [],
     "approval": null,
     "actions": [],
@@ -420,7 +605,98 @@
         }
       }
     ],
-    "provenance": []
+    "provenance": [
+      {
+        "path": "/title",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/class",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/cause",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/effect",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/next",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/why",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      }
+    ]
   },
   {
     "id": "radar:indexer",
@@ -431,6 +707,7 @@
     "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
     "why": "Commit: 7749dc4b · Upgrade to Spring Boot 4 / Spring Framework 7 on Java 17 for M27 vulnerabilities; Filter: .github/upstream-filter.yml on main; Queued: 23 commits wait in sync PR #58; 2 more wait for the next Sync Upstream at 2026-11-07T00:00:00.000Z",
     "evidence": [],
+    "notRead": [],
     "related": [],
     "approval": null,
     "actions": [],
@@ -561,7 +838,98 @@
         }
       }
     ],
-    "provenance": []
+    "provenance": [
+      {
+        "path": "/title",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/class",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/cause",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/effect",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/next",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/why",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      }
+    ]
   },
   {
     "id": "radar:legal",
@@ -572,6 +940,7 @@
     "next": "Absorb os-core-common 8.4.1-boot4-SNAPSHOT on the fork before the next Sync Upstream carries it.",
     "why": "Commit: 0cab1090 · Migrate Legal to Spring Boot 4 on Java 17; Filter: .github/upstream-filter.yml on main; Queued: 17 commits wait for the next Sync Upstream at 2026-11-07T00:00:00.000Z",
     "evidence": [],
+    "notRead": [],
     "related": [],
     "approval": null,
     "actions": [],
@@ -702,7 +1071,98 @@
         }
       }
     ],
-    "provenance": []
+    "provenance": [
+      {
+        "path": "/title",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/class",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/cause",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/effect",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/next",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/why",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      }
+    ]
   },
   {
     "id": "radar:schema",
@@ -713,6 +1173,7 @@
     "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
     "why": "Commit: 28d5a930 · Migrate Schema to Spring Boot 4 / Spring 7 on Java 17; Filter: .github/upstream-filter.yml on main; Queued: 16 commits wait for the next Sync Upstream at 2026-11-07T00:00:00.000Z",
     "evidence": [],
+    "notRead": [],
     "related": [],
     "approval": null,
     "actions": [],
@@ -843,7 +1304,98 @@
         }
       }
     ],
-    "provenance": []
+    "provenance": [
+      {
+        "path": "/title",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/class",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/cause",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/effect",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/next",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/why",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      }
+    ]
   },
   {
     "id": "radar:storage",
@@ -854,6 +1406,7 @@
     "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
     "why": "Commit: 9acda5e5 · Upgrade to Spring Boot 4 / Spring Framework 7 on Java 17 for M27 vulnerability fixes; Filter: .github/upstream-filter.yml on main",
     "evidence": [],
+    "notRead": [],
     "related": [],
     "approval": null,
     "actions": [],
@@ -984,7 +1537,98 @@
         }
       }
     ],
-    "provenance": []
+    "provenance": [
+      {
+        "path": "/title",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/class",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/cause",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/effect",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/next",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/why",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      }
+    ]
   },
   {
     "id": "radar:partition",
@@ -1212,6 +1856,7 @@
         "failure": "glab api projects/osdu%2Fplatform%2Fsystem%2Freference%2Fcrs-conversion-service/repository/tree?ref=master&per_page=100&page=1: offline"
       }
     ],
+    "notRead": [],
     "related": [
       {
         "text": "legal",
@@ -1401,7 +2046,98 @@
         }
       }
     ],
-    "provenance": []
+    "provenance": [
+      {
+        "path": "/title",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/class",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/cause",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/effect",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/next",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/why",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      }
+    ]
   },
   {
     "id": "radar:unit",
@@ -1412,6 +2148,7 @@
     "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
     "why": "Commit: 3a69766c · Upgrade to Spring Boot 4.0.8 / Spring Framework 7.0.9 on Java 17 (M27 vulnerability remediation); Filter: .github/upstream-filter.yml on main; Queued: 7 commits wait for the next Sync Upstream at 2026-11-07T00:00:00.000Z",
     "evidence": [],
+    "notRead": [],
     "related": [],
     "approval": null,
     "actions": [],
@@ -1542,7 +2279,98 @@
         }
       }
     ],
-    "provenance": []
+    "provenance": [
+      {
+        "path": "/title",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/class",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/cause",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/effect",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/next",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/why",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      }
+    ]
   },
   {
     "id": "radar:workflow",
@@ -1553,6 +2381,7 @@
     "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
     "why": "Commit: d6847cea · Upgrade to Spring Boot 4 / Spring Framework 7 on Java 17 for M27 vulnerabilities; Filter: .github/upstream-filter.yml on main; Queued: 7 commits wait for the next Sync Upstream at 2026-11-07T00:00:00.000Z",
     "evidence": [],
+    "notRead": [],
     "related": [],
     "approval": null,
     "actions": [],
@@ -1683,7 +2512,98 @@
         }
       }
     ],
-    "provenance": []
+    "provenance": [
+      {
+        "path": "/title",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/class",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/cause",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/effect",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/next",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/why",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      }
+    ]
   },
   {
     "id": "radar:search",
@@ -1694,6 +2614,7 @@
     "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
     "why": "Commit: aded8a3f · Upgrade to Spring Boot 4 / Spring Framework 7 on Java 17 for M27 vulnerabilities; Filter: .github/upstream-filter.yml on main; Queued: 6 commits wait for the next Sync Upstream at 2026-11-07T00:00:00.000Z",
     "evidence": [],
+    "notRead": [],
     "related": [],
     "approval": null,
     "actions": [],
@@ -1824,7 +2745,98 @@
         }
       }
     ],
-    "provenance": []
+    "provenance": [
+      {
+        "path": "/title",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/class",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/cause",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/effect",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/next",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/why",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      }
+    ]
   },
   {
     "id": "radar:file",
@@ -1835,6 +2847,7 @@
     "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
     "why": "Commit: 4d0ff1f4 · Upgrade to Spring Boot 4 / Spring Framework 7 on Java 17 for M27 vulnerabilities; Filter: .github/upstream-filter.yml on main; Queued: 5 commits wait for the next Sync Upstream at 2026-11-07T00:00:00.000Z",
     "evidence": [],
+    "notRead": [],
     "related": [],
     "approval": null,
     "actions": [],
@@ -1965,7 +2978,98 @@
         }
       }
     ],
-    "provenance": []
+    "provenance": [
+      {
+        "path": "/title",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/class",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/cause",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/effect",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/next",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/why",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      }
+    ]
   },
   {
     "id": "radar:crs-conversion",
@@ -1976,6 +3080,7 @@
     "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
     "why": "Commit: 80e3497b · Upgrade to Spring Boot 4 / Spring Framework 7 on Java 17 for M27 vulnerabilities; Filter: .github/upstream-filter.yml on main; Queued: 5 commits wait for the next Sync Upstream at 2026-11-07T00:00:00.000Z",
     "evidence": [],
+    "notRead": [],
     "related": [],
     "approval": null,
     "actions": [],
@@ -2106,7 +3211,98 @@
         }
       }
     ],
-    "provenance": []
+    "provenance": [
+      {
+        "path": "/title",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/class",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/cause",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/effect",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/next",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/why",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      }
+    ]
   },
   {
     "id": "gate1:indexer",
@@ -2117,6 +3313,7 @@
     "next": "Review the sync PR on GitHub and merge it.",
     "why": "Pull request: #58 · ⬆️ Sync with upstream f3342aa8 · opened 2026-11-05T00:33:17.000Z; Head: 5cf4e11",
     "evidence": [],
+    "notRead": [],
     "related": [],
     "approval": null,
     "actions": [],
@@ -2247,7 +3444,38 @@
         }
       }
     ],
-    "provenance": []
+    "provenance": [
+      {
+        "path": "/title",
+        "areas": ["github", "upstream"],
+        "attributed": "item"
+      },
+      {
+        "path": "/class",
+        "areas": ["github", "upstream"],
+        "attributed": "item"
+      },
+      {
+        "path": "/cause",
+        "areas": ["github", "upstream"],
+        "attributed": "item"
+      },
+      {
+        "path": "/effect",
+        "areas": ["github", "upstream"],
+        "attributed": "item"
+      },
+      {
+        "path": "/next",
+        "areas": ["github", "upstream"],
+        "attributed": "item"
+      },
+      {
+        "path": "/why",
+        "areas": ["github", "upstream"],
+        "attributed": "item"
+      }
+    ]
   },
   {
     "id": "gate1:storage",
@@ -2258,6 +3486,7 @@
     "next": "Review the sync PR on GitHub and merge it.",
     "why": "Pull request: #58 · ⬆️ Sync with upstream 21ac469f (Updated) · opened 2026-11-05T00:29:19.000Z; Head: 2d818bf",
     "evidence": [],
+    "notRead": [],
     "related": [],
     "approval": null,
     "actions": [],
@@ -2388,7 +3617,38 @@
         }
       }
     ],
-    "provenance": []
+    "provenance": [
+      {
+        "path": "/title",
+        "areas": ["github", "upstream"],
+        "attributed": "item"
+      },
+      {
+        "path": "/class",
+        "areas": ["github", "upstream"],
+        "attributed": "item"
+      },
+      {
+        "path": "/cause",
+        "areas": ["github", "upstream"],
+        "attributed": "item"
+      },
+      {
+        "path": "/effect",
+        "areas": ["github", "upstream"],
+        "attributed": "item"
+      },
+      {
+        "path": "/next",
+        "areas": ["github", "upstream"],
+        "attributed": "item"
+      },
+      {
+        "path": "/why",
+        "areas": ["github", "upstream"],
+        "attributed": "item"
+      }
+    ]
   },
   {
     "id": "gate1:indexer-queue",
@@ -2399,6 +3659,7 @@
     "next": "Review the sync PR on GitHub and merge it.",
     "why": "Pull request: #58 · ⬆️ Sync with upstream 606c103b · opened 2026-11-05T00:19:54.000Z; Head: 2337576",
     "evidence": [],
+    "notRead": [],
     "related": [],
     "approval": null,
     "actions": [],
@@ -2529,7 +3790,38 @@
         }
       }
     ],
-    "provenance": []
+    "provenance": [
+      {
+        "path": "/title",
+        "areas": ["github", "upstream"],
+        "attributed": "item"
+      },
+      {
+        "path": "/class",
+        "areas": ["github", "upstream"],
+        "attributed": "item"
+      },
+      {
+        "path": "/cause",
+        "areas": ["github", "upstream"],
+        "attributed": "item"
+      },
+      {
+        "path": "/effect",
+        "areas": ["github", "upstream"],
+        "attributed": "item"
+      },
+      {
+        "path": "/next",
+        "areas": ["github", "upstream"],
+        "attributed": "item"
+      },
+      {
+        "path": "/why",
+        "areas": ["github", "upstream"],
+        "attributed": "item"
+      }
+    ]
   },
   {
     "id": "port:entitlements",
@@ -2540,6 +3832,7 @@
     "next": "Port !968 into provider/entitlements-v2-azure; cite the MR URL in the PR body.",
     "why": "Seeded: 2026-09-14; Owed: !968 (provider/entitlements-v2-azure), !967 (provider/entitlements-v2-azure and testing/entitlements-v2-test-azure), !963 (testing/entitlements-v2-test-azure), !956 (provider/entitlements-v2-azure); Match: a fork PR whose body or a commit message cites the MR's GitLab URL",
     "evidence": [],
+    "notRead": [],
     "related": [
       {
         "text": "partition",
@@ -2726,7 +4019,98 @@
         }
       }
     ],
-    "provenance": []
+    "provenance": [
+      {
+        "path": "/title",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/class",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/cause",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/effect",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/next",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      },
+      {
+        "path": "/why",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template",
+          "security"
+        ],
+        "attributed": "sweep"
+      }
+    ]
   },
   {
     "id": "theme:toolchain:os-core-common 8.5.0",
