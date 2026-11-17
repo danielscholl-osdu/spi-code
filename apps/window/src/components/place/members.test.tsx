@@ -125,6 +125,9 @@ it("claims no home without membership, or when core names two homes; absent line
   if (!id) throw new Error("Missing member");
   snapshot.briefing.places = [];
   expect(placeMembers(snapshot, "line")).toEqual([]);
+  expect(placeMembers(snapshot, "upstream").map(({ member }) => member.id)).toEqual([
+    "port:entitlements",
+  ]);
   snapshot.briefing.focus = [];
   expect(places.flatMap((place) => placeMembers(snapshot, place))).toEqual([]);
   snapshot.briefing.places = (fixture.places ?? []).map((row) => ({ ...row, itemIds: [id] }));

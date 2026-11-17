@@ -31,6 +31,6 @@ export function placeMembers(
     if (homes.length === 1) return homes[0]?.place === place;
     if (homes.length > 1) return false;
     const item = items.find(({ id }) => id === member.id);
-    return place === "upstream" && item?.origin === "upstream";
+    return place === "upstream" && item?.cls === "PORT" && item.origin === "upstream";
   });
 }
