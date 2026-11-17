@@ -2,19 +2,20 @@
 // SPDX-License-Identifier: MIT
 
 import type { Theme } from "@spi-code/contracts";
-import { Fragment } from "react";
+import { Fragment, useRef } from "react";
 import { useStore } from "zustand";
-import { navigate, useOpenSelection } from "../../app/navigation.js";
+import { navigate } from "../../app/navigation.js";
 import { treeServices } from "../../app/queue.js";
 import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
+import { PopoverFields, usePlaceOpening } from "../../components/place/opening.js";
 import { Place } from "../../components/place/Place.js";
-import { type SelectionStore, selectionStore } from "../../panels/selection.js";
-import { selectionRows } from "../../panels/selection-rows.js";
+import { Popover } from "../../components/popover/Popover.js";
+import { placePin } from "../../store/pins.js";
 import { watchStore } from "../../store/watch.js";
 import { TimedText } from "../../time.js";
-import { themeRow, upstreamReading } from "./reading.js";
+import { upstreamOpening } from "./opening.js";
+import { upstreamReading } from "./reading.js";
 import "./upstream.css";
-import { placePin } from "../../store/pins.js";
 
 function ThemeSub({ theme }: { theme: Theme }) {
   const forks = new Set([
@@ -45,25 +46,16 @@ function ThemeSub({ theme }: { theme: Theme }) {
   );
 }
 
-export default function Upstream({
-  store = watchStore,
-  inspector = selectionStore,
-}: {
-  store?: typeof watchStore;
-  inspector?: SelectionStore;
-}) {
-  const marked = useOpenSelection();
+export default function Upstream({ store = watchStore }: { store?: typeof watchStore }) {
+  const pane = useRef<HTMLDivElement>(null);
   const snapshot = useStore(store, (state) => state.snapshot?.body);
-  const selected = useStore(inspector, (state) => state.selected);
+  const { marked, anchor, opener, openItem, close } = usePlaceOpening(pane, snapshot);
   if (!snapshot) return null;
   const reading = upstreamReading(snapshot);
   const { horizon, themes } = snapshot.briefing;
-  const select = (id: string) => {
-    const row = selectionRows(snapshot).find((candidate) => candidate.id === id);
-    if (row) inspector.getState().select(id, row);
-  };
+  const opening = upstreamOpening(snapshot, marked);
   return (
-    <div className="upstream">
+    <div className="upstream" ref={pane}>
       <Place
         name="Upstream"
         pin={placePin("upstream")}
@@ -71,8 +63,7 @@ export default function Upstream({
         snapshot={snapshot}
         services={treeServices(snapshot.tree)}
         onNavigate={navigate}
-        onSelect={select}
-        {...(selected !== null ? { selectedId: selected } : {})}
+        onSelect={openItem}
         actions={
           <button
             type="button"
@@ -97,7 +88,7 @@ export default function Upstream({
           )}
           <ul>
             {themes.map((theme, index) => {
-              const row = themeRow(theme, index);
+              const head = { kind: "theme", id: theme.id };
               const item = [...snapshot.briefing.focus, ...snapshot.briefing.rest].find(
                 ({ id }) => id === theme.inspect,
               );
@@ -108,18 +99,12 @@ export default function Upstream({
                   data-theme-id={theme.id}
                   data-pointer={`/briefing/themes/${index}`}
                   data-selected={
-                    selected === row.id ||
+                    (marked?.kind === "theme" && marked.id === theme.id) ||
                     (marked?.kind === "item" && marked.id === theme.inspect) ||
                     undefined
                   }
                 >
-                  <button
-                    type="button"
-                    className="upstream-theme-head"
-                    data-selection-id={row.id}
-                    aria-pressed={selected === row.id}
-                    onClick={() => inspector.getState().select(row.id, row)}
-                  >
+                  <button type="button" className="upstream-theme-head" {...opener(head)}>
                     <span className="upstream-theme-kind" data-tone={theme.tone}>
                       {theme.kind}
                     </span>
@@ -135,9 +120,7 @@ export default function Upstream({
                     <button
                       type="button"
                       className="upstream-theme-item upstream-fork"
-                      data-selection-id={item.id}
-                      aria-pressed={selected === item.id}
-                      onClick={() => select(item.id)}
+                      {...opener({ kind: "item", id: item.id })}
                     >
                       <TimedText text={item.title} hint={false} />
                     </button>
@@ -147,6 +130,11 @@ export default function Upstream({
             })}
           </ul>
         </section>
+      )}
+      {opening && marked && anchor && (
+        <Popover anchor={anchor} selection={marked} content={opening.content} onClose={close}>
+          <PopoverFields fields={opening.fields} />
+        </Popover>
       )}
     </div>
   );

@@ -1,0 +1,8 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+.popover-fields { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 12px; margin: 10px 0 0; padding-top: 8px; border-top: 1px solid var(--border-soft); font-size: 12.5px; }
+.popover-fields > div { display: contents; }
+.popover-fields dt { color: var(--text-muted); }
+.popover-fields dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+.popover-fields a { color: var(--accent-text); }

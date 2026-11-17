@@ -1,33 +1,30 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { LiHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes } from "react";
 import { type QueueEntry, scopeRoute } from "../../app/queue.js";
 import type { Route } from "../../app/routes.js";
 import { plainTitle } from "../../text.js";
 import { TimedText } from "../../time.js";
 import "./queue.css";
 
-/** One queue item. A page that lists it with useSelectionList passes its rowProps, less onClick. */
+/** One queue item; its title opens what the page opens for it. */
 export function QueueRow({
   entry: { item, pointer },
   selected,
   services,
-  onSelect,
   onNavigate,
-  rowProps,
+  opens,
 }: {
   entry: QueueEntry;
   selected: boolean;
   services: readonly string[];
-  onSelect(id: string): void;
   onNavigate(route: Route): void;
-  rowProps?: LiHTMLAttributes<HTMLLIElement>;
+  opens: ButtonHTMLAttributes<HTMLButtonElement>;
 }) {
   const route = scopeRoute(item.scope, services);
   return (
     <li
-      {...rowProps}
       className="inbox-row"
       data-selection-id={item.id}
       data-pointer={pointer}
@@ -44,10 +41,7 @@ export function QueueRow({
               className="inbox-scope"
               data-scope={item.scope}
               title={`Open ${item.scope}`}
-              onClick={() => {
-                if (!selected) onSelect(item.id);
-                onNavigate(route);
-              }}
+              onClick={() => onNavigate(route)}
             >
               {item.scope}
             </button>
@@ -56,12 +50,7 @@ export function QueueRow({
               {item.scope}
             </span>
           )}
-          <button
-            type="button"
-            className="inbox-row-title"
-            aria-pressed={selected}
-            onClick={() => onSelect(item.id)}
-          >
+          <button type="button" className="inbox-row-title" {...opens}>
             <TimedText text={plainTitle(item.title)} hint={false} />
           </button>
           <span className="inbox-class">{item.cls}</span>

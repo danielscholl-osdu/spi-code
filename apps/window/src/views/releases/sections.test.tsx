@@ -6,7 +6,13 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
-import { navigate, parseRoute, routeHash } from "../../app/navigation.js";
+import {
+  navigate,
+  openSelection,
+  parseRoute,
+  routeHash,
+  setOpenSelection,
+} from "../../app/navigation.js";
 import { type Home, PENDING } from "../../app/reachability.test-helper.js";
 import { RouteView } from "../../app/routes.js";
 import { selectionStore } from "../../panels/selection.js";
@@ -36,6 +42,7 @@ beforeEach(() => {
   harness = installSpi({ openExternal: async () => true });
 });
 afterEach(async () => {
+  await act(async () => setOpenSelection(null));
   await act(async () => root.unmount());
   container.remove();
   watchStore.setState(previous, true);
@@ -172,15 +179,24 @@ it("clicks every forming and shared-component service and PR opener", async () =
   }
 });
 
-it("opens inspectable PRs in Detail, reports failed browser opens, and opens provenance in Evidence", async () => {
+it("opens a PR's item in a popover, else its source, reports failed browser opens, and opens provenance in Evidence", async () => {
   const body = snapshot("snapshot-1106.json");
-  must(must(body.releases.forming).prs[0]).pr.inspect = "pr:partition:198";
+  const item = "release-red:Azure/osdu-spi-entitlements#89";
+  const [first, second] = must(body.releases.forming).prs;
+  must(first).pr.inspect = item;
+  must(second).pr.inspect = "pr:partition:198";
+  window.location.hash = "#releases";
   await mount(body);
   await act(async () =>
     pointer("/releases/forming/prs/0")?.querySelector<HTMLButtonElement>(".kit-pr")?.click(),
   );
-  expect(selectionStore.getState().selected).toBe("pr:partition:198");
-  expect(selectionStore.getState().tab).toBe("detail");
+  expect(openSelection()).toEqual({ kind: "item", id: item });
+  expect(selectionStore.getState()).toMatchObject({ selected: null, open: false });
+  expect(container.querySelector(".popover .opened-body-place")?.textContent).toBe(
+    "On Today · Waiting on you ›",
+  );
+  expect(window.spi.openExternal).not.toHaveBeenCalled();
+  await act(async () => setOpenSelection(null));
   vi.mocked(window.spi.openExternal).mockRejectedValueOnce(new Error("offline"));
   await act(async () =>
     pointer("/releases/forming/prs/1")?.querySelector<HTMLButtonElement>(".kit-pr")?.click(),

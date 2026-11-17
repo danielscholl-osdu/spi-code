@@ -9,7 +9,6 @@ import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { queueGroups, treeServices } from "../../app/queue.js";
 import { DEFAULT_REGISTRY, navigate } from "../../app/routes.js";
 import { Shell } from "../../app/Shell.js";
-import { selectionStore } from "../../panels/selection.js";
 import { watchStore } from "../../store/watch.js";
 import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import { QueueRow } from "./QueueRow.js";
@@ -31,7 +30,6 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
-  selectionStore.getState().clear();
   watchStore.setState(previous);
   harness.restore();
   window.location.hash = "";
@@ -39,8 +37,6 @@ afterEach(async () => {
 
 function Queue() {
   const snapshot = useStore(watchStore, (state) => state.snapshot);
-  const selectedId = useStore(watchStore, (state) => state.selection?.id);
-  const select = useStore(watchStore, (state) => state.select);
   if (!snapshot) return null;
   const services = treeServices(snapshot.body.tree);
   return (
@@ -51,17 +47,17 @@ function Queue() {
           <QueueRow
             key={entry.item.id}
             entry={entry}
-            selected={selectedId === entry.item.id}
+            selected={false}
             services={services}
-            onSelect={select}
             onNavigate={navigate}
+            opens={{}}
           />
         ))}
     </ul>
   );
 }
 
-it("routes a scope chip to the thing's page and keeps the row selected there", async () => {
+it("routes a scope chip to the thing's page, and leaves a fleet scope static", async () => {
   watchStore.setState({ snapshot: { cursor: body.cursor, body } });
   await act(async () =>
     root.render(
@@ -79,19 +75,10 @@ it("routes a scope chip to the thing's page and keeps the row selected there", a
   await act(async () => chip?.click());
   expect(window.location.hash).toBe("#service/entitlements");
   expect(container.querySelector("header [data-place]")?.textContent).toBe("entitlements");
-  expect(watchStore.getState().selection).toEqual({ id: "halt:entitlements" });
-  expect(window.spi.postMessage).toHaveBeenCalledWith(
-    expect.objectContaining({ type: "inspect.request" }),
-  );
   await act(async () => {
     window.location.hash = "#inbox";
     window.dispatchEvent(new HashChangeEvent("hashchange"));
   });
-  expect(
-    container
-      .querySelector('[data-selection-id="halt:entitlements"]')
-      ?.hasAttribute("data-selected"),
-  ).toBe(true);
   const fleet = container.querySelector('[data-selection-id="rollout"] .inbox-scope');
   expect(fleet?.tagName).toBe("SPAN");
 });

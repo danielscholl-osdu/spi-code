@@ -1,7 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { InspectResult, ViewSnapshot } from "@spi-code/contracts";
+import type { ViewSnapshot } from "@spi-code/contracts";
+import { restatesHeadline } from "../components/opened-body/content.js";
 import { inScope } from "../components/sidebar/attention.js";
 import { selectionRows } from "../panels/selection-rows.js";
 import { plainTitle } from "../text.js";
@@ -22,25 +23,17 @@ export type Selector = string | ((root: ParentNode) => Element | null | undefine
 /** A signed-off place a field's home starts from: Today, the strip, the Line sheet, a place. */
 export type Start = { name: string; surface: string; route: Destination };
 
-/**
- * Where a field lives: its start, then at most one click on a visible target. A Detail home also
- * carries the host's answer, and its click is the row that names it.
- */
+/** Where a field lives: its start, then at most one click on a visible target. */
 export type Home = {
   name: string;
   start: Start;
   step?: Selector;
-  detail?: InspectResult;
   /** The wall clock pinned before the home renders, for a home that draws times against it. */
   clock?: number;
 };
 
-/** What a click on the drawn field opens: the item's Detail, a place, or the row's body in place. */
-export type Opens = { click: Selector } & (
-  | { detail: string }
-  | { place: Destination }
-  | { opened: string }
-);
+/** What a click on the drawn field opens: a place, or the row's body in place. */
+export type Opens = { click: Selector } & ({ place: Destination } | { opened: string });
 
 export type Reach = {
   pointer: string;
@@ -128,8 +121,8 @@ const SELECTABLE_PLACES = new Set(["upstream", "environment", "engineering", "se
 /** A place's own heading, which differs from its start's name only for a service. */
 const placeLabel = (from: Start) => (from.route.kind === "service" ? from.route.id : from.name);
 
-function home(name: string, from: Start, step?: Selector, detail?: InspectResult): Home {
-  return { name, start: from, ...(step ? { step } : {}), ...(detail ? { detail } : {}) };
+function home(name: string, from: Start, step?: Selector): Home {
+  return { name, start: from, ...(step ? { step } : {}) };
 }
 
 const TODAY = home("Today", STARTS.today);
@@ -165,13 +158,6 @@ function lensHome(name: string): Home {
   return home(name, from, step);
 }
 
-/**
- * The router's Detail answers on the recorded sweep (fixtures/watch/inspect-1106.json) by id, which
- * packages/host/src/watch/parity.test.ts pins to the router field for field: the feed Detail
- * draws here is the host's.
- */
-type DetailFeed = Readonly<Record<string, InspectResult>>;
-
 function overlaps(hold: Event, e: Event) {
   const end = (x: Event) => (x.end === undefined ? Number.POSITIVE_INFINITY : Date.parse(x.end));
   return Date.parse(e.start) <= end(hold) && end(e) >= Date.parse(hold.start);
@@ -180,19 +166,12 @@ function overlaps(hold: Event, e: Event) {
 /** While a hold is open the Maintenance tile leads; the Running fact's run is the Stack runs headline. */
 const MAINTENANCE_LEADS = "Maintenance leads in the Running fact's place while a hold is open";
 
-const detailField = (field: string) => `.inspector dd[data-field="${field}"]`;
-const related = (index: number, part: "dt" | "dd") =>
-  `.inspector-related > div:nth-child(${index + 1}) > ${part}`;
+const popoverField = (index: number, part: "dt" | "dd") =>
+  `.popover-fields > div:nth-child(${index + 1}) > ${part}`;
 
 /** Every Briefing and Releases field the window draws, each at its home surface. */
-export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
+export function reachCases(snapshot: ViewSnapshot): Reach[] {
   const { briefing, releases } = snapshot;
-  const answer = (id: string) => {
-    const result = feed[id];
-    if (!result)
-      throw new Error(`No host Detail answer for ${id} in fixtures/watch/inspect-1106.json`);
-    return result;
-  };
   const cases: Reach[] = placeFreshCases(snapshot);
   const add = (
     pointer: string,
@@ -366,50 +345,53 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
           }
         : undefined;
     if (!opener) continue;
-    const detail = home(
-      `${opener.from.name} · Detail ${item.id}`,
-      opener.from,
-      opener.step,
-      answer(item.id),
+    const opened = home(`${opener.from.name} · Popover ${item.id}`, opener.from, opener.step);
+    add(`${pointer}/cls`, item.cls, opened, "", {
+      exempt: "Z3: the popover tells the reading, not core's class",
+    });
+    const member = (briefing.lines ?? []).some(({ members }) =>
+      members.some((m) => m.id === item.id || m.ids.includes(item.id)),
     );
-    add(`${pointer}/cls`, item.cls, detail, '.inspector [data-field="class"]');
-    const grouped = item.cls === "PORT" && item.ids.length > 1;
-    for (const key of ["cause", "effect", "next"] as const)
-      if (plainTitle(item[key]))
-        add(`${pointer}/${key}`, timedText(plainTitle(item[key])), detail, detailField(key), {
-          ...(grouped && key !== "next"
-            ? { exempt: "spicode-t1k.216: a grouped port's Detail tells its first fork only" }
-            : {}),
-        });
+    const heading = timedText(plainTitle(item.title), { hint: false });
+    for (const [key, selector] of [
+      ["cause", ".popover .opened-body > p:not([class])"],
+      ["effect", ".popover .opened-body-effect"],
+      ["next", ".popover .opened-body-step"],
+    ] as const) {
+      const value = timedText(plainTitle(item[key]), { hint: false });
+      if (!value) continue;
+      const exempt = member
+        ? "Z3: a Today member's popover tells the member's reading, not the item's"
+        : key === "cause" && restatesHeadline(value, heading)
+          ? "Z3: the popover drops a cause that restates its title"
+          : key === "effect" && /^Nothing (?:else )?waits(?: on it)?[.!]?$/i.test(value)
+            ? "Z3: the popover drops an effect that says nothing waits"
+            : undefined;
+      add(`${pointer}/${key}`, value, opened, selector, exempt ? { exempt } : {});
+    }
   }
 
   briefing.themes.forEach((theme, index) => {
     const pointer = `/briefing/themes/${index}`;
-    const where = home(
-      `Upstream · Detail theme:${theme.id}`,
-      STARTS.upstream,
-      themeHead(index),
-      answer(`theme:${theme.id}`),
-    );
-    add(`${pointer}/title`, theme.title, where, detailField("cause"));
-    if (theme.sub) add(`${pointer}/sub`, theme.sub, where, detailField("effect"));
-    if (theme.next) add(`${pointer}/next`, plainTitle(theme.next), where, detailField("next"));
-    if (theme.when) add(`${pointer}/when`, timedText(theme.when), where, detailField("why"));
+    const where = home(`Upstream · Popover theme:${theme.id}`, STARTS.upstream, themeHead(index));
+    add(`${pointer}/title`, theme.title, where, ".popover h3");
+    if (theme.next)
+      add(`${pointer}/next`, plainTitle(theme.next), where, ".popover .opened-body-step");
     let offset = 0;
     for (const list of ["certain", "possible"] as const) {
       theme[list].forEach((fork, at) => {
-        add(`${pointer}/${list}/${at}/fork`, fork.fork, where, related(offset + at, "dd"));
+        add(`${pointer}/${list}/${at}/fork`, fork.fork, where, popoverField(offset + at, "dt"));
         add(
           `${pointer}/${list}/${at}/state`,
-          timedText(`${list} · ${fork.state}`),
+          timedText(`${list} · ${fork.state}`, { hint: false }),
           where,
-          related(offset + at, "dt"),
+          popoverField(offset + at, "dd"),
         );
       });
       offset += theme[list].length;
     }
     theme.exposed.forEach((fork, at) => {
-      add(`${pointer}/exposed/${at}`, fork, where, related(offset + at, "dd"));
+      add(`${pointer}/exposed/${at}`, fork, where, popoverField(offset + at, "dt"));
     });
   });
 

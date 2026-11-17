@@ -355,7 +355,7 @@ it.each([740, 900, 980, 1100, 1280])(
     try {
       expect(row).not.toBeNull();
       row?.focus();
-      await act(async () => row?.click());
+      await act(async () => selectionStore.getState().select(row?.dataset.selectionId ?? ""));
       expect(container.querySelectorAll('aside[aria-label="Detail"]')).toHaveLength(1);
       expect(container.querySelector("#app-right-panel")?.hasAttribute("data-sheet")).toBe(
         width < 1032,

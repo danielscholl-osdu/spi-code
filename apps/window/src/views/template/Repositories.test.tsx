@@ -71,7 +71,7 @@ async function mount(body: ViewSnapshot) {
   const selection = createSelectionStore({ postMessage: vi.fn() });
   const store = createWatchStore(vi.fn(), selection);
   store.setState({ snapshot: { cursor: body.cursor, body } });
-  await act(async () => root.render(<Template store={store} inspector={selection} />));
+  await act(async () => root.render(<Template store={store} />));
   return selection;
 }
 
@@ -208,7 +208,7 @@ it("reopens a repository line from its place selection and refreshes its body on
   const selection = createSelectionStore({ postMessage: vi.fn() });
   const store = createWatchStore(vi.fn(), selection);
   store.setState({ snapshot: { cursor: body.cursor, body } });
-  await act(async () => root.render(<Template store={store} inspector={selection} />));
+  await act(async () => root.render(<Template store={store} />));
   expect(dialog()).not.toBeNull();
   const entry = body.briefing.repositories.rows
     .find(({ name }) => name === "storage")

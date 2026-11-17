@@ -1,17 +1,12 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { PROTOCOL_VERSION, parseMessage, type ViewSnapshot } from "@spi-code/contracts";
+import type { ViewSnapshot } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { useStore } from "zustand";
-import HALT from "../../../../../fixtures/rib-59d6895/oracle/inspect/HALT.json?raw";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
-import { RightPanel } from "../../panels/RightPanel.js";
-import { createSelectionStore, type SelectionStore } from "../../panels/selection.js";
-import { selectionRows } from "../../panels/selection-rows.js";
-import { inspectFromOracle, type OracleBoard } from "../../panels/test-inspect.js";
+import { openSelection, setOpenSelection } from "../../app/navigation.js";
 import { mixedSnapshot } from "../../store/test-snapshot.js";
 import { createWatchStore, watchStore } from "../../store/watch.js";
 import { installSpi } from "../../test-utils/harness.js";
@@ -33,6 +28,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  await act(async () => setOpenSelection(null));
   await act(async () => root?.unmount());
   root = undefined;
   container.remove();
@@ -41,27 +37,19 @@ afterEach(async () => {
   harness.restore();
 });
 
-async function render(body: ViewSnapshot = mixedSnapshot(mixed), panel = false, id = SERVICE) {
-  const postMessage = vi.fn();
-  const selection = createSelectionStore({ postMessage });
+async function render(body: ViewSnapshot = mixedSnapshot(mixed), id = SERVICE) {
   watchStore.setState({ snapshot: { cursor: body.cursor, body }, selection: null });
   document.body.append(container);
   root = createRoot(container);
-  await act(async () =>
-    root?.render(
-      <>
-        <ServicePage id={id} selection={selection} />
-        {panel && <RightPanel store={selection} snapshot={body} />}
-      </>,
-    ),
-  );
-  const requested = () => {
-    const parsed = parseMessage(postMessage.mock.lastCall?.[0]);
-    if (!parsed.ok || parsed.message.type !== "inspect.request") return undefined;
-    return parsed.message;
-  };
-  return { body, selection, postMessage, requested };
+  await act(async () => root?.render(<ServicePage id={id} />));
+  return { body };
 }
+
+const popover = () => container.querySelector<HTMLElement>(".popover");
+const pills = () =>
+  Array.from(popover()?.querySelectorAll<HTMLAnchorElement>(".opened-body-sources a") ?? [], (a) =>
+    a.getAttribute("href"),
+  );
 
 const section = (name: string) => container.querySelector<HTMLElement>(`[data-section="${name}"]`);
 const click = (element: Element | null | undefined) =>
@@ -96,14 +84,14 @@ it("draws styled nonempty sections with Attention open by default", async () => 
 });
 
 it("preserves Attention's fold across a sweep, opens it for another service and omits it without items", async () => {
-  const { body, selection } = await render();
+  const { body } = await render();
   await click(section("attention")?.querySelector(":scope > summary"));
   expect(section("attention")?.hasAttribute("open")).toBe(false);
   await act(async () =>
     watchStore.setState({ snapshot: { cursor: body.cursor + 1, body: { ...body } } }),
   );
   expect(section("attention")?.hasAttribute("open")).toBe(false);
-  await act(async () => root?.render(<ServicePage id="legal" selection={selection} />));
+  await act(async () => root?.render(<ServicePage id="legal" />));
   expect(section("attention")?.hasAttribute("open")).toBe(true);
   const empty = {
     ...body,
@@ -116,39 +104,8 @@ it("preserves Attention's fold across a sweep, opens it for another service and 
   expect(container.querySelectorAll("details[open]")).toHaveLength(0);
 });
 
-it("makes each of the six station tiles a selection that asks for its inspect", async () => {
-  const { body, requested, selection } = await render();
-  const stations = body.stations.find(({ service }) => service === SERVICE)?.stations ?? [];
-  const tiles = container.querySelectorAll<HTMLElement>("button[data-station]");
-  expect(tiles).toHaveLength(6);
-  for (const [index, station] of stations.entries()) {
-    const tile = tiles[index];
-    expect(tile?.getAttribute("data-selection-id")).toBe(`station:${SERVICE}:${station.id}`);
-    await click(tile);
-    expect(selection.getState().selected).toBe(`station:${SERVICE}:${station.id}`);
-    expect(tile?.getAttribute("aria-pressed")).toBe("true");
-    expect(requested()?.payload.id).toBe(station.inspect ?? `station:${SERVICE}:${station.id}`);
-  }
-  expect(container.querySelectorAll('.service-station-actions [aria-pressed="true"]')).toHaveLength(
-    1,
-  );
-});
-
-it("selects the flow row and shows its reading", async () => {
-  const { requested, selection } = await render();
-  const row = container.querySelector<HTMLElement>('[data-service-detail="upstream"]');
-  await click(row);
-  expect(selection.getState().selected).toBe(`upstream:${SERVICE}`);
-  expect(selection.getState().row?.kind).toBe("flow");
-  expect(selection.getState().row?.fields).toContainEqual({
-    label: "Ready",
-    value: "halted · add a filter rule",
-  });
-  expect(requested()?.payload.id).toBe(`upstream:${SERVICE}`);
-});
-
-it("draws Release and Runs from the service rows, runs newest first and openable", async () => {
-  const { body, requested } = await render();
+it("draws Release and Runs from the service rows, runs newest first, each opening its run", async () => {
+  const { body } = await render();
   const service = body.services?.find(({ service }) => service === SERVICE);
   const release = section("release");
   expect(
@@ -166,12 +123,11 @@ it("draws Release and Runs from the service rows, runs newest first and openable
   const times = runs.map((run) => run.querySelector("time")?.getAttribute("datetime") ?? "");
   expect(times).toEqual([...times].sort().reverse());
   const first = runs[0];
+  const run = service?.runs.find(({ id }) => id === first?.getAttribute("data-selection-id"));
   await click(first);
-  expect(requested()?.payload.id).toBe(first?.getAttribute("data-selection-id"));
-  await act(async () => first?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })));
-  expect(openExternal).toHaveBeenCalledWith(
-    service?.runs.find(({ id }) => id === first?.getAttribute("data-selection-id"))?.url,
-  );
+  expect(openSelection()).toEqual({ kind: "run", id: run?.id });
+  expect(popover()?.querySelector("h3")?.textContent).toBe(`${run?.workflow} · ${run?.result}`);
+  expect(pills()).toEqual([run?.url]);
 });
 
 const hintOf = (month: string) =>
@@ -201,7 +157,7 @@ it("shows entitlements' own read times in the October hint from the mixed fixtur
 });
 
 it("gives no hint when the gate agrees with the release row", async () => {
-  await render(mixedSnapshot(mixed), false, "schema");
+  await render(mixedSnapshot(mixed), "schema");
   const october = section("release")?.querySelector('[data-release="2026-10"]');
   expect(october?.textContent).toContain("new → v1.2.0");
   expect(october?.textContent).toContain("release review idle · v1.2.0");
@@ -263,7 +219,7 @@ it("keeps the untimed hint for older snapshots without per-service observations"
   expect(hintOf("2026-10")).toBe(UNTIMED);
 });
 
-it("leaves Release, Runs and line selection out when the snapshot lacks those fields", async () => {
+it("leaves Release and Runs out when the snapshot lacks them, and opens a line with no source as not on Today", async () => {
   const body = mixedSnapshot(mixed);
   const { services: _, ...rest } = body;
   const bare: ViewSnapshot = {
@@ -286,89 +242,37 @@ it("leaves Release, Runs and line selection out when the snapshot lacks those fi
   expect(section("release")).toBeNull();
   expect(section("runs")).toBeNull();
   expect(container.textContent).not.toMatch(/\bRuns\b|No runs|No release/);
-  const repository = section("repository");
-  const lines = repository?.querySelectorAll("[data-plain]") ?? [];
-  expect(lines.length).toBeGreaterThan(0);
-  for (const line of lines) expect(line.hasAttribute("data-selection-id")).toBe(false);
-  expect(
-    Array.from(repository?.querySelectorAll("[data-selection-id]") ?? [], (el) =>
-      el.getAttribute("data-selection-id"),
-    ),
-  ).toEqual([`repo:${SERVICE}`]);
+  const repoIndex = bare.briefing.repositories.rows.findIndex(({ id }) => id === `repo:${SERVICE}`);
+  const at = bare.briefing.repositories.rows[repoIndex]?.sections
+    .flatMap(({ lines }, sectionIndex) =>
+      lines.map((line, lineIndex) => ({ line, sectionIndex, lineIndex })),
+    )
+    .find(({ line }) => !line.onToday);
+  if (!at) throw new Error("Recorded entitlements needs a line not on Today");
+  const pointer = `/briefing/repositories/rows/${repoIndex}/sections/${at.sectionIndex}/lines/${at.lineIndex}`;
+  await click(section("repository")?.querySelector(`[data-rline="${SERVICE}|${pointer}"]`));
+  expect(popover()?.querySelector(".opened-body > p")?.textContent).toBe("Not on Today.");
+  expect(pills()).toEqual([]);
 });
 
-it("makes repository lines with ids selectable and openable", async () => {
-  const { requested, selection } = await render();
+it("opens a repository line in the shared popover, placed on its service, with its source", async () => {
+  await render();
   const line = section("repository")?.querySelector<HTMLElement>(
-    `[data-selection-id="issue:Azure/osdu-spi-entitlements:47"]`,
+    `[data-rline="${SERVICE}|issue:Azure/osdu-spi-entitlements:47"]`,
   );
   expect(line?.textContent).toContain("Upstream Sync Failed");
-  expect(section("repository")?.querySelector("[data-plain]")).toBeNull();
   await click(line);
-  expect(selection.getState().row?.kind).toBe("repository-line");
-  expect(requested()?.payload.id).toBe("issue:Azure/osdu-spi-entitlements:47");
-  await act(async () => line?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })));
-  expect(openExternal).toHaveBeenCalledWith(
-    "https://github.com/Azure/osdu-spi-entitlements/issues/47",
-  );
-});
-
-it("opens upstream Detail and leaves unshipped actions out", async () => {
-  const { selection } = await render();
-  const button = container.querySelector<HTMLButtonElement>('[data-service-detail="upstream"]');
-  expect(button?.disabled).toBe(false);
-  expect(container.textContent).not.toMatch(/Add to chat|Thread|not available yet/);
-  await act(async () => {
-    selection.getState().setOpen(false);
-    selection.getState().setTab("evidence");
+  expect(openSelection()).toEqual({
+    kind: "rline",
+    id: `${SERVICE}|issue:Azure/osdu-spi-entitlements:47`,
   });
-  await click(button);
-  expect(selection.getState().open).toBe(true);
-  expect(selection.getState().tab).toBe("detail");
-  expect(selection.getState().selected).toBe(`upstream:${SERVICE}`);
+  expect(pills()).toContain("https://github.com/Azure/osdu-spi-entitlements/issues/47");
+  expect(openExternal).not.toHaveBeenCalled();
 });
 
-it("fills the right panel's Detail with the selected tile", async () => {
-  const { selection, requested } = await render(undefined, true);
-  const panel = () => container.querySelector<HTMLElement>("aside[aria-label='Detail']");
-  expect(panel()?.textContent).toContain("No selection");
-  await click(container.querySelector('[data-station="sync"]'));
-  expect(panel()?.querySelector(".inspector-kicker")?.textContent).toBe("station");
-  expect(panel()?.querySelector(".detail-title")?.textContent).toBe(`Sync PR · ${SERVICE}`);
-  expect(panel()?.querySelector(".detail-row-fields")?.textContent).toContain(
-    "halted: UNKNOWN_TOP_LEVEL",
-  );
-  const request = requested();
-  if (!request) throw new Error("No inspect request");
-  expect(request.payload.id).toBe(`station:${SERVICE}:sync`);
-  const result = inspectFromOracle(JSON.parse(HALT) as OracleBoard, request.payload.id);
-  await act(async () =>
-    selection.getState().receive({
-      version: PROTOCOL_VERSION,
-      id: request.id,
-      kind: "response",
-      type: "inspect.result",
-      payload: result,
-    }),
-  );
-  expect(panel()?.querySelector('[data-field="class"]')?.textContent).toBe("HALT");
-  await click(section("runs")?.querySelector("[data-selection-id]"));
-  expect(panel()?.querySelector(".inspector-kicker")?.textContent).toBe("run");
-  expect(panel()?.querySelector(".detail-row-fields")?.textContent).toContain("Workflow");
-  await click(
-    section("repository")?.querySelector(
-      '[data-selection-id="issue:Azure/osdu-spi-entitlements:47"]',
-    ),
-  );
-  expect(panel()?.querySelector(".inspector-kicker")?.textContent).toBe("repository line");
-  const fields = Array.from(
-    panel()?.querySelectorAll(".detail-row-fields dt") ?? [],
-    (term) => term.textContent,
-  );
-  expect(fields).toEqual(["Tag", "Reading", "Id", "Link"]);
-  expect(panel()?.querySelector(".detail-row-fields")?.textContent).toContain(
-    "https://github.com/Azure/osdu-spi-entitlements/issues/47",
-  );
+it("leaves unshipped actions out", async () => {
+  await render();
+  expect(container.textContent).not.toMatch(/Add to chat|Thread|not available yet/);
 });
 
 it("reads an offset run time as a local clock time", async () => {
@@ -383,15 +287,9 @@ it("reads an offset run time as a local clock time", async () => {
         }
       : entry,
   );
-  const { selection } = await render({ ...body, services });
+  await render({ ...body, services });
   const first = section("runs")?.querySelector<HTMLElement>("[data-selection-id]");
   expect(first?.querySelector("time")?.textContent).toBe(clockTime("2026-10-13T08:15:00Z"));
-  await click(first);
-  expect(selection.getState().row?.fields).toContainEqual({
-    label: "When",
-    value: clockTime("2026-10-13T08:15:00Z"),
-    dateTime: "2026-10-13T10:15:00+02:00",
-  });
 });
 
 it("keeps repository lines in source order when only some carry an identity", async () => {
@@ -428,49 +326,10 @@ it("keeps repository lines in source order when only some carry an identity", as
     "log4j-core · 3 vulnerabilities",
     "log4j-api · 1 vulnerability",
   ]);
-  expect(lines.map((line) => line.getAttribute("data-selection-id"))).toEqual([
-    null,
-    "alert:Azure/osdu-spi-entitlements:dep:pom.xml:org.apache.logging.log4j:log4j-api",
-  ]);
-  expect(lines[0]?.hasAttribute("data-plain")).toBe(true);
 });
 
 const STACK = "osdu-spi-stack";
 const STACK_LINE = "issue:Azure/osdu-spi-stack:324";
-
-type WatchStore = ReturnType<typeof createWatchStore>;
-
-function LivePanel({ watch, selection }: { watch: WatchStore; selection: SelectionStore }) {
-  const body = useStore(watch, (state) => state.snapshot?.body);
-  return <RightPanel store={selection} {...(body ? { snapshot: body } : {})} />;
-}
-
-async function renderBoth(body: ViewSnapshot) {
-  const selection = createSelectionStore({ postMessage: vi.fn() });
-  const watch = createWatchStore(vi.fn(), selection);
-  watch.setState({ snapshot: { cursor: body.cursor, body } });
-  document.body.append(container);
-  root = createRoot(container);
-  await act(async () =>
-    root?.render(
-      <>
-        <ServicePage id={STACK} store={watch} selection={selection} />
-        <LivePanel watch={watch} selection={selection} />
-      </>,
-    ),
-  );
-  const page = {
-    service: (id: string) =>
-      section("repository")?.querySelector<HTMLElement>(`[data-selection-id="${id}"]`),
-  };
-  return { selection, watch, page };
-}
-
-const detailFields = () =>
-  Array.from(
-    container.querySelectorAll("aside[aria-label='Detail'] .detail-row-fields > div"),
-    (pair) => [pair.querySelector("dt")?.textContent, pair.querySelector("dd")?.textContent],
-  );
 
 const stackLine = (body: ViewSnapshot, id: string) => {
   const line = body.briefing.repositories.rows
@@ -481,52 +340,14 @@ const stackLine = (body: ViewSnapshot, id: string) => {
   return line;
 };
 
-it("shows a stack line's Detail fields selected on its service page", async () => {
+it("keeps a stack line's popover open and refreshed after a sweep inserts a line before it", async () => {
   const body = mixedSnapshot(mixed);
-  const line = stackLine(body, STACK_LINE);
-  const { selection, page } = await renderBoth(body);
-  const expected = selectionRows(body).find(({ id }) => id === STACK_LINE);
-
-  await click(page.service(STACK_LINE));
-  expect(selection.getState().row).toEqual(expected);
-  const fromService = detailFields();
-  expect(fromService).toEqual([
-    ["Tag", line.tag],
-    ["Reading", line.sub],
-    ["Id", STACK_LINE],
-    ["Link", line.url],
-  ]);
-});
-
-it.each(["service"] as const)(
-  "refreshes a stack line's Detail in place after a sweep changes it (selected on %s)",
-  async (from) => {
-    const body = mixedSnapshot(mixed);
-    const { watch, page } = await renderBoth(body);
-    await click(page[from](STACK_LINE));
-    const next = structuredClone(body);
-    next.cursor = body.cursor + 1;
-    Object.assign(stackLine(next, STACK_LINE), {
-      text: "Refreshed issue title",
-      tag: "regression",
-      sub: "reopened 1h ago",
-    });
-    await act(async () => watch.setState({ snapshot: { cursor: next.cursor, body: next } }));
-    const panel = container.querySelector("aside[aria-label='Detail']");
-    expect(panel?.querySelector(".detail-title")?.textContent).toBe("Refreshed issue title");
-    expect(detailFields()).toEqual([
-      ["Tag", "regression"],
-      ["Reading", "reopened 1h ago"],
-      ["Id", STACK_LINE],
-      ["Link", stackLine(body, STACK_LINE).url],
-    ]);
-  },
-);
-
-it("refreshes a selected service line's Detail after a sweep inserts a line before it", async () => {
-  const body = mixedSnapshot(mixed);
-  const { watch, page } = await renderBoth(body);
-  await click(page.service(STACK_LINE));
+  const watch = createWatchStore(vi.fn());
+  watch.setState({ snapshot: { cursor: body.cursor, body } });
+  document.body.append(container);
+  root = createRoot(container);
+  await act(async () => root?.render(<ServicePage id={STACK} store={watch} />));
+  await click(section("repository")?.querySelector(`[data-rline="${STACK}|${STACK_LINE}"]`));
   const next = structuredClone(body);
   next.cursor = body.cursor + 1;
   const issues = next.briefing.repositories.rows
@@ -539,55 +360,9 @@ it("refreshes a selected service line's Detail after a sweep inserts a line befo
     url: "https://github.com/Azure/osdu-spi-stack/issues/330",
     text: "A newer issue",
   });
-  Object.assign(stackLine(next, STACK_LINE), {
-    text: "Refreshed issue title",
-    tag: "regression",
-    sub: "reopened 1h ago",
-  });
+  Object.assign(stackLine(next, STACK_LINE), { text: "Refreshed issue title" });
   await act(async () => watch.setState({ snapshot: { cursor: next.cursor, body: next } }));
-  const panel = container.querySelector("aside[aria-label='Detail']");
-  expect(panel?.querySelector(".detail-title")?.textContent).toBe("Refreshed issue title");
-  expect(detailFields()).toEqual([
-    ["Tag", "regression"],
-    ["Reading", "reopened 1h ago"],
-    ["Id", STACK_LINE],
-    ["Link", stackLine(body, STACK_LINE).url],
-  ]);
-});
-
-it("keeps unidentified stack lines unselectable in source order, and arrows past them", async () => {
-  const body = mixedSnapshot(mixed);
-  const issues = body.briefing.repositories.rows
-    .find(({ name }) => name === STACK)
-    ?.sections.find(({ title }) => title === "Issues");
-  const [first, middle, last] = issues?.lines ?? [];
-  if (!first?.id || !middle || !last?.id) throw new Error("Recorded stack needs three issues");
-  delete middle.id;
-  delete middle.url;
-  const { selection, page } = await renderBoth(body);
-
-  const service = Array.from(
-    section("repository")
-      ?.querySelector(".service-repo-section")
-      ?.querySelectorAll(".service-row") ?? [],
-  );
-  for (const rows of [service]) {
-    expect(rows.map((row) => row.textContent?.includes(middle.text))).toEqual([false, true, false]);
-    expect(rows.map((row) => row.getAttribute("data-selection-id"))).toEqual([
-      first.id,
-      null,
-      last.id,
-    ]);
-  }
-  expect(selectionRows(body).some(({ title }) => title === middle.text)).toBe(false);
-
-  for (const option of [page.service(first.id)]) {
-    await click(option);
-    option?.focus();
-    await act(async () =>
-      option?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })),
-    );
-    expect(selection.getState().selected).toBe(last.id);
-    expect(document.activeElement?.getAttribute("data-selection-id")).toBe(last.id);
-  }
+  expect(container.querySelectorAll(".popover")).toHaveLength(1);
+  expect(popover()?.querySelector("h3")?.textContent).toBe("Refreshed issue title");
+  expect(pills()).toEqual([stackLine(body, STACK_LINE).url]);
 });

@@ -69,7 +69,7 @@ async function mount(body: ViewSnapshot) {
   const selection = createSelectionStore({ postMessage: vi.fn() });
   const store = createWatchStore(vi.fn(), selection);
   store.setState({ snapshot: { cursor: body.cursor, body } });
-  await act(async () => root.render(<Template store={store} inspector={selection} />));
+  await act(async () => root.render(<Template store={store} />));
   return selection;
 }
 

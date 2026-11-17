@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { PROTOCOL_VERSION, type ViewSnapshot } from "@spi-code/contracts";
+import type { ViewSnapshot } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -42,10 +42,7 @@ function load(read: Read) {
   calmSnapshot = loadFixture("snapshot-calm.json");
   busySnapshot = loadFixture("snapshot-busy.json");
   badSnapshot = loadFixture("snapshot-bad.json");
-  const feed = Object.fromEntries(
-    loadFixture("inspect-1106.json").map((result) => [result.id, result]),
-  );
-  cases = reachCases(fixture(), feed);
+  cases = reachCases(fixture());
   drawn = cases.filter(({ exempt }) => !exempt);
   homes = [...new Map(drawn.map(({ home }) => [home.name, home])).values()];
   const groups = new Map<string, Reach[]>();
@@ -132,27 +129,11 @@ export async function click(selector: Selector, where: string) {
   return 1;
 }
 
-export async function answerDetail(home: Home) {
-  if (!home.detail) return;
-  const { request, row, selected } = selectionStore.getState();
-  expect(row?.inspectId ?? selected, home.name).toBe(home.detail.id);
-  await act(async () =>
-    selectionStore.getState().receive({
-      version: PROTOCOL_VERSION,
-      id: request,
-      kind: "response",
-      type: "inspect.result",
-      payload: home.detail,
-    }),
-  );
-}
-
-/** The home's start, then at most its one click, then the host's Detail answer if it has one. */
+/** The home's start, then at most its one click. */
 export async function openHome(home: Home, body = fixture()) {
   await start(home, body);
   const clicks = home.step ? await click(home.step, home.name) : 0;
   expect(clicks, home.name).toBeLessThanOrEqual(1);
-  await answerDetail(home);
 }
 
 const shown = (row: Reach) => visible(find(row.selector), `${row.pointer} at ${row.home.name}`);
@@ -216,10 +197,7 @@ export async function assertOpens(rows: readonly Reach[], body: ViewSnapshot) {
   await openHome(row.home, body);
   for (const row of rows) assertReach(row);
   expect(await click(row.opens.click, where)).toBe(1);
-  if ("detail" in row.opens) {
-    const { row: selected, selected: id } = selectionStore.getState();
-    expect(selected?.inspectId ?? id, where).toBe(row.opens.detail);
-  } else if ("opened" in row.opens) {
+  if ("opened" in row.opens) {
     expect(container.querySelector(row.opens.opened), where).not.toBeNull();
   } else if (row.opens.place.kind === "line") {
     expect(container.querySelector(".line-sheet"), where).not.toBeNull();

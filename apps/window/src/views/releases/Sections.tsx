@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { PrRef, ViewSnapshot } from "@spi-code/contracts";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { navigate } from "../../app/navigation.js";
 import { SectionEvidence, sectionSources } from "../../components/evidence/SectionEvidence.js";
 import { stateWord } from "../../components/evidence/words.js";
@@ -10,17 +10,16 @@ import { Chip, PrBadge, ServiceChip } from "../../components/kit/Chip.js";
 import { selectionStore } from "../../panels/selection.js";
 import { FORMING_RELEASES_ANCHOR, SHARED_COMPONENTS_ANCHOR } from "./anchors.js";
 
-function ReleasePr({ pr }: { pr: PrRef }) {
+type OpenItem = (id: string, element: HTMLElement) => boolean;
+
+function ReleasePr({ pr, onOpenItem }: { pr: PrRef; onOpenItem?: OpenItem | undefined }) {
   const [error, setError] = useState(false);
+  const element = useRef<HTMLSpanElement>(null);
   async function open() {
     setError(false);
-    if (pr.inspect) {
-      selectionStore.getState().select(pr.inspect, {
-        id: pr.inspect,
-        title: `PR #${pr.number}`,
-        kind: "queue",
-      });
-    } else if (pr.url) {
+    const badge = element.current?.querySelector("button") ?? element.current;
+    if (pr.inspect && badge && onOpenItem?.(pr.inspect, badge)) return;
+    if (pr.url) {
       try {
         setError(!(await window.spi.openExternal(pr.url)));
       } catch {
@@ -29,7 +28,13 @@ function ReleasePr({ pr }: { pr: PrRef }) {
     }
   }
   return (
-    <span className="release-pr" data-pr-url={pr.url} data-pr-inspect={pr.inspect}>
+    <span
+      ref={element}
+      className="release-pr"
+      data-pr-url={pr.url}
+      data-pr-inspect={pr.inspect}
+      data-opens={pr.inspect ? `item~${pr.inspect}` : undefined}
+    >
       <PrBadge
         number={pr.number}
         text={`PR #${pr.number}`}
@@ -40,7 +45,14 @@ function ReleasePr({ pr }: { pr: PrRef }) {
   );
 }
 
-export function ReleaseSections({ snapshot }: { snapshot: ViewSnapshot }) {
+export function ReleaseSections({
+  snapshot,
+  onOpenItem,
+}: {
+  snapshot: ViewSnapshot;
+  /** Opens the item a release PR stands for; false when there is none to open. */
+  onOpenItem?: OpenItem;
+}) {
   const { forming, today } = snapshot.releases;
   const sources = sectionSources(snapshot, ["/releases/forming"]);
   const unread = sources.some(({ envelope }) => ["unread", "failed"].includes(envelope.state));
@@ -93,7 +105,7 @@ export function ReleaseSections({ snapshot }: { snapshot: ViewSnapshot }) {
                 ) : (
                   <Chip label="template" text="template" />
                 )}
-                <ReleasePr pr={release.pr} />
+                <ReleasePr pr={release.pr} onOpenItem={onOpenItem} />
               </h3>
               {unread || release.state === "not-read" ? (
                 <p className="release-unread">not read</p>
@@ -148,7 +160,9 @@ export function ReleaseSections({ snapshot }: { snapshot: ViewSnapshot }) {
                       </span>
                     </>
                   )}
-                  {today.platform.template.pr && <ReleasePr pr={today.platform.template.pr} />}
+                  {today.platform.template.pr && (
+                    <ReleasePr pr={today.platform.template.pr} onOpenItem={onOpenItem} />
+                  )}
                 </dd>
               </div>
             )}

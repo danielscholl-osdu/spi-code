@@ -2,26 +2,23 @@
 // SPDX-License-Identifier: MIT
 
 import type { FocusItem, RepoLine, ViewSnapshot } from "@spi-code/contracts";
-import { type ReactNode, useId } from "react";
+import { type ReactNode, useId, useRef } from "react";
 import { useStore } from "zustand";
-import { navigate } from "../../app/navigation.js";
+import { navigate, type OpenSelection } from "../../app/navigation.js";
 import { treeServices } from "../../app/queue.js";
 import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
+import { PopoverFields, usePlaceOpening } from "../../components/place/opening.js";
 import { Place } from "../../components/place/Place.js";
 import { RepositoryFacts } from "../../components/place/RepositoryFacts.js";
+import { RepositoryLine } from "../../components/place/RepositoryLine.js";
+import { Popover } from "../../components/popover/Popover.js";
 import { inScope } from "../../components/sidebar/attention.js";
-import { type SelectionStore, selectionStore } from "../../panels/selection.js";
-import {
-  repositoryLineRow,
-  runRow,
-  type SelectionRow,
-  selectionRows,
-} from "../../panels/selection-rows.js";
-import { useSelectionList } from "../../panels/useSelectionList.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
 import { Time, TimedText } from "../../time.js";
+import { columns } from "../line/cells.js";
 import { lineItem, todayItems } from "../template/Repositories.js";
+import { serviceOpening } from "./opening.js";
 import "../releases/panes.css";
 import "./service.css";
 
@@ -99,96 +96,72 @@ function Section({
   );
 }
 
-function SelectList({
+type Opener = ReturnType<typeof usePlaceOpening>["opener"];
+
+/** Rows that each open their popover. */
+function OpenList({
   label,
   rows,
-  open,
-  store,
-  render,
+  opener,
 }: {
   label: string;
-  rows: readonly SelectionRow[];
-  open?: (row: SelectionRow) => void;
-  store: SelectionStore;
-  render(row: SelectionRow): ReactNode;
+  rows: readonly { key: string; selection: OpenSelection; body: ReactNode }[];
+  opener: Opener;
 }) {
-  const list = useSelectionList(rows, open, store);
   return (
-    <div className="service-rows" role="listbox" aria-label={label} data-selection-list="">
-      {rows.map((row) => {
-        const { tabIndex, ...props } = list.rowProps(row);
-        return (
-          <div key={row.id} className="service-row" role="option" tabIndex={tabIndex} {...props}>
-            {render(row)}
-          </div>
-        );
-      })}
-    </div>
+    <ul className="service-rows" aria-label={label}>
+      {rows.map(({ key, selection, body }) => (
+        <li key={key}>
+          <button
+            type="button"
+            className="service-row"
+            data-selection-id={selection.id}
+            {...opener(selection)}
+          >
+            {body}
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
 
 function RepoLines({
-  label,
+  service,
+  section,
   lines,
-  repoIndex,
-  sectionIndex,
+  pointer,
   items,
-  store,
+  snapshot,
 }: {
-  label: string;
+  service: string;
+  section: string;
   lines: readonly RepoLine[];
-  repoIndex: number;
-  sectionIndex: number;
+  pointer: string;
   items: readonly FocusItem[];
-  store: SelectionStore;
+  snapshot: ViewSnapshot;
 }) {
-  const lineRows = lines.map((line, index) =>
-    repositoryLineRow(line, repoIndex, sectionIndex, index),
-  );
-  const rows = lineRows.filter((row): row is SelectionRow => row !== undefined);
-  const list = useSelectionList(
-    rows,
-    (row) => openExternal(lines.find((line) => line.id === row.id)?.url),
-    store,
-  );
-  if (rows.length === 0) {
-    return (
-      <ul className="service-rows">
-        {lines.map((line) => (
-          <li key={`${line.tag}:${line.text}`} className="service-row" data-plain="">
-            <LineBody line={line} item={lineItem(line, items)} />
-          </li>
-        ))}
-      </ul>
-    );
-  }
   return (
-    <div className="service-rows" role="listbox" aria-label={label} data-selection-list="">
-      {lines.map((line, index) => {
-        const row = lineRows[index];
-        if (!row) {
-          return (
-            <div
-              key={`${line.tag}:${line.text}`}
-              className="service-row"
-              role="option"
-              aria-selected={false}
-              aria-disabled="true"
-              tabIndex={-1}
-              data-plain=""
-            >
-              <LineBody line={line} item={lineItem(line, items)} />
-            </div>
-          );
-        }
-        const { tabIndex, ...props } = list.rowProps(row);
-        return (
-          <div key={row.id} className="service-row" role="option" tabIndex={tabIndex} {...props}>
+    <ul className="service-rows" aria-label={`${service} ${section}`}>
+      {lines.map((line, index) => (
+        <li key={line.id ?? `${line.tag}:${line.text}`}>
+          <RepositoryLine
+            repository={service}
+            section={section}
+            line={line}
+            pointer={`${pointer}/lines/${index}`}
+            snapshot={snapshot}
+            className="service-row"
+            place={{
+              label: `${service} › Repository › ${section}`,
+              destination: { kind: "service", id: service },
+            }}
+          >
             <LineBody line={line} item={lineItem(line, items)} />
-          </div>
-        );
-      })}
-    </div>
+          </RepositoryLine>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -210,11 +183,9 @@ function LineBody({ line, item }: { line: RepoLine; item: FocusItem | undefined 
 export default function ServicePage({
   id,
   store = watchStore,
-  selection = selectionStore,
 }: {
   id: string;
   store?: WatchStore;
-  selection?: SelectionStore;
 }) {
   const evidence = useStore(store, (state) => state.snapshot?.body);
   if (!evidence) {
@@ -229,98 +200,84 @@ export default function ServicePage({
       </section>
     );
   }
-  return <ServiceBody key={id} id={id} evidence={evidence} selection={selection} />;
+  return <ServiceBody key={id} id={id} evidence={evidence} />;
 }
 
-function ServiceBody({
-  id,
-  evidence,
-  selection,
-}: {
-  id: string;
-  evidence: ViewSnapshot;
-  selection: SelectionStore;
-}) {
+/** A station opens its Line cell; the release review, which the Line has no column for, its own. */
+const stationSelection = (service: string, station: string): OpenSelection =>
+  columns.some((column) => column.id === station)
+    ? { kind: "cell", id: `${service}:${station}` }
+    : { kind: "station", id: `${service}:${station}` };
+
+function ServiceBody({ id, evidence }: { id: string; evidence: ViewSnapshot }) {
   const { briefing } = evidence;
-  const rows = selectionRows(evidence);
   const services = treeServices(evidence.tree);
   const reading = evidence.readings.find(
     ({ anchor }) => anchor.kind === "service" && anchor.id === id,
   );
-  const selected = useStore(selection, (state) => state.selected);
-  const select = (row: SelectionRow) => {
-    selection.getState().select(row.id, row);
-    selection.getState().setTab("detail");
-  };
-  const stationRows = rows.filter(
-    (row) => row.kind === "station" && row.id.startsWith(`station:${id}:`),
-  );
+  const page = useRef<HTMLElement>(null);
+  const { marked, anchor, opener, openItem, close } = usePlaceOpening(page, evidence);
+  const opening = serviceOpening(evidence, id, marked);
 
   const attention = [...briefing.focus, ...briefing.rest]
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => inScope(item, `service:${id}`, services))
-    .sort((a, b) => a.item.rung - b.item.rung || a.index - b.index)
-    .flatMap(({ item }) => {
-      const row = rows.find((row) => row.kind === "queue" && row.id === item.id);
-      return row ? [{ item, row }] : [];
-    });
+    .sort((a, b) => a.item.rung - b.item.rung || a.index - b.index);
 
   const flowIndex = briefing.flow.rows.findIndex(({ fork }) => fork === id);
   const flow = briefing.flow.rows[flowIndex];
-  const flowRow = flow && rows.find((row) => row.kind === "flow" && row.id === flow.inspect);
 
   const repoIndex = briefing.repositories.rows.findIndex((row) => row.id === `repo:${id}`);
   const repo = briefing.repositories.rows[repoIndex];
-  const repoRow = repo && rows.find((row) => row.kind === "repository" && row.id === repo.id);
+  const repoPointer = `/briefing/repositories/rows/${repoIndex}`;
 
   const serviceIndex = evidence.services?.findIndex(({ service }) => service === id) ?? -1;
   const service = evidence.services?.[serviceIndex];
   const runs = [...(service?.runs ?? [])].sort((a, b) => Date.parse(b.time) - Date.parse(a.time));
-  const runRows = runs.map((run) => runRow(run, serviceIndex));
+  const stations = evidence.stations.find(({ service }) => service === id)?.stations ?? [];
+  const attentionPointers = attention.map(({ item }) => {
+    const at = briefing.focus.indexOf(item);
+    return at >= 0 ? `/briefing/focus/${at}` : `/briefing/rest/${briefing.rest.indexOf(item)}`;
+  });
 
   return (
-    <section className="service-page watch-pane" data-view-pane="service" aria-label={id}>
+    <section
+      className="service-page watch-pane"
+      data-view-pane="service"
+      aria-label={id}
+      ref={page}
+    >
       <Place
         name={id}
         reading={reading ?? { anchor: { kind: "service", id }, content: null }}
         services={services}
         onNavigate={navigate}
         pin={id}
-        onSelect={(itemId) => {
-          const row = rows.find((row) => row.id === itemId);
-          if (row) select(row);
-        }}
-        {...(selected !== null ? { selectedId: selected } : {})}
+        onSelect={openItem}
         actions={
-          flow &&
-          flowRow && (
-            <button type="button" data-service-detail="upstream" onClick={() => select(flowRow)}>
+          flow && (
+            <button
+              type="button"
+              data-service-detail="upstream"
+              {...opener({ kind: "flow", id: flow.inspect })}
+            >
               Upstream sync · {flow.ready.text}
             </button>
           )
         }
       />
-      {stationRows.length > 0 && (
+      {stations.length > 0 && (
         <nav className="service-station-actions" aria-label={`${id} station details`}>
-          {evidence.stations
-            .find(({ service }) => service === id)
-            ?.stations.map((station) => {
-              const row = stationRows.find((row) => row.id === `station:${id}:${station.id}`);
-              return (
-                row && (
-                  <button
-                    key={station.id}
-                    type="button"
-                    data-station={station.id}
-                    data-selection-id={row.id}
-                    aria-pressed={selected === row.id}
-                    onClick={() => select(row)}
-                  >
-                    {STATION_LABELS[station.id]}
-                  </button>
-                )
-              );
-            })}
+          {stations.map((station) => (
+            <button
+              key={station.id}
+              type="button"
+              data-station={station.id}
+              {...opener(stationSelection(id, station.id))}
+            >
+              {STATION_LABELS[station.id]}
+            </button>
+          ))}
         </nav>
       )}
       {attention.length > 0 && (
@@ -329,33 +286,31 @@ function ServiceBody({
           title="Attention"
           count={attention.length}
           evidence={evidence}
-          prefixes={attention.flatMap(({ row }) => row.prefixes ?? [])}
+          prefixes={attentionPointers}
         >
-          <SelectList
+          <OpenList
             label={`${id} attention`}
-            rows={attention.map(({ row }) => row)}
-            store={selection}
-            render={(row) => {
-              const item = attention.find(({ item }) => item.id === row.id)?.item;
-              return (
-                item && (
-                  <>
-                    <span className="service-priority" data-rung={item.rung}>
-                      P{item.rung}
+            opener={opener}
+            rows={attention.map(({ item }) => ({
+              key: item.id,
+              selection: { kind: "item", id: item.id },
+              body: (
+                <>
+                  <span className="service-priority" data-rung={item.rung}>
+                    P{item.rung}
+                  </span>
+                  <span className="service-row-body">
+                    <span className="service-row-title">
+                      <TimedText text={plainTitle(item.title)} hint={false} />
+                      <span className="service-class">{item.cls}</span>
                     </span>
-                    <span className="service-row-body">
-                      <span className="service-row-title">
-                        <TimedText text={plainTitle(item.title)} hint={false} />
-                        <span className="service-class">{item.cls}</span>
-                      </span>
-                      <span className="service-row-sub">
-                        <TimedText text={plainTitle(item.sub)} hint={false} />
-                      </span>
+                    <span className="service-row-sub">
+                      <TimedText text={plainTitle(item.sub)} hint={false} />
                     </span>
-                  </>
-                )
-              );
-            }}
+                  </span>
+                </>
+              ),
+            }))}
           />
         </Section>
       )}
@@ -366,17 +321,20 @@ function ServiceBody({
           title="Repository"
           count={<span data-tone={repo.tone}>{plainTitle(repo.title)}</span>}
           evidence={evidence}
-          prefixes={[`/briefing/repositories/rows/${repoIndex}`]}
+          prefixes={[repoPointer]}
         >
-          <RepositoryFacts repository={repo} pointer={`/briefing/repositories/rows/${repoIndex}`} />
-          {repoRow && (
-            <SelectList
-              label={`${id} repository`}
-              rows={[repoRow]}
-              store={selection}
-              render={() => <span className="service-row-sub">{plainTitle(repo.sub)}</span>}
-            />
-          )}
+          <RepositoryFacts repository={repo} pointer={repoPointer} />
+          <OpenList
+            label={`${id} repository`}
+            opener={opener}
+            rows={[
+              {
+                key: repo.id,
+                selection: { kind: "item", id: repo.id },
+                body: <span className="service-row-sub">{plainTitle(repo.sub)}</span>,
+              },
+            ]}
+          />
           {repo.sections.map(
             (section, sectionIndex) =>
               section.lines.length > 0 && (
@@ -393,12 +351,12 @@ function ServiceBody({
                     </span>
                   </div>
                   <RepoLines
-                    label={`${id} ${section.title}`}
+                    service={id}
+                    section={section.title}
                     lines={section.lines}
-                    repoIndex={repoIndex}
-                    sectionIndex={sectionIndex}
+                    pointer={`${repoPointer}/sections/${sectionIndex}`}
                     items={todayItems(evidence)}
-                    store={selection}
+                    snapshot={evidence}
                   />
                 </div>
               ),
@@ -456,35 +414,37 @@ function ServiceBody({
         </Section>
       )}
 
-      {runRows.length > 0 && (
+      {runs.length > 0 && (
         <Section
           name="runs"
           title="Runs"
-          count={runRows.length}
+          count={runs.length}
           evidence={evidence}
           prefixes={service ? [`/services/${serviceIndex}/runs`] : []}
         >
-          <SelectList
+          <OpenList
             label={`${id} runs`}
-            rows={runRows}
-            open={(row) => openExternal(runs.find((run) => run.id === row.id)?.url)}
-            store={selection}
-            render={(row) => {
-              const run = runs.find((run) => run.id === row.id);
-              return (
-                run && (
-                  <>
-                    <span className="service-row-title">{run.workflow}</span>
-                    <span data-result={run.result} data-tone={resultTone(run.result)}>
-                      {run.result}
-                    </span>
-                    <Time at={run.time} />
-                  </>
-                )
-              );
-            }}
+            opener={opener}
+            rows={runs.map((run) => ({
+              key: run.id,
+              selection: { kind: "run", id: run.id },
+              body: (
+                <>
+                  <span className="service-row-title">{run.workflow}</span>
+                  <span data-result={run.result} data-tone={resultTone(run.result)}>
+                    {run.result}
+                  </span>
+                  <Time at={run.time} />
+                </>
+              ),
+            }))}
           />
         </Section>
+      )}
+      {opening && marked && anchor && (
+        <Popover anchor={anchor} selection={marked} content={opening.content} onClose={close}>
+          <PopoverFields fields={opening.fields} />
+        </Popover>
       )}
     </section>
   );

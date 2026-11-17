@@ -4,7 +4,7 @@
 .service-page { color: var(--text); font-size: 13px; }
 .service-station-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
 .service-station-actions button { padding: 4px 8px; border: 1px solid var(--border-soft); border-radius: 6px; background: none; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; }
-.service-station-actions button[aria-pressed="true"] { background: var(--accent-surface); color: var(--accent-text); }
+.service-station-actions button[aria-expanded="true"] { background: var(--accent-surface); color: var(--accent-text); }
 .service-station-actions button:focus-visible, .service-details > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .service-details { margin-top: 12px; }
 .service-section-header { display: flex; align-items: center; gap: 8px; min-height: 26px; padding: 6px 0; border-bottom: 1px solid var(--border-soft); color: var(--text-muted); font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; list-style: none; cursor: pointer; }
@@ -18,10 +18,10 @@
 .service-empty { margin: 8px 0; color: var(--text-muted); }
 .service-rows { list-style: none; margin: 0; padding: 0; }
 .service-row { display: flex; align-items: baseline; gap: 10px; padding: 6px 8px; border-radius: 6px; }
-.service-row[data-selection-id] { cursor: default; }
-.service-row[data-selection-id]:not([aria-selected="true"]):hover { background: var(--surface-raised); }
-.service-row[aria-selected="true"] { background: var(--accent-surface); }
-.service-row[data-selection-id]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+button.service-row { box-sizing: border-box; width: 100%; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+button.service-row:not([aria-expanded="true"]):hover { background: var(--surface-raised); }
+button.service-row[aria-expanded="true"] { background: var(--accent-surface); }
+button.service-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .service-row-body { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
 .service-row-title { overflow-wrap: anywhere; }
 .service-row-sub { display: flex; flex-wrap: wrap; gap: 0 8px; color: var(--text-muted); font-size: 12px; }

@@ -13,11 +13,12 @@ import { useStore } from "zustand";
 import { navigate } from "../../app/navigation.js";
 import { treeServices } from "../../app/queue.js";
 import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
+import { usePlaceOpening } from "../../components/place/opening.js";
 import { Place } from "../../components/place/Place.js";
-import type { SelectionRow } from "../../panels/selection-rows.js";
-import { useSelectionList } from "../../panels/useSelectionList.js";
+import { Popover } from "../../components/popover/Popover.js";
 import { watchStore } from "../../store/watch.js";
 import type { ReleasesSection } from "./anchors.js";
+import { releasesOpening } from "./opening.js";
 import { ReleaseSections } from "./Sections.js";
 
 export { FORMING_RELEASES_ANCHOR, SHARED_COMPONENTS_ANCHOR } from "./anchors.js";
@@ -71,25 +72,15 @@ export default function Releases({ section }: { section?: ReleasesSection | unde
   };
   const releases = evidence?.releases;
   const rows = (releases?.lines ?? [])
-    .map((line, index) => ({
-      line,
-      index,
-      selection: {
-        id: line.id,
-        title: line.name,
-        kind: "release",
-        prefixes: [`/releases/lines/${index}`],
-      } satisfies SelectionRow,
-    }))
+    .map((line, index) => ({ line, index }))
     .sort((a, b) => b.line.month.localeCompare(a.line.month));
-  const open = (selection: SelectionRow) => {
-    const row = rows.find(({ line }) => line.id === selection.id);
-    if (row) navigate({ kind: "release", month: row.line.month });
+  const { marked, anchor, opener, toggle, close } = usePlaceOpening(pane, evidence);
+  const opening = evidence && releasesOpening(evidence, marked);
+  const openItem = (id: string, element: HTMLElement) => {
+    if (!evidence || !releasesOpening(evidence, { kind: "item", id })) return false;
+    toggle({ kind: "item", id }, element);
+    return true;
   };
-  const list = useSelectionList(
-    rows.map(({ selection }) => selection),
-    open,
-  );
   return (
     <div className="releases" data-view-pane="releases" ref={pane}>
       <Place
@@ -100,7 +91,7 @@ export default function Releases({ section }: { section?: ReleasesSection | unde
         onNavigate={navigate}
       />
       <div className="watch-pane">
-        {evidence && <ReleaseSections snapshot={evidence} />}
+        {evidence && <ReleaseSections snapshot={evidence} onOpenItem={openItem} />}
         {evidence && <SectionEvidence evidence={evidence} prefixes={["/releases/lines"]} />}
         {!releases?.lines.length || !evidence ? (
           releases?.reading || !reading.content ? (
@@ -111,7 +102,7 @@ export default function Releases({ section }: { section?: ReleasesSection | unde
         ) : (
           <>
             <h2>Release months</h2>
-            <table className="release-months" aria-label="Release months" data-selection-list>
+            <table className="release-months" aria-label="Release months">
               <thead>
                 <tr>
                   {["Month", "Notes", "Headline", "State"].map((label) => (
@@ -122,22 +113,20 @@ export default function Releases({ section }: { section?: ReleasesSection | unde
                 </tr>
               </thead>
               <tbody>
-                {rows.map(({ line, index, selection }) => (
+                {rows.map(({ line, index }) => (
                   <tr
                     key={line.id}
                     data-rel={line.id}
                     data-pointer={`/releases/lines/${index}`}
-                    {...list.rowProps(selection)}
+                    data-selected={
+                      (marked?.kind === "release" && marked.id === line.id) || undefined
+                    }
                   >
                     <td>
                       <button
                         type="button"
                         className="release-name"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          list.select(selection);
-                          open(selection);
-                        }}
+                        {...opener({ kind: "release", id: line.id })}
                       >
                         SPI {line.name}
                       </button>
@@ -154,6 +143,31 @@ export default function Releases({ section }: { section?: ReleasesSection | unde
           </>
         )}
       </div>
+      {opening && marked && anchor && (
+        <Popover anchor={anchor} selection={marked} content={opening.content} onClose={close}>
+          {opening.month && evidence && (
+            <>
+              <ReleaseDocument
+                key={opening.month.id}
+                id={opening.month.id}
+                cursor={evidence.cursor}
+              />
+              <div className="popover-rows">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const month = opening.month?.month;
+                    close();
+                    if (month) navigate({ kind: "release", month });
+                  }}
+                >
+                  {opening.content.title} ›
+                </button>
+              </div>
+            </>
+          )}
+        </Popover>
+      )}
     </div>
   );
 }
@@ -247,15 +261,6 @@ export function ReleaseMonth({ month }: { month: string }) {
   const reading = evidence?.readings.find(
     ({ anchor }) => anchor.kind === "release-month" && anchor.month === month,
   ) ?? { anchor: { kind: "release-month" as const, month }, content: null };
-  const row: SelectionRow | undefined = line
-    ? {
-        id: line.id,
-        title: line.name,
-        kind: "release",
-        prefixes: [`/releases/lines/${index}`],
-      }
-    : undefined;
-  const list = useSelectionList(row ? [row] : []);
   return (
     <article className="release-page" data-view-pane="release" data-rel-detail={line?.id}>
       <Place
@@ -263,11 +268,6 @@ export function ReleaseMonth({ month }: { month: string }) {
         reading={reading}
         services={treeServices(evidence?.tree)}
         onNavigate={navigate}
-        actions={
-          <button type="button" disabled={!row} onClick={() => row && list.select(row)}>
-            Detail
-          </button>
-        }
       />
       <div className="watch-pane">
         {!line || !evidence ? (

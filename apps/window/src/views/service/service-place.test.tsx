@@ -6,6 +6,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import recorded from "../../../../../fixtures/watch/snapshot-1106.json?raw";
+import { openSelection, setOpenSelection } from "../../app/navigation.js";
 import { treeServices } from "../../app/queue.js";
 import { DEFAULT_REGISTRY } from "../../app/routes.js";
 import {
@@ -16,13 +17,20 @@ import {
   type TitleStore,
 } from "../../app/title-row.js";
 import { inScope } from "../../components/sidebar/attention.js";
-import { RightPanel } from "../../panels/RightPanel.js";
 import { createSelectionStore } from "../../panels/selection.js";
 import { PINS_STORAGE_KEY, readPins, SEED_PINS } from "../../store/pins.js";
 import { createWatchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
 import { clockTime, timedText } from "../../time.js";
+import { cellOpening } from "../line/cell-content.js";
 import ServicePlace from "./index.js";
+
+const popover = (container: HTMLElement) => container.querySelector<HTMLElement>(".popover");
+const popoverFields = (container: HTMLElement) =>
+  [...(popover(container)?.querySelectorAll(".popover-fields > div") ?? [])].map((field) => [
+    field.querySelector("dt")?.textContent,
+    field.querySelector("dd")?.textContent,
+  ]);
 
 const cleanups: (() => Promise<void>)[] = [];
 const snapshot = () => ViewSnapshotSchema.parse(JSON.parse(recorded));
@@ -47,8 +55,7 @@ async function mount(body: ViewSnapshot = snapshot(), id = "legal", titles?: Tit
             </div>
           </>
         )}
-        <ServicePlace id={id} store={watch} selection={selection} />
-        <RightPanel store={selection} snapshot={body} />
+        <ServicePlace id={id} store={watch} />
       </TitleProvider>,
     ),
   );
@@ -66,6 +73,7 @@ async function mount(body: ViewSnapshot = snapshot(), id = "legal", titles?: Tit
 }
 
 afterEach(async () => {
+  await act(async () => setOpenSelection(null));
   for (const cleanup of cleanups.splice(0)) await cleanup();
   localStorage.removeItem(PINS_STORAGE_KEY);
 });
@@ -126,36 +134,47 @@ it("renders legal's recorded service reading, including 17 incoming commits and 
   expect(words).toBeLessThanOrEqual(140);
 });
 
-it("opens the SNAPSHOT hold and every upstream field in the right panel with one click", async () => {
+it("opens the SNAPSHOT hold and every upstream field in a popover with one click", async () => {
   const { container, selection, click } = await mount();
   await click('[data-service-detail="upstream"]');
-  expect(selection.getState().open).toBe(true);
-  expect(selection.getState().tab).toBe("detail");
-  const panel = container.querySelector("aside[aria-label='Detail']");
-  expect(panel?.textContent).toContain("hold · SNAPSHOT toolchain");
-  expect(panel?.textContent).toContain(
+  expect(openSelection()).toEqual({ kind: "flow", id: "upstream:legal" });
+  expect(selection.getState()).toMatchObject({ selected: null, open: false });
+  expect(popover(container)?.querySelector("h3")?.textContent).toBe("legal · held");
+  expect(popoverFields(container)).toContainEqual(["Ready", "hold · SNAPSHOT toolchain"]);
+  expect(popover(container)?.textContent).toContain(
     "Held: upstream moved to os-core-common 8.4.1-boot4-SNAPSHOT",
   );
   expect(container.querySelector(".service-page .service-kv")).toBeNull();
 });
 
-it("selects a reading item into the right panel without opening a different route", async () => {
-  const { selection, click } = await mount();
+it("opens a reading item's shared body without opening a different route", async () => {
+  const { container, selection, click } = await mount();
   const hash = window.location.hash;
   await click('.place-item-content[data-selection-id="radar:legal"]');
-  expect(selection.getState().selected).toBe("radar:legal");
-  expect(selection.getState().open).toBe(true);
-  expect(selection.getState().tab).toBe("detail");
+  expect(openSelection()).toEqual({ kind: "item", id: "radar:legal" });
+  expect(selection.getState()).toMatchObject({ selected: null, open: false });
+  const body = popover(container)?.querySelector(".opened-body");
+  expect(body?.querySelector(".opened-body-place")?.textContent).toBe(
+    "On Today · Waiting on you ›",
+  );
+  expect(body?.querySelector("h3")?.textContent).toBe(
+    "legal · upstream changes need a toolchain upgrade",
+  );
   expect(window.location.hash).toBe(hash);
+  await click('.place-item-content[data-selection-id="radar:legal"]');
+  expect(popover(container)).toBeNull();
 });
 
-it("selects the recorded repository-backed reading item into repository Detail", async () => {
-  const { selection, click } = await mount();
+it("opens the recorded repository-backed reading item with its own reading", async () => {
+  const body = snapshot();
+  const item = body.readings
+    .flatMap(({ content }) => content?.items ?? [])
+    .find(({ id }) => id === "repo:legal");
+  if (!item) throw new Error("Recorded repository item missing");
+  const { container, click } = await mount(body);
   await click('.place-item-content[data-selection-id="repo:legal"]');
-  expect(selection.getState().selected).toBe("repo:legal");
-  expect(selection.getState().row?.kind).toBe("repository");
-  expect(selection.getState().open).toBe(true);
-  expect(selection.getState().tab).toBe("detail");
+  expect(openSelection()).toEqual({ kind: "item", id: "repo:legal" });
+  expect(popover(container)?.querySelector("h3")?.textContent).toBe(plainTitle(item.title));
 });
 
 it("renders no empty or future parts on the recorded sweep or when optional facts are absent", async () => {
@@ -186,26 +205,29 @@ it("renders no empty or future parts on the recorded sweep or when optional fact
 
 const stationLabels = ["Upstream", "Sync PR", "Cascade", "Main", "Release review", "Lane context"];
 it.each([0, 1, 2, 3, 4, 5])(
-  "keeps former station %i's state and text one click away in station Detail",
+  "opens station %i's Line cell, or its release review, with its reading",
   async (index) => {
     const body = snapshot();
     const station = body.stations.find(({ service }) => service === "legal")?.stations[index];
     if (!station) throw new Error("Recorded legal station missing");
-    const { container, selection, click } = await mount(body);
+    const { container, click } = await mount(body);
     await click(`[data-station="${station.id}"]`);
-    const button = container.querySelector(`[data-station="${station.id}"]`);
-    expect(button?.textContent).toBe(stationLabels[index]);
-    expect(selection.getState().row?.kind).toBe("station");
-    const panel = container.querySelector("aside[aria-label='Detail']");
-    expect(panel?.querySelector(".detail-title")?.textContent).toContain("legal");
-    const fields = Object.fromEntries(
-      [...(panel?.querySelectorAll(".detail-row-fields > div") ?? [])].map((field) => [
-        field.querySelector("dt")?.textContent,
-        field.querySelector("dd")?.textContent,
-      ]),
+    expect(container.querySelector(`[data-station="${station.id}"]`)?.textContent).toBe(
+      stationLabels[index],
     );
-    expect(fields.State).toBe(station.state);
-    expect(fields.Reading).toBe(station.text);
+    const title = popover(container)?.querySelector("h3")?.textContent;
+    if (station.id === "release") {
+      expect(openSelection()).toEqual({ kind: "station", id: "legal:release" });
+      expect(title).toBe("legal · Release review");
+      expect(popover(container)?.querySelector(".opened-body > p")?.textContent).toBe(station.text);
+      return;
+    }
+    const cell = { kind: "cell", id: `legal:${station.id}` };
+    expect(openSelection()).toEqual(cell);
+    expect(title).toBe(cellOpening(body, cell)?.content.title);
+    expect(popoverFields(container)).toEqual([
+      [stationLabels[index]?.replace("Lane context", "Lane"), station.text],
+    ]);
   },
 );
 
@@ -238,12 +260,11 @@ it.each([
   };
   const { container, click } = await mount(body);
   await click('[data-service-detail="upstream"]');
-  const fields = [...container.querySelectorAll(".detail-row-fields > div")].filter(
-    (field) => field.querySelector("dt")?.textContent === label,
-  );
-  expect(fields.map((field) => field.querySelector("dd")?.textContent)).toEqual(
-    values[label]?.map((value) => (value === "·" ? "" : value)),
-  );
+  expect(
+    popoverFields(container)
+      .filter(([name]) => name === label)
+      .map(([, value]) => value),
+  ).toEqual(values[label]?.map((value) => (value === "·" ? "" : value)));
 });
 
 it("keeps every former attention field reachable through its nonempty disclosure", async () => {

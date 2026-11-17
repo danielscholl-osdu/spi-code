@@ -6,6 +6,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
+import { setOpenSelection } from "../../app/navigation.js";
 import { RouteView } from "../../app/routes.js";
 import { selectionStore } from "../../panels/selection.js";
 import { watchStore } from "../../store/watch.js";
@@ -37,6 +38,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  await act(async () => setOpenSelection(null));
   await act(async () => root.unmount());
   container.remove();
   watchStore.setState(previous);
@@ -112,6 +114,9 @@ it("keeps every former Releases field one click away through its recorded month 
     expect(row?.textContent).toContain(line.stateText);
     expect(row?.textContent).toContain(line.headline);
     await act(async () => row?.querySelector<HTMLButtonElement>(".release-name")?.click());
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>(".popover .popover-rows button")?.click(),
+    );
     expect(window.location.hash).toBe(`#release/${line.month}`);
     await act(async () =>
       root.render(<RouteView route={{ kind: "release", month: line.month }} />),
@@ -199,7 +204,6 @@ it("renders November's month as a place: its reading first, then its figures and
   const place = page?.firstElementChild;
   expect(place?.matches("section.place")).toBe(true);
   expect(place?.querySelector("h1")?.textContent).toBe("SPI 2026.11");
-  expect(place?.querySelector(".place-header button")?.textContent).toBe("Detail");
   const section = place?.querySelector('[aria-label="SPI 2026.11 reading"]');
   expect(section?.querySelector(".place-headline")?.textContent).toBe(line.headline);
   expect([...(section?.querySelectorAll(".place-tile") ?? [])].map((t) => t.textContent)).toEqual([

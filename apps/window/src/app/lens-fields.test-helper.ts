@@ -94,11 +94,11 @@ export function lensFields({ briefing }: ViewSnapshot): LensField[] {
         `${pointer}/${key}`,
         value,
         home,
-        `.detail-row-fields > div:nth-child(${fieldIndex + 1}) dd`,
+        `.popover-fields > div:nth-child(${fieldIndex + 1}) dd`,
         { blank: value === "·" },
       );
     });
-    add("Flow", `${pointer}/detail/title`, row.detail.title || row.fork, home, ".detail-title");
+    add("Flow", `${pointer}/detail/title`, row.detail.title || row.fork, home, ".popover h3");
   });
   for (const [key, selector] of [
     ["title", "h3"],

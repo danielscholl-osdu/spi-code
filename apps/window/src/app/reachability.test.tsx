@@ -97,7 +97,7 @@ describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
     const byName = new Map<string, string>();
     for (const { home } of cases) {
       expect(starts, home.name).toContainEqual(home.start);
-      const shape = JSON.stringify([home.start, String(home.step), home.detail?.id]);
+      const shape = JSON.stringify([home.start, String(home.step)]);
       expect(byName.get(home.name) ?? shape, home.name).toBe(shape);
       byName.set(home.name, shape);
     }
@@ -348,7 +348,7 @@ describe("the suite's own guards", () => {
     const [row] = drawn;
     expect(row).toBeDefined();
     if (!row) return;
-    const target = { detail: "same-target" };
+    const target = { opened: ".same-target" };
     const first = (root: ParentNode) => root.querySelector(".first");
     const second = (root: ParentNode) => root.querySelector(".second");
     const groups = openerCases([

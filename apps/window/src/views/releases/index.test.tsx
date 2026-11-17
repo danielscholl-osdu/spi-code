@@ -15,8 +15,8 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import briefing from "../../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
 import documents from "../../../../../fixtures/rib-59d6895/oracle/release-doc.json?raw";
 import releases from "../../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
+import { openSelection, setOpenSelection } from "../../app/navigation.js";
 import { RouteView } from "../../app/routes.js";
-import { RightPanel } from "../../panels/RightPanel.js";
 import { selectionStore } from "../../panels/selection.js";
 import { testSnapshot } from "../../store/test-snapshot.js";
 import { watchStore } from "../../store/watch.js";
@@ -44,6 +44,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  await act(async () => setOpenSelection(null));
   await act(async () => root?.unmount());
   root = undefined;
   container.remove();
@@ -286,16 +287,11 @@ async function reply(payload: InspectResult = result) {
   return request;
 }
 
-it("orders recorded months newest first and selects their inspect in the shared right panel", async () => {
+it("orders recorded months newest first and opens each in a popover with its document", async () => {
   const body = testSnapshot(briefing, releases);
   body.releases.lines.reverse();
-  await mount(
-    <>
-      <Releases />
-      <RightPanel store={selectionStore} snapshot={body} />
-    </>,
-    body,
-  );
+  await mount(<Releases />, body);
+  window.location.hash = "#releases";
   expect(container.querySelectorAll("[data-rel-detail]")).toHaveLength(0);
   const rows = [...container.querySelectorAll<HTMLElement>("[data-rel]")];
   const expected = [...body.releases.lines].sort((a, b) => b.month.localeCompare(a.month));
@@ -305,38 +301,26 @@ it("orders recorded months newest first and selects their inspect in the shared 
     expect(row?.textContent).toContain(line.headline);
     expect(row?.textContent).toContain(line.stateText);
     expect(row?.querySelector("[data-notes]")?.getAttribute("data-notes")).toBe(line.notes);
-    await act(async () => row?.click());
-    expect(selectionStore.getState().selected).toBe(line.id);
-    expect(send).toHaveBeenLastCalledWith(
-      expect.objectContaining({ type: "inspect.request", payload: { id: line.id } }),
-    );
-    const request = send.mock.lastCall?.[0];
-    await act(async () =>
-      selectionStore.getState().receive({
-        version: PROTOCOL_VERSION,
-        id: request?.id,
-        kind: "response",
-        type: "inspect.result",
-        payload: { ...result, id: line.id, cause: line.headline },
-      }),
-    );
-    expect(row?.getAttribute("aria-selected")).toBe("true");
-    expect(container.querySelector('[data-field="cause"]')?.textContent).toBe(line.headline);
     expect(row?.dataset.pointer).toBe(`/releases/lines/${body.releases.lines.indexOf(line)}`);
+    send.mockClear();
+    await act(async () => row?.querySelector<HTMLButtonElement>("button.release-name")?.click());
+    expect(openSelection()).toEqual({ kind: "release", id: line.id });
+    expect(selectionStore.getState()).toMatchObject({ selected: null, open: false });
+    expect(row?.hasAttribute("data-selected")).toBe(true);
+    const popover = container.querySelector(".popover");
+    expect(popover?.querySelector("h3")?.textContent).toBe(`SPI ${line.name}`);
+    expect(popover?.querySelector('[role="status"]')?.textContent).toBe(
+      "Reading release document…",
+    );
+    await reply({ ...result, id: line.id });
+    expect(popover?.querySelectorAll("[data-related-state]")).toHaveLength(related.length);
   }
-});
-
-it("opens a month by its name or Enter, retaining the shared selection", async () => {
-  await mount(<Releases />);
-  const row = container.querySelector<HTMLElement>("[data-rel]");
-  await act(async () => row?.querySelector<HTMLButtonElement>("button")?.click());
-  expect(window.location.hash).toBe(`#release/${doc.month}`);
-  expect(selectionStore.getState().selected).toBe(doc.id);
-  window.location.hash = "#releases";
-  await act(async () =>
-    row?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })),
+  const open = [...container.querySelectorAll<HTMLButtonElement>(".popover-rows button")].find(
+    (button) => button.textContent === `SPI ${expected.at(-1)?.name} ›`,
   );
-  expect(window.location.hash).toBe(`#release/${doc.month}`);
+  await act(async () => open?.click());
+  expect(window.location.hash).toBe(`#release/${expected.at(-1)?.month}`);
+  expect(container.querySelector(".popover")).toBeNull();
 });
 
 it("renders the routed month's pane facts and every related document row, without selecting it", async () => {
@@ -357,19 +341,6 @@ it("renders the routed month's pane facts and every related document row, withou
   await act(async () => selectionStore.getState().clear());
   expect(container.querySelectorAll("[data-related-state]")).toHaveLength(related.length);
   expect(container.querySelector("now")).toBeNull();
-});
-
-it("selects the month and requests its inspect when Detail is clicked", async () => {
-  await mount(<ReleaseMonth month={doc.month} />);
-  send.mockClear();
-  const detail = container.querySelector<HTMLButtonElement>(".place-header button");
-  expect(detail?.textContent).toBe("Detail");
-  await act(async () => detail?.click());
-  expect(selectionStore.getState().selected).toBe(`release:${doc.month}`);
-  expect(selectionStore.getState().row).toMatchObject({ id: doc.id, kind: "release" });
-  expect(send).toHaveBeenLastCalledWith(
-    expect.objectContaining({ type: "inspect.request", payload: { id: `release:${doc.month}` } }),
-  );
 });
 
 it.each(["Key change", "Highlight", "Services: new", "open", "released", "Releases"])(

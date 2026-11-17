@@ -1,15 +1,15 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { PROTOCOL_VERSION, type ViewSnapshot } from "@spi-code/contracts";
+import type { ViewSnapshot } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
-import { closeSheet, navigate } from "../../app/navigation.js";
+import { closeSheet, navigate, openSelection, setOpenSelection } from "../../app/navigation.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
-import { routeSelectionIds, selectionRows } from "../../panels/selection-rows.js";
+import { routeSelectionIds } from "../../panels/selection-rows.js";
 import { watchStore } from "../../store/watch.js";
 import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import { timedText } from "../../time.js";
@@ -75,13 +75,13 @@ const theme = (id: string) => {
   if (!found) throw new Error(`Missing theme ${id}`);
   return found;
 };
-const detailFields = () =>
-  Object.fromEntries(
-    [...container.querySelectorAll('dl[aria-label="Row reading"] dt')].map((dt) => [
-      dt.textContent,
-      dt.nextElementSibling?.textContent,
-    ]),
-  );
+const popover = () => container.querySelector<HTMLElement>(".popover");
+const pairs = () =>
+  [...(popover()?.querySelectorAll(".popover-fields dt") ?? [])].map((dt) => [
+    dt.textContent,
+    dt.nextElementSibling?.textContent,
+  ]);
+const fields = () => Object.fromEntries(pairs());
 
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -89,6 +89,7 @@ beforeEach(async () => {
   closeSheet();
   window.location.hash = "#upstream";
   harness = installSpi();
+  setOpenSelection(null);
   selectionStore.getState().clear();
   selectionStore.getState().setOpen(false);
   load(fixture());
@@ -96,6 +97,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  await act(async () => setOpenSelection(null));
   for (const unmount of unmounts.splice(0)) await unmount();
   closeSheet();
   watchStore.setState(previousWatch, true);
@@ -159,7 +161,7 @@ it("states the next sync in local time, and leaves the due to the group that say
   expect(place().textContent).not.toMatch(/00:00|T\d{2}:\d{2}/);
 });
 
-it("shows the leading campaign without an empty overlapping row and reads its forks in Detail", async () => {
+it("shows the leading campaign without an empty overlapping row and reads its forks in its popover", async () => {
   const body = fixture();
   expect(itemIds("Toolchain")).toEqual(
     ["os-core-common%208.5.0"].map((f) => `campaign:toolchain:${f}`),
@@ -174,19 +176,20 @@ it("shows the leading campaign without an empty overlapping row and reads its fo
   expect(new Set(recordIds).size).toBe(recordIds.length);
   const id = "campaign:toolchain:os-core-common%208.5.0";
   await click(itemButton(id));
-  expect(selectionStore.getState().selected).toBe(id);
-  expect(detailFields().Forks).toBe(
+  expect(openSelection()).toEqual({ kind: "item", id });
+  expect(fields().Forks).toBe(
     body.campaigns.find((campaign) => campaign.id === id)?.forks.join(", "),
   );
-  expect(detailFields().Forks).toBe(
+  expect(fields().Forks).toBe(
     "crs-conversion, file, indexer, legal, partition, schema, search, storage, unit, workflow",
   );
+  expect(selectionStore.getState()).toMatchObject({ selected: null, open: false });
 });
 
-it("refreshes a selected campaign's Detail when a sweep changes its forks", async () => {
+it("refreshes an open campaign's popover when a sweep changes its forks", async () => {
   const id = "campaign:toolchain:os-core-common%208.5.0";
   await click(itemButton(id));
-  expect(detailFields().Forks?.split(", ")).toContain("workflow");
+  expect(fields().Forks?.split(", ")).toContain("workflow");
   const body = fixture();
   const title = "Detected: os-core-common 8.5.0 on 9 forks";
   const swept: ViewSnapshot = {
@@ -212,15 +215,15 @@ it("refreshes a selected campaign's Detail when a sweep changes its forks", asyn
     ),
   };
   await act(async () => load(swept));
-  expect(selectionStore.getState().selected).toBe(id);
+  expect(openSelection()).toEqual({ kind: "item", id });
   expect(place().querySelector(`[data-item-id="${CSS.escape(id)}"]`)?.textContent).toContain(title);
-  expect(detailFields().Forks).toBe(
+  expect(fields().Forks).toBe(
     "crs-conversion, file, indexer, legal, partition, schema, search, storage, unit",
   );
-  expect(container.querySelector('aside[aria-label="Detail"]')?.textContent).toContain(title);
+  expect(popover()?.querySelector("h3")?.textContent).toBe(title);
 });
 
-it("lists Before next sync items as briefing records and selects them by their briefing row", async () => {
+it("lists Before next sync items as briefing records and opens a hold in the shared body", async () => {
   const body = fixture();
   const before = itemIds("Before 18:00");
   const briefing = [...body.briefing.focus, ...body.briefing.rest].map(({ id }) => id);
@@ -228,16 +231,39 @@ it("lists Before next sync items as briefing records and selects them by their b
   for (const id of before) expect(briefing).toContain(id);
 
   await click(itemButton("radar:legal"));
-  expect(selectionStore.getState().selected).toBe("radar:legal");
-  expect(selectionStore.getState().row).toEqual(
-    selectionRows(body).find(({ id }) => id === "radar:legal"),
+  expect(openSelection()).toEqual({ kind: "item", id: "radar:legal" });
+  expect(selectionStore.getState()).toMatchObject({ selected: null, open: false });
+  const opened = popover()?.querySelector(".opened-body");
+  expect(opened?.querySelector(".opened-body-place")?.textContent).toBe(
+    "On Today · Waiting on you ›",
   );
-  expect(selectionStore.getState().row?.prefixes).toEqual([
-    `/briefing/focus/${body.briefing.focus.findIndex(({ id }) => id === "radar:legal")}`,
-  ]);
+  expect(opened?.querySelector("h3")?.textContent).toBe(
+    "legal · upstream changes need a toolchain upgrade",
+  );
+  expect(opened?.querySelector(".opened-body-deadline time")?.textContent).toBe(
+    "Before the next upstream sync, 18:00",
+  );
+  expect(opened?.querySelector(".opened-body-effect")?.textContent).toBe(
+    "17 commits reach the fork at the 18:00 sync.",
+  );
+  expect(opened?.querySelector(".opened-body-step")?.textContent).toBe(
+    "Absorb os-core-common 8.4.1-boot4-SNAPSHOT on the fork before the next Sync Upstream carries it.",
+  );
+  expect(
+    [...(opened?.querySelectorAll(".opened-body-sources a") ?? [])].map((a) =>
+      a.getAttribute("href"),
+    )[0],
+  ).toBe(
+    "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/commit/0cab109017b316cfd6a037c6c603ad4ee293f3c1",
+  );
   expect(place().querySelector('[data-item-id="radar:legal"]')?.hasAttribute("data-selected")).toBe(
     true,
   );
+  await act(async () => {
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  });
+  expect(popover()).toBeNull();
+  expect(openSelection()).toBeNull();
 });
 
 it("drops a resolved item from the Upstream place and its selection ids", async () => {
@@ -317,11 +343,11 @@ it("reaches every former Horizon field within one click of the Upstream place", 
           ]
         : []),
       {
-        field: `${t.id} Detail`,
-        expected: `theme:${t.id}`,
+        field: `${t.id} popover`,
+        expected: t.title,
         locate: async () => {
           await click(theme(t.id).querySelector(".upstream-theme-head"));
-          return selectionStore.getState().selected ?? undefined;
+          return popover()?.querySelector("h3")?.textContent ?? undefined;
         },
       },
     ]),
@@ -334,6 +360,7 @@ it("reaches every former Horizon field within one click of the Upstream place", 
   for (const { field, expected, locate } of table) {
     window.location.hash = "#upstream";
     await act(async () => navigate({ kind: "upstream" }));
+    await act(async () => setOpenSelection(null));
     expect({ field, value: await locate() }).toEqual({
       field,
       value: timedText(expected, { hint: false }),
@@ -343,45 +370,27 @@ it("reaches every former Horizon field within one click of the Upstream place", 
 
 it("opens every theme's next step, fork states and exposed forks in one click", async () => {
   const body = fixture();
-  const answers = loadFixture("inspect-1106.json");
   for (const entry of body.briefing.themes) {
+    await act(async () => setOpenSelection(null));
     await click(theme(entry.id).querySelector(".upstream-theme-head"));
-    const id = `theme:${entry.id}`;
-    expect(selectionStore.getState().selected).toBe(id);
-    expect(selectionStore.getState().row).toEqual(selectionRows(body).find((row) => row.id === id));
-    expect(routeSelectionIds(body, { kind: "upstream" })).toContain(id);
-    const result = answers.find((answer) => answer.id === id);
-    expect(result, id).toBeDefined();
-    await act(async () =>
-      selectionStore.getState().receive({
-        version: PROTOCOL_VERSION,
-        id: selectionStore.getState().request,
-        kind: "response",
-        type: "inspect.result",
-        payload: result,
-      }),
-    );
-    const detail = container.querySelector(".inspector");
+    expect(openSelection()).toEqual({ kind: "theme", id: entry.id });
+    const opened = popover();
+    expect(opened?.querySelector("h3")?.textContent).toBe(entry.title);
     if (entry.next)
-      expect(detail?.querySelector('[data-field="next"]')?.textContent).toBe(entry.next);
+      expect(opened?.querySelector(".opened-body-step")?.textContent).toBe(
+        timedText(entry.next, { hint: false }),
+      );
+    const read = pairs();
     for (const list of ["certain", "possible"] as const)
-      for (const fork of entry[list]) {
-        expect(detail?.textContent).toContain(fork.fork);
-        expect(detail?.textContent).toContain(timedText(`${list} · ${fork.state}`));
-      }
-    for (const fork of entry.exposed) expect(detail?.textContent).toContain(fork);
-    if (entry.inspect) {
-      const item = [...body.briefing.focus, ...body.briefing.rest].find(
-        ({ id }) => id === entry.inspect,
-      );
-      expect(item).toBeDefined();
-      const button = [...(detail?.querySelectorAll(".inspector-related button") ?? [])].find(
-        (button) => button.textContent === item?.title,
-      );
-      await click(button);
-      expect(selectionStore.getState().selected).toBe(entry.inspect);
-    }
+      for (const fork of entry[list])
+        expect(read).toContainEqual([
+          fork.fork,
+          timedText(`${list} · ${fork.state}`, { hint: false }),
+        ]);
+    for (const fork of entry.exposed) expect(read).toContainEqual([fork, "exposed"]);
+    expect(read).toHaveLength(entry.certain.length + entry.possible.length + entry.exposed.length);
   }
+  expect(selectionStore.getState()).toMatchObject({ selected: null, open: false });
 });
 
 it("opens each fork a theme names from the Upstream place in one click", async () => {

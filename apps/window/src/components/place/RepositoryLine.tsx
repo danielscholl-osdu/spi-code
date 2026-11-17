@@ -4,8 +4,9 @@
 import type { Link, RepoLine, ViewSnapshot } from "@spi-code/contracts";
 import { type ReactNode, useCallback, useState } from "react";
 import { setOpenSelection, useOpenSelection } from "../../app/navigation.js";
-import { repositoryContent } from "../opened-body/content.js";
+import { type BodyPlace, repositoryContent } from "../opened-body/content.js";
 import { Popover } from "../popover/Popover.js";
+import { timed } from "./opening.js";
 
 export const repositorySelectionId = (repository: string, line: RepoLine, pointer: string) =>
   `${repository}|${line.id ?? pointer}`;
@@ -29,6 +30,10 @@ export function RepositoryLine({
   pointer,
   snapshot,
   className,
+  place = {
+    label: `Engineering system › ${repository} › ${section}`,
+    destination: { kind: "engineering-system" },
+  },
   children,
 }: {
   repository: string;
@@ -37,6 +42,8 @@ export function RepositoryLine({
   pointer: string;
   snapshot: ViewSnapshot;
   className?: string;
+  /** Where the line is drawn, for its popover's place; Engineering system unless given. */
+  place?: Omit<BodyPlace, "selection">;
   children: ReactNode;
 }) {
   const marked = useOpenSelection();
@@ -51,11 +58,7 @@ export function RepositoryLine({
     lines: snapshot.briefing.lines ?? [],
     items: [...snapshot.briefing.focus, ...snapshot.briefing.rest],
     canWait: snapshot.briefing.today?.canWait ?? [],
-    place: {
-      label: `Engineering system › ${repository} › ${section}`,
-      destination: { kind: "engineering-system" },
-      selection,
-    },
+    place: { ...place, selection },
     ...(source ? { source } : {}),
   });
   return (
@@ -75,10 +78,10 @@ export function RepositoryLine({
         <Popover
           anchor={anchor}
           selection={selection}
-          content={{
+          content={timed({
             ...content,
             ...(!content.cause && !content.subject ? { cause: "Not on Today." } : {}),
-          }}
+          })}
           onClose={close}
         />
       )}

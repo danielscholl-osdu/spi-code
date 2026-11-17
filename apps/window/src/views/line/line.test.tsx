@@ -7,7 +7,14 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { readFixture, watchFixtures } from "../../../../../scripts/watch-generated.mjs";
-import { closeSheet, navigate, openSheet, type Route, routeHash } from "../../app/navigation.js";
+import {
+  closeSheet,
+  navigate,
+  openSelection,
+  openSheet,
+  type Route,
+  routeHash,
+} from "../../app/navigation.js";
 import { DEFAULT_REGISTRY } from "../../app/routes.js";
 import { Shell } from "../../app/Shell.js";
 import { placeMembers } from "../../components/place/members.js";
@@ -148,8 +155,9 @@ it("docks beside a live centre without replacing its surface or selection", asyn
   const station = main()?.querySelector<HTMLElement>('[data-station="cascade"]');
   if (!station) throw new Error("Missing centre station");
   await click(station);
-  expect(selectionStore.getState().selected).toBe("station:legal:cascade");
+  expect(openSelection()).toEqual({ kind: "cell", id: "legal:cascade" });
   await press("Escape");
+  expect(openSelection()).toBeNull();
   expect(sheet()?.dataset.presentation).toBe("pinned");
 });
 

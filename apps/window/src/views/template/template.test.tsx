@@ -1,20 +1,14 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { PROTOCOL_VERSION, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
+import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { useStore } from "zustand";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
+import { openSelection, setOpenSelection } from "../../app/navigation.js";
 import { Shell } from "../../app/Shell.js";
-import { RightPanel } from "../../panels/RightPanel.js";
-import {
-  createSelectionStore,
-  type SelectionStore,
-  selectionStore,
-} from "../../panels/selection.js";
-import { selectionRows } from "../../panels/selection-rows.js";
+import { createSelectionStore, selectionStore } from "../../panels/selection.js";
 import { createWatchStore, watchStore } from "../../store/watch.js";
 import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import { timedText } from "../../time.js";
@@ -36,6 +30,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  await act(async () => setOpenSelection(null));
   await act(async () => root.unmount());
   container.remove();
   selectionStore.getState().clear();
@@ -48,27 +43,11 @@ async function render(node: ReactNode) {
   await act(async () => root.render(node));
 }
 
-function Subject({
-  store,
-  selection,
-}: {
-  store: ReturnType<typeof createWatchStore>;
-  selection: SelectionStore;
-}) {
-  const body = useStore(store, (state) => state.snapshot?.body);
-  return (
-    <>
-      <Template store={store} inspector={selection} />
-      <RightPanel store={selection} {...(body ? { snapshot: body } : {})} />
-    </>
-  );
-}
-
 async function mount(body: ViewSnapshot = snapshot()) {
   const selection = createSelectionStore({ postMessage: vi.fn() });
   const store = createWatchStore(vi.fn(), selection);
   store.setState({ snapshot: { cursor: body.cursor, body } });
-  await render(<Subject store={store} selection={selection} />);
+  await render(<Template store={store} />);
   return { store, selection };
 }
 
@@ -87,13 +66,7 @@ async function openDetails() {
 const part = (name: string) => container.querySelector(`[data-part="${name}"]`);
 const parts = () =>
   [...container.querySelectorAll("[data-part]")].map((node) => node.getAttribute("data-part"));
-const fields = () =>
-  Object.fromEntries(
-    [...container.querySelectorAll(".detail-row-fields > div")].map((field) => [
-      field.querySelector("dt")?.textContent,
-      field.querySelector("dd")?.textContent,
-    ]),
-  );
+const popover = () => container.querySelector<HTMLElement>(".popover");
 
 it("renders the engineering reading with verified-on-target, open-PR and rollout tiles", async () => {
   const body = snapshot();
@@ -128,17 +101,13 @@ it("renders the engineering reading with verified-on-target, open-PR and rollout
   expect(container.querySelector(".place")?.nextElementSibling?.className).toBe("template-details");
 });
 
-it("opens a reading item in Detail, including when Evidence was open", async () => {
+it("opens a reading item in the shared popover, leaving the panel closed", async () => {
   const { selection } = await mount();
-  selection.getState().openSweepEvidence();
   await click('.place-item-content[data-selection-id="rollout"]');
-  expect(selection.getState()).toMatchObject({
-    selected: "rollout",
-    row: { kind: "queue", title: "Rollout to template 7d269b5" },
-    open: true,
-    tab: "detail",
-  });
-  expect(container.querySelector(".detail-title")?.textContent).toBe("Rollout to template 7d269b5");
+  expect(openSelection()).toEqual({ kind: "item", id: "rollout" });
+  expect(selection.getState()).toMatchObject({ selected: null, open: false });
+  expect(popover()?.querySelector(".opened-body-place")?.textContent).toMatch(/^On Today · /);
+  expect(container.querySelector<HTMLDetailsElement>(".template-details")?.open).toBe(false);
 });
 
 it.each([
@@ -203,7 +172,6 @@ it.each([
       const lines = sectionNode?.querySelectorAll(".template-lines li");
       expect(lines).toHaveLength(section.lines.length);
       for (const [index, line] of section.lines.entries()) {
-        expect(lines?.[index]?.getAttribute("data-selection-id")).toBe(line.id ?? null);
         expect(lines?.[index]?.getAttribute("data-tone")).toBe(line.tone);
         expect(lines?.[index]?.getAttribute("data-upstream")).toBe(line.upstream ? "true" : null);
         expect(lines?.[index]?.querySelector(".template-line-tag")?.textContent).toBe(line.tag);
@@ -213,94 +181,6 @@ it.each([
     }
   },
 );
-
-it("selects a template line as repository-line with fields and refreshes it on the next sweep", async () => {
-  const body = snapshot();
-  const { store, selection } = await mount(body);
-  await openDetails();
-  const id = "issue:Azure/osdu-spi:265";
-  await click(`[data-part="repository"] [data-selection-id="${id}"]`);
-  expect(selection.getState().row).toEqual(
-    selectionRows(body).find((row) => row.id === id && row.kind === "repository-line"),
-  );
-  expect(container.querySelector("aside .inspector-kicker")?.textContent).toBe("repository line");
-  expect(fields()).toEqual({
-    Tag: "bug",
-    Reading: "opened 16d ago · 0 comments",
-    Id: id,
-    Link: "https://github.com/Azure/osdu-spi/issues/265",
-  });
-  const next = snapshot();
-  next.cursor += 1;
-  const repo = next.briefing.repositories.rows.find(({ name }) => name === "osdu-spi");
-  const line = repo?.sections[0]?.lines[0];
-  if (!repo || !line) throw new Error("Recorded template line missing");
-  line.tag = "updated";
-  line.text = "Updated template issue";
-  line.sub = "opened 16d ago · 1 comment";
-  line.url = "https://github.com/Azure/osdu-spi/issues/265#issuecomment-1";
-  // A sweep may move both the repository and the line without changing their identities.
-  repo.sections[0]?.lines.reverse();
-  next.briefing.repositories.rows.reverse();
-  await act(async () =>
-    store.getState().receive({
-      version: PROTOCOL_VERSION,
-      id: "next-sweep",
-      kind: "event",
-      type: "view.snapshot",
-      payload: next,
-    }),
-  );
-  expect(selection.getState().selected).toBe(id);
-  expect(container.querySelector(".detail-title")?.textContent).toBe("Updated template issue");
-  expect(fields()).toMatchObject({
-    Tag: "updated",
-    Reading: "opened 16d ago · 1 comment",
-    Link: line.url,
-  });
-  await click(".detail-row-fields a");
-  expect(window.spi.openExternal).toHaveBeenCalledWith(line.url);
-});
-
-it("keeps keyboard selection in rollout, repository, then identified-line order and opens line links", async () => {
-  const body = snapshot();
-  const { selection } = await mount(body);
-  await openDetails();
-  const repo = body.briefing.repositories.rows.find(({ name }) => name === "osdu-spi");
-  if (!repo) throw new Error("Recorded template repository missing");
-  const ids = [
-    "rollout",
-    repo.id,
-    ...repo.sections.flatMap(({ lines }) => lines.flatMap(({ id }) => (id ? [id] : []))),
-  ];
-  const nodes = [
-    ...container.querySelectorAll<HTMLElement>(".template-details [data-selection-id]"),
-  ];
-  expect(nodes.map((node) => node.dataset.selectionId)).toEqual(ids);
-  nodes[0]?.focus();
-  for (let index = 0; index < nodes.length - 1; index += 1) {
-    await act(async () =>
-      nodes[index]?.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
-      ),
-    );
-    expect(document.activeElement).toBe(nodes[index + 1]);
-    expect(selection.getState().selected).toBe(ids[index + 1]);
-  }
-  const last = nodes.at(-1);
-  await act(async () =>
-    last?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true })),
-  );
-  expect(document.activeElement).toBe(nodes.at(-2));
-  const lineNode = nodes[2];
-  const line = repo.sections[0]?.lines[0];
-  await act(async () =>
-    lineNode?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })),
-  );
-  expect(window.spi.openExternal).toHaveBeenCalledWith(line?.url);
-  await act(async () => lineNode?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })));
-  expect(window.spi.openExternal).toHaveBeenCalledTimes(2);
-});
 
 it("omits empty and unshipped parts, including before the first sweep", async () => {
   await render(<Template store={createWatchStore(vi.fn())} />);
@@ -321,7 +201,7 @@ it("omits empty and unshipped parts, including before the first sweep", async ()
   );
 });
 
-it("leaves unidentified lines static and omits missing facts, rollout details and empty sections", async () => {
+it("omits missing facts, rollout details and empty sections", async () => {
   const body = snapshot();
   delete body.briefing.repositories.template;
   const rollout = body.briefing.focus.find(({ id }) => id === "rollout");
@@ -344,60 +224,41 @@ it("leaves unidentified lines static and omits missing facts, rollout details an
   expect(container.querySelectorAll(".template-repo-section")).toHaveLength(1);
   const line = container.querySelector(".template-lines li");
   expect(line?.textContent).toBe("bugNo idopened 1d ago");
-  expect(line?.hasAttribute("data-selection-id")).toBe(false);
 });
 
-it("opens the Engineering system through the existing Template route and selects line Detail", async () => {
+it("opens the Engineering system through the existing Template route and its repository's popover", async () => {
   const body = snapshot();
   watchStore.setState({ snapshot: { cursor: body.cursor, body } });
   window.location.hash = "#template";
   await render(<Shell />);
   expect(container.querySelector("main h1")?.textContent).toBe("Engineering system");
   await openDetails();
-  await click('[data-part="repository"] [data-selection-id="issue:Azure/osdu-spi:265"]');
-  expect(container.querySelectorAll("aside .detail-title")).toHaveLength(1);
-  expect(container.querySelector("aside .inspector-kicker")?.textContent).toBe("repository line");
-  expect(fields().Reading).toBe("opened 16d ago · 0 comments");
+  await click('[data-part="repository"] .template-repo-lead');
+  expect(container.querySelectorAll(".popover")).toHaveLength(1);
+  expect(selectionStore.getState()).toMatchObject({ selected: null, open: false });
 });
 
-it("opens Details when a row inside it is selected from outside the place, until the reader closes it", async () => {
+it("opens Details for what is open inside it, and leaves it closed for what the place shows", async () => {
   const body = snapshot();
-  const { selection } = await mount(body);
+  await mount(body);
   const details = container.querySelector<HTMLDetailsElement>(".template-details");
-  const row = (id: string, kind: string) => {
-    const found = selectionRows(body).find((row) => row.id === id && row.kind === kind);
-    if (!found) throw new Error(`Recorded ${kind} row ${id} missing`);
-    return found;
-  };
-  const choose = (id: string, kind: string) =>
-    act(async () => selection.getState().select(id, row(id, kind)));
-  const id = "issue:Azure/osdu-spi:265";
-  const line = () =>
-    container.querySelector<HTMLElement>(`.template-lines li[data-selection-id="${id}"]`);
-  await choose("rollout", "queue");
+  await act(async () => setOpenSelection({ kind: "item", id: "rollout" }));
   expect(
     container.querySelector('.place-item[data-item-id="rollout"]')?.hasAttribute("data-selected"),
   ).toBe(true);
   expect(details?.open).toBe(false);
-  await choose(id, "repository-line");
-  expect(details?.open).toBe(true);
-  expect(line()?.getAttribute("data-selected")).toBe("true");
-  expect(line()?.getAttribute("aria-selected")).toBe("true");
-  expect(line()?.closest("details")).toBe(details);
-  await click(".template-details > summary");
-  expect(details?.open).toBe(false);
-  await choose(id, "repository-line");
-  expect(details?.open).toBe(false);
+  expect(popover()).not.toBeNull();
   const repo = body.briefing.repositories.rows.find(({ name }) => name === "osdu-spi");
   if (!repo) throw new Error("Recorded template repository missing");
-  await choose(repo.id, "repository");
+  await act(async () => setOpenSelection({ kind: "item", id: repo.id }));
   expect(details?.open).toBe(true);
-  expect(container.querySelector(".template-repo-lead")?.getAttribute("data-selected")).toBe(
+  expect(container.querySelector(".template-repo-lead")?.getAttribute("aria-expanded")).toBe(
     "true",
   );
+  expect(popover()?.querySelector("h3")?.textContent).toBe(repo.title);
 });
 
-it("opens a reading item only as a queue row, never as another kind sharing its id", async () => {
+it("opens a reading item as its own reading, never as another kind sharing its id", async () => {
   const body = snapshot();
   const queued = body.briefing.focus.find(({ id }) => id === "rollout");
   if (!queued) throw new Error("Recorded rollout missing");
@@ -405,29 +266,27 @@ it("opens a reading item only as a queue row, never as another kind sharing its 
   const repo = body.briefing.repositories.rows.find(({ name }) => name === "osdu-spi");
   if (!repo) throw new Error("Recorded template repository missing");
   repo.id = "rollout";
-  const { selection } = await mount(ViewSnapshotSchema.parse(body));
-  expect(
-    selectionRows(body)
-      .filter(({ id }) => id === "rollout")
-      .map(({ kind }) => kind),
-  ).toEqual(["repository"]);
+  const item = body.readings
+    .find(({ anchor }) => anchor.kind === "engineering")
+    ?.content?.items.find(({ id }) => id === "rollout");
+  await mount(ViewSnapshotSchema.parse(body));
   await click('.place-item-content[data-selection-id="rollout"]');
-  expect(selection.getState()).toMatchObject({ selected: null, row: null });
+  expect(item).toBeDefined();
+  expect(popover()?.querySelector("h3")?.textContent).not.toBe(repo.title);
   expect(container.querySelector<HTMLDetailsElement>(".template-details")?.open).toBe(false);
 });
 
-it("opens Details when the selected rollout is reachable only inside it", async () => {
+it("opens Details when the open rollout is reachable only inside it", async () => {
   const body = snapshot();
   const reading = body.readings.find(({ anchor }) => anchor.kind === "engineering")?.content;
   if (!reading) throw new Error("Recorded engineering reading missing");
   reading.items = reading.items.filter(({ id }) => id !== "rollout");
-  const { selection } = await mount(ViewSnapshotSchema.parse(body));
-  const row = selectionRows(body).find(({ id, kind }) => id === "rollout" && kind === "queue");
-  await act(async () => selection.getState().select("rollout", row));
+  await mount(ViewSnapshotSchema.parse(body));
+  await act(async () => setOpenSelection({ kind: "item", id: "rollout" }));
   const details = container.querySelector<HTMLDetailsElement>(".template-details");
   expect(container.querySelector('.place [data-selection-id="rollout"]')).toBeNull();
   expect(details?.open).toBe(true);
-  expect(
-    details?.querySelector('[data-selection-id="rollout"]')?.getAttribute("aria-selected"),
-  ).toBe("true");
+  expect(details?.querySelector('[data-opens="item~rollout"]')?.getAttribute("aria-expanded")).toBe(
+    "true",
+  );
 });
