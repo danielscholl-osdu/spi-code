@@ -1,0 +1,136 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+.rollout {
+  margin-top: 16px;
+}
+.rollout-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 600;
+}
+.rollout-commit {
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 500;
+}
+button.rollout-commit {
+  cursor: default;
+}
+button.rollout-commit:hover {
+  background: var(--hover);
+}
+.rollout-ladder {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.rollout-rung {
+  --rung: transparent;
+  position: relative;
+}
+.rollout-rung[data-stage="verified"] { --rung: var(--success-surface); }
+.rollout-rung[data-stage="pending"] { --rung: var(--work-surface); }
+.rollout-rung[data-stage="failed"] { --rung: var(--error-surface); }
+.rollout-rung[data-stage="unread"] { --rung: var(--surface-raised); }
+.rollout-rung > * {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 54px;
+  padding: 6px 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--rung);
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  text-align: center;
+}
+.rollout-rung > button {
+  cursor: default;
+}
+.rollout-rung > [data-selected] {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.rollout-rung b {
+  display: block;
+  overflow: hidden;
+  color: var(--text-strong);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rollout-word {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+}
+.rollout-rung[data-stage="todo"] .rollout-word,
+.rollout-rung[data-stage="unread"] .rollout-word {
+  color: var(--text-muted);
+}
+.rollout-rung[data-stage="failed"] .rollout-word {
+  color: var(--error-text);
+}
+.rollout-rung[data-member]::after {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  content: "";
+}
+.rollout-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 8px 0 0;
+  padding: 0;
+  font-size: 12px;
+  list-style: none;
+}
+.rollout-key li::before {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 5px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  vertical-align: -1px;
+  background: transparent;
+  content: "";
+}
+.rollout-key [data-stage="verified"]::before { background: var(--success-surface); }
+.rollout-key [data-stage="pending"]::before { background: var(--work-surface); }
+.rollout-key [data-stage="failed"]::before { background: var(--error-surface); }
+.rollout-key [data-stage="unread"]::before { background: var(--surface-raised); }
+.rollout-member {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.rollout-member::before {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
+  border-radius: 50%;
+  vertical-align: 1px;
+  background: var(--accent);
+  content: "";
+}

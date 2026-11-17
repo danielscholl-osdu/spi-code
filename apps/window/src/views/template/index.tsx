@@ -20,6 +20,7 @@ import { watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
 import { TimedText } from "../../time.js";
 import { QueueRow } from "./QueueRow.js";
+import { Rollout, rolloutLadder } from "./Rollout.js";
 import "./template.css";
 import { placePin } from "../../store/pins.js";
 
@@ -131,6 +132,7 @@ export default function Template({
     ].some((element) => element.dataset.selectionId === inside);
     if (!shown) details.open = true;
   }, [inside]);
+  const ladder = snapshot && rolloutLadder(snapshot);
   const fact = parts?.fact;
   const fleetFacts =
     snapshot?.briefing.repositories.facts
@@ -154,6 +156,19 @@ export default function Template({
           inspector.getState().setTab("detail");
         }}
         {...(list.selected !== null ? { selectedId: list.selected } : {})}
+        belowTiles={
+          ladder && (
+            <Rollout
+              ladder={ladder}
+              selected={rollout !== undefined && list.selected === rollout.id}
+              onSelect={() => {
+                if (!rollout) return;
+                list.select(rollout);
+                inspector.getState().setTab("detail");
+              }}
+            />
+          )
+        }
       />
       {snapshot && parts && (fact || rollout || repository || fleetFacts.length > 0) && (
         <details className="template-details">

@@ -1,0 +1,192 @@
+{
+  "visual": {
+    "kind": "rollout",
+    "target": "1a4730d327268b5c2a57257fb7289738d4357b0a",
+    "slots": [
+      {
+        "service": "partition",
+        "state": "occupied",
+        "text": "partition: template verification pending on 1a4730d327268b5c2a57257fb7289738d4357b0a"
+      },
+      {
+        "service": "entitlements",
+        "state": "occupied",
+        "text": "entitlements: template verification pending on 1a4730d327268b5c2a57257fb7289738d4357b0a"
+      },
+      {
+        "service": "legal",
+        "state": "occupied",
+        "text": "legal: template verification pending on 1a4730d327268b5c2a57257fb7289738d4357b0a"
+      },
+      {
+        "service": "schema",
+        "state": "occupied",
+        "text": "schema: template verification pending on 1a4730d327268b5c2a57257fb7289738d4357b0a"
+      },
+      {
+        "service": "file",
+        "state": "done",
+        "text": "file: verified on 1a4730d327268b5c2a57257fb7289738d4357b0a"
+      },
+      {
+        "service": "storage",
+        "state": "occupied",
+        "text": "storage: template verification pending on 1a4730d327268b5c2a57257fb7289738d4357b0a"
+      },
+      {
+        "service": "indexer",
+        "state": "empty",
+        "text": "indexer: no template delivery open for 1a4730d327268b5c2a57257fb7289738d4357b0a"
+      },
+      {
+        "service": "search",
+        "state": "empty",
+        "text": "search: no template delivery open for 1a4730d327268b5c2a57257fb7289738d4357b0a"
+      },
+      {
+        "service": "workflow",
+        "state": "empty",
+        "text": "workflow: no template delivery open for 1a4730d327268b5c2a57257fb7289738d4357b0a"
+      },
+      {
+        "service": "indexer-queue",
+        "state": "empty",
+        "text": "indexer-queue: no template delivery open for 1a4730d327268b5c2a57257fb7289738d4357b0a"
+      },
+      {
+        "service": "unit",
+        "state": "empty",
+        "text": "unit: no template delivery open for 1a4730d327268b5c2a57257fb7289738d4357b0a"
+      },
+      {
+        "service": "crs-catalog",
+        "state": "empty",
+        "text": "crs-catalog: no template delivery open for 1a4730d327268b5c2a57257fb7289738d4357b0a"
+      },
+      {
+        "service": "crs-conversion",
+        "state": "empty",
+        "text": "crs-conversion: no template delivery open for 1a4730d327268b5c2a57257fb7289738d4357b0a"
+      }
+    ]
+  },
+  "since": {
+    "basis": "fallback",
+    "from": "2026-11-16T01:06:39.933Z",
+    "rows": [
+      {
+        "workflow": "template",
+        "label": "Sync Template",
+        "countText": "6/13 merged",
+        "slots": [
+          {
+            "service": "partition",
+            "state": "done",
+            "text": "partition has merged v1.4.0 +94."
+          },
+          {
+            "service": "entitlements",
+            "state": "done",
+            "text": "entitlements has merged v1.4.0 +94."
+          },
+          {
+            "service": "legal",
+            "state": "done",
+            "text": "legal has merged v1.4.0 +94."
+          },
+          {
+            "service": "schema",
+            "state": "done",
+            "text": "schema has merged v1.4.0 +94."
+          },
+          {
+            "service": "file",
+            "state": "done",
+            "text": "file has merged v1.4.0 +94."
+          },
+          {
+            "service": "storage",
+            "state": "done",
+            "text": "storage has merged v1.4.0 +94."
+          },
+          {
+            "service": "indexer",
+            "state": "unknown",
+            "text": "Sync Template on indexer ran, effect unknown."
+          },
+          {
+            "service": "search",
+            "state": "unknown",
+            "text": "Sync Template on search ran, effect unknown."
+          },
+          {
+            "service": "workflow",
+            "state": "unknown",
+            "text": "Sync Template on workflow ran, effect unknown."
+          },
+          {
+            "service": "indexer-queue",
+            "state": "unknown",
+            "text": "Sync Template on indexer-queue ran, effect unknown."
+          },
+          {
+            "service": "unit",
+            "state": "unknown",
+            "text": "Sync Template on unit ran, effect unknown."
+          },
+          {
+            "service": "crs-catalog",
+            "state": "unknown",
+            "text": "Sync Template on crs-catalog ran, effect unknown."
+          },
+          {
+            "service": "crs-conversion",
+            "state": "unknown",
+            "text": "Sync Template on crs-conversion ran, effect unknown."
+          }
+        ]
+      }
+    ]
+  },
+  "item": {
+    "origin": "system",
+    "id": "rollout",
+    "ids": ["rollout"],
+    "rung": 1,
+    "cls": "ROLLOUT",
+    "scope": "fleet",
+    "title": "Rollout to template 1a4730d",
+    "sub": "6 of 13 merged · 2 of 5 lanes busy",
+    "cause": "osdu-spi main 1a4730d is on its way to the fleet: 6 of 13 forks merged.",
+    "effect": "The change reaches actions, so every PR and every merge takes a deploy lane: 14 lanes, 5 at a time still to go.",
+    "next": "Dispatch Sync Template to indexer, search and workflow. Three lanes are free.",
+    "verb": "Dispatch",
+    "evidence": [
+      {
+        "label": "main 1a4730d",
+        "url": "https://github.com/Azure/osdu-spi/commit/1a4730d327268b5c2a57257fb7289738d4357b0a",
+        "kind": "commit"
+      },
+      {
+        "label": "forks on d3ddff5",
+        "url": "https://github.com/Azure/osdu-spi/compare/d3ddff562b24cf3b259c8a215fd8b7962df1eb97...1a4730d327268b5c2a57257fb7289738d4357b0a",
+        "kind": "compare"
+      }
+    ],
+    "actor": "operator",
+    "more": [
+      {
+        "label": "Plan",
+        "text": "2 waves · lanes 5 from rollout.json · search merges after storage and indexer"
+      },
+      {
+        "label": "Watch",
+        "text": "Upstream sync at 11-18 00:00 opens 4 PRs (crs-conversion halts instead) that share these lanes. The 08:00 template sync opens every fork still without a PR at once (7 now)."
+      },
+      {
+        "label": "Reaches",
+        "text": "java-build action"
+      }
+    ]
+  }
+}

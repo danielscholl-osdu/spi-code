@@ -41,3 +41,5 @@ the tray-destination ref must be set before the host subscription, because the p
 a held destination to `onNavigate` synchronously (`shell-order.test.tsx`).
 A pinned row's outlined count fills its ring with `--sidebar` on hover: Warm light `--error-text`
 and `--warning-text` read 4.25 and 4.15 on `--hover`, under AA, and `--hover` is not a gated surface.
+
+The Engineering system rollout ladder (`views/template/Rollout.tsx`) joins two core fields per fork: the engineering visual's slot (`done` is verified, `empty` is to dispatch, `broken` failed) and Sync Template's since row (`done` is merged). An `occupied` slot is "merged · verification pending" only when that row says merged; otherwise, and for `waiting` and `unknown`, it reads not read. `rollout-1116.json` beside it is core's output for those fields on the 16 Nov sweep; regenerate it from `packages/core/test/sweep-1116.ts` if core's rollout changes.

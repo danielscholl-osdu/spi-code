@@ -313,6 +313,7 @@ it("omits empty and unshipped parts, including before the first sweep", async ()
   empty.briefing.rest = [];
   empty.briefing.repositories.rows = [];
   empty.briefing.repositories.facts = [];
+  for (const place of empty.briefing.places ?? []) delete place.visual;
   await mount(empty);
   expect(container.querySelector(".place-reading, details, [data-part]")).toBeNull();
   expect(container.querySelector(".template")?.textContent).not.toMatch(
