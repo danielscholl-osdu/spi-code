@@ -380,7 +380,7 @@ const lineByKey = k => LINES().find(l => l.key === k);
 
 const PLACES = [
   { id: "line", name: "Line", ic: "≡" }, { id: "upstream", name: "Upstream", ic: "⇣" }, { id: "environment", name: "Environment", ic: "◎" },
-  { id: "engineering", name: "Engineering system", ic: "⌘" }, { id: "security", name: "Security", ic: "⛨" }, { id: "releases", name: "Releases", ic: "⌗" },
+  { id: "engineering", name: "Template", ic: "⌘" }, { id: "security", name: "Security", ic: "⛨" }, { id: "releases", name: "Releases", ic: "⌗" },
 ];
 const placeName = id => id === "today" ? "Today" : id === "evidence" ? "Evidence" : (PLACES.find(p => p.id === id) || {}).name || id;
 const homeOfMember = m => m.line.home === "line" || m.cells.length ? "line" : m.item.place;
@@ -672,8 +672,8 @@ function crumbs(parts) {
   if (MODE === "pop") return ""; return `<div class="kick">${parts.map((p, n) => (n ? "<span>›</span>" : "") + (p.nav ? `<button data-nav="${p.nav}" ${p.focus ? `data-focus="${esc(p.focus)}"` : ""}>${esc(p.t)}</button>` : p.repo ? `<button data-repo-open="${esc(p.repo)}">${esc(p.t)}</button>` : `<span>${esc(p.t)}</span>`)).join("")}</div>`; }
 function homeCrumbs(m, ctx) {
   const i = m.item;
-  if (ctx.rline) { const [name] = ctx.rline.split("|"); return crumbs([{ t: "Engineering system", nav: "engineering" }, { t: name, repo: name }, { t: "Issues" }]); }
-  if (ctx.rung) return crumbs([{ t: "Engineering system", nav: "engineering" }, { t: "Rollout" }, { t: ctx.rung }]);
+  if (ctx.rline) { const [name] = ctx.rline.split("|"); return crumbs([{ t: "Template", nav: "engineering" }, { t: name, repo: name }, { t: "Issues" }]); }
+  if (ctx.rung) return crumbs([{ t: "Template", nav: "engineering" }, { t: "Rollout" }, { t: ctx.rung }]);
   const cell = ctx.cell || m.cells[0];
   if (cell) { const [svc, st] = cell.split(":"); return crumbs([{ t: "Line", nav: "line", focus: cell }, { t: svc, nav: "line", focus: cell }, { t: STATION_NAME[st] }]); }
   return crumbs([{ t: placeName(i.place), nav: i.place }, ...(i.service ? [{ t: i.service }] : [])]);
@@ -773,7 +773,7 @@ function detailRung(svc) {
   const st = rollout().by[svc]; const ro = memberOf("rollout");
   if (st === "todo" && ro) return detailMember(ro, { rung: svc });
   const slot = ((D.since.rows.find(r => r.workflow === "template") || { slots: [] }).slots).find(s => s.service === svc);
-  let h = crumbs([{ t: "Engineering system", nav: "engineering" }, { t: "Rollout" }, { t: svc }]);
+  let h = crumbs([{ t: "Template", nav: "engineering" }, { t: "Rollout" }, { t: svc }]);
   h += `<div class="dt">${esc(svc)}: template ${D.engineering.target.slice(0, 7)} ${STAGE[st].w}</div>`;
   h += `<div class="fl"><div class="k">What SPI Code read</div><div class="v">${esc(slot ? pretty(slot.text) : "No Sync Template result was read.")}${st === "pending" ? " Verification of the new template on main has not been read as green yet." : ""}</div></div>`;
   const tr = D.templateRuns[svc];
@@ -788,7 +788,7 @@ function detailRLine(key) {
   const l = rline(key);
   if (l.item && memberOf(l.item)) return detailMember(memberOf(l.item), { rline: key });
   const kind = /\/pull\//.test(l.url || "") ? "pr" : "issue";
-  let h = crumbs([{ t: "Engineering system", nav: "engineering" }, { t: l.repo, repo: l.repo }, { t: l.section }]);
+  let h = crumbs([{ t: "Template", nav: "engineering" }, { t: l.repo, repo: l.repo }, { t: l.section }]);
   h += `<div class="dt">${esc(l.text)}</div>`;
   h += `<div class="fl"><div class="v">${l.tag === "human-required" ? "Not on Today. Counted under Can wait." : "Not on Today."}</div></div>`;
   h += `<div class="act">${btn({ label: `Open ${kind === "pr" ? "PR" : "issue"} ${(l.text.match(/#\d+/) || [""])[0]} on GitHub ↗`, url: l.url }, true)}</div>`;
@@ -943,9 +943,9 @@ const WALKS = [
   { name: "3 · Why is indexer stopped? Today → issue → run", steps: [
     ["Blocked: indexer's Sync Upstream failed, and the sync engine opened halt issue #72.", () => go("today")],
     ["Opening it shows the halt issue first, then the run.", () => pick({ type: "item", id: "sync-run:indexer" })],
-    ["On Engineering system, the same issue #72 says it is on Today and opens the same content.", () => { state.openRepo = "indexer"; go("engineering"); state.openRepo = "indexer"; render(); }],
+    ["On Template, the same issue #72 says it is on Today and opens the same content.", () => { state.openRepo = "indexer"; go("engineering"); state.openRepo = "indexer"; render(); }],
   ] },
-  { name: "4 · Engineering system: rollout and an issue", steps: [
+  { name: "4 · Template: rollout and an issue", steps: [
     ["The rollout marks the 7 forks the template hasn't reached; that is the one row here on Today.", () => go("engineering")],
     ["A marked fork opens a popover for sending the template, with the Tue 02:00 deadline and the 14 lanes it takes.", () => pick({ type: "rung", id: "indexer" })],
     ["crs-conversion's issue #44 is behind the blocked crs-conversion sync; it opens the same content Today does.", () => { state.openRepo = "crs-conversion"; render(); const r = D.repos.find(x => x.name === "crs-conversion"); const l = r.sections.find(s => s.title === "Issues").lines.find(x => /#44/.test(x.text)); pick({ type: "rline", id: "crs-conversion|" + l.id }); }],

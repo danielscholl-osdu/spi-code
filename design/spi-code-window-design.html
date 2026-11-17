@@ -257,13 +257,13 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
 
   <div class="problem">
     <p><b>The current window reads like a transcript of the sweep, and the first revision of this page made it a better dashboard.</b> A service page shows about 520 words. The revised Today packed a 13 × 6 grid, three bands and a queue into one view, which is busier than the rib console it replaces. It still asked the operator to visit pages and coordinate the work mentally. Threads were annotations on those pages.</p>
-    <p><b>This revision makes the thread the place work happens.</b> The window has three layers. The fixed Line, Environment and Engineering system rows and the removable Upstream pin show the line's state, and the footer says when it was read. The centre holds Today, a place such as a service, or a thread. Outside a thread the window is the sidebar and the centre; a thread adds its own context pane on the right. Attention has four tiers decided by core, and only a decision that's yours interrupts. Watchers and campaign threads notice problems and draft the exact approval card. The operator decides, in one place per card.</p>
+    <p><b>This revision makes the thread the place work happens.</b> The window has three layers. The fixed Line, Environment and Template rows and the removable Upstream pin show the line's state, and the footer says when it was read. The centre holds Today, a place such as a service, or a thread. Outside a thread the window is the sidebar and the centre; a thread adds its own context pane on the right. Attention has four tiers decided by core, and only a decision that's yours interrupts. Watchers and campaign threads notice problems and draft the exact approval card. The operator decides, in one place per card.</p>
     <p><b>Some things this doesn't change or provide.</b> Every write still needs its own card (AU-03 to AU-10), and no agent approves anything. Lane occupancy, collision attribution, seen-state and due times are new data, marked where they appear. Sequencing across forks must be enforced in the stack's workflows, because the app can't stop jobs GitHub starts on its own.</p>
   </div>
 
   <p class="eyebrow" style="margin-top:28px">Colors identify the part of the system</p>
   <div class="legend">
-    <span class="owner o-o1">Engineering system <span>· osdu-spi templates and workflows, rolled out to forks</span></span>
+    <span class="owner o-o1">Template <span>· osdu-spi templates and workflows, rolled out to forks</span></span>
     <span class="owner o-o2">Environment <span>· the shared CI/CD stack every prove borrows</span></span>
     <span class="owner o-o3">Services <span>· 13 syncing forks of upstream GitLab</span></span>
     <span class="owner o-o4">Releases <span>· monthly release lines</span></span>
@@ -284,13 +284,13 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
     <p>The <a href="spi-code-window-layout.html">window layout</a> draws the footer sweep's states and popover and the pin control's end position as the centre narrows.</p>
 
     <h3>The sidebar</h3>
-    <p>The sidebar holds where you go. Top to bottom: <b>Find or ask</b> (⌘K); a fixed block with no header, <b>Today</b> with its count, <b>Line</b> with ⌘L, <b>Environment</b> and <b>Engineering system</b>; then one collapsible <b>Pinned</b> list in the operator's order, hidden when empty. Its footer has the Settings <b>gear</b> at the start and the <b>sweep</b> at the end, with the pin notice just above it.</p>
+    <p>The sidebar holds where you go. Top to bottom: <b>Find or ask</b> (⌘K); a fixed block with no header, <b>Today</b> with its count, <b>Line</b> with ⌘L, <b>Environment</b> and <b>Template</b>; then one collapsible <b>Pinned</b> list in the operator's order, hidden when empty. Its footer has the Settings <b>gear</b> at the start and the <b>sweep</b> at the end, with the pin notice just above it.</p>
     <div class="tblwrap">
       <table class="tbl compact">
         <thead><tr><th>Row</th><th>Fine</th><th>Not fine, worst first</th><th>Not read</th><th>Opens</th></tr></thead>
         <tbody>
           <tr><td><b>Line</b></td><td>No mark</td><td><span class="oc bad">4</span> forks stopped; otherwise <span class="oc warn">2</span> forks waiting on a person</td><td>No mark</td><td>The Line sheet, as ⌘L does</td></tr>
-          <tr><td><b>Engineering system</b></td><td>No mark</td><td><span class="oc bad">2</span> forks the rollout failed on; otherwise <span class="oc warn">3</span> forks not yet on the target revision</td><td>No mark</td><td>The Engineering system</td></tr>
+          <tr><td><b>Template</b></td><td>No mark</td><td><span class="oc bad">2</span> forks the rollout failed on; otherwise <span class="oc warn">3</span> forks not yet on the target revision</td><td>No mark</td><td>The Template</td></tr>
           <tr><td><b>Environment</b></td><td><span class="smk ok"><svg class="i"><use href="#i-check"/></svg></span> ready</td><td><span class="smk warn"><svg class="i"><use href="#i-wrench"/></svg></span> in maintenance with nothing running to clear it; <span class="smk work"><svg class="i"><use href="#i-refresh"/></svg></span> while a lifecycle run clears it</td><td>No mark</td><td>The Environment place</td></tr>
           <tr><td><b>Upstream</b></td><td colspan="3"><span class="smk up"><svg class="i"><use href="#i-clock"/></svg></span> only while the next upstream sync is known and 2 hours away or less; otherwise no mark</td><td>The Upstream place</td></tr>
         </tbody>
@@ -298,9 +298,9 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
     </div>
     <ul class="plain">
       <li><b>A mark is a number or an icon, never words.</b> A count is outlined, its number inside a ring in its tone, amber or red. Today's count stays filled, because it is the one count that means act. Environment's check is green, its wrench amber and its refresh icon in the work tone; Upstream's clock is in the upstream ink. There is no red Environment state. The tones hold in both themes and both palettes.</li>
-      <li><b>Nothing to say when fine.</b> A fine Line or Engineering system draws nothing; only Environment shows a check, because a ready environment is what every prove needs. A field core couldn't read draws nothing too: the environment's figure unread, the rollout's slots unknown, or the forks' stations unread, empty or missing. Nothing unread is drawn as a check.</li>
-      <li><b>Hover and the accessible name carry the sentence behind the mark</b>, a fine Environment's included, and name the forks behind a count ("Stopped: storage, indexer-queue"); Engineering system also names the target revision. The maintenance age is the open hold's, from the Held lane core sends. The fixed rows keep their marks, and Upstream keeps its clock wherever the operator moves its pin; an unpinned Upstream draws its clock nowhere.</li>
-      <li><b>The fixed block stays put.</b> Today, Line, Environment and Engineering system have no grip, context menu or pin control anywhere, including Find, and never reorder. Pinned holds only removable pins: Upstream, Releases and Security on first run, then what the operator pins. Its order and the operator's removed seed places survive a restart.</li>
+      <li><b>Nothing to say when fine.</b> A fine Line or Template draws nothing; only Environment shows a check, because a ready environment is what every prove needs. A field core couldn't read draws nothing too: the environment's figure unread, the rollout's slots unknown, or the forks' stations unread, empty or missing. Nothing unread is drawn as a check.</li>
+      <li><b>Hover and the accessible name carry the sentence behind the mark</b>, a fine Environment's included, and name the forks behind a count ("Stopped: storage, indexer-queue"); Template also names the target revision. The maintenance age is the open hold's, from the Held lane core sends. The fixed rows keep their marks, and Upstream keeps its clock wherever the operator moves its pin; an unpinned Upstream draws its clock nowhere.</li>
+      <li><b>The fixed block stays put.</b> Today, Line, Environment and Template have no grip, context menu or pin control anywhere, including Find, and never reorder. Pinned holds only removable pins: Upstream, Releases and Security on first run, then what the operator pins. Its order and the operator's removed seed places survive a restart.</li>
       <li><b>Line opens the sheet,</b> as ⌘L does. The sheet's toolbar says Dock or Undock with a panel icon; docking keeps it beside the centre and never touches the sidebar.</li>
       <li><b>One control pins from where a thing is found.</b> A hollow pin means unpinned, a filled pin means pinned, and a filled control shows pin-off on hover or focus. It sits at the top row's right end on a place or service, at a Find result's end, and immediately after a service's name on the Line sheet; the sheet's row menu has Open, then Pin to sidebar or Unpin from sidebar. The control's action name and title name the thing. After a click its new glyph stays until pointer or focus leaves. ⌘⇧P (Ctrl+Shift+P) toggles the open place or service, or Find's highlighted result. It does nothing on Today, a release month or a fixed place, under another dialog or while Line overlays the centre. ⌘↩ on a Find result opens and pins, never unpins, and a fixed result simply opens. Clicking Find's control toggles in place, with the palette, query, highlight and focus unchanged.</li>
       <li><b>A pinned service carries a word,</b> and only when it is read and not fine: "stopped" in red, "waiting" in amber. Releases and Security carry nothing; Today and their places say how they stand.</li>
@@ -400,7 +400,7 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
 
     <h3>Words and visuals</h3>
     <p>Today is read at a glance, not read through. A word stays only when it does work: the fork, the headline, the pill's kind and number, the age. Everything else is a mark whose sentence is its hover and accessible name: the section's dot, the clock, ⌀ n. The opened row and the popover follow the same rule. Grouping, headlines, steps and deadlines are core's output; the window draws them and computes nothing beyond layout.</p>
-    <p>Two glyph sets are still drawn, each with one meaning everywhere it appears. The Line sheet's stations use ✕ stopped, ! waits on you, ◐ running, ◷ waits on time, ⌀ not read and · fine (The Line sheet, below). The Engineering system's rollout ladder gives each fork one stage: verified, merged · verification pending, to dispatch, failed or not read. Merged is read only from Sync Template's own merge results, so a result that wasn't read says not read, never merged.</p>
+    <p>Two glyph sets are still drawn, each with one meaning everywhere it appears. The Line sheet's stations use ✕ stopped, ! waits on you, ◐ running, ◷ waits on time, ⌀ not read and · fine (The Line sheet, below). Template's rollout ladder gives each fork one stage: verified, merged · verification pending, to dispatch, failed or not read. Merged is read only from Sync Template's own merge results, so a result that wasn't read says not read, never merged.</p>
 
     <h3>Narrow widths</h3>
     <p>Today is the same table at every width. When the centre is under 640 px the Fork, Open and Age columns narrow and What keeps the rest. Nothing folds, no group shows "n more", and an opened row still spans What to Age. A long pill label ends in an ellipsis with the full label in its title. At 740 px the sidebar goes off-canvas and the table keeps the whole centre.</p>
@@ -408,7 +408,7 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
     <h3>The bad morning</h3>
     <p>More rows under Blocked and Waiting on you, and GitHub failed to read.</p>
     <ul class="plain">
-      <li><b>A caveat band</b>, full width under the date, with one line for each source whose read failed or was cut: "GitHub read failed at 08:15; items from it may be missing." or "GitHub was read only in part at 08:15; items from it may be missing.", then Evidence ›. A source that was only not read this sweep adds no line. It adds "Open Settings ›" only when the failure's code is one Readiness fixes, such as <code>signin</code>.</li>
+      <li><b>A caveat band</b>, full width under the date, with one line for each area whose read failed or was cut: "GitHub issues and PRs read failed at 08:15; items from it may be missing." or "GitHub issues and PRs was read only in part at 08:15; items from it may be missing." The area's name is the link: it opens Evidence, and there is no separate Evidence action. An area that was only not read this sweep adds no line. The band adds "Open Settings ›" only when a failure's code is one Readiness fixes, such as <code>signin</code>.</li>
       <li><b>A row SPI Code couldn't fully read</b> carries ⌀ n by its age, and its opened row ends "⌀ n not read · Evidence ›".</li>
       <li><b>A pile or workflow core didn't read says "not read"</b>, with ⌀ n opening Evidence, never 0. A pile that was read and holds nothing says none.</li>
       <li>The sidebar rows and footer behave as they do on every morning: a row whose source wasn't read carries no mark, never a check, and the sweep takes the red alert icon for the failed read.</li>
@@ -426,7 +426,7 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
           <tr><td>The place link in an opened row</td><td>The place, with the subject marked and its popover open</td></tr>
           <tr><td>⌀ n, or "⌀ n not read · Evidence ›"</td><td>Evidence for that row, with "‹ Today" to come back</td></tr>
           <tr><td>A row under Can wait, Moving without you or Last 24 hours</td><td>Its place; a Line row opens the Line sheet</td></tr>
-          <tr><td>Evidence › in the caveat band</td><td>Evidence for the failed source</td></tr>
+          <tr><td>An area's name in the caveat band</td><td>Evidence for the whole sweep</td></tr>
         </tbody>
       </table>
     </div>
@@ -447,7 +447,7 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
       </table>
     </div>
     <p>A popover hangs under what was clicked, flips above when it would leave the window and stays inside it. It carries the same body as an opened row, plus a title, because its subject isn't otherwise on screen, and it doesn't repeat what the place shows beside it. Esc or a click outside closes it and returns focus to what opened it; a click on the footer sweep keeps it open and opens Evidence for it. Opening an item from ⌘K, the tray or a notification goes to Today with its row open: an item merged into one member opens that member; one shared by several members of a line opens the line's header; one on rows of different lines, or on none, opens Today with nothing open.</p>
-    <p>Each place opens on what Today can't show. Every place has the same head: its name, its status (one field, which the sidebar reads too), then "n yours on Today ‹ ›" for the members whose home it is. Core names one home per member, so the place counts add up to Today's count: on 16 Nov Line 16, Engineering system 1 and Upstream 1 make 18. A repository line that is a member's source or companion issue keeps an "On Today" mark as a cross-reference, but Engineering system doesn't count it.</p>
+    <p>Each place opens on what Today can't show. Every place has the same head: its name, its status (one field, which the sidebar reads too), then "n yours on Today ‹ ›" for the members whose home it is. Core names one home per member, so the place counts add up to Today's count: on 16 Nov Line 16, Template 1 and Upstream 1 make 18. A repository line that is a member's source or companion issue keeps an "On Today" mark as a cross-reference, but Template doesn't count it.</p>
     <div class="tblwrap">
       <table class="tbl compact">
         <thead><tr><th>Place</th><th>Keeps</th></tr></thead>
@@ -455,7 +455,7 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
           <tr><td><b>Line</b></td><td>The five-station sheet</td></tr>
           <tr><td><b>Upstream</b></td><td>The radar, per-fork commits, filters and ports</td></tr>
           <tr><td><b>Environment</b></td><td>Its own state first (Maintenance or Running, Ready · 21 days, Last proof), the last 24 hours open, its items, fork deploys, runs and the stack repo</td></tr>
-          <tr><td><b>Engineering system</b></td><td>The rollout as a ladder of forks, and the repositories table: issues (human · other), PRs and Dependabot bumps per repository, each row marked "on Today" when a line in it is. An expanded repository with nothing listed says "No lines listed here."</td></tr>
+          <tr><td><b>Template</b></td><td>The rollout as a ladder of forks, and the repositories table: issues (human · other), PRs and Dependabot bumps per repository, each row marked "on Today" when a line in it is. An expanded repository with nothing listed says "No lines listed here."</td></tr>
           <tr><td><b>Releases</b></td><td>Months, notes, every release PR, and each forming release's full change list</td></tr>
           <tr><td><b>Security</b></td><td>Rules, packages, owners and campaigns</td></tr>
         </tbody>
@@ -474,7 +474,7 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
       <li>The old top row's service pips and the stopped names. The Line row carries a count; the names are in its hover and on the Line sheet.</li>
       <li>Release months on Today. Release history stays on Releases.</li>
     </ul>
-    <p>Before the first sweep finishes there is nothing to list yet. Today shows the sweep's own sources live from <code>sweep.progress</code>, in sweep order and in Evidence words, each with what it reads and its state, and hands over to the table in place when <code>view.snapshot</code> lands. Places open one line saying when they can be read, the pins carry no marks, and the footer sweep shows "First sweep" with a spinner. If the first sweep stops, Today keeps the list and offers Try again and Open Settings. The <a href="spi-code-window-layout.html#first-sweep">window layout's first-sweep frame</a> draws it.</p>
+    <p>Before the first sweep finishes there is nothing to list yet. Today shows the sweep's own sources live from <code>sweep.progress</code>, in sweep order and in Evidence words, each with what it reads and its state, with no closing line under the list, and hands over to the table in place when <code>view.snapshot</code> lands; if the window is hidden then, one "Today is ready" notification says so. Places open one line saying when they can be read, the pins carry no marks, and the footer sweep shows "First sweep" with a spinner. If the first sweep stops, Today keeps the list and offers Try again and Open Settings. The <a href="spi-code-window-layout.html#first-sweep">window layout's first-sweep frame</a> draws it.</p>
 
     <h3>When something needs you</h3>
     <p>A notification reads "indexer's prove failed while storage held the lane. A retry card is waiting." Clicking it opens the thread that owns the finding, in the centre. It never replaces a thread you're typing in.</p>
@@ -484,7 +484,7 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
         <div class="side">
           <div class="row find"><span><svg class="i"><use href="#i-search"/></svg>Find or ask</span><small>⌘K</small></div>
           <div class="row"><span><svg class="i"><use href="#i-sun"/></svg>Today</span><span class="fc">1</span></div>
-          <div class="row"><span>Line</span><span class="oc bad">1</span></div><div class="row"><span>Environment</span></div><div class="row"><span>Engineering system</span></div><div class="row mut"><span>Pinned (collapsed)</span></div>
+          <div class="row"><span>Line</span><span class="oc bad">1</span></div><div class="row"><span>Environment</span></div><div class="row"><span>Template</span></div><div class="row mut"><span>Pinned (collapsed)</span></div>
           <div class="grp">Threads</div>
           <div class="row mut" style="font-size:11px">WAITING ON YOU</div>
           <div class="row on"><span><span class="st c-you">●</span>Lane watch</span></div>
@@ -537,7 +537,7 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
     </ul>
 
     <h3>Places</h3>
-    <p>A place is any anchor you can open: a service, the environment, the engineering system, a release month, a campaign. Places are Today's drill-down: each opens on what Today can't show (Click targets, above). Line, Environment and Engineering system stay in the fixed block; Upstream, Releases and Security seed the removable pins, and a service joins Pinned when the operator pins it (The sidebar, above). Every place has the same three parts. Its <b>reading</b> is a headline, three tiles and at most five items, the rib's shape. Next come <b>its threads</b> with their status. Last is a <b>composer anchored to it</b>, so typing a question starts a thread there. The entitlements page from the first revision becomes the service reading, without "gate 3" (it reads "release review") and without the future "Upstream MRs" line. Its Threads section becomes the place's thread list and composer. <b>Security</b> is a place whose reading is SPI-owned findings across the fleet: tiles for high, total and upstream-origin counts, items grouped by rule, and each rule that spans forks shown as a detected campaign.</p>
+    <p>A place is any anchor you can open: a service, the environment, Template, a release month, a campaign. Places are Today's drill-down: each opens on what Today can't show (Click targets, above). Line, Environment and Template stay in the fixed block; Upstream, Releases and Security seed the removable pins, and a service joins Pinned when the operator pins it (The sidebar, above). Every place has the same three parts. Its <b>reading</b> is a headline, three tiles and at most five items, the rib's shape. Next come <b>its threads</b> with their status. Last is a <b>composer anchored to it</b>, so typing a question starts a thread there. The entitlements page from the first revision becomes the service reading, without "gate 3" (it reads "release review") and without the future "Upstream MRs" line. Its Threads section becomes the place's thread list and composer. <b>Security</b> is a place whose reading is SPI-owned findings across the fleet: tiles for high, total and upstream-origin counts, items grouped by rule, and each rule that spans forks shown as a detected campaign.</p>
 
     <h3>The Environment place</h3>
     <p>The Environment place leads with its own state, because its fixed row only shows a check, a wrench or the refresh icon and this is where you find out why. Its parts keep the place shape, in this order:</p>
@@ -561,7 +561,7 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
           <div class="row"><span><svg class="i"><use href="#i-sun"/></svg>Today</span></div>
           <div class="row" title="Forks: 1 stopped. Stopped: entitlements"><span><svg class="i"><use href="#i-rows"/></svg>Line</span><span class="oc bad">1</span></div>
           <div class="row" title="Environment: v0.35.3 is ready"><span><svg class="i"><use href="#i-server"/></svg>Environment</span><span class="smk ok"><svg class="i"><use href="#i-check"/></svg></span></div>
-          <div class="row" title="Templates: 13 pending. Template 7d269b5 is pending on all 13 forks"><span><svg class="i"><use href="#i-layers"/></svg>Engineering system</span><span class="oc warn">13</span></div>
+          <div class="row" title="Templates: 13 pending. Template 7d269b5 is pending on all 13 forks"><span><svg class="i"><use href="#i-layers"/></svg>Template</span><span class="oc warn">13</span></div>
           <div class="grp">Pinned</div>
           <div class="row on"><span><svg class="i"><use href="#i-upstream"/></svg>Upstream</span></div>
           <div class="row"><span><svg class="i"><use href="#i-tag"/></svg>Releases</span></div>
@@ -661,7 +661,7 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
         <div class="side">
           <div class="row find"><span><svg class="i"><use href="#i-search"/></svg>Find or ask</span><small>⌘K</small></div>
           <div class="row"><span><svg class="i"><use href="#i-sun"/></svg>Today</span><span class="fc">1</span></div>
-          <div class="row"><span>Line</span><span class="oc bad">1</span></div><div class="row"><span>Environment</span></div><div class="row"><span>Engineering system</span></div><div class="row mut"><span>Pinned (collapsed)</span></div>
+          <div class="row"><span>Line</span><span class="oc bad">1</span></div><div class="row"><span>Environment</span></div><div class="row"><span>Template</span></div><div class="row mut"><span>Pinned (collapsed)</span></div>
           <div class="grp">Threads</div>
           <div class="row mut" style="font-size:11px">WAITING ON YOU</div>
           <div class="row on"><span><span class="st c-you">●</span>Boot 4</span><small>0/8</small></div>
@@ -746,7 +746,7 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
           <tr><td><b>Owner fails</b></td><td>Diagnose fails at 11:20 while the cascade is still blocked. The item interrupts again: one notification, Today goes to 1, the Line row keeps counting entitlements stopped, and the notification opens Diagnose's thread at its failure with the next decision: retry Diagnose or start a code thread.</td></tr>
           <tr><td><b>Steward</b></td><td>⌘K "legal", ⌘↩ opens and pins it. Its place reads 17 commits incoming, a SNAPSHOT hold, 1 SPI-owned CodeQL finding and Release #48 ready. Ask "which of the 17 touch the Azure provider?" in its composer, and that starts a legal thread.</td></tr>
           <tr><td><b>Java 25 + Boot 4</b></td><td>Ask for it with ⌘N or ⌘K, or Upstream shows "Detected: os-core-common 8.5.0 on 8 forks · Track" once. Either starts a campaign thread, which drafts pilot indexer-queue, waves and lane cap 1 as a plan for you to edit. Each wave is one Consequential <code>start_upstream</code> card with the wave's name typed. Core admits its forks through the shared lane queue. Forks failing on their own code get child code threads at M5. From then on it's one row under Working, with a meter.</td></tr>
-          <tr><td><b>Template rollout</b></td><td>The same mechanics as a campaign of kind engineering. Each wave is one Consequential <code>roll_out</code> card, and a lone template PR is a <code>merge_pr</code> card (AU-07). The Engineering system row counts forks not yet verified on the target revision, not PRs left to merge, so it reads an outlined 13 and falls only as adoption is confirmed, then draws nothing.</td></tr>
+          <tr><td><b>Template rollout</b></td><td>The same mechanics as a campaign of kind engineering. Each wave is one Consequential <code>roll_out</code> card, and a lone template PR is a <code>merge_pr</code> card (AU-07). The Template row counts forks not yet verified on the target revision, not PRs left to merge, so it reads an outlined 13 and falls only as adoption is confirmed, then draws nothing.</td></tr>
           <tr><td><b>Code change</b></td><td>The entitlements Cascade item is owned, so its row on Today and its Cascade cell's popover carry the Diagnose thread's marker (TH-05); how they open the thread waits for the Copilot design, and the sidebar opens it meanwhile. Diagnose proposes "Fix in code thread", which starts a child code thread. It opens in the centre with the branch and head shown. A changed file opens its diff over the timeline (CT-14), with the item's reading one tab away in the thread's right panel. The push is a card. The PR shows dashed in the Cascade cell until a sweep reads it.</td></tr>
         </tbody>
       </table>

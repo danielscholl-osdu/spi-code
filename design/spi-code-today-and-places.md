@@ -2,6 +2,8 @@
 
 The mock is `spi-code-today-and-places.html` beside this file. Open it in a browser: the toolbar switches the morning and the theme, and runs five walkthroughs. It is built from the live sweep of Mon 16 Nov 19:06, so every name, number and link in it is real unless the data section below says otherwise. Where the mock and this file differ, this file wins. The design council (Claude Opus 5.5, Codex Sol, Muse Wonder) scored it 9, 9 and 9 in round 7 with no must-fix findings, and the maintainer settled it on 2026-11-17.
 
+The place the council called Engineering system is named Template, as the window names it (maintainer, 2026-11-17, spicode-djg.30).
+
 The rulings read newest first: Z (draft 6 and later) overrides X (the operator's pass), which overrides the older rulings further down. Where an older ruling says "Detail", read it as the opened row on Today or the popover on a place (Z2, Z3).
 
 ## Draft 4: the operator's pass
@@ -70,15 +72,15 @@ Round 1 scored Opus 7, Sol 7.5, Muse 7. Their findings overlapped; each ruling b
 
 | # | Ruling | Answers |
 |---|---|---|
-| A | **One count of what is yours: verb-line members.** 18 everywhere: sidebar Today 18, Now 2 + Today 16. Each place's "n yours on Today" counts the members whose home is that place: Line 16, Engineering system 1, Upstream 1, Environment 0. "5 wait on you" is gone. | Opus 1, Muse 1 |
+| A | **One count of what is yours: verb-line members.** 18 everywhere: sidebar Today 18, Now 2 + Today 16. Each place's "n yours on Today" counts the members whose home is that place: Line 16, Template 1, Upstream 1, Environment 0. "5 wait on you" is gone. | Opus 1, Muse 1 |
 | B | **One object, one story.** A repository line that is an item's source or the sync engine's companion issue shows "On Today · P0 Classify entry" and opens that item's Detail, with the Engineering breadcrumb. Issue #72 (indexer, "Upstream Sync Failed", opened 34m ago) is now the source of indexer's P0; the copy says the halt issue is open. Unmatched lines keep the generic triage copy. | Opus 2, Sol 4 |
 | C | **The effective move projects everywhere.** A Re-run member's Detail, its Main and Lane cells, and every "Also on Today" row name Re-run lanes and lead with the re-run. The merge is step 2. | Opus 3, Sol 3, Muse 2 |
 | D | **Absorb, then review.** The four sync PRs that carry an os-core-common move are their own line, "Absorb toolchain, then review · 4". Each member keeps both causes, both sets of sources and the steps in order; the primary action starts the absorb, the PR is the second button. crs-conversion #41 stays in "Review on GitHub". | Sol 2 |
 | E | **Every Detail has a primary action.** A cell or rung that holds one member shows that member's Detail, with the cell's or rung's state in the meta line. A cell with no member opens its PR, latest run or upstream project. A to-dispatch rung is the Dispatch Detail. | Opus 5, Muse 3 |
-| F | **The sidebar count is the head's count.** Line 7 (forks stopped), Environment ✓, Engineering system 7 (to dispatch), Upstream 1. | Opus 6 |
+| F | **The sidebar count is the head's count.** Line 7 (forks stopped), Environment ✓, Template 7 (to dispatch), Upstream 1. | Opus 6 |
 | G | **Dispatch shows its decision.** Detail renders core's `rollout.more`: Plan (unpaced), Watch (the Tue 02:00 template sync opens all 7 at once), Reaches (java-build action). The member reads "Sync Template to 7 forks · or Tue 02:00 opens all 7 at once". It shows no age: `rollout.age` is null. | Opus 7, Muse data |
 | H | **The calm morning is consistent.** Finished work is under Last 24 hours, not Moving without you. The Line shows all 13 forks, no fold, and the plan line says no wave is in flight. Can wait stays. | Opus 8, Sol nit, Muse nit |
-| I | **Places mark, they don't list.** The "Yours here" boxes on Environment and Engineering system are gone. The 7 to-dispatch rungs carry the dot. Re-run lanes' home is the Line, where its PRs are (Main and Lane cells). | Muse 4, Sol nit |
+| I | **Places mark, they don't list.** The "Yours here" boxes on Environment and Template are gone. The 7 to-dispatch rungs carry the dot. Re-run lanes' home is the Line, where its PRs are (Main and Lane cells). | Muse 4, Sol nit |
 | J | **Evidence shows only what core has.** No budget. Each area shows its real `observedAt` and its `completeness`. A selection on a fork lists that fork's own reads (`reads[]` with source `Azure/osdu-spi-<fork>`) with their times, and GitLab reads for upstream work. "Not read" leads when core says something wasn't read (storage's Validation Summary job; partition's deployment cause). Item areas come from `provenance` and say they are the sweep's list until core narrows them per item. | Sol 6, Muse 5, Opus data |
 | K | **Chips name kind and number.** "deployments ↗", "PR #83 ↗", "issue #72 ↗", "!968 ↗". No bare `link ↗`, no repeated number. One- and two-member lines show a real short cause. | Muse 6, Opus nits |
 | L | **Port starts the port.** Primary "Port !968 (Copilot thread)", second "Open !968 on GitLab ↗". | Muse 7 |
@@ -103,7 +105,7 @@ Round 2 scored Opus 8.5, Sol 8.5, Muse 9.
 | R | **A stopped cell with no item says so and still has a way out.** search's Lane opens its deployment history and says core raised no item and the lane's run was not read. A cell with no read run opens the fork's Actions page. | Opus 2, Sol nit, Muse nit |
 | S | **A member's age is the age of the object you act on.** Absorb members use the sync PR's age (unit 10d); the cause adds "queued upstream 59d ago". | Opus 3, Sol nit, Muse nit |
 | T | **Also on Today uses the line's short cause** ("red on its failed lane"). | Opus 4 |
-| U | **Can wait excludes what is on Today.** "8 human-required issues not on Today (7 more are sources of items above)". Every Can wait pile applies the same exclusion; Engineering system still shows the total. | Sol 1 |
+| U | **Can wait excludes what is on Today.** "8 human-required issues not on Today (7 more are sources of items above)". Every Can wait pile applies the same exclusion; Template still shows the total. | Sol 1 |
 | V | **Line Details without a lead say Cause and Next.** Approve and merge · 2 and Investigate · 2 show the shared cause or each member's next; the primary reads "… (oldest) ↗". | Muse nit |
 | W | **Copy.** "Queue the re-run of all 5 lanes", before Dispatch takes any lane. Its condition sits under the verb. Cells wrap to three lines. The Sync column is "Sync" (it holds a PR or a run). Repository columns all say "· all". Sources name GitLab commits and runs. A breadcrumb-revealed cell stays selected. | all three |
 
@@ -116,7 +118,7 @@ Five layers, each answering one question, each one click from the next:
 | Layer | Answers | Holds |
 |---|---|---|
 | **Today** | What is mine to move today? | Only items whose next move is the operator's, as a table of headlines grouped by situation; one row per pile that can wait; what moves without you; the last 24 hours. |
-| **A place** (Line, Environment, Engineering system) | Why, and what else is going on here? | The place's instrument: the fork × station sheet, the stack's timeline, the rollout and the repositories. The operator's items are marks on it, never a second list. |
+| **A place** (Line, Environment, Template) | Why, and what else is going on here? | The place's instrument: the fork × station sheet, the stack's timeline, the rollout and the repositories. The operator's items are marks on it, never a second list. |
 | **Detail** | What is this one thing, and what do I do? | One anatomy for every selection: where it lives, cause, effect, next (only when there are two ordered moves), one primary action, the links that are not buttons. |
 | **Evidence** | How does SPI Code know? | What was not read, the reads behind the selection with their times, and the areas core attributes. |
 | **The source** | The thing itself | The PR, issue, run, job, commit or GitLab MR, opened in the browser. |
@@ -152,13 +154,13 @@ On the 16 Nov snapshot this turns 23 items into 10 rows and 18 members: 2 Blocke
 
 **Environment.** Status "v0.35.5 ready · green since Sun 22:12", with "smoke failed 2× on fresh clusters today; the running environment was not affected". Three tiles, the last 24 hours as lanes, 21-day pass rates, and one line pointing fork lanes to the Line's Lane column. Nothing here is on Today on 16 Nov, so the head has no stepper.
 
-**Engineering system.** Status "Rollout 1a4730d: 1 verified · 5 merged, verification pending · 7 to dispatch". The rollout ladder with a stage per rung and a dot on the 7 Dispatch reaches. The repositories table (issues, PRs, Dependabot), each row marked "on Today" when a line in it is; each line opens in Detail, and a line that is an item's source opens that item.
+**Template.** Status "Rollout 1a4730d: 1 verified · 5 merged, verification pending · 7 to dispatch". The rollout ladder with a stage per rung and a dot on the 7 Dispatch reaches. The repositories table (issues, PRs, Dependabot), each row marked "on Today" when a line in it is; each line opens in Detail, and a line that is an item's source opens that item.
 
 ## Detail
 
 **One anatomy for every selection** (member, group, Line cell, environment run, rollout rung, repository line):
 
-1. **Breadcrumb** to where it lives: Line › fork › station, Engineering system › repository › Issues, or Engineering system › Rollout › fork; for a group, Today › its place. Each part opens the place with the subject marked.
+1. **Breadcrumb** to where it lives: Line › fork › station, Template › repository › Issues, or Template › Rollout › fork; for a group, Today › its place. Each part opens the place with the subject marked.
 2. **On Today** chip, only when you arrived from a place: "On Today · 5 red release/upstream PRs", which opens the row.
 3. **Title**, then the deadline in full when there is one, and the cell's, rung's or line's own state when that is how you got here.
 4. **Cause and Effect**, each one or two sentences, no core error codes. **Next, in order** only when there are two moves; the first step is the one the primary action takes.
@@ -168,7 +170,7 @@ On the 16 Nov snapshot this turns 23 items into 10 rows and 18 members: 2 Blocke
 
 ## Evidence
 
-Not read first, when core says so. Then the reads of the selection's fork (object and time), and the GitLab project reads for upstream work. Then the areas: for items, core's `provenance` paths; for cells and rungs, inferred from the view and labelled so. Each area shows state, observed time (and how long before the sweep ended) and completeness. With nothing selected it lists every area. No logs; a job log is read by Copilot in a thread.
+Not read first, when core says so. Then the reads of the selection's fork (object and time), and the GitLab project reads for upstream work. Then the areas: for items, core's `provenance` paths; for cells and rungs, inferred from the view and labelled so. Each area shows state, observed time (and how long before the sweep ended) and completeness. With nothing selected it lists every source, and each row says only the facts that carry information: "read · 4 s", "not due · from 09:29", "read · 22 s · 5 reads failed" with one muted cause line, "failed · showing 09:26". Ruling J's four facts are the row's hover and accessible name; a failure is said once, in one tone, and Failed reads keeps only failures no row shows (maintainer, 2026-11-17, spicode-djg.33). A selection's areas still show the four facts as words until spicode-djg.35. After a failed or partial read the page's button reads Read again, a normal sweep that re-reads every due source, failed ones included (spicode-djg.34). No logs; a job log is read by Copilot in a thread.
 
 ## Out to GitHub and GitLab
 
