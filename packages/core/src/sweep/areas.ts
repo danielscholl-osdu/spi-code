@@ -106,7 +106,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
         if (name === "upstream" && facts.upstream.data && !upstreamForks(input).length)
           return { state: "skipped", code: "cadence", reason: "not due" };
         if (name !== "upstream" && interval && facts[name].data && !(name === "radar" && upstreamChanged) &&
-          !due(facts[name].at, interval, clock.now(), force))
+          !input.reads[name]?.some((r) => r.failure) && !due(facts[name].at, interval, clock.now(), force))
           return { state: "skipped", code: "cadence", reason: "not due" };
         const throttled = estimate > 0 && throttledReason();
         if (throttled) {
@@ -331,7 +331,10 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
     },
     afterAreas: async ({ ctx, exec, facts, cache, force, clock, progress }) => {
       // Deferred entries belong to this sweep, including collectors without a Facts area.
-      const throttled = due(cache.releases.at, RELEASES_EVERY_MS, clock.now(), force) && throttledReason();
+      // A read that failed or was cut by failures is due again before its interval.
+      const releasesDue = due(cache.releases.at, RELEASES_EVERY_MS, clock.now(), force) ||
+        cache.releases.records.some((r) => r.failure);
+      const throttled = releasesDue && throttledReason();
       if (throttled) {
         cache.budget.deferred.push({ area: "releases", reason: throttled.reason });
         progress?.({
@@ -339,7 +342,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
           endedAt: clock.now().toISOString(), ...throttled,
         });
       }
-      else if (due(cache.releases.at, RELEASES_EVERY_MS, clock.now(), force)) {
+      else if (releasesDue) {
         const snapshot = account.snapshot();
         const decision = pacer.plan({
           ...(snapshot.remaining === null ? {} : { remaining: snapshot.remaining }),
@@ -358,7 +361,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
           readingSource = "releases";
           notify = progress;
           try {
-            await reader.read({ force, ...(facts.github.data ? { openPrs: facts.github.data.repos } : {}) });
+            await reader.read({ force: true, ...(facts.github.data ? { openPrs: facts.github.data.repos } : {}) });
           } catch (error) {
             progress?.(sweepFailureProgress("releases", error, reader.records, clock.now().toISOString()));
             throw error;

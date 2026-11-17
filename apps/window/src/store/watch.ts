@@ -41,6 +41,8 @@ type WatchState = {
   sweepRequestError: string | null;
   /** Requests all sources; follows a joined sweep without queuing a forced follow-up. */
   requestSweepNow(): void | Promise<void>;
+  /** Requests a non-forced sweep, tracked like requestSweepNow, so failed and due sources are read. */
+  requestReadAgain(): void | Promise<void>;
   setup: SetupState | null;
   /** A recheck stays pending through the budget probe, until its correlated state or error. */
   setupCheckRequest: string | null;
@@ -157,41 +159,10 @@ export function createWatchStore(
       return send(parsed.message);
     },
     requestSweepNow() {
-      if (get().sweepRequest !== null) return;
-      const state = get();
-      const id = crypto.randomUUID();
-      const parsed = parseMessage({
-        version: PROTOCOL_VERSION,
-        id,
-        kind: "request",
-        type: "sweep.request",
-        payload: { now: true },
-      });
-      if (!parsed.ok) throw new Error("Invalid sweep request");
-      set({
-        sweepRequest: {
-          id,
-          sweep: state.progress?.outcome === "running" ? state.progress.sweep : null,
-          previousSweep: state.progress?.sweep ?? state.sweep?.lastSweep?.sweep ?? null,
-          afterCursor: state.snapshot?.cursor ?? -1,
-          joined: state.progress?.outcome === "running",
-        },
-        sweepRequestError: null,
-      });
-      const failed = (error: unknown): never => {
-        if (get().sweepRequest?.id === id)
-          set({
-            sweepRequest: null,
-            sweepRequestError: "Could not send the sweep request. Try again.",
-          });
-        throw error;
-      };
-      try {
-        const sent = send(parsed.message);
-        if (sent) return sent.catch(failed);
-      } catch (error) {
-        failed(error);
-      }
+      return trackedSweepRequest(true);
+    },
+    requestReadAgain() {
+      return trackedSweepRequest(false);
     },
     setup: null,
     setupCheckRequest: null,
@@ -343,6 +314,43 @@ export function createWatchStore(
       }
     },
   }));
+  function trackedSweepRequest(now: boolean) {
+    const state = store.getState();
+    if (state.sweepRequest !== null) return;
+    const id = crypto.randomUUID();
+    const parsed = parseMessage({
+      version: PROTOCOL_VERSION,
+      id,
+      kind: "request",
+      type: "sweep.request",
+      payload: now ? { now: true } : {},
+    });
+    if (!parsed.ok) throw new Error("Invalid sweep request");
+    store.setState({
+      sweepRequest: {
+        id,
+        sweep: state.progress?.outcome === "running" ? state.progress.sweep : null,
+        previousSweep: state.progress?.sweep ?? state.sweep?.lastSweep?.sweep ?? null,
+        afterCursor: state.snapshot?.cursor ?? -1,
+        joined: state.progress?.outcome === "running",
+      },
+      sweepRequestError: null,
+    });
+    const failed = (error: unknown): never => {
+      if (store.getState().sweepRequest?.id === id)
+        store.setState({
+          sweepRequest: null,
+          sweepRequestError: "Could not send the sweep request. Try again.",
+        });
+      throw error;
+    };
+    try {
+      const sent = send(parsed.message);
+      if (sent) return sent.catch(failed);
+    } catch (error) {
+      failed(error);
+    }
+  }
   function updateSweep(update: Partial<WatchState>) {
     store.setState((state) => {
       const next = { ...state, ...update };

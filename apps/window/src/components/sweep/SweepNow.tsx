@@ -1,13 +1,16 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { blocksWatch } from "@spi-code/contracts";
+import { blocksWatch, type SweepProgress } from "@spi-code/contracts";
 import { useEffect, useId, useState } from "react";
 import { useStore } from "zustand";
 import { hasSweepSnapshot, watchStore } from "../../store/watch.js";
 import { clockTime } from "../../time.js";
 import { settled } from "./words.js";
 import "./sweep.css";
+
+const readFailed = (source: SweepProgress["sources"][number]) =>
+  source.state === "failed" || (source.state === "cut" && !!source.incomplete.failed);
 
 function useSweepClock(cooldown: number | null | undefined, next: string | null | undefined) {
   const [, setTick] = useState(Date.now);
@@ -58,20 +61,20 @@ export function SweepNow({
   const cooldown = (sweep?.forceCooldownUntil ?? 0) > now;
   const disabled =
     disconnected || notReady || !!running || !!sweepRequest || waitingForSnapshot || cooldown;
+  const readAgain = progress?.outcome !== "running" && !!progress?.sources.some(readFailed);
   const label =
     running && !disconnected
       ? `${snapshot === null ? "First sweep running" : "Sweeping"} · ${settled(running)} of ${running.sources.length}`
-      : "Sweep now";
+      : readAgain
+        ? "Read again"
+        : "Sweep now";
   const next =
     snapshot && sweep?.nextSweepAt && Date.parse(sweep.nextSweepAt) > now
       ? sweep.nextSweepAt
       : null;
   const failures =
     progress && requested && progress.sweep === requested.sweep
-      ? progress.sources.filter(
-          (source) =>
-            source.state === "failed" || (source.state === "cut" && !!source.incomplete.failed),
-        ).length
+      ? progress.sources.filter(readFailed).length
       : 0;
   const view = (live = false) =>
     onViewSweep && (
@@ -124,7 +127,8 @@ export function SweepNow({
         aria-describedby={statusId}
         onClick={async () => {
           try {
-            await store.getState().requestSweepNow();
+            const request = store.getState();
+            await (readAgain ? request.requestReadAgain() : request.requestSweepNow());
           } catch {
             // The store reports send failures without exposing transport details.
           }

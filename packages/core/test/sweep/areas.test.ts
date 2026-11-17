@@ -25,6 +25,8 @@ import { due } from "../../src/sweep/cadence.js";
 import type { SweepProgress, SweepState } from "../../src/sweep/sweeper.js";
 
 const START = "2026-10-14T00:00:00.000Z";
+const aliases = (query: string, pattern: RegExp, value: unknown) =>
+  Object.fromEntries([...query.matchAll(pattern)].map(([alias]) => [alias, value]));
 
 function harness(repo = "owner/partition", remaining = 4000) {
   let time = Date.parse(START);
@@ -71,12 +73,14 @@ function harness(repo = "owner/partition", remaining = 4000) {
           payload = query.includes("r_template:")
             ? { r_template: raw("Azure/osdu-spi"), r_stack: raw("Azure/osdu-spi-stack") }
             : { r_fork0: raw(repo) };
-        } else if (query.includes("port_o0"))
-          payload = {
-            port_o0: { issueCount: 0, nodes: [], pageInfo: { hasNextPage: false } },
-            port_m0: { issueCount: 0, nodes: [], pageInfo: { hasNextPage: false } },
-          };
-        else if (query.includes("pom0:")) payload = { pom0: { root: { oid: "blob" } } };
+        } else if (query.includes("port_o"))
+          payload = aliases(query, /port_[om]\d+/g, {
+            issueCount: 0,
+            nodes: [],
+            pageInfo: { hasNextPage: false },
+          });
+        else if (query.includes("pom0:"))
+          payload = aliases(query, /pom\d+(?=:)/g, { root: { oid: "blob" } });
         else if (query.includes("createdAt"))
           payload = Object.fromEntries(
             ctx.fleet.releaseRepos.map((_, i) => [`r${i}`, { createdAt: START }]),
@@ -96,9 +100,9 @@ function harness(repo = "owner/partition", remaining = 4000) {
         };
       } else if (cmd === "glab" && query)
         data = {
-          data: {
-            p0: { mergeRequests: { nodes: [], pageInfo: { hasNextPage: false } } },
-          },
+          data: aliases(query, /p\d+(?=:)/g, {
+            mergeRequests: { nodes: [], pageInfo: { hasNextPage: false } },
+          }),
         };
       else if (args.includes("status")) return { stdout: "", stderr: "", exit: 0 };
       else if (path.endsWith("actions/variables?per_page=100&page=1"))
@@ -805,6 +809,55 @@ test("cadences include the exact boundary, force and missing-fork retry", async 
   h.advance(RELEASES_EVERY_MS - GITLAB_EVERY_MS - 1);
   await sweeper.sweep();
   expect(sweeper.cache.releases.at).toBe(h.options.ctx.clock.now().toISOString());
+});
+
+test("a sweep re-reads an interval source whose last read failed or was cut by failures, and skips one read whole", async () => {
+  const h = harness();
+  const events: SweepProgress[] = [];
+  const sweeper = createSweeper({ ...h.options, progress: (event) => events.push(event) });
+  const states = async (force = false) => {
+    events.length = 0;
+    await sweeper.sweep({ force });
+    return Object.fromEntries(
+      events.flatMap((event) =>
+        event.kind === "source" &&
+        ["github", "upstream", "radar", "security", "releases"].includes(event.source) &&
+        event.state !== "reading"
+          ? [[event.source, event.state]]
+          : [],
+      ),
+    );
+  };
+  const { github } = await states();
+  expect(github).not.toBe("skipped");
+  h.setRoute((cmd, args) =>
+    cmd === "gh" &&
+    args.some(
+      (arg) =>
+        arg.includes("/releases?") ||
+        arg.includes("/dependabot/") ||
+        arg.includes("/code-scanning/"),
+    )
+      ? { stdout: "", stderr: "GitHub timed out", exit: 1 }
+      : undefined,
+  );
+  expect(await states(true)).toMatchObject({ security: "failed", releases: "cut" });
+  h.setRoute(undefined);
+  h.advance(1);
+  const skipped = { upstream: "skipped", radar: "skipped" };
+  expect(await states()).toEqual({
+    github,
+    ...skipped,
+    security: "read",
+    releases: "read",
+  });
+  h.advance(1);
+  expect(await states()).toEqual({
+    github,
+    ...skipped,
+    security: "skipped",
+    releases: "skipped",
+  });
 });
 
 test("two interleaved fleets keep facts, caches and budgets independent", async () => {
