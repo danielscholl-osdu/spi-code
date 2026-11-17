@@ -105,7 +105,7 @@ describe("the caveat band", () => {
       }
       expect(band?.getAttribute("role")).toBe("note");
       expect([...(band?.querySelectorAll("li") ?? [])].map((li) => li.dataset.area)).toEqual(areas);
-      expect(texts(container, ".today-caveat-actions button")).toEqual(["Evidence ›"]);
+      expect(texts(container, ".today-caveat button")).not.toContain("Evidence ›");
     },
   );
 
@@ -118,10 +118,28 @@ describe("the caveat band", () => {
     expect(container.querySelector(".today-caveat li time")?.getAttribute("dateTime")).toBe(
       body.sweptAt,
     );
-    await act(async () =>
-      container.querySelector<HTMLButtonElement>(".today-caveat-actions button")?.click(),
-    );
+    const link = container.querySelector<HTMLButtonElement>(".today-caveat li button");
+    expect(link?.textContent).toBe("GitHub issues and PRs");
+    expect(link?.getAttribute("aria-label")).toBe("GitHub issues and PRs: open Evidence");
+    await act(async () => link?.click());
     expect(onOpenEvidence).toHaveBeenCalledOnce();
+  });
+
+  it("links each affected area's line to Evidence on its own", async () => {
+    const body = morning("bad");
+    const radar = body.areas.find(({ area }) => area === "radar");
+    if (!radar) throw new Error("bad carries no radar area");
+    radar.envelope = {
+      source: "radar",
+      state: "incomplete",
+      observedAt: body.sweptAt,
+      completeness: { kind: "cut", read: 6, total: 13, reason: "budget" },
+    };
+    const { container, onOpenEvidence } = await mount(body);
+    const links = [...container.querySelectorAll<HTMLButtonElement>(".today-caveat li button")];
+    expect(links.map((link) => link.closest("li")?.dataset.area)).toEqual(["github", "radar"]);
+    for (const link of links) await act(async () => link.click());
+    expect(onOpenEvidence).toHaveBeenCalledTimes(2);
   });
 
   it("says a cut read was read only in part, and leaves an area that was only not read this sweep out", async () => {
@@ -174,12 +192,10 @@ describe("the caveat band", () => {
       });
       const { container, onOpenSettings } = await mount(body, completed);
       const actions = texts(container, ".today-caveat-actions button");
-      expect(actions).toEqual(
-        code === "signin" ? ["Evidence ›", "Open Settings ›"] : ["Evidence ›"],
-      );
+      expect(actions).toEqual(code === "signin" ? ["Open Settings ›"] : []);
       if (code !== "signin") return;
       await act(async () =>
-        container.querySelectorAll<HTMLButtonElement>(".today-caveat-actions button")[1]?.click(),
+        container.querySelector<HTMLButtonElement>(".today-caveat-actions button")?.click(),
       );
       expect(onOpenSettings).toHaveBeenCalledOnce();
     },

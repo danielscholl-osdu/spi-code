@@ -40,6 +40,18 @@
   color: var(--accent-text);
   font: inherit;
 }
+.today-caveat button.today-caveat-area {
+  color: inherit;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.today-caveat button.today-caveat-area:is(:hover, :focus-visible) {
+  color: var(--accent-text);
+  text-decoration-color: currentColor;
+}
 .today :is(button, summary):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

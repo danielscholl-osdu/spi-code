@@ -36,22 +36,26 @@ export function CaveatBand({
       <ul>
         {affected.map(({ area, envelope }) => (
           <li key={area} data-area={area}>
-            {AREA_NAMES[area]}{" "}
+            <button
+              type="button"
+              className="today-caveat-area"
+              aria-label={`${AREA_NAMES[area]}: open Evidence`}
+              onClick={onOpenEvidence}
+            >
+              {AREA_NAMES[area]}
+            </button>{" "}
             {envelope.state === "failed" ? "read failed" : "was read only in part"} at{" "}
             <Time at={snapshot.sweptAt} hint={false} />; items from it may be missing.
           </li>
         ))}
       </ul>
-      <span className="today-caveat-actions">
-        <button type="button" onClick={onOpenEvidence}>
-          Evidence ›
-        </button>
-        {fixable && (
+      {fixable && (
+        <span className="today-caveat-actions">
           <button type="button" onClick={onOpenSettings}>
             Open Settings ›
           </button>
-        )}
-      </span>
+        </span>
+      )}
     </div>
   );
 }
