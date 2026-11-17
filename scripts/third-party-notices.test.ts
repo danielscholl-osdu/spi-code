@@ -45,6 +45,7 @@ it("includes production notices and T3 attribution, excluding development and ab
   expect(result).toContain("Additional attribution");
   expect(result).toContain("T3 Code");
   expect(result).toContain("Copyright (c) 2026 T3 Tools Inc.");
+  expect(result).toContain("## Primer Octicons");
   expect(result).toContain("electron@44.10.0");
   expect(result).toContain("LICENSES.chromium.html");
   expect(result).not.toContain("not-installed");

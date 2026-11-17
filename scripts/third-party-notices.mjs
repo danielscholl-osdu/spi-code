@@ -123,12 +123,14 @@ export async function generateNotices(packageRoots, electronVersion) {
   }
   for (const path of packageRoots) await visit(path, true);
   const t3 = await readFile(join(root, "scripts/licenses/t3-code-MIT.txt"), "utf8");
+  const octicons = await readFile(join(root, "scripts/licenses/primer-octicons-MIT.txt"), "utf8");
   return [
     "# Third-party notices",
     "Production dependencies of the packaged host and bundled renderer. Development tools are excluded.",
     `## electron@${electronVersion}\n\nLicense: MIT\n\nElectron's full MIT notice is shipped by electron-builder as LICENSE.electron.txt. Chromium and Electron's bundled components are covered by LICENSES.chromium.html. Both files are in the application's Resources directory on macOS, and alongside the executable on Windows.`,
     ...[...notices].sort(([a], [b]) => a.localeCompare(b)).map(([, text]) => text),
     `## T3 Code\n\nLicense: MIT\n\nCopied and ported portions of T3 Code.\n\n${t3}`,
+    `## Primer Octicons\n\nLicense: MIT\n\nIcon path data from GitHub's Primer Octicons.\n\n${octicons}`,
     "",
   ].join("\n\n");
 }

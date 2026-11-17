@@ -399,3 +399,63 @@ button.kit-pr:hover,
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+
+.kit-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0 7px;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.kit-link svg {
+  flex: none;
+}
+
+.kit-link-out {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.kit-link--accent {
+  color: var(--accent-text);
+}
+
+.kit-link--accent:hover {
+  background: var(--accent-surface);
+}
+
+.kit-link--work {
+  color: var(--work);
+}
+
+.kit-link--work:hover {
+  background: var(--work-surface);
+}
+
+.kit-link--upstream {
+  color: var(--upstream-text);
+}
+
+.kit-link--upstream:hover {
+  background: var(--upstream-surface);
+}
+
+.kit-link--muted {
+  color: var(--text-muted);
+}
+
+.kit-link--muted:hover {
+  background: var(--chrome);
+}
+
+.kit-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
