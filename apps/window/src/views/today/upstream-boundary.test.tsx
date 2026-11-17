@@ -11,6 +11,9 @@ function leaks(file: string, source: string): boolean {
   if (file === "views/today/Horizon.tsx" || file === "components/kit/Chip.tsx") return false;
   if (/\.tsx?$/.test(file)) {
     if (file === "views/today/Places.tsx") source = source.replace('.replace(/^⇣\\s*/, "")', "");
+    // An MR is GitLab upstream work (X5), so only the MR pill takes the upstream tone.
+    if (file === "components/kit/LinkPill.tsx")
+      source = source.replace(/^\s*mr:\s*\{[^}]*tone:\s*"upstream"\s*\},?$/m, "");
     return /⇣|INBOUND_GLYPH|var\(--upstream|tint\s*=\s*["']upstream["']|tone\s*:\s*["']upstream["']|kit-(?:segmented|segment)--upstream/.test(
       source,
     );
@@ -27,7 +30,7 @@ function leaks(file: string, source: string): boolean {
       continue;
     if (
       file === "components/kit/kit.css" &&
-      /^\s*\.kit-(chip--upstream|slot--upstream|segmented--upstream|segment--upstream)\b/.test(
+      /^\s*\.kit-(chip--upstream|slot--upstream|segmented--upstream|segment--upstream|link--upstream)\b/.test(
         selector,
       )
     )
@@ -45,6 +48,9 @@ it("reserves upstream tokens and ⇣ for the horizon, upstream chips, upstream-o
   expect(leaks("views/security/index.tsx", "<span>⇣ upstream-owned</span>")).toBe(true);
   expect(leaks("views/line/index.tsx", "<span>{INBOUND_GLYPH}</span>")).toBe(true);
   expect(leaks("views/today/Places.tsx", "<span>⇣ upstream-owned</span>")).toBe(true);
+  expect(
+    leaks("components/kit/LinkPill.tsx", '  pr: { icon: "pullRequest", tone: "upstream" },'),
+  ).toBe(true);
   for (const selector of [
     ".sidebar-sweep",
     ".sidebar-sweep:hover",
