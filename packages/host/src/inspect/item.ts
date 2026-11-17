@@ -86,9 +86,6 @@ export async function inspectResult(
     ]),
     areas,
     notRead,
-    provenance: ["title", "class", "cause", "effect", "next", "why"].map((field) => ({
-      path: `/${field}`,
-      ...attribution,
-    })),
+    provenance: [{ path: "", ...attribution }],
   });
 }

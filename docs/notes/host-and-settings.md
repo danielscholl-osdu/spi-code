@@ -100,7 +100,8 @@ its desktop parity table in `panels/detail-kinds.test.tsx`; it checks the real d
 handler without crossing package build boundaries. Both gates require HTTPS explicitly:
 `blob:https://github.com/id` has an allowed origin but must never open.
 
-Item evidence uses core's `itemEvidence` for both inspect fields and briefing rows;
+Item evidence uses core's `itemEvidence` for both inspect and briefing rows;
+inspect binds the whole item with the empty JSON pointer.
 `provenance[].attributed` distinguishes an item attribution from the unchanged whole-model
 area fallback (`sweep`). Lane occupancy in a sweep does not confirm that the other lanes
 have drained before a re-run; those items keep that question in inspect's `notRead` list.

@@ -6,6 +6,7 @@ import {
   AREAS,
   AreaEnvelopeSchema,
   IdentifierSchema,
+  JsonPointerSchema,
   ReadRecordSchema,
   resolvePointer,
   ValueSourceSchema,
@@ -69,7 +70,14 @@ export const InspectResultSchema = z
     approval: ApprovalSchema.nullable(),
     actions: z.array(ActionItemSchema),
     areas: z.array(AreaEnvelopeSchema).optional(),
-    provenance: z.array(ValueSourceSchema).optional(),
+    provenance: z
+      .array(
+        ValueSourceSchema.extend({
+          // The empty pointer attributes the whole inspected item; snapshots still bind below root.
+          path: z.union([z.literal(""), JsonPointerSchema]),
+        }),
+      )
+      .optional(),
   })
   .superRefine((result, ctx) => {
     const { areas, provenance } = result;

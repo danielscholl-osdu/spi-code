@@ -1761,15 +1761,14 @@ describe("inspect.request", () => {
   );
 
   it.each(Object.entries(classes))(
-    "%s carries the stored area envelopes and binds no value to a source",
+    "%s carries the stored area envelopes with item provenance",
     async (_, { item: override, opts }) => {
       const item = { ...base, ...override } as QueueItem;
       const result = await inspectResult(model, item, ctx.clock.now(), ctx, failing, areas, opts);
       expect(InspectResultSchema.safeParse(result).success).toBe(true);
       expect(result.areas).toEqual(areas);
       expect(result.areas?.map(({ area }) => area)).toEqual([...AREAS]);
-      // Nothing is inferred until core records which reads produced each value.
-      expect(result.provenance).toEqual([]);
+      expect(result.provenance?.length).toBeGreaterThan(0);
     },
   );
 
@@ -1780,7 +1779,7 @@ describe("inspect.request", () => {
     expect(result.evidence.length).toBeGreaterThan(0);
     expect(result.evidence.every((record) => record.failure !== undefined)).toBe(true);
     expect(result.related.length).toBeGreaterThan(0);
-    expect(result.provenance).toEqual([]);
+    expect(result.provenance?.length).toBeGreaterThan(0);
   });
 
   it("answers each queued item over the port and an unknown id with not_found", async () => {
@@ -1804,7 +1803,7 @@ describe("inspect.request", () => {
     const stored = projectWatch(input).areas;
     for (const result of results) {
       expect(result.areas).toEqual(stored);
-      expect(result.provenance).toEqual([]);
+      expect(result.provenance?.length).toBeGreaterThan(0);
     }
     const actions = results.flatMap((result) => result.actions);
     expect(actions.length).toBeGreaterThan(0);

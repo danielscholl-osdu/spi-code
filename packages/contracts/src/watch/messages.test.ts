@@ -889,7 +889,7 @@ describe("Watch protocol", () => {
           ...inspect,
           areas,
           notRead: ["Validation Summary job"],
-          provenance: [{ path: "/cause", areas: ["github"], attributed }],
+          provenance: [{ path: "", areas: ["github"], attributed }],
         };
         expect(parseMessage({ ...messages[1], payload }).ok).toBe(true);
         expect(parseMessage({ ...messages[1], payload: { ...payload, notRead: [""] } }).ok).toBe(
