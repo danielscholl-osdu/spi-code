@@ -69,7 +69,7 @@ const acknowledgedQualifiers = [
 const scheduledQualifiers: Record<string, string[]> = {
   "settings-sweep-idle": [
     "Swept 08:02",
-    "Schedule Last sweep Next sweep 08:07 (in 3 min) What a sweep reads GitHub budget 4,865 points left · resets 09:36 Notifications Sweep now",
+    "Schedule Last sweep Next sweep 08:07 (in 3 min) What a sweep reads GitHub budget 4,865 points left · resets 09:36 Notifications Read again",
   ],
   "settings-sweep-sweeping": [
     "Swept 08:02 · sweeping, 4 of 12 sources done",
@@ -77,13 +77,13 @@ const scheduledQualifiers: Record<string, string[]> = {
   ],
   "settings-sweep-saved-failure": [
     "Swept 09:04",
-    "Schedule Last sweep Next sweep 09:09 What a sweep reads GitHub budget Notifications Sweep now Sweep saved at 09:04 · 1 source failed. View sweep →",
+    "Schedule Last sweep Next sweep 09:09 What a sweep reads GitHub budget Notifications Read again Sweep saved at 09:04 · 1 source failed. View sweep →",
   ],
   "settings-sweep-not-ready": [
     "Swept 08:02",
-    "Schedule Last sweep Next sweep 08:07 What a sweep reads GitHub budget Notifications Sweep now Watch is not ready. Open Readiness.",
+    "Schedule Last sweep Next sweep 08:07 What a sweep reads GitHub budget Notifications Read again Watch is not ready. Open Readiness.",
   ],
-  "evidence-header-idle": ["Swept 08:02", "Swept 08:02 · next sweep 08:07 Sweep now"],
+  "evidence-header-idle": ["Swept 08:02", "Swept 08:02 · next sweep 08:07 Read again"],
   "evidence-header-sweeping": [
     "Swept 08:02 · sweeping, 4 of 12 sources done",
     "The sweep Sweeping since 08:07",
@@ -628,16 +628,16 @@ it.each(Object.keys(scheduledQualifiers))(
 it.each([
   ["settings-sweep-idle", "Next sweep 08:07 (in 3 min)", "Next sweep 08:08 (in 3 min)"],
   ["settings-sweep-idle", "4,865 points left · resets 09:36", "4,864 points left · resets 09:36"],
-  ["settings-sweep-idle", "Sweep now", "Sweep unavailable"],
+  ["settings-sweep-idle", "Read again", "Sweep unavailable"],
   ["settings-sweep-sweeping", "Sweeping · 4 of 12", "Sweeping · 5 of 12"],
   ["settings-sweep-sweeping", "View live sweep →", "View sweep →"],
   ["settings-sweep-saved-failure", "1 source failed", "0 sources failed"],
   ["settings-sweep-saved-failure", "Next sweep 09:09", "Next sweep 09:08"],
-  ["settings-sweep-saved-failure", "Sweep now", "Sweep unavailable"],
+  ["settings-sweep-saved-failure", "Read again", "Sweep unavailable"],
   ["settings-sweep-not-ready", "Watch is not ready.", "Watch is ready."],
-  ["settings-sweep-not-ready", "Sweep now", "Sweep unavailable"],
+  ["settings-sweep-not-ready", "Read again", "Sweep unavailable"],
   ["evidence-header-idle", "next sweep 08:07", "next sweep 08:08"],
-  ["evidence-header-idle", "Sweep now", "Sweep unavailable"],
+  ["evidence-header-idle", "Read again", "Sweep unavailable"],
   ["evidence-header-sweeping", "Sweeping since 08:07", "Sweeping since 08:06"],
   ["evidence-header-sweeping", "Sweeping since 08:07", "Sweeping since 08:07 · 4 of 12"],
   [

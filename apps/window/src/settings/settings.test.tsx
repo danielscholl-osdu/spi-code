@@ -746,7 +746,7 @@ describe("the Sweep section", () => {
       ).toEqual(["Readiness", "Sweep", "Appearance"]);
       expect(navItem("Sweep")?.getAttribute("aria-current")).toBe("page");
       expect(dialog()?.querySelector(".settings-crumb")?.textContent).toBe("Settings / Sweep");
-      expect(dialog()?.querySelector("header .sweep-now > button")?.textContent).toBe("Sweep now");
+      expect(dialog()?.querySelector("header .sweep-now > button")?.textContent).toBe("Read again");
       expect(dialog()?.querySelector("header .readiness-check")).toBeNull();
       expect(
         [...(body()?.querySelectorAll(".readiness-group-title") ?? [])].map(
@@ -1007,7 +1007,7 @@ describe("the Sweep section", () => {
       expect(picker?.value).toBe("sweep");
       expect(picker?.selectedOptions[0]?.textContent).toBe("Sweep");
       expect(dialog()?.dataset.layout).toBe("picker");
-      expect(dialog()?.querySelector("header .sweep-now > button")?.textContent).toBe("Sweep now");
+      expect(dialog()?.querySelector("header .sweep-now > button")?.textContent).toBe("Read again");
       expect(display(".sweep-reads thead")).toBe("none");
       expect(display(".sweep-reads tbody tr")).toBe("grid");
       expect(display(".sweep-reads .mobile-label")).toBe("inline");

@@ -207,8 +207,44 @@ it.each([1, 2])(
     );
     await act(async () => h.container.querySelector<HTMLButtonElement>(".sweep-now-view")?.click());
     expect(h.onViewSweep).toHaveBeenCalledTimes(1);
+    expect(h.button()?.textContent).toBe("Read again");
+    await act(async () => {
+      h.button()?.click();
+      h.button()?.click();
+    });
+    expect(h.send).toHaveBeenCalledTimes(1);
+    expect(h.send).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "sweep.request", payload: {} }),
+    );
+    expect(h.button()?.disabled).toBe(true);
+    expect(h.container.textContent).toContain("Requesting sweep.");
   },
 );
+
+it("keeps Sweep now after a limit cut and Read again's disabled rules after a failed read", async () => {
+  const h = await harness();
+  const limited = savedSweep();
+  limited.sources[3] = midSweep().sources[3] as SweepProgress["sources"][number];
+  await h.finish(limited, { requested: false });
+  expect(h.button()?.textContent).toBe("Sweep now");
+  const failed = savedSweep();
+  failed.sources[2] = { source: "github", state: "failed", code: "other", reason: "Timed out." };
+  await h.finish({ ...failed, sweep: "sweep-2" }, { requested: false });
+  expect(h.button()?.textContent).toBe("Read again");
+  expect(h.button()?.disabled).toBe(false);
+  await h.receive(
+    "sweep.status",
+    sweepStatus({ ...h.store.getState().sweep, forceCooldownUntil: Date.now() + 60_000 }),
+  );
+  expect(h.button()?.textContent).toBe("Read again");
+  expect(h.button()?.disabled).toBe(true);
+  await act(async () => vi.advanceTimersByTimeAsync(60_000));
+  expect(h.button()?.disabled).toBe(false);
+  await h.receive("sweep.progress", midSweep({ sweep: "sweep-3", first: false }));
+  expect(h.button()?.textContent).toBe("Sweeping · 9 of 12");
+  expect(h.button()?.disabled).toBe(true);
+  expect(h.send).not.toHaveBeenCalled();
+});
 
 it.each(["failed sources", "a stopped sweep"])(
   "offers no View sweep after %s on the sweep's own Evidence, where the caller gives no link",

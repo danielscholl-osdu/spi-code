@@ -385,16 +385,16 @@ function assertSmokeQualifiers(surfaceId: string, qualifiers: unknown): void {
     "settings-sweep-idle": [
       /Next sweep 08:07 \(in 3 min\)/,
       /4,865 points left · resets 09:36/,
-      /Sweep now/,
+      /Read again/,
     ],
     "settings-sweep-sweeping": [/Sweeping · 4 of 12/, /View live sweep →/],
     "settings-sweep-saved-failure": [
       /Sweep saved at 09:04 · 1 source failed\. View sweep →/,
       /Next sweep 09:09/,
-      /Sweep now/,
+      /Read again/,
     ],
-    "settings-sweep-not-ready": [/Watch is not ready\. Open Readiness\./, /Sweep now/],
-    "evidence-header-idle": [/Swept 08:02 · next sweep 08:07/, /Sweep now/],
+    "settings-sweep-not-ready": [/Watch is not ready\. Open Readiness\./, /Read again/],
+    "evidence-header-idle": [/Swept 08:02 · next sweep 08:07/, /Read again/],
     "evidence-header-sweeping": [/^The sweep Sweeping since 08:07$/],
     "first-sweep-running": [
       /First sweep is reading the program/,
