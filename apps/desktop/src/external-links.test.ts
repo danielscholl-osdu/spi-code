@@ -15,7 +15,17 @@ function harness() {
   return { ...handlers, contents, openExternal, warn, event };
 }
 
-it("opens GitHub evidence through the narrow preload call", async () => {
+it.each([
+  "https://github.com/",
+  "https://github.com/login/device",
+  "https://github.com/Azure/stack/pull/123",
+  "https://github.com/Azure/stack/issues/123#issuecomment-456",
+  "https://github.com/Azure/stack/commit/ba05b1c",
+  "https://github.com/Azure/stack/compare/main...release?expand=1",
+  "https://github.com/Azure/stack/actions/runs/123?check_suite_focus=true",
+  "https://github.com:443/Azure/stack/deployments",
+  "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+])("opens allowlisted evidence through the narrow preload call: %s", async (url) => {
   const host = harness();
   const invoke = vi.fn((_channel: string, url: unknown) => host.openFromRenderer(host.event, url));
   const exposeInMainWorld =
@@ -29,19 +39,30 @@ it("opens GitHub evidence through the narrow preload call", async () => {
   });
   const bridge = exposeInMainWorld.mock.calls[0]?.[1];
   if (!bridge) throw new Error("Missing preload bridge");
-  const url = "https://github.com/Azure/stack/actions/runs/123?check_suite_focus=true";
   await expect(bridge.openExternal(url)).resolves.toBe(true);
   expect(invoke).toHaveBeenCalledWith("external:open", url);
-  expect(host.openExternal).toHaveBeenCalledExactlyOnceWith(url);
+  expect(host.openExternal).toHaveBeenCalledExactlyOnceWith(new URL(url).href);
 });
 
 it.each([
   "http://github.com/Azure/stack",
+  "http://community.opengroup.org/osdu/legal",
+  "https://community.opengroup.org.evil.test/osdu/legal",
+  "https://opengroup.org/osdu/legal",
+  "https://gitlab.com/osdu/legal",
+  "https://user:password@community.opengroup.org/osdu/legal",
+  "https://user@community.opengroup.org/osdu/legal",
+  "https://:password@community.opengroup.org/osdu/legal",
+  "https://community.opengroup.org:8443/osdu/legal",
+  "ftp://community.opengroup.org/osdu/legal",
+  "blob:https://community.opengroup.org/id",
+  "blob:https://github.com/id",
   "https://api.github.com/Azure/stack",
   "https://github.com.example.com/?secret=hidden",
   "https://example.com/?secret=hidden",
   "https://user:password@github.com/Azure/stack",
   "https://user@github.com/Azure/stack",
+  "https://:password@github.com/Azure/stack",
   "https://github.com:8443/Azure/stack?secret=hidden",
   "javascript:alert(1)",
   "file:///tmp/test",
@@ -57,18 +78,24 @@ it.each([
   expect(JSON.stringify(host.warn.mock.calls)).not.toMatch(/hidden|password|secret/);
 });
 
-it("refuses calls from another window or a subframe", async () => {
-  const host = harness();
-  const url = "https://github.com/Azure/stack";
-  await expect(host.openFromRenderer({ ...host.event, sender: {} }, url)).resolves.toBe(false);
-  await expect(host.openFromRenderer({ ...host.event, senderFrame: {} }, url)).resolves.toBe(false);
-  expect(host.openExternal).not.toHaveBeenCalled();
-  expect(host.warn).toHaveBeenCalledTimes(2);
-});
+it.each(["https://github.com/Azure/stack", "https://community.opengroup.org/osdu/legal"])(
+  "refuses calls from another window or a subframe: %s",
+  async (url) => {
+    const host = harness();
+    await expect(host.openFromRenderer({ ...host.event, sender: {} }, url)).resolves.toBe(false);
+    await expect(host.openFromRenderer({ ...host.event, senderFrame: {} }, url)).resolves.toBe(
+      false,
+    );
+    expect(host.openExternal).not.toHaveBeenCalled();
+    expect(host.warn).toHaveBeenCalledTimes(2);
+  },
+);
 
-it("always denies Electron windows while routing only allowlisted URLs externally", async () => {
+it.each([
+  "https://github.com/Azure/stack/actions/runs/123",
+  "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+])("always denies Electron windows while routing allowlisted URLs externally: %s", async (url) => {
   const host = harness();
-  const url = "https://github.com/Azure/stack/actions/runs/123";
   expect(host.windowOpen({ url })).toEqual({ action: "deny" });
   expect(host.windowOpen({ url: "https://example.com/?secret=hidden" })).toEqual({
     action: "deny",
@@ -77,12 +104,15 @@ it("always denies Electron windows while routing only allowlisted URLs externall
   expect(host.warn).toHaveBeenCalledOnce();
 });
 
-it("reports browser launch failures without leaking the URL from the error", async () => {
-  const host = harness();
-  host.openExternal.mockRejectedValue(new Error("Failed URL ?secret=hidden"));
-  await expect(
-    host.openFromRenderer(host.event, "https://github.com/Azure/stack?secret=hidden"),
-  ).resolves.toBe(false);
-  expect(JSON.stringify(host.warn.mock.calls)).not.toContain("hidden");
-  expect(host.warn).toHaveBeenCalledExactlyOnceWith("Could not open GitHub link in the browser");
-});
+it.each(["https://github.com", "https://community.opengroup.org"])(
+  "reports browser launch failures without leaking the URL from the error: %s",
+  async (origin) => {
+    const host = harness();
+    host.openExternal.mockRejectedValue(new Error("Failed URL ?secret=hidden"));
+    await expect(
+      host.openFromRenderer(host.event, `${origin}/osdu/legal?secret=hidden`),
+    ).resolves.toBe(false);
+    expect(JSON.stringify(host.warn.mock.calls)).not.toContain("hidden");
+    expect(host.warn).toHaveBeenCalledExactlyOnceWith("Could not open link in the browser");
+  },
+);
