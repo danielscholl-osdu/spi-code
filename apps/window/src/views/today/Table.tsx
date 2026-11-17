@@ -9,7 +9,15 @@ import type {
   TodayMember,
   ViewSnapshot,
 } from "@spi-code/contracts";
-import { Fragment, type MouseEvent, useCallback, useEffect, useRef } from "react";
+import {
+  Fragment,
+  type MouseEvent,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+} from "react";
 import {
   type Destination,
   type EvidenceSelection,
@@ -26,6 +34,7 @@ import { OpenedBody } from "../../components/opened-body/OpenedBody.js";
 import { plainTitle } from "../../text.js";
 import { timedText } from "../../time.js";
 import { columns, itemStation } from "../line/cells.js";
+import { lowerSections } from "./Lower.js";
 import "./table.css";
 
 const SECTIONS = [
@@ -224,7 +233,62 @@ function RowCells({
   );
 }
 
-/** Blocked and Waiting on you: core's situation lines as rows that open in place, one at a time. */
+/** One section of Today's table: its heading and a box holding the shared four columns. */
+function Section({
+  id,
+  label,
+  count,
+  head = false,
+  children,
+}: {
+  id: string;
+  label: ReactNode;
+  count?: number;
+  head?: boolean;
+  children: ReactNode;
+}) {
+  const heading = useId();
+  return (
+    <section className="today-section" data-section={id} aria-labelledby={heading}>
+      <h2 className="today-section-head" id={heading}>
+        <span className="today-section-dot" aria-hidden="true" />
+        {label}
+        {count !== undefined && (
+          <>
+            {" "}
+            <span className="today-section-count">{count}</span>
+          </>
+        )}
+      </h2>
+      <div className="today-section-box">
+        <table>
+          <colgroup>
+            <col className="today-col-fork" />
+            <col />
+            <col className="today-col-open" />
+            <col className="today-col-age" />
+          </colgroup>
+          {head && (
+            <thead>
+              <tr>
+                <th scope="col">Fork</th>
+                <th scope="col">What</th>
+                <th scope="col">Open</th>
+                <th scope="col">Age</th>
+              </tr>
+            </thead>
+          )}
+          {children}
+        </table>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Today's table: Blocked and Waiting on you as core's situation lines whose rows open in place, one
+ * at a time, then the lower sections whose rows open their place.
+ */
 export function TodayTable({ snapshot }: { snapshot: ViewSnapshot }) {
   const { briefing } = snapshot;
   const lines = briefing.lines;
@@ -256,12 +320,6 @@ export function TodayTable({ snapshot }: { snapshot: ViewSnapshot }) {
   }, [openKey]);
 
   if (!lines) return null;
-  if (lines.length === 0)
-    return (
-      <div ref={table} className="today-table">
-        <p className="today-table-calm">Nothing is yours to move today.</p>
-      </div>
-    );
 
   const forks = new Set(snapshot.stations.map(({ service }) => service));
   const items: FocusItem[] = [...briefing.focus, ...briefing.rest];
@@ -309,58 +367,40 @@ export function TodayTable({ snapshot }: { snapshot: ViewSnapshot }) {
 
   return (
     <div ref={table} className="today-table">
+      {lines.length === 0 && <p className="today-table-calm">Nothing is yours to move today.</p>}
       {SECTIONS.map(({ id, label }) => {
         const held = lines.filter((line) => line.section === id);
         if (held.length === 0) return null;
         const members = held.reduce((n, line) => n + line.members.length, 0);
         return (
-          <section key={id} className="today-section" data-section={id} aria-label={label}>
-            <h2 className="today-section-head">
-              <span className="today-section-dot" aria-hidden="true" />
-              {label} <span className="today-section-count">{members}</span>
-            </h2>
-            <div className="today-section-box">
-              <table>
-                <colgroup>
-                  <col className="today-col-fork" />
-                  <col />
-                  <col className="today-col-open" />
-                  <col className="today-col-age" />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th scope="col">Fork</th>
-                    <th scope="col">What</th>
-                    <th scope="col">Open</th>
-                    <th scope="col">Age</th>
-                  </tr>
-                </thead>
-                {held.map((line) => (
-                  <tbody key={line.id} data-line={line.id}>
-                    {rows
-                      .filter((row) => row.line === line)
-                      .flatMap((row) => {
-                        const opened = row === openRow;
-                        return [
-                          <RowCells
-                            key={row.key}
-                            row={row}
-                            origin={originOf(row)}
-                            open={opened}
-                            onToggle={toggle}
-                          />,
-                          ...(opened
-                            ? [<Fragment key={`${row.key}/body`}>{body(row)}</Fragment>]
-                            : []),
-                        ];
-                      })}
-                  </tbody>
-                ))}
-              </table>
-            </div>
-          </section>
+          <Section key={id} id={id} label={label} count={members} head>
+            {held.map((line) => (
+              <tbody key={line.id} data-line={line.id}>
+                {rows
+                  .filter((row) => row.line === line)
+                  .flatMap((row) => {
+                    const opened = row === openRow;
+                    return [
+                      <RowCells
+                        key={row.key}
+                        row={row}
+                        origin={originOf(row)}
+                        open={opened}
+                        onToggle={toggle}
+                      />,
+                      ...(opened ? [<Fragment key={`${row.key}/body`}>{body(row)}</Fragment>] : []),
+                    ];
+                  })}
+              </tbody>
+            ))}
+          </Section>
         );
       })}
+      {lowerSections(briefing.today).map(({ id, label, rows }) => (
+        <Section key={id} id={id} label={label}>
+          <tbody>{rows}</tbody>
+        </Section>
+      ))}
     </div>
   );
 }

@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: MIT
 
 import { readFileSync } from "node:fs";
+import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { describe, expect, it } from "vitest";
 import { readFixture } from "../../../../scripts/watch-generated.mjs";
 import { directoryPaths } from "../test-utils/directory-paths.test.js";
 import { fixtureLoader } from "../test-utils/harness.js";
-import { moving } from "../views/today/in-motion.test-helper.js";
+import snapshot1116 from "../views/today/snapshot-1116.json?raw";
+import type { Route } from "./navigation.js";
 import { treeServices } from "./queue.js";
 import {
   AT_PLACE,
@@ -14,13 +16,16 @@ import {
   coverage,
   EXEMPTIONS,
   leaves,
-  motionCases,
+  lowerCases,
+  memberRow,
   openerCases,
+  PENDING,
   type Reach,
   STARTS,
   uncoveredRoutes,
 } from "./reachability.test-helper.js";
 import {
+  assertOpens,
   assertReach,
   bad,
   busySnapshot,
@@ -33,7 +38,6 @@ import {
   fixture,
   ITEM_HOME,
   ITEM_MORNINGS,
-  inMotion,
   inside,
   itemHomeCases,
   missingHomes,
@@ -75,7 +79,6 @@ describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
 
   it("counts an exemption used when the optional-field sweep uses it", () => {
     const optional = [
-      "today-summaries /briefing/today/history/asOf",
       "since-undrawn /briefing/since/asOf",
       "since-undrawn /briefing/since/rows/#/slots/#/origin",
     ];
@@ -104,20 +107,24 @@ describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
     expect(uncoveredRoutes(DEFAULT_REGISTRY, cases)).toEqual([]);
   });
 
-  it("exempts briefing.since by name, and the verdict only while core sends lines", () => {
+  it("exempts briefing.since and the verdict by name, with or without lines", () => {
     const verdict = ["/briefing/verdict/text", "/briefing/verdict/mark"];
     expect(EXEMPTIONS["since-undrawn"]?.reason).toMatch(/^spicode-f0s\.47: /);
     for (const body of [fixture(), optionalSince()]) {
       const uncovered = coverage(body, []).uncovered;
       expect(uncovered.filter((pointer) => pointer.startsWith("/briefing/since/"))).toEqual([]);
     }
-    const recorded = coverage(fixture(), []).uncovered;
-    expect(recorded.filter((pointer) => verdict.includes(pointer))).toEqual([]);
     const older = structuredClone(calmSnapshot);
     delete older.briefing.lines;
-    const calm = coverage(older, []).uncovered;
-    expect(calm.filter((pointer) => verdict.includes(pointer))).toEqual(verdict);
+    for (const body of [fixture(), older])
+      expect(coverage(body, []).uncovered.filter((pointer) => verdict.includes(pointer))).toEqual(
+        [],
+      );
     expect(cases.filter(({ pointer }) => verdict.includes(pointer))).toEqual([]);
+  });
+
+  it("has no pending Today exemption", () => {
+    expect(PENDING).toEqual({});
   });
 
   it("has shared fields to compare", () => {
@@ -125,27 +132,28 @@ describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
   });
 });
 
-describe("In motion and Can wait, on mornings that carry them", () => {
+describe("Can wait, Moving without you and Last 24 hours, on every morning", () => {
   const MORNINGS = {
+    "6 Nov": fixture,
     calm: () => structuredClone(calmSnapshot),
-    "busy with motion": () => moving(structuredClone(busySnapshot)),
+    busy: () => structuredClone(busySnapshot),
   };
   it.each(Object.entries(MORNINGS))(
-    "has a case for every In progress and Can wait leaf on the %s morning, each within one click",
+    "has a case or a named exemption for every summary leaf on the %s morning, each within one click",
     async (_name, morning) => {
       const body = morning();
-      const motion = motionCases(body);
-      const pointers = new Set(motion.map(({ pointer }) => pointer));
+      const lower = lowerCases(body);
       const mine = leaves(body)
         .map(({ pointer }) => pointer)
-        .filter((pointer) => /^\/briefing\/(ambient\/inProgress|canWait)\//.test(pointer));
+        .filter((pointer) => pointer.startsWith("/briefing/today/"));
       expect(mine.length).toBeGreaterThan(0);
-      expect(mine.filter((pointer) => !pointers.has(pointer))).toEqual([]);
-      const reached = [...new Map(motion.map(({ home }) => [home.name, home])).values()];
-      for (const home of reached) {
-        await openHome(home, body);
-        for (const row of motion.filter((row) => row.home.name === home.name)) assertReach(row);
-      }
+      expect(coverage(body, lower).uncovered.filter((pointer) => mine.includes(pointer))).toEqual(
+        [],
+      );
+      await openHome(lower[0]?.home ?? { name: "Today", start: STARTS.today }, body);
+      for (const row of lower) assertReach(row);
+      for (const { rows } of openerCases(lower.filter(({ opens }) => opens)))
+        await assertOpens(rows, body);
     },
   );
 });
@@ -165,28 +173,17 @@ describe("every focus and rest item's scope and origin, at its home on Today", (
     );
   });
 
-  it("builds its In motion morning the way core would", () => {
-    const { briefing } = inMotion();
-    const items = new Map(briefingItems(briefing).map(([, item]) => [item.id, item]));
-    const elsewhere = new Set([
-      ...(briefing.horizon.cards ?? []).flatMap(({ itemIds }) => itemIds),
-      ...(briefing.horizon.owed?.itemIds ?? []),
-      ...(briefing.decisions?.groups ?? []).flatMap(({ itemIds }) => itemIds),
-      ...(briefing.ambient?.failing?.lines ?? []).flatMap(({ itemIds }) => itemIds),
-    ]);
-    const lines = briefing.ambient?.inProgress?.lines ?? [];
-    expect(lines.length).toBeGreaterThan(0);
-    for (const id of lines.flatMap(({ itemIds }) => itemIds)) {
-      expect(items.get(id)?.attention, id).toBe("ambient");
-      expect(elsewhere.has(id), id).toBe(false);
-    }
-  });
-
   it("fails when an item's home on Today loses its cases", () => {
     const body = bad();
     const [legal] = briefingItems(body.briefing).find(([, { id }]) => id === "gate1:legal") ?? [];
     expect(legal).toBeDefined();
-    const sync = '.today-horizon .horizon-card[data-card-id="sync:gate1:legal"]';
+    const index = (body.briefing.lines ?? []).findIndex(({ members }) =>
+      members.some(({ id }) => id === "gate1:legal"),
+    );
+    const line = body.briefing.lines?.[index];
+    const at = line?.members.findIndex(({ id }) => id === "gate1:legal") ?? -1;
+    expect(at).toBeGreaterThanOrEqual(0);
+    const sync = memberRow(`/briefing/lines/${index}`, at, line?.members.length === 1);
     const rows = itemHomeCases(body);
     const mine = (row: Reach) => row.pointer.startsWith(`${legal}/`);
     const without = (container: string) =>
@@ -202,6 +199,84 @@ describe("every focus and rest item's scope and origin, at its home on Today", (
       `${legal}/origin`,
       `${legal}/scope`,
     ]);
+  });
+});
+
+/** The items Horizon, the place cards and In motion held, before Today dropped them. */
+function carriedByRemovedBlocks({ briefing }: ViewSnapshot) {
+  const { horizon, places, ambient, canWait } = briefing;
+  return new Set([
+    ...(horizon.cards ?? []).flatMap(({ itemIds }) => itemIds),
+    ...(horizon.owed?.itemIds ?? []),
+    ...(places ?? []).flatMap(({ itemIds, fresh }) => [...itemIds, ...fresh.itemIds]),
+    ...[...(ambient?.failing.lines ?? []), ...(ambient?.inProgress.lines ?? [])].flatMap(
+      ({ itemIds }) => itemIds,
+    ),
+    ...(canWait?.items ?? []).flatMap(({ itemIds }) => itemIds),
+  ]);
+}
+
+const READING_ROUTES: Readonly<Record<string, (id?: string) => Route>> = {
+  upstream: () => ({ kind: "upstream" }),
+  environment: () => ({ kind: "environment" }),
+  engineering: () => ({ kind: "engineering-system" }),
+  security: () => ({ kind: "security" }),
+  service: (id = "") => ({ kind: "service", id }),
+};
+
+describe("every item a removed Today block carried keeps one home on Today or its place (PS-19)", () => {
+  const MORNINGS = {
+    "16 Nov": () => ViewSnapshotSchema.parse(JSON.parse(snapshot1116)),
+    "6 Nov": fixture,
+    calm: () => structuredClone(calmSnapshot),
+    busy: () => structuredClone(busySnapshot),
+    bad,
+    "59d6895": () => fixtureLoader(readFixture)("snapshot-59d6895.json"),
+  };
+  it.each(Object.entries(MORNINGS))("on the %s morning", async (name, morning) => {
+    const body = morning();
+    const carried = carriedByRemovedBlocks(body);
+    expect(carried.size, name).toBeGreaterThan(0);
+    const lines = body.briefing.lines ?? [];
+    const onToday = new Map(
+      lines.flatMap((line, index) =>
+        line.members.flatMap((member, at) =>
+          [...new Set([member.id, ...member.ids])].map(
+            (id) =>
+              [id, memberRow(`/briefing/lines/${index}`, at, line.members.length === 1)] as const,
+          ),
+        ),
+      ),
+    );
+    await start({ name: "Today", start: STARTS.today }, body);
+    const homeless: string[] = [];
+    for (const id of carried) {
+      const row = onToday.get(id);
+      if (row) {
+        expect(container.querySelectorAll(row), `${name}: ${id}`).toHaveLength(1);
+        continue;
+      }
+      const places = body.readings.flatMap(({ anchor, content }) => {
+        const route = READING_ROUTES[anchor.kind];
+        return route && content?.items.some((item) => item.id === id)
+          ? [route("id" in anchor ? anchor.id : undefined)]
+          : [];
+      });
+      let listed = false;
+      for (const route of places) {
+        await start(
+          { name: route.kind, start: { name: route.kind, surface: route.kind, route } },
+          body,
+        );
+        const at = JSON.stringify(id);
+        listed ||= !!container.querySelector(
+          `main [data-item-id=${at}], main [data-selection-id=${at}]`,
+        );
+      }
+      if (!listed) homeless.push(id);
+      await start({ name: "Today", start: STARTS.today }, body);
+    }
+    expect(homeless, name).toEqual([]);
   });
 });
 

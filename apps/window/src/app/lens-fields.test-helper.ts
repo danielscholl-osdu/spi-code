@@ -5,7 +5,6 @@ import type { ViewSnapshot } from "@spi-code/contracts";
 import { plainTitle } from "../text.js";
 import { timedText } from "../time.js";
 import { FLOW_MODES } from "../views/environment/flow-context.js";
-import { horizonFields } from "./horizon-fields.test-helper.js";
 
 export type LensField = {
   lens: "Flow" | "Repositories" | "Horizon";
@@ -241,7 +240,6 @@ export function lensFields({ briefing }: ViewSnapshot): LensField[] {
     "Upstream · Further ahead",
     at("/briefing/horizon/headline"),
   );
-  rows.push(...horizonFields(briefing.horizon));
   briefing.themes.forEach((theme, index) => {
     for (const [key, selector] of [
       ["title", ".upstream-theme-title"],

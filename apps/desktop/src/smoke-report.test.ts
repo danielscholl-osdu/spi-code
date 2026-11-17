@@ -372,25 +372,25 @@ const lineMembers = Object.fromEntries(
 
 const morningBlocks: Record<MorningSurface["morning"], MorningEvidence["blocks"]> = {
   calm: [
-    { name: "table", top: 108, height: 77 },
-    { name: "horizon", top: 201, height: 247 },
-    { name: "places", top: 470, height: 221 },
-    { name: "releases", top: 712, height: 196 },
-    { name: "motion", top: 712, height: 122 },
+    { name: "waiting", top: 108, height: 77 },
+    { name: "can-wait", top: 207, height: 140 },
+    { name: "moving", top: 369, height: 108 },
+    { name: "history", top: 499, height: 108 },
   ],
   busy: [
-    { name: "table", top: 108, height: 369 },
-    { name: "horizon", top: 499, height: 374 },
-    { name: "places", top: 895, height: 221 },
-    { name: "releases", top: 1137, height: 271 },
-    { name: "motion", top: 1137, height: 122 },
+    { name: "blocked", top: 108, height: 150 },
+    { name: "waiting", top: 280, height: 219 },
+    { name: "can-wait", top: 521, height: 140 },
+    { name: "moving", top: 683, height: 108 },
+    { name: "history", top: 813, height: 108 },
   ],
   bad: [
-    { name: "caveat", top: 201, height: 35 },
-    { name: "table", top: 254, height: 396 },
-    { name: "horizon", top: 672, height: 478 },
-    { name: "places", top: 1171, height: 293 },
-    { name: "releases", top: 1486, height: 196 },
+    { name: "caveat", top: 108, height: 35 },
+    { name: "blocked", top: 161, height: 150 },
+    { name: "waiting", top: 333, height: 246 },
+    { name: "can-wait", top: 601, height: 140 },
+    { name: "moving", top: 763, height: 108 },
+    { name: "history", top: 893, height: 108 },
   ],
 };
 
@@ -415,15 +415,12 @@ function morningShot(
         ? "GitHub issues and PRs read failed at 08:02; items from it may be missing. Evidence ›"
         : "",
     ],
-    geometry: [
-      ...geometry("strip", viewportWidth),
-      { rule: "release-platform", platform: rect(24, 1000, 676, 40), versions: 0, library: null },
-    ],
+    geometry: geometry("strip", viewportWidth),
     morning: {
       morning: surface.morning,
       fixture: MORNING_FIXTURES[surface.morning],
-      detail: surface.detail,
-      sections: morningSections(surface.morning, surface.detail, viewportWidth),
+      open: surface.open,
+      sections: morningSections(surface.morning, surface.open, viewportWidth),
       headline: "",
       members: lineMembers[surface.morning],
       lineMembers: lineMembers[surface.morning],
@@ -433,7 +430,7 @@ function morningShot(
       clientHeight: 692,
       pageHeight,
       blocks: morningBlocks[surface.morning],
-      ...(surface.detail ? { detailTitle: "partition v1.3.3" } : {}),
+      ...(surface.open ? { opened: "Line › storage › Sync PR ›" } : {}),
     },
   };
 }
@@ -881,8 +878,7 @@ it("requires Today after acknowledgement at every width and appearance", () => {
 });
 
 it.each([
-  [2, "1 thing needs you; 1 fork is stopped.", "draws a verdict above its rows"],
-  [2, "Nothing urgent needs you.", "draws a verdict above its rows"],
+  [2, "Nothing is yours to move today.", "says nothing is yours above its rows"],
   [3, "one", "Missing Today count"],
   [3, "3", "Sidebar Today count 3 differs from core line members"],
   [4, "blocked conflict:entitlements:121 · waiting", 'Today draws "blocked conflict'],
@@ -1095,16 +1091,16 @@ const evidence = (
   change: { [K in keyof MorningEvidence]?: MorningEvidence[K] | undefined },
 ) => ({ morning: { ...shot.morning, ...change } as MorningEvidence });
 
-it("lists Today on calm, busy and bad at 1440 and 740, busy also at 1000, in both appearances, and Detail open at 1440", () => {
+it("lists Today on calm, busy and bad at 1440 and 740, busy also at 1000, in both appearances, and a row opened at 1440", () => {
   expect(
     mornings.map(
       ({ surface, viewportWidth, appearance }) => `${surface}/${viewportWidth}/${appearance}`,
     ),
   ).toHaveLength(20);
   for (const morning of ["calm", "busy", "bad"])
-    for (const id of [`today-${morning}`, `today-${morning}-detail`])
+    for (const id of [`today-${morning}`, `today-${morning}-open`])
       for (const appearance of ["light", "dark"]) {
-        const widths = id.endsWith("-detail")
+        const widths = id.endsWith("-open")
           ? [1440]
           : morning === "busy"
             ? [1440, 1000, 740]
@@ -1143,11 +1139,11 @@ it("fails the bad morning without its caveat band, and a calm or busy one with a
   expect(() =>
     assertSmokeViews(
       withMorning(
-        (shot) => shot.surface === "today-bad-detail",
+        (shot) => shot.surface === "today-bad-open",
         () => ({ qualifiers: ["Swept 08:02", "GitLab reads failed; items may be missing."] }),
       ),
     ),
-  ).toThrow("Missing caveat band qualifier: today-bad-detail/1440");
+  ).toThrow("Missing caveat band qualifier: today-bad-open/1440");
   expect(() =>
     assertSmokeViews(
       withMorning(
@@ -1156,7 +1152,7 @@ it("fails the bad morning without its caveat band, and a calm or busy one with a
       ),
     ),
   ).toThrow("Missing block caveat: today-bad/1440");
-  for (const surface of ["today-calm", "today-busy-detail"])
+  for (const surface of ["today-calm", "today-busy-open"])
     expect(() =>
       assertSmokeViews(
         withMorning(
@@ -1184,31 +1180,25 @@ it("fails a capture that stops at window height or leaves a block outside the im
   );
   expect(() => assertSmokeViews(cropped)).toThrow("Image is not the full page: today-calm/740");
   const below = withMorning(
-    (shot) => shot.surface === "today-bad-detail",
+    (shot) => shot.surface === "today-bad-open",
     (shot) =>
       evidence(shot, {
         blocks: morningBlocks.bad.map((block) =>
-          block.name === "releases" ? { ...block, top: 1600 } : block,
+          block.name === "history" ? { ...block, top: 1600 } : block,
         ),
       }),
   );
   expect(() => assertSmokeViews(below)).toThrow(
-    "Block releases outside the capture: today-bad-detail/1440",
+    "Block history outside the capture: today-bad-open/1440",
   );
-  const noReleases = withMorning(
+  const noHistory = withMorning(
     (shot) => shot.surface === "today-calm",
     (shot) =>
       evidence(shot, {
-        blocks: morningBlocks.calm.filter(({ name }) => name !== "releases"),
+        blocks: morningBlocks.calm.filter(({ name }) => name !== "history"),
       }),
   );
-  expect(() => assertSmokeViews(noReleases)).toThrow("Missing block releases: today-calm/1440");
-  const noMotion = withMorning(
-    (shot) => shot.surface === "today-calm-detail",
-    (shot) =>
-      evidence(shot, { blocks: morningBlocks.calm.filter(({ name }) => name !== "motion") }),
-  );
-  expect(() => assertSmokeViews(noMotion)).toThrow("Missing block motion: today-calm-detail/1440");
+  expect(() => assertSmokeViews(noHistory)).toThrow("Missing block history: today-calm/1440");
   const reordered = withMorning(
     (shot) => shot.surface === "today-busy",
     (shot) => evidence(shot, { blocks: [...morningBlocks.busy].reverse() }),
@@ -1216,50 +1206,48 @@ it("fails a capture that stops at window height or leaves a block outside the im
   expect(() => assertSmokeViews(reordered)).toThrow("Blocks out of order: today-busy/1440");
 });
 
-it("accepts busy's projected In motion below its table", () => {
-  const snapshot = ViewSnapshotSchema.parse(JSON.parse(readGenerated("snapshot-busy.json")));
-  const inMotion =
-    (snapshot.briefing.ambient?.inProgress.lines.length ?? 0) > 0 ||
-    (snapshot.briefing.canWait?.chips.length ?? 0) > 0;
-  const projected = withMorning(
-    (shot) => shot.surface === "today-busy" || shot.surface === "today-busy-detail",
-    (shot) =>
-      evidence(shot, {
-        blocks: morningBlocks.busy.filter(({ name }) => name !== "motion" || inMotion),
-      }),
-  );
-  expect(() => assertSmokeViews(projected)).not.toThrow();
+it.each(["calm", "busy", "bad"] as const)(
+  "fails the %s morning without Can wait, Moving without you or Last 24 hours",
+  (morning) => {
+    for (const name of ["can-wait", "moving", "history"])
+      expect(() =>
+        assertSmokeViews(
+          withMorning(
+            (shot) => shot.surface === `today-${morning}` && shot.viewportWidth === 740,
+            (shot) =>
+              evidence(shot, {
+                blocks: morningBlocks[morning].filter((block) => block.name !== name),
+              }),
+          ),
+        ),
+      ).toThrow(`Missing block ${name}: today-${morning}/740`);
+  },
+);
+
+it("fails busy without Blocked, and a morning with lines that says nothing is yours", () => {
+  expect(() =>
+    assertSmokeViews(
+      withMorning(
+        (shot) => shot.surface === "today-busy",
+        (shot) =>
+          evidence(shot, { blocks: morningBlocks.busy.filter(({ name }) => name !== "blocked") }),
+      ),
+    ),
+  ).toThrow("Missing block blocked: today-busy/1440");
+  expect(() =>
+    assertSmokeViews(
+      withMorning(
+        (shot) => shot.surface === "today-calm",
+        (shot) =>
+          evidence(shot, {
+            blocks: [{ name: "calm", top: 100, height: 30 }, ...morningBlocks.calm],
+          }),
+      ),
+    ),
+  ).toThrow("Unexpected block calm: today-calm/1440");
 });
 
-it("requires In motion on busy and rejects it on bad", () => {
-  const noMotion = withMorning(
-    (shot) => shot.surface === "today-busy",
-    (shot) =>
-      evidence(shot, { blocks: morningBlocks.busy.filter(({ name }) => name !== "motion") }),
-  );
-  expect(() => assertSmokeViews(noMotion)).toThrow("Missing block motion: today-busy/1440");
-  const badMotion = withMorning(
-    (shot) => shot.surface === "today-bad",
-    (shot) =>
-      evidence(shot, {
-        blocks: [...morningBlocks.bad, { name: "motion", top: 1486, height: 122 }],
-      }),
-  );
-  expect(() => assertSmokeViews(badMotion)).toThrow("Unexpected block motion: today-bad/1440");
-});
-
-it.each(["calm", "busy", "bad"] as const)("fails the %s morning without its horizon", (morning) => {
-  const noHorizon = withMorning(
-    (shot) => shot.surface === `today-${morning}` && shot.viewportWidth === 740,
-    (shot) =>
-      evidence(shot, {
-        blocks: morningBlocks[morning].filter(({ name }) => name !== "horizon"),
-      }),
-  );
-  expect(() => assertSmokeViews(noHorizon)).toThrow(`Missing block horizon: today-${morning}/740`);
-});
-
-it("fails a morning without its fixture, decision sections, headline, Detail or geometry", () => {
+it("fails a morning without its fixture, design sections, headline, opened row or geometry", () => {
   const cases: [string, (shot: SmokeReport["views"][number]) => object, string][] = [
     ["today-calm", () => ({ morning: undefined }), "Missing morning evidence"],
     ["today-busy", (shot) => evidence(shot, { fixture: "snapshot-1106.json" }), "Wrong fixture"],
@@ -1270,7 +1258,7 @@ it("fails a morning without its fixture, decision sections, headline, Detail or 
     ],
     [
       "today-calm",
-      (shot) => evidence(shot, { headline: "Nothing urgent needs you." }),
+      (shot) => evidence(shot, { headline: "Nothing is yours to move today." }),
       "Wrong headline",
     ],
     [
@@ -1302,16 +1290,21 @@ it("fails a morning without its fixture, decision sections, headline, Detail or 
       "Missing line members",
     ],
     ["today-calm", (shot) => evidence(shot, { todayCount: undefined }), "Missing Today count"],
-    ["today-busy-detail", (shot) => evidence(shot, { detailTitle: undefined }), "Missing Detail"],
+    [
+      "today-busy-open",
+      (shot) => evidence(shot, { opened: undefined }),
+      "Missing row opened in place",
+    ],
+    ["today-calm-open", (shot) => evidence(shot, { opened: "" }), "Missing row opened in place"],
     [
       "today-busy",
-      (shot) => evidence(shot, { detailTitle: "partition v1.3.3" }),
-      "Unexpected Detail",
+      (shot) => evidence(shot, { opened: "Line › storage › Sync PR ›" }),
+      "Unexpected opened row",
     ],
     ["today-bad", () => ({ geometry: [] }), "Missing geometry"],
     [
       "today-busy",
-      (shot) => ({ geometry: shot.geometry.filter(({ rule }) => rule !== "release-platform") }),
+      (shot) => ({ geometry: [...shot.geometry, ...shot.geometry] }),
       "Missing geometry",
     ],
   ];
@@ -1345,23 +1338,19 @@ it("compares the sidebar with core membership when a morning regroups", () => {
   ).toThrow("Sidebar Today count differs from core line members");
 });
 
-it("names decision.md's sections per morning, width and Detail state", () => {
+it("names the settled Today design's rulings per morning, width and opened row", () => {
   expect(morningSections("calm", false, 1440)).toEqual([
-    "Calm and bad mornings: Calm",
-    "Calm first (draft 7)",
-    "On the horizon: what's coming from GitLab (draft 7)",
-    "Words and visuals (draft 7)",
+    "Today items 1-5 and X7: Blocked, Waiting on you, Can wait, Moving without you, Last 24 hours",
+    "X4: Today is a table (Fork, What, Open, Age)",
+    "X3: the lower three are counts, not sentences; X8: each opens its place",
   ]);
-  expect(morningSections("bad", false, 740)).toContain(
-    "One column: 740 px, and 1440 with Detail open (centre about 850)",
-  );
-  expect(morningSections("busy", true, 1440)).toEqual(
+  expect(morningSections("bad", false, 740)).toEqual(
     expect.arrayContaining([
-      "Today at 1440 × 900 (sidebar 232, centre 1208, Detail closed), this morning's data",
-      "One column: 740 px, and 1440 with Detail open (centre about 850)",
-      "Click targets: a version opens that service's release in Detail",
+      "Z4: what the sweep did not read opens Evidence",
+      "Today's table at a narrow centre",
     ]),
   );
+  expect(morningSections("busy", true, 1440)).toContain("Z2: on Today, a row opens in place");
 });
 
 it("logs each smoke section's own seconds and the run's seconds since launch", () => {

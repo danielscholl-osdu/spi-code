@@ -217,3 +217,42 @@
   outline-offset: 2px;
   border-radius: 3px;
 }
+.today-section[data-section="can-wait"] .today-section-dot {
+  background: var(--text-muted);
+}
+.today-section[data-section="moving"] .today-section-dot {
+  background: var(--work);
+}
+.today-section[data-section="history"] .today-section-dot {
+  box-sizing: border-box;
+  border: 1.5px solid var(--text-muted);
+}
+.today-section[data-section="history"] .today-section-box {
+  border-style: dashed;
+}
+.today-row--place {
+  cursor: pointer;
+}
+.today-row--place .today-row-fork button {
+  color: var(--text);
+  font-weight: 500;
+}
+.today-row--place .today-row-what {
+  color: var(--text-muted);
+}
+.today-row--place:hover .today-row-fork button {
+  text-decoration: underline;
+}
+.today-count[data-tone="bad"] {
+  color: var(--error-text);
+}
+.today-count[data-tone="ok"] {
+  color: var(--success-text);
+}
+.today-count[title] {
+  cursor: help;
+}
+.today-row-go {
+  margin-left: 6px;
+  color: var(--text-muted);
+}

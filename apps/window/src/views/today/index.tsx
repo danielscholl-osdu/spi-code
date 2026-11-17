@@ -4,7 +4,6 @@
 import type { SweepProgress } from "@spi-code/contracts";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
-import type { Navigation } from "../../app/navigation.js";
 import { PaneTitle } from "../../app/title-row.js";
 import { useNow } from "../../components/evidence/useNow.js";
 import { FirstSweepBody } from "../../components/sweep/FirstSweepBody.js";
@@ -14,12 +13,7 @@ import { openReadiness } from "../../settings/readiness.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
 import { CaveatBand } from "./CaveatBand.js";
 import { TodayFrame } from "./Frame.js";
-import { Horizon } from "./Horizon.js";
-import { motionSlot } from "./InMotion.js";
-import { Places } from "./Places.js";
-import { releasesSlot } from "./Releases.js";
 import { TodayTable } from "./Table.js";
-import { Verdict } from "./Verdict.js";
 import "./today.css";
 
 const HAND_OVER_MS = 150;
@@ -91,12 +85,10 @@ function useHandOver(brief: boolean, progress: SweepProgress | null) {
 
 export default function Today({
   store = watchStore,
-  onNavigate,
   onOpenSettings = openReadiness,
   onOpenEvidence,
 }: {
   store?: ReturnType<typeof createWatchStore>;
-  onNavigate?: Navigation["navigate"];
   onOpenSettings?: () => void;
   onOpenEvidence?: () => void;
 }) {
@@ -122,11 +114,6 @@ export default function Today({
     <section className={leaving ? "today today-handover" : "today"} aria-label="Today">
       <TodayFrame
         sweptAt={body.sweptAt}
-        head={
-          body.briefing.lines || !body.briefing.verdict ? null : (
-            <Verdict verdict={body.briefing.verdict} />
-          )
-        }
         caveat={
           <CaveatBand
             snapshot={body}
@@ -135,13 +122,7 @@ export default function Today({
             onOpenSettings={onOpenSettings}
           />
         }
-        slots={{
-          table: body.briefing.lines ? <TodayTable snapshot={body} /> : null,
-          horizon: <Horizon snapshot={body} store={store} onOpenEvidence={openEvidence} />,
-          places: <Places snapshot={body} onNavigate={onNavigate} />,
-          releases: releasesSlot(body),
-          motion: motionSlot(body),
-        }}
+        table={<TodayTable snapshot={body} />}
       />
       {leaving && (
         <div className="today-leaving" aria-hidden="true" inert onAnimationEnd={settle}>

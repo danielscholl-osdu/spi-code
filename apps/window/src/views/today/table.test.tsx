@@ -1,29 +1,51 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { FocusItemSchema, TodayLineSchema, type ViewSnapshot } from "@spi-code/contracts";
+import {
+  FocusItemSchema,
+  TodayLineSchema,
+  type TodaySummary,
+  type ViewSnapshot,
+  ViewSnapshotSchema,
+} from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
-import { parseRoute, setOpenSelection } from "../../app/navigation.js";
+import {
+  closeSheet,
+  parseRoute,
+  setOpenSelection,
+  useLineSheetRequest,
+} from "../../app/navigation.js";
 import recorded from "../../components/opened-body/sweep-1116.json?raw";
 import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
+import { clockTime } from "../../time.js";
+import snapshot1116 from "./snapshot-1116.json?raw";
 import { ageInOneUnit, TodayTable } from "./Table.js";
 
 const sweep = JSON.parse(recorded);
 const lines = TodayLineSchema.array().parse(sweep.lines);
 const items = FocusItemSchema.array().parse(sweep.items);
+const summary1116 = ViewSnapshotSchema.parse(JSON.parse(snapshot1116)).briefing.today;
 const loadFixture = fixtureLoader(readFixture);
 
-/** The 16 Nov lines over a recorded snapshot's forks; the table reads nothing else from it. */
+/** The 16 Nov lines and summary over a recorded snapshot's forks; the table reads nothing else from it. */
 function nov16(): ViewSnapshot {
   const body = loadFixture("snapshot-busy.json");
   body.briefing.lines = lines;
+  body.briefing.today = structuredClone(summary1116);
   body.briefing.focus = items.map((item) => ({ ...item, attention: "surface", owned: true }));
   body.briefing.rest = [];
   return body;
 }
+
+/** How many times the Line sheet was asked to open. */
+function SheetRequests() {
+  return <i hidden data-sheet-requests={useLineSheetRequest().id} />;
+}
+const sheetRequests = () =>
+  Number(container.querySelector<HTMLElement>("[data-sheet-requests]")?.dataset.sheetRequests);
 
 let harness: ReturnType<typeof installSpi>;
 let container: HTMLDivElement;
@@ -36,6 +58,7 @@ afterEach(async () => {
   await unmount();
   container.remove();
   setOpenSelection(null);
+  closeSheet();
   harness.restore();
   window.location.hash = "";
 });
@@ -45,7 +68,14 @@ async function render(snapshot: ViewSnapshot = nov16()) {
   container.className = "today";
   document.body.append(container);
   const root = createRoot(container);
-  await act(async () => root.render(<TodayTable snapshot={snapshot} />));
+  await act(async () =>
+    root.render(
+      <>
+        <TodayTable snapshot={snapshot} />
+        <SheetRequests />
+      </>,
+    ),
+  );
   unmount = () => act(async () => root.unmount());
 }
 
@@ -78,7 +108,9 @@ it("draws 16 Nov as 2 Blocked and 16 Waiting on you in 10 rows, with no verb", a
   await render();
   expect(section("blocked")?.querySelector(".today-section-count")?.textContent).toBe("2");
   expect(section("waiting")?.querySelector(".today-section-count")?.textContent).toBe("16");
-  expect(container.querySelectorAll("tr.today-row:not(.today-row--sub)")).toHaveLength(10);
+  expect(
+    container.querySelectorAll("tr.today-row:not(.today-row--sub, .today-row--place)"),
+  ).toHaveLength(10);
   expect(container.querySelectorAll("tr.today-row--sub")).toHaveLength(
     lines.filter((line) => line.members.length > 1).reduce((n, l) => n + l.members.length, 0),
   );
@@ -205,10 +237,12 @@ it("keeps every row and the opened body in the four shared columns", async () =>
   await render();
   for (const table of container.querySelectorAll("table"))
     expect(table.querySelectorAll("colgroup col")).toHaveLength(4);
-  for (const tr of container.querySelectorAll("tr.today-row"))
-    expect([...tr.children].map((td) => (td as HTMLTableCellElement).colSpan)).toEqual([
-      1, 1, 1, 1,
-    ]);
+  const spans = (tr: Element) => [...tr.children].map((td) => (td as HTMLTableCellElement).colSpan);
+  for (const tr of container.querySelectorAll("tr.today-row:not(.today-row--place)"))
+    expect(spans(tr)).toEqual([1, 1, 1, 1]);
+  const lower = container.querySelectorAll("tr.today-row--place");
+  expect(lower.length).toBeGreaterThan(0);
+  for (const tr of lower) expect(spans(tr)).toEqual([1, 2, 1]);
   await click(row("waiting:upgrade:os-core-common").querySelector(".today-row-what button"));
   const [body] = opened();
   expect([...(body?.children ?? [])].map((td) => (td as HTMLTableCellElement).colSpan)).toEqual([
@@ -219,6 +253,7 @@ it("keeps every row and the opened body in the four shared columns", async () =>
 it("says nothing is yours on a morning with no lines, and draws nothing without them", async () => {
   const calm = nov16();
   calm.briefing.lines = [];
+  delete calm.briefing.today;
   await render(calm);
   expect(container.textContent).toBe("Nothing is yours to move today.");
   await unmount();
@@ -227,4 +262,138 @@ it("says nothing is yours on a morning with no lines, and draws nothing without 
   delete older.briefing.lines;
   await render(older);
   expect(container.textContent).toBe("");
+});
+
+const sections = () =>
+  [...container.querySelectorAll<HTMLElement>(".today-section")].map(
+    ({ dataset }) => dataset.section,
+  );
+const lowerRow = (section: string, id: string) => {
+  const found = container.querySelector(`[data-section=${section}] tr[data-row="${id}"]`);
+  if (!found) throw new Error(`Missing ${section} row ${id}`);
+  return found;
+};
+const what = (tr: Element) => tr.querySelector(".today-row-what")?.textContent;
+const count = (tr: Element, kind: string) => tr.querySelector(`.today-count[data-kind="${kind}"]`);
+
+it("ends 16 Nov with Can wait, Moving without you and Last 24 hours as counts", async () => {
+  await render();
+  expect(sections()).toEqual(["blocked", "waiting", "can-wait", "moving", "history"]);
+  const head = (id: string) =>
+    container.querySelector(`[data-section=${id}] .today-section-head`)?.textContent;
+  expect(["can-wait", "moving", "history"].map(head)).toEqual([
+    "Can wait",
+    "Moving without you",
+    "Last 24 hours",
+  ]);
+  const releases = lowerRow("can-wait", "releases");
+  expect(what(releases)).toBe("14 open · 1 ready to merge · 13 waiting for review");
+  expect(count(releases, "ready")?.getAttribute("title")).toBe("osdu-spi-stack #474");
+  expect(what(lowerRow("can-wait", "repositories"))).toBe(
+    "8 human-required issues · 7 chore PRs · 27 Dependabot bumps",
+  );
+  expect(what(lowerRow("can-wait", "security"))).toBe("6 critical or high · 22 code scanning");
+  expect(container.querySelectorAll("[data-section=moving] tr")).toHaveLength(3);
+  expect(what(lowerRow("moving", "lanes"))).toBe("Now · 1 lane busy: partition");
+  expect(what(lowerRow("moving", "template"))).toBe(
+    `${clockTime("2026-11-17T08:00:00.000Z", { hint: false })} · opens PRs on 7 forks`,
+  );
+  const sync = lowerRow("history", "sync");
+  expect(what(sync)).toBe("13 forks · 1 new PRs · 3 failed · 9 not read");
+  expect(count(sync, "failed")?.getAttribute("title")).toBe("indexer, search, crs-conversion");
+  expect(count(sync, "failed")?.getAttribute("data-tone")).toBe("bad");
+  expect(what(lowerRow("history", "template"))).toBe("13 forks · 6 merged · 7 not read");
+  for (const tr of container.querySelectorAll("tr.today-row--place"))
+    expect(tr.querySelector(".today-row-open, .kit-link")).toBeNull();
+});
+
+it("a calm morning says nothing is yours, then shows the three sections", async () => {
+  const calm = nov16();
+  calm.briefing.lines = [];
+  await render(calm);
+  expect(container.querySelector(".today-table-calm")?.textContent).toBe(
+    "Nothing is yours to move today.",
+  );
+  expect(sections()).toEqual(["can-wait", "moving", "history"]);
+  expect(container.querySelectorAll("tr.today-row:not(.today-row--place)")).toHaveLength(0);
+});
+
+it.each([
+  ["can-wait", "releases", "releases"],
+  ["can-wait", "repositories", "engineering-system"],
+  ["can-wait", "security", "security"],
+  ["moving", "lanes", "line"],
+  ["moving", "template", "engineering-system"],
+  ["moving", "sync", "upstream"],
+  ["history", "sync", "line"],
+  ["history", "template", "engineering-system"],
+])("the %s row %s opens its place, %s", async (section, id, place) => {
+  await render();
+  const tr = lowerRow(section, id);
+  for (const target of [".today-row-what", ".today-row-fork button"]) {
+    window.location.hash = "#today";
+    const before = sheetRequests();
+    await click(tr.querySelector(target));
+    if (place === "line") expect(sheetRequests()).toBe(before + 1);
+    else expect(parseRoute(window.location.hash)).toEqual({ kind: place });
+    expect(opened()).toHaveLength(0);
+  }
+});
+
+it("a pile or workflow core did not read shows as not read, never as zero", async () => {
+  const body = nov16();
+  const today = body.briefing.today as TodaySummary;
+  const [releases, , security] = today.canWait;
+  if (!releases || !security) throw new Error("16 Nov has its piles");
+  for (const c of security.counts) c.count = 0;
+  security.notRead = ["osdu-spi: vulnerabilities", "osdu-spi: code scanning"];
+  for (const c of releases.counts) if (c.kind !== "open") c.count = 0;
+  releases.notRead = ["indexer: release PRs"];
+  const [sync] = today.history.rows;
+  if (!sync) throw new Error("16 Nov has its history");
+  sync.counts = [
+    { kind: "not-read", label: "not read", count: 13, tone: "neutral", names: [], urls: [] },
+  ];
+  await render(body);
+  const unread = lowerRow("can-wait", "security");
+  expect(what(unread)).toBe("not read");
+  expect(unread.querySelector(".today-row-gaps")?.textContent).toBe("⌀ 2");
+  const partly = lowerRow("can-wait", "releases");
+  expect(what(partly)).toBe("14 open");
+  expect(partly.querySelector(".today-row-gaps")?.textContent).toBe("⌀ 1");
+  expect(what(lowerRow("history", "sync"))).toBe("13 forks · 13 not read");
+  for (const tr of container.querySelectorAll("tr.today-row--place"))
+    expect(what(tr)).not.toMatch(/(^|· )0 /);
+  await click(unread.querySelector(".today-row-gaps"));
+  expect(parseRoute(window.location.hash)).toMatchObject({ kind: "evidence" });
+  expect(parseRoute(window.location.hash)).not.toHaveProperty("selection");
+
+  await unmount();
+  container.remove();
+  const read = nov16();
+  const pile = (read.briefing.today as TodaySummary).canWait[2];
+  if (!pile) throw new Error("16 Nov has its security pile");
+  for (const c of pile.counts) c.count = 0;
+  await render(read);
+  expect(what(lowerRow("can-wait", "security"))).toBe("none");
+  expect(lowerRow("can-wait", "security").querySelector(".today-row-gaps")).toBeNull();
+});
+
+it.each([
+  ["fallback", undefined, "Last 24 hours"],
+  ["seen", undefined, "Since you last looked, {from}"],
+  ["history-short", undefined, "Since {from}"],
+  ["stale", "2026-11-16T22:00:00.000Z", "24 hours to {asOf}"],
+] as const)("names a %s history window only as far as core vouches", async (basis, asOf, text) => {
+  const body = nov16();
+  const history = (body.briefing.today as TodaySummary).history;
+  history.basis = basis;
+  history.from = "2026-11-16T20:00:00.000Z";
+  if (asOf) history.asOf = asOf;
+  else delete history.asOf;
+  await render(body);
+  const time = (at: string) => clockTime(at, { hint: false });
+  expect(container.querySelector("[data-section=history] .today-section-head")?.textContent).toBe(
+    text.replace("{from}", time(history.from)).replace("{asOf}", time(asOf ?? "")),
+  );
 });

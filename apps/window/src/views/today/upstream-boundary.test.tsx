@@ -8,9 +8,8 @@ import { directoryPaths } from "../../test-utils/directory-paths.test.js";
 const src = "apps/window/src";
 function leaks(file: string, source: string): boolean {
   if (file === "theme/tokens.css") return false;
-  if (file === "views/today/Horizon.tsx" || file === "components/kit/Chip.tsx") return false;
+  if (file === "components/kit/Chip.tsx") return false;
   if (/\.tsx?$/.test(file)) {
-    if (file === "views/today/Places.tsx") source = source.replace('.replace(/^⇣\\s*/, "")', "");
     // An MR is GitLab upstream work (X5), so only the MR pill takes the upstream tone.
     if (file === "components/kit/LinkPill.tsx")
       source = source.replace(/^\s*mr:\s*\{[^}]*tone:\s*"upstream"\s*\},?$/m, "");
@@ -21,8 +20,6 @@ function leaks(file: string, source: string): boolean {
   const rules = source.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g);
   for (const [, selector = "", body = ""] of rules) {
     if (!/var\(--upstream/.test(body)) continue;
-    if (file === "views/today/horizon.css" && /^\s*\.(today-horizon|horizon-)/.test(selector))
-      continue;
     if (
       file === "components/sidebar/sidebar.css" &&
       /^\s*\.sidebar-mark\[data-mark="clock"\]\s*$/.test(selector)
@@ -39,7 +36,7 @@ function leaks(file: string, source: string): boolean {
   }
   return false;
 }
-it("reserves upstream tokens and ⇣ for the horizon, upstream chips, upstream-origin waiting slots and next sync (O5-1)", () => {
+it("reserves upstream tokens and ⇣ for upstream chips, upstream-origin waiting slots and next sync (O5-1)", () => {
   const files = directoryPaths(src).filter(
     (file) => /\.(tsx?|css)$/.test(file) && !file.includes(".test"),
   );
@@ -47,7 +44,7 @@ it("reserves upstream tokens and ⇣ for the horizon, upstream chips, upstream-o
   expect(leaks("views/security/security.css", ".security { color: var(--upstream); }")).toBe(true);
   expect(leaks("views/security/index.tsx", "<span>⇣ upstream-owned</span>")).toBe(true);
   expect(leaks("views/line/index.tsx", "<span>{INBOUND_GLYPH}</span>")).toBe(true);
-  expect(leaks("views/today/Places.tsx", "<span>⇣ upstream-owned</span>")).toBe(true);
+  expect(leaks("views/today/Table.tsx", "<span>⇣ upstream-owned</span>")).toBe(true);
   expect(
     leaks("components/kit/LinkPill.tsx", '  pr: { icon: "pullRequest", tone: "upstream" },'),
   ).toBe(true);
@@ -94,13 +91,4 @@ it.each([
   '<div className="kit-segment--upstream" />',
 ])("rejects upstream kit use outside its allowed places: %s", (source) => {
   expect(leaks("views/security/index.tsx", source)).toBe(true);
-});
-
-it("limits conveyor compaction to 740 and reveals the stages from the expanded state", () => {
-  const css = readFileSync(`${src}/views/today/horizon.css`, "utf8");
-  expect(css).toMatch(/@media\s*\(max-width:\s*740px\)/);
-  expect(css).toMatch(
-    /\.horizon-conveyor\[data-expanded="false"\] \.horizon-stages\s*\{\s*display:\s*none/,
-  );
-  expect(css).toMatch(/\.horizon-conveyor\[data-expanded="true"\] \.horizon-stages/);
 });

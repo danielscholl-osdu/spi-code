@@ -63,8 +63,6 @@ const texts = (container: Element, selector: string) =>
   [...container.querySelectorAll(selector)].map((element) => element.textContent);
 const clock = (at: string) => clockTime(at, { hint: false });
 
-const GLYPH = { stopped: "✕", "needs-person": "!", "in-progress": "◐", "nothing-due": "○" };
-
 describe.each(NAMES)("on the %s morning", (name) => {
   it("dates the page by its sweep only and keeps the frame in briefing order", async () => {
     const body = morning(name);
@@ -75,18 +73,17 @@ describe.each(NAMES)("on the %s morning", (name) => {
     expect(date?.textContent).toMatch(/^[A-Z][a-z]+day \d{1,2} [A-Z][a-z]{2}$/);
     const frame = container.querySelector(".today .place-reading.today-frame");
     expect(frame).not.toBeNull();
-    if (body.briefing.lines) expect(frame?.querySelector(".today-head")).toBeNull();
-    else expect(frame?.firstElementChild?.className).toBe("today-head");
-    const order = ["table", "horizon", "places", "releases", "motion"];
-    const slots = [...(frame?.querySelectorAll(".today-slot") ?? [])].map((slot) =>
-      order.indexOf(slot.getAttribute("data-today-slot") ?? ""),
-    );
     expect(
-      slots.every((at, index) => at >= 0 && (index === 0 || at > (slots[index - 1] ?? 0))),
-    ).toBe(true);
-    expect(frame?.querySelectorAll(".today-slot:empty")).toHaveLength(0);
-    expect(frame?.querySelector('[data-today-slot="places"]')).not.toBeNull();
-    expect(frame?.querySelectorAll("[data-today-slot=horizon]")).toHaveLength(1);
+      [...(frame?.children ?? [])]
+        .map((child) => child.className)
+        .filter((name) => name !== "today-caveat"),
+    ).toEqual(["today-table"]);
+    const order = ["blocked", "waiting", "can-wait", "moving", "history"];
+    const sections = [...(frame?.querySelectorAll<HTMLElement>(".today-section") ?? [])].map(
+      ({ dataset }) => dataset.section ?? "",
+    );
+    expect(sections).toEqual(order.filter((id) => sections.includes(id)));
+    expect(sections.slice(-3)).toEqual(["can-wait", "moving", "history"]);
   });
 });
 
@@ -189,56 +186,21 @@ describe("the caveat band", () => {
   );
 });
 
-const VERDICT_GONE = ".today-head, .today-verdict, .today-since, .today-band-mark, .today-held";
-
-/** A morning from before core sent situation lines. */
-function withoutLines(name: Morning) {
-  const body = morning(name);
-  delete body.briefing.lines;
-  return body;
-}
-
-describe("the verdict", () => {
-  it.each(["calm", "busy"] as const)(
-    "is drawn with its mark on the %s morning when core sends no lines",
-    async (name) => {
-      const body = withoutLines(name);
-      const { verdict } = body.briefing;
-      if (!verdict) throw new Error("the morning carries no verdict");
-      const { container } = await mount(body);
-      expect(container.querySelector("[data-today-slot=table]")).toBeNull();
-      const head = container.querySelector(".today-frame > .today-head > .today-verdict");
-      expect(head?.querySelector(".today-headline")?.textContent).toBe(verdict.text);
-      expect(head?.getAttribute("data-mark")).toBe(verdict.mark);
-      expect(head?.querySelectorAll(".kit-mark")).toHaveLength(1);
-      expect(head?.querySelector(".kit-mark")?.textContent).toBe(GLYPH[verdict.mark]);
-      expect(container.querySelector(".today-since, .today-band-mark")).toBeNull();
-    },
-  );
-
-  it.each(NAMES)(
-    "gives way to Blocked and Waiting on you on the %s morning, whose lines core sends",
-    async (name) => {
-      const body = morning(name);
-      expect(body.briefing.lines).toBeDefined();
-      const { container } = await mount(body);
-      expect(container.querySelector("[data-today-slot=table]")).not.toBeNull();
-      expect(container.querySelector(VERDICT_GONE)).toBeNull();
-      if (body.briefing.verdict)
-        expect(container.querySelector(".today-frame")?.textContent).not.toContain(
-          body.briefing.verdict.text,
-        );
-    },
-  );
-
-  it("draws no head and no mark when core sends no verdict, never a calm mark", async () => {
-    const body = withoutLines("calm");
-    delete body.briefing.verdict;
+it.each(NAMES)(
+  "draws no verdict, horizon, place cards, releases or In motion on the %s morning, with or without lines",
+  async (name) => {
+    const gone =
+      ".today-head, .today-verdict, .today-headline, .kit-mark, .today-horizon, .today-place, .today-releases, .today-motion, .today-canwait, [data-today-slot]";
+    const body = morning(name);
     const { container } = await mount(body);
-    expect(container.querySelector(`${VERDICT_GONE}, .today-frame > .kit-mark`)).toBeNull();
-    expect(container.querySelector(".today-frame")).not.toBeNull();
-  });
-});
+    expect(container.querySelector(gone)).toBeNull();
+    const older = morning(name);
+    delete older.briefing.lines;
+    const { container: before } = await mount(older);
+    expect(before.querySelector(gone)).toBeNull();
+    expect(before.querySelector(".today-frame")).not.toBeNull();
+  },
+);
 
 it.each(NAMES)(
   "draws no tile, fold, deadline group or capped item list on the %s morning",
@@ -251,11 +213,7 @@ it.each(NAMES)(
         ".place-tiles, .place-tile, details, summary, .today-folded, .place-group, .place-item",
       ),
     ).toBeNull();
-    const releases = today?.querySelector(".today-releases")?.textContent ?? "";
-    const text = today?.textContent?.replace(releases, releases.replaceAll("release PRs open", ""));
-    expect(text).not.toMatch(
-      /Before next sync|\bOwned\b|\bNew\b|\d+ more\b|release PRs open|osdu-spi/,
-    );
+    expect(today?.textContent).not.toMatch(/Before next sync|\bOwned\b|\bNew\b|\d+ more\b/);
     const members = new Set(
       body.briefing.lines?.flatMap(({ members }) => members.map(({ id }) => id)),
     );

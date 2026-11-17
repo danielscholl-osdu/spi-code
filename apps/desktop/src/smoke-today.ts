@@ -36,10 +36,10 @@ const SCROLLER = 'document.querySelector(".today-frame").closest(".centre-body >
 
 const blocksScript = `(() => {
   const frame = document.querySelector(".today-frame");
-  return [...frame.querySelectorAll(":scope > .today-head, :scope > .today-caveat, [data-today-slot]")]
+  return [...frame.querySelectorAll(":scope > .today-caveat, .today-table-calm, .today-section[data-section]")]
     .map(item => {
       const { y, height } = item.getBoundingClientRect();
-      const name = item.dataset.todaySlot ?? (item.classList.contains("today-caveat") ? "caveat" : "head");
+      const name = item.dataset.section ?? (item.classList.contains("today-caveat") ? "caveat" : "calm");
       return { name, top: y, height };
     });
 })()`;
@@ -101,8 +101,8 @@ async function fullPage(context: TodayCaptureContext, path: string) {
 }
 
 /**
- * Today on the calm, busy and bad mornings at each width and appearance, Detail closed and open,
- * each captured as the whole frame so blocks below the window's fold are in the image.
+ * Today on the calm, busy and bad mornings at each width and appearance, and with its first row
+ * opened in place, each captured as the whole frame so blocks below the window's fold are in the image.
  */
 export async function captureMornings(
   context: TodayCaptureContext,
@@ -133,45 +133,26 @@ export async function captureMornings(
         await rendered(
           `document.querySelector(".today .today-frame") && !document.querySelector(".today-leaving") && document.documentElement.dataset.theme === ${JSON.stringify(appearance)} && Math.abs(innerWidth - ${viewportWidth}) <= 1`,
         );
-        let detailTitle: string | undefined;
-        if (surface.detail) {
+        let opened: string | undefined;
+        if (surface.open) {
           await window.webContents.executeJavaScript(
-            'document.querySelector(".today-release-released").click()',
+            'document.querySelector(".today [data-section] tr.today-row:not(.today-row--place) .today-row-fork button").click()',
           );
-          await rendered('document.querySelector("aside[aria-label=Detail] .detail-title")');
-          detailTitle = await window.webContents.executeJavaScript(
-            'document.querySelector("aside[aria-label=Detail] .detail-title").textContent.trim()',
+          const place =
+            ".today tr.today-row[data-open] + tr.today-row-body[data-open] .opened-body-place";
+          await rendered(`document.querySelector(${JSON.stringify(place)})`);
+          opened = await window.webContents.executeJavaScript(
+            `document.querySelector(${JSON.stringify(place)}).textContent.trim()`,
           );
         }
-        const platformGeometry: SmokeGeometry = await window.webContents.executeJavaScript(`(() => {
-          const bounds = element => {
-            const { x, y, width, height } = element.getBoundingClientRect();
-            return { x, y, width, height };
-          };
-          const platform = document.querySelector(".today-release-platform");
-          const library = platform.querySelector(".today-release-library");
-          const counts = library?.querySelector(".kit-bar-figure");
-          const range = document.createRange();
-          if (counts) range.selectNodeContents(counts);
-          return {
-            rule: "release-platform", platform: bounds(platform),
-            versions: ${snapshot.releases.today?.platform.coreLibAzure.filter(({ count }) => count > 0).length ?? 0},
-            library: library ? {
-              bounds: bounds(library), bar: bounds(library.querySelector(".kit-bar")),
-              segments: [...library.querySelectorAll(".kit-segment")].map(bounds),
-              counts: bounds(counts),
-              text: [...range.getClientRects()].map(({ x, y, width, height }) => ({ x, y, width, height })),
-            } : null,
-          };
-        })()`);
-        const geometry = [await context.measure("window"), platformGeometry];
+        const geometry = [await context.measure("window")];
         const [headline, members, todayCount, ...qualifiers]: [
           string,
           Record<string, string[]>,
           string,
           ...string[],
         ] = await window.webContents.executeJavaScript(`[
-          document.querySelector(".today-headline")?.textContent.trim() ?? "",
+          document.querySelector(".today .today-table-calm")?.textContent.trim() ?? "",
           ${DRAWN_MEMBERS},
           document.querySelector('[data-sidebar-row=today] .sidebar-pip')?.textContent.trim() ?? "",
           document.getElementById(document.querySelector("[data-sweep-line]")?.getAttribute("aria-labelledby") ?? "")?.textContent ?? "",
@@ -197,8 +178,8 @@ export async function captureMornings(
           morning: {
             morning: surface.morning,
             fixture: fixtureName,
-            detail: surface.detail,
-            sections: morningSections(surface.morning, surface.detail, viewportWidth),
+            open: surface.open,
+            sections: morningSections(surface.morning, surface.open, viewportWidth),
             headline: headline ?? "",
             members: membersText(members),
             lineMembers: lineMembersText(snapshot.briefing.lines),
@@ -208,7 +189,7 @@ export async function captureMornings(
             clientHeight: page.clientHeight,
             pageHeight: page.pageHeight,
             blocks: page.blocks,
-            ...(detailTitle === undefined ? {} : { detailTitle }),
+            ...(opened === undefined ? {} : { opened }),
           },
         };
         assertMorningEvidence(surface, shot);

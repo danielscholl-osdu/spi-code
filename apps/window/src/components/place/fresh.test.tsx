@@ -6,9 +6,8 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
-import { closeSheet, navigate, openSelection, setOpenSelection } from "../../app/navigation.js";
-import { placeFreshCases, placeReachCases } from "../../app/place-reachability.test-helper.js";
-import { Shell } from "../../app/Shell.js";
+import { closeSheet, openSelection, setOpenSelection } from "../../app/navigation.js";
+import { placeFreshCases } from "../../app/place-reachability.test-helper.js";
 import { selectionStore } from "../../panels/selection.js";
 import { watchStore } from "../../store/watch.js";
 import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
@@ -106,7 +105,7 @@ it.each(Object.keys(views) as PlaceRow["place"][])(
   },
 );
 
-it("registers each new chip at its place and Today's opener, and opens each one's destination", async () => {
+it("registers each new chip at its place", async () => {
   const body = loadFixture("snapshot-busy.json");
   const seeded: string[] = [];
   for (const row of body.briefing.places ?? []) {
@@ -134,28 +133,5 @@ it("registers each new chip at its place and Today's opener, and opens each one'
     expect(container.querySelector(row.selector as string)?.getAttribute(row.attribute ?? "")).toBe(
       row.value,
     );
-  }
-  await act(async () => {
-    navigate({ kind: "today" });
-    root.render(<Shell />);
-  });
-  const openers = placeReachCases(body).filter(
-    ({ opens, pointer }) => opens && pointer.includes("/fresh/"),
-  );
-  expect(openers).toHaveLength(seeded.length);
-  for (const opener of openers) {
-    await act(async () => navigate({ kind: "today" }));
-    const opens = opener.opens;
-    if (!opens || !("place" in opens)) throw new Error("Missing registered opener");
-    const place = opens.place.kind;
-    const button = container.querySelector<HTMLButtonElement>(opens.click as string);
-    await act(async () => button?.click());
-    if (place === "line") {
-      expect(container.querySelector(".line-sheet [data-fresh-item]")).not.toBeNull();
-    } else {
-      expect(window.location.hash).toBe(`#${place}`);
-    }
-    const destination = place === "line" ? ".line-sheet" : "main";
-    expect(container.querySelector(`${destination} [data-fresh-item]`)).not.toBeNull();
   }
 });

@@ -6,40 +6,17 @@ import { PaneTitle } from "../../app/title-row.js";
 import { dayLine } from "../../time.js";
 import { useTodayAnchor } from "./anchor.js";
 
-/** Where each later part of Today mounts; an empty slot draws nothing, never an empty box. */
-export type TodaySlots = {
-  table?: ReactNode;
-  horizon?: ReactNode;
-  places?: ReactNode;
-  releases?: ReactNode;
-  motion?: ReactNode;
-};
-
-function Slot({ name, children }: { name: keyof TodaySlots; children: ReactNode }) {
-  return children ? (
-    <div className="today-slot" data-today-slot={name}>
-      {children}
-    </div>
-  ) : null;
-}
-
-/**
- * Today top to bottom: the verdict when there is one to draw, the caveat band, Blocked and Waiting on
- * you, On the horizon, the place cards, then Releases beside In motion.
- */
+/** Today top to bottom: the date, the caveat band when a read failed, then the table. */
 export function TodayFrame({
   sweptAt,
-  head,
   caveat,
-  slots,
+  table,
 }: {
   sweptAt: string;
-  head: ReactNode;
   caveat: ReactNode;
-  slots: TodaySlots;
+  table: ReactNode;
 }) {
   const frame = useTodayAnchor();
-  const lower = Boolean(slots.releases || slots.motion);
   return (
     <section className="place" aria-label="Today">
       <PaneTitle>
@@ -49,17 +26,8 @@ export function TodayFrame({
         </time>
       </PaneTitle>
       <section ref={frame} className="place-reading today-frame" aria-label="Today reading">
-        {head && <div className="today-head">{head}</div>}
         {caveat}
-        <Slot name="table">{slots.table}</Slot>
-        <Slot name="horizon">{slots.horizon}</Slot>
-        <Slot name="places">{slots.places}</Slot>
-        {lower && (
-          <div className="today-lower">
-            <Slot name="releases">{slots.releases}</Slot>
-            <Slot name="motion">{slots.motion}</Slot>
-          </div>
-        )}
+        {table}
       </section>
     </section>
   );

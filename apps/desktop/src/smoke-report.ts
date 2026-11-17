@@ -465,7 +465,7 @@ function assertSmokeQualifiers(surfaceId: string, qualifiers: unknown): void {
 }
 
 /**
- * Qualifiers 2 to 6: Today's verdict, the sidebar's Today count, the member rows Blocked and
+ * Qualifiers 2 to 6: Today's calm sentence, the sidebar's Today count, the member rows Blocked and
  * Waiting on you draw, the members of the fixture's lines, and "acknowledged <cursor> · seen
  * <cursor> · since <n>" from the acknowledgement and the snapshot.
  */
@@ -475,7 +475,7 @@ function assertAcknowledgedToday(qualifiers: readonly string[]): void {
     /^acknowledged (\d+) · seen \1 · since 0$/.test(seen),
     `Today is not after an acknowledgement with nothing new: ${seen}`,
   );
-  assert.equal(verdict, "", `Today draws a verdict above its rows: ${verdict}`);
+  assert.equal(verdict, "", `Today says nothing is yours above its rows: ${verdict}`);
   assert(/^\d*$/.test(pip), `Missing Today count: ${pip}`);
   assertDrawnMembers(drawn, members, "today-acknowledged");
   assert.equal(
@@ -541,14 +541,12 @@ export function assertSmokeViews(value: unknown): asserts value is SmokeShot[] {
         assertShotImage(shot, surface.id, viewportWidth, appearance);
         assertMorningEvidence(surface, shot as Parameters<typeof assertMorningEvidence>[1]);
         assert(
-          Array.isArray(shot.geometry) && shot.geometry.length === 2,
+          Array.isArray(shot.geometry) && shot.geometry.length === 1,
           `Missing geometry: ${surface.id}/${viewportWidth}/${appearance}`,
         );
-        for (const [index, rule] of ["window", "release-platform"].entries()) {
-          const geometry: unknown = shot.geometry[index];
-          assertSmokeGeometry(geometry, viewportWidth);
-          assert.equal(geometry.rule, rule, `Wrong geometry rule: ${surface.id}`);
-        }
+        const [geometry]: unknown[] = shot.geometry;
+        assertSmokeGeometry(geometry, viewportWidth);
+        assert.equal(geometry.rule, "window", `Wrong geometry rule: ${surface.id}`);
       }
     }
   }

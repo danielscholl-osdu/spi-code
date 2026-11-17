@@ -11,27 +11,6 @@
   font-size: 12.5px;
   white-space: nowrap;
 }
-.today-head {
-  margin: 0 0 16px;
-}
-.today-verdict {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-.today-verdict .kit-mark {
-  width: 18px;
-  font-size: 17px;
-}
-.today-headline {
-  margin: 0;
-  color: var(--text-strong);
-  font-weight: 600;
-  max-width: 78ch;
-  font-size: 17px;
-  line-height: 1.35;
-  text-wrap: balance;
-}
 .today-caveat {
   display: flex;
   align-items: baseline;
@@ -60,18 +39,6 @@
   background: transparent;
   color: var(--accent-text);
   font: inherit;
-}
-.today-slot {
-  margin: 0 0 22px;
-}
-.today-lower {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-  gap: 22px 28px;
-  align-items: start;
-}
-.today-lower > .today-slot {
-  margin: 0;
 }
 .today :is(button, summary):focus-visible {
   outline: 2px solid var(--accent);
@@ -110,24 +77,7 @@
 }
 
 .today { container-name: today; container-type: inline-size; overflow-anchor: none; }
-.today-more { border: 0; padding: 6px 0; background: transparent; color: var(--accent-text); font: inherit; font-size: 12px; cursor: pointer; }
-@container today (max-width: 1000px) {
-  .today-lower { grid-template-columns: minmax(0, 1fr); }
-  .today-places { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .today-place:is([data-mark="in-progress"], [data-mark="nothing-due"]) :is(.today-place-figure, .today-place-reason .kit-chip) {
-    display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .today-place:is([data-mark="stopped"], [data-mark="needs-person"]) :is(.today-place-figure, .today-place-reason .kit-chip) { white-space: normal; overflow-wrap: anywhere; }
-  .horizon-card:is([data-mark="in-progress"], [data-mark="nothing-due"], :not([data-mark])) .horizon-token { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-}
-@container today (max-width: 760px) {
-  .today-places { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
 @media (max-width: 740px) {
-  .today-release-versions { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(var(--release-narrow-rows), auto); }
   .today-caveat { flex-wrap: wrap; }
   .today-caveat-actions { flex-wrap: wrap; }
-  .horizon-cards { grid-template-columns: minmax(0, 1fr); }
-  .today-item-row { grid-template-columns: minmax(70px, 1fr) 64px 40px minmax(0, 2fr) auto 16px; gap: 6px; }
-  .today-decision-cause.kit-chip, .today-item-state .kit-chip { white-space: normal; overflow-wrap: anywhere; }
 }

@@ -3,18 +3,17 @@
 
 import type { InspectResult, ViewSnapshot } from "@spi-code/contracts";
 import { inScope } from "../components/sidebar/attention.js";
-import { selectionRows, TODAY_GROUPS, todayGroupRow } from "../panels/selection-rows.js";
+import { selectionRows } from "../panels/selection-rows.js";
 import { plainTitle } from "../text.js";
 import { instantsIn, timedText } from "../time.js";
 import { openHold } from "../views/environment/hold.js";
 import { heldLaneRead } from "../views/environment/lead.js";
 import { eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
 import { releaseSectionCases } from "../views/releases/reachability.test-helper.js";
-import { todayReleasesCases } from "../views/today/releases.test-helper.js";
 import { ageInOneUnit } from "../views/today/Table.js";
 import { lensFields } from "./lens-fields.test-helper.js";
-import type { Destination, Registry, Route } from "./navigation.js";
-import { placeReachCases } from "./place-reachability.test-helper.js";
+import type { Destination, Registry } from "./navigation.js";
+import { placeFreshCases } from "./place-reachability.test-helper.js";
 import { treeServices } from "./queue.js";
 
 export type Selector = string | ((root: ParentNode) => Element | null | undefined);
@@ -193,7 +192,7 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
       throw new Error(`No host Detail answer for ${id} in fixtures/watch/inspect-1106.json`);
     return result;
   };
-  const cases: Reach[] = placeReachCases(snapshot);
+  const cases: Reach[] = placeFreshCases(snapshot);
   const add = (
     pointer: string,
     value: unknown,
@@ -258,19 +257,7 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
     },
   );
 
-  const verdict = briefing.verdict;
-  if (verdict && !briefing.lines) {
-    add("/briefing/verdict/text", verdict.text, TODAY, ".today-verdict .today-headline");
-    add("/briefing/verdict/mark", verdict.mark, TODAY, ".today-verdict", {
-      attribute: "data-mark",
-    });
-  }
-
-  cases.push(
-    ...tableCases(snapshot),
-    ...horizonCases(snapshot),
-    ...todayReleasesCases(snapshot, TODAY),
-  );
+  cases.push(...tableCases(snapshot), ...lowerCases(snapshot));
 
   const readings = snapshot.readings.flatMap(({ anchor, content }) => {
     const place = PLACE_STARTS[anchor.kind];
@@ -585,119 +572,6 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
   });
 
   cases.push(...releaseSectionCases(snapshot, releasesPlace));
-  cases.push(...motionCases(snapshot));
-  return cases;
-}
-
-/** Today's In motion rows and Can wait chips, and the Can wait list each chip opens in Detail. */
-export function motionCases(snapshot: ViewSnapshot): Reach[] {
-  const { briefing } = snapshot;
-  const cases: Reach[] = [];
-  const add = (
-    pointer: string,
-    value: unknown,
-    where: Home,
-    selector: Selector,
-    extra: Partial<Reach> = {},
-  ) => {
-    cases.push({ pointer, value: String(value), home: where, selector, ...extra });
-  };
-  const run = briefing.ambient?.inProgress;
-  if (run && run.lines.length > 0) {
-    const base = "/briefing/ambient/inProgress";
-    add(`${base}/items`, run.items, TODAY, ".today-motion-run", { attribute: "data-items" });
-    add(`${base}/text`, run.text, TODAY, ".today-motion-figure", {
-      read: (element) => (element.textContent ?? "").replace(/^·\s*/, ""),
-    });
-    const items = briefingItems(briefing);
-    run.lines.forEach((line, index) => {
-      const pointer = `${base}/lines/${index}`;
-      const li = `.today-motion-line[data-line-id=${quote(line.id)}]`;
-      const attribute = (leaf: string, value: unknown, name: string) =>
-        add(`${pointer}/${leaf}`, value, TODAY, li, { attribute: name });
-      attribute("id", line.id, "data-line-id");
-      attribute("count", line.count, "data-count");
-      attribute("origin", line.origin, "data-origin");
-      attribute("text", line.text, "title");
-      for (const [at, id] of line.itemIds.entries())
-        add(`${pointer}/itemIds/${at}`, id, TODAY, li, {
-          attribute: "data-item-ids",
-          contains: true,
-        });
-      for (const [at, service] of (line.next ?? []).entries())
-        add(
-          `${pointer}/next/${at}`,
-          service,
-          TODAY,
-          `${li} .today-motion-next .kit-chip--service:nth-child(${at + 1})`,
-        );
-      if (line.station) attribute("station", line.station, "data-station");
-      if (line.pr) {
-        add(`${pointer}/pr/number`, `#${line.pr.number}`, TODAY, `${li} .kit-pr`);
-        if (line.pr.url) attribute("pr/url", line.pr.url, "data-pr-url");
-        if (line.pr.inspect) attribute("pr/inspect", line.pr.inspect, "data-pr-inspect");
-      }
-      if (line.age) add(`${pointer}/age`, line.age, TODAY, `${li} .kit-chip--age`);
-      const chip = (at: number) => `${li} .today-motion-state > .kit-chip:nth-child(${at})`;
-      if (line.state) {
-        add(`${pointer}/state/text`, line.state.text, TODAY, chip(1));
-        add(`${pointer}/state/tone`, line.state.tone, TODAY, chip(1), {
-          read: (element) =>
-            [...element.classList]
-              .find((name) => name.startsWith("kit-chip--"))
-              ?.slice("kit-chip--".length) ?? "",
-        });
-      }
-      if (line.followUp) add(`${pointer}/followUp`, line.followUp, TODAY, chip(line.state ? 2 : 1));
-      const [first = line.id] = line.itemIds;
-      const detail = { click: `${li} .today-motion-open`, detail: first };
-      for (const [item, entry] of items)
-        if (line.itemIds.includes(entry.id) && entry.origin === line.origin)
-          add(`${item}/origin`, entry.origin, TODAY, li, {
-            attribute: "data-origin",
-            opens: detail,
-          });
-      if (!line.service) return;
-      const service = `${li} .today-motion-service .today-motion-fork`;
-      add(`${pointer}/service`, line.service, TODAY, service);
-      const place: Route = { kind: "service", id: line.service };
-      for (const [item, entry] of items)
-        if (line.itemIds.includes(entry.id) && entry.scope === line.service)
-          add(`${item}/scope`, entry.scope, TODAY, service, { opens: { click: service, place } });
-    });
-  }
-  const canWait = briefing.canWait;
-  if (canWait && canWait.chips.length > 0) {
-    const block = ".today-canwait";
-    canWait.chips.forEach((chip, index) => {
-      const pointer = `/briefing/canWait/chips/${index}`;
-      const button = `${block} button.today-canwait-chip:nth-of-type(${index + 1})`;
-      add(`${pointer}/text`, chip.text, TODAY, button, { read: ownText });
-      if (chip.count !== undefined)
-        add(`${pointer}/count`, chip.count, TODAY, button, { attribute: "data-count" });
-      if (chip.service)
-        add(`${pointer}/service`, chip.service, TODAY, button, { attribute: "data-service" });
-    });
-    const list = home("Today · Can wait", STARTS.today, `${block} button.today-canwait-chip`);
-    canWait.items.forEach((item, index) => {
-      const pointer = `/briefing/canWait/items/${index}`;
-      const field = `.detail-row-fields > div:nth-child(${index + 1})`;
-      add(`${pointer}/id`, item.id, TODAY, block, { attribute: "data-ids", contains: true });
-      for (const [at, id] of item.itemIds.entries())
-        add(`${pointer}/itemIds/${at}`, id, TODAY, block, {
-          attribute: "data-ids",
-          contains: true,
-        });
-      add(`${pointer}/why`, item.why, list, `${field} > dd`);
-      if (item.service) {
-        add(`${pointer}/service`, item.service, list, `${field} > dt`);
-        add(`${pointer}/text`, item.text, list, field, {
-          read: (element) =>
-            `${element.querySelector("dt")?.textContent}: ${element.querySelector("dd")?.textContent}`,
-        });
-      } else add(`${pointer}/text`, item.text, list, `${field} > dt`);
-    });
-  }
   return cases;
 }
 
@@ -835,9 +709,6 @@ type Add = (
   extra?: Partial<Reach>,
 ) => void;
 
-const nth = (selector: string, index: number) => (root: ParentNode) =>
-  root.querySelectorAll(selector)[index];
-
 /** Each focus and rest item, with its pointer. */
 export function briefingItems(briefing: ViewSnapshot["briefing"]) {
   return [
@@ -845,6 +716,12 @@ export function briefingItems(briefing: ViewSnapshot["briefing"]) {
     ...briefing.rest.map((item, index) => [`/briefing/rest/${index}`, item] as const),
   ];
 }
+
+/** A member's row: its line's own row when it is the only member, else its sub-row. */
+export const memberRow = (line: string, member: number, single: boolean) =>
+  single
+    ? `tr.today-row:not(.today-row--sub)${at(line)}`
+    : `tr.today-row--sub${at(`${line}/members/${member}`)}`;
 
 /** Today's Blocked and Waiting on you: each line's row, and a sub-row per member of a group. */
 export function tableCases(snapshot: ViewSnapshot): Reach[] {
@@ -881,7 +758,7 @@ export function tableCases(snapshot: ViewSnapshot): Reach[] {
       );
     line.members.forEach((member, at_) => {
       const base = `${pointer}/members/${at_}`;
-      const row = single ? head : `tr.today-row--sub${at(base)}`;
+      const row = memberRow(pointer, at_, single);
       add(`${base}/id`, member.id, TODAY, row, { attribute: "data-item-id" });
       const fork = single ? line.subject : member.fork;
       const opens = {
@@ -910,80 +787,113 @@ export function tableCases(snapshot: ViewSnapshot): Reach[] {
   return cases;
 }
 
-/** The 740-only group opener reaches every core line in that group's full Detail list. */
-export function moreCases(snapshot: ViewSnapshot): Reach[] {
-  const drawn = TODAY_GROUPS.filter((group) => group === "horizon" || group === "motion");
-  return drawn.flatMap((group) => {
-    const row = todayGroupRow(snapshot, group);
-    const entries = row.entries ?? [];
-    if (entries.length <= 3) return [];
-    const prefix = row.prefixes?.[0];
-    const list = group === "horizon" ? prefix : `${prefix}/lines`;
-    return entries.map((entry, index) => ({
-      pointer: `${list}/${index}/text`,
-      value: plainTitle(entry.title),
-      home: home(`${row.title} full list`, STARTS.today, `.today-more[data-group="${group}"]`),
-      selector: `.detail-group-list > li:nth-child(${index + 1})`,
-    }));
-  });
-}
+const LOWER_DESTINATIONS: Readonly<Record<string, Destination>> = {
+  line: { kind: "line" },
+  environment: { kind: "environment" },
+  engineering: { kind: "engineering-system" },
+  upstream: { kind: "upstream" },
+  releases: { kind: "releases" },
+  security: { kind: "security" },
+};
 
-/** Upstream items on a horizon card or the owed row: the section's inbound mark is their origin. */
-const inbound = (element: Element) =>
-  element.closest(".today-horizon")?.querySelector(".horizon-inbound") ? "upstream" : "system";
-
-/** Each item a horizon card or the owed row holds: its fork chip opens the place, its card the Detail. */
-export function horizonCases(snapshot: ViewSnapshot): Reach[] {
-  const { briefing } = snapshot;
+/** Can wait, Moving without you and Last 24 hours: each row's fields, and the place it opens. */
+export function lowerCases(snapshot: ViewSnapshot): Reach[] {
+  const today = snapshot.briefing.today;
+  if (!today) return [];
   const cases: Reach[] = [];
   const add: Add = (pointer, value, where, selector, extra = {}) => {
     cases.push({ pointer, value: String(value), home: where, selector, ...extra });
   };
-  const items = briefingItems(briefing);
-  const themes = new Set(briefing.themes.map(({ id }) => id));
-  const { cards = [], owed } = briefing.horizon;
-  cards.forEach((card, index) => {
-    const root = `.today-horizon .horizon-card[data-card-id=${quote(card.id)}]`;
-    const [first = ""] = card.itemIds;
-    const target = card.kind !== "sync" && themes.has(card.id) ? `theme:${card.id}` : first;
-    const detail = { click: `${root} button.horizon-token`, detail: target };
-    for (const [item, entry] of items) {
-      if (!card.itemIds.includes(entry.id)) continue;
-      if (entry.origin)
-        add(`${item}/origin`, entry.origin, TODAY, root, { read: inbound, opens: detail });
-      const at = card.services.findIndex(({ service }) => service === entry.scope);
-      if (at < 0) continue;
-      const chip = `${root} .horizon-fork[data-pointer="/briefing/horizon/cards/${index}/services/${at}"] .kit-chip--service`;
-      add(`${item}/scope`, entry.scope, TODAY, chip, {
-        opens: { click: chip, place: { kind: "service", id: entry.scope } },
-      });
-    }
-  });
-  if (owed && owed.count > 0)
-    (owed.itemIds ?? []).forEach((id, at) => {
-      const open = nth(".today-horizon .horizon-owed .horizon-owed-open", at);
-      const opens = { click: open, detail: id };
-      for (const [item, entry] of items) {
-        if (entry.id !== id) continue;
-        if (entry.origin)
-          add(
-            `${item}/origin`,
-            entry.origin,
-            TODAY,
-            ".today-horizon .horizon-owed .kit-segmented",
-            {
-              read: (element) =>
-                element.classList.contains("kit-segmented--upstream") ? "upstream" : "system",
-              opens,
-            },
-          );
-        add(`${item}/scope`, entry.scope, TODAY, ".today-horizon .horizon-owed .kit-bar-figure", {
-          contains: true,
-          opens,
-        });
-      }
+  const base = "/briefing/today";
+  const row = (section: string, id: string) =>
+    `[data-section="${section}"] tr.today-row--place[data-row=${quote(id)}]`;
+  const place = (
+    pointer: string,
+    tr: string,
+    key: string,
+    id: string,
+    label: string,
+    to: string,
+  ) => {
+    const button = `${tr} .today-row-fork button`;
+    const destination = LOWER_DESTINATIONS[to];
+    add(`${pointer}/${key}`, id, TODAY, tr, { attribute: "data-row" });
+    add(`${pointer}/label`, label, TODAY, button, {
+      ...(destination ? { opens: { click: button, place: destination } } : {}),
     });
+    add(`${pointer}/place`, to, TODAY, tr, { attribute: "data-place" });
+  };
+  type Count = NonNullable<ViewSnapshot["briefing"]["today"]>["canWait"][number]["counts"][number];
+  const counts = (pointer: string, tr: string, list: readonly Count[]) =>
+    list.forEach((count, at) => {
+      if (count.count === 0) return;
+      const span = `${tr} .today-count[data-kind=${quote(count.kind)}]`;
+      const leaf = `${pointer}/counts/${at}`;
+      add(`${leaf}/count`, count.count, TODAY, span, {
+        read: (element) => (element.textContent ?? "").split(" ")[0] ?? "",
+      });
+      add(`${leaf}/label`, count.label, TODAY, span, {
+        read: (element) => (element.textContent ?? "").split(" ").slice(1).join(" "),
+      });
+      add(`${leaf}/kind`, count.kind, TODAY, span, { attribute: "data-kind" });
+      add(`${leaf}/tone`, count.tone, TODAY, span, { attribute: "data-tone" });
+      count.names.forEach((name, i) => {
+        add(`${leaf}/names/${i}`, name, TODAY, span, { attribute: "title", contains: true });
+      });
+    });
+  today.canWait.forEach((pile, index) => {
+    const pointer = `${base}/canWait/${index}`;
+    const tr = row("can-wait", pile.id);
+    place(pointer, tr, "id", pile.id, pile.label, pile.place);
+    counts(pointer, tr, pile.counts);
+    pile.notRead.forEach((gap, at) => {
+      add(`${pointer}/notRead/${at}`, gap, TODAY, `${tr} .today-row-gaps`, {
+        attribute: "title",
+        contains: true,
+      });
+    });
+  });
+  today.moving.forEach((entry, index) => {
+    const pointer = `${base}/moving/${index}`;
+    const tr = row("moving", entry.id);
+    place(pointer, tr, "id", entry.id, entry.label, entry.place);
+    if (entry.at)
+      add(`${pointer}/at`, entry.at, TODAY, `${tr} .today-row-when time`, {
+        attribute: "dateTime",
+      });
+    else add(`${pointer}/time`, entry.time, TODAY, `${tr} .today-row-when`);
+    const words = `${tr} .today-row-moving`;
+    add(`${pointer}/count`, entry.count, TODAY, words, { attribute: "data-count" });
+    entry.names.forEach((name, at) => {
+      add(`${pointer}/names/${at}`, name, TODAY, words, { attribute: "title", contains: true });
+    });
+  });
+  const { history } = today;
+  const head = '[data-section="history"] .today-section-head';
+  const basis = (element: Element) => {
+    const text = element.textContent ?? "";
+    if (text.startsWith("Since you last looked")) return "seen";
+    if (text.startsWith("Since ")) return "history-short";
+    return text.startsWith("24 hours to ") ? "stale" : "fallback";
+  };
+  add(`${base}/history/basis`, history.basis, TODAY, head, { read: basis });
+  if (history.basis === "seen" || history.basis === "history-short")
+    add(`${base}/history/from`, history.from, TODAY, `${head} time`, { attribute: "dateTime" });
+  if (history.asOf && history.basis !== "seen" && history.basis !== "history-short")
+    add(`${base}/history/asOf`, history.asOf, TODAY, `${head} time`, { attribute: "dateTime" });
+  history.rows.forEach((entry, index) => {
+    const pointer = `${base}/history/rows/${index}`;
+    const tr = row("history", entry.workflow);
+    place(pointer, tr, "workflow", entry.workflow, entry.label, entry.place);
+    counts(pointer, tr, entry.counts);
+  });
   return cases;
+}
+
+/** The Can wait count a count leaf belongs to. */
+function countAt(pointer: string, { briefing }: Leaves) {
+  const [, index, at] = pointer.match(/^\/briefing\/today\/canWait\/(\d+)\/counts\/(\d+)\//) ?? [];
+  return briefing.today?.canWait[Number(index)]?.counts[Number(at)];
 }
 
 /** The focus or rest item a leaf belongs to. */
@@ -997,27 +907,19 @@ export const PENDING: Readonly<Record<string, Exemption>> = {};
 
 /** Item leaves Today draws at the item's place rather than on Today itself, each with its reason. */
 export const AT_PLACE: Readonly<Record<string, Exemption>> = {
-  "forkless-decision": {
+  "row-names-forks": {
     patterns: ["/briefing/focus/#/scope", "/briefing/rest/#/scope"],
     reason:
-      "A decision core gives no forks (the template rollout, the stack's lanes) draws no scope chip (today-design 'Decisions waiting'); its scope shows at its place",
+      "spicode-djg.10: a Today row names the forks it covers (13 forks), not core's scope; the template rollout's scope shows at Engineering system",
     when: (_value, { pointer, snapshot }) => {
       const item = itemAt(pointer, snapshot);
-      return (snapshot.briefing.decisions?.groups ?? []).some(
-        ({ itemIds, scope }) =>
-          item !== undefined && itemIds.includes(item.id) && scope.length === 0,
-      );
-    },
-  },
-  "fleet-wide-line": {
-    patterns: ["/briefing/focus/#/scope", "/briefing/rest/#/scope"],
-    reason:
-      "An Ambient line core gives no service (the template rollout) draws its next merges, not its scope (today-design 'Words and visuals', ruling 69); its scope shows at its place",
-    when: (_value, { pointer, snapshot }) => {
-      const item = itemAt(pointer, snapshot);
-      const { failing, inProgress } = snapshot.briefing.ambient ?? {};
-      return [...(failing?.lines ?? []), ...(inProgress?.lines ?? [])].some(
-        ({ itemIds, service }) => item !== undefined && itemIds.includes(item.id) && !service,
+      return (snapshot.briefing.lines ?? []).some(({ subject, members }) =>
+        members.some(
+          ({ id, ids, fork }) =>
+            item !== undefined &&
+            (id === item.id || ids.includes(item.id)) &&
+            (members.length === 1 ? subject : fork) !== item.scope,
+        ),
       );
     },
   },
@@ -1030,42 +932,141 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
     reason:
       "spicode-djg.25: a line's source or companion join to its Today member is marked alike; rel names which",
   },
-  "today-summaries": {
+  "today-zero-count": {
+    patterns: ["count", "kind", "label", "tone"].map(
+      (leaf) => `/briefing/today/canWait/#/counts/#/${leaf}`,
+    ),
+    reason:
+      "spicode-djg.10: a zero count draws nothing; a pile of zeros reads none, or not read when core names a gap (X3)",
+    when: (_value, { pointer, snapshot }) => countAt(pointer, snapshot)?.count === 0,
+  },
+  "today-count-urls": {
+    patterns: ["/briefing/today/canWait/#/counts/#/urls/#"],
+    reason:
+      "spicode-djg.10: a Can wait row opens its place, not each object (X8); the urls are core's join keys",
+  },
+  "today-moving-time": {
+    patterns: ["/briefing/today/moving/#/time"],
+    reason:
+      "spicode-djg.10: a moving row with an instant draws `at` through the window's clock; core's words show only without one",
+    when: (_value, { pointer, snapshot }) =>
+      snapshot.briefing.today?.moving[Number(pointer.split("/")[4])]?.at !== undefined,
+  },
+  "today-history-window": {
+    patterns: ["/briefing/today/history/from"],
+    reason:
+      "spicode-djg.10: the heading names a fallback window Last 24 hours, and a stale one by the time it runs to",
+    when: (_value, { snapshot }) =>
+      !["seen", "history-short"].includes(snapshot.briefing.today?.history.basis ?? ""),
+  },
+  "today-history-gaps": {
+    patterns: ["/briefing/today/history/rows/#/notRead/#"],
+    reason:
+      "spicode-djg.10: a workflow's unread forks are its not read count, named on hover; Evidence lists the reads",
+  },
+  "today-ready-release": {
     patterns: [
-      "/briefing/today/canWait/#/counts/#/count",
-      "/briefing/today/canWait/#/counts/#/kind",
-      "/briefing/today/canWait/#/counts/#/label",
-      "/briefing/today/canWait/#/counts/#/names/#",
-      "/briefing/today/canWait/#/counts/#/tone",
-      "/briefing/today/canWait/#/counts/#/urls/#",
-      "/briefing/today/canWait/#/id",
-      "/briefing/today/canWait/#/label",
-      "/briefing/today/canWait/#/notRead/#",
-      "/briefing/today/canWait/#/place",
-      "/briefing/today/history/asOf",
-      "/briefing/today/history/basis",
-      "/briefing/today/history/from",
-      "/briefing/today/history/rows/#/counts/#/count",
-      "/briefing/today/history/rows/#/counts/#/kind",
-      "/briefing/today/history/rows/#/counts/#/label",
-      "/briefing/today/history/rows/#/counts/#/names/#",
-      "/briefing/today/history/rows/#/counts/#/tone",
-      "/briefing/today/history/rows/#/label",
-      "/briefing/today/history/rows/#/notRead/#",
-      "/briefing/today/history/rows/#/place",
-      "/briefing/today/history/rows/#/workflow",
-      "/briefing/today/moving/#/at",
-      "/briefing/today/moving/#/count",
-      "/briefing/today/moving/#/id",
-      "/briefing/today/moving/#/label",
-      "/briefing/today/moving/#/names/#",
-      "/briefing/today/moving/#/place",
-      "/briefing/today/moving/#/time",
       "/releases/today/ready/#/name",
       "/releases/today/ready/#/number",
       "/releases/today/ready/#/url",
     ],
-    reason: "spicode-djg.18: core lower-section summaries are drawn by Today in spicode-djg.10",
+    reason:
+      "spicode-djg.10: Can wait's ready to merge count names the ready release PR, from the same queue",
+  },
+  "today-horizon": {
+    patterns: [
+      ...["nextSyncCount", "heldCount", "heldPrCount", "currentForkCount"].map(
+        (leaf) => `/briefing/horizon/compact/${leaf}`,
+      ),
+      ...[
+        "upstream/count",
+        "upstream/text",
+        "nextSync/at",
+        "nextSync/count",
+        "nextSync/services/#",
+        "nextSync/text",
+        "held/count",
+        "held/prs/#/service",
+        "held/prs/#/pr/number",
+        "held/prs/#/pr/url",
+        "held/prs/#/pr/inspect",
+        "held/services/#",
+        "held/text",
+        "forks/services/#",
+        "forks/text",
+        "wontLand/#/service",
+        "wontLand/#/reason",
+        "wontLand/#/count",
+        "wontLand/#/text",
+      ].map((leaf) => `/briefing/horizon/stages/${leaf}`),
+      ...[
+        "id",
+        "kind",
+        "token",
+        "services/#/service",
+        "services/#/stage",
+        "services/#/at",
+        "services/#/pr/number",
+        "services/#/pr/url",
+        "services/#/pr/inspect",
+        "needsYou",
+        "mark",
+        "verb",
+        "itemIds/#",
+        "text",
+      ].map((leaf) => `/briefing/horizon/cards/#/${leaf}`),
+      ...["needYouCards", "toWatchCards", "surfaceItems", "text"].map(
+        (leaf) => `/briefing/horizon/counts/${leaf}`,
+      ),
+      ...["itemIds/#", "count", "services/#/service", "services/#/count", "text"].map(
+        (leaf) => `/briefing/horizon/owed/${leaf}`,
+      ),
+    ],
+    reason:
+      "spicode-djg.10: Today no longer draws On the horizon (X7); each item it held is a row on Today or listed at its place (PS-19)",
+  },
+  "today-place-cards": {
+    patterns: [
+      ...["place", "mark", "tone", "figure", "line", "reason", "caveat", "areas/#"].map(
+        (leaf) => `/briefing/places/#/${leaf}`,
+      ),
+      ...["unread/areas/#", "itemIds/#"].map((leaf) => `/briefing/places/#/${leaf}`),
+      ...[
+        "kind",
+        "slots/#/service",
+        "slots/#/state",
+        "slots/#/origin",
+        "slots/#/text",
+        "stopped/#",
+        "horizon/count",
+        "horizon/text",
+        "lanes/#/lane",
+        "lanes/#/state",
+        "lanes/#/green",
+        "lanes/#/total",
+        "lanes/#/text",
+        "greenSince",
+        "target",
+        "columns/#/service",
+        "columns/#/count",
+        "columns/#/text",
+        "program/count",
+        "program/text",
+      ].map((leaf) => `/briefing/places/#/visual/${leaf}`),
+    ],
+    reason:
+      "spicode-djg.10: Today no longer draws place cards (X8); the sidebar and each place's head carry their status, and a new item keeps its chip at its place",
+  },
+  "today-releases": {
+    patterns: [
+      "/releases/today/versions/#/text",
+      "/releases/today/versions/#/state",
+      "/releases/today/platform/text",
+      "/releases/today/readyLine",
+      "/releases/today/unread/areas/#",
+    ],
+    reason:
+      "spicode-djg.10: Today no longer draws Releases (X7); Releases draws each version and the platform from their own fields, and Can wait counts the release PRs",
   },
   "today-member-home": {
     patterns: ["/briefing/lines/#/members/#/home"],
@@ -1250,11 +1251,9 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
     reason:
       "spicode-djg.9: Blocked and Waiting on you replace Decisions waiting; core's lines group the same items (X1, X2)",
   },
-  "verdict-with-lines": {
+  verdict: {
     patterns: ["/briefing/verdict/text", "/briefing/verdict/mark"],
-    reason:
-      "spicode-djg.9: Today's lede is the date only (X3); the verdict is drawn only without lines",
-    when: (_value, { snapshot }) => snapshot.briefing.lines !== undefined,
+    reason: "spicode-djg.10: Today's lede is the date only (X3); it draws no verdict",
   },
   "briefing-voice": {
     patterns: ["/briefing/headline", "/briefing/summary", "/briefing/doctor/state"],

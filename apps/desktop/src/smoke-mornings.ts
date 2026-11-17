@@ -57,58 +57,58 @@ export function assertDrawnMembers(drawn: unknown, members: unknown, label: stri
 
 /** Today's blocks top to bottom, as the frame draws them; each capture names the ones it holds. */
 export const TODAY_BLOCKS = [
-  "head",
   "caveat",
-  "table",
-  "horizon",
-  "places",
-  "releases",
-  "motion",
+  "calm",
+  "blocked",
+  "waiting",
+  "can-wait",
+  "moving",
+  "history",
 ] as const;
 export type TodayBlock = (typeof TODAY_BLOCKS)[number];
 
+const LOWER = ["can-wait", "moving", "history"] as const;
 const required: Readonly<Record<Morning, readonly TodayBlock[]>> = {
-  calm: ["table", "horizon", "places", "releases", "motion"],
-  busy: ["table", "horizon", "places", "releases", "motion"],
-  bad: ["caveat", "table", "horizon", "places", "releases"],
+  calm: ["waiting", ...LOWER],
+  busy: ["blocked", "waiting", ...LOWER],
+  bad: ["caveat", "blocked", "waiting", ...LOWER],
 };
 const absent: Readonly<Record<Morning, readonly TodayBlock[]>> = {
-  calm: ["head", "caveat"],
-  busy: ["head", "caveat"],
-  bad: ["head", "motion"],
+  calm: ["caveat", "calm", "blocked"],
+  busy: ["caveat", "calm"],
+  bad: ["calm"],
 };
 
 export const MORNING_SURFACES = MORNINGS.flatMap((morning) => [
   {
     id: `today-${morning}`,
     morning,
-    detail: false,
+    open: false,
     widths: morning === "busy" ? [1440, 1000, 740] : [1440, 740],
   },
-  { id: `today-${morning}-detail`, morning, detail: true, widths: [1440] },
-]) satisfies { id: string; morning: Morning; detail: boolean; widths: number[] }[];
+  { id: `today-${morning}-open`, morning, open: true, widths: [1440] },
+]) satisfies { id: string; morning: Morning; open: boolean; widths: number[] }[];
 export type MorningSurface = (typeof MORNING_SURFACES)[number];
 
-const DECISION = {
-  wide: "Today at 1440 × 900 (sidebar 232, centre 1208, Detail closed), this morning's data",
-  calmFirst: "Calm first (draft 7)",
-  horizon: "On the horizon: what's coming from GitLab (draft 7)",
-  words: "Words and visuals (draft 7)",
-  column: "One column: 740 px, and 1440 with Detail open (centre about 850)",
-  calm: "Calm and bad mornings: Calm",
-  bad: "Calm and bad mornings: Bad",
-  clicks: "Click targets: a version opens that service's release in Detail",
+const DESIGN = {
+  sections:
+    "Today items 1-5 and X7: Blocked, Waiting on you, Can wait, Moving without you, Last 24 hours",
+  rows: "X4: Today is a table (Fork, What, Open, Age)",
+  counts: "X3: the lower three are counts, not sentences; X8: each opens its place",
+  bad: "Z4: what the sweep did not read opens Evidence",
+  narrow: "Today's table at a narrow centre",
+  open: "Z2: on Today, a row opens in place",
 } as const;
 
-/** The decision.md (draft 7) sections a reviewer checks this capture against. */
-export function morningSections(morning: Morning, detail: boolean, width: number): string[] {
+/** The spi-code-today-and-places.md rulings a reviewer checks this capture against. */
+export function morningSections(morning: Morning, open: boolean, width: number): string[] {
   return [
-    ...(morning === "busy" ? [DECISION.wide] : [DECISION[morning]]),
-    DECISION.calmFirst,
-    DECISION.horizon,
-    DECISION.words,
-    ...(detail || width < 1440 ? [DECISION.column] : []),
-    ...(detail ? [DECISION.clicks] : []),
+    DESIGN.sections,
+    DESIGN.rows,
+    DESIGN.counts,
+    ...(morning === "bad" ? [DESIGN.bad] : []),
+    ...(width < 1440 ? [DESIGN.narrow] : []),
+    ...(open ? [DESIGN.open] : []),
   ];
 }
 
@@ -122,9 +122,9 @@ export interface MorningBlock {
 export interface MorningEvidence {
   morning: Morning;
   fixture: string;
-  detail: boolean;
+  open: boolean;
   sections: string[];
-  /** The verdict Today draws; none on a morning whose lines core sends. */
+  /** The sentence Today draws in place of its rows; none on a morning whose lines core sends. */
   headline: string;
   /** The member rows Blocked and Waiting on you draw, and the members of the fixture's lines. */
   members: string;
@@ -136,7 +136,8 @@ export interface MorningEvidence {
   clientHeight: number;
   pageHeight: number;
   blocks: MorningBlock[];
-  detailTitle?: string;
+  /** The place link of the row opened in place, drawn directly under that row. */
+  opened?: string;
 }
 
 /** Throws unless the capture holds Today's whole frame for its morning, every block inside it. */
@@ -155,10 +156,10 @@ export function assertMorningEvidence(
   assert(evidence && typeof evidence === "object", `Missing morning evidence: ${label}`);
   assert.equal(evidence.morning, surface.morning, `Wrong morning: ${label}`);
   assert.equal(evidence.fixture, MORNING_FIXTURES[surface.morning], `Wrong fixture: ${label}`);
-  assert.equal(evidence.detail, surface.detail, `Wrong Detail state: ${label}`);
+  assert.equal(evidence.open, surface.open, `Wrong opened state: ${label}`);
   assert.deepEqual(
     evidence.sections,
-    morningSections(surface.morning, surface.detail, shot.viewportWidth),
+    morningSections(surface.morning, surface.open, shot.viewportWidth),
     `Wrong decision sections: ${label}`,
   );
   assert.equal(evidence.headline, "", `Wrong headline: ${label}`);
@@ -219,10 +220,10 @@ export function assertMorningEvidence(
         top + height <= pageHeight + 0.5,
       `Block ${name} outside the capture: ${label}`,
     );
-  if (surface.detail)
+  if (surface.open)
     assert(
-      typeof evidence.detailTitle === "string" && evidence.detailTitle.length > 0,
-      `Missing Detail: ${label}`,
+      typeof evidence.opened === "string" && /\S.* ›$/.test(evidence.opened),
+      `Missing row opened in place: ${label}`,
     );
-  else assert.equal(evidence.detailTitle, undefined, `Unexpected Detail: ${label}`);
+  else assert.equal(evidence.opened, undefined, `Unexpected opened row: ${label}`);
 }

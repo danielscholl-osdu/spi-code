@@ -9,17 +9,14 @@ import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
 import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import type { Read } from "../test-utils/watch-fixtures.test-helper.js";
-import { moving } from "../views/today/in-motion.test-helper.js";
 import { closeSheet, navigate, relaunch, routeHash } from "./navigation.js";
-import { placeReachCases } from "./place-reachability.test-helper.js";
 import {
   AT_PLACE,
   briefingItems,
   coverage,
   EXEMPTIONS,
   type Home,
-  horizonCases,
-  motionCases,
+  memberRow,
   openerCases,
   type Reach,
   reachCases,
@@ -174,27 +171,19 @@ export function assertReach(row: Reach) {
 
 export const ITEM_HOME = /^\/briefing\/(focus|rest)\/\d+\/(scope|origin)$/;
 export const itemHomeCases = (body: ViewSnapshot) =>
-  [
-    ...tableCases(body),
-    ...motionCases(body),
-    ...horizonCases(body),
-    ...placeReachCases(body),
-  ].filter(({ pointer }) => ITEM_HOME.test(pointer));
+  tableCases(body).filter(({ pointer }) => ITEM_HOME.test(pointer));
 
-/** Each Today home that holds an item (ruling R1), as [item id, the home's container]. */
+/** Each Today row that holds an item, as [item id, the row's selector]. */
 function itemHomes({ briefing }: ViewSnapshot): [string, string][] {
-  const q = JSON.stringify;
-  const held = (itemIds: readonly string[], container: string) =>
-    itemIds.map((id) => [id, container] as [string, string]);
-  return [
-    ...(briefing.ambient?.inProgress?.lines ?? []).flatMap(({ id, itemIds }) =>
-      held(itemIds, `.today-motion-line[data-line-id=${q(id)}]`),
-    ),
-    ...(briefing.horizon.cards ?? []).flatMap(({ id, itemIds }) =>
-      held(itemIds, `.today-horizon .horizon-card[data-card-id=${q(id)}]`),
-    ),
-    ...held(briefing.horizon.owed?.itemIds ?? [], ".today-horizon .horizon-owed"),
-  ];
+  const ids = new Set(briefingItems(briefing).map(([, { id }]) => id));
+  return (briefing.lines ?? []).flatMap((line, index) =>
+    line.members.flatMap((member, at) => {
+      const row = memberRow(`/briefing/lines/${index}`, at, line.members.length === 1);
+      return [...new Set([member.id, ...member.ids])]
+        .filter((id) => ids.has(id))
+        .map((id) => [id, row] as [string, string]);
+    }),
+  );
 }
 
 export const inside = (row: Reach, container: string) =>
@@ -214,38 +203,6 @@ export function missingHomes(body: ViewSnapshot, rows: readonly Reach[]) {
         !rows.some((row) => itemOf(row.pointer) === id && inside(row, container)),
     )
     .map(([id, container]) => `${id} at ${container}`);
-}
-
-/**
- * Busy with an In progress run core could send (core/brief/ambient.ts): each line's items are
- * Ambient briefing items that no horizon card, owed row, decision or Failing line holds.
- */
-export function inMotion() {
-  const body = structuredClone(busySnapshot);
-  const { briefing } = body;
-  const find = (id: string) => {
-    const found = briefingItems(briefing).find(([, item]) => item.id === id)?.[1];
-    if (!found) throw new Error(`busy carries no ${id}`);
-    return found;
-  };
-  find("rollout").attention = "ambient";
-  const decisions = briefing.decisions;
-  if (decisions) {
-    decisions.groups = decisions.groups.filter(({ itemIds }) => !itemIds.includes("rollout"));
-    decisions.items = decisions.groups.length;
-  }
-  for (const card of briefing.horizon.cards ?? [])
-    card.itemIds = card.itemIds.filter((id) => id !== "gate1:workflow");
-  const queue = find("gate2:indexer-queue");
-  briefing.rest.push({
-    ...queue,
-    id: "gate2:search",
-    ids: ["gate2:search"],
-    scope: "search",
-    title: "Release/upstream PR #76 waits for approval",
-    evidence: [{ label: "PR #76", url: "https://github.com/Azure/osdu-spi-search/pull/76" }],
-  });
-  return moving(body);
 }
 
 /** One click on a shared opener, after checking every field it draws. */
@@ -350,7 +307,6 @@ export const ITEM_MORNINGS = {
   calm: () => structuredClone(calmSnapshot),
   busy: () => structuredClone(busySnapshot),
   bad,
-  "busy with motion": inMotion,
 };
 
 export function itemHomesOn(deal: ReturnType<typeof dealt>, read: Read) {

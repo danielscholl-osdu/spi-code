@@ -51,9 +51,7 @@ async function mount(send = vi.fn()) {
   document.body.append(container);
   const root = createRoot(container);
   const onOpenSettings = vi.fn();
-  await act(async () =>
-    root.render(<Today store={store} onNavigate={vi.fn()} onOpenSettings={onOpenSettings} />),
-  );
+  await act(async () => root.render(<Today store={store} onOpenSettings={onOpenSettings} />));
   cleanups.push(async () => {
     await act(async () => root.unmount());
     container.remove();
