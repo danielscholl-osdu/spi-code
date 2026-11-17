@@ -63,7 +63,7 @@ it("groups the queue by rung into Now, Next and Later in briefing order", () => 
   expect(queueGroups({ focus: [env, halt] }).map(({ label }) => label)).toEqual(["Now"]);
 });
 
-it("keeps Today's distinct Interrupt count after acknowledgement, until resolution", async () => {
+it("keeps Today's member count after acknowledgement, until the member resolves", async () => {
   const fixture = loadFixture("snapshot-1106.json");
   const interrupt = fixture.briefing.focus[0];
   if (!interrupt) throw new Error("Recorded Interrupt missing");
@@ -73,19 +73,13 @@ it("keeps Today's distinct Interrupt count after acknowledgement, until resoluti
   watchStore.setState({ snapshot: { cursor: fixture.cursor, body: fixture } });
   await act(async () => root.render(<Shell />));
   const pip = () => container.querySelector('[data-sidebar-row="today"] .sidebar-pip');
-  const interrupts = new Set(
-    [...fixture.briefing.focus, ...fixture.briefing.rest]
-      .filter(({ attention }) => attention === "interrupt")
-      .map(({ id }) => id),
-  );
   const acknowledgements = () =>
     vi
       .mocked(window.spi.postMessage)
       .mock.calls.map(([message]) => message)
       .filter((message) => message.type === "view.acknowledge")
       .map((message) => message.payload);
-  expect(interrupts.size).toBe(1);
-  expect(pip()?.textContent).toBe(String(interrupts.size));
+  expect(pip()?.textContent).toBe("15");
   expect(container.querySelectorAll(".sidebar-pip")).toHaveLength(1);
   expect(acknowledgements()).toEqual([]);
 
@@ -94,7 +88,7 @@ it("keeps Today's distinct Interrupt count after acknowledgement, until resoluti
   expect(acknowledgements()).toEqual([]);
   await act(async () => window.dispatchEvent(new FocusEvent("blur")));
   expect(acknowledgements()).toEqual([{ cursor: fixture.cursor }]);
-  expect(pip()?.textContent).toBe("1");
+  expect(pip()?.textContent).toBe("15");
 
   const acknowledged = {
     ...fixture,
@@ -104,13 +98,17 @@ it("keeps Today's distinct Interrupt count after acknowledgement, until resoluti
   await act(async () =>
     watchStore.setState({ snapshot: { cursor: acknowledged.cursor, body: acknowledged } }),
   );
-  expect(pip()?.textContent).toBe("1");
+  expect(pip()?.textContent).toBe("15");
 
   const resolved = {
     ...acknowledged,
     cursor: acknowledged.cursor + 1,
     briefing: {
       ...acknowledged.briefing,
+      lines: acknowledged.briefing.lines?.map((line) => ({
+        ...line,
+        members: line.members.filter(({ id }) => id !== interrupt.id),
+      })),
       focus: acknowledged.briefing.focus.filter(({ id }) => id !== interrupt.id),
       rest: acknowledged.briefing.rest.filter(({ id }) => id !== interrupt.id),
     },
@@ -118,5 +116,5 @@ it("keeps Today's distinct Interrupt count after acknowledgement, until resoluti
   await act(async () =>
     watchStore.setState({ snapshot: { cursor: resolved.cursor, body: resolved } }),
   );
-  expect(pip()).toBeNull();
+  expect(pip()?.textContent).toBe("14");
 });

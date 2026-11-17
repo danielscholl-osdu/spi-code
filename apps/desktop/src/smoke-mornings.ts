@@ -163,6 +163,11 @@ export function assertMorningEvidence(
     typeof todayCount === "string" && /^\d*$/.test(todayCount),
     `Missing Today count: ${label}`,
   );
+  assert.equal(
+    todayCount,
+    String({ calm: 1, busy: 13, bad: 14 }[surface.morning]),
+    `Sidebar Today count differs from core line members: ${label}`,
+  );
   const qualifiers = shot.qualifiers;
   assert(
     Array.isArray(qualifiers) && qualifiers.every((text) => typeof text === "string"),

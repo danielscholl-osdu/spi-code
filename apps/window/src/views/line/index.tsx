@@ -11,16 +11,19 @@ import {
   type SheetPresentation,
   unpinSheet,
   useLineSheetRequest,
+  useOpenSelection,
 } from "../../app/navigation.js";
 import { Icon } from "../../components/icons/Icon.js";
 import { PinControl } from "../../components/pin/PinControl.js";
 import { PinMenu } from "../../components/pin/PinMenu.js";
 import { FreshItems } from "../../components/place/FreshItems.js";
+import { placeMembers } from "../../components/place/members.js";
+import { PlaceHead } from "../../components/place/PlaceHead.js";
 import { selectionStore } from "../../panels/selection.js";
 import { selectionRows } from "../../panels/selection-rows.js";
 import { watchStore } from "../../store/watch.js";
 import { TimedText } from "../../time.js";
-import { cellItems, cellState, cellText, columns, glyphs } from "./cells.js";
+import { cellItems, cellState, cellText, columns, glyphs, memberStations } from "./cells.js";
 import "./line.css";
 
 export default function Line({
@@ -42,6 +45,10 @@ function LineContent({
   initialColumn: LineColumn | undefined;
 }) {
   const snapshot = useStore(watchStore, (state) => state.snapshot?.body);
+  const marked = useOpenSelection();
+  const member = placeMembers(snapshot, "line").find(
+    ({ member }) => marked?.kind === "item" && member.id === marked.id,
+  )?.member;
   const selected = useStore(selectionStore, (state) => state.selected);
   const [columnId, setColumnId] = useState(initialColumn);
   const [campaignId, setCampaignId] = useState<string | null>(null);
@@ -65,28 +72,41 @@ function LineContent({
       ),
   );
   const folded = column || quiet.length === rows.length ? [] : quiet;
-  const visible = rows.filter((row) => expanded || !folded.includes(row));
+  const visible = rows.filter(
+    (row) => expanded || row.service === member?.fork || !folded.includes(row),
+  );
   const plan = snapshot?.briefing.flow.plan;
   const selections = new Map(snapshot ? selectionRows(snapshot).map((row) => [row.id, row]) : []);
   return (
     <div className="line-content">
-      <div className="line-toolbar pane-header">
-        <h1>Line</h1>
-        {rows.length > 0 && <span>{rows.length} forks</span>}
-        <div className="line-controls">
-          <button
-            type="button"
-            className="line-dock"
-            onClick={presentation === "pinned" ? unpinSheet : pinSheet}
-          >
-            <Icon name="panelRight" size={14} />
-            {presentation === "pinned" ? "Undock" : "Dock"}
-          </button>
-          <button type="button" aria-label="Close Line" onClick={closeSheet}>
-            Close
-          </button>
-        </div>
-      </div>
+      <PlaceHead
+        name="Line"
+        place="line"
+        snapshot={snapshot}
+        onStep={() => {
+          setColumnId(undefined);
+          setCampaignId(null);
+        }}
+        heading={
+          <div className="line-toolbar pane-header">
+            <h1>Line</h1>
+            {rows.length > 0 && <span>{rows.length} forks</span>}
+            <div className="line-controls">
+              <button
+                type="button"
+                className="line-dock"
+                onClick={presentation === "pinned" ? unpinSheet : pinSheet}
+              >
+                <Icon name="panelRight" size={14} />
+                {presentation === "pinned" ? "Undock" : "Dock"}
+              </button>
+              <button type="button" aria-label="Close Line" onClick={closeSheet}>
+                Close
+              </button>
+            </div>
+          </div>
+        }
+      />
       <div className="line-body">
         {!snapshot && (
           <p className="line-before-sweep">Service rows appear after the first sweep.</p>
@@ -190,6 +210,11 @@ function LineContent({
                                   data-on-today={members.length > 0 || undefined}
                                   data-station={id}
                                   data-selection-id={selection.id}
+                                  data-member-marked={
+                                    (service === member?.fork &&
+                                      memberStations(member).includes(id)) ||
+                                    undefined
+                                  }
                                   aria-pressed={selected === selection.id}
                                   onClick={() =>
                                     selectionStore.getState().select(selection.id, selection)

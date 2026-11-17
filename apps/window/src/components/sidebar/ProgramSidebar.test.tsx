@@ -122,7 +122,7 @@ it("leads with Find or ask, then a headerless fixed block, then Pinned seeded wi
   const nav = container.querySelector('nav[aria-label="Sidebar"]');
   expect(nav?.querySelector("button")?.textContent).toContain("Find or ask");
   expect(rows("Program")).toEqual(FIXED_LABELS);
-  expect(row("today")?.querySelector(".sidebar-pip")?.textContent).toBe("2");
+  expect(row("today")?.querySelector(".sidebar-pip")?.textContent).toBe("4");
   expect(rows("Pinned")).toEqual(SEED_LABELS);
   expect(container.querySelector('ul[aria-label="Places"]')).toBeNull();
   expect(
@@ -152,54 +152,23 @@ it("draws the fixed block with no grip, menu or pin control, and no row with an 
   const pinned = [...container.querySelectorAll('ul[aria-label="Pinned"] > li')];
   expect(pinned.map((item) => item.querySelectorAll("button").length)).toEqual([1, 1, 1, 1]);
 });
-it("counts the recorded Interrupt, not the P0 and P1 total", async () => {
+it("counts core line members independently of focus, rest, tier and acknowledgement", async () => {
   const { store } = await render(undefined, undefined, currentBody);
   const pip = () => row("today")?.querySelector(".sidebar-pip");
-  expect(pip()?.textContent).toBe("1");
-  expect(pip()?.getAttribute("title")).toBe("1 interruption");
+  expect(pip()?.textContent).toBe("15");
+  expect(pip()?.getAttribute("title")).toBe("15 yours on Today");
   const body = structuredClone(currentBody);
-  const item = body.briefing.focus.shift();
-  if (!item) throw new Error("Recorded Interrupt missing");
-  body.briefing.rest.push(item);
+  body.briefing.focus = [];
+  body.briefing.rest = [];
   await act(async () => store.setState({ snapshot: { cursor: body.cursor, body } }));
-  expect(pip()?.textContent).toBe("1");
+  expect(pip()?.textContent).toBe("15");
+  for (const lines of [[], undefined]) {
+    const next = structuredClone(body);
+    next.briefing.lines = lines;
+    await act(async () => store.setState({ snapshot: { cursor: next.cursor, body: next } }));
+    expect(pip()).toBeNull();
+  }
 });
-
-it.each(["ambient", "interrupt"] as const)(
-  "counts a card, its %s waiting thread and its owned P0 once across focus and rest",
-  async (attention) => {
-    const body = structuredClone(currentBody);
-    const item = body.briefing.focus[0];
-    if (!item) throw new Error("Recorded Interrupt missing");
-    item.owned = true;
-    body.briefing.focus.push({
-      ...item,
-      id: "card:retry",
-      ids: [item.id],
-      title: "Retry waiting for your decision",
-    });
-    body.briefing.rest.push({
-      ...item,
-      id: "thread:diagnose",
-      ids: ["card:retry"],
-      attention,
-      title: "Diagnose waiting for your decision",
-    });
-    const { store } = await render(undefined, undefined, body);
-    expect(row("today")?.querySelector(".sidebar-pip")?.textContent).toBe("1");
-    const independent = structuredClone(body);
-    independent.briefing.rest.push({
-      ...item,
-      id: "card:other",
-      ids: ["card:other"],
-      title: "Another decision waiting",
-    });
-    await act(async () =>
-      store.setState({ snapshot: { cursor: independent.cursor, body: independent } }),
-    );
-    expect(row("today")?.querySelector(".sidebar-pip")?.textContent).toBe("2");
-  },
-);
 
 it("draws a service pin only while the sweep names it, in pin order, lights the open one, and hides Pinned when empty", async () => {
   storePins(["gone", "schema", "place:releases", "entitlements"]);
@@ -475,14 +444,14 @@ it("keeps the Line pin's stopped count and Today's count once the Interrupt is a
     const line = () => marks().find(([key]) => key === "line");
     const pip = () => row("today")?.querySelector(".sidebar-pip")?.textContent;
     expect(line()).toEqual(["line", "count", "error", "1"]);
-    expect(pip()).toBe("1");
+    expect(pip()).toBe("15");
     const acknowledged = ViewSnapshotSchema.parse(JSON.parse(acknowledgedText));
     expect(acknowledged.seen).toMatchObject({ cursor: currentBody.cursor, since: [] });
     await act(async () =>
       store.setState({ snapshot: { cursor: acknowledged.cursor, body: acknowledged } }),
     );
     expect(line()).toEqual(["line", "count", "error", "1"]);
-    expect(pip()).toBe("1");
+    expect(pip()).toBe("15");
   }));
 
 it("keeps Cmd+L on the Line row", async () => {

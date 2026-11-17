@@ -6,7 +6,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
-import { closeSheet, navigate } from "../../app/navigation.js";
+import { closeSheet, navigate, openSelection, setOpenSelection } from "../../app/navigation.js";
 import { placeFreshCases, placeReachCases } from "../../app/place-reachability.test-helper.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
@@ -26,8 +26,10 @@ let harness: ReturnType<typeof installSpi>;
 beforeEach(() => {
   root = createRoot(container);
   closeSheet();
+  setOpenSelection(null);
   localStorage.clear();
   harness = installSpi();
+  selectionStore.getState().setOpen(false);
 });
 afterEach(async () => {
   await act(async () => root.unmount());
@@ -35,6 +37,7 @@ afterEach(async () => {
   watchStore.setState(previous, true);
   selectionStore.getState().clear();
   closeSheet();
+  setOpenSelection(null);
   harness.restore();
 });
 
@@ -80,7 +83,15 @@ it.each(Object.keys(views) as PlaceRow["place"][])(
       `.place-fresh-items [data-selection-id="${extra.id}"]`,
     );
     await act(async () => target?.click());
-    expect(selectionStore.getState().selected).toBe(extra.id);
+    expect(openSelection()).toEqual({ kind: "fresh-item", id: extra.id });
+    expect(container.querySelector(".place-fresh-body .opened-body")).not.toBeNull();
+    const onToday = body.briefing.lines?.some(({ members }) =>
+      members.some((member) => member.id === extra.id || member.ids.includes(extra.id)),
+    );
+    expect(container.querySelector(".place-fresh-body .opened-body-place") !== null).toBe(
+      Boolean(onToday),
+    );
+    expect(selectionStore.getState().open).toBe(false);
 
     for (const fresh of [{ itemIds: [] }, undefined]) {
       const next = structuredClone(body);

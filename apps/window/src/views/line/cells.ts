@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { FocusItem, Station, StationSubstate } from "@spi-code/contracts";
+import type { FocusItem, Station, StationSubstate, TodayMember } from "@spi-code/contracts";
 
 export const columns = [
   { id: "upstream", label: "Upstream" },
@@ -73,4 +73,11 @@ export function cellText(station: Station, items: readonly FocusItem[]): string 
         : "sync halted",
     )
     .replace(/port owed/, "provider changes to port");
+}
+
+export function memberStations(member: TodayMember | undefined): readonly Station["id"][] {
+  if (!member) return [];
+  const kind = member.id.split(":")[0] ?? "";
+  const stations = itemStations[kind] ?? [];
+  return kind === "gate2" && member.blockedBy === "stack:lanes" ? [...stations, "lane"] : stations;
 }

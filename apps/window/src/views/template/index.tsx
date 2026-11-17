@@ -4,7 +4,7 @@
 import type { Reading, RepoEntry, RepoLine, ViewSnapshot } from "@spi-code/contracts";
 import { useLayoutEffect, useRef } from "react";
 import { useStore } from "zustand";
-import { navigate } from "../../app/navigation.js";
+import { navigate, useOpenSelection } from "../../app/navigation.js";
 import { type QueueEntry, treeServices } from "../../app/queue.js";
 import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
 import { Place } from "../../components/place/Place.js";
@@ -95,6 +95,7 @@ export default function Template({
   store?: typeof watchStore;
   inspector?: SelectionStore;
 }) {
+  const marked = useOpenSelection();
   const snapshot = useStore(store, (state) => state.snapshot?.body);
   const reading =
     snapshot?.readings.find(({ anchor }) => anchor.kind === "engineering") ?? NO_READING;
@@ -164,7 +165,11 @@ export default function Template({
               {ladder && (
                 <Rollout
                   ladder={ladder}
-                  selected={rollout !== undefined && list.selected === rollout.id}
+                  selected={
+                    rollout !== undefined &&
+                    (list.selected === rollout.id ||
+                      (marked?.kind === "item" && marked.id === rollout.id))
+                  }
                   onSelect={() => {
                     if (!rollout) return;
                     list.select(rollout);

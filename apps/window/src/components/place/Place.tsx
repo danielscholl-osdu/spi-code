@@ -3,13 +3,14 @@
 
 import type { PlaceRow, Reading, Tone, ViewSnapshot } from "@spi-code/contracts";
 import type { ReactNode } from "react";
-import { type Navigation, PLACES, routeLabel } from "../../app/navigation.js";
+import { type Navigation, PLACES, routeLabel, useOpenSelection } from "../../app/navigation.js";
 import { scopeRoute } from "../../app/queue.js";
 import { PaneTitle } from "../../app/title-row.js";
 import { plainTitle } from "../../text.js";
 import { instantsIn, TimedText, timedText } from "../../time.js";
 import { PinControl } from "../pin/PinControl.js";
 import { FreshChip, FreshItems, freshItemIds } from "./FreshItems.js";
+import { PlaceHead } from "./PlaceHead.js";
 import "./place.css";
 
 type Item = NonNullable<Reading["content"]>["items"][number];
@@ -60,15 +61,17 @@ export function Place({
   belowItems,
 }: PlaceProps) {
   const { content } = reading;
+  const marked = useOpenSelection();
   const place = (
     {
       program: "line",
       environment: "environment",
       engineering: "engineering",
       security: "security",
-    } as Partial<Record<Reading["anchor"]["kind"], PlaceRow["place"]>>
+      upstream: "upstream",
+    } as Partial<Record<Reading["anchor"]["kind"], PlaceRow["place"] | "upstream">>
   )[reading.anchor.kind];
-  const fresh = place ? freshItemIds(snapshot, place) : [];
+  const fresh = place && place !== "upstream" ? freshItemIds(snapshot, place) : [];
   const ItemContent = onSelect ? "button" : "div";
   const lead = tiles ?? content?.tiles;
   const groups = new Map<string, Item[]>();
@@ -79,10 +82,24 @@ export function Place({
   }
   return (
     <section className="place" aria-label={name}>
-      <PaneTitle end={pin && <PinControl pin={pin} name={name} />}>
-        <h1 data-place>{name}</h1>
-        {actions}
-      </PaneTitle>
+      {place ? (
+        <PlaceHead
+          name={name}
+          place={place}
+          snapshot={snapshot}
+          heading={
+            <PaneTitle end={pin && <PinControl pin={pin} name={name} />}>
+              <h1 data-place>{name}</h1>
+              {actions}
+            </PaneTitle>
+          }
+        />
+      ) : (
+        <PaneTitle end={pin && <PinControl pin={pin} name={name} />}>
+          <h1 data-place>{name}</h1>
+          {actions}
+        </PaneTitle>
+      )}
       {(content || tiles || belowTiles) && (
         <section className="place-reading" aria-label={`${name} reading`}>
           {content && (
@@ -130,7 +147,11 @@ export function Place({
                           data-item-id={item.id}
                           data-attention={item.attention}
                           data-owned={item.owned || undefined}
-                          data-selected={(onSelect && selectedId === item.id) || undefined}
+                          data-selected={
+                            (onSelect && selectedId === item.id) ||
+                            (marked?.kind === "item" && marked.id === item.id) ||
+                            undefined
+                          }
                         >
                           <span className="place-rank" data-rung={item.rung}>
                             P{item.rung}
@@ -201,7 +222,7 @@ export function Place({
           {belowItems}
         </section>
       )}
-      {place && (
+      {place && place !== "upstream" && (
         <FreshItems
           snapshot={snapshot}
           place={place}

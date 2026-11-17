@@ -50,11 +50,11 @@ import {
 } from "../../store/pins.js";
 import { selectStrip } from "../../store/strip.js";
 import type { createWatchStore } from "../../store/watch.js";
-import { countInterrupts } from "../../views/today/selectors.js";
 import { useNow } from "../evidence/useNow.js";
 import { Icon, type IconName } from "../icons/Icon.js";
 import { isContextMenuKey } from "../pin/PinMenu.js";
 import { PinNotice } from "../pin/PinNotice.js";
+import { todayMembers } from "../place/members.js";
 import { useGroupCollapse } from "./collapse.js";
 import { type PinWord, pinWord } from "./pin-word.js";
 import {
@@ -358,7 +358,7 @@ export function ProgramSidebar({
   const strip = body ? selectStrip(body) : undefined;
   const now = useNow(30_000, syncDeadline(strip?.nextSync, Date.now()));
   const status = statusRows(strip, now);
-  const interrupts = briefing ? countInterrupts(briefing) : 0;
+  const todayCount = briefing ? todayMembers(briefing).length : 0;
   const { isMobile, setOpenMobile, visible } = useSidebar();
   const { collapsed, toggle } = useGroupCollapse();
   const presentation = useRef({ visible, expanded: !collapsed("pinned") });
@@ -485,12 +485,9 @@ export function ProgramSidebar({
               >
                 <Icon name="sun" className="sidebar-icon" />
                 <span className="sidebar-row-label">Today</span>
-                {interrupts > 0 && (
-                  <span
-                    className="sidebar-pip"
-                    title={`${interrupts} interruption${interrupts === 1 ? "" : "s"}`}
-                  >
-                    {interrupts}
+                {todayCount > 0 && (
+                  <span className="sidebar-pip" title={`${todayCount} yours on Today`}>
+                    {todayCount}
                   </span>
                 )}
               </SidebarMenuButton>

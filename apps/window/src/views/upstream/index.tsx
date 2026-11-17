@@ -4,7 +4,7 @@
 import type { Theme } from "@spi-code/contracts";
 import { Fragment } from "react";
 import { useStore } from "zustand";
-import { navigate } from "../../app/navigation.js";
+import { navigate, useOpenSelection } from "../../app/navigation.js";
 import { treeServices } from "../../app/queue.js";
 import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
 import { Place } from "../../components/place/Place.js";
@@ -52,6 +52,7 @@ export default function Upstream({
   store?: typeof watchStore;
   inspector?: SelectionStore;
 }) {
+  const marked = useOpenSelection();
   const snapshot = useStore(store, (state) => state.snapshot?.body);
   const selected = useStore(inspector, (state) => state.selected);
   if (!snapshot) return null;
@@ -67,6 +68,7 @@ export default function Upstream({
         name="Upstream"
         pin={placePin("upstream")}
         reading={reading}
+        snapshot={snapshot}
         services={treeServices(snapshot.tree)}
         onNavigate={navigate}
         onSelect={select}
@@ -105,7 +107,11 @@ export default function Upstream({
                   key={theme.id}
                   data-theme-id={theme.id}
                   data-pointer={`/briefing/themes/${index}`}
-                  data-selected={selected === row.id || undefined}
+                  data-selected={
+                    selected === row.id ||
+                    (marked?.kind === "item" && marked.id === theme.inspect) ||
+                    undefined
+                  }
                 >
                   <button
                     type="button"
