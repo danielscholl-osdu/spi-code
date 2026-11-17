@@ -1,0 +1,2506 @@
+{
+  "repositories": {
+    "headline": "In SPI-owned shipped code: 6 high vulnerabilities and 22 high code-scanning alerts.",
+    "facts": [
+      {
+        "label": "Issues",
+        "figure": "32",
+        "sub": "15 human-required · 2 bugs · 5 enhancements · 23 from the sync engine",
+        "tone": "bad"
+      },
+      {
+        "label": "Pull Requests",
+        "figure": "7",
+        "sub": "7 chore · 3 with conflicts or red checks",
+        "tone": "warn"
+      },
+      {
+        "label": "Dependabot Bumps",
+        "figure": "27",
+        "sub": "25 waiting on review · 2 behind main · 16 close vulnerabilities",
+        "tone": "neutral"
+      },
+      {
+        "label": "Vulnerabilities · ours",
+        "figure": "6",
+        "sub": "critical or high in shipped code · 1 package · 6 more from upstream",
+        "tone": "warn"
+      },
+      {
+        "label": "Code scanning · ours",
+        "figure": "22",
+        "sub": "critical or high in shipped code · 3 rules · 103 more from upstream",
+        "tone": "warn"
+      }
+    ],
+    "rows": [
+      {
+        "id": "repo:osdu-spi",
+        "name": "osdu-spi",
+        "group": "program",
+        "cells": {
+          "changes": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "dependabot": {
+            "text": "1",
+            "tone": "neutral"
+          },
+          "issues": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 8",
+            "fade": true
+          },
+          "vulnerabilities": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 0",
+            "fade": true
+          },
+          "codeScanning": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 0",
+            "fade": true
+          }
+        },
+        "title": "1 Dependabot bump open",
+        "tone": "neutral",
+        "sub": "#296 chore(deps): bump the docker group in /build with 3 updates; needs review.",
+        "sections": [
+          {
+            "title": "Issues",
+            "count": "8",
+            "lines": [
+              {
+                "tag": "bug",
+                "tone": "neutral",
+                "text": "Azure code removal syncs drop provider attributions from NOTICE · #265",
+                "sub": "opened 27d ago · 0 comments",
+                "id": "issue:Azure/osdu-spi:265",
+                "url": "https://github.com/Azure/osdu-spi/issues/265"
+              },
+              {
+                "tag": "bug",
+                "tone": "neutral",
+                "text": "validate: duplicate PR runs push the same image tag and break the deploy lane pin · #250",
+                "sub": "opened 40d ago · 0 comments",
+                "id": "issue:Azure/osdu-spi:250",
+                "url": "https://github.com/Azure/osdu-spi/issues/250"
+              },
+              {
+                "tag": "enhancement",
+                "tone": "neutral",
+                "text": "acceptance image: build each shared pytest venv once, dry-run Cucumber in the prewarm · #285",
+                "sub": "opened 12d ago · 0 comments",
+                "id": "issue:Azure/osdu-spi:285",
+                "url": "https://github.com/Azure/osdu-spi/issues/285"
+              }
+            ]
+          },
+          {
+            "title": "Dependabot Bumps",
+            "count": "1",
+            "lines": [
+              {
+                "tag": "deps",
+                "tone": "warn",
+                "text": "chore(deps): bump the docker group in /build with 3 updates · #296",
+                "sub": "needs review · SPI shipped · root",
+                "id": "pr:Azure/osdu-spi:296",
+                "url": "https://github.com/Azure/osdu-spi/pull/296"
+              }
+            ],
+            "weight": "minor"
+          },
+          {
+            "title": "Code scanning",
+            "count": "8 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Branch-Protection · 1 alert",
+                "sub": "SPI · repository settings · found by Scorecard",
+                "id": "alert:Azure/osdu-spi:code:Scorecard:BranchProtectionID:",
+                "url": "https://github.com/Azure/osdu-spi/security/code-scanning/7"
+              },
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Code-Review · 1 alert",
+                "sub": "SPI · repository settings · found by Scorecard",
+                "id": "alert:Azure/osdu-spi:code:Scorecard:CodeReviewID:",
+                "url": "https://github.com/Azure/osdu-spi/security/code-scanning/14"
+              },
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "Fuzzing · 1 alert",
+                "sub": "SPI · repository settings · found by Scorecard",
+                "id": "alert:Azure/osdu-spi:code:Scorecard:FuzzingID:",
+                "url": "https://github.com/Azure/osdu-spi/security/code-scanning/11"
+              }
+            ],
+            "rest": " · 0 upstream",
+            "weight": "quiet"
+          }
+        ],
+        "note": "Not shown here: 5 more alert groups; 1 pipeline PR, on Flow. The inspector lists every item."
+      },
+      {
+        "id": "repo:osdu-spi-stack",
+        "name": "osdu-spi-stack",
+        "group": "program",
+        "cells": {
+          "changes": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "dependabot": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "issues": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 1",
+            "fade": true
+          },
+          "vulnerabilities": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 0",
+            "fade": true
+          },
+          "codeScanning": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 0",
+            "fade": true
+          }
+        },
+        "title": "Nothing open that is ours to fix",
+        "tone": "ok",
+        "sub": "No critical or high vulnerability or code-scanning alert in SPI-owned shipped code, and no pull request waiting.",
+        "sections": [
+          {
+            "title": "Issues",
+            "count": "1",
+            "lines": [
+              {
+                "tag": "issue",
+                "tone": "neutral",
+                "text": "[feat] Service groups on top of core · #409",
+                "sub": "opened 24d ago · 2 comments",
+                "id": "issue:Azure/osdu-spi-stack:409",
+                "url": "https://github.com/Azure/osdu-spi-stack/issues/409"
+              }
+            ]
+          }
+        ],
+        "note": "Not shown here: 1 pipeline PR, on Flow. The inspector lists every item."
+      },
+      {
+        "id": "repo:partition",
+        "name": "partition",
+        "group": "fork",
+        "cells": {
+          "changes": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "dependabot": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "issues": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 1",
+            "fade": true
+          },
+          "vulnerabilities": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 1",
+            "fade": true
+          },
+          "codeScanning": {
+            "text": "2",
+            "tone": "warn",
+            "rest": " · 0",
+            "fade": true
+          }
+        },
+        "title": "High code-scanning alert: Disabled Spring CSRF protection",
+        "tone": "bad",
+        "sub": "2 alerts in SPI-owned shipped code at provider/partition-azure, found by CodeQL. Also ours on entitlements, legal, schema and 8 more.",
+        "sections": [
+          {
+            "title": "Vulnerabilities",
+            "count": "0 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "guava · 1 vulnerability",
+                "sub": "Upstream · shipped · pom.xml · fixed in 33.7.2",
+                "upstream": true,
+                "id": "alert:Azure/osdu-spi-partition:dep:pom.xml:com.google.guava:guava",
+                "url": "https://github.com/Azure/osdu-spi-partition/security/dependabot/86"
+              }
+            ],
+            "rest": " · 1 upstream",
+            "weight": "quiet"
+          },
+          {
+            "title": "Code scanning",
+            "count": "2 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Disabled Spring CSRF protection · 2 alerts",
+                "sub": "SPI · shipped · provider/partition-azure · found by CodeQL · also ours on entitlements, legal, schema and 8 more",
+                "id": "alert:Azure/osdu-spi-partition:code:CodeQL:java/spring-disabled-csrf-protection:provider/partition-azure",
+                "url": "https://github.com/Azure/osdu-spi-partition/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+              },
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "Log Injection · 1 alert",
+                "sub": "SPI · shipped · provider/partition-azure · found by CodeQL · also ours on schema, file and workflow",
+                "id": "alert:Azure/osdu-spi-partition:code:CodeQL:java/log-injection:provider/partition-azure",
+                "url": "https://github.com/Azure/osdu-spi-partition/security/code-scanning/5"
+              }
+            ],
+            "rest": " · 0 upstream",
+            "weight": "quiet"
+          }
+        ],
+        "note": "Not shown here: 2 more alert groups, 2 in tests; 1 sync engine issue, already on Today; 1 pipeline PR, on Flow. The inspector lists every item."
+      },
+      {
+        "id": "repo:entitlements",
+        "name": "entitlements",
+        "group": "fork",
+        "cells": {
+          "changes": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "dependabot": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "issues": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 1",
+            "fade": true
+          },
+          "vulnerabilities": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 0",
+            "fade": true
+          },
+          "codeScanning": {
+            "text": "2",
+            "tone": "warn",
+            "rest": " · 0",
+            "fade": true
+          }
+        },
+        "title": "High code-scanning alert: Disabled Spring CSRF protection",
+        "tone": "bad",
+        "sub": "2 alerts in SPI-owned shipped code at provider/entitlements-v2-azure, found by CodeQL. Also ours on partition, legal, schema and 8 more.",
+        "sections": [
+          {
+            "title": "Vulnerabilities",
+            "count": "0 ours",
+            "lines": [
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "log4j-core · 4 vulnerabilities",
+                "sub": "Upstream · shipped · pom.xml · fixed in 2.25.4",
+                "upstream": true,
+                "id": "alert:Azure/osdu-spi-entitlements:dep:pom.xml:org.apache.logging.log4j:log4j-core",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/security/dependabot?q=is%3Aopen%20package%3Aorg.apache.logging.log4j%3Alog4j-core%20manifest%3Apom.xml"
+              },
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "log4j-api · 1 vulnerability",
+                "sub": "Upstream · shipped · pom.xml · fixed in 2.25.5",
+                "upstream": true,
+                "id": "alert:Azure/osdu-spi-entitlements:dep:pom.xml:org.apache.logging.log4j:log4j-api",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/security/dependabot/5"
+              }
+            ],
+            "rest": " · 2 upstream",
+            "weight": "quiet"
+          },
+          {
+            "title": "Code scanning",
+            "count": "1 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Disabled Spring CSRF protection · 2 alerts",
+                "sub": "SPI · shipped · provider/entitlements-v2-azure · found by CodeQL · also ours on partition, legal, schema and 8 more",
+                "id": "alert:Azure/osdu-spi-entitlements:code:CodeQL:java/spring-disabled-csrf-protection:provider/entitlements-v2-azure",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+              },
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "Information exposure through an error message · 5 alerts",
+                "sub": "Upstream · shipped · entitlements-v2-core · found by CodeQL",
+                "upstream": true,
+                "id": "alert:Azure/osdu-spi-entitlements:code:CodeQL:java/error-message-exposure:entitlements-v2-core",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Ferror-message-exposure"
+              }
+            ],
+            "rest": " · 1 upstream",
+            "weight": "quiet"
+          }
+        ],
+        "note": "Not shown here: 3 more alert groups, 3 in tests; 1 sync engine issue, already on Today; 2 pipeline PRs, on Flow. The inspector lists every item."
+      },
+      {
+        "id": "repo:legal",
+        "name": "legal",
+        "group": "fork",
+        "cells": {
+          "changes": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "dependabot": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "issues": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 1",
+            "fade": true
+          },
+          "vulnerabilities": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 0",
+            "fade": true
+          },
+          "codeScanning": {
+            "text": "2",
+            "tone": "warn",
+            "rest": " · 0",
+            "fade": true
+          }
+        },
+        "title": "High code-scanning alert: Disabled Spring CSRF protection",
+        "tone": "bad",
+        "sub": "2 alerts in SPI-owned shipped code at provider/legal-azure, found by CodeQL. Also ours on partition, entitlements, schema and 8 more.",
+        "sections": [
+          {
+            "title": "Vulnerabilities",
+            "count": "0 ours",
+            "lines": [
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "json · 1 vulnerability",
+                "sub": "Upstream · shipped · legal-core/pom.xml · fixed in 20260719",
+                "upstream": true,
+                "id": "alert:Azure/osdu-spi-legal:dep:legal-core/pom.xml:org.json:json",
+                "url": "https://github.com/Azure/osdu-spi-legal/security/dependabot/5"
+              }
+            ],
+            "rest": " · 1 upstream",
+            "weight": "quiet"
+          },
+          {
+            "title": "Code scanning",
+            "count": "1 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Disabled Spring CSRF protection · 2 alerts",
+                "sub": "SPI · shipped · provider/legal-azure · found by CodeQL · also ours on partition, entitlements, schema and 8 more",
+                "id": "alert:Azure/osdu-spi-legal:code:CodeQL:java/spring-disabled-csrf-protection:provider/legal-azure",
+                "url": "https://github.com/Azure/osdu-spi-legal/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+              }
+            ],
+            "rest": " · 0 upstream",
+            "weight": "quiet"
+          }
+        ],
+        "note": "Not shown here: 3 more alert groups, 3 in tests; 1 sync engine issue, already on Today; 2 pipeline PRs, on Flow. The inspector lists every item."
+      },
+      {
+        "id": "repo:schema",
+        "name": "schema",
+        "group": "fork",
+        "cells": {
+          "changes": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "dependabot": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "issues": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 1",
+            "fade": true
+          },
+          "vulnerabilities": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 0",
+            "fade": true
+          },
+          "codeScanning": {
+            "text": "3",
+            "tone": "warn",
+            "rest": " · 0",
+            "fade": true
+          }
+        },
+        "title": "High code-scanning alert: Disabled Spring CSRF protection",
+        "tone": "bad",
+        "sub": "3 alerts in SPI-owned shipped code at provider/schema-azure, found by CodeQL. Also ours on partition, entitlements, legal and 8 more.",
+        "sections": [
+          {
+            "title": "Vulnerabilities",
+            "count": "0 ours",
+            "lines": [
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "json · 1 vulnerability",
+                "sub": "Upstream · shipped · schema-core/pom.xml · fixed in 20260719",
+                "upstream": true,
+                "id": "alert:Azure/osdu-spi-schema:dep:schema-core/pom.xml:org.json:json",
+                "url": "https://github.com/Azure/osdu-spi-schema/security/dependabot/47"
+              }
+            ],
+            "rest": " · 1 upstream",
+            "weight": "quiet"
+          },
+          {
+            "title": "Code scanning",
+            "count": "2 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Disabled Spring CSRF protection · 3 alerts",
+                "sub": "SPI · shipped · provider/schema-azure · found by CodeQL · also ours on partition, entitlements, legal and 8 more",
+                "id": "alert:Azure/osdu-spi-schema:code:CodeQL:java/spring-disabled-csrf-protection:provider/schema-azure",
+                "url": "https://github.com/Azure/osdu-spi-schema/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+              },
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "Log Injection · 2 alerts",
+                "sub": "SPI · shipped · provider/schema-azure · found by CodeQL · also ours on partition, file and workflow",
+                "id": "alert:Azure/osdu-spi-schema:code:CodeQL:java/log-injection:provider/schema-azure",
+                "url": "https://github.com/Azure/osdu-spi-schema/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Flog-injection"
+              }
+            ],
+            "rest": " · 0 upstream",
+            "weight": "quiet"
+          }
+        ],
+        "note": "Not shown here: 4 more alert groups, 2 in tests; 1 sync engine issue, already on Today; 2 pipeline PRs, on Flow. The inspector lists every item."
+      },
+      {
+        "id": "repo:file",
+        "name": "file",
+        "group": "fork",
+        "cells": {
+          "changes": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "dependabot": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "issues": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 0",
+            "fade": true
+          },
+          "vulnerabilities": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 0",
+            "fade": true
+          },
+          "codeScanning": {
+            "text": "2",
+            "tone": "warn",
+            "rest": " · 1",
+            "fade": true
+          }
+        },
+        "title": "High code-scanning alert: Disabled Spring CSRF protection",
+        "tone": "bad",
+        "sub": "2 alerts in SPI-owned shipped code at provider/file-azure, found by CodeQL. Also ours on partition, entitlements, legal and 8 more.",
+        "sections": [
+          {
+            "title": "Code scanning",
+            "count": "2 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Disabled Spring CSRF protection · 2 alerts",
+                "sub": "SPI · shipped · provider/file-azure · found by CodeQL · also ours on partition, entitlements, legal and 8 more",
+                "id": "alert:Azure/osdu-spi-file:code:CodeQL:java/spring-disabled-csrf-protection:provider/file-azure",
+                "url": "https://github.com/Azure/osdu-spi-file/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+              },
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "Log Injection · 4 alerts",
+                "sub": "SPI · shipped · provider/file-azure · found by CodeQL · also ours on partition, schema and workflow",
+                "id": "alert:Azure/osdu-spi-file:code:CodeQL:java/log-injection:provider/file-azure",
+                "url": "https://github.com/Azure/osdu-spi-file/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Flog-injection"
+              },
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Implicit narrowing conversion in compound assignment · 1 alert",
+                "sub": "Upstream · shipped · file-core · found by CodeQL",
+                "upstream": true,
+                "id": "alert:Azure/osdu-spi-file:code:CodeQL:java/implicit-cast-in-compound-assignment:file-core",
+                "url": "https://github.com/Azure/osdu-spi-file/security/code-scanning/2"
+              }
+            ],
+            "rest": " · 2 upstream",
+            "weight": "quiet"
+          }
+        ],
+        "note": "Not shown here: 6 more alert groups, 5 in tests; 1 pipeline PR, on Flow. The inspector lists every item."
+      },
+      {
+        "id": "repo:storage",
+        "name": "storage",
+        "group": "fork",
+        "cells": {
+          "changes": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "dependabot": {
+            "text": "1",
+            "tone": "neutral"
+          },
+          "issues": {
+            "text": "1",
+            "tone": "bad",
+            "rest": " · 1",
+            "fade": true
+          },
+          "vulnerabilities": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 0",
+            "fade": true
+          },
+          "codeScanning": {
+            "text": "3",
+            "tone": "warn",
+            "rest": " · 0",
+            "fade": true
+          }
+        },
+        "title": "1 issue needs a person",
+        "tone": "bad",
+        "sub": "#67 ⚙️ CODEOWNERS: missing or unresolvable owners, open 7d.",
+        "sections": [
+          {
+            "title": "Issues",
+            "count": "1 human-required",
+            "lines": [
+              {
+                "tag": "human-required",
+                "tone": "bad",
+                "text": "⚙️ CODEOWNERS: missing or unresolvable owners · #67",
+                "sub": "opened 7d ago · 0 comments · from the sync engine",
+                "id": "issue:Azure/osdu-spi-storage:67",
+                "url": "https://github.com/Azure/osdu-spi-storage/issues/67"
+              }
+            ],
+            "rest": " · 0 other"
+          },
+          {
+            "title": "Dependabot Bumps",
+            "count": "1",
+            "lines": [
+              {
+                "tag": "deps",
+                "tone": "warn",
+                "text": "azure-storage-blob 12.36.0 to 12.36.1 · #71",
+                "sub": "needs review · SPI tests · /testing/storage-test-azure",
+                "id": "pr:Azure/osdu-spi-storage:71",
+                "url": "https://github.com/Azure/osdu-spi-storage/pull/71"
+              }
+            ],
+            "weight": "minor"
+          },
+          {
+            "title": "Code scanning",
+            "count": "2 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Disabled Spring CSRF protection · 2 alerts",
+                "sub": "SPI · shipped · provider/storage-azure · found by CodeQL · also ours on partition, entitlements, legal and 8 more",
+                "id": "alert:Azure/osdu-spi-storage:code:CodeQL:java/spring-disabled-csrf-protection:provider/storage-azure",
+                "url": "https://github.com/Azure/osdu-spi-storage/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+              },
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "User-controlled data in arithmetic expression · 1 alert",
+                "sub": "SPI · shipped · provider/storage-azure · found by CodeQL",
+                "id": "alert:Azure/osdu-spi-storage:code:CodeQL:java/tainted-arithmetic:provider/storage-azure",
+                "url": "https://github.com/Azure/osdu-spi-storage/security/code-scanning/5"
+              },
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "Log Injection · 1 alert",
+                "sub": "Upstream · shipped · storage-core · found by CodeQL",
+                "upstream": true,
+                "id": "alert:Azure/osdu-spi-storage:code:CodeQL:java/log-injection:storage-core",
+                "url": "https://github.com/Azure/osdu-spi-storage/security/code-scanning/6"
+              }
+            ],
+            "rest": " · 1 upstream",
+            "weight": "quiet"
+          }
+        ],
+        "note": "Not shown here: 4 more alert groups, 4 in tests; 1 sync engine issue, already on Today; 2 pipeline PRs, on Flow. The inspector lists every item."
+      },
+      {
+        "id": "repo:indexer",
+        "name": "indexer",
+        "group": "fork",
+        "cells": {
+          "changes": {
+            "text": "1",
+            "tone": "neutral"
+          },
+          "dependabot": {
+            "text": "3",
+            "tone": "neutral"
+          },
+          "issues": {
+            "text": "2",
+            "tone": "bad",
+            "rest": " · 1",
+            "fade": true
+          },
+          "vulnerabilities": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 1",
+            "fade": true
+          },
+          "codeScanning": {
+            "text": "2",
+            "tone": "warn",
+            "rest": " · 0",
+            "fade": true
+          }
+        },
+        "title": "2 issues need a person",
+        "tone": "bad",
+        "sub": "#63 ⚙️ CODEOWNERS: missing or unresolvable owners, open 7d.",
+        "sections": [
+          {
+            "title": "Issues",
+            "count": "2 human-required",
+            "lines": [
+              {
+                "tag": "human-required",
+                "tone": "bad",
+                "text": "🔄 Upstream Sync Failed 2026-11-17 · #72",
+                "sub": "opened 33m ago · 0 comments · from the sync engine",
+                "id": "issue:Azure/osdu-spi-indexer:72",
+                "url": "https://github.com/Azure/osdu-spi-indexer/issues/72"
+              },
+              {
+                "tag": "human-required",
+                "tone": "bad",
+                "text": "⚙️ CODEOWNERS: missing or unresolvable owners · #63",
+                "sub": "opened 7d ago · 0 comments · from the sync engine",
+                "id": "issue:Azure/osdu-spi-indexer:63",
+                "url": "https://github.com/Azure/osdu-spi-indexer/issues/63"
+              }
+            ],
+            "rest": " · 0 other"
+          },
+          {
+            "title": "Pull Requests",
+            "count": "1",
+            "lines": [
+              {
+                "tag": "chore",
+                "tone": "bad",
+                "text": "declare component governance inputs · #68",
+                "sub": "red · opened 7d ago · by yuchen-wang99 · also open on search, workflow, indexer-queue and 3 more",
+                "id": "pr:Azure/osdu-spi-indexer:68",
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/68"
+              }
+            ]
+          },
+          {
+            "title": "Dependabot Bumps",
+            "count": "3",
+            "lines": [
+              {
+                "tag": "deps",
+                "tone": "warn",
+                "text": "guava 27.1-jre to 33.7.1-jre · #71",
+                "sub": "needs review · SPI tests · /testing/indexer-test-azure · closes 3 vulnerabilities",
+                "id": "pr:Azure/osdu-spi-indexer:71",
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/71"
+              },
+              {
+                "tag": "deps",
+                "tone": "neutral",
+                "text": "netty-all 4.1.139.Final to 4.1.140.Final · #66",
+                "sub": "behind · SPI tests · /testing/indexer-test-azure",
+                "id": "pr:Azure/osdu-spi-indexer:66",
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/66"
+              },
+              {
+                "tag": "deps",
+                "tone": "warn",
+                "text": "netty-transport 4.1.139.Final to 4.1.140.Final · #65",
+                "sub": "needs review · SPI tests · /testing/indexer-test-azure",
+                "id": "pr:Azure/osdu-spi-indexer:65",
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/65"
+              }
+            ],
+            "weight": "minor"
+          },
+          {
+            "title": "Vulnerabilities",
+            "count": "0 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "guava · 1 vulnerability",
+                "sub": "Upstream · shipped · indexer-core/pom.xml · fixed in 33.7.2",
+                "upstream": true,
+                "id": "alert:Azure/osdu-spi-indexer:dep:indexer-core/pom.xml:com.google.guava:guava",
+                "url": "https://github.com/Azure/osdu-spi-indexer/security/dependabot/6"
+              }
+            ],
+            "rest": " · 1 upstream",
+            "weight": "quiet"
+          },
+          {
+            "title": "Code scanning",
+            "count": "1 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Disabled Spring CSRF protection · 2 alerts",
+                "sub": "SPI · shipped · provider/indexer-azure · found by CodeQL · also ours on partition, entitlements, legal and 8 more",
+                "id": "alert:Azure/osdu-spi-indexer:code:CodeQL:java/spring-disabled-csrf-protection:provider/indexer-azure",
+                "url": "https://github.com/Azure/osdu-spi-indexer/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+              }
+            ],
+            "rest": " · 0 upstream",
+            "weight": "quiet"
+          }
+        ],
+        "note": "Not shown here: 3 more alert groups, 3 in tests; 1 sync engine issue, already on Today; 2 pipeline PRs, on Flow. The inspector lists every item."
+      },
+      {
+        "id": "repo:search",
+        "name": "search",
+        "group": "fork",
+        "cells": {
+          "changes": {
+            "text": "1",
+            "tone": "neutral"
+          },
+          "dependabot": {
+            "text": "2",
+            "tone": "neutral"
+          },
+          "issues": {
+            "text": "2",
+            "tone": "bad",
+            "rest": " · 1",
+            "fade": true
+          },
+          "vulnerabilities": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 1",
+            "fade": true
+          },
+          "codeScanning": {
+            "text": "2",
+            "tone": "warn",
+            "rest": " · 0",
+            "fade": true
+          }
+        },
+        "title": "2 issues need a person",
+        "tone": "bad",
+        "sub": "#65 ⚙️ CODEOWNERS: missing or unresolvable owners, open 7d.",
+        "sections": [
+          {
+            "title": "Issues",
+            "count": "2 human-required",
+            "lines": [
+              {
+                "tag": "human-required",
+                "tone": "bad",
+                "text": "📥 Upstream Sync Ready for Review - 2026-11-11 · #78",
+                "sub": "opened 6d ago · 0 comments · from the sync engine",
+                "id": "issue:Azure/osdu-spi-search:78",
+                "url": "https://github.com/Azure/osdu-spi-search/issues/78"
+              },
+              {
+                "tag": "human-required",
+                "tone": "bad",
+                "text": "⚙️ CODEOWNERS: missing or unresolvable owners · #65",
+                "sub": "opened 7d ago · 0 comments · from the sync engine",
+                "id": "issue:Azure/osdu-spi-search:65",
+                "url": "https://github.com/Azure/osdu-spi-search/issues/65"
+              }
+            ],
+            "rest": " · 0 other"
+          },
+          {
+            "title": "Pull Requests",
+            "count": "1",
+            "lines": [
+              {
+                "tag": "chore",
+                "tone": "bad",
+                "text": "declare component governance inputs · #71",
+                "sub": "red · opened 7d ago · by yuchen-wang99 · also open on indexer, workflow, indexer-queue and 3 more",
+                "id": "pr:Azure/osdu-spi-search:71",
+                "url": "https://github.com/Azure/osdu-spi-search/pull/71"
+              }
+            ]
+          },
+          {
+            "title": "Dependabot Bumps",
+            "count": "2",
+            "lines": [
+              {
+                "tag": "deps",
+                "tone": "warn",
+                "text": "netty-transport 4.1.139.Final to 4.1.140.Final · #69",
+                "sub": "needs review · SPI tests · /testing/search-test-azure",
+                "id": "pr:Azure/osdu-spi-search:69",
+                "url": "https://github.com/Azure/osdu-spi-search/pull/69"
+              },
+              {
+                "tag": "deps",
+                "tone": "warn",
+                "text": "netty-all 4.1.139.Final to 4.1.140.Final · #68",
+                "sub": "needs review · SPI tests · /testing/search-test-azure",
+                "id": "pr:Azure/osdu-spi-search:68",
+                "url": "https://github.com/Azure/osdu-spi-search/pull/68"
+              }
+            ],
+            "weight": "minor"
+          },
+          {
+            "title": "Vulnerabilities",
+            "count": "0 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "guava · 1 vulnerability",
+                "sub": "Upstream · shipped · pom.xml · fixed in 33.7.2",
+                "upstream": true,
+                "id": "alert:Azure/osdu-spi-search:dep:pom.xml:com.google.guava:guava",
+                "url": "https://github.com/Azure/osdu-spi-search/security/dependabot/20"
+              },
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "commons-compress · 2 vulnerabilities",
+                "sub": "Upstream · shipped · pom.xml · fixed in 1.26.0",
+                "upstream": true,
+                "id": "alert:Azure/osdu-spi-search:dep:pom.xml:org.apache.commons:commons-compress",
+                "url": "https://github.com/Azure/osdu-spi-search/security/dependabot?q=is%3Aopen%20package%3Aorg.apache.commons%3Acommons-compress%20manifest%3Apom.xml"
+              },
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "woodstox-core · 1 vulnerability",
+                "sub": "Upstream · shipped · pom.xml · fixed in 5.4.0",
+                "upstream": true,
+                "id": "alert:Azure/osdu-spi-search:dep:pom.xml:com.fasterxml.woodstox:woodstox-core",
+                "url": "https://github.com/Azure/osdu-spi-search/security/dependabot/1"
+              }
+            ],
+            "rest": " · 6 upstream",
+            "weight": "quiet"
+          },
+          {
+            "title": "Code scanning",
+            "count": "1 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Disabled Spring CSRF protection · 2 alerts",
+                "sub": "SPI · shipped · provider/search-azure · found by CodeQL · also ours on partition, entitlements, legal and 8 more",
+                "id": "alert:Azure/osdu-spi-search:code:CodeQL:java/spring-disabled-csrf-protection:provider/search-azure",
+                "url": "https://github.com/Azure/osdu-spi-search/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+              }
+            ],
+            "rest": " · 0 upstream",
+            "weight": "quiet"
+          }
+        ],
+        "note": "Not shown here: 8 more alert groups, 5 in tests; 1 sync engine issue, already on Today; 3 pipeline PRs, on Flow. The inspector lists every item."
+      },
+      {
+        "id": "repo:workflow",
+        "name": "workflow",
+        "group": "fork",
+        "cells": {
+          "changes": {
+            "text": "1",
+            "tone": "neutral"
+          },
+          "dependabot": {
+            "text": "3",
+            "tone": "neutral"
+          },
+          "issues": {
+            "text": "2",
+            "tone": "bad",
+            "rest": " · 0",
+            "fade": true
+          },
+          "vulnerabilities": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 2",
+            "fade": true
+          },
+          "codeScanning": {
+            "text": "1",
+            "tone": "warn",
+            "rest": " · 5",
+            "fade": true
+          }
+        },
+        "title": "2 issues need a person",
+        "tone": "bad",
+        "sub": "#55 ⚙️ CODEOWNERS: missing or unresolvable owners, open 7d.",
+        "sections": [
+          {
+            "title": "Issues",
+            "count": "2 human-required",
+            "lines": [
+              {
+                "tag": "human-required",
+                "tone": "bad",
+                "text": "📥 Upstream Sync Ready for Review - 2026-11-10 · #61",
+                "sub": "opened 7d ago · 0 comments · from the sync engine",
+                "id": "issue:Azure/osdu-spi-workflow:61",
+                "url": "https://github.com/Azure/osdu-spi-workflow/issues/61"
+              },
+              {
+                "tag": "human-required",
+                "tone": "bad",
+                "text": "⚙️ CODEOWNERS: missing or unresolvable owners · #55",
+                "sub": "opened 7d ago · 0 comments · from the sync engine",
+                "id": "issue:Azure/osdu-spi-workflow:55",
+                "url": "https://github.com/Azure/osdu-spi-workflow/issues/55"
+              }
+            ],
+            "rest": " · 0 other"
+          },
+          {
+            "title": "Pull Requests",
+            "count": "1",
+            "lines": [
+              {
+                "tag": "chore",
+                "tone": "warn",
+                "text": "declare component governance inputs · #59",
+                "sub": "needs review · opened 7d ago · by yuchen-wang99 · also open on indexer, search, indexer-queue and 3 more",
+                "id": "pr:Azure/osdu-spi-workflow:59",
+                "url": "https://github.com/Azure/osdu-spi-workflow/pull/59"
+              }
+            ]
+          },
+          {
+            "title": "Dependabot Bumps",
+            "count": "3",
+            "lines": [
+              {
+                "tag": "deps",
+                "tone": "neutral",
+                "text": "jackson-databind 2.13.5 to 2.18.11 · #53",
+                "sub": "behind · SPI tests · /testing/workflow-test-azure · closes 11 vulnerabilities",
+                "id": "pr:Azure/osdu-spi-workflow:53",
+                "url": "https://github.com/Azure/osdu-spi-workflow/pull/53"
+              },
+              {
+                "tag": "deps",
+                "tone": "warn",
+                "text": "guava 29.0-jre to 33.7.1-jre · #54",
+                "sub": "needs review · SPI tests · /testing/workflow-test-azure · closes 3 vulnerabilities",
+                "id": "pr:Azure/osdu-spi-workflow:54",
+                "url": "https://github.com/Azure/osdu-spi-workflow/pull/54"
+              },
+              {
+                "tag": "deps",
+                "tone": "warn",
+                "text": "netty-all 4.1.139.Final to 4.1.140.Final · #58",
+                "sub": "needs review · SPI tests · /testing/workflow-test-azure",
+                "id": "pr:Azure/osdu-spi-workflow:58",
+                "url": "https://github.com/Azure/osdu-spi-workflow/pull/58"
+              }
+            ],
+            "weight": "minor"
+          },
+          {
+            "title": "Vulnerabilities",
+            "count": "1 ours",
+            "lines": [
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "json · 1 vulnerability",
+                "sub": "SPI · shipped · provider/workflow-azure/pom.xml · fixed in 20260719",
+                "id": "alert:Azure/osdu-spi-workflow:dep:provider/workflow-azure/pom.xml:org.json:json",
+                "url": "https://github.com/Azure/osdu-spi-workflow/security/dependabot/40"
+              },
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "jsoup · 2 vulnerabilities",
+                "sub": "Upstream · shipped · pom.xml · fixed in 1.23.2",
+                "upstream": true,
+                "id": "alert:Azure/osdu-spi-workflow:dep:pom.xml:org.jsoup:jsoup",
+                "url": "https://github.com/Azure/osdu-spi-workflow/security/dependabot?q=is%3Aopen%20package%3Aorg.jsoup%3Ajsoup%20manifest%3Apom.xml"
+              },
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "guava · 1 vulnerability",
+                "sub": "Upstream · shipped · pom.xml · fixed in 33.7.2",
+                "upstream": true,
+                "id": "alert:Azure/osdu-spi-workflow:dep:pom.xml:com.google.guava:guava",
+                "url": "https://github.com/Azure/osdu-spi-workflow/security/dependabot/38"
+              }
+            ],
+            "rest": " · 3 upstream",
+            "weight": "quiet"
+          },
+          {
+            "title": "Code scanning",
+            "count": "2 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Insertion of sensitive information into log files · 1 alert",
+                "sub": "SPI · shipped · provider/workflow-azure · found by CodeQL",
+                "id": "alert:Azure/osdu-spi-workflow:code:CodeQL:java/sensitive-log:provider/workflow-azure",
+                "url": "https://github.com/Azure/osdu-spi-workflow/security/code-scanning/9"
+              },
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "Log Injection · 8 alerts",
+                "sub": "SPI · shipped · provider/workflow-azure · found by CodeQL · also ours on partition, schema and file",
+                "id": "alert:Azure/osdu-spi-workflow:code:CodeQL:java/log-injection:provider/workflow-azure",
+                "url": "https://github.com/Azure/osdu-spi-workflow/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Flog-injection"
+              },
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Insertion of sensitive information into log files · 5 alerts",
+                "sub": "Upstream · shipped · workflow-core · found by CodeQL",
+                "upstream": true,
+                "id": "alert:Azure/osdu-spi-workflow:code:CodeQL:java/sensitive-log:workflow-core",
+                "url": "https://github.com/Azure/osdu-spi-workflow/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fsensitive-log"
+              }
+            ],
+            "rest": " · 2 upstream",
+            "weight": "quiet"
+          }
+        ],
+        "note": "Not shown here: 11 more alert groups, 9 in tests; 2 pipeline PRs, on Flow. The inspector lists every item."
+      },
+      {
+        "id": "repo:indexer-queue",
+        "name": "indexer-queue",
+        "group": "fork",
+        "cells": {
+          "changes": {
+            "text": "1",
+            "tone": "neutral"
+          },
+          "dependabot": {
+            "text": "3",
+            "tone": "neutral"
+          },
+          "issues": {
+            "text": "1",
+            "tone": "bad",
+            "rest": " · 1",
+            "fade": true
+          },
+          "vulnerabilities": {
+            "text": "2",
+            "tone": "warn",
+            "rest": " · 1",
+            "fade": true
+          },
+          "codeScanning": {
+            "text": "1",
+            "tone": "warn",
+            "rest": " · 0",
+            "fade": true
+          }
+        },
+        "title": "1 issue needs a person",
+        "tone": "bad",
+        "sub": "#68 ⚙️ CODEOWNERS: missing or unresolvable owners, open 7d.",
+        "sections": [
+          {
+            "title": "Issues",
+            "count": "1 human-required",
+            "lines": [
+              {
+                "tag": "human-required",
+                "tone": "bad",
+                "text": "⚙️ CODEOWNERS: missing or unresolvable owners · #68",
+                "sub": "opened 7d ago · 0 comments · from the sync engine",
+                "id": "issue:Azure/osdu-spi-indexer-queue:68",
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/issues/68"
+              }
+            ],
+            "rest": " · 0 other"
+          },
+          {
+            "title": "Pull Requests",
+            "count": "1",
+            "lines": [
+              {
+                "tag": "chore",
+                "tone": "bad",
+                "text": "declare component governance inputs · #73",
+                "sub": "red · opened 7d ago · by yuchen-wang99 · also open on indexer, search, workflow and 3 more",
+                "id": "pr:Azure/osdu-spi-indexer-queue:73",
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/73"
+              }
+            ]
+          },
+          {
+            "title": "Dependabot Bumps",
+            "count": "3",
+            "lines": [
+              {
+                "tag": "deps",
+                "tone": "warn",
+                "text": "guava 27.1-jre to 33.7.1-jre · #75",
+                "sub": "needs review · SPI tests · /testing/indexer-queue-azure-enqueue · closes 3 vulnerabilities",
+                "id": "pr:Azure/osdu-spi-indexer-queue:75",
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/75"
+              },
+              {
+                "tag": "deps",
+                "tone": "warn",
+                "text": "jackson-databind 2.18.11 to 2.18.12 · #72",
+                "sub": "needs review · SPI tests · /testing/indexer-queue-azure-enqueue",
+                "id": "pr:Azure/osdu-spi-indexer-queue:72",
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/72"
+              },
+              {
+                "tag": "deps",
+                "tone": "warn",
+                "text": "jackson-core 2.18.11 to 2.18.12 · #71",
+                "sub": "needs review · SPI tests · /testing/indexer-queue-azure-enqueue",
+                "id": "pr:Azure/osdu-spi-indexer-queue:71",
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/71"
+              }
+            ],
+            "weight": "minor"
+          },
+          {
+            "title": "Vulnerabilities",
+            "count": "1 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "async-http-client · 4 vulnerabilities",
+                "sub": "SPI · shipped · indexer-queue-azure-enqueue/pom.xml · no fix published · also ours on unit and crs-conversion",
+                "id": "alert:Azure/osdu-spi-indexer-queue:dep:indexer-queue-azure-enqueue/pom.xml:org.asynchttpclient:async-http-client",
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/security/dependabot?q=is%3Aopen%20package%3Aorg.asynchttpclient%3Aasync-http-client%20manifest%3Aindexer-queue-azure-enqueue%2Fpom.xml"
+              },
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "guava · 1 vulnerability",
+                "sub": "Upstream · shipped · pom.xml · fixed in 33.7.2",
+                "upstream": true,
+                "id": "alert:Azure/osdu-spi-indexer-queue:dep:pom.xml:com.google.guava:guava",
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/security/dependabot/21"
+              }
+            ],
+            "rest": " · 1 upstream",
+            "weight": "quiet"
+          },
+          {
+            "title": "Code scanning",
+            "count": "1 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Disabled Spring CSRF protection · 1 alert",
+                "sub": "SPI · shipped · indexer-queue-azure-enqueue · found by CodeQL · also ours on partition, entitlements, legal and 8 more",
+                "id": "alert:Azure/osdu-spi-indexer-queue:code:CodeQL:java/spring-disabled-csrf-protection:indexer-queue-azure-enqueue",
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/security/code-scanning/3"
+              }
+            ],
+            "rest": " · 0 upstream",
+            "weight": "quiet"
+          }
+        ],
+        "note": "Not shown here: 2 more alert groups, 2 in tests; 1 sync engine issue, already on Today; 2 pipeline PRs, on Flow. The inspector lists every item."
+      },
+      {
+        "id": "repo:unit",
+        "name": "unit",
+        "group": "fork",
+        "cells": {
+          "changes": {
+            "text": "1",
+            "tone": "neutral"
+          },
+          "dependabot": {
+            "text": "5",
+            "tone": "neutral"
+          },
+          "issues": {
+            "text": "2",
+            "tone": "bad",
+            "rest": " · 0",
+            "fade": true
+          },
+          "vulnerabilities": {
+            "text": "2",
+            "tone": "warn",
+            "rest": " · 0",
+            "fade": true
+          },
+          "codeScanning": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 2",
+            "fade": true
+          }
+        },
+        "title": "2 issues need a person",
+        "tone": "bad",
+        "sub": "#51 📥 Upstream Sync Ready for Review - 2026-11-07, open 10d.",
+        "sections": [
+          {
+            "title": "Issues",
+            "count": "2 human-required",
+            "lines": [
+              {
+                "tag": "human-required",
+                "tone": "bad",
+                "text": "⚙️ CODEOWNERS: missing or unresolvable owners · #57",
+                "sub": "opened 7d ago · 0 comments · from the sync engine",
+                "id": "issue:Azure/osdu-spi-unit:57",
+                "url": "https://github.com/Azure/osdu-spi-unit/issues/57"
+              },
+              {
+                "tag": "human-required",
+                "tone": "bad",
+                "text": "📥 Upstream Sync Ready for Review - 2026-11-07 · #51",
+                "sub": "opened 10d ago · 0 comments · from the sync engine",
+                "id": "issue:Azure/osdu-spi-unit:51",
+                "url": "https://github.com/Azure/osdu-spi-unit/issues/51"
+              }
+            ],
+            "rest": " · 0 other"
+          },
+          {
+            "title": "Pull Requests",
+            "count": "1",
+            "lines": [
+              {
+                "tag": "chore",
+                "tone": "warn",
+                "text": "declare component governance inputs · #64",
+                "sub": "needs review · opened 7d ago · by yuchen-wang99 · also open on indexer, search, workflow and 3 more",
+                "id": "pr:Azure/osdu-spi-unit:64",
+                "url": "https://github.com/Azure/osdu-spi-unit/pull/64"
+              }
+            ]
+          },
+          {
+            "title": "Dependabot Bumps",
+            "count": "5",
+            "lines": [
+              {
+                "tag": "deps",
+                "tone": "warn",
+                "text": "jinja2 2.11.2 to 3.1.6 · #53",
+                "sub": "needs review · SPI tests · /testing/unit_test_azure · closes 5 vulnerabilities",
+                "id": "pr:Azure/osdu-spi-unit:53",
+                "url": "https://github.com/Azure/osdu-spi-unit/pull/53"
+              },
+              {
+                "tag": "deps",
+                "tone": "warn",
+                "text": "idna 2.10 to 3.15 · #55",
+                "sub": "needs review · SPI tests · /testing/unit_test_azure · closes 2 vulnerabilities",
+                "id": "pr:Azure/osdu-spi-unit:55",
+                "url": "https://github.com/Azure/osdu-spi-unit/pull/55"
+              },
+              {
+                "tag": "deps",
+                "tone": "warn",
+                "text": "flask 1.1.2 to 3.1.3 · #54",
+                "sub": "needs review · SPI tests · /testing/unit_test_azure · closes 2 vulnerabilities",
+                "id": "pr:Azure/osdu-spi-unit:54",
+                "url": "https://github.com/Azure/osdu-spi-unit/pull/54"
+              }
+            ],
+            "weight": "minor"
+          },
+          {
+            "title": "Vulnerabilities",
+            "count": "1 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "async-http-client · 4 vulnerabilities",
+                "sub": "SPI · shipped · provider/unit-azure/unit-aks/pom.xml · no fix published · also ours on indexer-queue and crs-conversion",
+                "id": "alert:Azure/osdu-spi-unit:dep:provider/unit-azure/unit-aks/pom.xml:org.asynchttpclient:async-http-client",
+                "url": "https://github.com/Azure/osdu-spi-unit/security/dependabot?q=is%3Aopen%20package%3Aorg.asynchttpclient%3Aasync-http-client%20manifest%3Aprovider%2Funit-azure%2Funit-aks%2Fpom.xml"
+              }
+            ],
+            "rest": " · 0 upstream",
+            "weight": "quiet"
+          },
+          {
+            "title": "Code scanning",
+            "count": "0 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "User-controlled data in arithmetic expression · 2 alerts",
+                "sub": "Upstream · shipped · unit-core · found by CodeQL",
+                "upstream": true,
+                "id": "alert:Azure/osdu-spi-unit:code:CodeQL:java/tainted-arithmetic:unit-core",
+                "url": "https://github.com/Azure/osdu-spi-unit/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Ftainted-arithmetic"
+              },
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "Log Injection · 5 alerts",
+                "sub": "Upstream · shipped · unit-core · found by CodeQL",
+                "upstream": true,
+                "id": "alert:Azure/osdu-spi-unit:code:CodeQL:java/log-injection:unit-core",
+                "url": "https://github.com/Azure/osdu-spi-unit/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Flog-injection"
+              }
+            ],
+            "rest": " · 2 upstream",
+            "weight": "quiet"
+          }
+        ],
+        "note": "Not shown here: 6 more alert groups, 6 in tests; 2 pipeline PRs, on Flow. The inspector lists every item."
+      },
+      {
+        "id": "repo:crs-catalog",
+        "name": "crs-catalog",
+        "group": "fork",
+        "cells": {
+          "changes": {
+            "text": "1",
+            "tone": "neutral"
+          },
+          "dependabot": {
+            "text": "5",
+            "tone": "neutral"
+          },
+          "issues": {
+            "text": "2",
+            "tone": "bad",
+            "rest": " · 0",
+            "fade": true
+          },
+          "vulnerabilities": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 0",
+            "fade": true
+          },
+          "codeScanning": {
+            "text": "1",
+            "tone": "warn",
+            "rest": " · 14",
+            "fade": true
+          }
+        },
+        "title": "2 issues need a person",
+        "tone": "bad",
+        "sub": "#50 ⚙️ CODEOWNERS: missing or unresolvable owners, open 7d.",
+        "sections": [
+          {
+            "title": "Issues",
+            "count": "2 human-required",
+            "lines": [
+              {
+                "tag": "human-required",
+                "tone": "bad",
+                "text": "📥 Upstream Sync Ready for Review - 2026-11-10 · #55",
+                "sub": "opened 7d ago · 0 comments · from the sync engine",
+                "id": "issue:Azure/osdu-spi-crs-catalog:55",
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/issues/55"
+              },
+              {
+                "tag": "human-required",
+                "tone": "bad",
+                "text": "⚙️ CODEOWNERS: missing or unresolvable owners · #50",
+                "sub": "opened 7d ago · 0 comments · from the sync engine",
+                "id": "issue:Azure/osdu-spi-crs-catalog:50",
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/issues/50"
+              }
+            ],
+            "rest": " · 0 other"
+          },
+          {
+            "title": "Pull Requests",
+            "count": "1",
+            "lines": [
+              {
+                "tag": "chore",
+                "tone": "warn",
+                "text": "declare component governance inputs · #53",
+                "sub": "needs review · opened 7d ago · by yuchen-wang99 · also open on indexer, search, workflow and 3 more",
+                "id": "pr:Azure/osdu-spi-crs-catalog:53",
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/53"
+              }
+            ]
+          },
+          {
+            "title": "Dependabot Bumps",
+            "count": "5",
+            "lines": [
+              {
+                "tag": "deps",
+                "tone": "warn",
+                "text": "urllib3 1.25.8 to 2.8.0 · #46",
+                "sub": "needs review · SPI tests · /testing/catalog_test_azure · closes 11 vulnerabilities",
+                "id": "pr:Azure/osdu-spi-crs-catalog:46",
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/46"
+              },
+              {
+                "tag": "deps",
+                "tone": "warn",
+                "text": "cryptography 2.8 to 50.0.0 · #45",
+                "sub": "needs review · SPI tests · /testing/catalog_test_azure · closes 11 vulnerabilities",
+                "id": "pr:Azure/osdu-spi-crs-catalog:45",
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/45"
+              },
+              {
+                "tag": "deps",
+                "tone": "warn",
+                "text": "pyjwt 1.7.1 to 2.15.0 · #47",
+                "sub": "needs review · SPI tests · /testing/catalog_test_azure · closes 9 vulnerabilities",
+                "id": "pr:Azure/osdu-spi-crs-catalog:47",
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/47"
+              }
+            ],
+            "weight": "minor"
+          },
+          {
+            "title": "Code scanning",
+            "count": "1 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Disabled Spring CSRF protection · 1 alert",
+                "sub": "SPI · shipped · provider/crs-catalog-azure · found by CodeQL · also ours on partition, entitlements, legal and 8 more",
+                "id": "alert:Azure/osdu-spi-crs-catalog:code:CodeQL:java/spring-disabled-csrf-protection:provider/crs-catalog-azure",
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/security/code-scanning/2"
+              },
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "User-controlled data in arithmetic expression · 12 alerts",
+                "sub": "Upstream · shipped · crs-catalog-core · found by CodeQL",
+                "upstream": true,
+                "id": "alert:Azure/osdu-spi-crs-catalog:code:CodeQL:java/tainted-arithmetic:crs-catalog-core",
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Ftainted-arithmetic"
+              },
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Comparison of narrow type with wide type in loop condition · 2 alerts",
+                "sub": "Upstream · shipped · crs-catalog-core · found by CodeQL",
+                "upstream": true,
+                "id": "alert:Azure/osdu-spi-crs-catalog:code:CodeQL:java/comparison-with-wider-type:crs-catalog-core",
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fcomparison-with-wider-type"
+              }
+            ],
+            "rest": " · 3 upstream",
+            "weight": "quiet"
+          }
+        ],
+        "note": "Not shown here: 9 more alert groups, 8 in tests; 2 pipeline PRs, on Flow. The inspector lists every item."
+      },
+      {
+        "id": "repo:crs-conversion",
+        "name": "crs-conversion",
+        "group": "fork",
+        "cells": {
+          "changes": {
+            "text": "1",
+            "tone": "neutral"
+          },
+          "dependabot": {
+            "text": "4",
+            "tone": "neutral"
+          },
+          "issues": {
+            "text": "3",
+            "tone": "bad",
+            "rest": " · 0",
+            "fade": true
+          },
+          "vulnerabilities": {
+            "text": "2",
+            "tone": "warn",
+            "rest": " · 0",
+            "fade": true
+          },
+          "codeScanning": {
+            "text": "1",
+            "tone": "warn",
+            "rest": " · 81",
+            "fade": true
+          }
+        },
+        "title": "3 issues need a person",
+        "tone": "bad",
+        "sub": "#37 ⚙️ CODEOWNERS: missing or unresolvable owners, open 7d.",
+        "sections": [
+          {
+            "title": "Issues",
+            "count": "3 human-required",
+            "lines": [
+              {
+                "tag": "human-required",
+                "tone": "bad",
+                "text": "🔄 Upstream Sync Failed 2026-11-11 · #44",
+                "sub": "opened 6d ago · 6 comments · from the sync engine",
+                "id": "issue:Azure/osdu-spi-crs-conversion:44",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/issues/44"
+              },
+              {
+                "tag": "human-required",
+                "tone": "bad",
+                "text": "📥 Upstream Sync Ready for Review - 2026-11-10 · #42",
+                "sub": "opened 7d ago · 0 comments · from the sync engine",
+                "id": "issue:Azure/osdu-spi-crs-conversion:42",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/issues/42"
+              },
+              {
+                "tag": "human-required",
+                "tone": "bad",
+                "text": "⚙️ CODEOWNERS: missing or unresolvable owners · #37",
+                "sub": "opened 7d ago · 0 comments · from the sync engine",
+                "id": "issue:Azure/osdu-spi-crs-conversion:37",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/issues/37"
+              }
+            ],
+            "rest": " · 0 other"
+          },
+          {
+            "title": "Pull Requests",
+            "count": "1",
+            "lines": [
+              {
+                "tag": "chore",
+                "tone": "warn",
+                "text": "declare component governance inputs · #40",
+                "sub": "needs review · opened 7d ago · by yuchen-wang99 · also open on indexer, search, workflow and 3 more",
+                "id": "pr:Azure/osdu-spi-crs-conversion:40",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/40"
+              }
+            ]
+          },
+          {
+            "title": "Dependabot Bumps",
+            "count": "4",
+            "lines": [
+              {
+                "tag": "deps",
+                "tone": "warn",
+                "text": "cryptography 2.8 to 50.0.0 · #35",
+                "sub": "needs review · SPI tests · /testing/crs_converter_test_azure · closes 11 vulnerabilities",
+                "id": "pr:Azure/osdu-spi-crs-conversion:35",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/35"
+              },
+              {
+                "tag": "deps",
+                "tone": "warn",
+                "text": "urllib3 1.25.8 to 2.8.0 · #33",
+                "sub": "needs review · SPI tests · /testing/crs_converter_test_azure · closes 11 vulnerabilities",
+                "id": "pr:Azure/osdu-spi-crs-conversion:33",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/33"
+              },
+              {
+                "tag": "deps",
+                "tone": "warn",
+                "text": "pyjwt 1.7.1 to 2.15.0 · #36",
+                "sub": "needs review · SPI tests · /testing/crs_converter_test_azure · closes 9 vulnerabilities",
+                "id": "pr:Azure/osdu-spi-crs-conversion:36",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/36"
+              }
+            ],
+            "weight": "minor"
+          },
+          {
+            "title": "Vulnerabilities",
+            "count": "1 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "async-http-client · 4 vulnerabilities",
+                "sub": "SPI · shipped · provider/crs-converter-azure/crs-converter-aks/pom.xml · no fix published · also ours on indexer-queue and unit",
+                "id": "alert:Azure/osdu-spi-crs-conversion:dep:provider/crs-converter-azure/crs-converter-aks/pom.xml:org.asynchttpclient:async-http-client",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/security/dependabot?q=is%3Aopen%20package%3Aorg.asynchttpclient%3Aasync-http-client%20manifest%3Aprovider%2Fcrs-converter-azure%2Fcrs-converter-aks%2Fpom.xml"
+              },
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "sis-metadata · 1 vulnerability",
+                "sub": "Upstream · shipped · crs-converter-core/pom.xml · fixed in 1.6",
+                "upstream": true,
+                "id": "alert:Azure/osdu-spi-crs-conversion:dep:crs-converter-core/pom.xml:org.apache.sis.core:sis-metadata",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/security/dependabot/1"
+              }
+            ],
+            "rest": " · 1 upstream",
+            "weight": "quiet"
+          },
+          {
+            "title": "Code scanning",
+            "count": "1 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Disabled Spring CSRF protection · 1 alert",
+                "sub": "SPI · shipped · provider/crs-converter-azure · found by CodeQL · also ours on partition, entitlements, legal and 8 more",
+                "id": "alert:Azure/osdu-spi-crs-conversion:code:CodeQL:java/spring-disabled-csrf-protection:provider/crs-converter-azure",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/security/code-scanning/85"
+              },
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "User-controlled data in arithmetic expression · 81 alerts",
+                "sub": "Upstream · shipped · crs-converter-core · found by CodeQL",
+                "upstream": true,
+                "id": "alert:Azure/osdu-spi-crs-conversion:code:CodeQL:java/tainted-arithmetic:crs-converter-core",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Ftainted-arithmetic"
+              }
+            ],
+            "rest": " · 1 upstream",
+            "weight": "quiet"
+          }
+        ],
+        "note": "Not shown here: 9 more alert groups, 9 in tests; 2 pipeline PRs, on Flow. The inspector lists every item."
+      }
+    ],
+    "first": "repo:indexer-queue",
+    "template": {
+      "label": "Template · main 1a4730d",
+      "figure": "1 of 13",
+      "sub": "on main · 1 change reaches the forks · 13 of 13 on v1.4.0",
+      "tone": "warn"
+    }
+  },
+  "items": [
+    {
+      "origin": "upstream",
+      "id": "halt:crs-conversion",
+      "ids": ["halt:crs-conversion"],
+      "rung": 0,
+      "cls": "HALT",
+      "scope": "crs-conversion",
+      "title": "Sync halted on schemathesis-tests",
+      "sub": "13 commits held · 6d · the same entry is missing from 2 other filters",
+      "cause": "Upstream adds schemathesis-tests, a top-level entry the fork's filter has no rule for, so Sync Upstream stops with UNKNOWN_TOP_LEVEL.",
+      "effect": "6 daily Sync Upstream runs failed since the halt. 13 upstream commits wait behind the halt.",
+      "next": "Add a rule for schemathesis-tests to .github/upstream-filter.yml, then dispatch sync.",
+      "verb": "Classify entry",
+      "evidence": [
+        {
+          "label": "issue #44",
+          "url": "https://github.com/Azure/osdu-spi-crs-conversion/issues/44",
+          "kind": "issue"
+        },
+        {
+          "label": "run",
+          "url": "https://github.com/Azure/osdu-spi-crs-conversion/actions/runs/43985138555",
+          "kind": "run"
+        }
+      ],
+      "age": "6d",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-crs-conversion/issues/44",
+      "attention": "interrupt",
+      "owned": false,
+      "due": {
+        "at": "2026-11-18T00:00:00.000Z",
+        "before": "next sync"
+      }
+    },
+    {
+      "origin": "system",
+      "id": "sync-run:indexer",
+      "ids": ["sync-run:indexer"],
+      "rung": 0,
+      "cls": "INCIDENT",
+      "scope": "indexer",
+      "title": "Sync Upstream failed with halt issue #72 open",
+      "sub": "33m",
+      "cause": "Sync Upstream failed with halt issue #72 open.",
+      "effect": "Nothing else waits on it.",
+      "next": "Read halt issue #72, then open the failed Sync Upstream run.",
+      "verb": "Investigate",
+      "evidence": [
+        {
+          "label": "issue #72",
+          "url": "https://github.com/Azure/osdu-spi-indexer/issues/72",
+          "kind": "issue"
+        },
+        {
+          "label": "run Sync Upstream 00:32",
+          "url": "https://github.com/Azure/osdu-spi-indexer/actions/runs/43988443150",
+          "kind": "run"
+        }
+      ],
+      "age": "33m",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-indexer/actions/runs/43988443150",
+      "attention": "interrupt",
+      "owned": false
+    },
+    {
+      "origin": "system",
+      "id": "rollout",
+      "ids": ["rollout"],
+      "rung": 1,
+      "cls": "ROLLOUT",
+      "scope": "fleet",
+      "title": "Rollout to template 1a4730d",
+      "sub": "6 of 13 merged · 2 of 5 lanes busy",
+      "cause": "osdu-spi main 1a4730d is on its way to the fleet: 6 of 13 forks merged.",
+      "effect": "The change reaches actions, so every PR and every merge takes a deploy lane: 14 lanes, 5 at a time still to go.",
+      "next": "Dispatch Sync Template to indexer, search and workflow. Three lanes are free.",
+      "verb": "Dispatch",
+      "evidence": [
+        {
+          "label": "main 1a4730d",
+          "url": "https://github.com/Azure/osdu-spi/commit/1a4730d327268b5c2a57257fb7289738d4357b0a",
+          "kind": "commit"
+        },
+        {
+          "label": "forks on d3ddff5",
+          "url": "https://github.com/Azure/osdu-spi/compare/d3ddff562b24cf3b259c8a215fd8b7962df1eb97...1a4730d327268b5c2a57257fb7289738d4357b0a",
+          "kind": "compare"
+        }
+      ],
+      "actor": "operator",
+      "more": [
+        {
+          "label": "Plan",
+          "text": "2 waves · lanes 5 from rollout.json · search merges after storage and indexer"
+        },
+        {
+          "label": "Watch",
+          "text": "Upstream sync at 11-18 00:00 opens 4 PRs (crs-conversion halts instead) that share these lanes. The 08:00 template sync opens every fork still without a PR at once (7 now)."
+        },
+        {
+          "label": "Reaches",
+          "text": "java-build action"
+        }
+      ],
+      "attention": "surface",
+      "owned": false
+    },
+    {
+      "origin": "system",
+      "id": "stack:lanes",
+      "ids": ["stack:lanes"],
+      "rung": 1,
+      "cls": "ENV",
+      "scope": "Environment",
+      "title": "Deployable again",
+      "sub": "5 fork lanes failed before it recovered · re-run now · 9d",
+      "cause": "Deployable again; 5 fork lanes failed before it recovered.",
+      "effect": "Entitlements release/upstream PR #152 · Verify · digest not live after 15 minutes · 00:48. Legal release/upstream PR #90 · Verify · digest not live after 15 minutes · 00:35. Schema release/upstream PR #104 · Verify · digest not live after 15 minutes · 01:01.",
+      "next": "Re-run the failed jobs once, after the other lanes drain.",
+      "verb": "Re-run lanes",
+      "evidence": [
+        {
+          "label": "first failure indexer-queue release/upstream PR #67",
+          "url": "https://github.com/Azure/osdu-spi-indexer-queue/actions/runs/42333483580/job/128288168643",
+          "kind": "job"
+        },
+        {
+          "label": "run",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/43987350665/job/133722311986",
+          "kind": "job"
+        },
+        {
+          "label": "run",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/43985202145/job/133716436041",
+          "kind": "job"
+        },
+        {
+          "label": "run",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/43987916699/job/133723725848",
+          "kind": "job"
+        }
+      ],
+      "age": "9d",
+      "actor": "operator",
+      "attention": "surface",
+      "owned": false
+    },
+    {
+      "origin": "system",
+      "id": "gate2:storage",
+      "ids": ["gate2:storage"],
+      "rung": 1,
+      "cls": "UNREAD",
+      "scope": "storage",
+      "title": "Release/upstream PR #83 fails Validation Summary",
+      "sub": "54m",
+      "cause": "Release/upstream PR #83 fails Validation Summary.",
+      "effect": "Nothing else waits on it.",
+      "next": "Open the failed check on GitHub; SPI Code could not read its job.",
+      "verb": "Investigate",
+      "evidence": [
+        {
+          "label": "PR #83",
+          "url": "https://github.com/Azure/osdu-spi-storage/pull/83",
+          "kind": "pr"
+        },
+        {
+          "label": "check Validation Summary",
+          "url": "https://github.com/Azure/osdu-spi-storage/actions/runs/43985685201/job/133718475058",
+          "kind": "job"
+        }
+      ],
+      "age": "54m",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-storage/pull/83",
+      "attention": "surface",
+      "owned": false
+    },
+    {
+      "origin": "system",
+      "id": "lane-deploy:partition",
+      "ids": ["lane-deploy:partition"],
+      "rung": 1,
+      "cls": "UNREAD",
+      "scope": "Environment",
+      "title": "Last lane deploy failed on partition",
+      "sub": "20m",
+      "cause": "The deployment record reports a failure; its cause has not been read.",
+      "effect": "Nothing else waits on it.",
+      "next": "Open the fork's deployment history and its workflow run to diagnose the failure.",
+      "verb": "Investigate",
+      "evidence": [
+        {
+          "label": "fork partition",
+          "url": "https://github.com/Azure/osdu-spi-partition",
+          "kind": "other"
+        },
+        {
+          "label": "deployment FAILURE",
+          "url": "https://github.com/Azure/osdu-spi-partition/deployments",
+          "kind": "deploy"
+        },
+        {
+          "label": "head 9bea4ff",
+          "url": "https://github.com/Azure/osdu-spi-partition/commit/9bea4ff20266108d0f0f83dd9e01f8595d34dae5",
+          "kind": "commit"
+        }
+      ],
+      "age": "20m",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-partition/deployments",
+      "attention": "surface",
+      "owned": false
+    },
+    {
+      "origin": "upstream",
+      "id": "radar:workflow",
+      "ids": ["radar:workflow"],
+      "rung": 1,
+      "cls": "TOOLCHAIN",
+      "scope": "workflow",
+      "title": "Sync PR #60 carries os-core-common 8.5.0",
+      "sub": "18 commits in sync PR #60",
+      "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0, os-core-common feat-jackson-3-SNAPSHOT and os-core-common 10.0.0.",
+      "effect": "18 commits wait in sync PR #60 and reach the fork when it merges.",
+      "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #60.",
+      "verb": "Absorb toolchain",
+      "evidence": [
+        {
+          "label": "commit d6847cea",
+          "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/commit/d6847cea52b94f697ab67ef471f1bfeff33b6d93",
+          "kind": "commit"
+        },
+        {
+          "label": "run",
+          "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/commit/fe503b27c18a219e8c89484e9d8a492da2940ee9",
+          "kind": "commit"
+        },
+        {
+          "label": "run",
+          "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/commit/0b23804295d26b5a081dbb797a3c89988af87a52",
+          "kind": "commit"
+        }
+      ],
+      "age": "54d",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-workflow/pull/60",
+      "attention": "surface",
+      "owned": false
+    },
+    {
+      "origin": "upstream",
+      "id": "radar:search",
+      "ids": ["radar:search"],
+      "rung": 1,
+      "cls": "TOOLCHAIN",
+      "scope": "search",
+      "title": "Sync PR #77 carries os-core-common 10.0.0",
+      "sub": "10 commits in sync PR #77",
+      "cause": "Queued upstream commits move the root pom to os-core-common 10.0.0 and os-core-common 10.0.1.",
+      "effect": "10 commits wait in sync PR #77 and reach the fork when it merges.",
+      "next": "Absorb os-core-common 10.0.0 on the fork before merging sync PR #77.",
+      "verb": "Absorb toolchain",
+      "evidence": [
+        {
+          "label": "commit a6d57bff",
+          "url": "https://community.opengroup.org/osdu/platform/system/search-service/-/commit/a6d57bff9a6db7d4d6e81354c73619e47b403875",
+          "kind": "commit"
+        },
+        {
+          "label": "run",
+          "url": "https://community.opengroup.org/osdu/platform/system/search-service/-/commit/3e8b5376576b6e1404af0f8724a40ee437a58397",
+          "kind": "commit"
+        }
+      ],
+      "age": "12d",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-search/pull/77",
+      "attention": "surface",
+      "owned": false
+    },
+    {
+      "origin": "upstream",
+      "id": "radar:unit",
+      "ids": ["radar:unit"],
+      "rung": 1,
+      "cls": "TOOLCHAIN",
+      "scope": "unit",
+      "title": "Sync PR #50 carries os-core-common 8.5.0",
+      "sub": "9 commits in sync PR #50",
+      "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
+      "effect": "9 commits wait in sync PR #50 and reach the fork when it merges.",
+      "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #50.",
+      "verb": "Absorb toolchain",
+      "evidence": [
+        {
+          "label": "commit 3a69766c",
+          "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/3a69766c25b03b450d95b55ef21c013c63ef407f",
+          "kind": "commit"
+        },
+        {
+          "label": "run",
+          "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/d4b65bdf42503bf50bdbed11249c06bd9c0c4fe0",
+          "kind": "commit"
+        }
+      ],
+      "age": "59d",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-unit/pull/50",
+      "attention": "surface",
+      "owned": false
+    },
+    {
+      "origin": "upstream",
+      "id": "radar:crs-catalog",
+      "ids": ["radar:crs-catalog"],
+      "rung": 1,
+      "cls": "TOOLCHAIN",
+      "scope": "crs-catalog",
+      "title": "Sync PR #54 carries os-core-common 10.0.0",
+      "sub": "9 commits in sync PR #54",
+      "cause": "Queued upstream commits move the root pom to os-core-common 10.0.0.",
+      "effect": "9 commits wait in sync PR #54 and reach the fork when it merges.",
+      "next": "Absorb os-core-common 10.0.0 on the fork before merging sync PR #54.",
+      "verb": "Absorb toolchain",
+      "evidence": [
+        {
+          "label": "commit c4f58585",
+          "url": "https://community.opengroup.org/osdu/platform/system/reference/crs-catalog-service/-/commit/c4f585855bd2183389be6ae5eb8fe4bfed82c779",
+          "kind": "commit"
+        }
+      ],
+      "age": "12d",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-crs-catalog/pull/54",
+      "attention": "surface",
+      "owned": false
+    },
+    {
+      "origin": "upstream",
+      "id": "gate1:workflow",
+      "ids": ["gate1:workflow"],
+      "rung": 1,
+      "cls": "GATE",
+      "scope": "workflow",
+      "title": "Sync PR #60 waits for review",
+      "sub": "18 commits held · 7d",
+      "cause": "Sync PR #60 waits for review.",
+      "effect": "18 upstream commits wait on this PR.",
+      "next": "Review the sync PR on GitHub and merge it.",
+      "verb": "Review on GitHub",
+      "evidence": [
+        {
+          "label": "PR #60",
+          "url": "https://github.com/Azure/osdu-spi-workflow/pull/60",
+          "kind": "pr"
+        }
+      ],
+      "age": "7d",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-workflow/pull/60",
+      "attention": "surface",
+      "owned": false
+    },
+    {
+      "origin": "upstream",
+      "id": "gate1:crs-conversion",
+      "ids": ["gate1:crs-conversion"],
+      "rung": 1,
+      "cls": "GATE",
+      "scope": "crs-conversion",
+      "title": "Sync PR #41 waits for review",
+      "sub": "13 commits held · 7d",
+      "cause": "Sync PR #41 waits for review.",
+      "effect": "13 upstream commits wait on this PR.",
+      "next": "Review the sync PR on GitHub and merge it.",
+      "verb": "Review on GitHub",
+      "evidence": [
+        {
+          "label": "PR #41",
+          "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/41",
+          "kind": "pr"
+        }
+      ],
+      "age": "7d",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-crs-conversion/pull/41",
+      "attention": "surface",
+      "owned": false
+    },
+    {
+      "origin": "upstream",
+      "id": "gate1:search",
+      "ids": ["gate1:search"],
+      "rung": 1,
+      "cls": "GATE",
+      "scope": "search",
+      "title": "Sync PR #77 waits for review",
+      "sub": "10 commits held · 6d",
+      "cause": "Sync PR #77 waits for review.",
+      "effect": "10 upstream commits wait on this PR.",
+      "next": "Review the sync PR on GitHub and merge it.",
+      "verb": "Review on GitHub",
+      "evidence": [
+        {
+          "label": "PR #77",
+          "url": "https://github.com/Azure/osdu-spi-search/pull/77",
+          "kind": "pr"
+        }
+      ],
+      "age": "6d",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-search/pull/77",
+      "attention": "surface",
+      "owned": false
+    },
+    {
+      "origin": "upstream",
+      "id": "gate1:unit",
+      "ids": ["gate1:unit"],
+      "rung": 1,
+      "cls": "GATE",
+      "scope": "unit",
+      "title": "Sync PR #50 waits for review",
+      "sub": "9 commits held · 10d",
+      "cause": "Sync PR #50 waits for review.",
+      "effect": "9 upstream commits wait on this PR.",
+      "next": "Review the sync PR on GitHub and merge it.",
+      "verb": "Review on GitHub",
+      "evidence": [
+        {
+          "label": "PR #50",
+          "url": "https://github.com/Azure/osdu-spi-unit/pull/50",
+          "kind": "pr"
+        }
+      ],
+      "age": "10d",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-unit/pull/50",
+      "attention": "surface",
+      "owned": false
+    },
+    {
+      "origin": "upstream",
+      "id": "gate1:crs-catalog",
+      "ids": ["gate1:crs-catalog"],
+      "rung": 1,
+      "cls": "GATE",
+      "scope": "crs-catalog",
+      "title": "Sync PR #54 waits for review",
+      "sub": "9 commits held · 7d",
+      "cause": "Sync PR #54 waits for review.",
+      "effect": "9 upstream commits wait on this PR.",
+      "next": "Review the sync PR on GitHub and merge it.",
+      "verb": "Review on GitHub",
+      "evidence": [
+        {
+          "label": "PR #54",
+          "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/54",
+          "kind": "pr"
+        }
+      ],
+      "age": "7d",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-crs-catalog/pull/54",
+      "attention": "surface",
+      "owned": false
+    },
+    {
+      "origin": "system",
+      "id": "gate2:indexer-queue",
+      "ids": ["gate2:indexer-queue"],
+      "rung": 1,
+      "cls": "GATE",
+      "scope": "indexer-queue",
+      "title": "Release/upstream PR #67 is red",
+      "sub": "9d",
+      "cause": "Digest not live after 15 minutes.",
+      "effect": "Nothing else waits on it.",
+      "next": "Approve the release/upstream PR and merge it with a merge commit, never a squash.",
+      "verb": "Merge",
+      "evidence": [
+        {
+          "label": "PR #67",
+          "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/67",
+          "kind": "pr"
+        },
+        {
+          "label": "check Deploy and Test › Verify",
+          "url": "https://github.com/Azure/osdu-spi-indexer-queue/actions/runs/42333483580/job/128288168643",
+          "kind": "job"
+        }
+      ],
+      "age": "9d",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-indexer-queue/pull/67",
+      "blockedBy": "stack:lanes",
+      "attention": "surface",
+      "owned": false
+    },
+    {
+      "origin": "system",
+      "id": "gate2:search",
+      "ids": ["gate2:search"],
+      "rung": 1,
+      "cls": "GATE",
+      "scope": "search",
+      "title": "Release/upstream PR #76 waits for approval",
+      "sub": "merge with a merge commit · 6d 22h",
+      "cause": "Release/upstream PR #76 waits for approval; merge with a merge commit.",
+      "effect": "Nothing else waits on it.",
+      "next": "Approve the release/upstream PR and merge it with a merge commit, never a squash.",
+      "verb": "Merge",
+      "evidence": [
+        {
+          "label": "PR #76",
+          "url": "https://github.com/Azure/osdu-spi-search/pull/76",
+          "kind": "pr"
+        }
+      ],
+      "age": "6d 22h",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-search/pull/76",
+      "attention": "surface",
+      "owned": false
+    },
+    {
+      "origin": "system",
+      "id": "gate2:legal",
+      "ids": ["gate2:legal"],
+      "rung": 1,
+      "cls": "GATE",
+      "scope": "legal",
+      "title": "Release/upstream PR #90 is red",
+      "sub": "57m",
+      "cause": "Digest not live after 15 minutes.",
+      "effect": "Nothing else waits on it.",
+      "next": "Approve the release/upstream PR and merge it with a merge commit, never a squash.",
+      "verb": "Merge",
+      "evidence": [
+        {
+          "label": "PR #90",
+          "url": "https://github.com/Azure/osdu-spi-legal/pull/90",
+          "kind": "pr"
+        },
+        {
+          "label": "check Deploy and Test › Verify",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/43985202145/job/133716436041",
+          "kind": "job"
+        }
+      ],
+      "age": "57m",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-legal/pull/90",
+      "blockedBy": "stack:lanes",
+      "attention": "surface",
+      "owned": false
+    },
+    {
+      "origin": "system",
+      "id": "gate2:partition",
+      "ids": ["gate2:partition"],
+      "rung": 1,
+      "cls": "GATE",
+      "scope": "partition",
+      "title": "Release/upstream PR #248 waits for approval",
+      "sub": "merge with a merge commit · 45m",
+      "cause": "Release/upstream PR #248 waits for approval; merge with a merge commit.",
+      "effect": "Nothing else waits on it.",
+      "next": "Approve the release/upstream PR and merge it with a merge commit, never a squash.",
+      "verb": "Merge",
+      "evidence": [
+        {
+          "label": "PR #248",
+          "url": "https://github.com/Azure/osdu-spi-partition/pull/248",
+          "kind": "pr"
+        }
+      ],
+      "age": "45m",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-partition/pull/248",
+      "attention": "surface",
+      "owned": false
+    },
+    {
+      "origin": "system",
+      "id": "gate2:entitlements",
+      "ids": ["gate2:entitlements"],
+      "rung": 1,
+      "cls": "GATE",
+      "scope": "entitlements",
+      "title": "Release/upstream PR #152 is red",
+      "sub": "41m",
+      "cause": "Digest not live after 15 minutes.",
+      "effect": "Nothing else waits on it.",
+      "next": "Approve the release/upstream PR and merge it with a merge commit, never a squash.",
+      "verb": "Merge",
+      "evidence": [
+        {
+          "label": "PR #152",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/pull/152",
+          "kind": "pr"
+        },
+        {
+          "label": "check Deploy and Test › Verify",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/43987350665/job/133722311986",
+          "kind": "job"
+        }
+      ],
+      "age": "41m",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-entitlements/pull/152",
+      "blockedBy": "stack:lanes",
+      "attention": "surface",
+      "owned": false
+    },
+    {
+      "origin": "system",
+      "id": "gate2:schema",
+      "ids": ["gate2:schema"],
+      "rung": 1,
+      "cls": "GATE",
+      "scope": "schema",
+      "title": "Release/upstream PR #104 is red",
+      "sub": "37m",
+      "cause": "Digest not live after 15 minutes.",
+      "effect": "Nothing else waits on it.",
+      "next": "Approve the release/upstream PR and merge it with a merge commit, never a squash.",
+      "verb": "Merge",
+      "evidence": [
+        {
+          "label": "PR #104",
+          "url": "https://github.com/Azure/osdu-spi-schema/pull/104",
+          "kind": "pr"
+        },
+        {
+          "label": "check Deploy and Test › Verify",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/43987916699/job/133723725848",
+          "kind": "job"
+        }
+      ],
+      "age": "37m",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-schema/pull/104",
+      "blockedBy": "stack:lanes",
+      "attention": "surface",
+      "owned": false
+    },
+    {
+      "origin": "system",
+      "id": "gate2:indexer",
+      "ids": ["gate2:indexer"],
+      "rung": 1,
+      "cls": "GATE",
+      "scope": "indexer",
+      "title": "Release/upstream PR #73 is red",
+      "sub": "32m",
+      "cause": "Digest not live after 15 minutes.",
+      "effect": "Nothing else waits on it.",
+      "next": "Approve the release/upstream PR and merge it with a merge commit, never a squash.",
+      "verb": "Merge",
+      "evidence": [
+        {
+          "label": "PR #73",
+          "url": "https://github.com/Azure/osdu-spi-indexer/pull/73",
+          "kind": "pr"
+        },
+        {
+          "label": "check Deploy and Test › Verify",
+          "url": "https://github.com/Azure/osdu-spi-indexer/actions/runs/43988551904/job/133727046001",
+          "kind": "job"
+        }
+      ],
+      "age": "32m",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-indexer/pull/73",
+      "blockedBy": "stack:lanes",
+      "attention": "surface",
+      "owned": false
+    },
+    {
+      "origin": "upstream",
+      "id": "port:entitlements",
+      "ids": [
+        "port:entitlements",
+        "port:unit",
+        "port:indexer",
+        "port:legal",
+        "port:partition",
+        "port:search",
+        "port:workflow",
+        "port:crs-conversion",
+        "port:file",
+        "port:schema",
+        "port:crs-catalog",
+        "port:storage"
+      ],
+      "rung": 1,
+      "cls": "PORT",
+      "scope": "12 forks",
+      "title": "23 upstream provider changes not ported",
+      "sub": "entitlements 4 · unit 3 · indexer 3 · legal 2 · partition 2 · search 2 · workflow 2 · crs-conversion 1 · file 1 · schema 1 · crs-catalog 1 · storage 1",
+      "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+      "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+      "next": "Port !968 into provider/entitlements-v2-azure; cite the MR URL in the PR body.",
+      "verb": "Port",
+      "evidence": [
+        {
+          "label": "!968",
+          "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+          "kind": "mr"
+        },
+        {
+          "label": "!967",
+          "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
+          "kind": "mr"
+        },
+        {
+          "label": "!963",
+          "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
+          "kind": "mr"
+        },
+        {
+          "label": "!956",
+          "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
+          "kind": "mr"
+        }
+      ],
+      "actor": "operator",
+      "attention": "surface",
+      "owned": false
+    }
+  ]
+}

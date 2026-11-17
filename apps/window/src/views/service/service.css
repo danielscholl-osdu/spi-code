@@ -34,3 +34,4 @@
 .service-month { flex: none; border: 0; background: none; padding: 0; color: var(--accent-text); font: inherit; cursor: pointer; }
 .service-month:hover { text-decoration: underline; }
 .service-row time { margin-left: auto; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.service-on-today { flex: none; margin-left: auto; padding: 0 7px; border: 1px solid var(--accent); border-radius: 999px; color: var(--accent-text); font-size: 11px; white-space: nowrap; }

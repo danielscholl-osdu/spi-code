@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { RepoLine, ViewSnapshot } from "@spi-code/contracts";
+import type { FocusItem, RepoLine, ViewSnapshot } from "@spi-code/contracts";
 import { type ReactNode, useId } from "react";
 import { useStore } from "zustand";
 import { navigate } from "../../app/navigation.js";
@@ -21,6 +21,7 @@ import { useSelectionList } from "../../panels/useSelectionList.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
 import { Time, TimedText } from "../../time.js";
+import { lineItem, todayItems } from "../template/Repositories.js";
 import "../releases/panes.css";
 import "./service.css";
 
@@ -131,12 +132,14 @@ function RepoLines({
   lines,
   repoIndex,
   sectionIndex,
+  items,
   store,
 }: {
   label: string;
   lines: readonly RepoLine[];
   repoIndex: number;
   sectionIndex: number;
+  items: readonly FocusItem[];
   store: SelectionStore;
 }) {
   const lineRows = lines.map((line, index) =>
@@ -153,7 +156,7 @@ function RepoLines({
       <ul className="service-rows">
         {lines.map((line) => (
           <li key={`${line.tag}:${line.text}`} className="service-row" data-plain="">
-            <LineBody line={line} />
+            <LineBody line={line} item={lineItem(line, items)} />
           </li>
         ))}
       </ul>
@@ -174,14 +177,14 @@ function RepoLines({
               tabIndex={-1}
               data-plain=""
             >
-              <LineBody line={line} />
+              <LineBody line={line} item={lineItem(line, items)} />
             </div>
           );
         }
         const { tabIndex, ...props } = list.rowProps(row);
         return (
           <div key={row.id} className="service-row" role="option" tabIndex={tabIndex} {...props}>
-            <LineBody line={line} />
+            <LineBody line={line} item={lineItem(line, items)} />
           </div>
         );
       })}
@@ -189,7 +192,7 @@ function RepoLines({
   );
 }
 
-function LineBody({ line }: { line: RepoLine }) {
+function LineBody({ line, item }: { line: RepoLine; item: FocusItem | undefined }) {
   return (
     <>
       <span className="service-tag" data-tone={line.tone}>
@@ -199,6 +202,7 @@ function LineBody({ line }: { line: RepoLine }) {
         <span className="service-row-title">{plainTitle(line.text)}</span>
         <span className="service-row-sub">{plainTitle(line.sub)}</span>
       </span>
+      {item && <span className="service-on-today">On Today · {plainTitle(item.title)}</span>}
     </>
   );
 }
@@ -393,6 +397,7 @@ function ServiceBody({
                     lines={section.lines}
                     repoIndex={repoIndex}
                     sectionIndex={sectionIndex}
+                    items={todayItems(evidence)}
                     store={selection}
                   />
                 </div>

@@ -20,6 +20,7 @@ import { watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
 import { TimedText } from "../../time.js";
 import { QueueRow } from "./QueueRow.js";
+import { Repositories } from "./Repositories.js";
 import { Rollout, rolloutLadder } from "./Rollout.js";
 import "./template.css";
 import { placePin } from "../../store/pins.js";
@@ -132,6 +133,13 @@ export default function Template({
     ].some((element) => element.dataset.selectionId === inside);
     if (!shown) details.open = true;
   }, [inside]);
+  const openItem = (id: string) => {
+    const row =
+      snapshot && selectionRows(snapshot).find((row) => row.kind === "queue" && row.id === id);
+    if (!row) return;
+    list.select(row);
+    inspector.getState().setTab("detail");
+  };
   const ladder = snapshot && rolloutLadder(snapshot);
   const fact = parts?.fact;
   const fleetFacts =
@@ -147,26 +155,29 @@ export default function Template({
         snapshot={snapshot}
         services={treeServices(snapshot?.tree)}
         onNavigate={navigate}
-        onSelect={(id) => {
-          const row =
-            snapshot &&
-            selectionRows(snapshot).find((row) => row.kind === "queue" && row.id === id);
-          if (!row) return;
-          list.select(row);
-          inspector.getState().setTab("detail");
-        }}
+        onSelect={openItem}
         {...(list.selected !== null ? { selectedId: list.selected } : {})}
         belowTiles={
-          ladder && (
-            <Rollout
-              ladder={ladder}
-              selected={rollout !== undefined && list.selected === rollout.id}
-              onSelect={() => {
-                if (!rollout) return;
-                list.select(rollout);
-                inspector.getState().setTab("detail");
-              }}
-            />
+          snapshot &&
+          (ladder || snapshot.briefing.repositories.rows.length > 0) && (
+            <>
+              {ladder && (
+                <Rollout
+                  ladder={ladder}
+                  selected={rollout !== undefined && list.selected === rollout.id}
+                  onSelect={() => {
+                    if (!rollout) return;
+                    list.select(rollout);
+                    inspector.getState().setTab("detail");
+                  }}
+                />
+              )}
+              <Repositories
+                snapshot={snapshot}
+                onOpenItem={openItem}
+                onSecurity={() => navigate({ kind: "security" })}
+              />
+            </>
           )
         }
       />
