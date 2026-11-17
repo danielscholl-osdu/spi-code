@@ -249,6 +249,18 @@ describe("every item a removed Today block carried keeps one home on Today or it
       ),
     );
     await start({ name: "Today", start: STARTS.today }, body);
+    const objectRows = new Map<string, string[]>();
+    for (const [index, line] of lines.entries()) {
+      for (const [at, member] of line.members.entries()) {
+        const rows = objectRows.get(member.id) ?? [];
+        rows.push(memberRow(`/briefing/lines/${index}`, at, line.members.length === 1));
+        objectRows.set(member.id, rows);
+      }
+    }
+    for (const [id, rows] of objectRows)
+      expect(container.querySelectorAll(rows.join(",")), `${name}: one row for ${id}`).toHaveLength(
+        1,
+      );
     const homeless: string[] = [];
     for (const id of carried) {
       const row = onToday.get(id);

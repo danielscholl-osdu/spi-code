@@ -40,7 +40,11 @@ describe("Repository lines resolved to Today members on the 16 Nov sweep", () =>
     expect(syncCompanions(sweep1116Model())).toEqual(
       new Map(COMPANIONS.map(([repo, i, pr]) => [issue(repo, i), pull(repo, pr)])),
     );
-    const marks = today();
+    const marks = today(undefined, (items) => {
+      const halt = items.find(({ id }) => id === "halt:crs-conversion");
+      if (!halt) throw new Error("Missing halt item");
+      halt.evidence = [];
+    });
     for (const [repo, i, pr] of COMPANIONS) {
       expect(marks.get(pull(repo, pr))).toEqual({ id: `gate1:${repo}`, rel: "source" });
       expect(marks.get(issue(repo, i))).toEqual({ id: `gate1:${repo}`, rel: "companion" });

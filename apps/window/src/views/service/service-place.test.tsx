@@ -24,6 +24,7 @@ import { plainTitle } from "../../text.js";
 import { clockTime, timedText } from "../../time.js";
 import { cellOpening } from "../line/cell-content.js";
 import ServicePlace from "./index.js";
+import { serviceOpening } from "./opening.js";
 
 const popover = (container: HTMLElement) => container.querySelector<HTMLElement>(".popover");
 const popoverFields = (container: HTMLElement) =>
@@ -437,4 +438,23 @@ it("keeps every former run's workflow, result and local time one click away", as
     expect(row?.querySelector("time")?.textContent).toBe(clockTime(run.time));
     expect(row?.querySelector("time")?.getAttribute("datetime")).toBe(run.time);
   }
+});
+
+it("release review uses only the newest month and keeps one sentence stop", () => {
+  const body = snapshot();
+  const service = body.services?.find(({ service }) => service === "legal");
+  const station = body.stations
+    .find(({ service }) => service === "legal")
+    ?.stations.find(({ id }) => id === "release");
+  const older = service?.releases.find(({ releasePr }) => releasePr);
+  if (!service || !station || !older) throw new Error("Missing legal release");
+  const newest = { ...older, month: "2026-12" };
+  delete newest.releasePr;
+  service.releases = [older, newest];
+  station.text = "Release review waiting.";
+  const content = serviceOpening(body, "legal", { kind: "station", id: "legal:release" })?.content;
+  expect(content?.primary).toBeUndefined();
+  expect(content?.links).toBeUndefined();
+  expect(content?.cause).toBe("Release review waiting. Not on Today.");
+  expect(service.releases.map(({ month }) => month)).toEqual([older.month, "2026-12"]);
 });

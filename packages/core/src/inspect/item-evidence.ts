@@ -36,7 +36,7 @@ function evidenceOf(model: Model, item: QueueItem): ItemEvidence {
     notRead.push("Whether the other lanes have drained");
   }
   if (item.kind === "lane-deploy" && line) notRead.push("Deployment failure's cause");
-  if (item.kind === "main" && line?.mainRed && !line.mainRed.job) {
+  if (item.kind === "main" && line?.mainRed && !line.mainRed.jobsRead) {
     notRead.push("Failed main run's job");
   }
 
@@ -81,7 +81,7 @@ export function itemEvidence(model: Model, ids: readonly string[]): ItemEvidence
   return {
     areas: AREAS.filter((area) => members.some((member) => member.areas.includes(area))),
     attributed: members.some((member) => member.attributed === "sweep") ? "sweep" : "item",
-    notRead: members.flatMap((member) => member.notRead),
+    notRead: [...new Set(members.flatMap((member) => member.notRead))],
   };
 }
 

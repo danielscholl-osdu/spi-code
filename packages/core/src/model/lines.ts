@@ -89,6 +89,7 @@ function pillOf(label: string, kind: PillKind, tone: CanvasTone = TONE[kind]): P
 export interface MainFailure {
   run: RunFact;
   job?: JobDetail;
+  jobsRead: boolean;
   cls: FailureClass;
 }
 
@@ -225,7 +226,7 @@ function mainFailure(
   }
   const job = proof.jobs.find((j) => j.conclusion === "failure" && j.name !== "Validation Summary");
   const cls = job ? classOf(job.name, "human", job.failedStep, job) : "UNREAD";
-  return { run, job, cls };
+  return { run, job, jobsRead: proof.jobs.length > 0, cls };
 }
 
 export function buildLine(input: {

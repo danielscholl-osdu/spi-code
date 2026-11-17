@@ -629,12 +629,12 @@ it("keeps every removed release PR reachable on Releases with its own source", a
     const source = body.releases.forming?.prs.find(
       (pr) => pr.kind === "service" && pr.service === service && String(pr.pr.number) === number,
     );
-    expect(source, service).toBeDefined();
+    expect(source, service).toBeTruthy();
     const row = [...container.querySelectorAll<HTMLElement>(".forming-release")].find(
       (row) => row.querySelector(".kit-chip--service")?.textContent === service,
     );
     const link = row?.querySelector<HTMLButtonElement>(".release-pr button");
-    expect(link, service).toBeDefined();
+    expect(link, service).toBeTruthy();
     expect(row?.querySelector(".release-pr")?.getAttribute("data-pr-url"), service).toBe(
       source?.pr.url,
     );

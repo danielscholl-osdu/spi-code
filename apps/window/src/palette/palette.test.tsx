@@ -6,7 +6,13 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { readFixture } from "../../../../scripts/watch-generated.mjs";
-import { navigate, PLACES, routeLabel, setOpenSelection } from "../app/navigation.js";
+import {
+  navigate,
+  openSelection,
+  PLACES,
+  routeLabel,
+  setOpenSelection,
+} from "../app/navigation.js";
 import { Shell } from "../app/Shell.js";
 import { selectionStore } from "../panels/selection.js";
 import { PINS_STORAGE_KEY, readPins } from "../store/pins.js";
@@ -535,4 +541,23 @@ it("ranks the best match class first and keeps group order on ties", () => {
     filterPaletteGroups(groups, "flow").flatMap(({ items }) => items.map((i) => i.label)),
   ).toEqual(["osdu-spi-stack · 1 outside PR waits for workflow approval"]);
   expect(filterPaletteGroups(groups, "nothing like this")).toEqual([]);
+});
+
+it("Escape closes only the palette above a place popover and returns focus inside it", async () => {
+  await act(async () => navigate({ kind: "service", id: "legal" }));
+  await act(async () =>
+    container.querySelector<HTMLButtonElement>('[data-station="cascade"]')?.click(),
+  );
+  const popover = container.querySelector<HTMLElement>(".popover");
+  const control = popover?.querySelector<HTMLButtonElement>("button");
+  expect(control).toBeTruthy();
+  control?.focus();
+  const selection = openSelection();
+  await shortcut({ ctrlKey: true });
+  expect(document.activeElement).toBe(input());
+  await key("Escape");
+  expect(palettes()).toHaveLength(0);
+  expect(openSelection()).toEqual(selection);
+  expect(container.querySelector(".popover")).toBe(popover);
+  expect(document.activeElement).toBe(control);
 });

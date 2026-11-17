@@ -249,3 +249,12 @@ describe("Today's situation lines", () => {
     expect(brief()).not.toHaveProperty("lines");
   });
 });
+
+test("matrix failures with the same unread check name count one missing read", () => {
+  const model = sweep1116Model();
+  const pr = model.lines.find(({ fork }) => fork.id === "storage")?.cascadePr;
+  const failure = pr?.failures.find(({ cls }) => cls === "UNREAD");
+  if (!pr || !failure) throw new Error("Missing unread storage check");
+  pr.failures.push({ ...failure });
+  expect(itemEvidence(model, ["gate2:storage"]).notRead).toEqual(["Validation Summary job"]);
+});

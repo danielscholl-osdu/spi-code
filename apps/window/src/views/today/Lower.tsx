@@ -67,7 +67,13 @@ function PlaceRow({
     navigate(destination);
   };
   return (
-    <tr className="today-row today-row--place" data-row={id} data-place={place} onClick={open}>
+    <tr
+      className="today-row today-row--place"
+      data-row={id}
+      data-place={place}
+      title={`Open ${name}`}
+      onClick={open}
+    >
       <td className="today-row-fork">
         <button type="button" title={`Open ${name}`} onClick={open}>
           {label}

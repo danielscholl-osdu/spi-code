@@ -4,7 +4,7 @@
 import type { PlaceRow } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { closeSheet, openSelection, setOpenSelection } from "../../app/navigation.js";
 import { placeFreshCases } from "../../app/place-reachability.test-helper.js";
@@ -15,6 +15,8 @@ import Environment from "../../views/environment/index.js";
 import Line from "../../views/line/index.js";
 import Security from "../../views/security/index.js";
 import Template from "../../views/template/index.js";
+import * as OpenedBodyView from "../opened-body/OpenedBody.js";
+import { FreshItems } from "./FreshItems.js";
 
 const loadFixture = fixtureLoader(readFixture);
 
@@ -38,6 +40,7 @@ afterEach(async () => {
   closeSheet();
   setOpenSelection(null);
   harness.restore();
+  vi.restoreAllMocks();
 });
 
 const views = {
@@ -135,3 +138,37 @@ it("registers each new chip at its place", async () => {
     );
   }
 });
+
+it.each(["security", undefined] as const)(
+  "fresh item body uses its home, falling back to the viewed place (home %s)",
+  async (home) => {
+    const openedBody = vi.spyOn(OpenedBodyView, "OpenedBody");
+    const body = loadFixture("snapshot-busy.json");
+    const member = body.briefing.lines
+      ?.flatMap(({ members }) => members)
+      .find(({ home }) => home === "security");
+    const place = body.briefing.places?.find(({ place }) => place === "engineering");
+    if (!member || !place) throw new Error("Missing fresh security member");
+    if (home) member.home = home;
+    else delete member.home;
+    place.fresh.itemIds = [member.id];
+    document.body.append(container);
+    await act(async () => root.render(<FreshItems snapshot={body} place="engineering" />));
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>(".place-item-content")?.click(),
+    );
+    expect(openedBody.mock.lastCall?.[0].content.place).toEqual({
+      label: home ? "Security" : "Template",
+      destination: { kind: home ? "security" : "engineering-system" },
+    });
+    const added = vi.spyOn(document, "addEventListener");
+    const removed = vi.spyOn(document, "removeEventListener");
+    await act(async () =>
+      root.render(<FreshItems snapshot={structuredClone(body)} place="engineering" />),
+    );
+    expect(added.mock.calls.filter(([type]) => type === "pointerdown")).toHaveLength(0);
+    expect(removed.mock.calls.filter(([type]) => type === "pointerdown")).toHaveLength(0);
+    added.mockRestore();
+    removed.mockRestore();
+  },
+);

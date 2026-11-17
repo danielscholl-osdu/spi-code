@@ -51,7 +51,7 @@ export async function captureRollout(
     );
     assert(
       text.includes(
-        "To 7 forks: indexer, search, workflow, indexer-queue, unit, crs-catalog, crs-conversion.",
+        "The template hasn't reached 7 forks: indexer, search, workflow, indexer-queue, unit, crs-catalog, crs-conversion.",
       ),
     );
     const file = `rollout-indexer-1440-${appearance}.png`;

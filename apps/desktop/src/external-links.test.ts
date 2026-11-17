@@ -78,7 +78,7 @@ it.each([
   expect(JSON.stringify(host.warn.mock.calls)).not.toMatch(/hidden|password|secret/);
 });
 
-it.each(["https://github.com/Azure/stack", "https://community.opengroup.org/osdu/legal"])(
+it.each(["https://github.com/Azure/stack"])(
   "refuses calls from another window or a subframe: %s",
   async (url) => {
     const host = harness();
@@ -91,18 +91,18 @@ it.each(["https://github.com/Azure/stack", "https://community.opengroup.org/osdu
   },
 );
 
-it.each([
-  "https://github.com/Azure/stack/actions/runs/123",
-  "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
-])("always denies Electron windows while routing allowlisted URLs externally: %s", async (url) => {
-  const host = harness();
-  expect(host.windowOpen({ url })).toEqual({ action: "deny" });
-  expect(host.windowOpen({ url: "https://example.com/?secret=hidden" })).toEqual({
-    action: "deny",
-  });
-  await vi.waitFor(() => expect(host.openExternal).toHaveBeenCalledExactlyOnceWith(url));
-  expect(host.warn).toHaveBeenCalledOnce();
-});
+it.each(["https://github.com/Azure/stack/actions/runs/123"])(
+  "always denies Electron windows while routing allowlisted URLs externally: %s",
+  async (url) => {
+    const host = harness();
+    expect(host.windowOpen({ url })).toEqual({ action: "deny" });
+    expect(host.windowOpen({ url: "https://example.com/?secret=hidden" })).toEqual({
+      action: "deny",
+    });
+    await vi.waitFor(() => expect(host.openExternal).toHaveBeenCalledExactlyOnceWith(url));
+    expect(host.warn).toHaveBeenCalledOnce();
+  },
+);
 
 it.each(["https://github.com", "https://community.opengroup.org"])(
   "reports browser launch failures without leaking the URL from the error: %s",

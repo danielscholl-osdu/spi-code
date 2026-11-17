@@ -4,6 +4,7 @@
 import { describe, expect, test } from "vitest";
 import { createContext } from "../src/context";
 import { emptyFacts } from "../src/facts";
+import { itemEvidence } from "../src/inspect/item-evidence";
 import { classOf } from "../src/model/attribution";
 import { buildModel } from "../src/model/index";
 import { nextText, verbOf } from "../src/model/next";
@@ -557,3 +558,31 @@ describe("main reads only from a run whose Java Build ran", () => {
     expect(m.queue.items.find((i) => i.id === "main:partition")?.rung).toBe(0);
   });
 });
+
+test.each([true, false])(
+  "main job evidence distinguishes jobs read from a missing failed job (read %s)",
+  (read) => {
+    const facts = fixtureFacts();
+    const runs = facts.runs.data?.["Azure/osdu-spi-partition"];
+    const run = runs?.main[0];
+    const jobs = run && runs?.mainRunJobs?.[String(run.id)];
+    if (!runs || !run || !jobs) throw new Error("Missing partition jobs");
+    run.conclusion = "failure";
+    runs.mainRunJobs = {
+      [String(run.id)]: read
+        ? jobs.map((job) => ({
+            ...job,
+            conclusion: job.name === "Validation Summary" ? "failure" : "success",
+          }))
+        : [],
+    };
+    const m = buildModel(facts, FIXTURE_NOW, {}, fixtureContext);
+    const line = m.lines.find(({ fork }) => fork.id === "partition");
+    if (!read) {
+      expect(line?.mainRed).toBeUndefined();
+      expect(m.queue.items.some(({ id }) => id === "main:partition")).toBe(false);
+      return;
+    }
+    expect(itemEvidence(m, ["main:partition"]).notRead).toEqual([]);
+  },
+);

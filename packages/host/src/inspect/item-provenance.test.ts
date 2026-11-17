@@ -58,6 +58,7 @@ describe("item evidence on the 16 Nov shapes", () => {
     ["gate2:indexer-queue", ["Whether the other lanes have drained"]],
     ["gate2:entitlements", ["Whether the other lanes have drained"]],
     ["gate2:indexer", ["Whether the other lanes have drained"]],
+    ["gate2:schema", ["Whether the other lanes have drained"]],
     ["gate1:unit", []],
   ])("names the reads not made for %s", async (id, notRead) => {
     expect((await inspect(item(id as string))).notRead).toEqual(notRead);

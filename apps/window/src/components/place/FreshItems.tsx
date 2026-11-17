@@ -33,20 +33,20 @@ export function FreshItems({
   snapshot: ViewSnapshot | undefined;
   place: PlaceRow["place"];
   shown?: readonly string[] | undefined;
-  onSelect?: ((id: string) => void) | undefined;
 }) {
   const fresh = freshItemIds(snapshot, place);
+  const freshKey = fresh.join("|");
   const opened = useOpenSelection();
   const element = useRef<HTMLUListElement>(null);
   useEffect(() => {
-    if (opened?.kind !== "fresh-item" || !fresh.includes(opened.id)) return;
+    if (opened?.kind !== "fresh-item" || !freshKey.split("|").includes(opened.id)) return;
     const outside = (event: PointerEvent) => {
       if (event.target instanceof Node && !element.current?.contains(event.target))
         setOpenSelection(null);
     };
     document.addEventListener("pointerdown", outside);
     return () => document.removeEventListener("pointerdown", outside);
-  }, [opened, fresh]);
+  }, [opened, freshKey]);
   if (!snapshot || !fresh.length) return null;
   const items = [...snapshot.briefing.focus, ...snapshot.briefing.rest];
   const rows = selectionRows(snapshot);
@@ -66,17 +66,20 @@ export function FreshItems({
         const member = line?.members.find(
           (member) => member.id === item.id || member.ids.includes(item.id),
         );
+        const home = member?.home ?? place;
         const destination: Destination =
-          place === "engineering" ? { kind: "engineering-system" } : { kind: place };
+          home === "engineering" ? { kind: "engineering-system" } : { kind: home };
         const bodyPlace = {
           label:
-            place === "line"
+            home === "line"
               ? "Line"
-              : place === "engineering"
+              : home === "engineering"
                 ? "Template"
-                : place === "environment"
+                : home === "environment"
                   ? "Environment"
-                  : "Security",
+                  : home === "upstream"
+                    ? "Upstream"
+                    : "Security",
           destination,
         };
         const content: OpenedContent =

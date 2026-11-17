@@ -81,7 +81,7 @@ function rungContent(snapshot: ViewSnapshot, ladder: RolloutLadder, rung: Rung):
     return {
       ...content,
       title: dispatch.line.headline,
-      cause: `${content.cause ? `${content.cause} ` : ""}To ${forks.length} forks: ${forks.join(", ")}.`,
+      cause: `${content.cause ? `${content.cause} ` : ""}The template hasn't reached ${forks.length} forks: ${forks.join(", ")}.`,
       ...(templateChange ? { primary: templateChange, links: [templateChange] } : {}),
     };
   }

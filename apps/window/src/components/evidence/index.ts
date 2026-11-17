@@ -4,7 +4,6 @@
 export { Derived } from "./Derived.js";
 export { EnvelopeBadge, envelopeText, InferredMarker } from "./EnvelopeBadge.js";
 export {
-  SelectionEvidence,
   SelectionEvidenceChip,
   SweepEvidence,
   selectionAreas,

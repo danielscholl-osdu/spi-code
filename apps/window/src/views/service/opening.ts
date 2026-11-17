@@ -24,7 +24,7 @@ function releaseContent(
 ): OpenedContent {
   const pr = snapshot.services
     ?.find((row) => row.service === fork)
-    ?.releases.filter(({ releasePr }) => releasePr)
+    ?.releases.slice()
     .sort((a, b) => b.month.localeCompare(a.month))[0]?.releasePr;
   const source: Link | undefined = pr && { kind: "pr", label: `PR #${pr.number}`, url: pr.url };
   const held =
@@ -44,7 +44,7 @@ function releaseContent(
     cause:
       cellState(station) === "unread"
         ? "SPI Code didn't read this station."
-        : `${station.text}. Not on Today.`,
+        : `${station.text.replace(/\.$/, "")}. Not on Today.`,
     ...(source ? { primary: source, links: [source] } : {}),
   };
 }

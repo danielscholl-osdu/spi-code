@@ -223,12 +223,7 @@ export function Place({
         </section>
       )}
       {place && place !== "upstream" && (
-        <FreshItems
-          snapshot={snapshot}
-          place={place}
-          shown={content?.items.map(({ id }) => id)}
-          onSelect={onSelect}
-        />
+        <FreshItems snapshot={snapshot} place={place} shown={content?.items.map(({ id }) => id)} />
       )}
     </section>
   );

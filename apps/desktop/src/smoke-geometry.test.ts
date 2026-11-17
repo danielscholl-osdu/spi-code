@@ -59,14 +59,13 @@ const drag: SmokeGeometry = {
   controls: "overlay",
   clear: rect(0, 0, 1302, 44),
   viewport: rect(0, 0, 1440, 800),
-  centre: rect(232, 0, 568, 44),
+  centre: rect(232, 0, 848, 44),
   regions: [
     { appRegion: "no-drag", rect: sidebarToggle.rect },
     { appRegion: "drag", rect: rect(0, 0, 231, 44) },
     { appRegion: "no-drag", rect: sidebarToggle.rect },
-    { appRegion: "drag", rect: rect(232, 0, 568, 44) },
+    { appRegion: "drag", rect: rect(232, 0, 848, 44) },
     { appRegion: "no-drag", rect: titleControl.rect },
-    { appRegion: "drag", rect: rect(1161, 0, 279, 44) },
     { appRegion: "no-drag", rect: endControl.rect },
   ],
   targets: [sidebarToggle, titleControl, endControl],
@@ -373,15 +372,15 @@ it("requires a contiguous 48 px drag span in the centre, not a sum of smaller ga
     ],
     targets: [sidebarToggle, ...middle.map((rect) => ({ label: "Line", rect })), endControl],
   });
-  expect(() => assertSmokeGeometry(crowded(rect(232, 8, 521, 28)))).toThrow(
+  expect(() => assertSmokeGeometry(crowded(rect(232, 8, 801, 28)))).toThrow(
     "Drag area is 47 px, below 48",
   );
   expect(() =>
     assertSmokeGeometry(
-      crowded(rect(232, 8, 200, 28), rect(479, 8, 200, 28), rect(726, 8, 74, 28)),
+      crowded(rect(232, 8, 200, 28), rect(479, 8, 200, 28), rect(726, 8, 354, 28)),
     ),
   ).toThrow(/Drag area/);
-  expect(() => assertSmokeGeometry(crowded(rect(232, 8, 520, 28)))).not.toThrow();
+  expect(() => assertSmokeGeometry(crowded(rect(232, 8, 800, 28)))).not.toThrow();
   expect(() =>
     assertSmokeGeometry({
       ...drag,

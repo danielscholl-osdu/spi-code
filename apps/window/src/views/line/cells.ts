@@ -77,7 +77,9 @@ export function cellText(station: Station, items: readonly FocusItem[]): string 
 
 export function memberStations(member: TodayMember | undefined): readonly Station["id"][] {
   if (!member) return [];
-  const kind = member.id.split(":")[0] ?? "";
-  const stations = itemStations[kind] ?? [];
-  return kind === "gate2" && member.blockedBy === "stack:lanes" ? [...stations, "lane"] : stations;
+  const station = itemStation(member.id);
+  const stations = station ? [station] : [];
+  return member.id.startsWith("gate2:") && member.blockedBy === "stack:lanes"
+    ? [...stations, "lane"]
+    : stations;
 }

@@ -220,4 +220,26 @@ it("reopens a repository line from its place selection and refreshes its body on
     store.setState({ snapshot: { cursor: body.cursor + 1, body: { ...body } } }),
   );
   expect(dialog()?.querySelector("h3")?.textContent).toBe(entry.text);
+  const next = structuredClone(body);
+  for (const repo of next.briefing.repositories.rows)
+    for (const section of repo.sections)
+      section.lines = section.lines.filter(({ id }) => id !== entry.id);
+  await act(async () => store.setState({ snapshot: { cursor: body.cursor + 2, body: next } }));
+  expect(openSelection()).toBeNull();
+  expect(row("storage").querySelector("button")?.getAttribute("aria-expanded")).toBe("false");
+  expect(dialog()).toBeNull();
+});
+
+it("does not deny core's Today association when its member is unavailable", async () => {
+  const body = snapshot1116();
+  const entry = body.briefing.repositories.rows
+    .find(({ name }) => name === "crs-conversion")
+    ?.sections.flatMap(({ lines }) => lines)
+    .find(({ id }) => id === "issue:Azure/osdu-spi-crs-conversion:44");
+  if (!entry?.onToday) throw new Error("Missing associated #44");
+  body.briefing.lines = [];
+  await mount(body);
+  await expand("crs-conversion");
+  await clickLine(entry.id ?? "");
+  expect(dialog()?.textContent).not.toContain("Not on Today.");
 });

@@ -80,7 +80,9 @@ export function RepositoryLine({
           selection={selection}
           content={timed({
             ...content,
-            ...(!content.cause && !content.subject ? { cause: "Not on Today." } : {}),
+            ...(!line.onToday && !content.cause && !content.subject
+              ? { cause: "Not on Today." }
+              : {}),
           })}
           onClose={close}
         />

@@ -71,6 +71,13 @@ it("partitions Today once across the place heads on every watch fixture and 16 N
     const homes = places.flatMap((place) =>
       placeMembers(snapshot, place).map(({ member }) => member.id),
     );
+    for (const { member } of todayMembers(snapshot.briefing)) {
+      const row = snapshot.briefing.places?.find(({ place }) => place === member.home);
+      if (!row) continue;
+      expect
+        .soft(row.itemIds, `${name}: ${member.id} belongs to its home place reading`)
+        .toContain(member.id);
+    }
     const store = createWatchStore(vi.fn());
     store.setState({ snapshot: { cursor: snapshot.cursor, body: snapshot } });
     await act(async () =>
@@ -210,6 +217,7 @@ it("marks every stepped Line member on its cells and the Engineering member on i
     for (const { member } of placeMembers(snapshot, "line")) {
       await act(async () => next?.click());
       expect(openSelection()?.id).toBe(member.id);
+      expect(container.querySelectorAll(".rollout-rung [data-member-marked]")).toHaveLength(0);
       const marks = container.querySelectorAll(".line-cell[data-member-marked]");
       expect(marks.length, member.id).toBeGreaterThan(0);
       expect(

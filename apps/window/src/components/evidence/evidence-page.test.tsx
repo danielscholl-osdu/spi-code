@@ -662,3 +662,35 @@ it.each(
     expect(view.page?.textContent).not.toMatch(UNSAID);
   },
 );
+
+it.each(["read", "cut", "skipped"] as const)(
+  "selected Evidence distinguishes logged areas from unread areas (%s)",
+  async (state) => {
+    const body = structuredClone(snapshot);
+    body.areas = body.areas.map((area) =>
+      area.area === "details"
+        ? { area: "details", envelope: { state: "unread", source: "details" } }
+        : area,
+    );
+    const completed = sweepOf([
+      {
+        source: "details",
+        state,
+        ...(state === "cut" ? { incomplete: { count: 1, total: 2 } } : {}),
+
+        startedAt: START,
+        endedAt: after(4),
+      },
+    ]);
+    const view = await render(
+      { kind: "evidence", selection: { kind: "item", id: "gate2:storage" } },
+      body,
+      completed,
+    );
+    expect(view.page?.querySelector('[data-source="details"] td')?.getAttribute("title")).toBe(
+      state === "skipped"
+        ? "Not read yet, not observed."
+        : "No observation recorded in this snapshot.",
+    );
+  },
+);

@@ -23,7 +23,7 @@ import { applyContainerRules } from "../sweep/container-rules.test-helper.js";
 import { midSweep } from "../sweep/test-helper.js";
 import { EnvelopeBadge } from "./EnvelopeBadge.js";
 import { EvidencePage } from "./EvidencePage.js";
-import { SelectionEvidence, SelectionEvidenceChip, SweepEvidence } from "./EvidenceTab.js";
+import { SelectionEvidenceChip, SweepEvidence } from "./EvidenceTab.js";
 import { expectEvidenceMarks, expectNoEvidenceMarks } from "./marks.test-helper.js";
 import { SectionEvidence } from "./SectionEvidence.js";
 import { SweepLine, type SweepLineSnapshot } from "./SweepLine.js";
@@ -1270,75 +1270,6 @@ const read = (inferred: boolean): ReadRecord => ({
   observedAt: minutes(4),
   completeness: { kind: "cut", reason: "page_limit", read: 40, total: 52 },
   inferred,
-});
-
-it.each([
-  [true, true],
-  [true, false],
-  [false, true],
-] as const)(
-  "lists a selection's provenance areas, then its repository's reads; areas inferred=%s, read inferred=%s",
-  async (areasInferred, readInferred) => {
-    const result = inspected({
-      areas: areas(
-        { runs: { state: "stale", observedAt: minutes(23) } },
-        { inferred: areasInferred },
-      ),
-      provenance: [
-        { path: "/cause", areas: ["runs"] },
-        { path: "/next", areas: ["github", "runs"] },
-      ],
-      evidence: [read(readInferred)],
-    });
-    const view = await render(<SelectionEvidence result={result} now={now} />);
-    try {
-      const article = view.container.querySelector('[data-evidence="selection"]');
-      expect(
-        [...(article?.querySelectorAll("h3") ?? [])].map((heading) => heading.textContent),
-      ).toEqual(["Areas", "Reads for partition"]);
-      expect(view.rows("Areas")).toEqual([
-        ["GitHub issues and PRs", "fresh", "fresh, last read 2\u00a0min ago, complete"],
-        ["Workflow runs", "stale", "stale, last read 23\u00a0min ago, complete"],
-      ]);
-      expect(view.rows("Reads for partition")).toEqual([
-        [
-          "GitHub issues and PRs · Azure/osdu-spi-partition",
-          "cut",
-          "read 4\u00a0min ago, cut, 40 of 52 · page limit",
-        ],
-      ]);
-      const all = areasInferred && readInferred;
-      expect(article?.querySelector("h2 [data-inferred]")?.textContent ?? null).toBe(
-        all ? "inferred · every source" : null,
-      );
-      expect(article?.querySelectorAll("[data-inferred]").length).toBe(all ? 1 : 0);
-    } finally {
-      await view.cleanup();
-    }
-  },
-);
-
-it("lists no area when a selection's provenance names none, and says when it carries no areas", async () => {
-  const unnamed = await render(
-    <SelectionEvidence result={inspected({ areas: areas(), provenance: [] })} now={now} />,
-  );
-  try {
-    expect(unnamed.rows("Areas")).toEqual([]);
-    expect(unnamed.container.textContent).toContain(
-      "This selection does not name the areas it is drawn from.",
-    );
-    expect(unnamed.container.textContent).toContain("No reads recorded for partition.");
-  } finally {
-    await unnamed.cleanup();
-  }
-  const bare = await render(<SelectionEvidence result={inspected({})} now={now} />);
-  try {
-    expect(bare.container.textContent).toContain(
-      "This selection does not say which areas it is drawn from.",
-    );
-  } finally {
-    await bare.cleanup();
-  }
 });
 
 it.each([

@@ -40,8 +40,10 @@ export function linkPillText(link: Link): string {
     }
     case "compare":
       return "Template change";
-    case "run":
-      return /Sync Upstream/.test(link.label) ? "Sync Upstream run" : "Run";
+    case "run": {
+      const workflow = link.label.match(/Sync (Upstream|Template)/)?.[0];
+      return workflow ? `${workflow} run` : "Run";
+    }
     case "job":
       return "Job";
     case "deploy":

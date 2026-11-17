@@ -162,8 +162,20 @@ export function Repositories({
   const marked = useOpenSelection();
   useEffect(() => {
     if (marked?.kind !== "rline") return;
-    const entry = rows.find((entry) => marked.id.startsWith(`${entry.name}|`));
-    if (entry) setOpen(entry.id);
+    const entry = rows.find((entry, row) =>
+      entry.sections.some((section, at) =>
+        section.lines.some(
+          (line, index) =>
+            repositorySelectionId(
+              entry.name,
+              line,
+              `/briefing/repositories/rows/${row}/sections/${at}/lines/${index}`,
+            ) === marked.id,
+        ),
+      ),
+    );
+    setOpen(entry?.id ?? null);
+    if (!entry) setOpenSelection(null);
   }, [marked?.kind, marked?.id, rows]);
   if (rows.length === 0) return null;
   const items = todayItems(snapshot);

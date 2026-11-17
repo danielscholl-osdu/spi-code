@@ -161,7 +161,7 @@ it("opens indexer's dispatch member with its deadline, all seven forks and templ
   const button = await clickRung("indexer");
   expect(dialog()?.querySelector("time")?.dateTime).toBe("2026-11-17T08:00:00.000Z");
   expect(dialog()?.textContent).toContain(
-    "To 7 forks: indexer, search, workflow, indexer-queue, unit, crs-catalog, crs-conversion.",
+    "The template hasn't reached 7 forks: indexer, search, workflow, indexer-queue, unit, crs-catalog, crs-conversion.",
   );
   expect(dialog()?.querySelector('[data-kind="compare"]')?.getAttribute("href")).toContain(
     `/compare/`,

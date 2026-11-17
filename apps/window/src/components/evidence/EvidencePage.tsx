@@ -101,12 +101,14 @@ function SelectionPage({
   subject,
   areas,
   sweptAt,
+  logged,
   now,
 }: {
   evidence: PageEvidence;
   subject: "item" | "row";
   areas: readonly AreaEnvelope[];
   sweptAt: string;
+  logged: readonly string[];
   now: number;
 }) {
   const envelopes = new Map(areas.map(({ area, envelope }) => [area, envelope]));
@@ -118,7 +120,7 @@ function SelectionPage({
       {
         ...row,
         word: areaPhrase(envelope, sweptAt, now),
-        sentence: areaSentence(envelope, sweptAt, now),
+        sentence: areaSentence(envelope, sweptAt, now, { logged: logged.includes(area) }),
       },
     ];
   });
@@ -229,6 +231,11 @@ export function EvidencePage({
             <SelectionPage
               evidence={evidence}
               subject={selection.kind === "line" ? "row" : "item"}
+              logged={
+                (progress ?? completed)?.sources.flatMap(({ source, state }) =>
+                  state === "read" || state === "cut" ? [source] : [],
+                ) ?? []
+              }
               areas={snapshot.areas}
               sweptAt={snapshot.sweptAt}
               now={at}

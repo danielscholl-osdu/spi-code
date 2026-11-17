@@ -61,7 +61,7 @@
   width: 132px;
 }
 .today-col-open {
-  width: 134px;
+  width: 170px;
 }
 .today-col-age {
   width: 84px;
@@ -144,6 +144,7 @@
   overflow: hidden;
 }
 .today-row-open .kit-link {
+  box-sizing: border-box;
   display: inline-block;
   max-width: 100%;
   overflow: hidden;

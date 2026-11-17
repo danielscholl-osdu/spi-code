@@ -10,6 +10,7 @@ import {
   routeHash,
   setOpenSelection,
 } from "../../app/navigation.js";
+import { TimedText } from "../../time.js";
 import { LinkPill, linkPillText } from "../kit/LinkPill.js";
 import { bodySources, type OpenedContent, restatesHeadline } from "./content.js";
 import "./opened-body.css";
@@ -97,7 +98,10 @@ export function OpenedBody({ content, selection, origin, rowUrl, onClose }: Open
       )}
       {deadline && (
         <p className="opened-body-deadline">
-          <span aria-hidden="true">◷</span> <time dateTime={deadline.at}>{deadline.reason}</time>
+          <span aria-hidden="true">◷</span>{" "}
+          <time dateTime={deadline.at}>
+            <TimedText text={deadline.reason} hint={false} />
+          </time>
         </p>
       )}
       {cause && !restatesHeadline(cause, content.title) && <p>{cause}</p>}

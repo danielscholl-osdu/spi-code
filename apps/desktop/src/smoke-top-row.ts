@@ -77,27 +77,25 @@ export async function captureTopRowPins(
       await rendered(
         `document.querySelector("[data-place]")?.textContent === ${JSON.stringify(place)} && document.querySelector(".centre-end > .pin-control[data-pinned=${pinned}]")`,
       );
-      {
-        assert.equal(
-          await js(
-            `document.querySelectorAll("#app-right-panel, [aria-controls=app-right-panel]").length`,
-          ),
-          0,
-          "Panel or toggle outside a thread",
+      assert.equal(
+        await js(
+          `document.querySelectorAll("#app-right-panel, [aria-controls=app-right-panel]").length`,
+        ),
+        0,
+        "Panel or toggle outside a thread",
+      );
+      await rendered("true");
+      const state = `${pinned ? "pinned" : "unpinned"}`;
+      const geometry = await measure();
+      measured.push({ state, geometry });
+      if (captured) {
+        const file = `top-row-${state}-${width}-${appearance}.png`;
+        writeFileSync(
+          join(output, file),
+          (await window.webContents.capturePage({ x: 0, y: 0, width, height: 44 })).toPNG(),
         );
-        await rendered("true");
-        const state = `${pinned ? "pinned" : "unpinned"}`;
-        const geometry = await measure();
-        measured.push({ state, geometry });
-        if (captured) {
-          const file = `top-row-${state}-${width}-${appearance}.png`;
-          writeFileSync(
-            join(output, file),
-            (await window.webContents.capturePage({ x: 0, y: 0, width, height: 44 })).toPNG(),
-          );
-          figures.push(`<figure><figcaption>${state}</figcaption><img src="${file}"></figure>`);
-          if (pinned) figures.push(await captureHover(window, output, width, appearance, rendered));
-        }
+        figures.push(`<figure><figcaption>${state}</figcaption><img src="${file}"></figure>`);
+        if (pinned) figures.push(await captureHover(window, output, width, appearance, rendered));
       }
     }
     if (appearance === "light") rejected = await rejectBroken(window, width, measure, rendered);

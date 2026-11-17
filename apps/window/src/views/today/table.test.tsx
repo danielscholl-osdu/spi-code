@@ -214,7 +214,9 @@ it("a member's age is the age of its object, in one unit", async () => {
   await render();
   const unit = row("waiting:upgrade:os-core-common", "gate1:unit");
   expect(unit.querySelector(".today-row-age")?.textContent).toBe("10d");
-  expect(container.querySelector("table")?.textContent).not.toContain("59d");
+  expect(
+    [...container.querySelectorAll("table")].map((table) => table.textContent).join(" "),
+  ).not.toContain("59d");
   expect(row("waiting:release-approval").querySelector(".today-row-age")?.textContent).toBe("7d");
   expect([ageInOneUnit("1d 2h"), ageInOneUnit("33m"), ageInOneUnit("6d 22h")]).toEqual([
     "26h",

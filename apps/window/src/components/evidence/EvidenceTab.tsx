@@ -28,8 +28,6 @@ import {
 import type { SweepLineSnapshot } from "./SweepLine.js";
 import { useNow } from "./useNow.js";
 import {
-  AREA_NAMES,
-  ago,
   areaFact,
   areaPhrase,
   areaSentence,
@@ -44,8 +42,6 @@ import {
   INFERRED_EVERY_SOURCE,
   keptData,
   observedFrom,
-  plain,
-  sourceName,
   sourceReads,
   stateWord,
   sweepLine,
@@ -95,36 +91,6 @@ export const sourceRow = ({ key, name, envelope }: EvidenceSource, now: number):
   word: stateWord(envelope),
   sentence: envelopeSentence(envelope, now),
 });
-
-function readRow(record: ReadRecord, now: number): Row {
-  const { completeness } = record;
-  const cut =
-    completeness.kind === "cut"
-      ? `cut, ${completeness.read.toLocaleString("en-US")} of ${completeness.total.toLocaleString("en-US")} · ${plain(completeness.reason)}`
-      : "complete";
-  const key = `${record.source}/${record.object}`;
-  const name = `${sourceName(record.source)} · ${record.object}`;
-  if (record.failure !== undefined) {
-    const kept =
-      record.retainedFrom === undefined
-        ? "nothing retained"
-        : `showing data from ${ago(record.retainedFrom, now)}`;
-    return {
-      key,
-      name,
-      tone: "bad",
-      word: "read failed",
-      sentence: `${plain(record.failure)}, ${kept}`,
-    };
-  }
-  return {
-    key,
-    name,
-    tone: completeness.kind === "cut" ? "warn" : record.inferred === true ? "inferred" : "fresh",
-    word: completeness.kind === "cut" ? "cut" : "read",
-    sentence: `read ${ago(record.observedAt, now)}, ${cut}`,
-  };
-}
 
 const MARKS: Readonly<Record<Envelope["state"], { mark: string; tone: SourceTone }>> = {
   fresh: { mark: "✓", tone: "ok" },
@@ -574,62 +540,5 @@ export function SelectionEvidenceChip({
     >
       {text}
     </button>
-  );
-}
-
-/**
- * The Evidence tab for a selection: the areas its provenance names, then its repository's reads.
- * `reads` is the sweep's reads, filtered here to the selected repository.
- */
-export function SelectionEvidence({
-  result,
-  reads = [],
-  now,
-}: {
-  result: InspectResult;
-  reads?: readonly ReadRecord[] | undefined;
-  now?: number | undefined;
-}) {
-  const clock = useNow();
-  const at = now ?? clock;
-  const areas = selectionAreas(result);
-  const records = selectionReads(result, reads);
-  const rows = areas.map(({ area, envelope }) =>
-    sourceRow({ key: area, name: AREA_NAMES[area], envelope }, at),
-  );
-  const inferred = everyInferred([...areas.map(({ envelope }) => envelope), ...records]);
-  const title = result.title ?? result.id;
-  return (
-    <article className="evidence" data-evidence="selection">
-      <p className="inspector-kicker">what this selection is drawn from</p>
-      <h2 className="evidence-title">
-        {title}
-        {inferred && (
-          <span className="evidence-chip" data-inferred="" data-tone="inferred">
-            {INFERRED_EVERY_SOURCE}
-          </span>
-        )}
-      </h2>
-      <h3>Areas</h3>
-      {result.areas === undefined ? (
-        <p className="panel-empty">This selection does not say which areas it is drawn from.</p>
-      ) : rows.length === 0 ? (
-        <p className="panel-empty">
-          This selection does not name the areas it is drawn from. The sweep&apos;s evidence covers
-          every area.
-        </p>
-      ) : (
-        <EvidenceTable label="Areas" rows={rows} />
-      )}
-      <h3>Reads for {title}</h3>
-      {records.length > 0 ? (
-        <EvidenceTable
-          label={`Reads for ${title}`}
-          rows={records.map((record) => readRow(record, at))}
-        />
-      ) : (
-        <p className="panel-empty">No reads recorded for {title}.</p>
-      )}
-    </article>
   );
 }

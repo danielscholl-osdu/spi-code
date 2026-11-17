@@ -9,7 +9,7 @@ import {
 } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterAll, afterEach, expect, it, vi } from "vitest";
 import {
   leaveEvidence,
   openEvidence,
@@ -22,6 +22,15 @@ import { type OpenedContent, repositoryContent, todayContent } from "./content.j
 import { OpenedBody, type OpenedBodyProps } from "./OpenedBody.js";
 import recorded from "./sweep-1116.json?raw";
 
+const previousZone = process.env.TZ;
+process.env.TZ = "UTC";
+vi.useFakeTimers({ toFake: ["Date"] });
+vi.setSystemTime(Date.parse("2026-11-17T01:10:00Z"));
+afterAll(() => {
+  vi.useRealTimers();
+  if (previousZone === undefined) delete process.env.TZ;
+  else process.env.TZ = previousZone;
+});
 const fixture = JSON.parse(recorded);
 
 const lines = TodayLineSchema.array().parse(fixture.lines);
@@ -379,4 +388,15 @@ it("line~rerun keeps member pills on sub-rows and allows a whole-group source", 
     expect(pill.textContent).toContain(member.fork);
   }
   expect(own.container.querySelectorAll(".opened-body-sources a").length).toBeGreaterThan(0);
+});
+
+it("localises an instant inside the deadline reason", async () => {
+  const { container } = await mount({
+    ...halt,
+    deadline: {
+      at: "2026-11-17T08:00:00.000Z",
+      reason: "Before the next upstream sync, 2026-11-17T08:00:00.000Z",
+    },
+  });
+  expect(container.querySelector("time")?.textContent).toBe("Before the next upstream sync, 08:00");
 });
