@@ -17,7 +17,12 @@ export function externalLinkHandlers(
       dependencies.warn("Refused external link: invalid URL");
       return false;
     }
-    if (url.origin !== "https://github.com" || url.username !== "" || url.password !== "") {
+    if (
+      url.protocol !== "https:" ||
+      (url.origin !== "https://github.com" && url.origin !== "https://community.opengroup.org") ||
+      url.username !== "" ||
+      url.password !== ""
+    ) {
       dependencies.warn("Refused external link: URL is not allowlisted");
       return false;
     }
@@ -25,7 +30,7 @@ export function externalLinkHandlers(
       await dependencies.openExternal(url.href);
       return true;
     } catch {
-      dependencies.warn("Could not open GitHub link in the browser");
+      dependencies.warn("Could not open link in the browser");
       return false;
     }
   }

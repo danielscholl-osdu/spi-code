@@ -5,20 +5,25 @@ import type { InspectResult, ViewSnapshot } from "@spi-code/contracts";
 import { navigate, type Route, routeLabel } from "../app/navigation.js";
 import type { SelectionRow } from "./selection-rows.js";
 
-/** The item's one action at M2: open its page on GitHub, or open the place that owns it. */
+/** The item's one action at M2: open its source page, or open the place that owns it. */
 export type DetailAction =
   | { kind: "external"; label: string; url: string }
   | { kind: "place"; label: string; route: Route };
 
 /**
  * Mirrors the desktop link bridge's allowlist (apps/desktop/src/external-links.ts): only
- * https://github.com URLs without credentials open. An action the bridge refuses never renders.
+ * HTTPS GitHub and community.opengroup.org URLs without credentials open. The parity test in
+ * detail-kinds.test.tsx keeps both gates aligned; an action the bridge refuses never renders.
  */
 export function bridgeOpens(url: string) {
   try {
     const parsed = new URL(url);
     return (
-      parsed.origin === "https://github.com" && parsed.username === "" && parsed.password === ""
+      parsed.protocol === "https:" &&
+      (parsed.origin === "https://github.com" ||
+        parsed.origin === "https://community.opengroup.org") &&
+      parsed.username === "" &&
+      parsed.password === ""
     );
   } catch {
     return false;
@@ -26,7 +31,12 @@ export function bridgeOpens(url: string) {
 }
 
 function external(url: string | undefined): DetailAction | undefined {
-  return url && bridgeOpens(url) ? { kind: "external", label: "Open on GitHub", url } : undefined;
+  if (!url || !bridgeOpens(url)) return undefined;
+  return {
+    kind: "external",
+    label: new URL(url).origin === "https://github.com" ? "Open on GitHub" : "Open on GitLab",
+    url,
+  };
 }
 
 const LINE_STATIONS = new Set(["upstream", "sync", "cascade", "main"]);

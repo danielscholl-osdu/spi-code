@@ -94,3 +94,8 @@ confinement checks. The [sandbox decision](../decisions/m0-sandbox-probe.md) doc
 the current test command and the historical manual CLI, which still runs after a build.
 No unused probe implementation is presently identified. Name and prove an entry point
 unreferenced before removal; a missing package-script or packaged-smoke caller is insufficient.
+
+When spicode-djg.14 moves the Detail action, preserve the mirrored external-link gate and
+its desktop parity table in `panels/detail-kinds.test.tsx`; it checks the real desktop
+handler without crossing package build boundaries. Both gates require HTTPS explicitly:
+`blob:https://github.com/id` has an allowed origin but must never open.

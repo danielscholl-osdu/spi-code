@@ -241,7 +241,7 @@ afterEach(() => {
 });
 
 const lineStations = [
-  ["upstream", "Upstream", "Open legal"],
+  ["upstream", "Upstream", "Open on GitLab"],
   ["sync", "Sync PR", "Open on GitHub"],
   ["cascade", "Cascade", "Open on GitHub"],
   ["main", "Sync to main", "Open on GitHub"],
@@ -280,9 +280,27 @@ async function desktopBridge() {
 it.each([
   "https://github.com/Azure/osdu-spi-legal/pull/31",
   "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/commit/ba05b1c",
+  "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+  "https://github.com/login/device",
+  "https://github.com:443/Azure/stack/actions/runs/123?check_suite_focus=true#jobs",
+  "http://community.opengroup.org/osdu/legal",
+  "https://community.opengroup.org.evil.test/osdu/legal",
+  "https://opengroup.org/osdu/legal",
+  "https://user:secret@community.opengroup.org/osdu/legal",
+  "https://user@community.opengroup.org/osdu/legal",
+  "https://:secret@community.opengroup.org/osdu/legal",
+  "https://community.opengroup.org:8443/osdu/legal",
+  "ftp://community.opengroup.org/osdu/legal",
+  "blob:https://community.opengroup.org/id",
+  "blob:https://github.com/id",
+  "javascript:alert(1)",
+  "file:///tmp/test",
   "https://gitlab.com/osdu/legal",
   "http://github.com/Azure/osdu-spi-legal",
   "https://user:secret@github.com/Azure/osdu-spi-legal",
+  "https://user@github.com/Azure/osdu-spi-legal",
+  "https://:secret@github.com/Azure/osdu-spi-legal",
+  "https://github.com:8443/Azure/osdu-spi-legal",
   "https://github.com.example.com/Azure",
   "not a url",
 ])("decides %s by the desktop bridge's own allowlist", async (url) => {
@@ -290,7 +308,7 @@ it.each([
   expect(bridgeOpens(url)).toBe(await bridge.openExternal(url));
 });
 
-async function mountStation(stationId: string) {
+async function mountStation(stationId: string, sourceUrl?: string) {
   const body = loadFixture("snapshot-59d6895.json");
   const station = body.stations
     .find(({ service }) => service === "legal")
@@ -300,6 +318,11 @@ async function mountStation(stationId: string) {
     ({ id }) => id === `station:legal:${stationId}`,
   );
   if (!station || !row || !result) throw new Error(`Missing recorded legal ${stationId}`);
+  if (sourceUrl) {
+    const source = result.related.find(({ url, inspect }) => url && !inspect);
+    if (!source) throw new Error("Missing station source");
+    source.url = sourceUrl;
+  }
   const postMessage = vi.fn();
   const store = createSelectionStore({ postMessage });
   const container = document.createElement("div");
@@ -359,7 +382,7 @@ it.each(lineStations)(
       expect(actions[0]?.disabled).toBe(false);
       await act(async () => actions[0]?.click());
       const own = result.related.find(
-        (related) => related.url?.startsWith("https://github.com/") && !related.inspect,
+        (related) => related.url && bridgeOpens(related.url) && !related.inspect,
       )?.url;
       expect(bridge.warn).not.toHaveBeenCalled();
       if (own) expect(bridge.opened).toEqual([own]);
@@ -374,13 +397,13 @@ it.each(lineStations)(
   },
 );
 
-it("offers the place, never a GitLab link the bridge would refuse, for a GitLab-only station", async () => {
-  const view = await mountStation("upstream");
+it("offers the place for a station whose only source is on an unallowlisted GitLab host", async () => {
+  const view = await mountStation("upstream", "https://gitlab.com/osdu/legal/-/commit/ba05b1c");
   try {
     const { container, result } = view;
     const urls = result.related.flatMap(({ url, inspect }) => (url && !inspect ? [url] : []));
     expect(urls).toHaveLength(1);
-    expect(urls[0]).toMatch(/^https:\/\/community\.opengroup\.org\//);
+    expect(urls[0]).toMatch(/^https:\/\/gitlab\.com\//);
     const actions = container.querySelectorAll<HTMLButtonElement>("[data-detail-action]");
     expect([...actions].map((action) => [action.dataset.detailAction, action.textContent])).toEqual(
       [["place", "Open legal"]],
