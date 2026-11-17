@@ -4,7 +4,7 @@
 import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
 import { closeSheet, openSelection, setOpenSelection } from "../../app/navigation.js";
 import { selectionStore } from "../../panels/selection.js";
 import { createWatchStore } from "../../store/watch.js";
@@ -16,10 +16,20 @@ const RUN = "https://github.com/Azure/osdu-spi-stack/actions/runs/43831504653";
 
 const november16 = (): ViewSnapshot => ViewSnapshotSchema.parse(JSON.parse(sweep));
 
+// Read in Chicago, where the run and the end of the sweep fall on the same day.
+const previousZone = process.env.TZ;
+process.env.TZ = "America/Chicago";
+afterAll(() => {
+  if (previousZone === undefined) delete process.env.TZ;
+  else process.env.TZ = previousZone;
+});
+
 let container: HTMLDivElement;
 let root: ReturnType<typeof createRoot>;
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(Date.parse(november16().sweptAt));
   setOpenSelection(null);
   selectionStore.getState().clear();
   container = document.createElement("div");
@@ -33,6 +43,7 @@ afterEach(async () => {
   container.remove();
   closeSheet();
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 async function render(body = november16()) {
@@ -73,7 +84,7 @@ it("says a failed smoke run left the running environment ready and nothing on To
   expect(bar(SMOKE).getAttribute("aria-expanded")).toBe("true");
   const shown = read();
   expect(shown.title).toBe("Smoke");
-  expect(shown.lines[0]).toMatch(/^failed after 4 min · \d\d:\d\d to \d\d:\d\d$/);
+  expect(shown.lines[0]).toBe("failed after 4 min · 02:28 to 02:32");
   expect(shown.effect).toBe(
     "A smoke run on a fresh cluster failed. The running environment stayed ready; nothing on Today waits on it.",
   );
