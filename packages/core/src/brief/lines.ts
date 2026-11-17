@@ -99,7 +99,7 @@ function objectMove(
   const item =
     moves.find((i) => i.subject && i.evidence.some((link) => link.url === i.subject)) ?? moves[0];
   const queued = model.queue.items.find((q) => q.id === item.id);
-  const first = moves.find((i) => i.cls === "TOOLCHAIN" && i !== item);
+  const first = moves.find((i) => i.cls === "TOOLCHAIN");
   const ordered = first ? [first, ...moves.filter((i) => i !== first)] : moves;
   const ids = [...new Set([...ordered.flatMap((i) => i.ids), ...(blocker?.ids ?? [])])];
   const dependency =
@@ -141,8 +141,9 @@ function objectMove(
 }
 
 function groupKey(model: Model, move: ObjectMove): string {
-  if (move.blocker) return `blocker:${move.blocker.id}`;
-  if (move.dependency) return `upgrade:${move.dependency}`;
+  if (move.blocker) return `blocker:${move.blocker.id}:${move.queued?.kind ?? move.item.id}`;
+  if (move.dependency)
+    return `${move.queued?.kind === "radar" ? "toolchain" : "upgrade"}:${move.dependency}`;
   if (move.queued?.kind === "gate1" && move.item.cls === "GATE") return "sync-review";
   if (move.queued?.kind === "gate2") {
     const pr = model.lines.find((l) => l.fork.id === move.item.scope)?.cascadePr?.pr;
@@ -179,7 +180,7 @@ function describe(
         : member.steps,
     };
   }
-  if (dependency)
+  if (dependency && queued?.kind !== "radar")
     return {
       ...base,
       headline: `sync PR needs ${dependency} upgraded on the fork first`,
@@ -271,7 +272,7 @@ function describe(
             : "next sync has an entry without a filter rule",
       };
     default:
-      return { ...base, headline: "needs your attention" };
+      return { ...base, headline: plain(item.title) };
   }
 }
 

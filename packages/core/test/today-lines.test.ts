@@ -4,8 +4,10 @@
 import { describe, expect, test } from "vitest";
 import { buildBriefing } from "../src/brief/index";
 import { todayLines } from "../src/brief/lines";
+import { emptyFacts, type Facts } from "../src/facts";
 import { itemEvidence } from "../src/inspect/item-evidence";
 import { CLASS_VERB } from "../src/model/next";
+import sweep1106 from "./fixtures/upstream-1106.json";
 import {
   sweep1116Context as context,
   SWEEP_1116_NOW as now,
@@ -76,6 +78,79 @@ describe("Today's situation lines", () => {
     expect(line?.members[0]?.steps[0]).toContain("8.5.0");
   });
 
+  test("radar-only toolchain objects group by dependency without claiming a sync PR", () => {
+    const withoutPrs = items.filter(
+      (i) => !["gate1:unit", "gate1:workflow", "gate1:search"].includes(i.id),
+    );
+    const result = todayLines(model, withoutPrs, now, context);
+    const group = result.find((line) => line.members.some((m) => m.id === "radar:unit"));
+    expect(group).toMatchObject({
+      id: "waiting:toolchain:os-core-common",
+      subject: "3 forks",
+      headline: "upstream changes need a toolchain upgrade",
+      steps: [],
+    });
+    expect(group?.members.map((m) => m.id).sort()).toEqual([
+      "radar:search",
+      "radar:unit",
+      "radar:workflow",
+    ]);
+    expect(group?.headline).not.toContain("sync PR");
+    const changed = structuredClone(model);
+    const value = changed.queue.items
+      .find((q) => q.id === "radar:search")
+      ?.cause.find((f) => f.label === "value");
+    if (!value) throw new Error("search has a toolchain dependency");
+    value.value = value.value.replace("os-core-common", "another-dependency");
+    const separate = todayLines(
+      changed,
+      withoutPrs.filter((i) => i.cls === "TOOLCHAIN"),
+      now,
+      context,
+    );
+    expect(separate.map((line) => line.id).sort()).toEqual([
+      "waiting:toolchain:another-dependency",
+      "waiting:toolchain:os-core-common",
+    ]);
+  });
+
+  test("sync and release PRs behind the same lanes keep their own situations", () => {
+    const changed = structuredClone(model);
+    const sync = changed.queue.items.find((q) => q.id === "gate1:crs-conversion");
+    if (!sync) throw new Error("sync PR is in the sweep");
+    sync.since = "2026-09-01T00:00:00.000Z";
+    const result = todayLines(
+      changed,
+      items.map((i) => (i.id === sync.id ? { ...i, blockedBy: "stack:lanes" } : i)),
+      now,
+      context,
+    );
+    const releaseLine = result.find((line) => line.members.some((m) => m.id === "gate2:legal"));
+    const syncLine = result.find((line) => line.members.some((m) => m.id === sync.id));
+    expect(releaseLine).not.toBe(syncLine);
+    expect(releaseLine).toMatchObject({
+      headline: "release/upstream PR red: its deploy lane failed",
+    });
+    expect(releaseLine?.members).toHaveLength(5);
+    expect(syncLine).toMatchObject({ headline: "sync PR waits for its deploy lane" });
+    expect(syncLine?.members.map((m) => m.id)).toEqual([sync.id]);
+  });
+
+  test.each(["release-red:Azure/osdu-spi-entitlements#89", "stack:lanes"])(
+    "%s keeps its situation title when no specific headline applies",
+    (id) => {
+      const previous =
+        id === "stack:lanes"
+          ? model
+          : sweep1116Model({ ...emptyFacts(), ...(sweep1106 as unknown as Partial<Facts>) });
+      const item = sweep1116Items(previous).find((i) => i.id === id);
+      if (!item) throw new Error(`${id} is in the sweep`);
+      const result = todayLines(previous, [item], now, context);
+      expect(result).toHaveLength(1);
+      expect(result[0]?.headline).toBe(item.title);
+    },
+  );
+
   test("different failures stay separate even when both moves are Investigate", () => {
     expect(lineWith("gate2:storage")).toMatchObject({
       subject: "storage",
@@ -96,7 +171,12 @@ describe("Today's situation lines", () => {
 
   test("no line headline leaks a core verb name or error code", () => {
     const verbs = [...new Set([...Object.values(CLASS_VERB), ...items.map((i) => i.verb)])];
-    for (const line of lines) {
+    const changed = structuredClone(model);
+    const halt = changed.queue.items.find((q) => q.id === "halt:crs-conversion");
+    if (!halt?.halt) throw new Error("halt entries are in the sweep");
+    halt.halt.entries.push("UNKNOWN_TOP_LEVEL");
+    expect(halt.halt.entries).toContain("UNKNOWN_TOP_LEVEL");
+    for (const line of [...lines, ...todayLines(changed, items, now, context)]) {
       for (const verb of verbs) expect(line.headline).not.toContain(verb);
       expect(line.headline).not.toMatch(/\b[A-Z]+(?:_[A-Z]+)+\b/);
     }
