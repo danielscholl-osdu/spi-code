@@ -285,12 +285,10 @@ export function createSweepTray(
           armed = false;
           handedOver = true;
           if (hidden()) {
-            const count = interruptions(message.payload.briefing);
+            const count = today();
             notify(
               "Today is ready",
-              count === 0
-                ? undefined
-                : `${count} interruption${count === 1 ? " needs" : "s need"} you.`,
+              count === null || count === 0 ? undefined : `${count} need${count === 1 ? "s" : ""} you.`,
             );
           }
         }

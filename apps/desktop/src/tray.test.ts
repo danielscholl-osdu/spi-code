@@ -272,46 +272,49 @@ it("counts the sweep's progress while the first sweep runs and paints failed whe
   expect(native?.setToolTip).toHaveBeenLastCalledWith("SPI Code - All fresh · swept 08:02");
 });
 
-it("notifies 'Today is ready' once, when hidden, from the first snapshot with its interruption count", () => {
+it("notifies 'Today is ready' once, when hidden, with the 16 Nov brief's 18 Today members", () => {
   const notify = vi.fn();
   let hidden = true;
   const tray = createSweepTray(vi.fn(), vi.fn(), { hidden: () => hidden, notify });
   tray.observe(progress("running"));
   tray.observe(progress("committed", { settled: 12 }));
   expect(notify).not.toHaveBeenCalled();
-  tray.observe(snapshot(["fresh"], { interrupts: 2 }));
-  expect(notify).toHaveBeenCalledExactlyOnceWith("Today is ready", "2 interruptions need you.");
+  tray.observe(nov16());
+  expect(notify).toHaveBeenCalledExactlyOnceWith("Today is ready", "18 need you.");
   tray.disconnected();
   tray.observe(progress("running"));
-  tray.observe(snapshot(["fresh"], { interrupts: 1 }));
+  tray.observe(nov16());
   tray.observe(progress("running", { first: false }));
-  tray.observe(snapshot(["fresh"], { interrupts: 1 }));
+  tray.observe(nov16());
   expect(notify).toHaveBeenCalledOnce();
 
   hidden = false;
   const shown = vi.fn();
   const visible = createSweepTray(vi.fn(), vi.fn(), { hidden: () => hidden, notify: shown });
   visible.observe(progress("running"));
-  visible.observe(snapshot(["fresh"], { interrupts: 1 }));
+  visible.observe(nov16());
   hidden = true;
-  visible.observe(snapshot(["fresh"], { interrupts: 1 }));
+  visible.observe(nov16());
   expect(shown).not.toHaveBeenCalled();
   expect(electron.trays[1]?.setToolTip).toHaveBeenCalledWith("SPI Code - Today is ready");
 });
 
-it("names one interruption or none in the hand-over notification, and stays quiet over a kept snapshot", () => {
-  const one = vi.fn();
-  const single = createSweepTray(vi.fn(), vi.fn(), { hidden: () => true, notify: one });
-  single.observe(progress("running"));
-  single.observe(snapshot(["fresh"], { interrupts: 1 }));
-  expect(one).toHaveBeenCalledExactlyOnceWith("Today is ready", "1 interruption needs you.");
+it.each([
+  { members: 1, body: "1 needs you." },
+  { members: 0, body: undefined },
+  { members: undefined, body: undefined },
+])("hands over with $members Today members and body $body", ({ members, body }) => {
+  const notify = vi.fn();
+  const tray = createSweepTray(vi.fn(), vi.fn(), { hidden: () => true, notify });
+  const brief = snapshot(["fresh"], { interrupts: 2, members });
+  if (brief.type !== "view.snapshot") throw new Error("expected a snapshot");
+  if (members === undefined) delete brief.payload.briefing.lines;
+  tray.observe(progress("running"));
+  tray.observe(brief);
+  expect(notify).toHaveBeenCalledExactlyOnceWith("Today is ready", body);
+});
 
-  const none = vi.fn();
-  const quiet = createSweepTray(vi.fn(), vi.fn(), { hidden: () => true, notify: none });
-  quiet.observe(progress("running"));
-  quiet.observe(snapshot(["fresh"], { interrupts: 0 }));
-  expect(none).toHaveBeenCalledExactlyOnceWith("Today is ready", undefined);
-
+it("stays quiet over a kept snapshot", () => {
   const kept = vi.fn();
   const replay = createSweepTray(vi.fn(), vi.fn(), { hidden: () => true, notify: kept });
   replay.observe(snapshot(["fresh"]));
