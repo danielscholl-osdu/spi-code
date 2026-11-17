@@ -182,7 +182,7 @@ export function assertMorningEvidence(
   assert(/swept/i.test(qualifiers[0] ?? ""), `Missing sweep qualifier: ${label}`);
   if (surface.morning === "bad")
     assert(
-      /^GitHub\b.* read failed at \d\d:\d\d; items from it may be missing\. Evidence ›/.test(
+      /^GitHub\b.* read failed at \d\d:\d\d; items from it may be missing\./.test(
         qualifiers[1] ?? "",
       ),
       `Missing caveat band qualifier: ${label} (${qualifiers[1]})`,

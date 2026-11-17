@@ -402,7 +402,7 @@ function morningShot(
     qualifiers: [
       "Swept 08:02",
       surface.morning === "bad"
-        ? "GitHub issues and PRs read failed at 08:02; items from it may be missing. Evidence ›"
+        ? "GitHub issues and PRs read failed at 08:02; items from it may be missing."
         : "",
     ],
     geometry: geometry("strip", viewportWidth),
@@ -1150,7 +1150,7 @@ it("fails the bad morning without its caveat band, and a calm or busy one with a
           () => ({
             qualifiers: [
               "Swept 08:02",
-              "GitHub issues and PRs read failed at 08:02; items from it may be missing. Evidence ›",
+              "GitHub issues and PRs read failed at 08:02; items from it may be missing.",
             ],
           }),
         ),
