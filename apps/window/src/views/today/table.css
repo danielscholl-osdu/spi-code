@@ -58,7 +58,7 @@
   table-layout: fixed;
 }
 .today-col-fork {
-  width: 118px;
+  width: 132px;
 }
 .today-col-open {
   width: 134px;
@@ -68,7 +68,7 @@
 }
 @container (max-width: 640px) {
   .today-col-fork {
-    width: 104px;
+    width: 112px;
   }
   .today-col-open {
     width: 122px;
@@ -115,6 +115,10 @@
   cursor: pointer;
 }
 .today-row-fork button {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   color: var(--text-strong);
   font-weight: 600;
   overflow-wrap: anywhere;
@@ -138,6 +142,21 @@
 }
 .today-row-open {
   overflow: hidden;
+}
+.today-row-open .kit-link {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+.today-row-open .kit-link svg {
+  margin-right: 4px;
+  vertical-align: -2px;
+}
+.today-row-open .kit-link-out {
+  margin-left: 4px;
 }
 .today-row-age {
   color: var(--text-muted);

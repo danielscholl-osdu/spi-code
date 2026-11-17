@@ -175,7 +175,7 @@ function RowCells({
       {...(open ? { "data-open": "" } : {})}
     >
       <td className="today-row-fork">
-        <button type="button" aria-expanded={open} onClick={toggle}>
+        <button type="button" aria-expanded={open} title={row.fork} onClick={toggle}>
           {row.fork}
         </button>
       </td>
