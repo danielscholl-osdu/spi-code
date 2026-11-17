@@ -777,7 +777,7 @@ it.each([900, 1280])(
 );
 
 it.each([900, 1280])(
-  "opens the footer sweep Evidence in the detail surface at %i px even with a selection",
+  "opens the footer sweep Evidence as the whole sweep's page at %i px even with a selection",
   async (width) => {
     viewport(width);
     const previous = watchStore.getState();
@@ -801,12 +801,9 @@ it.each([900, 1280])(
             .querySelector<HTMLButtonElement>("[data-sweep-popover] .capsule-evidence")
             ?.click(),
         );
-        const panel = shell.container.querySelector("#app-right-panel");
-        expect(panel?.hasAttribute("data-sheet")).toBe(width < 1032);
-        expect(panel?.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
-          "Evidence",
-        );
-        const sweep = panel?.querySelector('[data-evidence="sweep"]');
+        expect(shell.container.querySelector("#app-right-panel")).toBeNull();
+        expect(window.location.hash).toMatch(/^#evidence(\?from=today)?$/);
+        const sweep = shell.container.querySelector('.centre-body [data-evidence="sweep"]');
         expect(sweep?.querySelector("h2")?.textContent).toBe("The sweep");
         expect(sweep?.querySelector('table[aria-label="Areas"]')).toBeNull();
         expect(sweep?.querySelectorAll(".sweep-row[data-source]").length).toBeGreaterThanOrEqual(
@@ -814,8 +811,11 @@ it.each([900, 1280])(
         );
         expect([...(sweep?.querySelectorAll("h3") ?? [])].map((h) => h.textContent)).toEqual([
           "Sources",
-          "API budget",
         ]);
+        await act(async () =>
+          shell.container.querySelector<HTMLButtonElement>("[data-evidence-back]")?.click(),
+        );
+        expect(window.location.hash).toBe("#today");
         if (id) expect(selectionStore.getState().selected).toBe(id);
       }
     } finally {
@@ -849,9 +849,7 @@ it("closes the off-canvas sidebar under the Evidence the footer sweep opens", as
     );
     expect(sidebar()?.getAttribute("data-state")).toBe("collapsed");
     expect(shell.container.querySelector('[data-slot="sidebar-backdrop"]')).toBeNull();
-    expect(
-      shell.container.querySelector('#app-right-panel [data-evidence="sweep"]'),
-    ).not.toBeNull();
+    expect(shell.container.querySelector('.centre-body [data-evidence="sweep"]')).not.toBeNull();
   } finally {
     await shell.cleanup();
     watchStore.setState(previous);
@@ -928,7 +926,7 @@ it("updates the footer sweep from the live areas with the worst tone, and opens 
     await act(async () =>
       document.querySelector<HTMLButtonElement>("[data-sweep-popover] .capsule-evidence")?.click(),
     );
-    const sweep = container.querySelector('#app-right-panel [data-evidence="sweep"]');
+    const sweep = container.querySelector('.centre-body [data-evidence="sweep"]');
     expect(sweep?.querySelectorAll(".sweep-row[data-source]").length).toBeGreaterThanOrEqual(11);
     expect(sweep?.textContent).toContain("GitHub issues and PRs");
   } finally {

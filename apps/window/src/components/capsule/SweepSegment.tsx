@@ -5,13 +5,14 @@ import { Popover } from "@base-ui/react/popover";
 import { blocksWatch } from "@spi-code/contracts";
 import { useId, useState } from "react";
 import { useStore } from "zustand";
+import { openEvidence } from "../../app/navigation.js";
 import { watchStore } from "../../store/watch.js";
 import { clockTime, Time } from "../../time.js";
 import { useNow } from "../evidence/useNow.js";
 import { sweepSources } from "../evidence/words.js";
 import { Icon } from "../icons/Icon.js";
 import { useSidebar } from "../sidebar/ui-sidebar.js";
-import { openFreshness } from "../sweep/reveal.js";
+import { revealFirstSweep } from "../sweep/reveal.js";
 import { settled } from "../sweep/words.js";
 import { shortWhen, sourceState, sweepFill, sweepSegment } from "./sweep.js";
 import "./capsule.css";
@@ -106,7 +107,8 @@ function SweepPopover({ now, onClose }: { now: number; onClose(): void }) {
           onClick={() => {
             onClose();
             if (isMobile) setOpenMobile(false);
-            openFreshness(body);
+            if (body) openEvidence();
+            else revealFirstSweep();
           }}
         >
           Evidence

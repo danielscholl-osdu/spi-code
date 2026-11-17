@@ -1448,6 +1448,8 @@ export function coverage(
 export const ROUTE_EXEMPTIONS: Readonly<Record<string, string>> = {
   security:
     "Security draws its own reading; on the 6 Nov sweep it holds no Briefing item, and its tiles are not Briefing fields",
+  evidence:
+    "Evidence draws reads, areas and not-read lists about Briefing items, never a Briefing field as the home of one",
 };
 
 /** Every registry route, the sheet and the strip, less those a case or a named exemption covers. */

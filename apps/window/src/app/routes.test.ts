@@ -21,11 +21,36 @@ it.each<[string, Route, string]>([
   ["#environment", { kind: "environment" }, "Environment"],
   ["#releases", { kind: "releases" }, "Releases"],
   ["#release/2026-10", { kind: "release", month: "2026-10" }, "Release 2026-10"],
+  ["#evidence", { kind: "evidence" }, "Evidence"],
+  [
+    "#evidence?from=service%2Flegal&sel=item%7Egate2%3Astorage",
+    {
+      kind: "evidence",
+      from: { kind: "service", id: "legal" },
+      selection: { kind: "item", id: "gate2:storage" },
+    },
+    "Evidence",
+  ],
+  [
+    "#evidence?from=today&sel=line%7Ewaiting%3Aupgrade%3Aos-core-common",
+    {
+      kind: "evidence",
+      from: { kind: "today" },
+      selection: { kind: "line", id: "waiting:upgrade:os-core-common" },
+    },
+    "Evidence",
+  ],
 ])("parses %s and writes it back", (hash, route, label) => {
   expect(parseRoute(hash)).toEqual(route);
   expect(parseRoute(hash.slice(1))).toEqual(route);
   expect(routeHash(route)).toBe(hash);
   expect(routeLabel(route)).toBe(label);
+});
+
+it("reads an Evidence hash that names no page or selection as the whole sweep", () => {
+  expect(parseRoute("#evidence?from=evidence&sel=cell~legal")).toEqual({ kind: "evidence" });
+  expect(parseRoute("#evidence?from=nowhere")).toEqual({ kind: "evidence" });
+  expect(parseRoute("#evidence/extra")).toBeUndefined();
 });
 
 it("decodes an encoded service id", () => {

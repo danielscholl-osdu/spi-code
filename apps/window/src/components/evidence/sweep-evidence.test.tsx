@@ -22,6 +22,7 @@ import { sweepSegment } from "../capsule/sweep.js";
 import { applyContainerRules } from "../sweep/container-rules.test-helper.js";
 import { midSweep } from "../sweep/test-helper.js";
 import { EnvelopeBadge } from "./EnvelopeBadge.js";
+import { EvidencePage } from "./EvidencePage.js";
 import { SelectionEvidence, SelectionEvidenceChip, SweepEvidence } from "./EvidenceTab.js";
 import { expectEvidenceMarks, expectNoEvidenceMarks } from "./marks.test-helper.js";
 import { SectionEvidence } from "./SectionEvidence.js";
@@ -385,25 +386,45 @@ it("lists every source of the sweep once in plain words with state, age and comp
       failedRows(view.container)[0]?.querySelector("[title]")?.getAttribute("title"),
     ).toContain("http_502");
     expect(sweepView?.textContent).not.toContain("http 502");
-    expect(sweepView?.querySelector("[data-budget]")?.textContent).toBe(
-      "1,234 GitHub requests left, resets in 40\u00a0min; reads pause at 500 to keep a reserve.",
-    );
-    expect(sweepView?.querySelector('[data-deferred="security"]')?.textContent).toBe(
-      `${AREA_NAMES.security} waits for the next sweep · budget floor`,
-    );
   } finally {
     await view.cleanup();
   }
   const empty = await render(<SweepEvidence snapshot={null} sweep={null} now={now} />);
   try {
     expect(empty.container.textContent).toContain("Waiting for the first sweep.");
-    expect(empty.container.textContent).toContain("The API budget has not been read yet.");
   } finally {
     await empty.cleanup();
   }
 });
 
-it("leaves out the kicker, an empty Failed reads, and a budget reset already past", async () => {
+it.each([
+  ["before the first sweep", null],
+  ["after a sweep", "swept"],
+] as const)("shows no API budget on the Evidence page %s", async (_, swept) => {
+  const sweep: SweepStatus = {
+    remaining: 1_234,
+    floor: 500,
+    resetAt: new Date(now + 40 * 60_000).toISOString(),
+    deferredAreas: [{ area: "security", reason: "budget_floor" }],
+    nextSweepAt: null,
+    schedule: sweepSchedule,
+    lastSweep: null,
+  };
+  const body = swept ? { ...snapshot(areas()), briefing: { nextSyncAt, lines: [] } } : null;
+  const view = await render(
+    <EvidencePage route={{ kind: "evidence" }} snapshot={body} sweep={sweep} now={now} />,
+  );
+  try {
+    const page = view.container.querySelector("[data-evidence-page]");
+    expect(page?.querySelector('[data-evidence="sweep"]')).not.toBeNull();
+    expect(page?.querySelector("[data-budget], [data-deferred]")).toBeNull();
+    expect(page?.textContent).not.toMatch(/budget|requests left|reserve|waits for the next sweep/i);
+  } finally {
+    await view.cleanup();
+  }
+});
+
+it("leaves out the kicker and an empty Failed reads", async () => {
   const sweep: SweepStatus = {
     remaining: 4_800,
     floor: 500,
@@ -417,14 +438,8 @@ it("leaves out the kicker, an empty Failed reads, and a budget reset already pas
   try {
     const article = view.container.querySelector('[data-evidence="sweep"]') as HTMLElement;
     expect(article.querySelector(".inspector-kicker")).toBeNull();
-    expect([...article.querySelectorAll("h3")].map((h) => h.textContent)).toEqual([
-      "Sources",
-      "API budget",
-    ]);
+    expect([...article.querySelectorAll("h3")].map((h) => h.textContent)).toEqual(["Sources"]);
     expect(failedRows(article)).toHaveLength(0);
-    expect(article.querySelector("[data-budget]")?.textContent).toBe(
-      "4,800 GitHub requests left; reads pause at 500 to keep a reserve.",
-    );
   } finally {
     await view.cleanup();
   }
@@ -668,7 +683,7 @@ it.each([
   ["after the first sweep", committed()],
   ["after a relaunch, with no list kept", null],
 ] as const)(
-  "shows each source once in window words %s, a last read only when older than the sweep, then failed reads and the budget",
+  "shows each source once in window words %s, a last read only when older than the sweep, then failed reads",
   async (_, list) => {
     const body = firstSweep();
     const sweep: SweepStatus = {
@@ -700,10 +715,8 @@ it.each([
       expect([...article.querySelectorAll("h3")].map((h) => h.textContent)).toEqual([
         "Sources",
         "Failed reads",
-        "API budget",
       ]);
       expect(failedRows(article)).toHaveLength(1);
-      expect(article.querySelector("[data-budget]")).not.toBeNull();
     } finally {
       await view.cleanup();
     }

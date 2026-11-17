@@ -51,6 +51,7 @@ export function pinOf(destination: Destination): string | undefined {
       return destination.id;
     case "today":
     case "release":
+    case "evidence":
       return undefined;
     default:
       return placePin(destination.kind);

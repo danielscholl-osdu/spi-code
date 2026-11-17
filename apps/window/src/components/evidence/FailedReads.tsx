@@ -124,6 +124,14 @@ function serviceName(record: ReadRecord, source: WindowSource): string | undefin
   return service === "ingestion-workflow" ? "workflow" : service;
 }
 
+/** The fork a GitHub or GitLab read belongs to, by the same names Failed reads groups under. */
+export function readFork(record: ReadRecord): { forge: "github" | "gitlab"; fork: string } | null {
+  const source = windowSource(record);
+  if (source !== "github" && source !== "upstream") return null;
+  const fork = serviceName(record, source);
+  return fork === undefined ? null : { forge: source === "github" ? "github" : "gitlab", fork };
+}
+
 export function FailedReads({ reads }: { reads: readonly ReadRecord[] }) {
   const groups = new Map<
     string,

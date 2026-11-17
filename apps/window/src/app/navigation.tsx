@@ -37,8 +37,18 @@ export type PlaceRoute =
   | { kind: "service"; id: string }
   | { kind: "release"; month: string };
 
+/** What Evidence was opened for: a Today item, or a Today line with each of its members. */
+export type EvidenceSelection = { kind: "item" | "line"; id: string };
+
+/** The page Evidence was opened from, and what was open there; with no selection, the whole sweep. */
+export type EvidenceRoute = {
+  kind: "evidence";
+  from?: { kind: "today" } | PlaceRoute;
+  selection?: EvidenceSelection;
+};
+
 /** What the centre can hold. */
-export type Route = { kind: "today" } | PlaceRoute;
+export type Route = { kind: "today" } | PlaceRoute | EvidenceRoute;
 
 export type RouteKind = Route["kind"];
 export type RouteOf<K extends RouteKind> = Extract<Route, { kind: K }>;
@@ -87,9 +97,27 @@ function decode(segment: string): string | undefined {
   }
 }
 
+const SELECTION = /^(item|line)~(.+)$/;
+
+/** `#evidence?from=today&sel=item~gate2:storage`: a `from` that is not a page is dropped. */
+function parseEvidence(query: string): EvidenceRoute {
+  const params = new URLSearchParams(query);
+  const from = parseRoute(params.get("from") ?? "");
+  const selection = SELECTION.exec(params.get("sel") ?? "");
+  return {
+    kind: "evidence",
+    ...(from && from.kind !== "evidence" ? { from } : {}),
+    ...(selection?.[1] && selection[2]
+      ? { selection: { kind: selection[1] as EvidenceSelection["kind"], id: selection[2] } }
+      : {}),
+  };
+}
+
 /** Reads a location hash (`#service/legal`, `release/2026-10`); undefined when it names no route. */
 export function parseRoute(hash: string): Route | undefined {
   const path = hash.replace(/^#\/?/, "");
+  if (path === "evidence" || path.startsWith("evidence?"))
+    return parseEvidence(path.slice("evidence".length));
   const slash = path.indexOf("/");
   const head = slash < 0 ? path : path.slice(0, slash);
   const rest = slash < 0 ? undefined : decode(path.slice(slash + 1));
@@ -120,6 +148,13 @@ export function routeHash(route: Route): string {
       return `#release/${route.month}`;
     case "releases":
       return route.section ? `#releases/${route.section}` : "#releases";
+    case "evidence": {
+      const params = new URLSearchParams();
+      if (route.from) params.set("from", routeHash(route.from).slice(1));
+      if (route.selection) params.set("sel", `${route.selection.kind}~${route.selection.id}`);
+      const query = params.toString();
+      return query ? `#evidence?${query}` : "#evidence";
+    }
     default:
       return `#${route.kind}`;
   }
@@ -144,6 +179,8 @@ export function routeLabel(route: Route): string {
       return route.id;
     case "release":
       return `Release ${route.month}`;
+    case "evidence":
+      return "Evidence";
   }
 }
 
@@ -269,6 +306,57 @@ export function navigate(destination: Destination) {
   if (window.location.hash !== hash) window.location.hash = hash;
   else if (!wasOpen) return;
   emit();
+}
+
+/** What is open on a page (a Today row or a place's popover), by the hash it is open under. */
+let opened: { hash: string; selection: EvidenceSelection } | null = null;
+
+function readOpened() {
+  return opened;
+}
+
+/** Called by a page when a row or popover opens or closes, so the Swept capsule follows it. */
+export function setOpenSelection(selection: EvidenceSelection | null) {
+  const next = selection ? { hash: window.location.hash, selection } : null;
+  if (opened?.hash === next?.hash && opened?.selection === next?.selection) return;
+  opened = next;
+  emit();
+}
+
+/** What is open on the page showing now; null when nothing is. */
+export function openSelection(): EvidenceSelection | null {
+  return opened !== null && opened.hash === window.location.hash ? opened.selection : null;
+}
+
+/** What is open on the page showing now, for the page to reopen after Evidence closes. */
+export function useOpenSelection(): EvidenceSelection | null {
+  const current = useSyncExternalStore(subscribe, readOpened, readOpened);
+  const hash = useSyncExternalStore(subscribe, readHash, readHash);
+  return current !== null && current.hash === hash ? current.selection : null;
+}
+
+/**
+ * Opens Evidence for a selection, or for what is open on the current page, or the whole sweep
+ * when nothing is. From Evidence itself it keeps the page Evidence was opened from.
+ */
+export function openEvidence(selection: EvidenceSelection | null = openSelection()) {
+  const current = parseRoute(window.location.hash);
+  const from = current?.kind === "evidence" ? current.from : current;
+  navigate({
+    kind: "evidence",
+    ...(from ? { from } : {}),
+    ...(selection ? { selection } : {}),
+  });
+}
+
+/** Back to the page Evidence came from, with its selection open again. */
+export function leaveEvidence(route: EvidenceRoute) {
+  const back = route.from ?? { kind: "today" };
+  navigate(back);
+  if (route.selection) {
+    opened = { hash: routeHash(back), selection: route.selection };
+    emit();
+  }
 }
 
 const RegistryContext = createContext<Registry | undefined>(undefined);

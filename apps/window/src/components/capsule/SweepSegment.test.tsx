@@ -6,7 +6,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
-import { closeSheet } from "../../app/navigation.js";
+import { closeSheet, parseRoute, setOpenSelection } from "../../app/navigation.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { PINS_STORAGE_KEY } from "../../store/pins.js";
@@ -57,6 +57,7 @@ afterEach(async () => {
   await unmount?.();
   unmount = undefined;
   closeSheet();
+  setOpenSelection(null);
   watchStore.setState(previousWatch, true);
   harness.restore();
   localStorage.removeItem(PINS_STORAGE_KEY);
@@ -128,9 +129,29 @@ it("shows the sweep time with no count, lists its sources, and opens the sweep E
   expect(popover()?.querySelectorAll("[data-source]")).toHaveLength(12);
   expect(popover()?.querySelector("[data-next=sync]")?.textContent).toBe("not read yet");
   expect(popover()?.querySelector("[data-next=sweep]")?.textContent).toBe("not read yet");
-  expect(container.querySelector('#app-right-panel [data-evidence="sweep"]')).toBeNull();
+  expect(container.querySelector('.centre-body [data-evidence="sweep"]')).toBeNull();
   await openEvidence();
-  expect(container.querySelector('#app-right-panel [data-evidence="sweep"]')).not.toBeNull();
+  expect(window.location.hash).toBe("#evidence?from=today");
+  expect(container.querySelector('.centre-body [data-evidence="sweep"]')).not.toBeNull();
+  expect(container.querySelector('#app-right-panel [data-evidence="sweep"]')).toBeNull();
+});
+
+it("opens Evidence for what is open on the page, and the whole sweep from Evidence", async () => {
+  await mount();
+  await act(async () => setOpenSelection({ kind: "line", id: "waiting:radar:partition" }));
+  await openEvidence();
+  expect(parseRoute(window.location.hash)).toEqual({
+    kind: "evidence",
+    from: { kind: "today" },
+    selection: { kind: "line", id: "waiting:radar:partition" },
+  });
+  const page = () => container.querySelector(".centre-body [data-evidence-page]");
+  expect(page()?.querySelector(".evidence-lede")?.textContent).toContain(
+    "partition · next sync has an entry without a filter rule",
+  );
+  await openEvidence();
+  expect(window.location.hash).toBe("#evidence?from=today");
+  expect(page()?.querySelector('[data-evidence="sweep"]')).not.toBeNull();
 });
 
 it.each([
@@ -201,7 +222,7 @@ it("spins the first sweep's icon over its progress line, keeps its count in the 
     await openEvidence();
     expect(window.location.hash).toBe("#today");
     expect(scrolled).toEqual([container.querySelector(".today-first .sweep-sources")]);
-    expect(container.querySelector('#app-right-panel [data-evidence="sweep"]')).toBeNull();
+    expect(container.querySelector('.centre-body [data-evidence="sweep"]')).toBeNull();
     await receive("sweep.progress", { ...midSweep(), outcome: "cancelled" });
     expect(display()).toBe("First sweep stopped");
     expect(glyph()?.dataset.tone).toBe("bad");
@@ -247,7 +268,7 @@ it.each(["failed", "cancelled"] as const)(
     await openEvidence();
     expect(window.location.hash).toBe("#today");
     expect(scrolled).toEqual([container.querySelector(".today-first")]);
-    expect(container.querySelector('#app-right-panel [data-evidence="sweep"]')).toBeNull();
+    expect(container.querySelector('.centre-body [data-evidence="sweep"]')).toBeNull();
     const retry = container.querySelector<HTMLButtonElement>(".today-first-actions button");
     expect(retry?.textContent).toBe("Try again");
     await act(async () => retry?.click());
@@ -270,7 +291,7 @@ it("reads Sweeping over an older snapshot while a later sweep runs and opens its
   expect(glyph()?.dataset.tone).toBe("run");
   expect(line()?.dataset.sweepProgress).toBe("0.75");
   await openEvidence();
-  const evidence = () => container.querySelector('#app-right-panel [data-evidence="sweep"]');
+  const evidence = () => container.querySelector('.centre-body [data-evidence="sweep"]');
   expect(evidence()?.querySelector("[data-sweep-list]")?.getAttribute("data-sweep-list")).toBe(
     "live",
   );
@@ -311,9 +332,7 @@ it("shows a newer sweep that stopped over the last completed list, with its reas
   });
   await openEvidence();
   const list = () =>
-    container.querySelector<HTMLElement>(
-      '#app-right-panel [data-evidence="sweep"] [data-sweep-list]',
-    );
+    container.querySelector<HTMLElement>('.centre-body [data-evidence="sweep"] [data-sweep-list]');
   expect(list()?.dataset.sweepList).toBe("completed");
   const later = midSweep({ first: false, sweep: "sweep-3" });
   await receive("sweep.progress", later);
@@ -382,9 +401,7 @@ it("opens the first sweep's retained list in Evidence after hand-over", async ()
   await receive("view.snapshot", body);
   expect(display()).toBe(clockTime(body.sweptAt));
   await openEvidence();
-  const list = container.querySelector(
-    '#app-right-panel [data-evidence="sweep"] [data-sweep-list]',
-  );
+  const list = container.querySelector('.centre-body [data-evidence="sweep"] [data-sweep-list]');
   expect(list?.getAttribute("data-sweep-list")).toBe("completed");
   expect(list?.querySelectorAll(".sweep-row")).toHaveLength(12);
   expect(list?.querySelector('.sweep-row[data-source="upstream"]')?.textContent).toMatch(/failed/i);

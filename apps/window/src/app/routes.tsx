@@ -4,8 +4,9 @@
 import { type ReactNode, useEffect, useRef } from "react";
 import { useStore } from "zustand";
 import { SidebarSweep } from "../components/capsule/SweepSegment.js";
+import { EvidencePage } from "../components/evidence/EvidencePage.js";
 import { BeforeFirstSweep } from "../components/sweep/BeforeFirstSweep.js";
-import { OPEN_READINESS_EVENT } from "../settings/readiness.js";
+import { OPEN_READINESS_EVENT, openReadiness } from "../settings/readiness.js";
 import { watchStore } from "../store/watch.js";
 import Environment from "../views/environment/index.js";
 import Line from "../views/line/index.js";
@@ -16,7 +17,14 @@ import { WatchGate } from "../views/setup/WatchGate.js";
 import Template from "../views/template/index.js";
 import Today from "../views/today/index.js";
 import Upstream from "../views/upstream/index.js";
-import { type Registry, type Route, renderRoute, routeLabel, useRegistryOr } from "./navigation.js";
+import {
+  type EvidenceRoute,
+  type Registry,
+  type Route,
+  renderRoute,
+  routeLabel,
+  useRegistryOr,
+} from "./navigation.js";
 
 export * from "./navigation.js";
 
@@ -24,11 +32,25 @@ export * from "./navigation.js";
  * Watch pages wait behind the Watch gate, which names the place while it holds them; a place
  * other than Today opens one line until the first snapshot.
  */
-function gated(route: Route, page: ReactNode) {
+function gated(route: Exclude<Route, EvidenceRoute>, page: ReactNode) {
   return (
     <WatchGate label={routeLabel(route)}>
       {route.kind === "today" ? page : <BeforeFirstSweep route={route}>{page}</BeforeFirstSweep>}
     </WatchGate>
+  );
+}
+
+function Evidence({ route }: { route: EvidenceRoute }) {
+  const { snapshot, sweep, progress, completed } = useStore(watchStore);
+  return (
+    <EvidencePage
+      route={route}
+      snapshot={snapshot?.body ?? null}
+      sweep={sweep}
+      progress={progress}
+      completed={completed}
+      onOpenSettings={openReadiness}
+    />
   );
 }
 
@@ -43,6 +65,7 @@ export const DEFAULT_REGISTRY: Registry = {
     security: (route) => gated(route, <Security />),
     service: (route) => gated(route, <ServicePage id={route.id} />),
     release: (route) => gated(route, <ReleaseMonth month={route.month} />),
+    evidence: (route) => <Evidence route={route} />,
   },
   sheet: (_origin, presentation) => <Line presentation={presentation} />,
   strip: () => <SidebarSweep />,

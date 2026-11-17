@@ -49,3 +49,15 @@ button.evidence-chip { border-style: solid; cursor: pointer; }
 .evidence-failure { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 2px 12px; align-items: baseline; padding: 5px 0; border-bottom: 1px solid var(--border-soft); }
 .evidence-failure .sweep-mark, .evidence-failure .sweep-outcome { color: var(--error-text); }
 .evidence-failures .sweep-outcome { grid-column: 2; overflow-wrap: anywhere; }
+
+.evidence-back, .evidence-whole { padding: 0; border: 0; background: none; }
+.evidence-back { margin: 0 0 6px; color: var(--text-muted); font-size: 12px; }
+.evidence-back:hover { color: var(--text-strong); }
+.evidence-lede { margin: 0 0 4px; color: var(--text-muted); }
+.evidence-whole { color: var(--accent-text); }
+.evidence-whole:hover { text-decoration: underline; }
+.evidence-not-read li { padding: 4px 0; border-bottom: 1px solid var(--border-soft); color: var(--warning-text); }
+.evidence-reads { margin: 0; padding: 0; list-style: none; }
+.evidence-reads li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--border-soft); }
+.evidence-read-object { overflow-wrap: anywhere; font-family: var(--font-mono); font-size: 12px; }
+.evidence-read-time { color: var(--text-muted); font-variant-numeric: tabular-nums; text-align: right; }

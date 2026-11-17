@@ -36,7 +36,6 @@ import {
   plain,
   sourceName,
   sourceReads,
-  span,
   stateWord,
   sweepLine,
   sweepSources,
@@ -45,9 +44,9 @@ import {
 import "../sweep/sweep.css";
 import "./evidence.css";
 
-type Row = { key: string; name: string; tone: EvidenceTone; word: string; sentence: string };
+export type Row = { key: string; name: string; tone: EvidenceTone; word: string; sentence: string };
 
-function EvidenceTable({ label, rows }: { label: string; rows: readonly Row[] }) {
+export function EvidenceTable({ label, rows }: { label: string; rows: readonly Row[] }) {
   return (
     <table className="evidence-table" aria-label={label}>
       <tbody>
@@ -65,7 +64,7 @@ function EvidenceTable({ label, rows }: { label: string; rows: readonly Row[] })
   );
 }
 
-const sourceRow = ({ key, name, envelope }: EvidenceSource, now: number): Row => ({
+export const sourceRow = ({ key, name, envelope }: EvidenceSource, now: number): Row => ({
   key,
   name,
   tone: envelopeTone(envelope),
@@ -101,40 +100,6 @@ function readRow(record: ReadRecord, now: number): Row {
     word: completeness.kind === "cut" ? "cut" : "read",
     sentence: `read ${ago(record.observedAt, now)}, ${cut}`,
   };
-}
-
-function Budget({ sweep, now }: { sweep: SweepStatus | null; now: number }) {
-  if (sweep === null) return <p className="panel-empty">The API budget has not been read yet.</p>;
-  const reset =
-    sweep.resetAt !== null && Date.parse(sweep.resetAt) > now
-      ? `, resets in ${span(Date.parse(sweep.resetAt) - now)}`
-      : "";
-  const left =
-    sweep.remaining === null
-      ? "GitHub did not report the requests left"
-      : `${sweep.remaining.toLocaleString("en-US")} GitHub requests left`;
-  const floor =
-    sweep.floor === undefined
-      ? ""
-      : `; reads pause at ${sweep.floor.toLocaleString("en-US")} to keep a reserve`;
-  return (
-    <>
-      <p data-budget="">
-        {left}
-        {reset}
-        {floor}.
-      </p>
-      {sweep.deferredAreas.length > 0 && (
-        <ul aria-label="Deferred areas" className="evidence-list">
-          {sweep.deferredAreas.map(({ area, reason }) => (
-            <li key={area} data-deferred={area}>
-              {sourceName(area)} waits for the next sweep · {plain(reason)}
-            </li>
-          ))}
-        </ul>
-      )}
-    </>
-  );
 }
 
 const MARKS: Readonly<Record<Envelope["state"], { mark: string; tone: SourceTone }>> = {
@@ -189,7 +154,7 @@ const LIST: Readonly<Record<SweepProgress["outcome"], string>> = {
 
 /**
  * The Evidence tab for the sweep: each source once, with how the newest sweep read it and when its
- * data was last read; then failed reads grouped by source and cause, and the API budget.
+ * data was last read; then failed reads grouped by source and cause.
  */
 export function SweepEvidence({
   snapshot,
@@ -233,8 +198,6 @@ export function SweepEvidence({
         ) : (
           <p className="panel-empty">Waiting for the first sweep. Nothing has been read yet.</p>
         )}
-        <h3>API budget</h3>
-        <Budget sweep={sweep} now={at} />
       </article>
     );
   const sources = sweepSources(snapshot);
@@ -344,8 +307,6 @@ export function SweepEvidence({
           <FailedReads reads={failed} />
         </>
       )}
-      <h3>API budget</h3>
-      <Budget sweep={sweep} now={at} />
     </article>
   );
 }
