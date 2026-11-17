@@ -32,6 +32,7 @@ import {
   VIEW_SURFACES,
   VIEW_WIDTHS,
 } from "./smoke-report.js";
+import { captureRepositories } from "./smoke-repositories.js";
 import { captureRollout } from "./smoke-rollout.js";
 import { captureSidebarPins } from "./smoke-sidebar.js";
 import { smokeScheduledSweep, smokeSweepProgress } from "./smoke-sweep.js";
@@ -1418,6 +1419,16 @@ export async function captureSmokeViews(
             (body) => fixture(window, "view.snapshot", body),
           );
           section(`rollout rung ${appearance}`);
+          await captureRepositories(
+            window,
+            { ...snapshot, cursor: scheduledCursor + 60 },
+            output,
+            designPath,
+            appearance,
+            (condition) => rendered(window, condition),
+            (body) => fixture(window, "view.snapshot", body),
+          );
+          section(`repository line ${appearance}`);
           fixture(window, "sweep.progress", progress.committed);
           await captureStatusStates(
             window,

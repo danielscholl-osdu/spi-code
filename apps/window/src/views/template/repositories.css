@@ -81,7 +81,7 @@
   padding: 2px 0 8px 22px;
   border-bottom: 1px solid var(--border-soft);
 }
-.repos-lines h3 {
+.repos-line-section > h3 {
   margin: 8px 0 2px;
   color: var(--text-muted);
   font-size: 11px;
@@ -92,7 +92,7 @@
   padding: 0;
   list-style: none;
 }
-.repos-lines li {
+.repos-line-section > ul > li {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: baseline;
@@ -101,6 +101,13 @@
   border-radius: 5px;
 }
 .repos-line-text {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: default;
   overflow: hidden;
   color: var(--text);
   text-overflow: ellipsis;
@@ -146,4 +153,9 @@
 }
 .repos-security:hover {
   background: var(--hover);
+}
+
+.repos-line-text:hover,
+.repos-line-text[aria-expanded="true"] {
+  color: var(--accent-text);
 }

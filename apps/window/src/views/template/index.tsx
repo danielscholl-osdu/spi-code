@@ -162,11 +162,7 @@ export default function Template({
           (ladder || snapshot.briefing.repositories.rows.length > 0) && (
             <>
               {ladder && <Rollout ladder={ladder} snapshot={snapshot} />}
-              <Repositories
-                snapshot={snapshot}
-                onOpenItem={openItem}
-                onSecurity={() => navigate({ kind: "security" })}
-              />
+              <Repositories snapshot={snapshot} onSecurity={() => navigate({ kind: "security" })} />
             </>
           )
         }

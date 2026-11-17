@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: MIT
 
 import type { FocusItem, RepoCell, RepoEntry, RepoLine, ViewSnapshot } from "@spi-code/contracts";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { setOpenSelection, useOpenSelection } from "../../app/navigation.js";
 import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
 import { isReadFigure } from "../../components/place/RepositoryFacts.js";
+import { RepositoryLine, repositorySelectionId } from "../../components/place/RepositoryLine.js";
 import { plainTitle } from "../../text.js";
 import "./repositories.css";
 
@@ -70,23 +72,29 @@ function Cell({ cell }: { cell: RepoCell }) {
 function Lines({
   entry,
   items,
-  onOpenItem,
+  snapshot,
+  pointer,
   onSecurity,
 }: {
   entry: RepoEntry;
   items: readonly FocusItem[];
-  onOpenItem: (id: string) => void;
+  snapshot: ViewSnapshot;
+  pointer: string;
   onSecurity: () => void;
 }) {
-  const listed = entry.sections.filter(
-    ({ title, lines }) => LISTED.includes(title) && lines.length > 0,
-  );
+  const listed = entry.sections
+    .map((section, index) => ({ section, pointer: `${pointer}/sections/${index}` }))
+    .filter(({ section: { title, lines } }) => LISTED.includes(title) && lines.length > 0);
   const security = entry.sections.filter(({ title }) => SECURITY.includes(title));
   return (
     <div className="repos-lines">
       {listed.length === 0 && <p className="repos-quiet">No lines listed here.</p>}
-      {listed.map((section) => (
-        <section key={section.title} aria-label={`${entry.name} ${section.title}`}>
+      {listed.map(({ section, pointer }) => (
+        <section
+          className="repos-line-section"
+          key={section.title}
+          aria-label={`${entry.name} ${section.title}`}
+        >
           <h3>
             {section.title} · {section.count}
             {section.rest}
@@ -96,15 +104,27 @@ function Lines({
               const item = lineItem(line, items);
               return (
                 <li key={line.id ?? index} data-line={line.id} data-on-today={item?.id}>
-                  <span className="repos-line-text">
+                  <RepositoryLine
+                    repository={entry.name}
+                    section={section.title}
+                    line={line}
+                    pointer={`${pointer}/lines/${index}`}
+                    snapshot={snapshot}
+                    className="repos-line-text"
+                  >
                     {plainTitle(line.text)}{" "}
                     <span className="repos-line-sub">{plainTitle(line.sub)}</span>
-                  </span>
+                  </RepositoryLine>
                   {item ? (
                     <button
                       type="button"
                       className="repos-on-today"
-                      onClick={() => onOpenItem(item.id)}
+                      onClick={() =>
+                        setOpenSelection({
+                          kind: "rline",
+                          id: repositorySelectionId(entry.name, line, `${pointer}/lines/${index}`),
+                        })
+                      }
                     >
                       On Today · {plainTitle(item.title)}
                     </button>
@@ -132,15 +152,19 @@ function Lines({
 
 export function Repositories({
   snapshot,
-  onOpenItem,
   onSecurity,
 }: {
   snapshot: ViewSnapshot;
-  onOpenItem: (id: string) => void;
   onSecurity: () => void;
 }) {
   const [open, setOpen] = useState<string | null>(null);
   const { rows } = snapshot.briefing.repositories;
+  const marked = useOpenSelection();
+  useEffect(() => {
+    if (marked?.kind !== "rline") return;
+    const entry = rows.find((entry) => marked.id.startsWith(`${entry.name}|`));
+    if (entry) setOpen(entry.id);
+  }, [marked?.kind, marked?.id, rows]);
   if (rows.length === 0) return null;
   const items = todayItems(snapshot);
   return (
@@ -197,7 +221,8 @@ export function Repositories({
                     <Lines
                       entry={entry}
                       items={items}
-                      onOpenItem={onOpenItem}
+                      snapshot={snapshot}
+                      pointer={`/briefing/repositories/rows/${index}`}
                       onSecurity={onSecurity}
                     />
                   </td>
