@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { GITLAB_HOST } from "../config.js";
 import type { Model } from "../model/index.js";
 import type { ItemKind, QueueItem } from "../model/queue.js";
 
@@ -39,7 +40,7 @@ const GITLAB: readonly (readonly [RegExp, LinkKind])[] = [
   [new RegExp(`^/.+/-${COMPARE}`), "compare"],
 ];
 
-/** What a link opens, from its URL's shape on GitHub or GitLab; other when the shape is unknown. */
+/** What a link opens, from its URL's shape on GitHub or the OSDU GitLab; other on any other host. */
 export function linkKind(url: string): LinkKind {
   let parsed: URL;
   try {
@@ -48,7 +49,8 @@ export function linkKind(url: string): LinkKind {
     return "other";
   }
   if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return "other";
-  const shapes = parsed.hostname === "github.com" ? GITHUB : GITLAB;
+  const shapes =
+    parsed.hostname === "github.com" ? GITHUB : parsed.hostname === GITLAB_HOST ? GITLAB : [];
   return shapes.find(([shape]) => shape.test(parsed.pathname))?.[1] ?? "other";
 }
 

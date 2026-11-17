@@ -46,17 +46,22 @@ describe("the 16 Nov sweep", () => {
   });
 
   test("a rollout is the system's while the environment holds it or nothing waits for review", () => {
-    const actor = (next: "env" | "wait" | "dispatch", reviews: boolean) => {
+    const actor = (next: "env" | "wait" | "dispatch" | "start", reviews: boolean, room = 5) => {
       const model = sweep1116Model();
       if (!model.rollout) throw new Error("16 Nov has a rollout");
+      model.rollout.phase = next === "start" ? "ready" : model.rollout.phase;
       model.rollout.next = next;
       model.rollout.reviews = reviews ? model.rollout.forks.slice(0, 1) : [];
+      model.rollout.lanes.room = room;
+      model.rollout.dispatchNext = room > 0 ? model.rollout.forks.slice(0, room) : [];
       return sweep1116Items(model).find((i) => i.id === "rollout")?.actor;
     };
     expect(actor("env", true)).toBe("system");
     expect(actor("wait", false)).toBe("system");
     expect(actor("wait", true)).toBe("operator");
     expect(actor("dispatch", false)).toBe("operator");
+    expect(actor("start", false)).toBe("operator");
+    expect(actor("start", false, 0)).toBe("system");
   });
 
   test("a toolchain move and the sync PR that carries it share one subject; no other items do", () => {
@@ -162,6 +167,7 @@ describe("a link's kind", () => {
     [`${GL}/-/issues/12`, "issue"],
     [`${GL}/-/pipelines/301`, "run"],
     [`${GL}/-/jobs/4417`, "job"],
+    [`${GL}/-/compare/0cab109017b316cfd6a037c6c603ad4ee293f3c1...main`, "compare"],
     [`${GH}/pull/90?notification=1#issuecomment-1`, "pr"],
   ])("%s is a %s", (url, kind) => {
     expect(linkKind(url)).toBe(kind);
@@ -180,6 +186,8 @@ describe("a link's kind", () => {
     `${GL}/-/tree/main`,
     `${GL}/merge_requests/968`,
     "https://example.test/pull/90",
+    "https://example.test/repo/-/merge_requests/12",
+    "https://example.test/repo/-/commit/abcdef1234567",
     "ftp://github.com/Azure/osdu-spi-legal/pull/90",
     "not a url",
     "",
