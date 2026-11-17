@@ -78,7 +78,10 @@ it("opens the upstream plan without presenting preparation as the button's actio
   );
   expect(button?.textContent?.trim()).toBe("View upstream plan");
   await act(async () => button?.click());
-  expect(selectionStore.getState().selected).toBe(body.briefing.flow.inspect);
+  expect(container.querySelector(".line-sheet .line-plan strong")?.textContent).toBe(
+    body.briefing.flow.plan.title,
+  );
+  expect(selectionStore.getState().selected).toBeNull();
 });
 
 it.each(inspections)("renders the recorded Detail and Evidence for $id", async (result) => {

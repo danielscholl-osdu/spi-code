@@ -92,7 +92,12 @@ function span(ms: number): string | undefined {
   return `${timeUnit(Math.floor(ms / day), "d")}${h > 0 ? ` ${timeUnit(h, "h")}` : ""}`;
 }
 
+/** When the event ran, without its length. */
+export function eventSpan(e: EnvEvent, now: Date): string {
+  return `${stamp(e.start, now)} to ${e.end ? stamp(e.end, now) : "now"}`;
+}
+
 export function eventWhen(e: EnvEvent, now: Date): string {
   const took = span((e.end ? Date.parse(e.end) : now.getTime()) - Date.parse(e.start));
-  return `${stamp(e.start, now)} to ${e.end ? stamp(e.end, now) : "now"}${took ? ` \u00b7 ${took}` : ""}`;
+  return `${eventSpan(e, now)}${took ? ` \u00b7 ${took}` : ""}`;
 }

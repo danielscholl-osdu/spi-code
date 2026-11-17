@@ -1,0 +1,281 @@
+// Copyright 2026, Daniel Scholl
+// SPDX-License-Identifier: MIT
+
+import type { EnvEvent, EnvLane, Link, RepoLine, ViewSnapshot } from "@spi-code/contracts";
+import type { OpenSelection } from "../../app/navigation.js";
+import {
+  type BodyPlace,
+  type OpenedContent,
+  repositoryContent,
+  todayContent,
+} from "../../components/opened-body/content.js";
+import { todayMembers } from "../../components/place/members.js";
+import { plainTitle } from "../../text.js";
+import { heldLaneRead } from "./lead.js";
+import { eventKey, eventSpan } from "./timeline.js";
+
+const ENVIRONMENT = { kind: "environment" } as const;
+const STACK = "osdu-spi-stack";
+
+export type EnvironmentOpening = {
+  content: OpenedContent;
+  /** For a hold, the runs that ran while it held, each its own `event` selection. */
+  during: { key: string; text: string }[];
+};
+
+/** A run's name said once: "Smoke", not "Smoke · smoke". */
+export function runName(lane: EnvLane, e: EnvEvent): string {
+  return lane.label.toLowerCase() === e.label.trim().toLowerCase()
+    ? lane.label
+    : `${lane.label} · ${e.label}`;
+}
+
+function findEvent(snapshot: ViewSnapshot, key: string) {
+  for (const lane of snapshot.briefing.environment.lanes)
+    for (const e of lane.events) if (eventKey(lane, e) === key) return { lane, e };
+  return undefined;
+}
+
+const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+function span(e: EnvEvent, to: number): [number, number] {
+  return [Date.parse(e.start), e.end ? Date.parse(e.end) : to];
+}
+
+function overlaps(a: [number, number], b: [number, number]) {
+  return a[0] <= b[1] && b[0] <= a[1];
+}
+
+/**
+ * The running environment is ready now, the Held lane was read and holds nothing over the run, and
+ * no refresh or upgrade that touched it failed, was cancelled or was still running meanwhile.
+ */
+function stayedReady(snapshot: ViewSnapshot, e: EnvEvent): boolean {
+  const env = snapshot.briefing.environment;
+  if (env.deployable !== "yes" || !heldLaneRead(snapshot)) return false;
+  const to = Date.parse(env.to);
+  const run = span(e, to);
+  return !env.lanes.some(
+    (lane) =>
+      lane.id !== "smoke" &&
+      lane.events.some(
+        (other) => (lane.id === "holds" || other.state !== "ok") && overlaps(span(other, to), run),
+      ),
+  );
+}
+
+/** What the run meant for the running environment, in what SPI Code can prove. */
+function meaning(snapshot: ViewSnapshot, lane: EnvLane, e: EnvEvent): string {
+  const { deployable } = snapshot.briefing.environment;
+  const today = "nothing on Today waits on it.";
+  if (lane.id === "holds")
+    return e.end
+      ? "The stack was in maintenance; fork lanes queued behind it."
+      : `The stack is in maintenance; fork lanes queue behind it, and ${today}`;
+  if (lane.id === "smoke") {
+    const what = {
+      ok: "went green",
+      failed: "failed",
+      cancelled: "was cancelled",
+      running: "is running",
+      held: "was held",
+    }[e.state];
+    const head = `A smoke run on a fresh cluster ${what}.`;
+    if (e.state !== "failed" && e.state !== "cancelled") return head;
+    return stayedReady(snapshot, e)
+      ? `${head} The running environment stayed ready; ${today}`
+      : `${head} ${sentence(today)}`;
+  }
+  const version = e.label.trim();
+  switch (e.state) {
+    case "ok":
+      return `The environment deployed ${version} and went green.`;
+    case "running":
+      return `${version} is deploying to the running environment.`;
+    default: {
+      const now =
+        deployable === "yes"
+          ? " The running environment is ready now;"
+          : deployable === "no"
+            ? " The running environment is not ready;"
+            : "";
+      const what = e.state === "cancelled" ? "was cancelled" : "failed";
+      return `Deploying ${version} to the running environment ${what}.${now} ${now ? today : sentence(today)}`;
+    }
+  }
+}
+
+/** The stack repository on GitHub, from a line the sweep read on it; unknown when it read none. */
+export function stackRepository(snapshot: ViewSnapshot): string | undefined {
+  const row = snapshot.briefing.repositories.rows.find(({ name }) => name === STACK);
+  for (const line of row?.sections.flatMap(({ lines }) => lines) ?? []) {
+    if (!line.url || !URL.canParse(line.url)) continue;
+    const url = new URL(line.url);
+    const [owner, repo] = url.pathname.split("/").filter(Boolean);
+    if (url.hostname === "github.com" && owner && repo === STACK)
+      return `${url.origin}/${owner}/${repo}`;
+  }
+  return undefined;
+}
+
+function memberOf(snapshot: ViewSnapshot, id: string | undefined) {
+  if (!id) return undefined;
+  return todayMembers(snapshot.briefing).find(
+    ({ member }) => member.id === id || member.ids.includes(id),
+  );
+}
+
+const itemsOf = (snapshot: ViewSnapshot) => [...snapshot.briefing.focus, ...snapshot.briefing.rest];
+
+function eventOpening(snapshot: ViewSnapshot, key: string): EnvironmentOpening | undefined {
+  const found = findEvent(snapshot, key);
+  if (!found) return undefined;
+  const { lane, e } = found;
+  const env = snapshot.briefing.environment;
+  const place: BodyPlace = {
+    label: `Environment › Last 24 hours › ${lane.label}`,
+    destination: ENVIRONMENT,
+    selection: { kind: "event", id: key },
+  };
+  const repository = lane.id === "holds" ? undefined : stackRepository(snapshot);
+  const run: Link | undefined = repository
+    ? {
+        kind: "run",
+        label: `${lane.label} run`,
+        url: `${repository}/actions/runs/${e.id}`,
+      }
+    : undefined;
+  const to = Date.parse(env.to);
+  const during =
+    lane.id === "holds"
+      ? env.lanes
+          .filter(({ id }) => id !== "holds")
+          .flatMap((other) =>
+            other.events
+              .filter((r) => overlaps(span(r, to), span(e, to)))
+              .map((r) => ({
+                key: eventKey(other, r),
+                text: `${runName(other, r)} · ${r.detail}`,
+              })),
+          )
+      : [];
+  const member = memberOf(snapshot, e.inspect);
+  if (member) {
+    const content = todayContent({
+      ...member,
+      items: itemsOf(snapshot),
+      place,
+      links: run ? [run] : [],
+    });
+    return { content: { ...content, title: plainTitle(content.title) }, during };
+  }
+  return {
+    content: {
+      title: runName(lane, e),
+      place,
+      subject: null,
+      cause: `${e.detail} · ${eventSpan(e, new Date(to))}`,
+      effect: meaning(snapshot, lane, e),
+      ...(run ? { primary: run, links: [run] } : {}),
+    },
+    during,
+  };
+}
+
+function itemOpening(snapshot: ViewSnapshot, id: string): EnvironmentOpening | undefined {
+  const place: BodyPlace = {
+    label: "Environment",
+    destination: ENVIRONMENT,
+    selection: { kind: "item", id },
+  };
+  const items = itemsOf(snapshot);
+  const member = memberOf(snapshot, id);
+  if (member) {
+    const content = todayContent({ ...member, items, place });
+    return { content: { ...content, title: plainTitle(content.title) }, during: [] };
+  }
+  const item = items.find((item) => item.id === id);
+  if (!item) return undefined;
+  return {
+    content: {
+      title: plainTitle(item.title),
+      place,
+      subject: null,
+      cause: plainTitle(item.cause),
+      effect: plainTitle(item.effect),
+      steps: item.next ? [plainTitle(item.next)] : [],
+      ...(item.evidence[0] ? { primary: item.evidence[0] } : {}),
+      links: item.evidence,
+    },
+    during: [],
+  };
+}
+
+/** The pill for a repository line, typed by the kind core put in the line's id. */
+function lineSource(line: RepoLine): Link | undefined {
+  if (!line.url) return undefined;
+  const kind = line.id?.split(":")[0];
+  return {
+    label: plainTitle(line.text),
+    url: line.url,
+    ...(kind === "issue" || kind === "pr" ? { kind } : {}),
+  };
+}
+
+function repositoryLineOpening(snapshot: ViewSnapshot, id: string): EnvironmentOpening | undefined {
+  const row = snapshot.briefing.repositories.rows.find(({ name }) => name === STACK);
+  for (const section of row?.sections ?? []) {
+    const entry = section.lines.find((line) => line.id === id);
+    if (!entry) continue;
+    const source = lineSource(entry);
+    const content = repositoryContent({
+      entry: { ...entry, text: plainTitle(entry.text) },
+      lines: snapshot.briefing.lines ?? [],
+      items: itemsOf(snapshot),
+      place: {
+        label: `Environment › Stack repository › ${section.title}`,
+        destination: ENVIRONMENT,
+        selection: { kind: "repository-line", id },
+      },
+      ...(source ? { source } : {}),
+      ...(snapshot.briefing.today ? { canWait: snapshot.briefing.today.canWait } : {}),
+    });
+    return { content: { ...content, title: plainTitle(content.title) }, during: [] };
+  }
+  return undefined;
+}
+
+/** What opens over the Environment for the open selection: a run or hold, an item, a stack repository line. */
+export function environmentOpening(
+  snapshot: ViewSnapshot | undefined,
+  open: OpenSelection | null,
+): EnvironmentOpening | undefined {
+  if (!snapshot || !open) return undefined;
+  switch (open.kind) {
+    case "event":
+      return eventOpening(snapshot, open.id);
+    case "item":
+      return itemOpening(snapshot, open.id);
+    case "repository-line":
+      return repositoryLineOpening(snapshot, open.id);
+    default:
+      return undefined;
+  }
+}
+
+const FLOW_STATIONS = ["upstream", "sync", "cascade", "main"];
+
+/** The Line cell a flow row's `upstream:<fork>` names: its first station stopped or waiting on you, else Upstream. */
+export function flowCell(snapshot: ViewSnapshot, inspect: string): string | undefined {
+  const row = snapshot.briefing.flow.rows.find((row) => row.inspect === inspect);
+  const stations = snapshot.stations.find(({ service }) => service === row?.fork)?.stations;
+  if (!row || !stations) return undefined;
+  const station = FLOW_STATIONS.find((id) =>
+    stations.some(
+      (station) =>
+        station.id === id &&
+        (station.substate === "stopped" || station.substate === "waiting-on-person"),
+    ),
+  );
+  return `${row.fork}:${station ?? "upstream"}`;
+}

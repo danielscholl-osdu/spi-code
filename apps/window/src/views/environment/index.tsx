@@ -2,26 +2,27 @@
 // SPDX-License-Identifier: MIT
 
 import type { Reading, RepoLine } from "@spi-code/contracts";
-import { useId } from "react";
+import { useCallback, useId, useLayoutEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
-import { navigate } from "../../app/navigation.js";
+import {
+  LINE,
+  navigate,
+  type OpenSelection,
+  setOpenSelection,
+  useOpenSelection,
+} from "../../app/navigation.js";
 import { treeServices } from "../../app/queue.js";
 import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
 import { Place, type PlaceProps } from "../../components/place/Place.js";
 import { RepositoryFacts } from "../../components/place/RepositoryFacts.js";
-import { type SelectionStore, selectionStore } from "../../panels/selection.js";
-import {
-  repositoryLinePointer,
-  repositoryLineRow,
-  type SelectionRow,
-  selectionRows,
-} from "../../panels/selection-rows.js";
-import { useSelectionList } from "../../panels/useSelectionList.js";
+import { Popover } from "../../components/popover/Popover.js";
+import { repositoryLinePointer } from "../../panels/selection-rows.js";
 import { watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
 import { TimedText } from "../../time.js";
 import { FlowContext } from "./flow-context.js";
 import { leadTiles } from "./lead.js";
+import { environmentOpening, flowCell } from "./opening.js";
 import {
   eventKey,
   eventText,
@@ -29,7 +30,6 @@ import {
   eventWord,
   fixed,
   hourTicks,
-  inspectId,
   pctOf,
   place,
   TIER_PX,
@@ -55,46 +55,76 @@ function LineReading({ line }: { line: RepoLine }) {
 
 const NO_READING: Reading = { anchor: { kind: "environment" }, content: null };
 
+const keyOf = ({ kind, id }: OpenSelection) => `${kind}~${id}`;
+
+/** What the open selection hangs under: the control clicked for it, else the first one that opens it. */
+function anchorOf(
+  root: HTMLElement | null,
+  key: string,
+  clicked: { key: string; element: HTMLElement } | null,
+): HTMLElement | null {
+  if (!root) return null;
+  if (clicked?.key === key && clicked.element.isConnected && root.contains(clicked.element))
+    return clicked.element;
+  const opens = [...root.querySelectorAll<HTMLElement>("[data-opens]")];
+  const own = opens.find((element) => element.dataset.opens === key);
+  if (own) return own;
+  if (!key.startsWith("item~")) return null;
+  const id = key.slice(5);
+  return (
+    [...root.querySelectorAll<HTMLElement>(".place [data-selection-id]")].find(
+      (element) => element.dataset.selectionId === id,
+    ) ??
+    [...root.querySelectorAll<HTMLElement>("[data-inspect]")].find(
+      (element) => element.dataset.inspect === id,
+    ) ??
+    null
+  );
+}
+
 /** The Environment place: the reading, then the stack's runs and its repository, each folded. */
-export default function Environment({
-  store = watchStore,
-  inspector = selectionStore,
-}: {
-  store?: typeof watchStore;
-  inspector?: SelectionStore;
-}) {
+export default function Environment({ store = watchStore }: { store?: typeof watchStore }) {
   const runsHeading = useId();
   const repositoryHeading = useId();
   const dayHeading = useId();
   const snapshot = useStore(store, (state) => state.snapshot);
-  const selected = useStore(inspector, (state) => state.selected);
   const body = snapshot?.body;
+  const marked = useOpenSelection();
+  const opening = environmentOpening(body, marked);
+  const markedKey = marked && keyOf(marked);
+  const pane = useRef<HTMLDivElement>(null);
+  const clicked = useRef<{ key: string; element: HTMLElement } | null>(null);
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const opened = opening !== undefined;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: A new snapshot redraws the anchors.
+  useLayoutEffect(() => {
+    const found = markedKey && opened ? anchorOf(pane.current, markedKey, clicked.current) : null;
+    const folded = found?.closest("details");
+    if (folded && !folded.open) folded.open = true;
+    setAnchor(found);
+  }, [markedKey, opened, body]);
+  const close = useCallback(() => setOpenSelection(null), []);
+  const toggle = (selection: OpenSelection, element: HTMLElement) => {
+    const key = keyOf(selection);
+    clicked.current = { key, element };
+    setOpenSelection(markedKey === key ? null : selection);
+  };
+  const opener = (selection: OpenSelection) => ({
+    "data-opens": keyOf(selection),
+    "aria-haspopup": "dialog" as const,
+    "aria-expanded": markedKey === keyOf(selection),
+    onClick: (event: { currentTarget: HTMLElement }) => toggle(selection, event.currentTarget),
+  });
   const env = body?.briefing.environment;
   const reading = body?.readings.find(({ anchor }) => anchor.kind === "environment") ?? NO_READING;
   const from = env ? Date.parse(env.from) : 0;
   const to = env ? Date.parse(env.to) : 0;
   const lanes =
-    env?.lanes.map((lane, index) => {
-      const pointer = `/briefing/environment/lanes/${index}`;
-      return {
-        lane,
-        pointer,
-        placed: place(lane.events, from, to).map((p) => ({
-          ...p,
-          row: {
-            id: inspectId(lane, p.e),
-            title: p.e.label,
-            kind: "environment",
-            prefixes: [`${pointer}/events/${lane.events.indexOf(p.e)}`],
-          } satisfies SelectionRow,
-        })),
-      };
-    }) ?? [];
-  const events = useSelectionList(
-    lanes.flatMap(({ placed }) => placed.map(({ row }) => row)),
-    undefined,
-    inspector,
-  );
+    env?.lanes.map((lane, index) => ({
+      lane,
+      pointer: `/briefing/environment/lanes/${index}`,
+      placed: place(lane.events, from, to),
+    })) ?? [];
   const repositories = body?.briefing.repositories.rows ?? [];
   const repositoryIndex = repositories.findIndex((row) => row.name === "osdu-spi-stack");
   const repository = repositories[repositoryIndex];
@@ -105,14 +135,8 @@ export default function Environment({
       lines: section.lines.map((line, lineIndex) => ({
         line,
         pointer: repositoryLinePointer(repositoryIndex, sectionIndex, lineIndex),
-        row: repositoryLineRow(line, repositoryIndex, sectionIndex, lineIndex),
       })),
     })) ?? [];
-  const lines = useSelectionList(
-    sections.flatMap((section) => section.lines.flatMap(({ row }) => (row ? [row] : []))),
-    undefined,
-    inspector,
-  );
   const placeOf = (extra: Pick<PlaceProps, "tiles" | "belowTiles" | "belowItems"> = {}) => (
     <Place
       {...extra}
@@ -123,18 +147,16 @@ export default function Environment({
       services={treeServices(body?.tree)}
       onNavigate={navigate}
       onSelect={(id) => {
-        const row =
-          body && selectionRows(body).find((row) => row.kind === "queue" && row.id === id);
-        if (!row) return;
-        inspector.getState().select(row.id, row);
-        inspector.getState().setTab("detail");
+        const element = [
+          ...(pane.current?.querySelectorAll<HTMLElement>(".place [data-selection-id]") ?? []),
+        ].find((element) => element.dataset.selectionId === id);
+        if (element) toggle({ kind: "item", id }, element);
       }}
-      {...(selected !== null ? { selectedId: selected } : {})}
     />
   );
   if (!body || !env)
     return (
-      <div className="environment" data-view-pane="environment">
+      <div className="environment" data-view-pane="environment" ref={pane}>
         {placeOf()}
       </div>
     );
@@ -147,76 +169,74 @@ export default function Environment({
         Last 24 hours
       </h3>
       <SectionEvidence evidence={body} prefixes={["/briefing/environment/lanes"]} />
-      <div role="listbox" aria-label="Events in the last 24 hours" data-selection-list>
-        <div className="env-scroll">
-          <div className="env-timeline" style={{ minWidth: TRACK_MIN_PX + 84 }}>
-            <div className="env-grid" aria-hidden="true">
-              {ticks.map((tick) => (
-                <span
-                  key={tick.at}
-                  className={`env-tick${new Date(tick.at).getHours() % 2 === 0 ? " major" : ""}`}
-                  style={{ left: `${fixed(pctOf(tick.at, from, to))}%` }}
-                />
-              ))}
-            </div>
-            <div className="env-row env-axis" aria-hidden="true">
-              <div />
-              <div className="env-track">
-                {ticks
-                  .filter((tick) => {
-                    const left = pctOf(tick.at, from, to);
-                    return left > 2 && left < 98 && new Date(tick.at).getHours() % 2 === 0;
-                  })
-                  .map((tick) => (
-                    <span
-                      className="env-hour"
-                      key={tick.at}
-                      style={{ left: `${fixed(pctOf(tick.at, from, to))}%` }}
-                    >
-                      {tick.text}
-                    </span>
-                  ))}
-              </div>
-            </div>
-            {lanes.map(({ lane, pointer, placed }) => {
-              const tiers = Math.max(1, ...placed.map((p) => p.tier + 1));
-              return (
-                <div className="env-row" key={lane.id} data-lane={lane.id}>
-                  <div className="env-lane-label" data-pointer={pointer}>
-                    {lane.label}
-                  </div>
-                  <div className="env-track" style={{ height: tiers * TIER_PX + 10 }}>
-                    {placed.map((p) => {
-                      const key = eventKey(lane, p.e);
-                      const name = `${lane.label} ${p.e.label}, ${eventWord[p.e.state]}, ${eventWhen(p.e, now)}`;
-                      return (
-                        <button
-                          type="button"
-                          className={`env-event state-${p.e.state}${p.e.end ? "" : " open"}`}
-                          key={key}
-                          data-event={key}
-                          role="option"
-                          {...events.rowProps(p.row)}
-                          title={name}
-                          aria-label={name}
-                          style={{
-                            left: `${fixed(p.left)}%`,
-                            width: `${fixed(p.width)}%`,
-                            top: p.tier * TIER_PX + 10,
-                          }}
-                        >
-                          <span className={`env-event-label${p.flip ? " flip" : ""}`}>
-                            {eventText(p.e)}
-                          </span>
-                        </button>
-                      );
-                    })}
-                    {placed.length === 0 && <span className="env-none">none in the last day</span>}
-                  </div>
-                </div>
-              );
-            })}
+      <div className="env-scroll">
+        <div className="env-timeline" style={{ minWidth: TRACK_MIN_PX + 84 }}>
+          <div className="env-grid" aria-hidden="true">
+            {ticks.map((tick) => (
+              <span
+                key={tick.at}
+                className={`env-tick${new Date(tick.at).getHours() % 2 === 0 ? " major" : ""}`}
+                style={{ left: `${fixed(pctOf(tick.at, from, to))}%` }}
+              />
+            ))}
           </div>
+          <div className="env-row env-axis" aria-hidden="true">
+            <div />
+            <div className="env-track">
+              {ticks
+                .filter((tick) => {
+                  const left = pctOf(tick.at, from, to);
+                  return left > 2 && left < 98 && new Date(tick.at).getHours() % 2 === 0;
+                })
+                .map((tick) => (
+                  <span
+                    className="env-hour"
+                    key={tick.at}
+                    style={{ left: `${fixed(pctOf(tick.at, from, to))}%` }}
+                  >
+                    {tick.text}
+                  </span>
+                ))}
+            </div>
+          </div>
+          {lanes.map(({ lane, pointer, placed }) => {
+            const tiers = Math.max(1, ...placed.map((p) => p.tier + 1));
+            return (
+              <div className="env-row" key={lane.id} data-lane={lane.id}>
+                <div className="env-lane-label" data-pointer={pointer}>
+                  {lane.label}
+                </div>
+                <div className="env-track" style={{ height: tiers * TIER_PX + 10 }}>
+                  {placed.map((p) => {
+                    const key = eventKey(lane, p.e);
+                    const name = `${lane.label} ${p.e.label}, ${eventWord[p.e.state]}, ${eventWhen(p.e, now)}`;
+                    return (
+                      <button
+                        type="button"
+                        className={`env-event state-${p.e.state}${p.e.end ? "" : " open"}`}
+                        key={key}
+                        data-event={key}
+                        data-inspect={p.e.inspect}
+                        {...opener({ kind: "event", id: key })}
+                        title={name}
+                        aria-label={name}
+                        style={{
+                          left: `${fixed(p.left)}%`,
+                          width: `${fixed(p.width)}%`,
+                          top: p.tier * TIER_PX + 10,
+                        }}
+                      >
+                        <span className={`env-event-label${p.flip ? " flip" : ""}`}>
+                          {eventText(p.e)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {placed.length === 0 && <span className="env-none">none in the last day</span>}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -235,7 +255,7 @@ export default function Environment({
     </dl>
   );
   return (
-    <div className="environment" data-view-pane="environment">
+    <div className="environment" data-view-pane="environment" ref={pane}>
       {placeOf({
         tiles,
         belowTiles: (tiles || timeline) && (
@@ -254,10 +274,9 @@ export default function Environment({
           <FlowContext
             flow={body.briefing.flow}
             onSelect={(id) => {
-              const row = selectionRows(body).find((row) => row.id === id);
-              if (!row) return;
-              inspector.getState().select(id, row);
-              inspector.getState().setTab("detail");
+              const cell = flowCell(body, id);
+              navigate(LINE);
+              if (cell) setOpenSelection({ kind: "cell", id: cell });
             }}
           />
           <SectionEvidence evidence={body} prefixes={["/briefing/environment/headline"]} />
@@ -288,40 +307,55 @@ export default function Environment({
               </p>
             )}
             {repository.sub && <p className="env-muted">{plainTitle(repository.sub)}</p>}
-            <div role="listbox" aria-label="Stack repository lines" data-selection-list>
-              {sections.map((section) => (
-                <div className="env-repo-section" key={section.title} data-weight={section.weight}>
-                  <h3>
-                    {section.title}{" "}
-                    <small>
-                      {section.count}
-                      {section.rest}
-                    </small>
-                  </h3>
-                  {section.lines.map(({ line, pointer, row }) => {
-                    return row ? (
-                      <button
-                        className="env-repo-line"
-                        type="button"
-                        role="option"
-                        key={pointer}
-                        data-pointer={pointer}
-                        {...lines.rowProps(row)}
-                      >
-                        <LineReading line={line} />
-                      </button>
-                    ) : (
-                      <div className="env-repo-line" key={pointer} data-pointer={pointer}>
-                        <LineReading line={line} />
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
+            {sections.map((section) => (
+              <div className="env-repo-section" key={section.title} data-weight={section.weight}>
+                <h3>
+                  {section.title}{" "}
+                  <small>
+                    {section.count}
+                    {section.rest}
+                  </small>
+                </h3>
+                {section.lines.map(({ line, pointer }) => {
+                  return line.id ? (
+                    <button
+                      className="env-repo-line"
+                      type="button"
+                      key={pointer}
+                      data-pointer={pointer}
+                      {...opener({ kind: "repository-line", id: line.id })}
+                    >
+                      <LineReading line={line} />
+                    </button>
+                  ) : (
+                    <div className="env-repo-line" key={pointer} data-pointer={pointer}>
+                      <LineReading line={line} />
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
             {repository.note && <p className="env-muted">{repository.note}</p>}
           </section>
         </details>
+      )}
+      {opening && marked && anchor?.isConnected && (
+        <Popover anchor={anchor} selection={marked} content={opening.content} onClose={close}>
+          {opening.during.length > 0 && (
+            <div className="popover-rows">
+              {opening.during.map(({ key, text }) => (
+                <button
+                  type="button"
+                  key={key}
+                  onClick={() => setOpenSelection({ kind: "event", id: key })}
+                >
+                  {text}
+                  {"\u00a0›"}
+                </button>
+              ))}
+            </div>
+          )}
+        </Popover>
       )}
     </div>
   );

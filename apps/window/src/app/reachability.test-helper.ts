@@ -8,7 +8,8 @@ import { plainTitle } from "../text.js";
 import { instantsIn, timedText } from "../time.js";
 import { openHold } from "../views/environment/hold.js";
 import { heldLaneRead } from "../views/environment/lead.js";
-import { eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
+import { runName } from "../views/environment/opening.js";
+import { eventSpan, eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
 import { releaseSectionCases } from "../views/releases/reachability.test-helper.js";
 import { ageInOneUnit } from "../views/today/Table.js";
 import { lensFields } from "./lens-fields.test-helper.js";
@@ -434,7 +435,6 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
     add(`${pointer}/sub`, subText(fact.sub), environmentHome, `${tile} .place-tile-counts`, lead);
   });
   const now = new Date(Date.parse(environment.to));
-  const overlapped = new Set<string>();
   environment.lanes.forEach((lane, laneIndex) => {
     const pointer = `/briefing/environment/lanes/${laneIndex}`;
     const row = `.env-row[data-lane=${quote(lane.id)}]`;
@@ -456,36 +456,23 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
           attribute: "aria-label",
           contains: true,
         });
-      if (lane.id !== "holds") return;
       const where = {
-        ...home(
-          `Environment · Detail hold:${e.id}`,
-          STARTS.environment,
-          bar,
-          answer(e.inspect ?? `hold:${e.id}`),
-        ),
+        ...home(`Environment · popover ${lane.id}:${e.id}`, STARTS.environment, bar),
         clock: now.getTime(),
       };
-      add(`${event}/label`, `Held ${e.label}`, where, detailField("cause"), {
-        canon: (value) => value.replace(/^Held /, ""),
+      const popover = ".popover .opened-body";
+      const title = runName(lane, e);
+      add(`${event}/label`, title, where, `${popover} h3`, {
+        canon: (value) => (value === title || value === eventText(e) ? e.label : value),
       });
-      if (e.detail) add(`${event}/detail`, e.detail, where, detailField("effect"));
-      // The Detail draws its instants as `time` elements and no span; read the instants from their
-      // datetime, and require the drawn text to be the same reading against the test's pinned clock.
-      const when = (element: Element) => {
-        const [start = "", end] = [...element.querySelectorAll("time")].map(
-          (time) => time.getAttribute("datetime") ?? "",
-        );
-        const { end: _, ...running } = e;
-        const read = eventWhen(
-          end === undefined ? { ...running, start } : { ...running, start, end },
-          now,
-        );
-        const drawn = element.textContent ?? "";
-        return drawn === read.split(" \u00b7 ")[0] ? read : drawn;
-      };
-      add(`${event}/start`, eventWhen(e, now), where, detailField("why"), { read: when });
-      if (e.end) add(`${event}/end`, eventWhen(e, now), where, detailField("why"), { read: when });
+      if (e.detail) add(`${event}/detail`, e.detail, where, `${popover} > p`, { contains: true });
+      // The popover says when the event ran without its length, which the bar's name carries.
+      const ran = (element: Element) =>
+        (element.textContent ?? "").split(" \u00b7 ").slice(1).join(" \u00b7 ");
+      const length = { read: ran, canon: (value: string) => value.split(" \u00b7 ")[0] ?? value };
+      add(`${event}/start`, eventSpan(e, now), where, `${popover} > p`, length);
+      if (e.end) add(`${event}/end`, eventSpan(e, now), where, `${popover} > p`, length);
+      if (lane.id !== "holds") return;
       let offset = 0;
       environment.lanes
         .filter(({ id }) => id !== "holds")
@@ -494,19 +481,15 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
           other.events.forEach((run, runIndex) => {
             if (!overlaps(e, run)) return;
             const runPointer = `/briefing/environment/lanes/${otherIndex}/events/${runIndex}`;
-            overlapped.add(runPointer);
-            add(`${runPointer}/detail`, run.detail, where, related(offset, "dt"));
+            add(
+              `${runPointer}/detail`,
+              run.detail,
+              where,
+              `.popover-rows > button:nth-child(${offset + 1})`,
+              { contains: true },
+            );
             offset += 1;
           });
-        });
-    });
-  });
-  environment.lanes.forEach((lane, laneIndex) => {
-    lane.events.forEach((e, index) => {
-      const pointer = `/briefing/environment/lanes/${laneIndex}/events/${index}`;
-      if (lane.id !== "holds" && !overlapped.has(pointer) && e.detail)
-        add(`${pointer}/detail`, e.detail, runs, "", {
-          exempt: "spicode-t1k.223: a run's detail renders only on a hold it overlaps",
         });
     });
   });

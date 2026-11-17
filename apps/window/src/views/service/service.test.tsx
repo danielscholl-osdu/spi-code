@@ -17,7 +17,6 @@ import { createWatchStore, watchStore } from "../../store/watch.js";
 import { installSpi } from "../../test-utils/harness.js";
 import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { clockTime } from "../../time.js";
-import Environment from "../environment/index.js";
 import ServicePage from "./index.js";
 
 const mixed = watchFixtureText("snapshot-mixed-59d6895.json", readFixture);
@@ -456,7 +455,6 @@ async function renderBoth(body: ViewSnapshot) {
     root?.render(
       <>
         <ServicePage id={STACK} store={watch} selection={selection} />
-        <Environment store={watch} inspector={selection} />
         <LivePanel watch={watch} selection={selection} />
       </>,
     ),
@@ -464,8 +462,6 @@ async function renderBoth(body: ViewSnapshot) {
   const page = {
     service: (id: string) =>
       section("repository")?.querySelector<HTMLElement>(`[data-selection-id="${id}"]`),
-    environment: (id: string) =>
-      container.querySelector<HTMLElement>(`.environment [data-selection-id="${id}"]`),
   };
   return { selection, watch, page };
 }
@@ -485,7 +481,7 @@ const stackLine = (body: ViewSnapshot, id: string) => {
   return line;
 };
 
-it("shows the same Detail fields for a stack line selected on its service page or on Environment", async () => {
+it("shows a stack line's Detail fields selected on its service page", async () => {
   const body = mixedSnapshot(mixed);
   const line = stackLine(body, STACK_LINE);
   const { selection, page } = await renderBoth(body);
@@ -500,15 +496,9 @@ it("shows the same Detail fields for a stack line selected on its service page o
     ["Id", STACK_LINE],
     ["Link", line.url],
   ]);
-
-  await act(async () => selection.getState().clear());
-  expect(detailFields()).toEqual([]);
-  await click(page.environment(STACK_LINE));
-  expect(selection.getState().row).toEqual(expected);
-  expect(detailFields()).toEqual(fromService);
 });
 
-it.each(["service", "environment"] as const)(
+it.each(["service"] as const)(
   "refreshes a stack line's Detail in place after a sweep changes it (selected on %s)",
   async (from) => {
     const body = mixedSnapshot(mixed);
@@ -565,30 +555,7 @@ it("refreshes a selected service line's Detail after a sweep inserts a line befo
   ]);
 });
 
-it("keeps a selected upgrade's Detail when a refresh drops it and leaves its same-id hold", async () => {
-  const body = mixedSnapshot(mixed);
-  const { watch } = await renderBoth(body);
-  const upgrade = container.querySelector<HTMLElement>(
-    '.environment [data-lane="upgrade"] [data-event]',
-  );
-  const hold = container.querySelector<HTMLElement>(
-    '.environment [data-lane="holds"] [data-event]',
-  );
-  if (!upgrade || !hold) throw new Error("Recorded fixture needs upgrade and hold events");
-  expect(hold.dataset.selectionId).toBe(upgrade.dataset.selectionId);
-  await click(upgrade);
-  const title = () => container.querySelector("aside[aria-label='Detail'] .detail-title");
-  expect(title()?.textContent).toBe("v0.28.2");
-  const next = structuredClone(body);
-  next.cursor = body.cursor + 1;
-  const lane = next.briefing.environment.lanes.find(({ id }) => id === "upgrade");
-  if (!lane) throw new Error("Recorded fixture needs an upgrade lane");
-  lane.events = [];
-  await act(async () => watch.setState({ snapshot: { cursor: next.cursor, body: next } }));
-  expect(title()?.textContent).toBe("v0.28.2");
-});
-
-it("keeps unidentified stack lines unselectable in source order on both pages, and arrows past them", async () => {
+it("keeps unidentified stack lines unselectable in source order, and arrows past them", async () => {
   const body = mixedSnapshot(mixed);
   const issues = body.briefing.repositories.rows
     .find(({ name }) => name === STACK)
@@ -604,11 +571,7 @@ it("keeps unidentified stack lines unselectable in source order on both pages, a
       ?.querySelector(".service-repo-section")
       ?.querySelectorAll(".service-row") ?? [],
   );
-  const environment = Array.from(
-    container.querySelector(".environment .env-repo-section")?.querySelectorAll(".env-repo-line") ??
-      [],
-  );
-  for (const rows of [service, environment]) {
+  for (const rows of [service]) {
     expect(rows.map((row) => row.textContent?.includes(middle.text))).toEqual([false, true, false]);
     expect(rows.map((row) => row.getAttribute("data-selection-id"))).toEqual([
       first.id,
@@ -618,7 +581,7 @@ it("keeps unidentified stack lines unselectable in source order on both pages, a
   }
   expect(selectionRows(body).some(({ title }) => title === middle.text)).toBe(false);
 
-  for (const option of [page.service(first.id), page.environment(first.id)]) {
+  for (const option of [page.service(first.id)]) {
     await click(option);
     option?.focus();
     await act(async () =>

@@ -63,7 +63,7 @@
 .environment .state-failed .env-event-label { color: var(--error-text); font-weight: 600; }
 .environment .state-held .env-event-label { color: var(--text-muted); }
 .environment .state-held.open .env-event-label { color: var(--error-text); font-weight: 600; }
-.environment .env-event[aria-selected="true"] .env-event-label {
+.environment .env-event[aria-expanded="true"] .env-event-label {
   font-weight: 600; text-decoration: underline 2px var(--accent); text-underline-offset: 3px;
 }
 .environment .env-none, .environment .env-note { color: var(--text-muted); font-size: 12px; }
@@ -87,7 +87,7 @@
   border: 0; border-bottom: 1px solid var(--border-soft); background: transparent;
 }
 .environment button.env-repo-line { cursor: pointer; }
-.environment .env-repo-line[aria-selected="true"] { background: var(--accent-surface); }
+.environment .env-repo-line[aria-expanded="true"] { background: var(--accent-surface); }
 .environment .env-repo-line small { display: block; color: var(--text-muted); font-size: 12px; }
 .environment .env-repo-tag { min-width: 48px; font-size: 12px; }
 .environment .env-part [data-tone="bad"] { color: var(--error-text); }

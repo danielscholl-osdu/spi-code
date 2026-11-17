@@ -10,18 +10,14 @@ import { expect, it, vi } from "vitest";
 import briefing from "../../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
 import consoleHtml from "../../../../../fixtures/rib-59d6895/oracle/console.html?raw";
 import placement from "../../../../../fixtures/rib-59d6895/oracle/environment-place.json?raw";
-import envInspect from "../../../../../fixtures/rib-59d6895/oracle/inspect/ENV.json?raw";
 import releases from "../../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
 import recorded from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
+import { openSelection, setOpenSelection } from "../../app/navigation.js";
 import {
   expectEvidenceMarks,
   expectNoEvidenceMarks,
 } from "../../components/evidence/marks.test-helper.js";
-import { RightPanel } from "../../panels/RightPanel.js";
-import { createSelectionStore } from "../../panels/selection.js";
-import { routeSelectionIds, selectionRows } from "../../panels/selection-rows.js";
-import { inspectFromOracle, type OracleBoard } from "../../panels/test-inspect.js";
 import { mixedSnapshot, testSnapshot } from "../../store/test-snapshot.js";
 import { createWatchStore } from "../../store/watch.js";
 import { dropRunning, setRunning } from "../../test-utils/environment.test-helper.js";
@@ -183,9 +179,8 @@ it("keeps timeline affordances, and the empty lane's words clear of the sticky l
   }
 });
 
-it("renders oracle lane order, labels, facts and bars; selects only in the right panel", async () => {
-  const inspector = createSelectionStore({ postMessage: vi.fn() });
-  const store = createWatchStore(vi.fn(), inspector);
+it("renders oracle lane order, labels, facts and bars; a bar opens its popover", async () => {
+  const store = createWatchStore(vi.fn());
   const receive = (body: typeof snapshot) =>
     store.getState().receive({
       version: PROTOCOL_VERSION,
@@ -198,7 +193,7 @@ it("renders oracle lane order, labels, facts and bars; selects only in the right
   document.body.append(container);
   const root = createRoot(container);
   try {
-    await act(async () => root.render(<Environment store={store} inspector={inspector} />));
+    await act(async () => root.render(<Environment store={store} />));
     expect(container.querySelector(".place h1")?.textContent).toBe("Environment");
     expect(container.querySelector(".place-reading")).toBeNull();
     expect(container.querySelector("details")).toBeNull();
@@ -234,10 +229,10 @@ it("renders oracle lane order, labels, facts and bars; selects only in the right
     }
     const bars = container.querySelectorAll<HTMLButtonElement>("[data-event]");
     await act(async () => bars[1]?.click());
-    expect(bars[1]?.getAttribute("aria-selected")).toBe("true");
-    expect(inspector.getState().row?.prefixes).toEqual(["/briefing/environment/lanes/3/events/0"]);
+    expect(bars[1]?.getAttribute("aria-expanded")).toBe("true");
+    expect(openSelection()).toEqual({ kind: "event", id: bars[1]?.dataset.event });
+    expect(container.querySelector(".popover")).not.toBeNull();
     expect(container.querySelector(".env-detail")).toBeNull();
-    expect(store.getState().selection?.id).toBe("stack:38181620856");
 
     const failed = { ...first, id: "failure", state: "failed" as const };
     await act(async () =>
@@ -253,7 +248,8 @@ it("renders oracle lane order, labels, facts and bars; selects only in the right
         },
       }),
     );
-    expect(container.querySelector("[data-event]")?.getAttribute("aria-selected")).toBe("true");
+    expect(container.querySelector("[data-event]")?.getAttribute("aria-expanded")).toBe("false");
+    expect(container.querySelector(".popover")).toBeNull();
     expect(container.querySelector(".env-detail")).toBeNull();
     await act(async () =>
       receive({
@@ -265,6 +261,7 @@ it("renders oracle lane order, labels, facts and bars; selects only in the right
     expect(container.querySelector(".env-timeline")).toBeNull();
     expect(container.querySelector(".env-detail")).toBeNull();
   } finally {
+    await act(async () => setOpenSelection(null));
     await act(async () => root.unmount());
     container.remove();
   }
@@ -306,135 +303,6 @@ it.each([
   },
 );
 
-it("hands the inspector an id for every event: its queue item, else its run or hold", async () => {
-  const inspector = createSelectionStore({ postMessage: vi.fn() });
-  const store = createWatchStore(vi.fn(), inspector);
-  const smoke = { ...first, id: "38190000001", label: "smoke", inspect: undefined };
-  const hold = {
-    ...first,
-    id: "1791700000000",
-    state: "held" as const,
-    label: "2h",
-    inspect: undefined,
-  };
-  const { inspect: _, ...bare } = smoke;
-  const { inspect: __, ...closed } = hold;
-  store.getState().receive({
-    version: PROTOCOL_VERSION,
-    id: "snapshot",
-    kind: "event",
-    type: "view.snapshot",
-    payload: {
-      ...snapshot,
-      briefing: {
-        ...snapshot.briefing,
-        environment: {
-          ...environment,
-          lanes: [
-            { id: "upgrade", label: "Upgrade", events: [first] },
-            { id: "smoke", label: "Smoke", events: [bare] },
-            { id: "holds", label: "Held", events: [closed] },
-          ],
-        },
-      },
-    },
-  });
-  const container = document.createElement("div");
-  document.body.append(container);
-  const root = createRoot(container);
-  const pick = async (key: string) => {
-    const bar = container.querySelector<HTMLButtonElement>(`[data-event="${key}"]`);
-    expect(bar).not.toBeNull();
-    await act(async () => bar?.click());
-    return store.getState().selection?.id;
-  };
-  try {
-    await act(async () => root.render(<Environment store={store} inspector={inspector} />));
-    expect(await pick(`smoke:${bare.id}`)).toBe(`run:${bare.id}`);
-    const smokeRow = container.querySelector<HTMLButtonElement>(`[data-event="smoke:${bare.id}"]`);
-    if (!smokeRow) throw new Error("Missing smoke event");
-    smokeRow.focus();
-    await act(async () =>
-      smokeRow.dispatchEvent(
-        new KeyboardEvent("keydown", {
-          key: "ArrowDown",
-          bubbles: true,
-        }),
-      ),
-    );
-    expect(inspector.getState().selected).toBe(`hold:${closed.id}`);
-    expect((document.activeElement as HTMLElement).dataset.event).toBe(`holds:${closed.id}`);
-    expect(await pick(`holds:${closed.id}`)).toBe(`hold:${closed.id}`);
-    expect(await pick(`upgrade:${first.id}`)).toBe(first.inspect);
-  } finally {
-    await act(async () => root.unmount());
-    container.remove();
-  }
-});
-
-it("arrows between recorded upgrade and hold positions sharing one projected inspect id", async () => {
-  const body = mixedSnapshot(mixed);
-  const postMessage = vi.fn();
-  const inspector = createSelectionStore({ postMessage });
-  const store = createWatchStore(vi.fn(), inspector);
-  store.setState({ snapshot: { cursor: body.cursor, body } });
-  const container = document.createElement("div");
-  document.body.append(container);
-  const root = createRoot(container);
-  try {
-    await act(async () =>
-      root.render(
-        <>
-          <Environment store={store} inspector={inspector} />
-          <RightPanel store={inspector} snapshot={body} />
-        </>,
-      ),
-    );
-    const upgrade = container.querySelector<HTMLButtonElement>(
-      '[data-lane="upgrade"] [data-event]',
-    );
-    const hold = container.querySelector<HTMLButtonElement>('[data-lane="holds"] [data-event]');
-    if (!upgrade || !hold) throw new Error("Recorded fixture needs upgrade and hold events");
-    expect(upgrade.dataset.selectionId).toBe("stack:38181620856");
-    expect(hold.dataset.selectionId).toBe(upgrade.dataset.selectionId);
-    const press = async (bar: HTMLButtonElement, key: string) =>
-      act(async () => bar.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true })));
-    const expectActive = (active: HTMLButtonElement, inactive: HTMLButtonElement) => {
-      expect(document.activeElement).toBe(active);
-      expect(active.getAttribute("aria-selected")).toBe("true");
-      expect(inactive.getAttribute("aria-selected")).toBe("false");
-      expect(container.querySelectorAll('[data-event][tabindex="0"]')).toHaveLength(1);
-      expect(active.tabIndex).toBe(0);
-      expect(inactive.tabIndex).toBe(-1);
-      expect(inspector.getState().selected).toBe("stack:38181620856");
-      expect(postMessage).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          type: "inspect.request",
-          payload: { id: "stack:38181620856" },
-        }),
-      );
-      expect(container.querySelector(".detail-title")?.textContent).toBe(
-        inspector.getState().row?.title,
-      );
-    };
-    expect(container.querySelectorAll('[data-event][tabindex="0"]')).toHaveLength(1);
-    upgrade.focus();
-    await act(async () => upgrade.click());
-    await press(upgrade, "ArrowDown");
-    expectActive(hold, upgrade);
-    expect(inspector.getState().row?.prefixes).toEqual(["/briefing/environment/lanes/3/events/0"]);
-    await press(hold, "ArrowUp");
-    expectActive(upgrade, hold);
-    expect(inspector.getState().row?.prefixes).toEqual(["/briefing/environment/lanes/0/events/0"]);
-    hold.focus();
-    await act(async () => hold.click());
-    expectActive(hold, upgrade);
-  } finally {
-    await act(async () => root.unmount());
-    container.remove();
-  }
-});
-
 it.each(["identified", "unidentified"])(
   "keys repeated %s repository lines by position",
   async (identity) => {
@@ -472,27 +340,17 @@ it.each(["identified", "unidentified"])(
   },
 );
 
-it("orders the place, stack runs and stack repository; the right panel owns detail", async () => {
+it("orders the place, stack runs and stack repository", async () => {
   const body = mixedSnapshot(mixed);
-  const postMessage = vi.fn();
-  const inspector = createSelectionStore({ postMessage });
-  const store = createWatchStore(vi.fn(), inspector);
+  const store = createWatchStore(vi.fn());
   store.setState({ snapshot: { cursor: body.cursor, body } });
   const repo = body.briefing.repositories.rows.find((row) => row.name === "osdu-spi-stack");
-  const line = repo?.sections.flatMap((section) => section.lines).find((line) => line.id);
-  if (!repo || !line?.id) throw new Error("Recorded stack lines need identity");
+  if (!repo) throw new Error("Recorded snapshot needs the stack repository");
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
   try {
-    await act(async () =>
-      root.render(
-        <>
-          <Environment store={store} inspector={inspector} />
-          <RightPanel store={inspector} snapshot={body} />
-        </>,
-      ),
-    );
+    await act(async () => root.render(<Environment store={store} />));
     const page = container.querySelector(".environment");
     if (!page) throw new Error("Missing Environment page");
     expect(
@@ -515,77 +373,6 @@ it("orders the place, stack runs and stack repository; the right panel owns deta
     expect(page.textContent).toContain(repo.title);
     expect(page.textContent).toContain(repo.sub);
     expect(page.querySelector(".env-detail, .inspector, aside")).toBeNull();
-    expect(container.querySelectorAll("aside[aria-label='Detail']")).toHaveLength(1);
-    expect(inspector.getState().selected).toBeNull();
-
-    const event = page.querySelector<HTMLButtonElement>("[data-event]");
-    if (!event) throw new Error("Missing recorded event");
-    await act(async () => event.click());
-    const eventRow = selectionRows(body).find(
-      (row) => row.kind === "environment" && row.id === inspector.getState().selected,
-    );
-    if (!eventRow) throw new Error("Event selection did not reach the shared store");
-    expect(inspector.getState().row).toEqual(eventRow);
-    expect(postMessage).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        type: "inspect.request",
-        payload: { id: eventRow.id },
-      }),
-    );
-    expect(container.querySelector(".detail-title")?.textContent).toBe(eventRow.title);
-    const board: OracleBoard = JSON.parse(envInspect);
-    const result = inspectFromOracle(board, eventRow.id);
-    await act(async () =>
-      inspector.getState().receive({
-        version: PROTOCOL_VERSION,
-        kind: "response",
-        type: "inspect.result",
-        id: inspector.getState().request,
-        payload: result,
-      }),
-    );
-    expect(container.querySelector("aside [data-field='effect']")?.textContent).toBe(result.effect);
-
-    const option = [...page.querySelectorAll<HTMLButtonElement>("[data-selection-id]")].find(
-      (element) => element.dataset.selectionId === line.id,
-    );
-    if (!option) throw new Error("Missing selectable recorded repository line");
-    await act(async () => option.click());
-    expect(inspector.getState().selected).toBe(line.id);
-    expect(inspector.getState().row?.kind).toBe("repository-line");
-    expect(option.getAttribute("aria-selected")).toBe("true");
-    expect(event.getAttribute("aria-selected")).toBe("false");
-    expect(postMessage).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        type: "inspect.request",
-        payload: { id: line.id },
-      }),
-    );
-    expect(container.querySelector(".detail-title")?.textContent).toBe(line.text);
-    await act(async () =>
-      inspector.getState().receive({
-        version: PROTOCOL_VERSION,
-        kind: "response",
-        type: "inspect.result",
-        id: inspector.getState().request,
-        payload: { ...result, id: line.id, cause: line.text },
-      }),
-    );
-    expect(container.querySelector("aside [data-field='cause']")?.textContent).toBe(line.text);
-    expect(routeSelectionIds(body, { kind: "environment" })).toContain(line.id);
-    expect(selectionRows(body).find((row) => row.id === line.id)).toMatchObject({
-      title: line.text,
-      kind: "repository-line",
-    });
-    const next = repo.sections.flatMap((section) => section.lines).filter((entry) => entry.id)[1];
-    if (!next?.id) throw new Error("Recorded stack needs two selectable lines");
-    option.focus();
-    await act(async () =>
-      option.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })),
-    );
-    expect(inspector.getState().selected).toBe(next.id);
-    expect((document.activeElement as HTMLElement).dataset.selectionId).toBe(next.id);
-    expect(container.querySelector(".detail-title")?.textContent).toBe(next.text);
   } finally {
     await act(async () => root.unmount());
     container.remove();
@@ -594,8 +381,7 @@ it("orders the place, stack runs and stack repository; the right panel owns deta
 
 it("omits absent snapshot parts and leaves unidentifiable lines as text, not fake selections", async () => {
   const body = mixedSnapshot(mixed);
-  const inspector = createSelectionStore({ postMessage: vi.fn() });
-  const store = createWatchStore(vi.fn(), inspector);
+  const store = createWatchStore(vi.fn());
   const repo = body.briefing.repositories.rows.find((row) => row.name === "osdu-spi-stack");
   const line = repo?.sections[0]?.lines[0];
   if (!repo || !line) throw new Error("Missing recorded stack line");
@@ -607,12 +393,12 @@ it("omits absent snapshot parts and leaves unidentifiable lines as text, not fak
   document.body.append(container);
   const root = createRoot(container);
   try {
-    await act(async () => root.render(<Environment store={store} inspector={inspector} />));
+    await act(async () => root.render(<Environment store={store} />));
     const textLine = [...container.querySelectorAll(".env-repo-line")].find((element) =>
       element.textContent?.includes(line.text),
     );
     expect(textLine).toBeDefined();
-    expect(textLine?.hasAttribute("data-selection-id")).toBe(false);
+    expect(textLine?.hasAttribute("data-opens")).toBe(false);
     expect(textLine?.tagName).not.toBe("BUTTON");
     expect(container.textContent).toContain(repo.note);
     const bare = structuredClone(body);
@@ -624,7 +410,7 @@ it("omits absent snapshot parts and leaves unidentifiable lines as text, not fak
     );
     await act(async () => store.setState({ snapshot: { cursor: 2, body: bare } }));
     expect(container.querySelector(".env-part-body > .env-facts")).toBeNull();
-    expect(container.querySelector("[aria-label='Events in the last 24 hours']")).toBeNull();
+    expect(container.querySelector(".env-day")).toBeNull();
     expect(container.querySelector("[data-part='repository']")).toBeNull();
     expect(container.querySelector(".env-note")).toBeNull();
     expect(container.textContent).not.toContain(repo.note);
@@ -638,30 +424,20 @@ it("omits absent snapshot parts and leaves unidentifiable lines as text, not fak
 });
 
 async function renderRecorded(body = mixedSnapshot(recorded)) {
-  const postMessage = vi.fn();
-  const inspector = createSelectionStore({ postMessage });
-  const store = createWatchStore(vi.fn(), inspector);
+  const store = createWatchStore(vi.fn());
   store.setState({ snapshot: { cursor: body.cursor, body } });
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
-  await act(async () =>
-    root.render(
-      <>
-        <Environment store={store} inspector={inspector} />
-        <RightPanel store={inspector} snapshot={body} />
-      </>,
-    ),
-  );
+  await act(async () => root.render(<Environment store={store} />));
   const page = container.querySelector<HTMLElement>(".environment");
   if (!page) throw new Error("Missing Environment place");
   return {
     body,
     container,
     page,
-    inspector,
-    postMessage,
     done: async () => {
+      await act(async () => setOpenSelection(null));
       await act(async () => root.unmount());
       container.remove();
     },
@@ -1077,7 +853,7 @@ function formerFields(body: ReturnType<typeof mixedSnapshot>): FormerField[] {
           field: `line ${line.id} ${text}`,
           find: (page: HTMLElement) =>
             all(page, ".env-repo-line").find(
-              (element) => element.getAttribute("data-selection-id") === line.id,
+              (element) => element.getAttribute("data-opens") === `repository-line~${line.id}`,
             ),
           text,
         })),
@@ -1112,34 +888,31 @@ it("keeps every former Environment page field within one click", async () => {
     if (!(event instanceof HTMLButtonElement))
       throw new Error("Recorded refresh event is a button");
     await act(async () => event.click());
-    expect(view.inspector.getState().row?.kind).toBe("environment");
-    expect(view.container.querySelector(".detail-title")?.textContent).toBe("v0.35.3");
+    expect(view.container.querySelector(".popover h3")?.textContent).toBe("Refresh · v0.35.3");
   } finally {
     await view.done();
   }
 });
 
-it("selects an environment reading item into Detail and keeps it on the environment route", async () => {
+it("opens an environment reading item in a popover under it", async () => {
   const view = await renderRecorded(mixedSnapshot(mixed));
   const reading = view.body.readings.find(({ anchor }) => anchor.kind === "environment");
-  const items = reading?.content?.items ?? [];
-  const [item] = items;
+  const [item] = reading?.content?.items ?? [];
   if (!item) throw new Error("Mixed snapshot needs an environment reading item");
   try {
     const button = view.page.querySelector<HTMLButtonElement>(
       `.place-item[data-item-id='${item.id}'] button.place-item-content`,
     );
-    expect(view.page.querySelector(`[data-selection-id='${item.id}']`)).not.toBe(button);
     if (!button) throw new Error("Missing selectable reading item");
-    await act(async () => view.inspector.getState().setTab("evidence"));
     await act(async () => button.click());
-    expect(view.inspector.getState().selected).toBe(item.id);
-    expect(view.inspector.getState().row?.kind).toBe("queue");
-    expect(view.inspector.getState().tab).toBe("detail");
-    expect(button.getAttribute("aria-pressed")).toBe("true");
-    expect(routeSelectionIds(view.body, { kind: "environment" })).toEqual(
-      expect.arrayContaining(items.map(({ id }) => id)),
+    expect(openSelection()).toEqual({ kind: "item", id: item.id });
+    expect(button.closest(".place-item")?.hasAttribute("data-selected")).toBe(true);
+    expect(view.page.querySelector(".popover")?.getAttribute("data-selection")).toBe(
+      `item~${item.id}`,
     );
+    await act(async () => button.click());
+    expect(openSelection()).toBeNull();
+    expect(view.page.querySelector(".popover")).toBeNull();
   } finally {
     await view.done();
   }
