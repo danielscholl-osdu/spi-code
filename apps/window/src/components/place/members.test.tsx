@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
+import { todayMembers, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -15,7 +15,7 @@ import Template from "../../views/template/index.js";
 import sweepText from "../opened-body/sweep-1116.json?raw";
 import { ProgramSidebar } from "../sidebar/ProgramSidebar.js";
 import { SidebarProvider } from "../sidebar/ui-sidebar.js";
-import { type MemberPlace, placeMembers, todayMembers } from "./members.js";
+import { type MemberPlace, placeMembers } from "./members.js";
 import fixtureText from "./members-1116.json?raw";
 import { PlaceHead } from "./PlaceHead.js";
 

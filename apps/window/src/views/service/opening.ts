@@ -1,14 +1,13 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { Link, Station, ViewSnapshot } from "@spi-code/contracts";
+import { type Link, type Station, todayMembers, type ViewSnapshot } from "@spi-code/contracts";
 import type { OpenSelection } from "../../app/navigation.js";
 import {
   type BodyPlace,
   type OpenedContent,
   todayContent,
 } from "../../components/opened-body/content.js";
-import { todayMembers } from "../../components/place/members.js";
 import { itemContent, timed } from "../../components/place/opening.js";
 import { type SelectionField, selectionRows } from "../../panels/selection-rows.js";
 import { cellOpening } from "../line/cell-content.js";

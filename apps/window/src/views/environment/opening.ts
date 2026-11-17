@@ -1,7 +1,14 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { EnvEvent, EnvLane, Link, RepoLine, ViewSnapshot } from "@spi-code/contracts";
+import {
+  type EnvEvent,
+  type EnvLane,
+  type Link,
+  type RepoLine,
+  todayMembers,
+  type ViewSnapshot,
+} from "@spi-code/contracts";
 import type { OpenSelection } from "../../app/navigation.js";
 import {
   type BodyPlace,
@@ -9,7 +16,6 @@ import {
   repositoryContent,
   todayContent,
 } from "../../components/opened-body/content.js";
-import { todayMembers } from "../../components/place/members.js";
 import { envelopesFor } from "../../store/evidence.js";
 import { plainTitle } from "../../text.js";
 import { eventKey, eventSpan } from "./timeline.js";

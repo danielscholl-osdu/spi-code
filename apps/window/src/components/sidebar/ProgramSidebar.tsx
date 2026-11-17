@@ -22,6 +22,7 @@
 // SOFTWARE.
 
 import { ContextMenu } from "@base-ui/react/context-menu";
+import { todayMembers } from "@spi-code/contracts";
 import {
   type KeyboardEvent,
   type ReactNode,
@@ -54,7 +55,6 @@ import { useNow } from "../evidence/useNow.js";
 import { Icon, type IconName } from "../icons/Icon.js";
 import { isContextMenuKey } from "../pin/PinMenu.js";
 import { PinNotice } from "../pin/PinNotice.js";
-import { todayMembers } from "../place/members.js";
 import { useGroupCollapse } from "./collapse.js";
 import { type PinWord, pinWord } from "./pin-word.js";
 import {

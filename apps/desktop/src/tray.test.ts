@@ -2,7 +2,14 @@
 // SPDX-License-Identifier: MIT
 
 import { EventEmitter } from "node:events";
-import { AREAS, type Message, PROTOCOL_VERSION, ViewSnapshotSchema } from "@spi-code/contracts";
+import { readFileSync } from "node:fs";
+import {
+  AREAS,
+  type Message,
+  PROTOCOL_VERSION,
+  todayMembers,
+  ViewSnapshotSchema,
+} from "@spi-code/contracts";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 const electron = vi.hoisted(() => ({
@@ -36,7 +43,7 @@ vi.mock("electron", () => ({
 }));
 
 import { readGenerated } from "../../../scripts/watch-generated.mjs";
-import { createSweepTray, dockBadge, trayChannel } from "./tray.js";
+import { createSweepTray, dockBadge, interruptions, trayChannel } from "./tray.js";
 
 const sweepSchedule = {
   sweepMs: 300_000,
@@ -85,9 +92,13 @@ it("provides a status line, Sweep now, View sweep, Open and Quit, no Pause, and 
 
 function snapshot(
   states: ("fresh" | "stale" | "incomplete" | "failed" | "unread")[],
-  { interrupts = 0, sweptAt = at(8, 2) }: { interrupts?: number; sweptAt?: string } = {},
+  {
+    interrupts = 0,
+    members = 0,
+    sweptAt = at(8, 2),
+  }: { interrupts?: number; members?: number; sweptAt?: string } = {},
 ): Message {
-  return briefed(read(states, sweptAt), interrupts);
+  return briefed(read(states, sweptAt), interrupts, members);
 }
 
 function read(
@@ -196,10 +207,26 @@ function progress(
   } as Message;
 }
 
-/** The fixture's brief with `interrupts` distinct interruptions, one of them carried twice under an alias. */
-function briefed(message: Message, interrupts: number): Message {
+/**
+ * The fixture's brief with `interrupts` distinct interruptions, one of them carried twice under an
+ * alias, and `members` distinct Today members, the first of them on a second line too.
+ */
+function briefed(message: Message, interrupts: number, members: number): Message {
   if (message.type !== "view.snapshot") throw new Error("expected a snapshot");
   const { briefing } = message.payload;
+  const [line] = briefing.lines ?? [];
+  const [member] = line?.members ?? [];
+  if (!line || !member) throw new Error("fixture has no Today member");
+  const held = Array.from({ length: members }, (_, index) => ({
+    ...member,
+    id: `member-${index}`,
+  }));
+  const lines = held.length
+    ? [
+        { ...line, members: held },
+        { ...line, id: `${line.id}:again`, members: held.slice(0, 1) },
+      ]
+    : [];
   let left = interrupts;
   const focus = briefing.focus.map((item) =>
     item.attention === "interrupt" && left-- > 0
@@ -212,7 +239,13 @@ function briefed(message: Message, interrupts: number): Message {
   );
   return {
     ...message,
-    payload: { ...message.payload, briefing: { ...briefing, focus, rest } },
+    payload: {
+      ...message.payload,
+      briefing: { ...briefing, focus, rest, lines },
+      provenance: message.payload.provenance.filter(
+        ({ path }) => !path.startsWith("/briefing/lines/"),
+      ),
+    },
   } as Message;
 }
 
@@ -393,28 +426,6 @@ it("forwards each host message before observing it, even when the observer throw
   logged.mockRestore();
 });
 
-/** A snapshot whose brief carries `count` distinct interruptions. */
-function interrupting(count: number): Message {
-  const message = snapshot(["fresh"]);
-  if (message.type !== "view.snapshot") throw new Error("expected a snapshot");
-  const { focus: listed } = message.payload.briefing;
-  const [lead] = listed;
-  if (!lead) throw new Error("fixture has no focus item");
-  const extra = Array.from({ length: Math.max(0, count - listed.length) }, (_, index) => ({
-    ...lead,
-    id: `interrupt-${index}`,
-    ids: [`interrupt-${index}`],
-  }));
-  const focus = [...listed, ...extra].map((item, index) => ({
-    ...item,
-    attention: index < count ? ("interrupt" as const) : ("surface" as const),
-  }));
-  return {
-    ...message,
-    payload: { ...message.payload, briefing: { ...message.payload.briefing, focus } },
-  } as Message;
-}
-
 /** A later sweep that finished with one source failed for want of a sign-in. */
 function signedOut(source: string, outcome: "committed" | "running" = "committed"): Message {
   const message = progress(outcome, { first: false, settled: 12 });
@@ -477,10 +488,10 @@ it("reads each designed tooltip after the first sweep, keeping the committed dot
   tray.observe(progress("running", { first: false, settled: 4 }));
   expect(tip()).toBe("SPI Code - Sweeping 4 of 12 · last 08:02");
   expect(dot()).toEqual(fresh);
-  tray.observe(snapshot(["fresh"], { interrupts: 2, sweptAt: at(8, 7) }));
+  tray.observe(snapshot(["fresh"], { members: 2, sweptAt: at(8, 7) }));
   tray.observe(progress("committed", { first: false, settled: 12 }));
   expect(tip()).toBe("SPI Code - 2 need you · swept 08:07");
-  tray.observe(snapshot(["fresh"], { interrupts: 1, sweptAt: at(8, 7) }));
+  tray.observe(snapshot(["fresh"], { members: 1, sweptAt: at(8, 7) }));
   expect(tip()).toBe("SPI Code - 1 needs you · swept 08:07");
 
   tray.observe(signedOut("upstream"));
@@ -541,18 +552,61 @@ it("badges the dock with the Today count, 9+ past nine, and clears it when the c
   expect([0, 1, 9, 10, 42].map(dockBadge)).toEqual(["", "1", "9", "9+", "9+"]);
   const badge = vi.fn();
   const tray = createSweepTray(vi.fn(), vi.fn(), { badge });
-  tray.observe(snapshot(["fresh"]));
+  tray.observe(snapshot(["fresh"], { interrupts: 2 }));
   expect(badge).not.toHaveBeenCalled();
-  tray.observe(interrupting(2));
-  tray.observe(interrupting(2));
-  tray.observe(interrupting(9));
-  tray.observe(interrupting(12));
+  tray.observe(snapshot(["fresh"], { members: 2 }));
+  tray.observe(snapshot(["fresh"], { members: 2 }));
+  tray.observe(snapshot(["fresh"], { members: 9 }));
+  tray.observe(snapshot(["fresh"], { members: 12 }));
   expect(electron.trays[0]?.setToolTip).toHaveBeenLastCalledWith(
     "SPI Code - 12 need you · swept 08:02",
   );
   tray.disconnected();
   expect(badge.mock.calls).toEqual([["2"], ["9"], ["9+"], [""]]);
   expect(electron.trays[0]?.setTitle).not.toHaveBeenCalled();
+});
+
+/** The 16 Nov brief, whose 18 Today members the sidebar counts, over the 6 Nov sweep read fresh. */
+function nov16(): Message {
+  const text = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
+  const recorded = JSON.parse(text("../../../fixtures/watch/snapshot-1106.json"));
+  const fixture = JSON.parse(text("../../window/src/components/place/members-1116.json"));
+  const fresh = read(["fresh"], at(8, 2));
+  if (fresh.type !== "view.snapshot") throw new Error("expected a snapshot");
+  const body = ViewSnapshotSchema.parse({
+    ...recorded,
+    provenance: [],
+    stations: fixture.stations,
+    briefing: {
+      ...recorded.briefing,
+      lines: fixture.lines,
+      places: fixture.places,
+      focus: fixture.items,
+      rest: [],
+      repositories: { ...recorded.briefing.repositories, rows: fixture.repositories },
+    },
+  });
+  return {
+    ...fresh,
+    payload: { ...body, sweptAt: fresh.payload.sweptAt, areas: fresh.payload.areas },
+  };
+}
+
+it("badges and tips the 16 Nov brief with the sidebar's 18 Today members, never its Interrupts", () => {
+  const badge = vi.fn();
+  const tray = createSweepTray(vi.fn(), vi.fn(), { badge });
+  const tip = () => electron.trays[0]?.setToolTip.mock.calls.at(-1)?.[0];
+  const brief = nov16();
+  if (brief.type !== "view.snapshot") throw new Error("expected a snapshot");
+  expect(todayMembers(brief.payload.briefing)).toHaveLength(18);
+  expect(interruptions(brief.payload.briefing)).toBe(2);
+  tray.observe(brief);
+  expect(badge.mock.calls).toEqual([[dockBadge(18)]]);
+  expect(tip()).toBe("SPI Code - 18 need you · swept 08:02");
+  delete brief.payload.briefing.lines;
+  tray.observe(brief);
+  expect(badge.mock.calls.at(-1)).toEqual([""]);
+  expect(tip()).toBe("SPI Code - All fresh · swept 08:02");
 });
 
 it("sends Sweep now from the tray through the real relay to the host's sweep.request route", async () => {

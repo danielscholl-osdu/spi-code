@@ -6,6 +6,7 @@ import {
   type Message,
   PROTOCOL_VERSION,
   parseMessage,
+  todayMembers,
   type WatchBriefing,
 } from "@spi-code/contracts";
 import { Menu, Notification, nativeImage, nativeTheme, Tray } from "electron";
@@ -182,7 +183,7 @@ export function createSweepTray(
     if (latest.areas.every(({ envelope }) => envelope.inferred)) return ["unread", "Inferred"];
     return ["fresh", "All fresh"];
   };
-  const today = () => (latest ? interruptions(latest.briefing) : 0);
+  const today = () => (latest ? todayMembers(latest.briefing).length : 0);
   const tooltip = (): [Dot, string] => {
     if (halt) return [halt.dot, halt.text];
     const [dot, text] = state();

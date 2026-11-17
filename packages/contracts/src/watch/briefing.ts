@@ -430,6 +430,22 @@ export const TodayLineSchema = z.strictObject({
 export type TodayDeadline = z.infer<typeof TodayDeadlineSchema>;
 export type TodayMember = z.infer<typeof TodayMemberSchema>;
 export type TodayLine = z.infer<typeof TodayLineSchema>;
+export type TodayEntry = { line: TodayLine; member: TodayMember };
+
+/**
+ * Today's members on Blocked and Waiting on you, each once in line order: the one count of what is
+ * yours, behind the sidebar's Today row, the dock badge, the tray tooltip and the hidden sidebar's dot.
+ */
+export function todayMembers(briefing: { lines?: readonly TodayLine[] | undefined }): TodayEntry[] {
+  const seen = new Set<string>();
+  return (briefing.lines ?? []).flatMap((line) =>
+    line.members.flatMap((member) => {
+      if (seen.has(member.id)) return [];
+      seen.add(member.id);
+      return [{ line, member }];
+    }),
+  );
+}
 
 export const TodayCountSchema = z.strictObject({
   kind: IdentifierSchema,

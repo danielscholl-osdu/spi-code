@@ -21,6 +21,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+import { todayMembers } from "@spi-code/contracts";
 import { useCallback, useEffect } from "react";
 import { useStore } from "zustand";
 import { sweepSegment } from "../components/capsule/sweep.js";
@@ -30,7 +31,6 @@ import { statusDot, statusRows } from "../components/sidebar/status-marks.js";
 import { SidebarTrigger, useSidebar } from "../components/sidebar/ui-sidebar.js";
 import { selectStrip } from "../store/strip.js";
 import { watchStore } from "../store/watch.js";
-import { countInterrupts } from "../views/today/selectors.js";
 import { ariaShortcut, matchesShortcut, shortcutLabel } from "./shortcuts.js";
 
 /** Opening the narrow sidebar closes the context pane, and opening the context pane closes the narrow sidebar. */
@@ -92,7 +92,10 @@ function useHiddenSidebarDot() {
   const marks = body
     ? Object.values(statusRows(selectStrip(body), Date.now())).map(({ mark }) => mark)
     : [];
-  return statusDot(body ? countInterrupts(body.briefing) : 0, [...marks, sweep && { tone: sweep }]);
+  return statusDot(body ? todayMembers(body.briefing).length : 0, [
+    ...marks,
+    sweep && { tone: sweep },
+  ]);
 }
 
 /**
