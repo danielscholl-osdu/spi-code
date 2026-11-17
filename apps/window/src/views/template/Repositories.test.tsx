@@ -104,6 +104,14 @@ it("marks a line the item acts on or names as evidence: crs-conversion's #44, in
   expect(line("issue:Azure/osdu-spi-indexer:63")?.dataset.onToday).toBeUndefined();
 });
 
+it("claims no empty repository when partition counts an issue it does not list", async () => {
+  await mount(snapshot1116());
+  expect(row("partition").textContent).toContain("0 · 1");
+  await expand("partition");
+  const expanded = container.querySelector(".repos-expanded")?.textContent ?? "";
+  expect(expanded).not.toMatch(/no open/i);
+});
+
 it("claims nothing for Today when the line's item is not the operator's move", async () => {
   const body = snapshot1116();
   for (const item of [...body.briefing.focus, ...body.briefing.rest]) {

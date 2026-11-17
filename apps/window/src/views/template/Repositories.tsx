@@ -89,7 +89,7 @@ function Lines({
   const security = entry.sections.filter(({ title }) => SECURITY.includes(title));
   return (
     <div className="repos-lines">
-      {listed.length === 0 && <p className="repos-quiet">No open issues or pull requests.</p>}
+      {listed.length === 0 && <p className="repos-quiet">No lines listed here.</p>}
       {listed.map((section) => (
         <section key={section.title} aria-label={`${entry.name} ${section.title}`}>
           <h3>
