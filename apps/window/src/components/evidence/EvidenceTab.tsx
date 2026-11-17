@@ -17,11 +17,12 @@ import { FirstSweepBody } from "../sweep/FirstSweepBody.js";
 import { SweepNow } from "../sweep/SweepNow.js";
 import { SweepSources } from "../sweep/SweepSources.js";
 import { SweepStopped } from "../sweep/SweepStopped.js";
-import type { SourceOutcome, SourceTone } from "../sweep/words.js";
+import { duration, type SourceOutcome, type SourceTone } from "../sweep/words.js";
 import {
   type FailedReadGroup,
   FailedReads,
   failedReadGroups,
+  failedServices,
   failureCause,
 } from "./FailedReads.js";
 import type { SweepLineSnapshot } from "./SweepLine.js";
@@ -199,15 +200,20 @@ function evidenceOutcome(
     areaSentence(envelope, sweptAt, now, { logged: read && envelope.state === "unread" });
   const title = [outcome.detail, sentence].filter(Boolean).join(" ") || undefined;
   const cause = failureCause(groups);
-  if (outcome.tone === "bad" && source.state !== "skipped")
+  if (outcome.tone === "bad" && source.state !== "skipped") {
+    // The source's reason is said by a group of the same cause, which also names its services.
+    const why = groups.some(({ code }) => code === outcome.code)
+      ? cause
+      : [outcome.why, cause].filter(Boolean).join(" ");
     return {
       outcome: {
         ...outcome,
         text: envelope ? `failed · ${keptData(envelope, now)}` : "failed",
-        ...(outcome.why === undefined && cause ? { why: cause } : {}),
+        ...(why ? { why } : {}),
       },
       title,
     };
+  }
   if (partlyRead(source)) {
     const kept =
       envelope?.state === "failed" && envelope.observedAt !== undefined
@@ -216,9 +222,30 @@ function evidenceOutcome(
     const why = [cause ?? outcome.why, kept].filter(Boolean).join(" ");
     return { outcome: { ...outcome, ...(why ? { why } : {}) }, title };
   }
-  if (envelope === undefined) return { outcome, title };
+  // A cut read says how much of it was read: by its envelope once the snapshot holds this read.
+  const held =
+    since !== undefined && envelope?.state !== "unread" && envelope?.completeness.kind === "cut"
+      ? envelope.completeness
+      : undefined;
+  const count = (value: number) => value.toLocaleString("en-US");
+  const cut =
+    source.state === "cut"
+      ? {
+          ...outcome,
+          text: [
+            "read",
+            ...(source.startedAt && source.endedAt
+              ? [duration(Date.parse(source.endedAt) - Date.parse(source.startedAt))]
+              : []),
+            held
+              ? `${count(held.read)} of ${count(held.total)} read`
+              : `${count(source.incomplete.total - source.incomplete.count)} of ${count(source.incomplete.total)} read`,
+          ].join(" · "),
+        }
+      : outcome;
+  if (envelope === undefined) return { outcome: cut, title };
   // A read the snapshot does not hold yet has only the sweep's words; its envelope is older.
-  if (read && since === undefined) return { outcome, title };
+  if (read && since === undefined) return { outcome: cut, title };
   const extra =
     envelope.state === "unread"
       ? read
@@ -235,7 +262,7 @@ function evidenceOutcome(
             : undefined,
         ].filter((part): part is string => part !== undefined);
   return {
-    outcome: { ...outcome, text: [outcome.text, ...extra].join(" · ") },
+    outcome: { ...cut, text: [cut.text, ...extra].join(" · ") },
     title,
   };
 }
@@ -300,7 +327,6 @@ export function SweepEvidence({
     );
   const sources = sweepSources(snapshot);
   const line = sweepLine({ sources: sources.map(({ envelope }) => envelope) });
-  const groups = failedReadGroups(snapshot.reads);
   const next = sweep?.nextSweepAt && Date.parse(sweep.nextSweepAt) > at ? sweep.nextSweepAt : null;
   const list = progress ?? completed;
   const envelopes = new Map(sources.map(({ key, envelope }) => [key, envelope]));
@@ -310,28 +336,38 @@ export function SweepEvidence({
   const own = list !== null && Date.parse(snapshot.sweptAt) >= Date.parse(list.startedAt);
   const since = own ? list.startedAt : undefined;
   // A row that says a source failed, or partly read, carries its failed reads' cause.
-  const carried = new Set(
-    observed
-      ? (list?.sources ?? [])
-          .filter(
-            (source) =>
-              source.state === "failed" ||
-              partlyRead(source) ||
-              (list?.outcome === "failed" &&
-                list.source === source.source &&
-                (source.state === "reading" || source.state === "throttled")),
-          )
-          .map(({ source }) => source)
-      : [],
-  );
+  const carrying = observed
+    ? (list?.sources ?? []).filter(
+        (source) =>
+          source.state === "failed" ||
+          partlyRead(source) ||
+          (list?.outcome === "failed" &&
+            list.source === source.source &&
+            (source.state === "reading" || source.state === "throttled")),
+      )
+    : [];
+  const carried = new Set(carrying.map(({ source }) => source));
+  // A repository's read names no area, so it belongs to the row whose failure names its service.
+  const groups = failedReadGroups(snapshot.reads, ({ source, service }) => {
+    const naming = carrying
+      .filter(
+        (entry) =>
+          entry.state === "cut" &&
+          service !== undefined &&
+          failedServices(entry.failure).includes(service),
+      )
+      .map((entry) => entry.source);
+    if (naming.length > 0) return naming.includes(source) ? source : naming[0];
+    return carried.has(source) ? source : undefined;
+  });
   const describe = (source: SweepSourceProgress, outcome: SourceOutcome) =>
     evidenceOutcome(source, outcome, envelopes.get(source.source), {
       sweptAt: snapshot.sweptAt,
       since,
       now: at,
-      groups: groups.filter((group) => group.source === source.source),
+      groups: groups.filter((group) => group.row === source.source),
     });
-  const uncarried = groups.filter((group) => !carried.has(group.source));
+  const uncarried = groups.filter((group) => group.row === undefined);
   // A failed area this sweep partly read is amber, as its row is.
   const cut = new Set(list?.sources.filter(partlyRead).map(({ source }) => source));
   const tone =

@@ -106,6 +106,9 @@ inspect binds the whole item with the empty JSON pointer.
 area fallback (`sweep`). Lane occupancy in a sweep does not confirm that the other lanes
 have drained before a re-run; those items keep that question in inspect's `notRead` list.
 On the whole-sweep Evidence page a failed or partly read source row takes the cause of the failed
-reads that `FailedReads` groups under the same source key; Failed reads lists only groups no row
-carries. Repo-level reads group under `github` whichever area collected them, so a template row's
-failures keep core's sentence and the github group stays in Failed reads.
+reads it carries; Failed reads lists only groups no row carries. Repo-level reads name no
+collecting area, so a read goes to the partly read row whose failure sentence (the host's
+`failedReadsReason`) names its service, else to the row of its own source key. A failed row says
+every cause it carries, and keeps the host's reason unless a carried group has the same code.
+A cut row says `n of m read` from its envelope once the snapshot holds this read, else from the
+sweep's own read counts.

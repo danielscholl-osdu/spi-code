@@ -53,7 +53,7 @@ const firstSweepQualifiers: Record<string, string[]> = {
   ],
   "first-sweep-evidence": [
     "swept 08:02 · 1 failed",
-    "The sweep Sources 6 run lists cut short; rest read. 3 reads failed. Reads failed for 3 services: unit, crs-catalog, crs-conversion. waits for GitHub budget · after 09:10. glab is not signed in. Open Settings",
+    "The sweep Sources 7 of 13 read. 3 reads failed. Read failed: unit, crs-catalog, crs-conversion. waits for GitHub budget · after 09:10. glab is not signed in. Open Settings",
   ],
   "first-sweep-refresh": ["Swept 08:02 · sweeping, 4 of 12 sources done", "GitLab reads failed."],
 };
@@ -321,7 +321,7 @@ function geometry(surface: string, width: number): SmokeGeometry[] {
           rows: [
             {
               source: "GitHub issues and PRs",
-              outcome: "read failed · unit, crs-catalog, crs-conversion",
+              outcome: "access denied · legal",
             },
           ],
         };

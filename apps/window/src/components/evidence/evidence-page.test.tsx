@@ -391,6 +391,15 @@ const failedSource = (source: string, reason: string) => ({
   code: "timeout",
   reason,
 });
+const cutSource = (source: string, incomplete: { count: number; total: number }) => ({
+  source,
+  state: "cut",
+  startedAt: START,
+  endedAt: after(4),
+  incomplete,
+  code: "limit",
+  reason: "Some reads reached a page or size limit.",
+});
 const kindsSweep = sweepOf(
   AREAS.map((source) =>
     source === "details"
@@ -399,7 +408,9 @@ const kindsSweep = sweepOf(
         ? failedSource(source, "GitLab did not answer in time.")
         : source === "radar"
           ? failedSource(source, "GitLab did not answer in time.")
-          : read(source),
+          : source === "security"
+            ? cutSource(source, { count: 1, total: 1 })
+            : read(source),
   ),
 );
 
@@ -421,9 +432,9 @@ it.each([
   [
     "read this sweep, cut",
     "security",
-    "ok",
+    "warn",
     "read · 4 s · 40 of 52 read",
-    `Cut, observed ${clock(1)}, 1 min before the sweep ended, 40 of 52 read.`,
+    `0 of 1 read complete. Some reads reached a page or size limit. Cut, observed ${clock(1)}, 1 min before the sweep ended, 40 of 52 read.`,
   ],
   [
     "failed, data kept",
@@ -452,6 +463,91 @@ it.each([
     expect(view.page?.textContent).not.toMatch(UNSAID);
   },
 );
+
+it("says a cut read's n of m from the sweep when the snapshot holds the previous read", async () => {
+  const later = SweepProgressSchema.parse({
+    ...sweepOf(
+      AREAS.map((source) =>
+        source === "runs"
+          ? { ...cutSource(source, { count: 6, total: 13 }), cutKind: "run-list" }
+          : read(source),
+      ),
+    ),
+    startedAt: new Date(Date.parse(sweptAt) + 60_000).toISOString(),
+  });
+  const view = await render({ kind: "evidence" }, kinds, later);
+  expect(rowOf(view.page, "runs").phrase).toBe("read · 4 s · 7 of 13 read");
+  expect(view.page?.textContent).not.toMatch(/cut short/);
+});
+
+const unreadable = (service: string): ReadRecord => ({
+  ...readRecord(`Azure/osdu-spi-${service}`, `main:provider/${service}-azure/pom.xml`, 1),
+  failure: `main:provider/${service}-azure/pom.xml is not readable`,
+});
+
+it("says Template's failed reads once, on its row, and keeps an unrelated GitHub failure", async () => {
+  const forked = ["unit", "crs-catalog", "crs-conversion"];
+  const denied: ReadRecord = {
+    ...readRecord("Azure/osdu-spi-legal", "pull requests", 1),
+    failure: "HTTP 403 forbidden",
+  };
+  const view = await render(
+    { kind: "evidence" },
+    { ...snapshot, reads: [...forked.map(unreadable), denied] },
+    sweepOf(
+      AREAS.map((source) =>
+        source === "template"
+          ? {
+              ...partly,
+              source,
+              incomplete: { count: 0, total: 24, failed: 3 },
+              failure: `Reads failed for 3 services: ${forked.join(", ")}.`,
+            }
+          : read(source),
+      ),
+    ),
+  );
+  const template = rowOf(view.page, "template");
+  expect(template.tone).toBe("warn");
+  expect(template.line).toBe(`Read failed: ${forked.join(", ")}.`);
+  const text = view.page?.textContent ?? "";
+  expect(text.split(forked.join(", ")).length - 1).toBe(1);
+  expect(
+    [...(view.page?.querySelectorAll(".evidence-failure") ?? [])].map((row) =>
+      row.getAttribute("aria-label"),
+    ),
+  ).toEqual(["GitHub issues and PRs · access denied · legal"]);
+});
+
+it("says every cause of a failed source's reads on its row, beside its own reason", async () => {
+  const mixed = [
+    timedOut("storage"),
+    { ...timedOut("indexer"), failure: "HTTP 403 access denied" },
+  ];
+  const failed = sweepOf(
+    AREAS.map((source) =>
+      source === "github" ? failedSource(source, "GitHub did not answer in time.") : read(source),
+    ),
+  );
+  const view = await render({ kind: "evidence" }, { ...partial, reads: mixed }, failed);
+  expect(rowOf(view.page, "github").line).toBe(
+    "GitHub timed out: storage; access denied: indexer.",
+  );
+  expect(view.page?.querySelector(".evidence-failures")).toBeNull();
+  const text = view.page?.textContent ?? "";
+  expect(text.split("access denied").length - 1).toBe(1);
+  expect(text.split("timed out").length - 1).toBe(1);
+
+  const other = await render(
+    { kind: "evidence" },
+    { ...partial, reads: [mixed[1] as ReadRecord] },
+    failed,
+  );
+  expect(rowOf(other.page, "github").line).toBe(
+    "GitHub did not answer in time. Access denied: indexer.",
+  );
+  expect(other.page?.querySelector(".evidence-failures")).toBeNull();
+});
 
 it.each([
   [

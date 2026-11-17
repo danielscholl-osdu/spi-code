@@ -239,12 +239,7 @@ export function assertSmokeGeometry(
       );
       assert.deepEqual(
         value.rows,
-        [
-          {
-            source: "GitHub issues and PRs",
-            outcome: "read failed · unit, crs-catalog, crs-conversion",
-          },
-        ],
+        [{ source: "GitHub issues and PRs", outcome: "access denied · legal" }],
         `Failed-read wording: ${evidence}`,
       );
       break;

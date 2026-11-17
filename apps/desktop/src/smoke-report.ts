@@ -422,9 +422,9 @@ function assertSmokeQualifiers(surfaceId: string, qualifiers: unknown): void {
     "first-sweep-evidence": [
       /The sweep/,
       /Sources/i,
-      /6 run lists cut short; rest read/,
+      /7 of 13 read/,
       /3 reads failed/,
-      /Reads failed for 3 services: unit, crs-catalog, crs-conversion\./,
+      /Read failed: unit, crs-catalog, crs-conversion\./,
       /waits for GitHub budget.*after 09:10/,
       /glab is not signed in/,
     ],

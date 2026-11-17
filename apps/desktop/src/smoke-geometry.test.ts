@@ -75,9 +75,7 @@ const failedReads: SmokeGeometry = {
   rule: "failed-reads",
   section: rect(1101, 650, 323, 52),
   panel: rect(1084, 88, 356, 712),
-  rows: [
-    { source: "GitHub issues and PRs", outcome: "read failed · unit, crs-catalog, crs-conversion" },
-  ],
+  rows: [{ source: "GitHub issues and PRs", outcome: "access denied · legal" }],
 };
 const sweepVisible: SmokeGeometry = {
   rule: "sweep-visible",
