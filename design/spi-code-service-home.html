@@ -1,0 +1,907 @@
+<title>Service Home Mock</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* layout: a short brief, then one app window (sidebar + centre) you can click through, then the build notes */
+:root{
+  --chrome:#f4f4f5; --sidebar:#efeff1; --surface:#ffffff; --raised:#f4f4f5;
+  --border:#d4d4d8; --border-soft:#e4e4e7;
+  --text:#27272a; --strong:#09090b; --muted:#52525b; --faint:#6b6b74;
+  --accent:#1d7a6c; --accent-text:#1c796b; --accent-surface:#e3f1ed;
+  --error:#b42318; --error-surface:#fde4e1;
+  --warning:#94560a; --warning-surface:#fdf0d5;
+  --success:#15803d; --success-surface:#e3f5e8;
+  --work:#0369a1; --work-surface:#ddeefa;
+  --upstream:#9a2680; --upstream-surface:#f8e3f0;
+  --hover:#e9e9ec; --on-fill:#ffffff; --page:#e9e9ec;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --chrome:#141416; --sidebar:#141416; --surface:#0d0d0f; --raised:#1a1a1d;
+    --border:#27272a; --border-soft:#1d1d20;
+    --text:#e4e4e7; --strong:#fafafa; --muted:#a1a1aa; --faint:#8b8b93;
+    --accent:#5cc4b2; --accent-text:#5cc4b2; --accent-surface:#14302b;
+    --error:#fca5a5; --error-surface:#311616;
+    --warning:#fcd34d; --warning-surface:#2b2410;
+    --success:#6ee7a0; --success-surface:#10291b;
+    --work:#7dd3fc; --work-surface:#0f2533;
+    --upstream:#c463aa; --upstream-surface:#2d1727;
+    --hover:#232328; --on-fill:#0d0d0f; --page:#09090b;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --chrome:#141416; --sidebar:#141416; --surface:#0d0d0f; --raised:#1a1a1d;
+  --border:#27272a; --border-soft:#1d1d20;
+  --text:#e4e4e7; --strong:#fafafa; --muted:#a1a1aa; --faint:#8b8b93;
+  --accent:#5cc4b2; --accent-text:#5cc4b2; --accent-surface:#14302b;
+  --error:#fca5a5; --error-surface:#311616;
+  --warning:#fcd34d; --warning-surface:#2b2410;
+  --success:#6ee7a0; --success-surface:#10291b;
+  --work:#7dd3fc; --work-surface:#0f2533;
+  --upstream:#c463aa; --upstream-surface:#2d1727;
+  --hover:#232328; --on-fill:#0d0d0f; --page:#09090b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.5}
+.wrap{max-width:1240px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-size:26px;font-weight:650;letter-spacing:-.01em;margin:0 0 8px;color:var(--strong);text-wrap:balance}
+h2{font-size:18px;font-weight:650;margin:0 0 8px;color:var(--strong);text-wrap:balance}
+p{margin:0 0 10px;max-width:70ch}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin:0 0 6px}
+.lead{font-size:16px;color:var(--strong);max-width:68ch}
+.muted{color:var(--muted)}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+a{color:var(--accent-text)}
+
+.bar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:22px 0 10px;font-size:13px}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;padding:5px 12px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent-surface);color:var(--accent-text);font-weight:600}
+
+/* the window */
+.win{display:grid;grid-template-columns:214px minmax(0,1fr);border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface);font-size:13px;min-height:720px}
+.side{background:var(--sidebar);border-right:1px solid var(--border);padding:10px 8px;display:flex;flex-direction:column;gap:2px}
+.find{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:6px 9px;color:var(--muted);margin-bottom:8px}
+.kbd{font-family:var(--mono);font-size:10.5px;border:1px solid var(--border);border-radius:4px;padding:0 4px;color:var(--faint)}
+.nav{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;color:var(--text);border:0;background:transparent;width:100%;text-align:left}
+.nav:hover{background:var(--hover)}
+.nav[aria-current="page"]{background:var(--surface);box-shadow:0 0 0 1px var(--border);color:var(--strong);font-weight:600}
+.n{font-size:11px;font-variant-numeric:tabular-nums;border-radius:999px;min-width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
+.nav .n{margin-left:auto}
+.n.bad{background:var(--error);color:var(--on-fill);font-weight:700}
+.n.ring{border:1.5px solid var(--error);color:var(--error)}
+.n.warn{border:1.5px solid var(--warning);color:var(--warning)}
+.n.okring{border:1.5px solid var(--success);color:var(--success);font-size:10px;font-weight:700}
+.ic{width:15px;height:15px;flex:none;fill:none;stroke:currentColor;stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round;color:var(--muted)}
+.side h3{font-size:11.5px;font-weight:500;color:var(--faint);margin:14px 8px 4px;display:flex;justify-content:space-between}
+.side .foot{margin-top:auto;display:flex;justify-content:space-between;color:var(--faint);padding:8px;font-size:12px}
+
+.centre{min-width:0;display:flex;flex-direction:column}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:9px 18px;border-bottom:1px solid var(--border)}
+.top h2{font-size:14px;margin:0}
+.top .sp{margin-left:auto}
+.btn{border:1px solid var(--border);background:var(--surface);border-radius:6px;padding:3px 9px;font-size:12px;color:var(--text);display:inline-flex;align-items:center;gap:5px;text-decoration:none;white-space:nowrap}
+.btn:hover{background:var(--hover)}
+.btn.act{background:var(--accent-surface);border-color:transparent;color:var(--accent-text);font-weight:600}
+.pin{border:0;background:transparent;border-radius:6px;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;color:var(--muted)}
+.pin:hover{background:var(--hover)}
+.pin svg{fill:none}
+.pin[aria-pressed="true"]{color:var(--accent-text)}
+.pin[aria-pressed="true"] svg{fill:currentColor}
+.tchip{display:inline-flex;align-items:center;gap:3px;padding:2px 5px;color:var(--success);border:0;background:transparent;border-radius:6px}
+.tchip:hover{background:var(--hover)}
+.quiet{display:flex;gap:10px;align-items:center;flex-wrap:wrap;color:var(--muted)}
+.nav.flash{box-shadow:0 0 0 2px var(--accent)}
+.tchip .ic{color:currentColor}
+.tchip b{font-size:11px}
+.tchip[data-t="behind"]{color:var(--muted)}
+.body{padding:16px 18px 28px;display:flex;flex-direction:column;gap:16px;min-width:0}
+
+/* pills */
+.pill{display:inline-flex;align-items:center;gap:4px;border:1px solid currentColor;border-radius:999px;padding:0 8px;font-size:11.5px;line-height:19px;height:21px;text-decoration:none;white-space:nowrap;font-variant-numeric:tabular-nums;background:transparent}
+.pill.pr{color:var(--accent-text)} .pill.issue{color:var(--work)} .pill.mr{color:var(--upstream)} .pill.grey{color:var(--muted)}
+.pill.act{background:var(--accent-surface);border-color:transparent;color:var(--accent-text);font-weight:600}
+.pill svg{width:11px;height:11px;flex:none}
+.tag{font-size:11px;border-radius:4px;padding:0 6px;line-height:18px;background:var(--raised);color:var(--muted);white-space:nowrap;border:1px solid var(--border-soft);text-decoration:none;display:inline-block}
+a.tag:hover{background:var(--hover)}
+.ex{font-size:11px;border:1px dashed var(--border);border-radius:4px;padding:0 5px;color:var(--faint);letter-spacing:0;text-transform:none;font-weight:400}
+
+/* the flow: upstream through the sync on top, direct changes below, both into main */
+.flowwrap{overflow-x:auto;padding-top:8px}
+.flow{display:grid;grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr) 22px minmax(0,1fr) 44px minmax(0,1fr);grid-template-rows:auto auto;row-gap:16px;min-width:450px}
+.stn{padding:9px 12px 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);text-align:left;min-width:0;display:flex;flex-direction:column;gap:2px}
+button.stn:hover{background:var(--raised)}
+.stn .lbl,.door .lbl{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:600;display:flex;align-items:center;gap:6px}
+.stn .w{font-weight:650;color:var(--strong);font-size:13.5px;overflow-wrap:anywhere}
+.stn .s{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.stn[data-tone="you"]{background:var(--warning-surface);border-color:color-mix(in srgb,var(--warning) 40%,var(--border))}
+.stn[data-tone="you"] .w{color:var(--warning)}
+.stn[data-tone="bad"]{background:var(--error-surface);border-color:color-mix(in srgb,var(--error) 40%,var(--border))}
+.stn[data-tone="bad"] .w{color:var(--error)}
+.stn[data-tone="run"] .w{color:var(--work)}
+.stn[data-tone="ok"]{background:var(--success-surface);border-color:color-mix(in srgb,var(--success) 35%,var(--border))}
+.stn[data-tone="ok"] .w{color:var(--success)}
+.g.ok{color:var(--success)}
+.g{font-family:var(--mono);font-weight:700;width:14px;text-align:center}
+.g.fine{color:var(--success)} .g.you{color:var(--warning)} .g.run{color:var(--work)} .g.bad{color:var(--error)}
+.edge{align-self:center;height:2px;background:var(--border);position:relative}
+.edge::after{content:"";position:absolute;right:-1px;top:-4px;border-left:6px solid var(--border);border-top:5px solid transparent;border-bottom:5px solid transparent}
+.edge.moving{background:repeating-linear-gradient(90deg,var(--work) 0 6px,transparent 6px 10px);animation:march .7s linear infinite}
+.edge.moving::after{border-left-color:var(--work)}
+@keyframes march{to{background-position:10px 0}}
+@media (prefers-reduced-motion:reduce){.edge.moving{animation:none}}
+.join{grid-column:6;grid-row:1/3;width:100%;height:100%}
+.join path{fill:none;stroke:var(--border);stroke-width:2;vector-effect:non-scaling-stroke}
+.direct{grid-column:1/6;grid-row:2;position:relative;border:1px dashed var(--border);border-radius:10px;background:var(--raised);display:flex;flex-wrap:wrap;gap:6px 34px;padding:13px 14px 10px;align-items:baseline;justify-content:flex-start}
+.direct::before{content:"Straight into main";position:absolute;top:-8px;left:10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;color:var(--faint);background:var(--surface);padding:0 5px}
+.door{display:flex;gap:8px;align-items:baseline;border:0;background:transparent;padding:0;text-align:left}
+.door b{color:var(--strong);font-weight:650}
+.door .s{color:var(--muted);font-size:12px}
+
+/* tabs */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);overflow-x:auto}
+.tab{border:0;background:transparent;padding:7px 10px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;display:inline-flex;gap:6px;align-items:center}
+.tab[aria-selected="true"]{color:var(--strong);font-weight:650;border-bottom-color:var(--accent)}
+.tab .c{font-size:11px;font-variant-numeric:tabular-nums;background:var(--raised);border-radius:999px;padding:0 6px;color:var(--muted);font-weight:400}
+
+/* sections and rows */
+.sec{display:flex;flex-direction:column}
+.sech{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:650;color:var(--muted);padding:0 0 6px}
+.sech .cnt{font-weight:400;font-variant-numeric:tabular-nums}
+.sech .r{margin-left:auto;letter-spacing:0;text-transform:none;font-weight:400;font-size:12px}
+.sech.bad{color:var(--error)} .sech.warn{color:var(--warning)}
+.dot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--border)}
+.dot.warn{background:var(--warning)} .dot.bad{background:var(--error)}
+.box{border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.box.you{border-color:color-mix(in srgb,var(--warning) 45%,var(--border))}
+.box.blocked{border-color:var(--error);background:var(--error-surface)}
+.box.blocked .row{background:transparent}
+.scroll{overflow-x:auto}
+.row{display:grid;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--border-soft);width:100%;background:var(--surface);border-left:0;border-right:0;border-bottom:0;text-align:left;min-width:0}
+.row:first-child{border-top:0}
+button.row:hover{background:var(--raised)}
+.row[aria-expanded="true"]{background:var(--raised)}
+.row.head{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:600;padding-block:6px;background:var(--raised)}
+.g-today{grid-template-columns:minmax(0,1fr) auto 48px}
+.g-work{grid-template-columns:auto minmax(0,1fr) auto 40px;align-items:start}
+.stat{display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-size:12px;text-align:right;max-width:210px}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.g-run{grid-template-columns:150px minmax(0,1fr) 170px}
+.g-fail{grid-template-columns:150px minmax(0,1fr) auto}
+.g-sec{grid-template-columns:62px minmax(0,1fr) auto}
+.g-up{grid-template-columns:104px minmax(240px,1fr) auto 40px;min-width:640px}
+.t{color:var(--strong);font-weight:550;overflow-wrap:anywhere}
+button.t{border:0;background:transparent;padding:0;text-align:left}
+button.t:hover{text-decoration:underline}
+.u{display:block;font-size:12px;color:var(--muted);font-weight:400;overflow-wrap:anywhere}
+.age{font-variant-numeric:tabular-nums;color:var(--muted);text-align:right;font-size:12px}
+.num{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.mono{font-family:var(--mono);font-size:12px}
+.nw{white-space:nowrap}
+.plus{color:var(--success)} .minus{color:var(--error)}
+.ok{color:var(--success)} .warn{color:var(--warning)} .bad{color:var(--error)} .run{color:var(--work)}
+.open{border-top:1px solid var(--border-soft);background:var(--raised);padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px}
+.box.blocked .open{background:transparent}
+.open p{margin:0;max-width:80ch}
+.open ul{margin:0;padding-left:18px;color:var(--muted);font-size:12.5px}
+.acts{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.facts{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:12.5px;color:var(--muted)}
+.facts b{color:var(--strong);font-weight:550}
+.empty{padding:14px 12px;color:var(--muted)}
+.notread{padding:8px 12px;background:var(--raised);color:var(--muted);border-bottom:1px solid var(--border-soft);display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
+.chip{border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:1px 10px;font-size:12px;color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--accent-surface);border-color:transparent;color:var(--accent-text);font-weight:600}
+.filters input{flex:1 1 160px;min-width:0;border:1px solid var(--border);border-radius:6px;padding:3px 9px;background:var(--surface);color:var(--text);font:inherit;font-size:12.5px}
+
+/* run strips: one square per run, each a link to that run */
+.strip{display:flex;gap:2px;flex-wrap:wrap;align-items:center}
+.sq{width:13px;height:16px;border-radius:2.5px;background:var(--success);opacity:.55;flex:none;display:block}
+.sq:hover{opacity:1;outline:2px solid var(--border)}
+.sq.f{background:var(--error);opacity:1;height:20px}
+.sq.c{background:var(--faint);opacity:.6}
+.sq.p{background:var(--work);opacity:1;animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.sq.p{animation:none}}
+
+.clone{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:12px}
+
+/* Today: the fleet flow, what is yours, the forks sheet */
+.flow.fleet{grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr) 22px minmax(0,1fr) 44px minmax(0,1fr) 22px minmax(0,1fr);min-width:640px}
+.stn[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:1px}
+.door[aria-pressed="true"] b{text-decoration:underline;text-decoration-color:var(--accent);text-decoration-thickness:2px;text-underline-offset:3px}
+.g-fleet{grid-template-columns:118px minmax(0,1fr) auto 52px}
+.g-can{grid-template-columns:minmax(0,1fr) auto auto}
+.g-act{grid-template-columns:118px minmax(0,1fr) auto}
+.fk{font-weight:550;color:var(--strong);overflow-wrap:anywhere;min-width:0}
+button.fk{border:0;background:transparent;padding:0;text-align:left}
+button.fk:hover{text-decoration:underline}
+.row.sub{border-top:0;padding-block:3px}
+.row.sub .fk{padding-left:12px;font-weight:400;color:var(--muted)}
+.row.sub:has(+ .row:not(.sub)),.row.sub:last-child{padding-bottom:8px}
+.clock{color:var(--warning);cursor:help;margin-right:4px}
+.sheet{min-width:900px}
+.g-sheet{grid-template-columns:118px repeat(4,minmax(92px,1fr)) 84px 58px 52px 44px 34px}
+.row.head .doorh{color:var(--muted)}
+.cellx{display:flex;gap:5px;align-items:baseline;min-width:0;font-size:12.5px;color:var(--strong)}
+.cellx.fine{color:var(--muted)}
+.cellx.dim{opacity:.35}
+.mk{display:flex;justify-content:flex-end}
+.fold{border:0;border-top:1px solid var(--border-soft);background:var(--surface);width:100%;text-align:left;padding:8px 12px;color:var(--muted)}
+.fold:hover{background:var(--raised)}
+.yl{display:grid;grid-template-columns:auto minmax(0,1fr) auto 44px;gap:8px;align-items:center}
+
+/* notes under the mock */
+section.note{margin-top:40px;padding-top:24px;border-top:1px solid var(--border)}
+.tblwrap{overflow-x:auto;margin-top:12px}
+table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--border);font-size:13.5px;min-width:640px}
+th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:600;padding:8px 12px;background:var(--raised);border-bottom:1px solid var(--border)}
+td{padding:9px 12px;border-bottom:1px solid var(--border-soft);vertical-align:top;color:var(--muted)}
+td b{color:var(--strong);font-weight:550}
+tr:last-child td{border-bottom:0}
+.steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+.step{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;min-width:0}
+.step h3{margin:0 0 4px;font-size:14px;color:var(--strong)}
+.step .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;color:var(--accent-text)}
+.step p{font-size:13.5px;color:var(--muted);margin:0 0 6px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:16px;margin-top:12px;align-items:start}
+.pal{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;font-size:13px;box-shadow:0 8px 28px rgba(0,0,0,.12)}
+.pal .in{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--strong);font-size:14px}
+.pal .in i{display:inline-block;width:1px;height:15px;background:var(--accent);vertical-align:-2px;margin-left:1px}
+.pal h4{margin:0;padding:8px 14px 3px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:600}
+.prow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 14px}
+.prow.sel{background:var(--accent-surface)}
+.prow .nm{color:var(--strong);font-weight:550;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.prow .nm small{font-weight:400;color:var(--muted);font-size:12px}
+.pal .ft{border-top:1px solid var(--border);padding:6px 14px;color:var(--faint);font-size:11.5px;display:flex;gap:14px;flex-wrap:wrap}
+@media (max-width:980px){.g-work .stat{flex-direction:row;flex-wrap:wrap;gap:0 8px}.tab{padding:7px 6px;gap:4px}.g-work{grid-template-columns:auto minmax(0,1fr) 40px}.g-work .stat{grid-column:2;grid-row:2;align-items:flex-start;text-align:left;max-width:none}}
+@media (max-width:820px){
+  .win{grid-template-columns:minmax(0,1fr)} .side{display:none}
+  .steps,.two{grid-template-columns:minmax(0,1fr)}
+  .g-run{grid-template-columns:minmax(0,1fr)} .g-run .age{text-align:left}
+  .g-fail{grid-template-columns:minmax(0,1fr) auto}
+  .g-fleet{grid-template-columns:minmax(0,1fr) auto 48px}
+  .g-fleet>.fk{grid-column:1/-1}
+  .g-fleet.sub>.xs{display:none}
+  .g-fleet.sub{grid-template-columns:minmax(0,1fr) auto 48px}
+  .g-fleet.sub>.fk{grid-column:1}
+  .g-act{grid-template-columns:76px minmax(0,1fr) auto}
+}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">spi-code · Today and the service view · proposal · draft 9 · Tue 17 Nov 2026</p>
+  <h1>A service is a project you already have</h1>
+  <p class="lead">Today the service page is four folded lists under three tiles. This makes it the home of one fork: how code is reaching its main, what is yours to do, its pull requests and issues, its runs and its alerts.</p>
+  <p class="lead">Draft 9 gives Today the same shape for all 13 forks, and the Line becomes one of its tabs. The service pages are as the council scored them in round 7; the new Today has not been scored.</p>
+  <p class="muted">Click through it: switch service, change tabs, open a row. Pull requests, issues, runs, alerts and upstream merge requests are live reads of <code>partition</code>, <code>storage</code> and <code>search</code> from 17 Nov, about 14:00. Every time is on the operator's clock. Rows marked <span class="ex">example</span> are not. Today is a live read of all 13 forks at 16:00 on 17 Nov, and search's page is brought up to that time; partition and storage are as read at about 14:00.</p>
+
+  <div class="bar">
+    <span class="muted">Page</span>
+    <div class="seg" id="svc"></div>
+    <span class="muted" id="hint"></span>
+  </div>
+
+  <div class="win">
+    <aside class="side" aria-label="Sidebar">
+      <div class="find"><span>Find or ask</span><span class="kbd">⌘K</span></div>
+      <button class="nav" id="nav-today" data-view="today"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.6"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1"/></svg>Today <span class="n bad">16</span></button>
+      <button class="nav" id="nav-environment"><svg class="ic" viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="4.5" rx="1.2"/><rect x="2" y="9" width="12" height="4.5" rx="1.2"/><path d="M4.5 4.8h.1M4.5 11.3h.1"/></svg>Environment <span class="n okring">✓</span></button>
+      <button class="nav" id="nav-template"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2l6 3-6 3-6-3zM2 8l6 3 6-3M2 11l6 3 6-3"/></svg>Template <span class="n warn" title="5 template sync pull requests wait for review">5</span></button>
+      <h3>Pinned <span>⌄</span></h3>
+      <button class="nav" id="nav-upstream"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2v8M4.5 7L8 10.5 11.5 7M3 13.5h10"/></svg>Upstream <span class="n warn" title="1 row waiting on you: provider changes to port, 12 forks">1</span></button>
+      <button class="nav" id="nav-releases"><svg class="ic" viewBox="0 0 16 16"><path d="M2 2.5h5.5l6.5 6.5-5 5L2.5 7.5z"/><circle cx="5.2" cy="5.5" r=".7"/></svg>Releases</button>
+      <button class="nav" id="nav-security"><svg class="ic" viewBox="0 0 16 16"><path d="M8 1.8l5 1.8v4c0 3.2-2.2 5.4-5 6.6-2.8-1.2-5-3.4-5-6.6v-4z"/></svg>Security</button>
+      <div id="sidesvc"></div>
+      <div class="foot"><span>⚙</span><span>⟳ 13:50</span></div>
+    </aside>
+    <div class="centre">
+      <div class="top" id="top"></div>
+      <div class="body" id="body"></div>
+    </div>
+  </div>
+
+  <section class="note">
+    <h2>Today takes the Line</h2>
+    <p class="muted">Today and the Line were the same forks sorted two ways: by what is yours, and by fork and station. On 16 Nov, 16 of Today's 18 members lived on the Line. Draft 9 puts both under the flow a service page already has, counted across the 13 forks.</p>
+    <div class="tblwrap"><table>
+      <thead><tr><th>Settled</th><th>Draft 9</th></tr></thead>
+      <tbody>
+        <tr><td><b>The Line is a place</b> with its own sidebar row and count.</td><td><b>Forks is a tab of Today.</b> The count of stopped forks is the tab's. The sidebar loses a row.</td></tr>
+        <tr><td><b>Machinery joins the two pages:</b> the "n yours on Today" stepper, dots on cells, the On Today chip, the place link on an opened row.</td><td><b>A station is the join.</b> Click one and Yours shows its rows while Forks dims the other columns. The rest is gone.</td></tr>
+        <tr><td><b>A Line cell opens a popover</b> (Z3).</td><td><b>A fork's row opens in place</b> with its rows from Yours. The fork's name opens its service page wherever it appears.</td></tr>
+        <tr><td><b>A Lane column</b> on the sheet.</td><td><b>Four stations, as on a service page.</b> A failed lane shows as what it stops, a red Integration pull request. Lanes belong to Environment.</td></tr>
+        <tr><td><b>Moving without you and Last 24 hours</b> sit under the list.</td><td><b>Activity tab.</b> A deadline still shows as a clock on its row.</td></tr>
+        <tr><td><b>Every Can wait pile opens a place.</b></td><td><b>Release and Security open their places.</b> Repository piles list their forks, because those lists live on the service pages now.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="muted" style="margin-top:10px">One rule keeps the flow from turning back into the summary that read one count four ways: a station's number is the number of forks its filter lists. Upstream says 3 stopped and shows three rows; Sync PR says 5 open and shows five forks.</p>
+    <p class="muted">Environment and Template keep their sidebar rows and marks, which are what you see from inside a service or a thread. The flow's last station and the Template door open them. They are not redrawn here. The next step is to give Template the service page's shape, with the rollout as its instrument, and to give Environment an instrument with its runs under it.</p>
+  </section>
+
+  <section class="note">
+    <h2>What all 13 forks show</h2>
+    <p class="muted">Read at 16:00 on 17 Nov: 58 open pull requests and 18 open issues across the 13 forks. Today above is that read, with nothing invented.</p>
+    <div class="tblwrap"><table>
+      <thead><tr><th>What the read shows</th><th>What the page does about it</th></tr></thead>
+      <tbody>
+        <tr><td><b>Yours holds.</b> 16 members read as 8 rows. Three situations cover 11 of the 13 that wait on you: a sync PR that needs an upgrade first, an Integration PR red on its lane, a template sync PR to review.</td><td>Nothing new. Grouping by situation is what keeps the list short, and the rows grow with situations, not with forks. Every fork failing the same way is still one row.</td></tr>
+        <tr><td><b>The stations hold 7 of the 58 pull requests.</b> The other 51 come through the doors: 5 template, 13 release, 25 Dependabot, 8 other.</td><td><b>The Forks sheet gains the doors as columns.</b> The first cut of draft 9 drew only the four stations, which mapped an eighth of what is open. Stations and doors together now hold every open pull request, as they do on a service page.</td></tr>
+        <tr><td><b>The fleet is two fleets.</b> Six forks have one open pull request each, the release, and nothing of yours. Seven forks carry the other 52.</td><td>The sheet opens on the seven and folds the six into one line.</td></tr>
+        <tr><td><b>Can wait is where the count grows.</b> 46 pull requests, 9 issues and 136 high or critical alerts in shipped code. Listed by fork, each pile is 13 numbers.</td><td><b>Can wait lists causes, with their forks inside.</b> One chore is open on 7 forks, one CODEOWNERS issue on 8, one guava bump on 4, and one CodeQL rule in crs-conversion is 81 of the 136 alerts. This needs core to group the same change across forks.</td></tr>
+        <tr><td><b>Core misses two things.</b> search's Sync Upstream failed last night and has no item. indexer's item says no halt issue is open while issue #72 is.</td><td>The mock shows both as Blocked rows. Each is a bead for core.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="muted" style="margin-top:10px">What this read does not test is a bad day. The worst recent one, 16 Nov, had 18 members, which is the same size.</p>
+  </section>
+
+  <section class="note">
+    <h2>One mark for a service, in the sidebar and in search</h2>
+    <p class="muted">A service row uses the marks Environment and Template already use, on the right, and nothing on the left. The mark answers one question: is anything here yours?</p>
+    <div class="two">
+      <div class="tblwrap" style="margin-top:0"><table style="min-width:0">
+        <thead><tr><th>Mark</th><th>Means</th></tr></thead>
+        <tbody>
+          <tr><td><span class="n bad">3</span></td><td><b>Blocked.</b> Something on this service is stopped. The number is every row that is yours here, counted as Today's own mark counts its rows.</td></tr>
+          <tr><td><span class="n warn">2</span></td><td><b>Waiting on you.</b> That many rows are yours here, and nothing is stopped.</td></tr>
+          <tr><td><span class="ok" style="font-weight:700">✓</span></td><td><b>No Blocked or Waiting on you row.</b> Can wait rows and work counted on Upstream do not count.</td></tr>
+          <tr><td><span class="muted">⌀</span></td><td><b>Not read.</b> No Blocked or Waiting row was found, but part of this fork was not read, so it cannot claim the check. A known count always shows; the tab that was not read carries this mark.</td></tr>
+        </tbody>
+      </table></div>
+      <div class="pal" aria-label="Find or ask, searching for a service">
+        <div class="in">part<i></i></div>
+        <h4>Services</h4>
+        <div class="prow sel"><span class="nm">partition</span><span class="muted">⌀</span></div>
+        <h4>On partition</h4>
+        <div class="prow"><span class="nm"><span class="pill pr">PR #249</span>chore: release 1.3.5<small>Review required · 17h</small></span><span class="muted">›</span></div>
+        <div class="prow"><span class="nm">Upstream<small>2 to port</small></span><span class="muted">›</span></div>
+        <div class="prow"><span class="nm">Pull requests<small>1 open</small></span><span class="muted">›</span></div>
+        <div class="prow"><span class="nm">Issues<small>⌀ not read</small></span><span class="muted">›</span></div>
+        <div class="prow"><span class="nm">Security<small>3 in shipped code</small></span><span class="muted">›</span></div>
+        <div class="ft"><span>↵ open</span><span>⌘↵ GitHub ↗</span><span>⌘P pin</span></div>
+      </div>
+    </div>
+    <p class="muted" style="margin-top:10px">The service carries the same mark as its sidebar row. Under it come its open pull requests and issues by number or title, then its tabs with the same counts the tabs show.</p>
+  </section>
+
+  <section class="note">
+    <h2>What a steward asks, and where the page answers</h2>
+    <div class="tblwrap"><table>
+      <thead><tr><th>Question</th><th>Now</th><th>Proposed</th></tr></thead>
+      <tbody>
+        <tr><td><b>How is code reaching main?</b></td><td>Three tiles, then six buttons that name stations but show no state</td><td>The flow: Upstream, Sync PR and Integration lead into Main, and feature PRs and Dependabot come in beside them. A station holds a mark and the pull request sitting at it, never the reason. A station or door that holds one of your rows opens that row. Stations and doors together hold every open pull request, and a station's second line names what it holds. An edge moves only while something is in transit.</td></tr>
+        <tr><td><b>What needs me?</b></td><td>Attention rows with P1 and P2 tags, and a Security row above them</td><td>Blocked, Waiting on you and Can wait, as Today splits them, in Today's words, with work shared across forks set apart. The pill on a row is the link to the source; the headline opens the cause.</td></tr>
+        <tr><td><b>What is coming from OSDU?</b></td><td>The pinned Upstream place, for all forks at once</td><td>Upstream tab: provider changes to port, what the next sync brings, and merge requests open upstream.</td></tr>
+        <tr><td><b>What is open on the repository?</b></td><td>A count grid (0 · 0) and alert rows</td><td>Pull requests and Issues tabs: one row each with checks, review and age. The automation's companion issue rides on its pull request row and is not counted as an issue.</td></tr>
+        <tr><td><b>Are the workflows healthy?</b></td><td>25 lines that mostly say success</td><td>Runs tab: one strip per workflow, one square per run, each square a link to that run. "Failing now" lists a workflow from its last failure until it next passes; a cancelled or running retry does not clear it. Overview carries no strips: the stations give the line's health.</td></tr>
+        <tr><td><b>What is exposed?</b></td><td>Alert groups, with tests hidden</td><td>Security tab: one list for vulnerabilities and code scanning, shipped SPI code first, then shipped upstream code, then tests.</td></tr>
+        <tr><td><b>What version is next?</b></td><td>A month list with repeats of "released"</td><td>The top bar: current version, next version and its bump, linked to the Release Please PR.</td></tr>
+        </tbody>
+    </table></div>
+    <p class="muted" style="margin-top:10px">A tab's count is what is not fine there, always grey: provider changes to port, open pull requests, open issues a person can act on, workflows failing now, alerts in shipped code. A tab that was not read shows ⌀, never 0.</p>
+  </section>
+
+  <section class="note">
+    <h2>What T3 Code gives us</h2>
+    <p class="muted">Less than it looks. Its server is written in Effect end to end and its web state rides its own RPC client, so services do not move. Its styling is Tailwind and Base UI; ours is plain CSS and our own kit. What moves is logic, argument lists and queries.</p>
+    <div class="tblwrap"><table>
+      <thead><tr><th>Piece</th><th>In T3 Code</th><th>For us</th></tr></thead>
+      <tbody>
+        <tr><td><b>Pull request list</b></td><td><code>pullRequestList.logic.ts</code>, the grouping logic, <code>PullRequestRow</code>, filters and icons have no Effect imports. GitHub data is GraphQL over HTTP with a token from <code>gh auth token</code>; GitLab is <code>glab api</code>.</td><td><b>Take the logic</b> (grouping, filtering, checks roll-up words). Rows are redrawn in our kit. Our read can stay <code>gh pr list --json</code> through core's exec port, which the recorded sweeps already cover.</td></tr>
+        <tr><td><b>Pull request detail</b></td><td>About 8,000 lines: Summary, Timeline, and a Code tab on <code>@pierre/diffs</code> with a worker pool, plus comment, review and auto-merge mutations.</td><td><b>Leave it.</b> The opened row carries what Summary's top third does; the pill opens the rest on GitHub.</td></tr>
+        <tr><td><b>Issues</b></td><td>None. T3 Code has no issue list or viewer.</td><td><b>Ours to draw.</b> It is the same table as pull requests with two columns swapped.</td></tr>
+        <tr><td><b>Clone</b></td><td>A plain <code>git clone --progress</code> with a progress parser (37 lines), inside a project service tied to its persistence.</td><td><b>Later.</b> The Code tab is cut for now. When it comes back, take the arguments and the progress parser; the 13 services are the list.</td></tr>
+        <tr><td><b>Worktrees and PR checkout</b></td><td><code>GitVcsDriverCore.ts</code> and <code>GitManager.preparePullRequestThread</code>.</td><td><b>Later, with chat.</b> Port the git calls and keep the edge-case handling, rewritten without Effect (CT-01, CT-06).</td></tr>
+        <tr><td><b>Open in editor</b></td><td>An editor table (VS Code, Cursor, Zed, JetBrains and more) and a small command resolver.</td><td><b>Later, with the Code tab.</b> Copy, with T3 Tools' notice kept. This is CT-15.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="note">
+    <h2>Build order</h2>
+    <div class="steps">
+      <div class="step"><p class="k">Step 1 · no new reads</p><h3>The page shape</h3><p>Top bar, flow, Blocked / Waiting / Can wait, the Runs tab with run links, the Security tab. Core already holds the stations, the focus items, the service runs and the alert groups.</p><p>Prototype bead first, as with Today.</p></div>
+      <div class="step"><p class="k">Step 2 · new reads per fork</p><h3>Lists and upstream</h3><p><code>gh pr list</code> and <code>gh issue list</code> for the two tabs, the fix PR beside a vulnerability, and one <code>glab</code> read of the service's open merge requests. Core already knows the provider changes to port.</p><p>No viewer: timeline, diff and comments stay on GitHub and GitLab.</p></div>
+      </div>
+  </section>
+
+  <section class="note">
+    <h2>Where this departs from the settled design</h2>
+    <div class="tblwrap"><table>
+      <thead><tr><th>Departure</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td><b>A place with tabs.</b> No other place has them.</td><td>A service holds six kinds of thing, and folded sections hide five of them. Tabs keep the top bar and the flow on screen while the list changes.</td></tr>
+        <tr><td><b>A place that lists what is yours.</b> A proposed change to ruling I, which says places mark and do not list.</td><td>The flow does mark. But a port, an alert or an issue has no station, so a mark alone would lose them. The list is the service's slice of Today, in Today's sections and words.</td></tr>
+        <tr><td><b>A Blocked row Today does not have yet.</b> Today shows "Sync failed" for indexer. search's Sync Upstream failed last night too, and Today has no row for it.</td><td>The page shows what the runs say, in Today's words. The mock counts the row on Today (16) so the window agrees with itself; core should raise it.</td></tr>
+        <tr><td><b>Shared work is counted on one place.</b> The port row lands on upstream merge requests, not on a pull request in each fork.</td><td>An item lives where its action lands. Counted on every service it would put the same amber 1 on 12 of 13 rows. It is counted on Upstream, and each service lists it under Shared work, outside Waiting on you.</td></tr>
+        <tr><td><b>One name for the third station, one gate for PR #76.</b> The Line calls the station Cascade; Today calls PR #76 "release/upstream PR green, ready to approve".</td><td>The station, the row and the pull request say Integration here, and the branch must be updated before approval. Today's Forks sheet says Integration too, and Today's row reads to "Integration PR needs its branch updated, then approval". The workflow keeps its GitHub name, Cascade Integration.</td></tr>
+        <tr><td><b>The Line is a tab of Today, not a place.</b> Changes ruling F's sidebar count for the Line and the stepper in every place's head.</td><td>Both pages drew the same forks, and most of the settled design between them was there to join them. On one page a station does that job.</td></tr>
+        <tr><td><b>Today has an instrument.</b> The settled design calls Today a list that says nothing the sidebar says.</td><td>The flow replaces the Line's sidebar mark. Each station reads the field its rows read, so the page cannot disagree with itself.</td></tr>
+        <tr><td><b>A station opens a row, not a popover.</b> Z3 opens a place's items in anchored popovers.</td><td>The row is already on screen under the flow, with room for its cause and its link. A popover would say it a second time.</td></tr>
+        </tbody>
+    </table></div>
+  </section>
+</div>
+
+<script>
+const RUNS={"partition":[["Sync Upstream",[[42727349774,"s","11-10 00:18"],[42930558229,"f","11-11 00:20"],[43126580763,"s","11-12 00:20"],[43336311512,"s","11-13 00:20"],[43533396213,"s","11-14 00:19"],[43657805868,"s","11-15 00:21"],[43780239760,"s","11-16 00:25"],[43977120463,"s","11-16 23:11"],[43986896569,"s","11-17 00:20"]]],["Sync Template",[[42694623381,"s","11-09 20:36"],[42703376827,"s","11-09 21:31"],[42779650562,"s","11-10 08:03"],[42983983770,"s","11-11 08:03"],[43179863589,"s","11-12 08:03"],[43390173608,"s","11-13 08:03"],[43573917458,"s","11-14 08:02"],[43692688866,"s","11-15 08:03"],[43829126627,"s","11-16 08:10"],[43967543997,"s","11-16 22:11"],[44043442574,"s","11-17 08:03"]]],["Cascade Integration",[[43986555602,"s","11-17 00:18"]]],["Validation",[[42694679279,"s","11-09 20:37"],[42703426104,"s","11-09 21:32"],[42725151919,"s","11-10 00:02"],[42725841337,"s","11-10 00:07"],[43839527056,"f","11-16 09:24"],[43967595492,"s","11-16 22:11"],[43986828044,"f","11-17 00:20"],[43991638036,"s","11-17 00:56"],[44005797234,"s","11-17 02:49"],[44005884665,"s","11-17 02:50"]]],["Build and Test",[[42725147530,"s","11-10 00:02"],[43991627250,"s","11-17 00:56"],[44005880196,"s","11-17 02:50"]]],["CodeQL Analysis",[[42694679189,"s","11-09 20:37"],[42695227015,"s","11-09 20:40"],[42703426118,"s","11-09 21:32"],[42703675358,"s","11-09 21:33"],[42725151854,"s","11-10 00:02"],[42725841340,"s","11-10 00:07"],[43815450925,"s","11-16 06:14"],[43839527132,"s","11-16 09:24"],[43967595307,"s","11-16 22:11"],[43969013470,"s","11-16 22:19"],[43986828046,"s","11-17 00:20"],[43991638001,"s","11-17 00:56"],[44005797149,"s","11-17 02:49"],[44005884641,"s","11-17 02:50"]]],["Release Management",[[42725841436,"s","11-10 00:07"],[44005797156,"s","11-17 02:49"]]]],"storage":[["Sync Upstream",[[42728415770,"f","11-10 00:27"],[42931596693,"f","11-11 00:28"],[43127619146,"s","11-12 00:29"],[43337363218,"f","11-13 00:28"],[43534355779,"s","11-14 00:27"],[43658616834,"s","11-15 00:31"],[43781220348,"s","11-16 00:34"],[43987948284,"s","11-17 00:28"]]],["Sync Template",[[42780291453,"s","11-10 08:08"],[42984639301,"s","11-11 08:08"],[43180512731,"s","11-12 08:08"],[43390766232,"s","11-13 08:07"],[43574270254,"s","11-14 08:07"],[43693025250,"s","11-15 08:07"],[43830227437,"s","11-16 08:18"],[43964017569,"s","11-16 21:49"],[44044113598,"s","11-17 08:07"]]],["Cascade Integration",[[42728034652,"s","11-10 00:24"],[43971886112,"s","11-16 22:37"],[43985357880,"s","11-17 00:09"]]],["Validation",[[43911365819,"s","11-16 16:47"],[43911481686,"s","11-16 16:48"],[43922367899,"s","11-16 17:49"],[43934857664,"s","11-16 19:00"],[43934985571,"s","11-16 19:01"],[43935485988,"s","11-16 19:04"],[43964076424,"s","11-16 21:50"],[43984984498,"f","11-17 00:07"],[43985252744,"f","11-17 00:09"],[43985685201,"c","11-17 00:12"],[44109514561,"s","11-17 15:01"],[44132189233,"s","11-17 17:00"],[44132424524,"s","11-17 17:01"],[44133158800,"s","11-17 17:05"],[44160636092,"p","11-17 19:37"],[44160810331,"s","11-17 19:38"]]],["Build and Test",[[43815320776,"s","11-16 06:13"],[43911474955,"s","11-16 16:48"],[43934977994,"s","11-16 19:01"],[43984954283,"s","11-17 00:06"],[44109497855,"s","11-17 15:01"],[44132399510,"s","11-17 17:01"],[44160801533,"s","11-17 19:38"]]],["CodeQL Analysis",[[43911365904,"s","11-16 16:47"],[43911481567,"s","11-16 16:48"],[43922367944,"s","11-16 17:49"],[43934857110,"s","11-16 19:00"],[43934986053,"s","11-16 19:01"],[43935486110,"s","11-16 19:04"],[43964076558,"s","11-16 21:50"],[43971499588,"s","11-16 22:35"],[43985252756,"s","11-17 00:09"],[43985685288,"s","11-17 00:12"],[44109514100,"s","11-17 15:01"],[44132188693,"s","11-17 17:00"],[44132424615,"s","11-17 17:01"],[44133158992,"s","11-17 17:05"],[44160635956,"s","11-17 19:37"],[44160810212,"s","11-17 19:38"]]],["Release Management",[[43911365722,"s","11-16 16:47"],[43934857182,"s","11-16 19:00"],[44132188846,"s","11-17 17:00"],[44160635990,"s","11-17 19:37"]]]],"search":[["Sync Upstream",[[42725756512,"s","11-10 00:06"],[42928822704,"f","11-11 00:07"],[43124924172,"f","11-12 00:07"],[43334502596,"f","11-13 00:07"],[43531956754,"s","11-14 00:06"],[43656673415,"s","11-15 00:08"],[43778604767,"s","11-16 00:08"],[43985013653,"f","11-17 00:07"]]],["Sync Template",[[42727727957,"s","11-10 00:21"],[42781392464,"s","11-10 08:16"],[42985744346,"s","11-11 08:16"],[43181637071,"s","11-12 08:16"],[43391922417,"s","11-13 08:16"],[43574825094,"s","11-14 08:14"],[43693583732,"s","11-15 08:14"],[43831647094,"s","11-16 08:29"],[44045332867,"s","11-17 08:16"]]],["Cascade Integration",[[42740423193,"s","11-10 02:06"]]],["Validation",[[42728442098,"s","11-10 00:27"],[42732052728,"s","11-10 00:56"],[42734011910,"f","11-10 01:11"],[42739575032,"s","11-10 01:59"],[42740635951,"s","11-10 02:08"],[42747639175,"s","11-10 03:10"],[42747778262,"s","11-10 03:11"],[42747867207,"f","11-10 03:12"],[42747883015,"s","11-10 03:12"],[42747889588,"s","11-10 03:12"],[43840452369,"f","11-16 09:31"],[43840486785,"f","11-16 09:31"],[43840586279,"f","11-16 09:31"],[43940883858,"f","11-16 19:35"],[44045393589,"s","11-17 08:16"],[44134784464,"p","11-17 17:14"]]],["Build and Test",[[42728434250,"s","11-10 00:27"],[42747774233,"s","11-10 03:11"],[43940874899,"s","11-16 19:35"]]],["CodeQL Analysis",[[42734012047,"s","11-10 01:11"],[42739575492,"s","11-10 01:59"],[42740635710,"s","11-10 02:08"],[42747639077,"s","11-10 03:10"],[42747778557,"s","11-10 03:11"],[42747867271,"s","11-10 03:12"],[42747882944,"s","11-10 03:12"],[42747889725,"s","11-10 03:12"],[43817375577,"s","11-16 06:31"],[43840452310,"s","11-16 09:31"],[43840486777,"s","11-16 09:31"],[43840586149,"s","11-16 09:31"],[43940883863,"s","11-16 19:35"],[44045393529,"s","11-17 08:16"],[44133430912,"s","11-17 17:07"],[44134784542,"s","11-17 17:14"]]],["Release Management",[[42747639128,"s","11-10 03:10"]]]]};
+const I={
+ pr:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="4" cy="3.5" r="1.8"/><circle cx="4" cy="12.5" r="1.8"/><circle cx="12" cy="12.5" r="1.8"/><path d="M4 5.3v5.4M12 10.7V7a2.5 2.5 0 0 0-2.5-2.5H8"/></svg>',
+ issue:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/></svg>',
+ run:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M6.6 5.4v5.2L10.8 8z" fill="currentColor" stroke="none"/></svg>',
+ alert:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.8l5 1.8v4c0 3.2-2.2 5.4-5 6.6-2.8-1.2-5-3.4-5-6.6v-4z"/></svg>',
+ file:'',
+ branch:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="4" cy="3.5" r="1.8"/><circle cx="4" cy="12.5" r="1.8"/><circle cx="12" cy="5" r="1.8"/><path d="M4 5.3v5.4M12 6.8c0 3-8 1.5-8 4"/></svg>'
+};
+const GLP={search:'search-service'};
+const gh=(s,p)=>`https://github.com/Azure/osdu-spi-${s}/${p}`;
+const gl=(s,n)=>`https://community.opengroup.org/osdu/platform/system/${GLP[s]||s}/-/merge_requests/${n}`;
+// kind: pr | issue | mr | run | alert | file
+const pill=(kind,text,href)=>`<a class="pill ${kind==='pr'||kind==='issue'||kind==='mr'?kind:'grey'}" href="${href}" target="_blank" rel="noopener">${I[kind==='mr'?'pr':kind]||''}${text} ↗</a>`;
+const bot='osdu-spi-automation';
+const T='In tests',SP='Shipped · SPI code',UP='Shipped · upstream code';
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+const D={
+ partition:{
+  version:'v1.3.4',next:'v1.3.5',bump:'patch',rel:249,hint:'A calm fork. Its Issues tab shows the not-read state.',
+  flow:[['Upstream','fine','·','Sync current','next sync 18:00'],['Sync PR','fine','·','None open',''],['Integration','fine','·','None open',''],['Main','ok','✓','Green','integration Mon 20:49']],
+  doors:[['Release','1 open','can0'],['Other PRs','None open'],['Dependabot','None open']],notRead:'Issues not read at 13:50',
+  blocked:[],
+  wait:[],shared:[{t:'2 upstream provider changes to port',tag:'12 forks',age:'64d',body:'Merged upstream in the Azure provider and not in the fork.',goto:'upstream',gl:'To port'}],
+  can:[
+   {t:'Release 1.3.5 needs review',link:['pr','PR #249','pull/249'],age:'17h',body:'Checks pass. The team osdu-spi is the requested reviewer and nobody has approved.',goto:'prs',gl:'Pull requests'},
+   {t:'3 alerts in shipped code',age:'',body:'All in SPI code. Two high: disabled Spring CSRF protection in provider/partition-azure, which other forks carry too. One medium: log injection.',goto:'security',gl:'Security'}],
+  prs:[
+   {n:249,t:'chore: release 1.3.5',by:bot,labels:['autorelease: pending'],ok:'15 passed',review:['Review required','muted'],add:20,del:1,age:'17h',state:'open',
+    notes:['Bug fixes: sync upstream changes from f5cfc2d','Build: upgrade core-lib-azure to 5.0.0 for Spring Boot 4','Template: sync template updates 2026-11-16'],
+    facts:[['Reviewers','osdu-spi requested · Copilot commented'],['Merge','blocked until a review approves'],['Files','2']]},
+   {n:248,t:'Upstream Integration to Main 2677230c',by:bot,labels:[],add:415,del:114,age:'Mon 20:49',state:'merged'},
+   {n:244,t:'Sync with upstream f5cfc2df (Updated)',by:bot,base:'fork_upstream',labels:[],add:396,del:73,age:'Mon 17:19',state:'merged'},
+   {n:247,t:'chore(template-sync): sync template updates 2026-11-16',by:bot,labels:[],add:7,del:4,age:'Mon 16:19',state:'merged'},
+   {n:239,t:'fix(codeowners): point owners at the renamed osdu-spi team',by:'danielscholl',labels:[],add:12,del:12,age:'9 Nov',state:'merged'}],
+  issuesNotRead:'GitHub issues were not read at 13:50. These rows are from the 13:20 sweep.',
+  issues:[
+   {n:240,t:'Upgrade the Azure provider to core-lib-azure 5.0.0 (Spring Boot 4)',by:'danielscholl',labels:[],age:'9 Nov',state:'closed'},
+   {n:235,t:'Cascade Pipeline Failure: Integration Failure - 2026-11-09',by:bot,labels:[],age:'9 Nov',state:'closed'}],
+  up:{port:[
+    {n:818,t:'[Azure] Fixes for High API Error Count',by:'upstream',tags:['Azure'],age:'64d'},
+    {n:814,t:'fix(azure): upgrade core-lib-azure to 3.0.1',by:'upstream',tags:['Azure'],age:'64d'}],
+   next:'Nothing queued for the next sync. The fork is at upstream\'s latest commit, <span class="mono">f5cfc2df</span>.',
+   open:[
+    {n:839,t:'fix: bump guava and spring-web for CVE remediation',by:'you',tags:['Draft'],age:'19d'}],
+   total:8,more:'1 GC-only, 3 test-only, 3 other drafts.'},
+  sec:[
+   {g:SP,k:'cs',n:3,sev:'High',tone:'bad',t:'Disabled Spring CSRF protection',u:'provider/partition-azure · AzureIstioSecurityConfig.java'},
+   {g:SP,k:'cs',n:2,sev:'High',tone:'bad',t:'Disabled Spring CSRF protection',u:'provider/partition-azure · AADSecurityConfig.java'},
+   {g:SP,k:'cs',n:5,sev:'Medium',tone:'warn',t:'Log Injection',u:'provider/partition-azure · AzureIstioSecurityFilter.java'},
+   {g:T,k:'dep',n:77,sev:'Medium',tone:'warn',t:'httpclient5 → 5.6.3',u:'Connection leak on a decode error · testing/partition-test-core/pom.xml · open since 13 Aug'},
+   {g:T,k:'dep',n:74,sev:'Medium',tone:'warn',t:'spring-web → 6.2.19',u:'Server-side request forgery via UriComponentsBuilder · testing/partition-test-core/pom.xml · open since 8 Aug'}],
+  cloned:true,head:'2677230'
+ },
+ storage:{
+  version:'v1.4.1',next:'v1.4.2',bump:'patch',rel:57,tmpl:'behind',hint:'A busier fork. Its template state is an example.',
+  flow:[['Upstream','fine','·','Sync current','next sync 18:00'],['Sync PR','fine','·','None open',''],['Integration','fine','·','None open',''],['Main','ok','✓','Green','integration 11:00']],
+  doors:[['Release','1 open','can0'],['Other PRs','None open'],['Dependabot','None open']],
+  blocked:[],
+  wait:[],shared:[{t:'1 upstream provider change to port',tag:'12 forks',age:'64d',body:'Merged upstream in the Azure provider and not in the fork.',goto:'upstream',gl:'To port'}],
+  can:[
+   {t:'Release 1.4.2 has no reviewer',link:['pr','PR #57','pull/57'],age:'13d',body:'Checks pass. No reviewer is requested.',goto:'prs',gl:'Pull requests'},
+   {t:'4 alerts in shipped code',age:'',body:'Three high in SPI code: one is storage\'s own, user-controlled data in arithmetic in QueryRepository.java, and two are the Spring CSRF alert other forks carry. One medium in upstream code.',goto:'security',gl:'Security'},
+   {t:'PatchRecordsTest assumes batch query returns records in request order',link:['issue','Issue #84','issues/84'],age:'1h',body:'No assignee.',goto:'issues',gl:'Issues'},
+   {t:'CODEOWNERS: missing or unresolvable owners',link:['issue','Issue #67','issues/67'],age:'8d',body:'Needs a person: CODEOWNERS names owners GitHub cannot resolve. partition fixed the same thing.',ref:['partition','PR #239','pull/239'],goto:'issues',gl:'Issues'}],
+  prs:[
+   {n:57,t:'chore: release 1.4.2',by:bot,labels:['autorelease: pending'],ok:'14 passed',review:['No reviewer','muted'],add:53,del:1,age:'13d',state:'open',
+    notes:['Bug fixes: sync upstream changes from 58dbfdec and c8d3796d','Performance: read record metadata by ID through OSM getByIds','Declare component governance inputs'],
+    facts:[['Reviewers','none requested'],['Merge','blocked until a review approves'],['Files','2']]},
+   {n:83,t:'Upstream Integration to Main 49a51972',by:bot,labels:[],add:1284,del:233,age:'11:00',state:'merged'},
+   {n:82,t:'build(azure): upgrade core-lib-azure to 5.0.0 for Spring Boot 4',by:'danielscholl',labels:[],add:16,del:18,age:'Mon 18:08',state:'merged'},
+   {n:76,t:'Sync with upstream c8d3796d (Updated)',by:bot,base:'fork_upstream',labels:[],add:1249,del:215,age:'Mon 16:36',state:'merged'},
+   {n:78,t:'chore(notice): refresh NOTICE from Component Governance',by:'azure-pipelines',labels:[],add:107,del:0,age:'Mon 10:47',state:'merged'}],
+  issues:[
+   {n:84,t:'test: PatchRecordsTest assumes batch query returns records in request order',by:'danielscholl',labels:['bug'],age:'1h',state:'open',notes:['No comments, no assignee.']},
+   {n:67,t:'CODEOWNERS: missing or unresolvable owners',by:bot,labels:['needs a person'],age:'8d',state:'open',notes:['No comments. partition closed the same issue.'],ref:['partition','PR #239 on partition','pull/239']},
+   {n:81,t:'Integration Validation Failed: Build/Test Errors - 2026-11-16',by:bot,labels:[],age:'Mon 18:13',state:'closed'},
+   {n:74,t:'Upstream Sync Failed 2026-11-10',by:bot,labels:[],age:'Mon 14:30',state:'closed'}],
+  up:{port:[{n:1222,t:'Fix large number serialization',by:'upstream',tags:['Azure','Common code'],age:'64d'}],
+   next:'Nothing queued for the next sync. The fork is at upstream\'s latest commit, <span class="mono">c8d3796d</span>.',
+   open:[
+    {n:1252,t:'Fix Storage Blocker and High Sonar findings',by:'shjellvik',tags:['Bugfix','Dependency upgrade'],age:'1d'},
+    {n:1249,t:'Use SHA-256 for the entitlements group cache key',by:'you',tags:['Bugfix'],age:'5d'},
+    {n:1245,t:'Check access before downloading record payloads and fix read-path bugs',by:'Rustam_Lotsmanenko',tags:[],age:'14d'},
+    {n:1227,t:'Fix legal-tag revival reactivating user-deleted records (Azure)',by:'Kmr',tags:['Azure','Bugfix'],age:'19d',note:'If it merges, it becomes a provider change to port.'}],
+   total:17,more:'5 idle over 30 days, 8 drafts.'},
+  sec:[
+   {g:SP,k:'cs',n:5,sev:'High',tone:'bad',t:'User-controlled data in arithmetic expression',u:'provider/storage-azure · QueryRepository.java'},
+   {g:SP,k:'cs',n:3,sev:'High',tone:'bad',t:'Disabled Spring CSRF protection',u:'provider/storage-azure · AADSecurityConfig.java'},
+   {g:SP,k:'cs',n:2,sev:'High',tone:'bad',t:'Disabled Spring CSRF protection',u:'provider/storage-azure · AzureIstioSecurityConfig.java'},
+   {g:UP,k:'cs',n:6,sev:'Medium',tone:'warn',t:'Log Injection',u:'storage-core · ReplayService.java'},
+   {g:T,k:'cs',n:4,sev:'High',tone:'bad',t:'Disabled Spring CSRF protection',u:'storage-core/src/test · SecurityConfiguration.java'},
+   {g:T,k:'dep',n:22,sev:'Medium',tone:'warn',t:'commons-lang3 → 3.18.0',u:'Uncontrolled recursion on long inputs · testing/storage-test-core/pom.xml',fix:54},
+   {g:T,k:'dep',n:2,sev:'Medium',tone:'warn',t:'log4j-api → 2.25.5',u:'Improper encoding of non-finite floats · testing/pom.xml',fix:53},
+   {g:T,k:'dep',n:23,sev:'Medium',tone:'warn',t:'httpclient5 → 5.6.3',u:'Connection leak on a decode error · testing/storage-test-core/pom.xml',fix:55}],
+  cloned:false
+ },
+ search:{
+  version:'v1.4.0',next:'v1.4.1',bump:'patch',rel:29,hint:'A sync that keeps failing, and a sync PR held at its gate.',
+  flow:[['Upstream','bad','✕','Sync failed','next try 18:00',['blocked',0]],['Sync PR','you','!','PR #77','10 commits',['wait',0]],['Integration','fine','·','None open','PR #76 merged 15:22'],['Main','ok','✓','Green','template sync 11:07']],
+  doors:[['Release','1 open','can0'],['Other PRs','2 open','can1'],['Dependabot','2 open','can2']],
+  blocked:[{t:'Sync Upstream failed at Build',link:['run','Run','RUN:Sync Upstream'],age:'22h',body:'The Build step cannot resolve the Maven BOMs: repo.releases.url is not set. The build takes its environment from this fork\'s Actions variables. PR #77 already holds the 10 known commits; later upstream commits wait for a passing sync.',extra:[['file','Variables','settings/variables/actions'],['file','sync.yml','blob/main/.github/workflows/sync.yml']],goto:'runs',gl:'Runs'}],
+  wait:[
+   {t:'Sync PR needs os-core-common upgraded on the fork first',link:['pr','PR #77','pull/77'],age:'7d',body:'It brings 10 upstream commits, among them Spring Boot 4 on Java 25. Upgrade os-core-common on the fork, then review the PR. Its license/cla check is failing.',extra:[['file','Checks','pull/77/checks']],goto:'prs',gl:'Pull requests'}],
+  shared:[{t:'2 upstream provider changes to port',tag:'12 forks',age:'64d',body:'Merged upstream in the Azure provider and not in the fork.',goto:'upstream',gl:'To port'}],
+  can:[
+   {t:'Release 1.4.1 needs its branch updated, then review',link:['pr','PR #29','pull/29'],age:'32d',body:'Open since 16 Oct. Checks pass and the branch is behind main.',goto:'prs',gl:'Pull requests'},
+   {t:'Chore PR has 2 failing checks',link:['pr','PR #71','pull/71'],age:'8d',body:'"declare component governance inputs" by yuchen-wang99. The same change merged on storage.',goto:'prs',gl:'Pull requests'},
+   {t:'2 Dependabot bumps in tests',links:[['pr','PR #69','pull/69'],['pr','PR #83','pull/83']],age:'8d',body:'netty-transport and guava. Both wait for review.',goto:'prs',gl:'Pull requests'},
+   {t:'Your test dependency bump is approved and has not merged',link:['pr','PR #84','pull/84'],age:'1h',body:'Checks pass and it is approved. GitHub still reports the merge as blocked.',goto:'prs',gl:'Pull requests'},
+   {t:'CODEOWNERS: missing or unresolvable owners',link:['issue','Issue #65','issues/65'],age:'8d',body:'Needs a person: CODEOWNERS names owners GitHub cannot resolve. partition fixed the same thing.',ref:['partition','PR #239','pull/239'],goto:'issues',gl:'Issues'},
+   {t:'9 alerts in shipped code',age:'',body:'Two high in SPI code: the Spring CSRF alert other forks carry. Seven in upstream code, one of them high: guava below 33.7.2 in the root pom.',goto:'security',gl:'Security'}],
+  prs:[
+   {n:84,t:'build(deps): bump netty-transport and guava in search-test-azure',by:'danielscholl',labels:[],ok:'19 passed',review:['Approved','ok'],add:2,del:2,age:'35m',state:'open',facts:[['Merge','blocked']]},
+   {n:83,t:'build(deps): bump com.google.guava:guava from 27.1-jre to 33.7.1-jre',by:'dependabot',labels:['dependencies'],ok:'17 passed',review:['Review required','muted'],add:1,del:1,age:'2h',state:'open'},
+   {n:77,t:'Sync with upstream 491fc060 (Updated)',by:bot,base:'fork_upstream',labels:[],fail:'license/cla',review:['Upgrade os-core-common first','warn'],add:460,del:241,age:'7d',state:'open',comp:78,
+    notes:['10 upstream commits: Spring Boot 4 on Java 25, os-core-test adoption, SonarCloud fixes'],
+    facts:[['Reviewers','none requested'],['Files','39']]},
+   {n:76,t:'Upstream Integration to Main 8d9886f6',by:bot,labels:[],add:4,del:163,age:'15:22',state:'merged'},
+   {n:71,t:'chore: declare component governance inputs',by:'yuchen-wang99',labels:[],ok:'19 passed',fail:'2 failed',review:['Checks failed','muted'],add:2,del:0,age:'8d',state:'open',facts:[['Merge','behind main'],['Files','1']]},
+   {n:69,t:'build(deps): bump io.netty:netty-transport from 4.1.139.Final to 4.1.140.Final',by:'dependabot',labels:['dependencies'],ok:'17 passed',review:['Review required','muted'],add:1,del:1,age:'8d',state:'open'},
+   {n:68,t:'build(deps): bump io.netty:netty-all from 4.1.139.Final to 4.1.140.Final',by:'dependabot',labels:['dependencies'],add:1,del:1,age:'14:22',state:'merged'},
+   {n:29,t:'chore: release 1.4.1',by:bot,labels:['autorelease: pending'],ok:'16 passed',review:['Update branch, then review','muted'],add:81,del:1,age:'32d',state:'open',facts:[['Merge','behind main'],['Files','2']]},
+   {n:82,t:'chore(template-sync): sync template updates 2026-11-17',by:bot,labels:[],add:7,del:4,age:'11:07',state:'merged'},
+   {n:70,t:'build(deps): bump log4j-core from 2.25.4 to 2.25.5',by:'dependabot',labels:[],add:1,del:1,age:'10 Nov',state:'merged'},
+   {n:72,t:'Sync with upstream 0b0fde4f',by:bot,base:'fork_upstream',labels:[],add:4,del:163,age:'10 Nov',state:'merged'}],
+  issues:[
+   {n:65,t:'CODEOWNERS: missing or unresolvable owners',by:bot,labels:['needs a person'],age:'8d',state:'open',notes:['No comments. partition closed the same issue.'],ref:['partition','PR #239 on partition','pull/239']},
+   {n:78,t:'Upstream Sync Ready for Review - 2026-11-11',by:bot,labels:[],age:'7d',state:'open',tracks:77},
+   {n:73,t:'Upstream Sync Ready for Review - 2026-11-10',by:bot,labels:[],age:'15:22',state:'closed'},
+   {n:57,t:'Upstream Sync Ready for Review - 2026-11-04',by:bot,labels:[],age:'4 Nov',state:'closed'},
+   {n:53,t:'Upstream Sync Ready for Review - 2026-11-03',by:bot,labels:[],age:'3 Nov',state:'closed'}],
+  up:{port:[
+    {n:876,t:'fix(azure): netty-bom before core-lib-azure (lettuce 7.5.2 NoClassDefFoundError)',by:'upstream',tags:['Azure'],age:'64d'},
+    {n:854,t:'adding direct hostname for az redis, allowing switch to AzureManagedRedis',by:'upstream',tags:['Azure'],age:'64d'}],
+   next:'PR #77 holds upstream\'s 10 new commits.',nextPill:['pr','PR #77','pull/77'],
+   open:[
+    {n:917,t:'Move the Elasticsearch client to 8.19.24',by:'eprigornev',tags:['Dependency upgrade'],age:'today'},
+    {n:910,t:'Use SHA-256 for the entitlements group cache key and check roles on core-plus cache hits',by:'you',tags:['Bugfix'],age:'11d'}],
+   total:14,more:'1 GC-only, 6 idle over 30 days, 5 drafts.'},
+  sec:[
+   {g:SP,k:'cs',n:4,sev:'High',tone:'bad',t:'Disabled Spring CSRF protection',u:'provider/search-azure · AzureIstioSecurityConfig.java'},
+   {g:SP,k:'cs',n:3,sev:'High',tone:'bad',t:'Disabled Spring CSRF protection',u:'provider/search-azure · AADSecurityConfig.java'},
+   {g:UP,k:'dep',n:20,sev:'High',tone:'bad',t:'guava → 33.7.2',u:'Deserialization triggers uncontrolled memory allocation · pom.xml'},
+   {g:UP,k:'dep',n:6,sev:'Medium',tone:'warn',t:'nimbus-jose-jwt → 9.37.4',u:'Denial of service on deeply nested JSON · search-core/pom.xml'},
+   {g:UP,k:'dep',n:5,sev:'Medium',tone:'warn',t:'commons-lang3 → 3.18.0',u:'Uncontrolled recursion on long inputs · pom.xml'},
+   {g:UP,k:'dep',many:[2,'commons-compress',[[2,'Medium'],[3,'Medium']]],sev:'Medium',tone:'warn',t:'commons-compress → 1.26.0',u:'Infinite loop and out-of-memory on corrupted archives · pom.xml'},
+   {g:UP,k:'dep',n:1,sev:'Medium',tone:'warn',t:'woodstox-core → 5.4.0',u:'Parser crash · pom.xml'},
+   {g:UP,k:'dep',n:4,sev:'Medium',tone:'warn',t:'javax.el · no fixed version',u:'Improper input validation in Jakarta Expression Language · pom.xml'},
+   {g:T,k:'cs',n:2,sev:'High',tone:'bad',t:'TrustManager that accepts all certificates',u:'testing/search-test-core · HTTPClient.java'},
+   {g:T,k:'dep',many:[6,'guava',[[22,'High'],[23,'High'],[7,'Medium'],[14,'Medium'],[8,'Low'],[15,'Low']]],sev:'High',tone:'bad',t:'guava → 33.7.2',u:'2 high, 2 medium, 2 low · testing/search-test-core and search-test-azure'},
+   {g:T,k:'dep',many:[4,'logback-core',[[16,'Medium'],[17,'Low'],[18,'Low'],[19,'Low']]],sev:'Medium',tone:'warn',t:'logback-core → 1.5.34',u:'1 medium, 3 low · testing/search-test-core/pom.xml'},
+   {g:T,k:'cs',many:[2,'java/log-injection',[[5,'Medium'],[6,'Medium']]],sev:'Medium',tone:'warn',t:'Log Injection',u:'testing/search-test-core · SchemaServiceClient.java'}],
+  cloned:false
+ }
+};
+
+const X=' <span class="ex">example</span>';
+const FORKS=['crs-conversion','indexer','search','indexer-queue','workflow','unit','crs-catalog','partition','entitlements','legal','schema','file','storage'];
+// per fork: template sync PR, release PR and its age, other PRs [open, red], Dependabot PRs, issues that need a person, high or critical alerts in shipped code
+const PILE={
+ 'crs-conversion':{tmpl:46,rel:[17,'25d'],other:[1,0],dep:4,iss:1,al:84},
+ indexer:{rel:[33,'25d'],other:[1,1],dep:3,iss:1,al:3},
+ search:{rel:[29,'32d'],other:[2,1],dep:2,iss:1,al:3},
+ 'indexer-queue':{tmpl:77,rel:[45,'25d'],other:[1,1],dep:3,iss:1,al:4},
+ workflow:{tmpl:67,rel:[38,'21d'],other:[1,0],dep:3,iss:1,al:8},
+ unit:{tmpl:68,rel:[21,'25d'],other:[1,0],dep:5,iss:1,al:4},
+ 'crs-catalog':{tmpl:59,rel:[19,'25d'],other:[1,0],dep:5,iss:1,al:15},
+ partition:{rel:[249,'19h'],other:[0,0],dep:0,iss:0,al:2},
+ entitlements:{rel:[148,'1d'],other:[0,0],dep:0,iss:0,al:2},
+ legal:{rel:[85,'1d'],other:[0,0],dep:0,iss:0,al:2},
+ schema:{rel:[100,'1d'],other:[0,0],dep:0,iss:0,al:3},
+ file:{rel:[111,'1d'],other:[0,0],dep:0,iss:0,al:3},
+ storage:{rel:[57,'13d'],other:[0,0],dep:0,iss:2,al:3}};
+const byFork=fn=>FORKS.map(f=>[f,fn(PILE[f],f)]).filter(r=>r[1]);
+const TODAY={
+ blocked:[
+  {id:'tb0',fork:'crs-conversion',st:'upstream',t:'Sync halted: no filter rule for schemathesis-tests',link:['issue','Issue #44','issues/44'],age:'7d',due:'Fix before the next upstream sync, 18:00',
+   body:"Upstream adds schemathesis-tests, a top-level entry the fork's filter has no rule for. 13 upstream commits wait behind it, and six daily syncs have failed. Add a rule to .github/upstream-filter.yml, then dispatch sync. workflow and indexer-queue lack the same rule.",extra:[['file','upstream-filter.yml','blob/main/.github/upstream-filter.yml'],['run','Run','actions/runs/43985138555']]},
+  {id:'tb1',fork:'search',st:'upstream',t:'Sync Upstream failed at Build',link:['run','Run','RUN'],age:'22h',body:D.search.blocked[0].body},
+  {id:'tb2',fork:'indexer',st:'upstream',t:'Sync Upstream failed; halt issue #72 is open',link:['issue','Issue #72','issues/72'],age:'21h',body:'The sync engine opened the halt issue when the run failed.',extra:[['run','Run','actions/runs/43988443150']]}],
+ wait:[
+  {id:'tw0',st:'sync',t:'Sync PR needs os-core-common upgraded on the fork first',age:'10d',due:'The 18:00 upstream sync carries the newer os-core-common too',
+   body:'Each pull request brings a newer os-core-common: 8.5.0 on unit and workflow, 10.0.0 on crs-catalog and search. Upgrade it on the fork, then review the pull request.',
+   members:[['unit','PR #50','pull/50','10d'],['workflow','PR #60','pull/60','7d'],['crs-catalog','PR #54','pull/54','7d'],['search','PR #77','pull/77','7d']]},
+  {id:'tw1',fork:'crs-conversion',st:'sync',t:'Sync PR waits for review',link:['pr','PR #41','pull/41'],age:'7d',body:'13 upstream commits wait on this pull request.'},
+  {id:'tw2',st:'integration',t:'Integration PR red: its deploy lane failed',age:'10d',act:'Queue the re-run of both lanes',
+   body:'Deploy and Test › Verify failed on both: the digest was not live after 15 minutes. The environment is deployable again. After the re-run, approve and merge with a merge commit, not a squash.',
+   members:[['indexer-queue','PR #67','pull/67','10d'],['indexer','PR #73','pull/73','21h']]},
+  {id:'tw3',st:'template',t:'Template sync PR waits for review',age:'13h',go:['template','Template'],
+   body:'osdu-spi main 1a4730d is merged on 8 of 13 forks. Each pull request here is green and merges once approved. Every merge takes a deploy lane.',
+   members:[['indexer-queue','PR #77','pull/77','13h'],['workflow','PR #67','pull/67','13h'],['unit','PR #68','pull/68','13h'],['crs-catalog','PR #59','pull/59','13h'],['crs-conversion','PR #46','pull/46','13h']]},
+  {id:'tw4',fork:'12 forks',st:null,t:'23 upstream provider changes to port',tag:1,age:'64d',go:['upstream','Upstream'],
+   body:'Merged upstream in the Azure provider or test trees, and no fork pull request cites them. entitlements has 4; unit and indexer have 3 each.'}],
+ can:[
+  {id:'tc0',t:'Release pull requests',n:'13 open',go:['releases','Releases'],note:'One on every fork. All pass their checks and wait for review; seven are behind main.',by:byFork(p=>p.rel[1])},
+  {id:'tc1',t:'Dependabot bumps',n:'25 open',note:'On 7 forks, and all but two are in test trees. The same guava bump is open on indexer, indexer-queue, search and workflow.',by:byFork(p=>p.dep)},
+  {id:'tc2',t:'Component governance chore, the same change on 7 forks',n:'7 open · 3 red',note:'By yuchen-wang99. Red on indexer, indexer-queue and search, where the acceptance suite failed. It merged on storage.',by:byFork((p,f)=>f==='search'?'red':p.other[0]?(p.other[1]?'red':'green'):0)},
+  {id:'tc3',t:'CODEOWNERS names owners GitHub cannot resolve',n:'8 issues',note:'The same issue on 8 forks. partition fixed it in PR #239.',by:byFork((p,f)=>f==='storage'?'#67':p.iss?' ':0)},
+  {id:'tc4',fork:'search',t:'search: your test dependency bump is approved and has not merged',link:['pr','PR #84','pull/84'],n:'35m'},
+  {id:'tc5',fork:'storage',t:'storage: PatchRecordsTest assumes batch query returns records in request order',link:['issue','Issue #84','issues/84'],n:'3h'},
+  {id:'tc6',t:'High or critical alerts in shipped code',n:'136',go:['security','Security'],note:"81 are one CodeQL rule in crs-conversion's upstream code. Disabled Spring CSRF protection is on 12 forks.",by:byFork(p=>p.al)}]
+};
+const FLEET=[['upstream','Upstream','bad','✕','3 stopped','next sync 18:00'],['sync','Sync PR','you','!','5 open','all yours'],['integration','Integration','you','!','2 open','both red'],['main','Main','ok','✓','13 green',''],['env','Environment','ok','✓','Ready','v0.35.5']];
+const FDOORS=[['Template','5 to review','station','template'],['Release','13 open','trow','tc0'],['Dependabot','25 open','trow','tc1'],['Other PRs','8 open','trow','tc2']];
+const STN={upstream:'Upstream',sync:'Sync PR',integration:'Integration',template:'Template'};
+const CELL={
+ upstream:{'crs-conversion':['bad','✕','Sync halted'],search:['bad','✕','Sync failed'],indexer:['bad','✕','Sync failed']},
+ sync:{search:['you','!','PR #77'],workflow:['you','!','PR #60'],unit:['you','!','PR #50'],'crs-catalog':['you','!','PR #54'],'crs-conversion':['you','!','PR #41']},
+ integration:{indexer:['you','!','PR #73 red'],'indexer-queue':['you','!','PR #67 red']},main:{}};
+const FINE={upstream:'Sync current',sync:'None open',integration:'None open',main:'Green'};
+
+let S={view:'today',ttab:'yours',station:null,fold:true,svc:'search',tab:'overview',open:null,filter:'open',q:''};
+const $=id=>document.getElementById(id);
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const when=t=>{const d=new Date(Date.UTC(2026,+t.slice(0,2)-1,+t.slice(3,5),+t.slice(6,8)-6,+t.slice(9,11)));const hm=`${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}`,ago=17-d.getUTCDate();return ago===0?hm:ago<7?`${WD[d.getUTCDay()]} ${hm}`:`${d.getUTCDate()} ${MON[d.getUTCMonth()]}`};
+const WORD={s:'passed',f:'failed',c:'cancelled',p:'running'};
+const runUrl=(svc,id)=>gh(svc,'actions/runs/'+id);
+// a workflow is failing when its latest finished run failed
+function failing(svc){return RUNS[svc].map(([w,rs])=>{const done=rs.filter(r=>r[1]==='s'||r[1]==='f');const last=done[done.length-1];return last&&last[1]==='f'?[w,last,rs.filter(r=>r[1]==='f').length,rs.length]:null}).filter(Boolean)}
+function counts(svc){const d=D[svc];return{
+  upstream:d.up.port.length, prs:d.prs.filter(x=>x.state==='open').length,
+  issues:d.issuesNotRead?'⌀':d.issues.filter(x=>x.state==='open'&&!x.tracks).length,
+  runs:failing(svc).length, security:d.sec.filter(r=>r.g!==T).reduce((a,r)=>a+(r.many?r.many[0]:1),0)}}
+const TIP={upstream:'provider changes to port',prs:'open pull requests',issues:'open issues a person can act on',runs:'workflows failing now',security:'alerts in shipped code'};
+
+function strip(svc,rs,w){return `<span class="strip">${rs.map(([id,r,t])=>`<a class="sq ${r==='s'?'':r}" href="${runUrl(svc,id)}" target="_blank" rel="noopener" title="${when(t)} · ${WORD[r]} ↗" aria-label="${w}, ${when(t)}, ${WORD[r]}"></a>`).join('')}</span>`}
+function stripRow(svc,[w,rs]){const last=rs[rs.length-1];return `<div class="row g-run"><span class="t">${w}</span>${strip(svc,rs,w)}<span class="age ${last[1]==='p'?'run':''}">${WORD[last[1]]} ${when(last[2])}</span></div>`}
+
+const SAY={ok:'green',fine:'fine',you:'waiting on you',bad:'blocked',run:'running'};
+function flow(svc,d){
+  const n=(i,col,mid)=>{const [l,tone,g,w,s,row]=d.flow[i];const pos=`grid-column:${col};${mid?'grid-row:1/3;align-self:center':'grid-row:1'}`;
+    const inner=`<span class="lbl"><span class="g ${tone}" aria-hidden="true">${g}</span>${l}<span class="vh">, ${SAY[tone]}</span></span><span class="w">${w}</span>${s?`<span class="s">${s}</span>`:''}`;
+    return row?`<button class="stn" data-tone="${tone}" style="${pos}" data-row="${row[0]+row[1]}" title="Opens its row below">${inner}</button>`:`<div class="stn" data-tone="${tone}" style="${pos}">${inner}</div>`};
+  const e=(col,off)=>off?'':`<span class="edge" style="grid-column:${col};grid-row:1"></span>`;
+  return `<div class="flowwrap"><div class="flow" role="group" aria-label="How code reaches ${svc} main">
+   ${n(0,1)}${e(2)}${n(1,3)}${e(4)}${n(2,5)}
+   <div class="direct">${d.doors.map(([l,w,to])=>`<${to?`button data-row="${to}" title="Opens its row below"`:'span'} class="door"><span class="lbl">${l}</span>${to?`<b>${w}</b>`:`<span class="s">${w}</span>`}</${to?'button':'span'}>`).join('')}</div>
+   <svg class="join" viewBox="0 0 44 100" preserveAspectRatio="none" aria-hidden="true"><path d="M0 24 C26 24,18 50,44 50"/><path d="M0 80 C26 80,18 50,44 50"/></svg>
+   ${n(3,7,1)}
+  </div></div>`;
+}
+
+function rowsBox(svc,key,label,cls,dot,hcls){
+  const d=D[svc],hrs=a=>!a?-1:parseFloat(a)*(a.endsWith('d')?24:1);
+  const rows=key==='can'?[...d[key]].sort((a,b)=>hrs(b.age)-hrs(a.age)):d[key];if(!rows.length)return '';
+  const out=l=>{let href=l[2];if(href.startsWith('RUN:')){const f=failing(svc).find(v=>v[0]===href.slice(4));href=f?'actions/runs/'+f[1][0]:'actions'}return pill(l[0],l[1],gh(svc,href))};
+  return `<div class="sec"><div class="sech ${hcls}"><span class="dot ${dot}"></span>${label}${key==='shared'?'':`<span class="cnt">${rows.length}</span>`}</div><div class="box ${cls}">`+
+  rows.map((x,i)=>{const id=key+i,isOpen=S.open===id,ext=x.links||(x.link&&[x.link]);
+    const link=ext?ext.map(out).join(' '):`<button class="pill grey" data-tab="${x.goto}">${x.gl} ›</button>`;
+    return `<div class="row g-today" id="row-${id}"><span><button class="t" data-open="${id}" aria-expanded="${isOpen}">${esc(x.t)}</button>${x.tag?` <span class="tag" title="12 forks each have their own changes to port. One row on Today, counted once, on Upstream.">Counted on Upstream</span>`:''}</span><span class="acts">${link}</span><span class="age">${x.age}</span></div>`+
+    (isOpen?`<div class="open"><p>${esc(x.body)}</p>${ext?`<div class="acts"><button class="pill grey" data-tab="${x.goto}">${x.gl} ›</button>${x.ref?pill('pr',x.ref[1]+' on '+x.ref[0],gh(x.ref[0],x.ref[2])):''}${x.also?`<button class="pill grey" data-tab="${x.also[0]}">${x.also[1]} ›</button>`:''}${(x.extra||[]).map(e=>pill(e[0],e[1],gh(svc,e[2]))).join('')}</div>`:''}</div>`:'');
+  }).join('')+`</div></div>`;
+}
+
+function opened(svc,x,kind){
+  const acts=[];
+  if(kind==='pr'&&x.state==='open'){acts.push(pill('file','Checks',gh(svc,`pull/${x.n}/checks`)));acts.push(pill('file','Files',gh(svc,`pull/${x.n}/files`)))}
+  if(x.comp)acts.push(pill('issue','Issue #'+x.comp,gh(svc,'issues/'+x.comp)));
+  if(x.ref)acts.push(pill('pr',x.ref[1],gh(x.ref[0],x.ref[2])));
+  const facts=[...(x.facts||[])];if(kind==='pr')facts.push(['Size',`+${x.add} −${x.del}`]);
+  return `<div class="open">
+    ${x.notes?`<ul>${x.notes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>`:''}
+    ${facts.length?`<div class="facts">${facts.map(([a,b])=>`<span>${a} <b>${esc(b)}</b></span>`).join('')}</div>`:''}
+    ${acts.length?`<div class="acts">${acts.join('')}</div>`:''}</div>`;
+}
+const who=by=>by===bot?'automation':by;
+function workTable(svc,list,kind){
+  const d=D[svc],nr=kind==='issue'&&d.issuesNotRead;
+  const isOpenRow=x=>x.state==='open'&&!x.tracks,isDone=x=>kind==='pr'?x.state==='merged':x.state==='closed';
+  const shown=list.filter(x=>(S.filter==='all'||(S.filter==='open'?isOpenRow(x):isDone(x)))&&(!S.q||(x.t+' '+x.by+' #'+x.n).toLowerCase().includes(S.q)));
+  const nOpen=list.filter(isOpenRow).length,nDone=list.filter(isDone).length,done=kind==='pr'?'Merged':'Closed';
+  let h=`<div class="filters">
+    ${[['open',`Open ${nr?'⌀':nOpen}`],['done',`${done} ${nDone}${nr?' · 13:20':''}`],['all','All']].map(([k,l])=>`<button class="chip" data-filter="${k}" aria-pressed="${S.filter===k}">${l}</button>`).join('')}
+    <input id="q-${kind}" type="search" placeholder="Filter by title, author or number" value="${esc(S.q)}" aria-label="Filter">
+    <a class="btn" href="${gh(svc,kind==='pr'?'pulls':'issues')}" target="_blank" rel="noopener">All on GitHub ↗</a>
+  </div><div class="box">`;
+  if(nr) h+=`<div class="notread"><b>⌀</b><span>Issues not read at 13:50. Last read 13:20: ${nOpen||'none'} open.</span><button class="pill grey" title="Opens Evidence for this read, with a way back to Issues">Evidence ›</button><span class="ex">example</span></div>`;
+  if(!shown.length&&!(nr&&S.filter==='open'&&!S.q)) h+=`<div class="empty">${S.q?'Nothing matches.':S.filter==='open'?`No open ${kind==='pr'?'pull requests':'issues'}.`:'Nothing here.'}</div>`;
+  for(const x of shown){
+    const id=kind+x.n,isOpen=S.open===id,can=kind==='pr'?x.state==='open':x.notes;
+    const p=pill(kind,(kind==='pr'?'PR #':'Issue #')+x.n,gh(svc,`${kind==='pr'?'pull':'issues'}/${x.n}`));
+    const ck=[x.ok?`<span class="ok">✓ ${x.ok}</span>`:'',x.fail?`<span class="${x.soft?'muted':'bad'}">✕ ${x.fail}</span>`:''].filter(Boolean).join(' · ');
+    const stat=kind==='pr'?`<span class="stat"><span>${ck||`<span class="muted">${x.state}</span>`}</span>${x.review?`<span class="${x.review[1]}">${x.review[0]}</span>`:''}</span>`:`<span class="stat"><span>${x.labels.map(l=>`<span class="tag">${l}</span>`).join(' ')||(x.state==='open'?'':`<span class="muted">${x.state}</span>`)}</span></span>`;
+    const sub=(x.tracks?[who(x.by),`tracks PR #${x.tracks}`]:kind==='pr'?[who(x.by),x.base?`into <span class="mono">${x.base}</span>`:'',...x.labels.map(l=>`<span class="tag">${l}</span>`)]:[who(x.by)]).filter(Boolean).join(' · ');
+    h+=`<div class="row g-work">${p}<span>${can?`<button class="t" data-open="${id}" aria-expanded="${isOpen}">${esc(x.t)}</button>`:`<span class="t">${esc(x.t)}</span>`}<span class="u">${sub}</span></span>${stat}<span class="age">${x.age}</span></div>`;
+    if(isOpen) h+=opened(svc,x,kind);
+  }
+  return h+'</div>';
+}
+
+function mrRows(svc,list){return list.map(m=>`<div class="row g-up">${pill('mr','MR !'+m.n,gl(svc,m.n))}<span class="t">${esc(m.t)}${m.by&&m.by!=='upstream'||m.note?`<span class="u">${[m.by==='you'?'you opened it':m.by&&m.by!=='upstream'?m.by:'',m.note?esc(m.note):''].filter(Boolean).join(' · ')}</span>`:''}</span><span>${m.tags.map(t=>`<span class="tag" ${t==='Azure'?'style="color:var(--upstream);border-color:currentColor"':''}>${t}</span>`).join(' ')}</span><span class="age">${m.age}</span></div>`).join('')}
+function upTab(svc){
+  const u=D[svc].up;
+  return `<div class="sec" id="toport"><div class="sech">To port<span class="cnt">${u.port.length}</span><span class="tag" title="12 forks each have their own changes to port. One row on Today, counted once, on Upstream.">Counted on Upstream</span><span class="ex">example rows</span></div><div class="box scroll"><div>${mrRows(svc,u.port)}</div></div></div>
+  <div class="sec"><div class="sech">Next sync</div><div class="box"><div class="clone"><span>${u.next}</span>${u.nextPill?`<span class="acts" style="margin-left:auto">${pill(u.nextPill[0],u.nextPill[1],gh(svc,u.nextPill[2]))}</span>`:''}</div></div></div>
+  <div class="sec"><div class="sech">Open upstream<span class="cnt">${u.total}</span></div><div class="box scroll"><div>${mrRows(svc,u.open)}</div></div>
+   <p class="muted" style="margin:8px 0 0;font-size:12.5px">Shown: yours, and those that touch the Azure provider or shared code. Not shown: ${u.more} <span class="ex">example rule</span> <a href="https://community.opengroup.org/osdu/platform/system/${GLP[svc]||svc}/-/merge_requests" target="_blank" rel="noopener">All on GitLab ↗</a></p></div>`;
+}
+
+function secTab(svc){
+  const rows=D[svc].sec;let h='<div class="box">',g='';
+  for(const r of rows){
+    if(r.g!==g){g=r.g;const n=rows.filter(x=>x.g===g).reduce((a,x)=>a+(x.many?x.many[0]:1),0);h+=`<div class="row head" style="display:flex;justify-content:space-between"><span>${g}</span><span>${n}</span></div>`}
+    const base=r.k==='dep'?'security/dependabot':'security/code-scanning',word=r.k==='dep'?'Dependabot':'CodeQL',id='sec'+rows.indexOf(r),isOpen=S.open===id;
+    const p=r.many?`<button class="pill grey" data-open="${id}" aria-expanded="${isOpen}">${r.many[0]} ${word} alerts ${isOpen?'⌃':'⌄'}</button>`:pill('alert',`${word} #${r.n}`,gh(svc,base+'/'+r.n));
+    h+=`<div class="row g-sec"><span style="font-weight:${r.sev==='High'?650:400};color:var(--${r.sev==='High'?'strong':'muted'})">${r.sev}</span><span class="t">${r.t}<span class="u">${r.u}${r.fix?' · fix closed unmerged':''}</span></span><span class="acts">${r.fix?`<a class="pill grey" href="${gh(svc,'pull/'+r.fix)}" target="_blank" rel="noopener">PR #${r.fix} closed ↗</a>`:''}${p}</span></div>`;
+    if(r.many&&isOpen) h+=`<div class="open"><div class="acts">${r.many[2].map(([n,sv])=>pill('alert',`${word} #${n} · ${sv}`,gh(svc,base+'/'+n))).join('')}</div></div>`;
+  }
+  return h+'</div>';
+}
+
+function tlink(x){
+  if(!x.link)return '';let href=x.link[2];
+  if(href==='RUN'){const f=failing(x.fork).find(v=>v[0]==='Sync Upstream');href=f?'actions/runs/'+f[1][0]:'actions'}
+  return pill(x.link[0],x.link[1],href.startsWith('http')?href:gh(x.fork,href));
+}
+const forkBtn=f=>D[f]?`<button class="fk" data-svc="${f}" title="Opens ${f}">${f}</button>`:`<span class="fk">${f}</span>`;
+function yoursOf(f){
+  const out=[];
+  for(const key of ['blocked','wait'])for(const x of TODAY[key]){
+    if(x.fork===f)out.push([key,x.t,tlink(x),x.age]);
+    for(const m of x.members||[])if(m[0]===f)out.push([key,x.t,pill('pr',m[1],gh(f,m[2])),m[3]]);
+  }
+  return out;
+}
+function markOf(f){
+  const y=yoursOf(f);
+  if(y.length)return `<span class="n ${y.some(r=>r[0]==='blocked')?'bad':'warn'}" title="${y.length} yours">${y.length}</span>`;
+  if(D[f]&&D[f].notRead)return `<span class="muted" title="${D[f].notRead}">⌀</span>`;
+  return `<span class="ok" style="font-weight:700" title="Nothing waiting on you">✓</span>`;
+}
+function fleetFlow(){
+  const n=(i,col,mid)=>{const [k,l,tone,g,w,s]=FLEET[i];const pos=`grid-column:${col};${mid?'grid-row:1/3;align-self:center':'grid-row:1'}`;
+    const inner=`<span class="lbl"><span class="g ${tone}" aria-hidden="true">${g}</span>${l}<span class="vh">, ${SAY[tone]}</span></span><span class="w">${w}</span>${s?`<span class="s">${s}</span>`:''}`;
+    if(k==='main')return `<div class="stn" data-tone="${tone}" style="${pos}">${inner}</div>`;
+    if(k==='env')return `<button class="stn" data-tone="${tone}" style="${pos}" data-go="environment" title="Opens Environment">${inner}</button>`;
+    return `<button class="stn" data-tone="${tone}" style="${pos}" data-station="${k}" aria-pressed="${S.station===k}" title="Shows the forks at this station">${inner}</button>`};
+  const e=(col,mid)=>`<span class="edge" style="grid-column:${col};grid-row:${mid?'1/3':'1'}"></span>`;
+  return `<div class="flowwrap"><div class="flow fleet" role="group" aria-label="How code is reaching main across the 13 forks">
+   ${n(0,1)}${e(2)}${n(1,3)}${e(4)}${n(2,5)}
+   <div class="direct">${FDOORS.map(([l,w,kind,to])=>`<button class="door" data-${kind}="${to}" ${kind==='station'?`aria-pressed="${S.station===to}" title="Shows its row"`:'title="Opens its row below"'}><span class="lbl">${l}</span><b>${w}</b></button>`).join('')}</div>
+   <svg class="join" viewBox="0 0 44 100" preserveAspectRatio="none" aria-hidden="true"><path d="M0 24 C26 24,18 50,44 50"/><path d="M0 80 C26 80,18 50,44 50"/></svg>
+   ${n(3,7,1)}${e(8,1)}${n(4,9,1)}
+  </div></div>`;
+}
+function todayBox(key,label,cls,dot,hcls){
+  const rows=TODAY[key].filter(x=>!S.station||x.st===S.station);if(!rows.length)return '';
+  const cnt=rows.reduce((a,x)=>a+(x.members?x.members.length:1),0);
+  return `<div class="sec"><div class="sech ${hcls}"><span class="dot ${dot}"></span>${label}<span class="cnt">${cnt}</span></div><div class="box ${cls}">`+
+  rows.map(x=>{const isOpen=S.open===x.id;
+    const link=tlink(x)||(x.go?`<button class="pill grey" data-go="${x.go[0]}">${x.go[1]} ›</button>`:'');
+    let h=`<div class="row g-fleet" id="row-${x.id}">${x.members?`<span class="fk">${x.members.length} forks</span>`:forkBtn(x.fork)}<span><button class="t" data-open="${x.id}" aria-expanded="${isOpen}">${esc(x.t)}</button>${x.tag?' <span class="tag" title="12 forks each have their own changes to port. One row on Today, counted once, on Upstream.">Counted on Upstream</span>':''}${x.ex?X:''}</span><span class="acts">${link}</span><span class="age">${x.due?`<span class="clock" title="${x.due}" aria-label="${x.due}">◷</span>`:''}${x.age}</span></div>`;
+    if(isOpen){
+      const acts=[x.act?`<button class="pill act" title="An operation SPI Code runs">▸ ${x.act}</button>`:'',...(x.extra||[]).map(e=>pill(e[0],e[1],gh(x.fork,e[2]))),x.go&&x.link?`<button class="pill grey" data-go="${x.go[0]}">${x.go[1]} ›</button>`:'',D[x.fork]?`<button class="pill grey" data-svc="${x.fork}">Open ${x.fork} ›</button>`:''].filter(Boolean);
+      h+=`<div class="open">${x.due?`<p class="warn">◷ ${x.due}</p>`:''}<p>${esc(x.body)}</p>${acts.length?`<div class="acts">${acts.join('')}</div>`:''}</div>`;
+    }
+    for(const m of x.members||[])h+=`<div class="row g-fleet sub">${forkBtn(m[0])}<span class="xs">${m[4]?X:''}</span><span class="acts">${pill('pr',m[1],gh(m[0],m[2]))}</span><span class="age">${m[3]}</span></div>`;
+    return h}).join('')+`</div></div>`;
+}
+function canBox(){
+  const chip=([f,v])=>D[f]?`<button class="pill grey" data-svc="${f}">${f} ${v} ›</button>`:`<span class="tag">${f} ${v}</span>`;
+  return `<div class="sec"><div class="sech"><span class="dot"></span>Can wait</div><div class="box">`+
+  TODAY.can.map(x=>{const isOpen=S.open===x.id;
+    return `<div class="row g-can" id="row-${x.id}"><span><button class="t" data-open="${x.id}" aria-expanded="${isOpen}">${esc(x.t)}</button></span><span class="acts">${tlink(x)||(x.go?`<button class="pill grey" data-go="${x.go[0]}">${x.go[1]} ›</button>`:'')}</span><span class="age nw">${x.n}</span></div>`+
+    (isOpen?`<div class="open">${x.note?`<p>${esc(x.note)}</p>`:''}<div class="acts">${x.by?x.by.map(chip).join(''):`<button class="pill grey" data-svc="${x.fork}">Open ${x.fork} ›</button>`}</div></div>`:'');
+  }).join('')+`</div></div>`;
+}
+function forksTab(){
+  const cols=['upstream','sync','integration','main'];
+  const dim=c=>S.station&&S.station!==c?'dim':'';
+  const cell=(f,c)=>{const v=CELL[c][f]||(c==='main'?['ok','✓',FINE.main]:['fine','·',FINE[c]]);
+    return `<span class="cellx ${v[0]==='fine'||v[0]==='ok'?'fine':''} ${dim(c)}"><span class="g ${v[0]}" aria-hidden="true">${v[1]}</span><span>${v[2]}</span></span>`};
+  const doors=f=>{const p=PILE[f];
+    return `<span class="cellx ${p.tmpl?'':'fine'} ${dim('template')}">${p.tmpl?`<span class="g you" aria-hidden="true">!</span><span>PR #${p.tmpl}</span>`:'<span class="g fine" aria-hidden="true">·</span>'}</span>`+
+     `<span class="cellx fine ${dim('door')}" title="Release PR #${p.rel[0]}, open ${p.rel[1]}">${p.rel[1]}</span>`+
+     `<span class="cellx ${p.other[1]?'':'fine'} ${dim('door')}" title="${p.other[0]} open${p.other[1]?', '+p.other[1]+' red':''}">${p.other[0]||'·'}${p.other[1]?' <span class="bad" aria-hidden="true">✕</span>':''}</span>`+
+     `<span class="cellx fine ${dim('door')}">${p.dep||'·'}</span>`};
+  const plural=(n,w,ws)=>`${n} ${n===1?w:ws||w+'s'}`;
+  const row=f=>{const id='fk-'+f,isOpen=S.open===id,y=yoursOf(f),p=PILE[f];
+    const also=[p.dep?plural(p.dep,'Dependabot bump'):'',p.other[0]?plural(p.other[0],'other pull request')+(p.other[1]?`, ${p.other[1]} red`:''):'',p.iss?(p.iss===1?'1 issue that needs a person':p.iss+' issues that need a person'):'',plural(p.al,'high or critical alert')+' in shipped code'].filter(Boolean).join(' · ');
+    return `<div class="row g-sheet"><button class="fk" data-open="${id}" aria-expanded="${isOpen}">${f}</button>${cols.map(c=>cell(f,c)).join('')}${doors(f)}<span class="mk">${markOf(f)}</span></div>`+
+    (isOpen?`<div class="open">${y.length?y.map(r=>`<div class="yl"><span class="dot ${r[0]==='blocked'?'bad':'warn'}"></span><span class="t">${esc(r[1])}</span><span class="acts">${r[2]}</span><span class="age">${r[3]}</span></div>`).join(''):'<p class="muted">Nothing waiting on you.</p>'}
+      <div class="acts"><span class="muted">Can wait</span>${pill('pr','PR #'+p.rel[0],gh(f,'pull/'+p.rel[0]))}<span class="muted">release, open ${p.rel[1]} · ${also}</span></div>
+      ${D[f]?`<div class="acts"><button class="pill grey" data-svc="${f}">Open ${f} ›</button></div>`:''}</div>`:'');
+  };
+  const busy=FORKS.filter(f=>yoursOf(f).length),quiet=FORKS.filter(f=>!yoursOf(f).length);
+  return `<div class="sec"><div class="sech">13 forks<span class="cnt">58 open pull requests</span></div><div class="box scroll"><div class="sheet">
+   <div class="row head g-sheet"><span>Fork</span><span>Upstream</span><span>Sync PR</span><span>Integration</span><span>Main</span><span class="doorh">Template</span><span class="doorh" title="Age of the open release pull request">Release</span><span class="doorh">Other</span><span class="doorh" title="Dependabot pull requests">Deps</span><span></span></div>
+   ${busy.map(row).join('')}${S.fold?'':quiet.map(row).join('')}
+   <button class="fold" data-fold="1" aria-expanded="${!S.fold}">${S.fold?'▸':'▾'} ${quiet.length} forks with nothing waiting on you, each with one release pull request open</button>
+  </div></div></div>`;
+}
+function activityTab(){
+  const mv=[['now','search PR #84 is approved and green; GitHub has not let it merge yet'],['18:00','Upstream sync runs on all 13 forks. It opens 5 pull requests, and crs-conversion halts again unless its filter is fixed'],['Wed 02:00','The scheduled template sync opens nothing: every fork has the change or a pull request for it']];
+  const past=[['Sync Upstream','<span class="ok">10 passed</span> · <span class="bad" title="search, indexer, crs-conversion">3 failed</span>'],['Sync Template','<span class="ok">13 passed</span> · merged on indexer and search · opened 5 pull requests'],['Cascade Integration','<span class="ok">7 passed</span>'],['Merged on search','Integration PR #76 · Dependabot PR #68 · template sync PR #82']];
+  return `<div class="sec"><div class="sech"><span class="dot" style="background:var(--work)"></span>Moving without you</div><div class="box">${mv.map(([a,b])=>`<div class="row g-act"><span class="muted nw">${a}</span><span class="t">${b}</span><span></span></div>`).join('')}</div></div>
+  <div class="sec"><div class="sech">Last 24 hours</div><div class="box" style="border-style:dashed">${past.map(([a,b])=>`<div class="row g-act"><span class="t">${a}</span><span>${b}</span><span></span></div>`).join('')}</div></div>`;
+}
+function renderToday(){
+  $('top').innerHTML=`<h2>Today</h2><span class="muted">Tue 17 Nov</span><span class="sp muted" title="Opens Evidence for the whole sweep">Swept 13:50</span>`;
+  const yours=['blocked','wait'].reduce((a,k)=>a+TODAY[k].reduce((b,x)=>b+(x.members?x.members.length:1),0),0);
+  const stopped=Object.keys(CELL.upstream).length;
+  const tabs=[['yours','Yours',yours,'rows that are yours'],['forks','Forks',stopped,'forks stopped'],['activity','Activity']];
+  let h=fleetFlow()+`<div class="tabs" role="tablist">${tabs.map(([k,l,c,tip])=>`<button class="tab" role="tab" data-ttab="${k}" aria-selected="${S.ttab===k}">${l}${c?`<span class="c" title="${c} ${tip}">${c}</span>`:''}</button>`).join('')}</div>`;
+  if(S.station&&S.ttab!=='activity')h+=`<div class="quiet"><span>Showing ${STN[S.station]}</span><button class="pill grey" data-station="${S.station}">Show all ✕</button></div>`;
+  if(S.ttab==='yours')h+=todayBox('blocked','Blocked','blocked','bad','bad')+todayBox('wait','Waiting on you','you','warn','warn')+(S.station?'':canBox());
+  if(S.ttab==='forks')h+=forksTab();
+  if(S.ttab==='activity')h+=activityTab();
+  $('body').innerHTML=h;
+}
+
+function render(){
+  const svc=S.svc,d=D[svc],c=counts(svc),onSvc=S.view==='svc';
+  $('svc').innerHTML=`<button data-view="today" aria-pressed="${!onSvc}">Today</button>`+Object.keys(D).map(k=>`<button data-svc="${k}" aria-pressed="${onSvc&&k===svc}">${k}</button>`).join('');
+  $('hint').textContent=onSvc?d.hint:'All 13 forks as read at 16:00. Click a station, a fork or a row.';
+  if(onSvc)$('nav-today').removeAttribute('aria-current');else $('nav-today').setAttribute('aria-current','page');
+  $('sidesvc').innerHTML=Object.keys(D).filter(k=>!D[k].unpinned).map(k=>{const x=D[k];
+    const own=x.blocked.length+x.wait.length;
+    const mark=own?`<span class="n ${x.blocked.length?'bad':'warn'}" title="${own} yours${x.blocked.length?', '+x.blocked.length+' blocked':''}${x.notRead?'. '+x.notRead:''}">${own}</span>`:x.notRead?`<span class="muted" style="margin-left:auto;width:18px;text-align:center" title="${x.notRead}">⌀</span>`:`<span class="n okring" title="Nothing waiting on you">✓</span>`;
+    return `<button class="nav" data-svc="${k}" ${onSvc&&k===svc?'aria-current="page"':''}><svg class="ic" viewBox="0 0 16 16"><path d="M8 1.8l5.5 3v6.4l-5.5 3-5.5-3V4.8zM2.5 4.8l5.5 3 5.5-3M8 7.8v6.4"/></svg>${k}${mark}</button>`}).join('');
+  if(!onSvc){renderToday();return}
+  $('top').innerHTML=`<h2>${svc}</h2>
+    <a class="pill grey" href="${gh(svc,'')}" target="_blank" rel="noopener">Azure/osdu-spi-${svc} ↗</a>
+    <span class="muted nw" title="Current version, and the next one from the release PR">${d.version} → ${d.next} · ${d.bump}</span>
+    ${pill('pr','PR #'+d.rel,gh(svc,'pull/'+d.rel))}
+    <button class="tchip" data-go="template" data-t="${d.tmpl||'ok'}" title="Template ${d.tmpl?'behind':'in sync with'} osdu-spi. Opens Template." aria-label="Template ${d.tmpl?'behind':'in sync'}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2l6 3-6 3-6-3zM2 8l6 3 6-3M2 11l6 3 6-3"/></svg><b>${d.tmpl?'behind':'✓'}</b></button>
+    <span class="sp"><button class="pin" data-pin="1" aria-pressed="${!d.unpinned}" aria-label="${d.unpinned?'Pin':'Unpin'} ${svc}" title="${d.unpinned?'Pin to the sidebar':'Pinned. Click to unpin'}  ⌘P"><svg viewBox="0 0 16 16" width="15" height="15"><path d="M9.6 1.6l4.8 4.8-1.9.6-2.4 2.4.4 3.1-1.1 1.1-3.2-3.2-3.6 3.6-.6-.6 3.6-3.6-3.2-3.2 1.1-1.1 3.1.4 2.4-2.4z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></button></span>`;
+
+  const tabs=[['overview','Overview'],['upstream','Upstream'],['prs','Pull requests'],['issues','Issues'],['runs','Runs'],['security','Security']];
+  let h=`${flow(svc,d)}
+  <div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button class="tab" role="tab" data-tab="${k}" aria-selected="${S.tab===k}">${l}${c[k]==='⌀'?`<span class="muted" title="not read">⌀</span>`:c[k]?`<span class="c" title="${c[k]+' '+TIP[k]}">${c[k]}</span>`:''}</button>`).join('')}</div>`;
+
+  if(S.tab==='overview'){
+    if(!d.blocked.length&&!d.wait.length) h+=d.notRead?`<div class="quiet"><span>⌀ ${d.notRead}</span><button class="pill grey" title="Opens Evidence for this read, with a way back">Evidence ›</button></div>`:`<div class="quiet"><span><span class="ok" style="font-weight:700">✓</span> Nothing waiting on you</span></div>`;
+    h+=rowsBox(svc,'blocked','Blocked','blocked','bad','bad')+rowsBox(svc,'wait','Waiting on you','you','warn','warn')+rowsBox(svc,'shared','Shared work','','','')+rowsBox(svc,'can','Can wait','','','');
+  }
+  if(S.tab==='upstream') h+=upTab(svc);
+  if(S.tab==='prs') h+=workTable(svc,d.prs,'pr');
+  if(S.tab==='issues') h+=workTable(svc,d.issues,'issue');
+  if(S.tab==='runs'){
+    const f=failing(svc);
+    if(f.length) h+=`<div class="sec"><div class="sech bad"><span class="dot bad"></span>Failing now<span class="cnt">${f.length}</span></div><div class="box">`+
+      f.map(([w,last,nf,n])=>`<div class="row g-fail"><span class="t">${w}</span><span class="muted">failed ${when(last[2])}</span>${pill('run','Run',runUrl(svc,last[0]))}</div>`).join('')+`</div></div>`;
+    h+=`<div class="sec"><div class="sech">Every workflow · last 8 days</div><div class="box">${RUNS[svc].map(r=>stripRow(svc,r)).join('')}</div></div>`;
+  }
+  if(S.tab==='security') h+=secTab(svc);
+  $('body').innerHTML=h;
+}
+
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-svc],[data-tab],[data-open],[data-filter],[data-clone],[data-pin],[data-row],[data-go],[data-view],[data-station],[data-ttab],[data-trow],[data-fold]');
+  if(!b||b.tagName==='INPUT')return;
+  if(b.dataset.view){S.view='today';S.open=null}
+  if(b.dataset.svc){S.view='svc';S.svc=b.dataset.svc;S.open=null;S.q='';S.filter='open';S.tab='overview'}
+  if(b.dataset.station){S.station=S.station===b.dataset.station?null:b.dataset.station;S.open=null;if(S.ttab==='activity')S.ttab='yours'}
+  if(b.dataset.ttab){S.ttab=b.dataset.ttab;S.open=null}
+  if(b.dataset.trow){S.ttab='yours';S.station=null;S.open=b.dataset.trow}
+  if(b.dataset.fold){S.fold=!S.fold}
+  if(b.dataset.tab){S.tab=b.dataset.tab;S.open=null;S.q='';S.filter='open'}
+  if(b.dataset.open){S.open=S.open===b.dataset.open?null:b.dataset.open}
+  if(b.dataset.row){S.tab='overview';S.open=b.dataset.row}
+  if(b.dataset.go){const el=$('nav-'+b.dataset.go);el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),1200);return}
+  if(b.dataset.filter){S.filter=b.dataset.filter;S.open=null}
+  if(b.dataset.pin){D[S.svc].unpinned=!D[S.svc].unpinned}
+  render();
+  const key=b.dataset.open||b.dataset.row||b.dataset.trow;const fs=key?`[data-open="${key}"]`:b.dataset.tab?'.tab[aria-selected="true"]':b.dataset.filter?`[data-filter="${S.filter}"]`:null;
+  const fe=fs&&document.querySelector(fs);if(fe){fe.focus({preventScroll:true});if(b.dataset.row||b.dataset.trow)fe.scrollIntoView({block:'nearest'})}
+});
+document.addEventListener('input',e=>{
+  if(e.target.id&&e.target.id.startsWith('q-')){S.q=e.target.value.toLowerCase();const id=e.target.id,pos=e.target.selectionStart;render();const el=$(id);if(el){el.focus();el.setSelectionRange(pos,pos)}}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.open){const o=S.open;S.open=null;render();const el=document.querySelector(`[data-open="${o}"]`);if(el)el.focus({preventScroll:true})}});
+render();
+</script>
