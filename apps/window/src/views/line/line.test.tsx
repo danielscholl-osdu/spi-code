@@ -346,7 +346,7 @@ it("highlights a campaign without removing other forks or adding a station", asy
   expect(sheet()?.querySelector("[data-highlighted]")).toBeNull();
 });
 
-it("names every typed glyph in words and selects a cell's own Detail reading", async () => {
+it("names every typed glyph in words and opens a cell's popover", async () => {
   const body = recording();
   const substates = [
     "stopped",
@@ -391,12 +391,9 @@ it("names every typed glyph in words and selects a cell's own Detail reading", a
   );
   if (!cell) throw new Error("Missing sheet station");
   await click(cell);
-  expect(selectionStore.getState().selected).toBe("station:partition:sync");
-  expect(cell.getAttribute("aria-pressed")).toBe("true");
-  expect(container.querySelector("#app-right-panel")?.textContent).toContain("Recorded cell 1");
-  expect(window.spi.postMessage).toHaveBeenLastCalledWith(
-    expect.objectContaining({ type: "inspect.request", payload: { id: "station:partition:sync" } }),
-  );
+  expect(cell.getAttribute("aria-expanded")).toBe("true");
+  expect(sheet()?.querySelector(".popover")?.getAttribute("role")).toBe("dialog");
+  expect(selectionStore.getState().selected).toBeNull();
 });
 
 it("keeps a blank reading honest and draws no table before a sweep", async () => {

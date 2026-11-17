@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useStore } from "zustand";
 import {
   closeSheet,
@@ -9,6 +9,7 @@ import {
   navigate,
   pinSheet,
   type SheetPresentation,
+  setOpenSelection,
   unpinSheet,
   useLineSheetRequest,
   useOpenSelection,
@@ -19,10 +20,11 @@ import { PinMenu } from "../../components/pin/PinMenu.js";
 import { FreshItems } from "../../components/place/FreshItems.js";
 import { placeMembers } from "../../components/place/members.js";
 import { PlaceHead } from "../../components/place/PlaceHead.js";
-import { selectionStore } from "../../panels/selection.js";
-import { selectionRows } from "../../panels/selection-rows.js";
+import { Popover } from "../../components/popover/Popover.js";
 import { watchStore } from "../../store/watch.js";
+import { plainTitle } from "../../text.js";
 import { TimedText } from "../../time.js";
+import { cellOpening } from "./cell-content.js";
 import { cellItems, cellState, cellText, columns, glyphs, memberStations } from "./cells.js";
 import "./line.css";
 
@@ -49,7 +51,9 @@ function LineContent({
   const member = placeMembers(snapshot, "line").find(
     ({ member }) => marked?.kind === "item" && member.id === marked.id,
   )?.member;
-  const selected = useStore(selectionStore, (state) => state.selected);
+  const opening = cellOpening(snapshot, marked);
+  const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
+  const close = useCallback(() => setOpenSelection(null), []);
   const [columnId, setColumnId] = useState(initialColumn);
   const [campaignId, setCampaignId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -73,10 +77,13 @@ function LineContent({
   );
   const folded = column || quiet.length === rows.length ? [] : quiet;
   const visible = rows.filter(
-    (row) => expanded || row.service === member?.fork || !folded.includes(row),
+    (row) =>
+      expanded ||
+      row.service === member?.fork ||
+      opening?.cell.startsWith(`${row.service}:`) ||
+      !folded.includes(row),
   );
   const plan = snapshot?.briefing.flow.plan;
-  const selections = new Map(snapshot ? selectionRows(snapshot).map((row) => [row.id, row]) : []);
   return (
     <div className="line-content">
       <PlaceHead
@@ -196,28 +203,31 @@ function LineContent({
                         </th>
                         {columns.map(({ id, label }) => {
                           const station = stations.find((station) => station.id === id);
-                          const selection = selections.get(`station:${service}:${id}`);
+                          const cell = `${service}:${id}`;
+                          const isOpen = opening?.cell === cell;
                           const state = station && cellState(station);
                           const glyph = state && glyphs[state];
                           const members = cellItems(items, service, id);
                           const text = station ? cellText(station, members) : "not read";
                           return (
                             <td key={id} data-station={id}>
-                              {station && glyph && selection && (
+                              {station && glyph && (
                                 <button
+                                  ref={isOpen ? setAnchor : undefined}
                                   type="button"
                                   className="line-cell"
                                   data-on-today={members.length > 0 || undefined}
                                   data-station={id}
-                                  data-selection-id={selection.id}
+                                  data-cell={cell}
                                   data-member-marked={
                                     (service === member?.fork &&
                                       memberStations(member).includes(id)) ||
                                     undefined
                                   }
-                                  aria-pressed={selected === selection.id}
+                                  aria-haspopup="dialog"
+                                  aria-expanded={isOpen}
                                   onClick={() =>
-                                    selectionStore.getState().select(selection.id, selection)
+                                    setOpenSelection(isOpen ? null : { kind: "cell", id: cell })
                                   }
                                 >
                                   <span className="visually-hidden">
@@ -264,6 +274,24 @@ function LineContent({
               </tbody>
             </table>
           </div>
+        )}
+        {opening && marked && anchor?.isConnected && anchor.dataset.cell === opening.cell && (
+          <Popover anchor={anchor} selection={marked} content={opening.content} onClose={close}>
+            {opening.related.length > 0 && (
+              <div className="popover-rows">
+                {opening.related.map(({ line, member }) => (
+                  <button
+                    type="button"
+                    key={member.id}
+                    onClick={() => setOpenSelection({ kind: "item", id: member.id })}
+                  >
+                    {member.fork} · {plainTitle(line.headline)}
+                    {"\u00a0›"}
+                  </button>
+                ))}
+              </div>
+            )}
+          </Popover>
         )}
         {rows.length > 0 && (
           <div className="line-legend">

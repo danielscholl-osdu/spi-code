@@ -201,7 +201,7 @@ it("opens Evidence for a restored Line cell's item, not the whole sweep", async 
 it("opens the whole sweep for a Line cell with no item behind it, and Back reopens the cell", async () => {
   window.location.hash = "#environment";
   await mount();
-  const cell = { kind: "cell", id: "storage:sync" };
+  const cell = { kind: "cell", id: "legal:sync" };
   await act(async () => openSheet({ column: "sync" }));
   await act(async () => setOpenSelection(cell, null));
   await openEvidence();

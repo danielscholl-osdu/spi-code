@@ -17,8 +17,8 @@
 .line-grid thead th { color: var(--text-muted); font-size: 11px; font-weight: 500; white-space: nowrap; }
 .line-grid tbody th { font-weight: 500; white-space: nowrap; }
 .line-grid button { padding: 3px; border: 0; border-radius: 4px; background: transparent; color: var(--text); text-align: left; font-size: inherit; }
-.line-grid button:hover, .line-grid button[aria-pressed="true"] { background: var(--hover); }
-.line-grid button[aria-pressed="true"] { background: var(--accent-surface); box-shadow: inset 0 0 0 1px var(--accent); }
+.line-grid button:hover { background: var(--hover); }
+.line-grid .line-cell[aria-expanded="true"] { background: var(--accent-surface); box-shadow: inset 0 0 0 1px var(--accent); }
 .line-dock { display: inline-flex; align-items: center; gap: 6px; }
 .line-service { display: inline-flex; align-items: center; gap: 2px; }
 .line-grid .line-service .pin-control { padding: 0; background: transparent; color: var(--text-muted); }
