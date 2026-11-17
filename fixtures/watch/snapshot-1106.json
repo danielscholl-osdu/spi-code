@@ -10,6 +10,720 @@
     },
     "headline": "Resolve the entitlements conflict. Unblock entitlements. 11 more causes below.",
     "summary": "Entitlements has been stopped for 16 days. The environment is ready. 13 PRs are ready for review.",
+    "lines": [
+      {
+        "id": "blocked:conflict:entitlements:121",
+        "section": "blocked",
+        "subject": "entitlements",
+        "headline": "sync has a merge conflict",
+        "cause": "Cascade blocked: 🚨 Integration Validation Failed: Build/Test Errors - 2026-11-05.",
+        "effect": "Nothing else waits on it.",
+        "steps": [],
+        "age": "21h",
+        "members": [
+          {
+            "id": "conflict:entitlements:121",
+            "ids": ["conflict:entitlements:121"],
+            "fork": "entitlements",
+            "subject": "https://github.com/Azure/osdu-spi-entitlements/issues/121",
+            "primary": {
+              "label": "issue #121",
+              "url": "https://github.com/Azure/osdu-spi-entitlements/issues/121",
+              "kind": "issue"
+            },
+            "since": "2026-11-05T16:30:59Z",
+            "age": "21h",
+            "cause": "Cascade blocked: 🚨 Integration Validation Failed: Build/Test Errors - 2026-11-05.",
+            "effect": "Nothing else waits on it.",
+            "steps": [],
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "waiting:release-red:Azure/osdu-spi-entitlements#89",
+        "section": "waiting",
+        "subject": "entitlements",
+        "headline": "needs your attention",
+        "cause": "Release PR #89 fails 📊 Code Coverage.",
+        "effect": "Nothing else waits on it.",
+        "steps": [],
+        "age": "16d",
+        "members": [
+          {
+            "id": "release-red:Azure/osdu-spi-entitlements#89",
+            "ids": ["release-red:Azure/osdu-spi-entitlements#89"],
+            "fork": "entitlements",
+            "subject": "https://github.com/Azure/osdu-spi-entitlements/pull/89",
+            "primary": {
+              "label": "PR #89",
+              "url": "https://github.com/Azure/osdu-spi-entitlements/pull/89",
+              "kind": "pr"
+            },
+            "since": "2026-10-20T18:45:39Z",
+            "age": "16d",
+            "cause": "Release PR #89 fails 📊 Code Coverage.",
+            "effect": "Nothing else waits on it.",
+            "steps": [],
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "waiting:radar:legal",
+        "section": "waiting",
+        "subject": "legal",
+        "headline": "upstream changes need a toolchain upgrade",
+        "cause": "Queued upstream commits move the root pom to os-core-common 8.4.1-boot4-SNAPSHOT, os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT and os-core-common 8.5.0.",
+        "effect": "17 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
+        "steps": [],
+        "deadline": {
+          "at": "2026-11-07T00:00:00.000Z",
+          "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
+        },
+        "age": "69d",
+        "members": [
+          {
+            "id": "radar:legal",
+            "ids": ["radar:legal"],
+            "fork": "legal",
+            "subject": "https://github.com/Azure/osdu-spi-legal/blob/main/.github/upstream-filter.yml",
+            "primary": {
+              "label": "commit 0cab1090",
+              "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/commit/0cab109017b316cfd6a037c6c603ad4ee293f3c1",
+              "kind": "commit"
+            },
+            "since": "2026-08-28T16:55:18.000+00:00",
+            "age": "69d",
+            "cause": "Queued upstream commits move the root pom to os-core-common 8.4.1-boot4-SNAPSHOT, os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT and os-core-common 8.5.0.",
+            "effect": "17 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
+            "steps": [],
+            "deadline": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
+            },
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "waiting:radar:schema",
+        "section": "waiting",
+        "subject": "schema",
+        "headline": "upstream changes need a toolchain upgrade",
+        "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
+        "effect": "16 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
+        "steps": [],
+        "deadline": {
+          "at": "2026-11-07T00:00:00.000Z",
+          "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
+        },
+        "age": "50d",
+        "members": [
+          {
+            "id": "radar:schema",
+            "ids": ["radar:schema"],
+            "fork": "schema",
+            "subject": "https://github.com/Azure/osdu-spi-schema/blob/main/.github/upstream-filter.yml",
+            "primary": {
+              "label": "commit 28d5a930",
+              "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/commit/28d5a93096f69a90ee3df7727103d2394e09c789",
+              "kind": "commit"
+            },
+            "since": "2026-09-16T16:33:50.000+00:00",
+            "age": "50d",
+            "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
+            "effect": "16 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
+            "steps": [],
+            "deadline": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
+            },
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "waiting:radar:partition",
+        "section": "waiting",
+        "subject": "partition",
+        "headline": "next sync has an entry without a filter rule",
+        "cause": "Queued upstream commits add schemathesis-tests, which the fork's filter has no rule for.",
+        "effect": "8 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
+        "steps": [],
+        "deadline": {
+          "at": "2026-11-07T00:00:00.000Z",
+          "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
+        },
+        "age": "51d",
+        "members": [
+          {
+            "id": "radar:partition",
+            "ids": ["radar:partition"],
+            "fork": "partition",
+            "subject": "https://github.com/Azure/osdu-spi-partition/blob/main/.github/upstream-filter.yml",
+            "primary": {
+              "label": "commit 69785fa5",
+              "url": "https://community.opengroup.org/osdu/platform/system/partition/-/commit/69785fa552c905baf34b9c4f7251f7c1c51488df",
+              "kind": "commit"
+            },
+            "since": "2026-09-16T12:39:01.000+00:00",
+            "age": "51d",
+            "cause": "Queued upstream commits add schemathesis-tests, which the fork's filter has no rule for.",
+            "effect": "8 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
+            "steps": [],
+            "deadline": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
+            },
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "waiting:radar:unit",
+        "section": "waiting",
+        "subject": "unit",
+        "headline": "upstream changes need a toolchain upgrade",
+        "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
+        "effect": "7 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
+        "steps": [],
+        "deadline": {
+          "at": "2026-11-07T00:00:00.000Z",
+          "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
+        },
+        "age": "49d",
+        "members": [
+          {
+            "id": "radar:unit",
+            "ids": ["radar:unit"],
+            "fork": "unit",
+            "subject": "https://github.com/Azure/osdu-spi-unit/blob/main/.github/upstream-filter.yml",
+            "primary": {
+              "label": "commit 3a69766c",
+              "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/3a69766c25b03b450d95b55ef21c013c63ef407f",
+              "kind": "commit"
+            },
+            "since": "2026-09-18T13:46:20.000+00:00",
+            "age": "49d",
+            "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
+            "effect": "7 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
+            "steps": [],
+            "deadline": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
+            },
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "waiting:radar:workflow",
+        "section": "waiting",
+        "subject": "workflow",
+        "headline": "upstream changes need a toolchain upgrade",
+        "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
+        "effect": "7 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
+        "steps": [],
+        "deadline": {
+          "at": "2026-11-07T00:00:00.000Z",
+          "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
+        },
+        "age": "43d",
+        "members": [
+          {
+            "id": "radar:workflow",
+            "ids": ["radar:workflow"],
+            "fork": "workflow",
+            "subject": "https://github.com/Azure/osdu-spi-workflow/blob/main/.github/upstream-filter.yml",
+            "primary": {
+              "label": "commit d6847cea",
+              "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/commit/d6847cea52b94f697ab67ef471f1bfeff33b6d93",
+              "kind": "commit"
+            },
+            "since": "2026-09-23T14:35:24.000+00:00",
+            "age": "43d",
+            "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
+            "effect": "7 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
+            "steps": [],
+            "deadline": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
+            },
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "waiting:radar:search",
+        "section": "waiting",
+        "subject": "search",
+        "headline": "upstream changes need a toolchain upgrade",
+        "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
+        "effect": "6 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
+        "steps": [],
+        "deadline": {
+          "at": "2026-11-07T00:00:00.000Z",
+          "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
+        },
+        "age": "51d",
+        "members": [
+          {
+            "id": "radar:search",
+            "ids": ["radar:search"],
+            "fork": "search",
+            "subject": "https://github.com/Azure/osdu-spi-search/blob/main/.github/upstream-filter.yml",
+            "primary": {
+              "label": "commit aded8a3f",
+              "url": "https://community.opengroup.org/osdu/platform/system/search-service/-/commit/aded8a3f3eb04154f291d4af4e33116514e40599",
+              "kind": "commit"
+            },
+            "since": "2026-09-15T14:42:23.000+00:00",
+            "age": "51d",
+            "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
+            "effect": "6 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
+            "steps": [],
+            "deadline": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
+            },
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "waiting:radar:file",
+        "section": "waiting",
+        "subject": "file",
+        "headline": "upstream changes need a toolchain upgrade",
+        "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
+        "effect": "5 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
+        "steps": [],
+        "deadline": {
+          "at": "2026-11-07T00:00:00.000Z",
+          "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
+        },
+        "age": "56d",
+        "members": [
+          {
+            "id": "radar:file",
+            "ids": ["radar:file"],
+            "fork": "file",
+            "subject": "https://github.com/Azure/osdu-spi-file/blob/main/.github/upstream-filter.yml",
+            "primary": {
+              "label": "commit 4d0ff1f4",
+              "url": "https://community.opengroup.org/osdu/platform/system/file/-/commit/4d0ff1f4ff24edbeda28d2c161a144a4e3e02db2",
+              "kind": "commit"
+            },
+            "since": "2026-09-10T18:42:42.000+00:00",
+            "age": "56d",
+            "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
+            "effect": "5 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
+            "steps": [],
+            "deadline": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
+            },
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "waiting:radar:crs-conversion",
+        "section": "waiting",
+        "subject": "crs-conversion",
+        "headline": "upstream changes need a toolchain upgrade",
+        "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
+        "effect": "5 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
+        "steps": [],
+        "deadline": {
+          "at": "2026-11-07T00:00:00.000Z",
+          "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
+        },
+        "age": "49d",
+        "members": [
+          {
+            "id": "radar:crs-conversion",
+            "ids": ["radar:crs-conversion"],
+            "fork": "crs-conversion",
+            "subject": "https://github.com/Azure/osdu-spi-crs-conversion/blob/main/.github/upstream-filter.yml",
+            "primary": {
+              "label": "commit 80e3497b",
+              "url": "https://community.opengroup.org/osdu/platform/system/reference/crs-conversion-service/-/commit/80e3497b7e5c8cba61810c2fb51c9e9fb9e5ea17",
+              "kind": "commit"
+            },
+            "since": "2026-09-17T15:59:17.000+00:00",
+            "age": "49d",
+            "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
+            "effect": "5 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
+            "steps": [],
+            "deadline": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
+            },
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "waiting:upgrade:os-core-common",
+        "section": "waiting",
+        "subject": "2 forks",
+        "headline": "sync PR needs os-core-common upgraded on the fork first",
+        "cause": "The sync PRs carry upstream changes that require os-core-common on the fork.",
+        "effect": "The sync PRs wait for the fork's dependency upgrade.",
+        "steps": ["Upgrade os-core-common in the fork's pom.xml.", "Review and merge the sync PR."],
+        "deadline": {
+          "at": "2026-11-07T00:00:00.000Z",
+          "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
+        },
+        "age": "1d 13h",
+        "members": [
+          {
+            "id": "gate1:storage",
+            "ids": ["radar:storage", "gate1:storage"],
+            "fork": "storage",
+            "subject": "https://github.com/Azure/osdu-spi-storage/pull/58",
+            "primary": {
+              "label": "PR #58",
+              "url": "https://github.com/Azure/osdu-spi-storage/pull/58",
+              "kind": "pr"
+            },
+            "since": "2026-11-05T00:29:19Z",
+            "age": "1d 13h",
+            "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
+            "effect": "11 upstream commits wait on this PR.",
+            "steps": [
+              "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
+              "Review the sync PR on GitHub and merge it."
+            ],
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          },
+          {
+            "id": "gate1:indexer",
+            "ids": ["radar:indexer", "gate1:indexer"],
+            "fork": "indexer",
+            "subject": "https://github.com/Azure/osdu-spi-indexer/pull/58",
+            "primary": {
+              "label": "PR #58",
+              "url": "https://github.com/Azure/osdu-spi-indexer/pull/58",
+              "kind": "pr"
+            },
+            "since": "2026-11-05T00:33:17Z",
+            "age": "1d 13h",
+            "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
+            "effect": "25 upstream commits wait on this PR.",
+            "steps": [
+              "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
+              "Review the sync PR on GitHub and merge it."
+            ],
+            "deadline": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
+            },
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "waiting:sync-review",
+        "section": "waiting",
+        "subject": "indexer-queue",
+        "headline": "sync PR to review",
+        "cause": "Sync PR #58 waits for review.",
+        "effect": "3 upstream commits wait on this PR.",
+        "steps": [],
+        "age": "1d 13h",
+        "members": [
+          {
+            "id": "gate1:indexer-queue",
+            "ids": ["gate1:indexer-queue"],
+            "fork": "indexer-queue",
+            "subject": "https://github.com/Azure/osdu-spi-indexer-queue/pull/58",
+            "primary": {
+              "label": "PR #58",
+              "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/58",
+              "kind": "pr"
+            },
+            "since": "2026-11-05T00:19:54Z",
+            "age": "1d 13h",
+            "cause": "Sync PR #58 waits for review.",
+            "effect": "3 upstream commits wait on this PR.",
+            "steps": [],
+            "evidence": {
+              "areas": ["github", "upstream"],
+              "attributed": "item",
+              "notRead": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "waiting:rollout",
+        "section": "waiting",
+        "subject": "13 forks",
+        "headline": "template 7d269b5 not synced yet",
+        "cause": "osdu-spi main 7d269b5 is on its way to the fleet: 0 of 13 forks merged.",
+        "effect": "The change reaches actions, workflows and settings, so every PR and every merge takes a deploy lane: 13 lanes, 5 at a time still to go.",
+        "steps": [],
+        "age": "5h",
+        "members": [
+          {
+            "id": "rollout",
+            "ids": ["rollout"],
+            "fork": "fleet",
+            "primary": {
+              "label": "main 7d269b5",
+              "url": "https://github.com/Azure/osdu-spi/commit/7d269b57e9b114711a7de9d0052b5ae4fd261e97",
+              "kind": "commit"
+            },
+            "since": "2026-11-06T08:03:42Z",
+            "age": "5h",
+            "cause": "osdu-spi main 7d269b5 is on its way to the fleet: 0 of 13 forks merged.",
+            "effect": "The change reaches actions, workflows and settings, so every PR and every merge takes a deploy lane: 13 lanes, 5 at a time still to go.",
+            "steps": [],
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "waiting:port:entitlements",
+        "section": "waiting",
+        "subject": "12 forks",
+        "headline": "23 upstream provider changes to port",
+        "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+        "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+        "steps": [],
+        "age": "52d",
+        "members": [
+          {
+            "id": "port:entitlements",
+            "ids": [
+              "port:entitlements",
+              "port:unit",
+              "port:indexer",
+              "port:legal",
+              "port:partition",
+              "port:search",
+              "port:workflow",
+              "port:crs-conversion",
+              "port:file",
+              "port:schema",
+              "port:crs-catalog",
+              "port:storage"
+            ],
+            "fork": "12 forks",
+            "primary": {
+              "label": "!968",
+              "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+              "kind": "mr"
+            },
+            "since": "2026-09-14T14:02:39Z",
+            "age": "52d",
+            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+            "steps": [],
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          }
+        ]
+      }
+    ],
     "focus": [
       {
         "id": "conflict:entitlements:121",
@@ -14202,6 +14916,421 @@
     },
     {
       "path": "/briefing/rest/11",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/0/members/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/1",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/1/members/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/2",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/2/members/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/3",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/3/members/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/4",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/4/members/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/5",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/5/members/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/6",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/6/members/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/7",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/7/members/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/8",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/8/members/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/9",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/9/members/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/10",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/10/members/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/10/members/1",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/11",
+      "areas": ["github", "upstream"],
+      "attributed": "item"
+    },
+    {
+      "path": "/briefing/lines/11/members/0",
+      "areas": ["github", "upstream"],
+      "attributed": "item"
+    },
+    {
+      "path": "/briefing/lines/12",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/12/members/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/13",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/13/members/0",
       "areas": [
         "github",
         "runs",

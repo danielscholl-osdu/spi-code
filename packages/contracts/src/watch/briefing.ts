@@ -391,12 +391,52 @@ export const CanWaitSchema = z.strictObject({
     }),
   ),
 });
+export const TodayDeadlineSchema = z.strictObject({
+  at: ObservedAtSchema,
+  reason: z.string(),
+});
+export const TodayMemberSchema = z.strictObject({
+  id: IdentifierSchema,
+  ids: z.array(IdentifierSchema),
+  fork: z.string(),
+  subject: z.string().optional(),
+  primary: LinkSchema.extend({ kind: LinkKindSchema }).optional(),
+  since: ObservedAtSchema.optional(),
+  age: z.string().optional(),
+  cause: z.string(),
+  effect: z.string(),
+  steps: z.array(z.string()),
+  blockedBy: IdentifierSchema.optional(),
+  deadline: TodayDeadlineSchema.optional(),
+  evidence: z.strictObject({
+    areas: z.array(AreaNameSchema),
+    attributed: z.enum(["item", "sweep"]),
+    notRead: z.array(z.string()),
+  }),
+});
+export const TodayLineSchema = z.strictObject({
+  id: IdentifierSchema,
+  section: z.enum(["blocked", "waiting"]),
+  subject: z.string(),
+  headline: z.string(),
+  cause: z.string(),
+  effect: z.string(),
+  steps: z.array(z.string()),
+  deadline: TodayDeadlineSchema.optional(),
+  age: z.string().optional(),
+  members: z.array(TodayMemberSchema),
+});
+export type TodayDeadline = z.infer<typeof TodayDeadlineSchema>;
+export type TodayMember = z.infer<typeof TodayMemberSchema>;
+export type TodayLine = z.infer<typeof TodayLineSchema>;
+
 export const BriefingSchema = z.strictObject({
   sweptAt: ObservedAtSchema.optional(),
   nextSyncAt: ObservedAtSchema.optional(),
   doctor: DoctorViewSchema,
   headline: z.string(),
   summary: z.string(),
+  lines: z.array(TodayLineSchema).optional(),
   focus: z.array(FocusItemSchema),
   rest: z.array(FocusItemSchema),
   themes: z.array(ThemeSchema),

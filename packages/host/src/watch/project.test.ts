@@ -262,6 +262,7 @@ describe("Watch projection", () => {
   function withoutAdditions(snapshot: ReturnType<typeof projectWatch>) {
     const { services: _services, ...legacy } = snapshot;
     const {
+      lines: _lines,
       since: _since,
       places: _places,
       decisions: _decisions,

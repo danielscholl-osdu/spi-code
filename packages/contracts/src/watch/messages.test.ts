@@ -812,18 +812,17 @@ describe("Watch protocol", () => {
       false,
     );
   });
-  it("bumps the version for a new optional key, so a version 5 peer fails on the envelope", () => {
-    expect(PROTOCOL_VERSION).toBe(6);
+  it("bumps the version for a new optional key, so a version 6 peer fails on the envelope", () => {
+    expect(PROTOCOL_VERSION).toBe(7);
     const message = messages[8];
     if (message?.type !== "view.snapshot") throw new Error("messages[8] must be the snapshot");
-    const verdict = { text: "Nothing urgent needs you.", mark: "nothing-due" };
     const current = {
       ...message,
-      payload: { ...snapshot, briefing: { ...snapshot.briefing, verdict } },
+      payload: { ...snapshot, briefing: { ...snapshot.briefing, lines: [] } },
     };
     expect(parseMessage(current).ok).toBe(true);
     for (const payload of [snapshot, current.payload]) {
-      const result = parseMessage({ ...message, version: 5, payload });
+      const result = parseMessage({ ...message, version: 6, payload });
       expect(result.ok).toBe(false);
       if (!result.ok)
         expect(result.rejection.issues.map(({ path }) => path)).toEqual([["version"]]);

@@ -15,6 +15,7 @@ import {
   type Model,
   placesOf,
   sinceOf,
+  todayLines,
   type VerdictInput,
 } from "@spi-code/core";
 import { itemAttention } from "./attention.js";
@@ -31,6 +32,7 @@ export type ProjectedBriefing = Over<
   Briefing,
   {
     horizon: Over<Briefing["horizon"], Horizon>;
+    lines: ReturnType<typeof todayLines>;
     decisions: ReturnType<typeof briefingDecisions>;
     since: ReturnType<typeof sinceOf>;
     focus: ProjectedItem[];
@@ -65,6 +67,7 @@ export function projectBriefing(
   const briefing = {
     ...coreBriefing,
     horizon: { ...coreBriefing.horizon, ...horizon },
+    lines: todayLines(model, [...focus, ...rest], now, input.context),
     decisions: briefingDecisions(model, [...focus, ...rest], coreBriefing.themes),
     since: sinceOf(
       model,

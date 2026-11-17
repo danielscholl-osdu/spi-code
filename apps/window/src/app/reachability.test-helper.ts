@@ -1143,6 +1143,38 @@ export const AT_PLACE: Readonly<Record<string, Exemption>> = {
 
 /** Leaves the window draws nowhere by design, each with the reason or the bead that owns it. */
 export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
+  "today-lines": {
+    patterns: [
+      "/briefing/lines/#/age",
+      "/briefing/lines/#/cause",
+      "/briefing/lines/#/deadline/at",
+      "/briefing/lines/#/deadline/reason",
+      "/briefing/lines/#/effect",
+      "/briefing/lines/#/headline",
+      "/briefing/lines/#/id",
+      "/briefing/lines/#/members/#/age",
+      "/briefing/lines/#/members/#/cause",
+      "/briefing/lines/#/members/#/deadline/at",
+      "/briefing/lines/#/members/#/deadline/reason",
+      "/briefing/lines/#/members/#/effect",
+      "/briefing/lines/#/members/#/evidence/areas/#",
+      "/briefing/lines/#/members/#/evidence/attributed",
+      "/briefing/lines/#/members/#/fork",
+      "/briefing/lines/#/members/#/id",
+      "/briefing/lines/#/members/#/ids/#",
+      "/briefing/lines/#/members/#/primary/kind",
+      "/briefing/lines/#/members/#/primary/label",
+      "/briefing/lines/#/members/#/primary/url",
+      "/briefing/lines/#/members/#/since",
+      "/briefing/lines/#/members/#/steps/#",
+      "/briefing/lines/#/members/#/subject",
+      "/briefing/lines/#/section",
+      "/briefing/lines/#/steps/#",
+      "/briefing/lines/#/subject",
+    ],
+    reason:
+      "spicode-djg.6: core situation lines are drawn by Today in spicode-djg.9 and opened bodies in spicode-djg.8",
+  },
   ...PENDING,
   transport: {
     patterns: [

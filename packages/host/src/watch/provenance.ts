@@ -13,6 +13,7 @@ import {
   RELEASES_EVERY_MS,
   type ReadRecord,
   type StackModel,
+  type TodayLine,
 } from "@spi-code/core";
 
 // Each binding names the Facts areas core read to build the value, per branch where the branch
@@ -119,7 +120,7 @@ export function stationAreas(station: { id: string; state: string; text: string 
 
 /** Provenance for every briefing value the Watch views draw, keyed by RFC 6901 pointer. */
 export function briefingProvenance(
-  briefing: Briefing,
+  briefing: Briefing & { lines?: readonly TodayLine[] },
   stack: StackModel,
   model?: Model,
 ): ValueSource[] {
@@ -140,6 +141,19 @@ export function briefingProvenance(
         ? itemEvidence(model, item.ids)
         : { areas: ordered(MODEL), attributed: "sweep" as const };
       sources.push({ path: `/briefing/${list}/${index}`, areas, attributed });
+    }
+  }
+  for (const [index, line] of (briefing.lines ?? []).entries()) {
+    sources.push({
+      path: `/briefing/lines/${index}`,
+      areas: ordered(line.members.flatMap((member) => member.evidence.areas)),
+      attributed: line.members.some((member) => member.evidence.attributed === "sweep")
+        ? "sweep"
+        : "item",
+    });
+    for (const [memberIndex, member] of line.members.entries()) {
+      const { areas, attributed } = member.evidence;
+      sources.push({ path: `/briefing/lines/${index}/members/${memberIndex}`, areas, attributed });
     }
   }
   each(briefing.themes, "/briefing/themes", MODEL);
