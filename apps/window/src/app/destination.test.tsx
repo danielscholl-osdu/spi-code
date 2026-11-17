@@ -150,6 +150,31 @@ it("goes to Today with nothing open for an item no row holds", async () => {
   expect(selectionStore.getState().selected).toBeNull();
 });
 
+it.each([
+  [
+    "an alias on two lines",
+    "halt:on-two-lines",
+    ["waiting:port:entitlements", "waiting:blocker:stack:lanes:gate2"],
+  ],
+  [
+    "a direct member also held on another line",
+    "halt:crs-conversion",
+    ["waiting:port:entitlements"],
+  ],
+])("goes to Today with nothing open for %s", async (_, item, aliasedOn) => {
+  const snapshot = structuredClone(nov16);
+  for (const id of aliasedOn) {
+    const line = snapshot.briefing.lines?.find((each) => each.id === id);
+    expect(line).toBeDefined();
+    line?.members[0]?.ids.push(item);
+  }
+  const container = await mount(ViewSnapshotSchema.parse(snapshot), "#upstream");
+  await act(async () => openDestination({ to: "today", item }));
+  expect(window.location.hash).toBe("#today");
+  expect(openSelection()).toBeNull();
+  expect(openRows(container)).toHaveLength(0);
+});
+
 it("opens the whole sweep's Evidence page from the tray, keeping the way back to the open row", async () => {
   const container = await mount(nov16, "#today");
   await act(async () => openDestination({ to: "today", item: "gate2:legal" }));

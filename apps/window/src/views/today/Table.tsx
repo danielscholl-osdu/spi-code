@@ -168,13 +168,13 @@ const isRow = (row: Row, open: { kind: string; id: string } | null) =>
  */
 export function todayRowOf(lines: readonly TodayLine[], item: string): EvidenceSelection | null {
   const rows = lines.flatMap(rowsOf);
-  const own = rows.find((row) => row.member?.id === item);
-  if (own) return own.selection;
-  const holders = rows.filter((row) => row.member?.ids.includes(item));
+  const holders = rows.filter((row) => row.member?.id === item || row.member?.ids.includes(item));
   const [first] = holders;
   if (!first) return null;
-  if (holders.length === 1) return first.selection;
   if (holders.some((row) => row.line !== first.line)) return null;
+  const own = holders.find((row) => row.member?.id === item);
+  if (own) return own.selection;
+  if (holders.length === 1) return first.selection;
   return rows.find((row) => row.line === first.line && !row.sub)?.selection ?? null;
 }
 
