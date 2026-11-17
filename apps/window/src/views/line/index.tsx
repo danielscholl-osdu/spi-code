@@ -1,7 +1,6 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { Station, StationSubstate } from "@spi-code/contracts";
 import { useState } from "react";
 import { useStore } from "zustand";
 import {
@@ -21,23 +20,8 @@ import { selectionStore } from "../../panels/selection.js";
 import { selectionRows } from "../../panels/selection-rows.js";
 import { watchStore } from "../../store/watch.js";
 import { TimedText } from "../../time.js";
+import { cellItems, cellState, cellText, columns, glyphs } from "./cells.js";
 import "./line.css";
-
-const columns: readonly { id: Station["id"]; label: string }[] = [
-  { id: "upstream", label: "Upstream" },
-  { id: "sync", label: "Sync PR" },
-  { id: "cascade", label: "Cascade" },
-  { id: "main", label: "Main" },
-  { id: "release", label: "Release PR" },
-  { id: "lane", label: "Stack lane" },
-];
-const glyphs: Record<StationSubstate, { mark: string; name: string }> = {
-  stopped: { mark: "✕", name: "Stopped" },
-  "waiting-on-person": { mark: "!", name: "Needs a person" },
-  "in-progress": { mark: "◐", name: "In progress" },
-  "waiting-on-clock": { mark: "◷", name: "Scheduled" },
-  ready: { mark: "·", name: "Nothing to do" },
-};
 
 export default function Line({
   presentation,
@@ -62,30 +46,33 @@ function LineContent({
   const [columnId, setColumnId] = useState(initialColumn);
   const [campaignId, setCampaignId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
-  const campaigns = snapshot?.campaigns ?? [];
+  const campaigns = (snapshot?.campaigns ?? [])
+    .filter(({ kind }) => kind === "toolchain")
+    .slice(0, 4);
   const column = columns.find(({ id }) => id === columnId);
   const campaign = campaigns.find(({ id }) => id === campaignId);
+  const items = [...(snapshot?.briefing.focus ?? []), ...(snapshot?.briefing.rest ?? [])];
   const rows = (snapshot?.stations ?? []).filter(
-    ({ service, stations }) =>
-      (!columnId || stations.some(({ id, text }) => id === columnId && text.trim())) &&
-      (campaign ? campaign.forks.includes(service) : stations.some(({ text }) => text.trim())),
+    ({ stations }) => !column || stations.some(({ id, text }) => id === column.id && text.trim()),
   );
-  const quiet = rows.filter(({ stations }) =>
-    stations.every(({ substate }) => substate !== "stopped" && substate !== "waiting-on-person"),
+  const quiet = rows.filter(({ service, stations }) =>
+    stations
+      .filter(({ id }) => columns.some((column) => column.id === id))
+      .every(
+        (station) =>
+          ["ready", "waiting-on-clock"].includes(cellState(station)) &&
+          !cellItems(items, service, station.id).length,
+      ),
   );
-  const folded = campaign || column ? [] : quiet;
+  const folded = column || quiet.length === rows.length ? [] : quiet;
   const visible = rows.filter((row) => expanded || !folded.includes(row));
-  const populatedColumns = columns.filter(({ id }) =>
-    rows.some(({ stations }) =>
-      stations.some((station) => station.id === id && station.text.trim()),
-    ),
-  );
+  const plan = snapshot?.briefing.flow.plan;
   const selections = new Map(snapshot ? selectionRows(snapshot).map((row) => [row.id, row]) : []);
   return (
     <div className="line-content">
       <div className="line-toolbar pane-header">
         <h1>Line</h1>
-        {rows.length > 0 && <span>{rows.length} services</span>}
+        {rows.length > 0 && <span>{rows.length} forks</span>}
         <div className="line-controls">
           <button
             type="button"
@@ -103,6 +90,27 @@ function LineContent({
       <div className="line-body">
         {!snapshot && (
           <p className="line-before-sweep">Service rows appear after the first sweep.</p>
+        )}
+        {plan && (
+          <div className="line-plan">
+            <strong>{plan.title}</strong>
+            {plan.lines.map(({ label, text }) => (
+              <span key={label}>
+                {label}:{" "}
+                <b>
+                  <TimedText
+                    text={(label === "Wave 1" ? `${text.split(", ").length} forks` : text)
+                      .replace(
+                        "workflow (SNAPSHOT)",
+                        "workflow (waits for a released os-core-common)",
+                      )
+                      .replace("(filter rule)", "(needs a filter rule)")}
+                    hint={false}
+                  />
+                </b>
+              </span>
+            ))}
+          </div>
         )}
         {column && (
           <fieldset className="line-campaigns" aria-label="Station filter">
@@ -136,13 +144,12 @@ function LineContent({
             <table className="line-grid" aria-label="Service stations">
               <thead>
                 <tr>
-                  <th scope="col">Service</th>
-                  {populatedColumns.map(({ id, label }) => (
+                  <th scope="col">Fork</th>
+                  {columns.map(({ id, label }) => (
                     <th scope="col" key={id}>
                       {label}
                     </th>
                   ))}
-                  {campaign && <th scope="col">Campaign</th>}
                 </tr>
               </thead>
               <tbody>
@@ -152,7 +159,10 @@ function LineContent({
                     service={service}
                     onOpen={() => navigate({ kind: "service", id: service })}
                     render={
-                      <tr data-service={service}>
+                      <tr
+                        data-service={service}
+                        data-highlighted={campaign ? campaign.forks.includes(service) : undefined}
+                      >
                         <th scope="row">
                           <span className="line-service">
                             <button
@@ -164,15 +174,20 @@ function LineContent({
                             <PinControl pin={service} name={service} size="row" shortcut={false} />
                           </span>
                         </th>
-                        {populatedColumns.map(({ id, label }) => {
+                        {columns.map(({ id, label }) => {
                           const station = stations.find((station) => station.id === id);
                           const selection = selections.get(`station:${service}:${id}`);
-                          const glyph = station && glyphs[station.substate];
+                          const state = station && cellState(station);
+                          const glyph = state && glyphs[state];
+                          const members = cellItems(items, service, id);
+                          const text = station ? cellText(station, members) : "not read";
                           return (
                             <td key={id} data-station={id}>
-                              {station?.text.trim() && glyph && selection && (
+                              {station && glyph && selection && (
                                 <button
                                   type="button"
+                                  className="line-cell"
+                                  data-on-today={members.length > 0 || undefined}
                                   data-station={id}
                                   data-selection-id={selection.id}
                                   aria-pressed={selected === selection.id}
@@ -185,33 +200,37 @@ function LineContent({
                                   </span>
                                   <span
                                     className="line-glyph"
-                                    data-substate={station.substate}
+                                    data-substate={state}
                                     role="img"
                                     aria-label={glyph.name}
                                   >
                                     {glyph.mark}
                                   </span>{" "}
-                                  <TimedText text={station.text} hint={false} />
+                                  <span className="line-cell-text" title={text}>
+                                    <TimedText text={text} hint={false} />
+                                  </span>
+                                  {members.length > 0 && (
+                                    <span className="visually-hidden"> · on Today</span>
+                                  )}
                                 </button>
                               )}
                             </td>
                           );
                         })}
-                        {campaign && <td data-campaign="">Included</td>}
                       </tr>
                     }
                   />
                 ))}
                 {folded.length > 0 && (
                   <tr>
-                    <td colSpan={populatedColumns.length + 1}>
+                    <td colSpan={columns.length + 1}>
                       <button
                         type="button"
                         className="line-fold"
                         aria-expanded={expanded}
                         onClick={() => setExpanded(!expanded)}
                       >
-                        {folded.length} services need nothing:{" "}
+                        {expanded ? "▾" : "▸"} {folded.length} moving normally:{" "}
                         {folded.map(({ service }) => service).join(", ")}
                       </button>
                     </td>
@@ -219,6 +238,21 @@ function LineContent({
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+        {rows.length > 0 && (
+          <div className="line-legend">
+            {Object.entries(glyphs).map(([state, glyph]) => (
+              <span key={state}>
+                <span className="line-glyph" data-substate={state}>
+                  {glyph.mark}
+                </span>{" "}
+                {glyph.name}
+              </span>
+            ))}
+            <span>
+              <span className="line-today-dot" /> on Today
+            </span>
           </div>
         )}
       </div>
