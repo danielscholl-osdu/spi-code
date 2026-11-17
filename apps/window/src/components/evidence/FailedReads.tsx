@@ -132,7 +132,20 @@ export function readFork(record: ReadRecord): { forge: "github" | "gitlab"; fork
   return fork === undefined ? null : { forge: source === "github" ? "github" : "gitlab", fork };
 }
 
-export function FailedReads({ reads }: { reads: readonly ReadRecord[] }) {
+export type FailedReadGroup = {
+  key: string;
+  /** The sweep source the group's reads belong to, as the sweep's list names it. */
+  source: string;
+  name: string;
+  code: FailureCode;
+  /** The cause in window words: `GitHub timed out`. */
+  words: string;
+  services: readonly string[];
+  details: readonly string[];
+};
+
+/** Failed reads grouped by source and cause, each naming its services once. */
+export function failedReadGroups(reads: readonly ReadRecord[]): FailedReadGroup[] {
   const groups = new Map<
     string,
     { source: WindowSource; code: FailureCode; services: Set<string>; details: Set<string> }
@@ -151,21 +164,45 @@ export function FailedReads({ reads }: { reads: readonly ReadRecord[] }) {
     if (service !== undefined) group.services.add(service);
     group.details.add(`${record.source} · ${record.object}: ${record.failure}`);
   }
+  return [...groups].map(([key, { source, code, services, details }]) => {
+    const subject =
+      code === "budget" ||
+      code === "throttled" ||
+      source === "github" ||
+      source === "releases" ||
+      source === "upstream" ||
+      source === "radar"
+        ? forgeName(source)
+        : "";
+    return {
+      key,
+      source,
+      name: windowName(source),
+      code,
+      words: FAILURE_WORDS[code].replace("{forge} ", subject ? `${subject} ` : ""),
+      services: [...services],
+      details: [...details],
+    };
+  });
+}
+
+/** A group's cause and services as one sentence: `GitHub timed out: storage, indexer.` */
+export function failureCause(groups: readonly FailedReadGroup[]): string | undefined {
+  if (groups.length === 0) return undefined;
+  const text = groups
+    .map(({ words, services }) =>
+      services.length > 0 ? `${words}: ${services.join(", ")}` : words,
+    )
+    .join("; ");
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}.`;
+}
+
+export function FailedReads({ groups }: { groups: readonly FailedReadGroup[] }) {
   return (
     <div className="sweep-sources evidence-failures">
       <ul className="sweep-rows" aria-label="Failed reads">
-        {[...groups].map(([key, { source, code, services, details }]) => {
-          const subject =
-            code === "budget" ||
-            code === "throttled" ||
-            source === "github" ||
-            source === "releases" ||
-            source === "upstream" ||
-            source === "radar"
-              ? forgeName(source)
-              : "";
-          const words = FAILURE_WORDS[code].replace("{forge} ", subject ? `${subject} ` : "");
-          const outcome = services.size > 0 ? `${words} · ${[...services].join(", ")}` : words;
+        {groups.map(({ key, source, name, code, words, services, details }) => {
+          const outcome = services.length > 0 ? `${words} · ${services.join(", ")}` : words;
           return (
             <li
               key={key}
@@ -173,12 +210,12 @@ export function FailedReads({ reads }: { reads: readonly ReadRecord[] }) {
               data-source={source}
               data-failure={code}
               data-tone="bad"
-              aria-label={`${windowName(source)} · ${outcome}`}
+              aria-label={`${name} · ${outcome}`}
             >
-              <span className="sweep-mark" aria-hidden="true" title={[...details].join("\n")}>
+              <span className="sweep-mark" aria-hidden="true" title={details.join("\n")}>
                 ✕
               </span>
-              <span className="sweep-name">{windowName(source)}</span>
+              <span className="sweep-name">{name}</span>
               <span className="sweep-outcome">{outcome}</span>
             </li>
           );

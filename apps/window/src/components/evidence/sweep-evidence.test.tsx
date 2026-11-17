@@ -765,14 +765,14 @@ it("keeps not-due sources neutral and says a read reused older data, in the 11:1
       ],
       ["Template", "ok", "read · 0\u00a0s · cached from 13\u00a0min ago"],
       ["Run details", "ok", "read · 0\u00a0s · cached from 8\u00a0min ago"],
-      ["Upstream GitLab", "idle", "skipped · last read 13\u00a0min ago"],
+      ["Upstream GitLab", "idle", "not due · last read 13\u00a0min ago"],
       [
         "Upstream radar",
         "warn",
-        "skipped · 14 diffs cut short; rest read · last read 13\u00a0min ago",
+        "not due · 14 diffs cut short; rest read · last read 13\u00a0min ago",
       ],
-      ["Security alerts", "idle", "skipped · last read 11\u00a0min ago"],
-      ["Release lines", "idle", "skipped · last read 11\u00a0min ago"],
+      ["Security alerts", "idle", "not due · last read 11\u00a0min ago"],
+      ["Release lines", "idle", "not due · last read 11\u00a0min ago"],
     ]);
     expect(
       [...article.querySelectorAll(".sweep-segment")].map((s) => s.getAttribute("data-tone")),
@@ -783,9 +783,9 @@ it("keeps not-due sources neutral and says a read reused older data, in the 11:1
 });
 
 it.each([
-  ["failed", "bad", "skipped · last read failed · showing data from 13\u00a0min ago"],
-  ["incomplete", "warn", "skipped · last read cut short · last read 13\u00a0min ago"],
-  ["stale", "warn", "skipped · stale, last read 13\u00a0min ago"],
+  ["failed", "bad", "not due · last read failed · showing data from 13\u00a0min ago"],
+  ["incomplete", "warn", "not due · last read cut short · last read 13\u00a0min ago"],
+  ["stale", "warn", "not due · stale, last read 13\u00a0min ago"],
 ] as const)(
   "tones a not-due source by its last read when that read %s",
   async (state, tone, outcome) => {

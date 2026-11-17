@@ -112,23 +112,23 @@ function skippedOutcome(
 ): SourceOutcome {
   if (source.incomplete) {
     const cut = cutWords(source.incomplete, source.cutKind);
-    return { mark: "⚠", tone: "warn", text: `skipped · ${cut.text}`, detail: cut.detail };
+    return { mark: "⚠", tone: "warn", text: `not due · ${cut.text}`, detail: cut.detail };
   }
   switch (last?.state) {
     case "failed":
-      return { mark: "✕", tone: "bad", text: "skipped · last read failed" };
+      return { mark: "✕", tone: "bad", text: "not due · last read failed" };
     case "incomplete":
-      return { mark: "⚠", tone: "warn", text: "skipped · last read cut short" };
+      return { mark: "⚠", tone: "warn", text: "not due · last read cut short" };
     case "stale":
-      return { mark: "–", tone: "warn", text: "skipped" };
+      return { mark: "–", tone: "warn", text: "not due" };
     default:
-      return { mark: "–", tone: "idle", text: "skipped" };
+      return { mark: "–", tone: "idle", text: "not due" };
   }
 }
 
 /**
  * A source's mark, tone and outcome line in the first sweep's words; `last` is the envelope of the
- * source's last read, which a skipped source reports in place of a read this sweep.
+ * source's last read, which a source not due reports in place of a read this sweep.
  */
 export function sourceOutcome(
   source: SweepSourceProgress,

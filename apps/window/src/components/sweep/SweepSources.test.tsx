@@ -356,7 +356,7 @@ it("tells a throttled source to wait for its resume time under the meta line", a
   );
 });
 
-it("marks skipped and put-off sources, with a put-off reason on the next line", async () => {
+it("marks not-due and put-off sources, with a put-off reason on the next line", async () => {
   const progress = midSweep();
   const { container } = await render(
     SweepProgressSchema.parse({
@@ -375,7 +375,7 @@ it("marks skipped and put-off sources, with a put-off reason on the next line", 
     }),
   );
   expect(all(container, ".sweep-outcome")).toEqual([
-    "skipped",
+    "not due",
     `put off · after ${clock("2026-11-09T09:30:00Z")}`,
     "reading · 5\u00a0s",
   ]);

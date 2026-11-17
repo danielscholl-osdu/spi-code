@@ -159,6 +159,84 @@ export function areaObservation(
   ].join(" · ");
 }
 
+const observedClock = (at: string, now: number) => clockTime(at, { now, hint: false });
+
+const cutRead = ({ completeness }: Exclude<Envelope, { state: "unread" }>) =>
+  completeness.kind === "cut"
+    ? `${count(completeness.read)} of ${count(completeness.total)} read`
+    : undefined;
+
+/**
+ * Ruling J in full for a row's hover and accessible name: state, observed time, how long before the
+ * sweep ended, and completeness. `logged` is an unread area the sweep's list says it read.
+ */
+export function areaSentence(
+  envelope: Envelope,
+  sweptAt: string,
+  now: number,
+  { logged = false }: { logged?: boolean } = {},
+): string {
+  if (envelope.state === "unread")
+    return logged ? "No observation recorded in this snapshot." : "Not read yet, not observed.";
+  const { observedAt } = envelope;
+  const failed = envelope.state === "failed";
+  const state = failed ? "Read failed" : stateWord(envelope);
+  const parts = [`${state.charAt(0).toUpperCase()}${state.slice(1)}`];
+  if (observedAt === undefined) parts.push("nothing kept", "not observed");
+  else {
+    const before = Date.parse(sweptAt) - Date.parse(observedAt);
+    parts.push(
+      `${failed ? "kept data observed" : "observed"} ${observedClock(observedAt, now)}`,
+      before < 60_000 ? "as the sweep ended" : `${span(before)} before the sweep ended`,
+    );
+  }
+  parts.push(cutRead(envelope) ?? "complete");
+  return `${parts.join(", ")}.`;
+}
+
+/** What a failed envelope still shows: `showing 09:26`, or `nothing kept`. */
+export function keptData(envelope: Envelope, now: number): string {
+  return envelope.state !== "unread" && envelope.observedAt !== undefined
+    ? `showing ${observedClock(envelope.observedAt, now)}`
+    : "nothing kept";
+}
+
+/**
+ * An observation older than this sweep, by its time: `from 09:29`. `since` is when the sweep began;
+ * without it, an observation within five minutes of the sweep's end counts as this sweep's.
+ */
+export function observedFrom(
+  envelope: Envelope,
+  sweptAt: string,
+  now: number,
+  since?: string,
+): string | undefined {
+  if (envelope.state === "unread" || envelope.observedAt === undefined) return undefined;
+  const observed = Date.parse(envelope.observedAt);
+  const older =
+    since === undefined
+      ? Date.parse(sweptAt) - observed > 5 * 60_000
+      : observed < Date.parse(since);
+  return older ? `from ${observedClock(envelope.observedAt, now)}` : undefined;
+}
+
+/**
+ * An area's row on the Evidence page without the sweep's list, in one short phrase: its state,
+ * then only the facts that carry information. The full sentence is `areaSentence`'s.
+ */
+export function areaPhrase(
+  envelope: Envelope,
+  sweptAt: string,
+  now: number,
+  since?: string,
+): string {
+  if (envelope.state === "unread") return "not read yet";
+  if (envelope.state === "failed") return `failed · ${keptData(envelope, now)}`;
+  const from = observedFrom(envelope, sweptAt, now, since);
+  const cut = cutRead(envelope);
+  return [stateWord(envelope), ...(from ? [from] : []), ...(cut ? [cut] : [])].join(" · ");
+}
+
 /**
  * What an area's envelope adds to a sweep source's row, which already says how this sweep read
  * it: when it was last read, and whether the data is stale or retained from an earlier read. An
