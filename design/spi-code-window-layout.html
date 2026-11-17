@@ -800,7 +800,7 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
   <!-- ================= WIDTH BUDGET ================= -->
   <section>
     <h2>Width budget</h2>
-    <p>Panes fold by the width left for the centre, not by one window breakpoint. The centre keeps at least 520 px. When the panes at their preferred widths do not fit beside it, the window takes these steps in order and stops at the first that fits. Outside a thread there is no right panel and it takes no width, so only steps 3 and 4 can apply; steps 1 and 2 are for a thread's panel (M3).</p>
+    <p>Panes fold by the width left for the centre, not by one window breakpoint. The centre keeps at least 520 px. When the panes at their preferred widths do not fit beside it, the window takes these steps in order and stops at the first that fits. Outside a thread there is no right panel and it takes no width, so step 2 cannot apply; step 1 still narrows a docked Line sheet toward 320 px, then steps 3 and 4 follow. Only the panel's narrowing and its sheet need a thread (M3).</p>
     <div class="tblwrap">
       <table class="tbl compact">
         <thead><tr><th>Step</th><th>What happens</th></tr></thead>
@@ -872,18 +872,19 @@ svg.i{width:11px;height:11px;flex:none;fill:none;stroke:currentColor;stroke-widt
         <text x="560" y="500" class="sm">Step 4: 232 + 520 is more than 740, so the sidebar goes off-canvas.</text>
       </svg>
     </div>
-    <p class="note">Bars are drawn to one scale, 0.58. Widths use the default preferred sizes; a pane resized wider moves each threshold by the same amount. The budget is re-decided on window resize, on opening or closing a pane, when a drag ends and on each arrow-key step. The window cannot be made narrower than 740 px, the last case drawn. Sheets open below the top row, close with Escape or their close button, and return focus to the control that opened them. Outside a thread the same function gives the panel zero width: at 1440 px with Line docked the centre keeps 848 px, at 1000 px Line stacks under the centre, and at 740 px the sidebar goes off-canvas.</p>
+    <p class="note">Bars are drawn to one scale, 0.58. Widths use the default preferred sizes; a pane resized wider moves each threshold by the same amount. The budget is re-decided on window resize, on opening or closing a pane, when a drag ends and on each arrow-key step. The window cannot be made narrower than 740 px, the last case drawn. Sheets open below the top row, close with Escape or their close button, and return focus to the control that opened them. Outside a thread the same function gives the panel zero width: at 1440 px with Line docked the centre keeps 848 px, at 1100 px Line narrows to 348 px inline and the centre keeps 520 px, at 1000 px Line stacks under the centre, and at 740 px the sidebar goes off-canvas.</p>
   </section>
 
   <!-- ================= ROWS AND POPOVERS ================= -->
   <section id="opened">
     <h2>Rows and popovers</h2>
-    <p>Outside a thread nothing opens to the side. A Today row opens under itself, a place opens a popover on what was clicked, and both carry the same body: the place link on a row, or "On Today · …" and a title on a popover, then the deadline in full, the cause, a muted effect, the steps when there are two, the source pills and "⌀ n not read · Evidence ›" when something was not read. The <a href="spi-code-today-and-places.md">settled Today and places page</a> owns what the body says; this section owns where it sits.</p>
+    <p>Outside a thread nothing opens to the side. A Today row opens under itself, a place opens a popover on what was clicked except a new item, which opens inline under its row, and all carry the same body: the place link on a row, or "On Today · …" and a title on a popover, then the deadline in full, the cause, a muted effect, the steps when there are two, the source pills and "⌀ n not read · Evidence ›" when something was not read. The <a href="spi-code-today-and-places.md">settled Today and places page</a> owns what the body says; this section owns where it sits.</p>
     <div class="tblwrap">
       <table class="tbl compact">
         <thead><tr><th>Surface</th><th>Where it sits and how it closes</th></tr></thead>
         <tbody>
           <tr><td><b>An opened Today row</b></td><td>Under its row, spanning What to Age in the same column grid, so the table keeps its alignment. One row is open at a time. Clicking the row again, Esc, or a click elsewhere on Today closes it, and focus returns to the fork or headline that opened it.</td></tr>
+          <tr><td><b>A new item on a place</b></td><td>A new item outside the place's capped reading opens inline under its row, not in a popover, with the same body. Clicking it again, Esc or a click outside the list closes it.</td></tr>
           <tr><td><b>A popover on a place</b></td><td>One shared shell for every place. It hangs 6 px under the clicked element, flips above it when only that side fits, and otherwise takes the roomier side with its own scroll. It stays 12 px inside the window: a scroll moves it with its anchor, and an anchor scrolled out of view leaves it waiting at the nearest edge, never closed. Focus moves into it and returns to the opener on close. Esc, its close button or any click outside closes it, except a click on the footer sweep, which keeps it open and opens Evidence for it.</td></tr>
           <tr><td><b>Evidence</b></td><td>A page in the centre, not a panel. ⌀ n opens it for that row or popover, with "‹ Today" or the place to go back to the same open row or popover; the footer sweep's Evidence opens it for what is open, with "Whole sweep ›" on the page, and with nothing open opens the whole sweep. A docked or overlaid Line sheet comes back with its cell open.</td></tr>
         </tbody>
