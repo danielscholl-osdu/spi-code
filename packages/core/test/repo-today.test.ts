@@ -59,7 +59,7 @@ describe("Repository lines resolved to Today members on the 16 Nov sweep", () =>
       expect(marks.has(unrelated)).toBe(false);
   });
 
-  test.each([
+  test.each<[string, (f: Facts) => void]>([
     [
       "a second Ready for Review issue waiting on the merge",
       (f: Facts) => {
@@ -93,6 +93,28 @@ describe("Repository lines resolved to Today members on the 16 Nov sweep", () =>
         companion.createdAt = "2026-11-10T00:00:00Z";
       },
     ],
+    ...(
+      [
+        ["issue", "not a date"],
+        ["issue", ""],
+        ["sync PR", "not a date"],
+        ["sync PR", ""],
+      ] as const
+    ).map(
+      ([side, createdAt]) =>
+        [
+          `the ${side} createdAt is ${JSON.stringify(createdAt)}`,
+          (f: Facts) => {
+            const repo = f.github.data?.repos["Azure/osdu-spi-search"];
+            const target =
+              side === "issue"
+                ? repo?.issues.find((i) => i.number === 78)
+                : repo?.prs.find((p) => p.number === 77);
+            if (!target) throw new Error(`search ${side} missing`);
+            target.createdAt = createdAt;
+          },
+        ] as [string, (f: Facts) => void],
+    ),
     [
       "issues the page did not reach",
       (f: Facts) => {

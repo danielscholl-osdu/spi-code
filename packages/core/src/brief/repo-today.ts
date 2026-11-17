@@ -37,7 +37,9 @@ export function syncCompanions(model: Model): Map<string, string> {
     const [pr] = syncs;
     const [issue] = issues;
     if (syncs.length !== 1 || issues.length !== 1 || !pr || !issue) continue;
-    if (Date.parse(issue.createdAt) < Date.parse(pr.createdAt)) continue;
+    const opened = Date.parse(issue.createdAt);
+    const synced = Date.parse(pr.createdAt);
+    if (!Number.isFinite(opened) || !Number.isFinite(synced) || opened < synced) continue;
     companions.set(issue.url, pr.url);
   }
   return companions;
