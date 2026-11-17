@@ -9,7 +9,7 @@ epic ──breakdown──▶ beads ──claim──▶ worktree ──build─
                                        stop the line ◀── main breaks ◀────┘
 ```
 
-This file is the process and nothing else. What a builder learned about the product goes in `docs/notes/`, and only when the code and its tests don't already say it. Change the process through a bead, like any other change.
+This file is the process and nothing else. What a builder learned about the product goes in `docs/notes/`, and only when the code and its tests don't already say it. Those files merge with git's union driver, so two beads that each append a note rebase without a conflict, though with no blank line between the two notes. Union merge keeps both sides of any clash without a word: two edits to the same line keep both lines, and a line one side deleted comes back if the other side edited it, so a reviewer still reads the notes diff of a later landing. Change the process through a bead, like any other change.
 
 ## Pieces
 
