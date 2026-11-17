@@ -84,3 +84,7 @@ the one named tooling exception is `scripts/watch-generated.mjs`, in desktop tes
 
 Happy DOM binds Storage methods on each instance: a spy on `Storage.prototype.setItem` does not
 refuse writes. Stub `localStorage` itself and assert the stored list before Undo as well as after it.
+
+Today’s lower sections are additive `briefing.today` (core `todaySummary`); `canWaitOf` remains the legacy projection so places keep their counts. On 16 Nov the current Today members exclude two of 15 human-required issues: the other five companion joins belong to spicode-djg.25, so this stage reports 13, not the mock’s eventual 8.
+
+Saved seen-cursor replays rebuild both `since` and `today.history` from the same stored sweep and window. Workflow gaps use `workflowEvidence` beside `itemEvidence`; an unread result stays in `notRead`, separate from a known failure.

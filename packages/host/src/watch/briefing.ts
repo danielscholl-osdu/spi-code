@@ -16,6 +16,7 @@ import {
   placesOf,
   sinceOf,
   todayLines,
+  todaySummary,
   type VerdictInput,
 } from "@spi-code/core";
 import { itemAttention } from "./attention.js";
@@ -23,6 +24,7 @@ import type { WatchInput } from "./project.js";
 import type { areaEnvelopes } from "./provenance.js";
 import type { placeReadings } from "./readings.js";
 import { repositoryLines } from "./repository-lines.js";
+import { sinceStart } from "./seen.js";
 
 type Over<A, B> = Omit<A, keyof B> & B;
 type ProjectedItem = Over<FocusItem, ReturnType<typeof itemAttention>>;
@@ -33,6 +35,7 @@ export type ProjectedBriefing = Over<
   {
     horizon: Over<Briefing["horizon"], Horizon>;
     lines: ReturnType<typeof todayLines>;
+    today: ReturnType<typeof todaySummary>;
     decisions: ReturnType<typeof briefingDecisions>;
     since: ReturnType<typeof sinceOf>;
     focus: ProjectedItem[];
@@ -64,19 +67,30 @@ export function projectBriefing(
       ...failedServices(radarReads, input.context.fleet),
     ],
   });
+  const lines = todayLines(model, [...focus, ...rest], now, input.context);
+  const since = sinceOf(
+    model,
+    input.facts,
+    now,
+    input.intervals?.runs ?? input.intervalMs,
+    sinceStart(input.baseline),
+    input.reads,
+  );
   const briefing = {
     ...coreBriefing,
     horizon: { ...coreBriefing.horizon, ...horizon },
-    lines: todayLines(model, [...focus, ...rest], now, input.context),
-    decisions: briefingDecisions(model, [...focus, ...rest], coreBriefing.themes),
-    since: sinceOf(
+    lines,
+    today: todaySummary({
       model,
-      input.facts,
+      facts: input.facts,
+      items: [...focus, ...rest],
+      lines,
+      since,
       now,
-      input.intervals?.runs ?? input.intervalMs,
-      undefined,
-      input.reads,
-    ),
+      context: input.context,
+    }),
+    decisions: briefingDecisions(model, [...focus, ...rest], coreBriefing.themes),
+    since,
     focus,
     rest,
     repositories: repositoryLines(coreBriefing.repositories, model, now),

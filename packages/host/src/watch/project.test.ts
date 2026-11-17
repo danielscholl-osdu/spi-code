@@ -3,7 +3,7 @@
 
 import { readFileSync } from "node:fs";
 import { ViewSnapshotSchema } from "@spi-code/contracts";
-import { buildBriefing, buildModel, detectCampaigns } from "@spi-code/core";
+import { buildBriefing, buildModel, detectCampaigns, emptyCache } from "@spi-code/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFixture } from "../../../../scripts/watch-generated.mjs";
 import {
@@ -259,10 +259,28 @@ describe("Watch projection", () => {
     ).toBe(false);
   });
 
+  it("rebuilds Today outcomes with the stored sweep when a seen cursor changes the window", () => {
+    const input = appStyle(recordedInput());
+    const view = projectWatch(input);
+    const baseline = { cursor: 1, at: "2026-11-06T14:02:00.133Z", items: [] };
+    const replayed = seen.seenBriefing(view.briefing, baseline, (at) =>
+      seen.sinceFromSweep(
+        view,
+        { facts: input.facts, cache: emptyCache(), reads: input.reads },
+        input.context,
+        at,
+      ),
+    );
+    expect(view.briefing.today?.history.basis).toBe("fallback");
+    expect(replayed.today?.history).toMatchObject({ basis: "seen", from: baseline.at });
+    expect(replayed.since).not.toHaveProperty("todayHistory");
+  });
+
   function withoutAdditions(snapshot: ReturnType<typeof projectWatch>) {
     const { services: _services, ...legacy } = snapshot;
     const {
       lines: _lines,
+      today: _today,
       since: _since,
       places: _places,
       decisions: _decisions,

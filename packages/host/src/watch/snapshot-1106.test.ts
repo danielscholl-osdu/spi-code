@@ -131,6 +131,10 @@ describe("the 6 Nov sweep pushed again after its first push was acknowledged", (
       basis: "seen",
       from: "2026-11-06T14:02:00.133Z",
     });
+    expect(view.briefing.today?.history).toMatchObject({
+      basis: "seen",
+      from: "2026-11-06T14:02:00.133Z",
+    });
   });
 
   it("keeps the quieter fallback when the same runs read is pushed again", () => {

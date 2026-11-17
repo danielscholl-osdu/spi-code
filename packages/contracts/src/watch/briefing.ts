@@ -430,6 +430,56 @@ export type TodayDeadline = z.infer<typeof TodayDeadlineSchema>;
 export type TodayMember = z.infer<typeof TodayMemberSchema>;
 export type TodayLine = z.infer<typeof TodayLineSchema>;
 
+export const TodayCountSchema = z.strictObject({
+  kind: IdentifierSchema,
+  label: IdentifierSchema,
+  count: z.int().nonnegative(),
+  tone: ToneSchema,
+  names: z.array(z.string()),
+  urls: z.array(z.string()),
+});
+export const TodayHistorySchema = z.strictObject({
+  basis: z.enum(["seen", "fallback", "history-short", "stale"]),
+  from: ObservedAtSchema,
+  asOf: ObservedAtSchema.optional(),
+  rows: z.array(
+    z.strictObject({
+      workflow: z.enum(["sync", "template"]),
+      label: IdentifierSchema,
+      place: z.enum(["line", "engineering"]),
+      counts: z.array(TodayCountSchema),
+      notRead: z.array(z.string()),
+    }),
+  ),
+});
+export const TodaySummarySchema = z.strictObject({
+  canWait: z.array(
+    z.strictObject({
+      id: IdentifierSchema,
+      label: IdentifierSchema,
+      place: z.enum(["releases", "engineering", "security"]),
+      counts: z.array(TodayCountSchema),
+      notRead: z.array(z.string()),
+    }),
+  ),
+  moving: z
+    .array(
+      z.strictObject({
+        id: IdentifierSchema,
+        label: IdentifierSchema,
+        place: z.enum(["line", "environment", "engineering", "upstream"]),
+        time: IdentifierSchema,
+        at: ObservedAtSchema.optional(),
+        count: z.int().nonnegative(),
+        names: z.array(z.string()),
+      }),
+    )
+    .max(3),
+  history: TodayHistorySchema,
+});
+export type TodaySummary = z.infer<typeof TodaySummarySchema>;
+export type TodayHistory = z.infer<typeof TodayHistorySchema>;
+
 export const BriefingSchema = z.strictObject({
   sweptAt: ObservedAtSchema.optional(),
   nextSyncAt: ObservedAtSchema.optional(),
@@ -437,6 +487,7 @@ export const BriefingSchema = z.strictObject({
   headline: z.string(),
   summary: z.string(),
   lines: z.array(TodayLineSchema).optional(),
+  today: TodaySummarySchema.optional(),
   focus: z.array(FocusItemSchema),
   rest: z.array(FocusItemSchema),
   themes: z.array(ThemeSchema),

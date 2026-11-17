@@ -1143,6 +1143,43 @@ export const AT_PLACE: Readonly<Record<string, Exemption>> = {
 
 /** Leaves the window draws nowhere by design, each with the reason or the bead that owns it. */
 export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
+  "today-summaries": {
+    patterns: [
+      "/briefing/today/canWait/#/counts/#/count",
+      "/briefing/today/canWait/#/counts/#/kind",
+      "/briefing/today/canWait/#/counts/#/label",
+      "/briefing/today/canWait/#/counts/#/names/#",
+      "/briefing/today/canWait/#/counts/#/tone",
+      "/briefing/today/canWait/#/counts/#/urls/#",
+      "/briefing/today/canWait/#/id",
+      "/briefing/today/canWait/#/label",
+      "/briefing/today/canWait/#/notRead/#",
+      "/briefing/today/canWait/#/place",
+      "/briefing/today/history/asOf",
+      "/briefing/today/history/basis",
+      "/briefing/today/history/from",
+      "/briefing/today/history/rows/#/counts/#/count",
+      "/briefing/today/history/rows/#/counts/#/kind",
+      "/briefing/today/history/rows/#/counts/#/label",
+      "/briefing/today/history/rows/#/counts/#/names/#",
+      "/briefing/today/history/rows/#/counts/#/tone",
+      "/briefing/today/history/rows/#/label",
+      "/briefing/today/history/rows/#/notRead/#",
+      "/briefing/today/history/rows/#/place",
+      "/briefing/today/history/rows/#/workflow",
+      "/briefing/today/moving/#/at",
+      "/briefing/today/moving/#/count",
+      "/briefing/today/moving/#/id",
+      "/briefing/today/moving/#/label",
+      "/briefing/today/moving/#/names/#",
+      "/briefing/today/moving/#/place",
+      "/briefing/today/moving/#/time",
+      "/releases/today/ready/#/name",
+      "/releases/today/ready/#/number",
+      "/releases/today/ready/#/url",
+    ],
+    reason: "spicode-djg.18: core lower-section summaries are drawn by Today in spicode-djg.10",
+  },
   "today-lines": {
     patterns: [
       "/briefing/lines/#/age",

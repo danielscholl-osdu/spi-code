@@ -234,6 +234,7 @@ export const ReleasesTodaySchema = z.strictObject({
     text: z.string(),
   }),
   readyLine: z.string().optional(),
+  ready: z.array(PrRefSchema.extend({ name: IdentifierSchema })).optional(),
   unread: unreadSchema(IdentifierSchema).optional(),
 });
 /** Release-please changelog kinds; other keeps untyped entries so the kinds sum to the total. */

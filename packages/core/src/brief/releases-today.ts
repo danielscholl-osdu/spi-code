@@ -108,6 +108,7 @@ export function releasesToday(input: ReleasesTodayInput) {
   const stack = sourced.stack?.version;
   const templateReleased = sourced.template?.version;
   const queue = releaseQueue(facts, context);
+  const ready = queue.all.filter((r) => r.ready).map((r) => ({ name: r.name, number: r.pr.number, url: r.pr.url }));
   const template = templateReleased
     ? {
         released: templateReleased,
@@ -147,7 +148,8 @@ export function releasesToday(input: ReleasesTodayInput) {
         .filter(Boolean)
         .join(" · "),
     },
-    readyLine: queue.readyLine,
+    readyLine: [queue.readyLine, ...ready.map((r) => `${r.name} #${r.number} ready to merge`)].join(" · "),
+    ready,
     ...(unread ? { unread } : {}),
   };
 }

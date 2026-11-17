@@ -6,7 +6,6 @@ import {
   type LastSweep,
   type Message,
   PROTOCOL_VERSION,
-  type Since,
   type SweepProgress,
   type SweepStatus,
   SweepStatusSchema,
@@ -340,7 +339,7 @@ export class WatchRoutes {
   }
 
   /** The since pips rebuilt from the persisted sweep from `at`; undefined keeps the stored ones. */
-  private sinceFrom(latest: Persisted, at: string): Since | undefined {
+  private sinceFrom(latest: Persisted, at: string): ReturnType<typeof sinceFromSweep> {
     try {
       return sinceFromSweep(latest.view, latest.state, this.options.ctx, at);
     } catch (error) {

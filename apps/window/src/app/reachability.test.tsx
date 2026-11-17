@@ -75,6 +75,7 @@ describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
 
   it("counts an exemption used when the optional-field sweep uses it", () => {
     const optional = [
+      "today-summaries /briefing/today/history/asOf",
       "since-undrawn /briefing/since/asOf",
       "since-undrawn /briefing/since/rows/#/slots/#/origin",
     ];

@@ -1,6 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+export { todaySummary, todayHistory } from "./today-summary.js";
+
 export { todayLines, type TodayLine, type TodayMember, type TodayDeadline } from "./lines.js";
 
 export { ambientOf, canWaitOf } from "./ambient.js";

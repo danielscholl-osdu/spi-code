@@ -628,6 +628,295 @@
         ]
       }
     ],
+    "today": {
+      "canWait": [
+        {
+          "id": "releases",
+          "label": "Release PRs",
+          "place": "releases",
+          "counts": [
+            {
+              "kind": "open",
+              "label": "open",
+              "count": 13,
+              "tone": "neutral",
+              "names": [
+                "osdu-spi #263",
+                "partition #198",
+                "legal #48",
+                "schema #40",
+                "file #55",
+                "storage #57",
+                "indexer #33",
+                "search #29",
+                "workflow #38",
+                "indexer-queue #45",
+                "unit #21",
+                "crs-catalog #19",
+                "crs-conversion #17"
+              ],
+              "urls": [
+                "https://github.com/Azure/osdu-spi/pull/263",
+                "https://github.com/Azure/osdu-spi-partition/pull/198",
+                "https://github.com/Azure/osdu-spi-legal/pull/48",
+                "https://github.com/Azure/osdu-spi-schema/pull/40",
+                "https://github.com/Azure/osdu-spi-file/pull/55",
+                "https://github.com/Azure/osdu-spi-storage/pull/57",
+                "https://github.com/Azure/osdu-spi-indexer/pull/33",
+                "https://github.com/Azure/osdu-spi-search/pull/29",
+                "https://github.com/Azure/osdu-spi-workflow/pull/38",
+                "https://github.com/Azure/osdu-spi-indexer-queue/pull/45",
+                "https://github.com/Azure/osdu-spi-unit/pull/21",
+                "https://github.com/Azure/osdu-spi-crs-catalog/pull/19",
+                "https://github.com/Azure/osdu-spi-crs-conversion/pull/17"
+              ]
+            },
+            {
+              "kind": "ready",
+              "label": "ready to merge",
+              "count": 1,
+              "tone": "ok",
+              "names": ["file #55"],
+              "urls": ["https://github.com/Azure/osdu-spi-file/pull/55"]
+            },
+            {
+              "kind": "review",
+              "label": "waiting for review",
+              "count": 12,
+              "tone": "neutral",
+              "names": [
+                "osdu-spi #263",
+                "partition #198",
+                "legal #48",
+                "schema #40",
+                "storage #57",
+                "indexer #33",
+                "search #29",
+                "workflow #38",
+                "indexer-queue #45",
+                "unit #21",
+                "crs-catalog #19",
+                "crs-conversion #17"
+              ],
+              "urls": [
+                "https://github.com/Azure/osdu-spi/pull/263",
+                "https://github.com/Azure/osdu-spi-partition/pull/198",
+                "https://github.com/Azure/osdu-spi-legal/pull/48",
+                "https://github.com/Azure/osdu-spi-schema/pull/40",
+                "https://github.com/Azure/osdu-spi-storage/pull/57",
+                "https://github.com/Azure/osdu-spi-indexer/pull/33",
+                "https://github.com/Azure/osdu-spi-search/pull/29",
+                "https://github.com/Azure/osdu-spi-workflow/pull/38",
+                "https://github.com/Azure/osdu-spi-indexer-queue/pull/45",
+                "https://github.com/Azure/osdu-spi-unit/pull/21",
+                "https://github.com/Azure/osdu-spi-crs-catalog/pull/19",
+                "https://github.com/Azure/osdu-spi-crs-conversion/pull/17"
+              ]
+            },
+            {
+              "kind": "failed",
+              "label": "failing",
+              "count": 0,
+              "tone": "bad",
+              "names": [],
+              "urls": []
+            }
+          ],
+          "notRead": []
+        },
+        {
+          "id": "repositories",
+          "label": "Repositories",
+          "place": "engineering",
+          "counts": [
+            {
+              "kind": "issues",
+              "label": "human-required issues",
+              "count": 3,
+              "tone": "neutral",
+              "names": ["storage #59", "indexer #59", "indexer-queue #59"],
+              "urls": [
+                "https://github.com/Azure/osdu-spi-storage/issues/59",
+                "https://github.com/Azure/osdu-spi-indexer/issues/59",
+                "https://github.com/Azure/osdu-spi-indexer-queue/issues/59"
+              ]
+            },
+            {
+              "kind": "changes",
+              "label": "chore PRs",
+              "count": 1,
+              "tone": "neutral",
+              "names": ["partition #218"],
+              "urls": ["https://github.com/Azure/osdu-spi-partition/pull/218"]
+            },
+            {
+              "kind": "dependabot",
+              "label": "Dependabot bumps",
+              "count": 0,
+              "tone": "neutral",
+              "names": [],
+              "urls": []
+            }
+          ],
+          "notRead": []
+        },
+        {
+          "id": "security",
+          "label": "Security",
+          "place": "security",
+          "counts": [
+            {
+              "kind": "vulnerabilities",
+              "label": "critical or high",
+              "count": 0,
+              "tone": "neutral",
+              "names": [],
+              "urls": []
+            },
+            {
+              "kind": "code-scanning",
+              "label": "code scanning",
+              "count": 0,
+              "tone": "neutral",
+              "names": [],
+              "urls": []
+            }
+          ],
+          "notRead": [
+            "osdu-spi: vulnerabilities",
+            "osdu-spi: code scanning",
+            "osdu-spi-stack: vulnerabilities",
+            "osdu-spi-stack: code scanning",
+            "partition: vulnerabilities",
+            "partition: code scanning",
+            "entitlements: vulnerabilities",
+            "entitlements: code scanning",
+            "legal: vulnerabilities",
+            "legal: code scanning",
+            "schema: vulnerabilities",
+            "schema: code scanning",
+            "file: vulnerabilities",
+            "file: code scanning",
+            "storage: vulnerabilities",
+            "storage: code scanning",
+            "indexer: vulnerabilities",
+            "indexer: code scanning",
+            "search: vulnerabilities",
+            "search: code scanning",
+            "workflow: vulnerabilities",
+            "workflow: code scanning",
+            "indexer-queue: vulnerabilities",
+            "indexer-queue: code scanning",
+            "unit: vulnerabilities",
+            "unit: code scanning",
+            "crs-catalog: vulnerabilities",
+            "crs-catalog: code scanning",
+            "crs-conversion: vulnerabilities",
+            "crs-conversion: code scanning"
+          ]
+        }
+      ],
+      "moving": [
+        {
+          "id": "sync",
+          "label": "Upstream sync",
+          "place": "upstream",
+          "time": "2026-11-07T00:00:00.000Z",
+          "at": "2026-11-07T00:00:00.000Z",
+          "count": 7,
+          "names": ["legal", "schema", "file", "search", "workflow", "unit", "crs-conversion"]
+        },
+        {
+          "id": "template",
+          "label": "Template sync",
+          "place": "engineering",
+          "time": "2026-11-07T08:00:00.000Z",
+          "at": "2026-11-07T08:00:00.000Z",
+          "count": 0,
+          "names": []
+        }
+      ],
+      "history": {
+        "basis": "fallback",
+        "from": "2026-11-05T14:02:14.914Z",
+        "rows": [
+          {
+            "workflow": "sync",
+            "label": "Sync Upstream",
+            "place": "line",
+            "counts": [
+              {
+                "kind": "not-read",
+                "label": "not read",
+                "count": 13,
+                "tone": "neutral",
+                "names": [
+                  "partition",
+                  "entitlements",
+                  "legal",
+                  "schema",
+                  "file",
+                  "storage",
+                  "indexer",
+                  "search",
+                  "workflow",
+                  "indexer-queue",
+                  "unit",
+                  "crs-catalog",
+                  "crs-conversion"
+                ],
+                "urls": []
+              }
+            ],
+            "notRead": [
+              "Sync Upstream outcome on partition",
+              "Sync Upstream outcome on entitlements",
+              "Sync Upstream outcome on legal",
+              "Sync Upstream outcome on schema",
+              "Sync Upstream outcome on file",
+              "Sync Upstream outcome on storage",
+              "Sync Upstream outcome on indexer",
+              "Sync Upstream outcome on search",
+              "Sync Upstream outcome on workflow",
+              "Sync Upstream outcome on indexer-queue",
+              "Sync Upstream outcome on unit",
+              "Sync Upstream outcome on crs-catalog",
+              "Sync Upstream outcome on crs-conversion"
+            ]
+          },
+          {
+            "workflow": "template",
+            "label": "Sync Template",
+            "place": "engineering",
+            "counts": [
+              {
+                "kind": "occupied",
+                "label": "new PRs",
+                "count": 13,
+                "tone": "neutral",
+                "names": [
+                  "partition",
+                  "entitlements",
+                  "legal",
+                  "schema",
+                  "file",
+                  "storage",
+                  "indexer",
+                  "search",
+                  "workflow",
+                  "indexer-queue",
+                  "unit",
+                  "crs-catalog",
+                  "crs-conversion"
+                ],
+                "urls": []
+              }
+            ],
+            "notRead": []
+          }
+        ]
+      }
+    },
     "focus": [
       {
         "id": "conflict:entitlements:121",
@@ -5857,7 +6146,14 @@
         "coreLibAzure": [],
         "text": "stack v0.35.3 · template v1.4.0 → 1.5.0"
       },
-      "readyLine": "13 release PRs open: 1 is ready to merge, 12 wait for review, 1 release PR failing",
+      "readyLine": "13 release PRs open: 1 is ready to merge, 12 wait for review, 1 release PR failing · file #55 ready to merge",
+      "ready": [
+        {
+          "number": 55,
+          "url": "https://github.com/Azure/osdu-spi-file/pull/55",
+          "name": "file"
+        }
+      ],
       "unread": {
         "areas": ["releases"]
       }
@@ -14605,6 +14901,20 @@
       ]
     },
     {
+      "path": "/briefing/today",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
       "path": "/briefing/since",
       "areas": ["github", "runs", "template"]
     },
@@ -16637,6 +16947,10 @@
         "source": "releases",
         "state": "unread"
       }
+    },
+    {
+      "path": "/releases/today/ready",
+      "areas": ["github", "details"]
     },
     {
       "path": "/releases/today/readyLine",

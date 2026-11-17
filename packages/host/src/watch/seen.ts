@@ -17,6 +17,7 @@ import {
   SWEEP_MS,
   sinceOf,
   sweepStateSchema,
+  todayHistory,
 } from "@spi-code/core";
 import { z } from "zod";
 import { sweepEvidence } from "../sweep/evidence.js";
@@ -139,20 +140,17 @@ export function sinceFromSweep(
   stored: unknown,
   context: CoreContext,
   at: string,
-): Since | undefined {
+): (Since & { todayHistory?: ReturnType<typeof todayHistory> }) | undefined {
   if (!view.briefing.since || view.briefing.since.basis === "stale") return undefined;
   const state = sweepStateSchema(factsSchema, cacheSchema).safeParse(stored);
   if (!state.success) return undefined;
   const now = new Date(view.sweptAt);
   const { reads } = sweepEvidence(state.data, SWEEP_MS, now);
-  return sinceOf(
-    buildModel(state.data.facts, now, {}, context),
-    state.data.facts,
-    now,
-    SWEEP_MS,
-    at,
-    reads,
-  );
+  const model = buildModel(state.data.facts, now, {}, context);
+  const since = sinceOf(model, state.data.facts, now, SWEEP_MS, at, reads);
+  return since
+    ? { ...since, todayHistory: todayHistory(model, state.data.facts, since, now) }
+    : undefined;
 }
 
 /**
@@ -162,10 +160,14 @@ export function sinceFromSweep(
 export function seenBriefing(
   briefing: WatchBriefing,
   prior: SeenBaseline | undefined,
-  sinceFrom: (at: string) => Since | undefined,
+  sinceFrom: (
+    at: string,
+  ) => (Since & { todayHistory?: ReturnType<typeof todayHistory> }) | undefined,
 ): WatchBriefing {
   const start = sinceStart(prior);
-  const since = start === undefined ? undefined : sinceFrom(start);
+  const result = start === undefined ? undefined : sinceFrom(start);
+  const history = result?.todayHistory;
+  const since = result && (({ todayHistory: _history, ...value }) => value)(result);
   return {
     ...briefing,
     ...(briefing.places
@@ -177,5 +179,6 @@ export function seenBriefing(
         }
       : {}),
     ...(since ? { since } : {}),
+    ...(briefing.today && history ? { today: { ...briefing.today, history } } : {}),
   };
 }

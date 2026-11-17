@@ -134,6 +134,7 @@ export function briefingProvenance(
   // The headline, summary, themes and horizon judge every area together.
   add("/briefing/headline", MODEL);
   add("/briefing/summary", MODEL);
+  if ("today" in briefing && briefing.today) add("/briefing/today", MODEL);
   if ("since" in briefing && briefing.since) add("/briefing/since", ["runs", "github", "template"]);
   for (const list of ["focus", "rest"] as const) {
     for (const [index, item] of briefing[list].entries()) {
@@ -310,6 +311,7 @@ export function releasesTodayProvenance(
       ...(parts.some((part) => part.envelope) ? { envelope } : {}),
     });
   }
+  if (today.ready !== undefined) bind("/ready", { areas: ["github", "details"] });
   if (today.readyLine !== undefined) bind("/readyLine", { areas: ["github", "details"] });
   if (today.unread) bind("/unread", ledger);
   return out;
