@@ -445,16 +445,28 @@ function lineItems(line: LineModel, stack: StackModel, now: Date, context: CoreC
       blocks: lag ?? 1,
     });
   } else if (line.repoRead && line.syncRun?.conclusion === "failure" && !line.syncPr) {
+    const issue = line.syncFailedIssue;
     items.push({
       id: `sync-run:${svc}`,
       kind: "sync-run",
       rung: 0,
       scope: svc,
-      text: "Sync Upstream failed with no halt issue open",
+      text: issue
+        ? `Sync Upstream failed with halt issue #${issue.number} open`
+        : "Sync Upstream failed with no halt issue open",
       since: line.syncRun.createdAt,
       url: line.syncRun.url,
       effects: [],
       cause: [
+        ...(issue
+          ? [
+              {
+                label: "issue",
+                value: `#${issue.number} · sync-failed${timeClause(issue.createdAt, now, context, " · opened ")}`,
+                url: issue.url,
+              },
+            ]
+          : []),
         {
           label: "run",
           value: `Sync Upstream${timeClause(line.syncRun.createdAt, now, context, " ")} · ${line.syncRun.conclusion ?? line.syncRun.status}`,

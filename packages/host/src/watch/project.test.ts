@@ -126,6 +126,20 @@ describe("Watch projection", () => {
   it("matches the frozen briefing, Releases pane, flow rows and six service stations", () => {
     const snapshot = projectWatch(fixtureInput());
     const legacy = withoutAdditions(snapshot);
+    // SPI's additive item fields: origin, age, blocks, who moves next, subject, blocker, link kinds.
+    const ribItem = ({
+      origin: _o,
+      age: _a,
+      blocks: _b,
+      actor: _actor,
+      subject: _subject,
+      blockedBy: _blockedBy,
+      evidence,
+      ...item
+    }: (typeof legacy.briefing.focus)[number]) => ({
+      ...item,
+      evidence: evidence.map(({ kind: _kind, ...link }) => link),
+    });
     // The rib's 17-word flow headline breaks the 12-word rule; its pilot sentence leads sub instead.
     // SPI retired the rib's Today tiles, n-more count and ready lines.
     const {
@@ -148,8 +162,8 @@ describe("Watch projection", () => {
       environment,
       repositories,
       horizon: { headline: legacy.briefing.horizon.headline },
-      focus: legacy.briefing.focus.map(({ origin: _o, age: _a, blocks: _b, ...item }) => item),
-      rest: legacy.briefing.rest.map(({ origin: _o, age: _a, blocks: _b, ...item }) => item),
+      focus: legacy.briefing.focus.map(ribItem),
+      rest: legacy.briefing.rest.map(ribItem),
     };
     // Bound time units change typography, not the frozen rib's words.
     const ribBriefing = {

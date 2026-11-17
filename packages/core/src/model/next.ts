@@ -157,6 +157,20 @@ function judgedNext(item: QueueItem, j: Judgement, voice: Voice): string {
   return `${RERUN_ONCE.replace(/^r/, "R")}`;
 }
 
+/** Who makes an item's next move: the operator, or a run, the environment or a schedule. */
+export type Actor = "operator" | "system";
+
+const waitsOnRun = (item: QueueItem) => item.text.includes(" now");
+
+/** Who makes the item's next move: the system when its words are to wait, else the operator. */
+export function nextActor(item: QueueItem): Actor {
+  const judged = item.judgement && (item.kind === "lanes" || item.kind === "template-red");
+  if (judged && item.judgement?.response === "stop") return "operator";
+  if (item.kind === "lanes") return item.note ? "operator" : "system";
+  if (item.kind === "stack") return waitsOnRun(item) ? "system" : "operator";
+  return "operator";
+}
+
 // What a person does to clear the item, in the words of its verb.
 export function nextText(
   item: QueueItem,
@@ -170,7 +184,7 @@ export function nextText(
     case "halt":
       return haltNext(item, listed);
     case "stack":
-      return item.text.includes(" now")
+      return waitsOnRun(item)
         ? "Wait for the run in flight; if it fails, fix its cause and re-dispatch"
         : "Fix the cause the last attempt names, then re-dispatch it";
     case "maintenance":
@@ -181,8 +195,12 @@ export function nextText(
         : "Wait for the stack to read deployable, then re-run the lanes it failed";
     case "lane-deploy":
       return "Open the fork's deployment history and its workflow run to diagnose the failure";
-    case "sync-run":
-      return "Open the failed Sync Upstream run; no halt issue says why it stopped";
+    case "sync-run": {
+      const issue = item.cause.find((f) => f.label === "issue")?.value.split(" · ")[0];
+      return issue
+        ? `Read halt issue ${issue}, then open the failed Sync Upstream run`
+        : "Open the failed Sync Upstream run; no halt issue says why it stopped";
+    }
     case "cascade":
       return "Fix what stopped the cascade, clear the tracking issue's label, then dispatch the cascade";
     case "template-run":

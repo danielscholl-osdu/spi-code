@@ -4,7 +4,7 @@
 import { describe, expect, test } from "vitest";
 import { readItem } from "../src/brief/index";
 import { buildModel } from "../src/model/index";
-import { CLASS_VERB, itemClass, nextText, verbOf } from "../src/model/next";
+import { CLASS_VERB, itemClass, nextActor, nextText, verbOf } from "../src/model/next";
 import type { QueueItem } from "../src/model/queue";
 import { fixtureContext } from "./briefing-setup";
 import { FIXTURE_NOW, fixtureFacts } from "./harness";
@@ -130,6 +130,55 @@ describe("the class table", () => {
     expect(verbOf(item({ kind: "gate1", cls: "BUILD", incident: true }))).toBe("Investigate");
     expect(verbOf(item({ kind: "gate1" }))).toBe("Review on GitHub");
     expect(verbOf(item({ kind: "gate2" }))).toBe("Merge");
+  });
+
+  test("each verb family names who moves next; only a wait is the system's", () => {
+    const judged = (response: "rerun-failed" | "stop") => ({
+      judgement: { class: "environment" as const, response },
+    });
+    const rows: [Partial<QueueItem>, string, "operator" | "system"][] = [
+      [{ kind: "halt", cls: "HALT" }, "Classify entry", "operator"],
+      [{ kind: "sync-run" }, "Investigate", "operator"],
+      [{ kind: "lane-deploy", cls: "UNREAD" }, "Investigate", "operator"],
+      [{ kind: "gate2", cls: "TEST" }, "Investigate", "operator"],
+      [{ kind: "lanes", cls: "ENV", note: "re-run now" }, "Re-run lanes", "operator"],
+      [{ kind: "lanes", cls: "ENV" }, "Re-run lanes", "system"],
+      [
+        { kind: "lanes", cls: "ENV", note: "re-run now", ...judged("rerun-failed") },
+        "Re-run lanes",
+        "operator",
+      ],
+      [{ kind: "lanes", cls: "ENV", ...judged("rerun-failed") }, "Re-run lanes", "system"],
+      [{ kind: "lanes", cls: "ENV", ...judged("stop") }, "Re-run lanes", "operator"],
+      [{ kind: "template-red", cls: "TEST", ...judged("rerun-failed") }, "Investigate", "operator"],
+      [
+        { kind: "stack", cls: "ENV", text: "not deployable; last attempt failed" },
+        "Re-dispatch",
+        "operator",
+      ],
+      [
+        { kind: "stack", cls: "ENV", text: "not deployable; Upgrade in deploy now" },
+        "Re-dispatch",
+        "system",
+      ],
+      [{ kind: "maintenance", cls: "ENV" }, "Re-dispatch", "operator"],
+      [{ kind: "radar", cls: "TOOLCHAIN" }, "Absorb toolchain", "operator"],
+      [{ kind: "radar", cls: "HALT" }, "Pre-classify", "operator"],
+      [{ kind: "gate1" }, "Review on GitHub", "operator"],
+      [{ kind: "gate2" }, "Merge", "operator"],
+      [{ kind: "port", cls: "PORT" }, "Port", "operator"],
+      [{ kind: "approvals" }, "Approve runs", "operator"],
+      [{ kind: "security", cls: "SECURITY" }, "Review alerts", "operator"],
+      [{ kind: "cascade", cls: "CONFLICT" }, "Investigate, then Dispatch cascade", "operator"],
+      [{ kind: "access", cls: "ACCESS" }, "Open run, Open PR", "operator"],
+      [{ kind: "template-set" }, "Review, then Roll out", "operator"],
+      [{ kind: "releases" }, "Review on GitHub", "operator"],
+      [{ kind: "bump" }, "Merge", "operator"],
+    ];
+    for (const [over, verb, actor] of rows) {
+      const i = item(over);
+      expect([over, verbOf(i), nextActor(i)]).toEqual([over, verb, actor]);
+    }
   });
 
   test("a halt's Next line names the forks that already list the entry", () => {

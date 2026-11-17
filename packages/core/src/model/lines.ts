@@ -106,6 +106,8 @@ export interface LineModel {
   templatePr?: LinePr;
   tracking?: IssueFact;
   halt?: Halt;
+  // A sync-failed issue the sync engine opened whose body names no halt code.
+  syncFailedIssue?: IssueFact;
   conflicts: IssueFact[];
   cascadeLabels: string[];
   labelsIssue?: IssueFact;
@@ -449,6 +451,7 @@ export function buildLine(input: {
     templatePr,
     tracking,
     halt,
+    ...(haltIssue && !halt ? { syncFailedIssue: haltIssue } : {}),
     conflicts,
     cascadeLabels,
     labelsIssue,

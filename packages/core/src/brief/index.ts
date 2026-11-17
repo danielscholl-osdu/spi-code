@@ -20,7 +20,7 @@ import type { Model } from "../model/index.js";
 import type { LineModel } from "../model/lines.js";
 import { heldRadar } from "../attention.js";
 import { type SyncSplit, syncSplit } from "../model/upstream.js";
-import { type ItemClass, itemClass, nextText, verbOf } from "../model/next.js";
+import { type Actor, type ItemClass, itemClass, nextActor, nextText, verbOf } from "../model/next.js";
 import type { QueueItem, Rung } from "../model/queue.js";
 import type { Verdict } from "../model/radar.js";
 import { toolchainScopes } from "../model/toolchain.js";
@@ -37,6 +37,7 @@ import {
 import { age, clip, firstAndMore, fitHeadline, plural, short, span, stamp, timeClause, whose } from "../util.js";
 import { type Horizon, type Origin, itemOrigin, upstreamHorizon } from "./horizon.js";
 import { type Repositories, repositoriesOf } from "./repos.js";
+import { blockerOf, type LinkKind, linkKind, subjectOf } from "./move.js";
 import { rolloutWords } from "./rollout.js";
 import { type UpstreamView, upstreamView } from "./upstream.js";
 import { ago as agoText, deployableWords, streakText } from "./words.js";
@@ -57,6 +58,8 @@ export type Tone = "bad" | "warn" | "ok" | "neutral";
 export interface Link {
   label: string;
   url: string;
+  // What the link opens, from its URL; every briefing item's evidence carries it.
+  kind?: LinkKind | undefined;
 }
 
 // A figure is a version or a count, never a status word; status rides in sub and tone.
@@ -88,6 +91,12 @@ export interface FocusItem {
   age?: string | undefined;
   // What waits on the item; absent when nothing does or core cannot tell.
   blocks?: { count: number; text: string } | undefined;
+  // Who makes the next move; every briefing item carries it.
+  actor?: Actor | undefined;
+  // The URL of the one object the next move acts on; absent when it acts on several.
+  subject?: string | undefined;
+  // The id of the item in this briefing whose move must come first.
+  blockedBy?: string | undefined;
 }
 
 export interface ThemeFork {
@@ -497,7 +506,7 @@ function evidenceOf(items: readonly QueueItem[]): Link[] {
   const add = (label: string, url: string) => {
     if (urls.has(url)) return;
     urls.add(url);
-    out.push({ label, url });
+    out.push({ label, url, kind: linkKind(url) });
   };
   for (const item of items) {
     if (item.kind === "port" || item.kind === "approvals") {
@@ -697,6 +706,11 @@ function describe(
   };
 }
 
+// A rollout waits on the system while the environment holds it or nothing is left to review.
+function rolloutActor(r: NonNullable<Model["rollout"]>): Actor {
+  return r.next === "env" || (r.next === "wait" && r.reviews.length === 0) ? "system" : "operator";
+}
+
 function focusOf(
   model: Model,
   focusable: readonly QueueItem[],
@@ -729,6 +743,7 @@ function focusOf(
         next: sentence(nextText(item, [], voice)),
         verb: verbOf(item),
         evidence: evidenceOf(ports),
+        actor: nextActor(item),
       });
       continue;
     }
@@ -748,6 +763,7 @@ function focusOf(
         next: w.next,
         verb: w.verb,
         evidence: evidenceOf([item]),
+        actor: rolloutActor(model.rollout),
         more: [
           { label: "Plan", text: w.plan },
           ...(w.watch ? [{ label: "Watch", text: w.watch }] : []),
@@ -759,6 +775,9 @@ function focusOf(
     const { title, sub } = describe(model, item, stuck, nextAt, now);
     const ago = age(item.since, now);
     const blocks = blocksOf(item);
+    const split = splitOf(model, item);
+    const subject = subjectOf(model, item, split?.pr);
+    const blockedBy = blockerOf(model, item, focusable);
     out.push({
       origin: itemOrigin(item),
       id: item.id,
@@ -769,12 +788,15 @@ function focusOf(
       title,
       sub,
       cause: causeOf(item),
-      effect: effectOf(item, stuck, next, splitOf(model, item)),
+      effect: effectOf(item, stuck, next, split),
       next: radarNext(model, item, voice),
       verb: verbOf(item),
       evidence: evidenceOf([item]),
       ...(ago ? { age: ago } : {}),
       ...(blocks ? { blocks } : {}),
+      actor: nextActor(item),
+      ...(subject ? { subject } : {}),
+      ...(blockedBy ? { blockedBy } : {}),
     });
   }
   return out;

@@ -1236,6 +1236,18 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
     reason:
       "The retired Flow lens's button label; Stack runs draws its own control (spicode-t1k.189)",
   },
+  "item-moves": {
+    patterns: [
+      "/briefing/focus/#/actor",
+      "/briefing/rest/#/actor",
+      "/briefing/focus/#/subject",
+      "/briefing/rest/#/subject",
+      "/briefing/focus/#/evidence/#/kind",
+      "/briefing/rest/#/evidence/#/kind",
+    ],
+    reason:
+      "spicode-djg.1: who moves next, the subject and link kinds are core's; Today groups by them in spicode-djg.6 and draws link kinds in spicode-djg.7",
+  },
   "evidence-label": {
     patterns: ["/briefing/focus/#/evidence/#/label", "/briefing/rest/#/evidence/#/label"],
     reason: "spicode-t1k.218: item evidence links render on no surface",

@@ -18,7 +18,25 @@ export { type BriefFact, BriefFactSchema, type Tone, ToneSchema } from "./panes.
 /** In the system (forks, PRs, environment, template, releases), or coming from upstream GitLab. */
 export const OriginSchema = z.enum(["system", "upstream"]);
 
-export const LinkSchema = z.strictObject({ label: z.string(), url: z.string() });
+/** What a link opens, derived once in core from its URL; other when core does not know the URL's shape. */
+export const LinkKindSchema = z.enum([
+  "pr",
+  "issue",
+  "mr",
+  "run",
+  "job",
+  "commit",
+  "compare",
+  "deploy",
+  "other",
+]);
+export const LinkSchema = z.strictObject({
+  label: z.string(),
+  url: z.string(),
+  kind: LinkKindSchema.optional(),
+});
+/** Who makes an item's next move: the operator, or a run, the environment or a schedule. */
+export const ActorSchema = z.enum(["operator", "system"]);
 export const FocusItemSchema = z.strictObject({
   id: z.string(),
   ids: z.array(z.string()),
@@ -38,6 +56,11 @@ export const FocusItemSchema = z.strictObject({
   age: z.string().optional(),
   /** What waits on the item, as a chip ("blocks 3"); absent when nothing does or core cannot tell. */
   blocks: z.strictObject({ count: z.int().positive(), text: z.string() }).optional(),
+  actor: ActorSchema.optional(),
+  /** The URL of the one object the next move acts on; absent when it acts on several. */
+  subject: z.string().optional(),
+  /** The id of the item in the same briefing whose move must come first. */
+  blockedBy: z.string().optional(),
 });
 export const ThemeForkSchema = z.strictObject({
   fork: z.string(),
@@ -414,6 +437,8 @@ export type WatchItem = z.infer<typeof WatchItemSchema>;
 export type WatchBriefing = z.infer<typeof WatchBriefingSchema>;
 export type ItemAttention = z.infer<typeof ItemAttentionSchema>;
 export type Link = z.infer<typeof LinkSchema>;
+export type LinkKind = z.infer<typeof LinkKindSchema>;
+export type Actor = z.infer<typeof ActorSchema>;
 export type FocusItem = z.infer<typeof FocusItemSchema>;
 export type ThemeFork = z.infer<typeof ThemeForkSchema>;
 export type ThemeKind = z.infer<typeof ThemeKindSchema>;
