@@ -8,7 +8,7 @@ import { useTodayAnchor } from "./anchor.js";
 
 /** Where each later part of Today mounts; an empty slot draws nothing, never an empty box. */
 export type TodaySlots = {
-  band?: ReactNode;
+  table?: ReactNode;
   horizon?: ReactNode;
   places?: ReactNode;
   releases?: ReactNode;
@@ -24,8 +24,8 @@ function Slot({ name, children }: { name: keyof TodaySlots; children: ReactNode 
 }
 
 /**
- * Today top to bottom: the verdict when there is one to draw, the caveat band, the attention band,
- * On the horizon, the place cards, then Releases beside In motion.
+ * Today top to bottom: the verdict when there is one to draw, the caveat band, Blocked and Waiting on
+ * you, On the horizon, the place cards, then Releases beside In motion.
  */
 export function TodayFrame({
   sweptAt,
@@ -51,7 +51,7 @@ export function TodayFrame({
       <section ref={frame} className="place-reading today-frame" aria-label="Today reading">
         {head && <div className="today-head">{head}</div>}
         {caveat}
-        <Slot name="band">{slots.band}</Slot>
+        <Slot name="table">{slots.table}</Slot>
         <Slot name="horizon">{slots.horizon}</Slot>
         <Slot name="places">{slots.places}</Slot>
         {lower && (

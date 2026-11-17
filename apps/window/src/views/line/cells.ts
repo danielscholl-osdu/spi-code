@@ -41,6 +41,11 @@ const itemStations: Readonly<Record<string, readonly Station["id"][]>> = {
   "lane-deploy": ["lane"],
 };
 
+/** The Line station an item's kind is drawn at, from the same map the sheet's cells use. */
+export function itemStation(id: string): Station["id"] | undefined {
+  return itemStations[id.split(":")[0] ?? ""]?.[0];
+}
+
 /** Locate the briefing's existing items; no membership is inferred from a station's state. */
 export function cellItems(items: readonly FocusItem[], service: string, station: Station["id"]) {
   return items.filter((item) => {

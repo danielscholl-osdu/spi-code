@@ -1,5 +1,5 @@
-`sweep-1116.json` is the four opened-body cases from core on the 16 Nov sweep,
-with their constituent items and blockers. It uses the pinned rib rollout and
+`sweep-1116.json` is every Today line core draws from the 16 Nov sweep, with
+their constituent items and blockers. It uses the pinned rib rollout and
 Chicago clock from `packages/core/test/sweep-1116.ts`; the shared input is unchanged.
 From the repository root, regenerate it with:
 
@@ -25,13 +25,7 @@ const context = createContext({
 const model = buildModel(facts, now, { dismissed: [] }, context);
 const briefing = buildBriefing(model, { state: "clear", problems: [] }, now, context);
 const allItems = [...briefing.focus, ...briefing.rest];
-const wanted = new Set([
-  "blocked:halt:crs-conversion",
-  "waiting:gate2:storage",
-  "waiting:blocker:stack:lanes:gate2",
-  "waiting:upgrade:os-core-common",
-]);
-const lines = todayLines(model, allItems, now, context).filter(({ id }) => wanted.has(id));
+const lines = todayLines(model, allItems, now, context);
 const ids = new Set(lines.flatMap(({ members }) => members.flatMap((member) => [
   member.id, ...member.ids, member.blockedBy,
 ])));

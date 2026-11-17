@@ -111,7 +111,7 @@ const rows = (root: Element, selector: string) => [...root.querySelectorAll(sele
 
 it("keeps every populated group at 1440 with Detail open and preserves the selected offset on the column change", async () => {
   const root = await mount();
-  const target = root.querySelector<HTMLElement>('.today-decision[data-decision-id="line:4"]');
+  const target = root.querySelector<HTMLElement>('.horizon-card[data-card-id="line:4"]');
   if (!target) throw new Error("Missing row");
   let top = 200;
   vi.spyOn(target, "getBoundingClientRect").mockImplementation(() => ({ top }) as DOMRect);
@@ -144,37 +144,29 @@ it.each([740, 850, 1440])(
   },
 );
 
-it("at 740 keeps all four Interrupts, folds the other groups by items, and freezes rows on selection", async () => {
+it("at 740 folds the groups by items and freezes rows on selection", async () => {
   const root = await mount();
   await act(async () => selectionStore.getState().select("item:4:b"));
   await resize(740);
-  expect(rows(root, ".today-need")).toHaveLength(4);
-  for (const selector of [
-    ".today-decision",
-    ".today-item-row",
-    ".horizon-card",
-    ".today-motion-line",
-  ]) {
+  for (const selector of [".horizon-card", ".today-motion-line"]) {
     const visible = rows(root, selector);
     expect(visible).toHaveLength(3);
     expect(visible[2]?.getAttribute("data-item-ids")).toContain("item:4:b");
   }
   expect(rows(root, ".today-more").map((node) => node.textContent)).toEqual(
-    Array(4).fill("4 more ›"),
+    Array(2).fill("4 more ›"),
   );
-  const before = rows(root, ".today-decision").map((node) => node.getAttribute("data-decision-id"));
+  const before = rows(root, ".horizon-card").map((node) => node.getAttribute("data-card-id"));
   await act(async () => selectionStore.getState().select("item:3:a"));
-  expect(
-    rows(root, ".today-decision").map((node) => node.getAttribute("data-decision-id")),
-  ).toEqual(before);
+  expect(rows(root, ".horizon-card").map((node) => node.getAttribute("data-card-id"))).toEqual(
+    before,
+  );
   await resize(850);
-  expect(rows(root, ".today-decision")).toHaveLength(5);
+  expect(rows(root, ".horizon-card")).toHaveLength(5);
   expect(root.querySelector(".today-more")).toBeNull();
 });
 
 const foldedGroups = [
-  ["decisions", ".today-decision"],
-  ["failing", ".today-item-row"],
   ["horizon", ".horizon-card"],
   ["motion", ".today-motion-line"],
 ] as const;
@@ -261,7 +253,7 @@ it("each n-more opener shows the group's full list in Detail without a host requ
   const body = populated();
   const root = await mount(body);
   const openers = rows(root, ".today-more");
-  expect(openers).toHaveLength(4);
+  expect(openers).toHaveLength(2);
   for (const opener of openers) {
     await act(async () => (opener as HTMLButtonElement).click());
     expect(selectionStore.getState().row?.kind).toBe("today-more");
@@ -281,7 +273,7 @@ it("each n-more opener shows the group's full list in Detail without a host requ
 });
 
 it("has no pending Today reachability exemption", () => {
-  expect(moreCases(populated())).toHaveLength(20);
+  expect(moreCases(populated())).toHaveLength(10);
   expect(PENDING).toEqual({});
   expect(JSON.stringify(PENDING)).not.toContain("spicode-f0s");
 });

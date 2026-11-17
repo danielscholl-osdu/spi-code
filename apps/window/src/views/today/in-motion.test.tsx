@@ -115,12 +115,12 @@ describe("In motion and Can wait draw core's fields only", () => {
     expect(container.textContent).not.toMatch(/In motion|Can wait/);
   });
 
-  it("draws busy's one In progress line beside its full band, without Can wait", async () => {
+  it("draws busy's one In progress line below its table, without Can wait", async () => {
     const body = busy();
     const lines = body.briefing.ambient?.inProgress.lines;
     expect(lines).toHaveLength(1);
     const { container } = await mount(body);
-    expect(container.querySelector('[data-today-slot="band"]')).not.toBeNull();
+    expect(container.querySelector('[data-today-slot="table"]')).not.toBeNull();
     const slot = container.querySelector('[data-today-slot="motion"]');
     expect(slot?.querySelectorAll(".today-motion-line")).toHaveLength(1);
     expect(slot?.querySelector(".today-motion-line")?.getAttribute("data-line-id")).toBe(

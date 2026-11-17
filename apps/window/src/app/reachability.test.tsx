@@ -104,7 +104,7 @@ describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
     expect(uncoveredRoutes(DEFAULT_REGISTRY, cases)).toEqual([]);
   });
 
-  it("exempts briefing.since by name, and the verdict only while the band is drawn", () => {
+  it("exempts briefing.since by name, and the verdict only while core sends lines", () => {
     const verdict = ["/briefing/verdict/text", "/briefing/verdict/mark"];
     expect(EXEMPTIONS["since-undrawn"]?.reason).toMatch(/^spicode-f0s\.47: /);
     for (const body of [fixture(), optionalSince()]) {
@@ -113,7 +113,9 @@ describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
     }
     const recorded = coverage(fixture(), []).uncovered;
     expect(recorded.filter((pointer) => verdict.includes(pointer))).toEqual([]);
-    const calm = coverage(structuredClone(calmSnapshot), []).uncovered;
+    const older = structuredClone(calmSnapshot);
+    delete older.briefing.lines;
+    const calm = coverage(older, []).uncovered;
     expect(calm.filter((pointer) => verdict.includes(pointer))).toEqual(verdict);
     expect(cases.filter(({ pointer }) => verdict.includes(pointer))).toEqual([]);
   });
@@ -180,19 +182,16 @@ describe("every focus and rest item's scope and origin, at its home on Today", (
     }
   });
 
-  it("fails when an item drawn in two homes loses either home's cases, or all of them", () => {
+  it("fails when an item's home on Today loses its cases", () => {
     const body = bad();
     const [legal] = briefingItems(body.briefing).find(([, { id }]) => id === "gate1:legal") ?? [];
     expect(legal).toBeDefined();
-    const card = '.today-band li.today-need[data-item-id="gate1:legal"]';
     const sync = '.today-horizon .horizon-card[data-card-id="sync:gate1:legal"]';
     const rows = itemHomeCases(body);
     const mine = (row: Reach) => row.pointer.startsWith(`${legal}/`);
     const without = (container: string) =>
       rows.filter((row) => !(mine(row) && inside(row, container)));
-    expect(rows.filter((row) => mine(row) && inside(row, card)).length).toBeGreaterThan(0);
     expect(rows.filter((row) => mine(row) && inside(row, sync)).length).toBeGreaterThan(0);
-    expect(missingHomes(body, without(card))).toEqual([`gate1:legal at ${card}`]);
     expect(missingHomes(body, without(sync))).toEqual([`gate1:legal at ${sync}`]);
     const { uncovered } = coverage(
       body,

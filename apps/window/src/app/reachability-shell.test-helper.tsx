@@ -14,7 +14,6 @@ import { closeSheet, navigate, relaunch, routeHash } from "./navigation.js";
 import { placeReachCases } from "./place-reachability.test-helper.js";
 import {
   AT_PLACE,
-  bandCases,
   briefingItems,
   coverage,
   EXEMPTIONS,
@@ -25,6 +24,7 @@ import {
   type Reach,
   reachCases,
   type Selector,
+  tableCases,
 } from "./reachability.test-helper.js";
 import { Shell } from "./Shell.js";
 
@@ -175,7 +175,7 @@ export function assertReach(row: Reach) {
 export const ITEM_HOME = /^\/briefing\/(focus|rest)\/\d+\/(scope|origin)$/;
 export const itemHomeCases = (body: ViewSnapshot) =>
   [
-    ...bandCases(body),
+    ...tableCases(body),
     ...motionCases(body),
     ...horizonCases(body),
     ...placeReachCases(body),
@@ -187,18 +187,6 @@ function itemHomes({ briefing }: ViewSnapshot): [string, string][] {
   const held = (itemIds: readonly string[], container: string) =>
     itemIds.map((id) => [id, container] as [string, string]);
   return [
-    ...briefingItems(briefing)
-      .filter(([, item]) => item.attention === "interrupt")
-      .map(
-        ([, { id }]) =>
-          [id, `.today-band li.today-need[data-item-id=${q(id)}]`] as [string, string],
-      ),
-    ...(briefing.decisions?.groups ?? []).flatMap(({ id, itemIds }) =>
-      held(itemIds, `.today-band li.today-decision[data-decision-id=${q(id)}]`),
-    ),
-    ...(briefing.ambient?.failing?.lines ?? []).flatMap(({ id, itemIds }) =>
-      held(itemIds, `.today-band li.today-item-row[data-line-id=${q(id)}]`),
-    ),
     ...(briefing.ambient?.inProgress?.lines ?? []).flatMap(({ id, itemIds }) =>
       held(itemIds, `.today-motion-line[data-line-id=${q(id)}]`),
     ),
@@ -274,6 +262,8 @@ export async function assertOpens(rows: readonly Reach[], body: ViewSnapshot) {
   if ("detail" in row.opens) {
     const { row: selected, selected: id } = selectionStore.getState();
     expect(selected?.inspectId ?? id, where).toBe(row.opens.detail);
+  } else if ("opened" in row.opens) {
+    expect(container.querySelector(row.opens.opened), where).not.toBeNull();
   } else if (row.opens.place.kind === "line") {
     expect(container.querySelector(".line-sheet"), where).not.toBeNull();
   } else expect(window.location.hash, where).toBe(routeHash(row.opens.place));

@@ -23,24 +23,22 @@ afterEach(async () => {
 it.each([
   ["America/Chicago", "18:00"],
   ["UTC", "11-07 00:00"],
-])("reads a Today item's and Line cell's instant under TZ=%s", async (zone, expected) => {
+])("reads a Today deadline's and Line cell's instant under TZ=%s", async (zone, expected) => {
   process.env.TZ = zone;
   vi.resetModules();
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-11-06T14:02:00Z"));
-  const [{ AttentionBand }, { default: Line }, { createSelectionStore }, { watchStore }] =
-    await Promise.all([
-      import("../views/today/Band.js"),
-      import("../views/line/index.js"),
-      import("../panels/selection.js"),
-      import("../store/watch.js"),
-    ]);
+  const [{ TodayTable }, { default: Line }, { watchStore }] = await Promise.all([
+    import("../views/today/Table.js"),
+    import("../views/line/index.js"),
+    import("../store/watch.js"),
+  ]);
   const body: ViewSnapshot = ViewSnapshotSchema.parse(JSON.parse(recorded));
-  const item = body.briefing.focus[0];
+  const line = body.briefing.lines?.[0];
   const station = body.stations[0]?.stations.find(({ id }) => id === "main");
-  if (!item || !station) throw new Error("Recorded Today item and Line cell required");
-  item.title = `Maintenance held since ${at}`;
+  if (!line || !station) throw new Error("Recorded Today line and Line cell required");
+  line.deadline = { at, reason: `Before the next upstream sync, ${at}` };
   station.text = `main run red at ${at}`;
   watchStore.setState({ snapshot: { cursor: body.cursor, body } });
   const container = document.createElement("div");
@@ -54,20 +52,15 @@ it.each([
   await act(async () =>
     root.render(
       <>
-        <AttentionBand
-          snapshot={body}
-          inspector={createSelectionStore({ postMessage: vi.fn() })}
-          onNavigate={vi.fn()}
-        />
+        <TodayTable snapshot={body} />
         <Line presentation="pinned" />
       </>,
     ),
   );
-  const today = container.querySelector(".today-need-title");
+  const today = container.querySelector(".today-row-clock")?.getAttribute("aria-label");
   const cell = container.querySelector('td[data-station="main"] button');
-  expect(today?.textContent).toBe(`Maintenance held since ${expected}`);
+  expect(today).toBe(`Before the next upstream sync, ${expected}`);
   expect(cell?.textContent).toContain(`main run red at ${expected}`);
-  expect(today?.querySelector("time")?.getAttribute("datetime")).toBe(at);
   expect(cell?.querySelector("time")?.getAttribute("datetime")).toBe(at);
-  expect([today?.textContent, cell?.textContent].join(" ")).not.toContain("(in ");
+  expect([today, cell?.textContent].join(" ")).not.toContain("(in ");
 });

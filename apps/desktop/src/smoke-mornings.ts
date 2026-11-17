@@ -16,7 +16,7 @@ export const MORNING_FIXTURES: Readonly<Record<Morning, string>> = {
 export const TODAY_BLOCKS = [
   "head",
   "caveat",
-  "band",
+  "table",
   "horizon",
   "places",
   "releases",
@@ -25,24 +25,23 @@ export const TODAY_BLOCKS = [
 export type TodayBlock = (typeof TODAY_BLOCKS)[number];
 
 const required: Readonly<Record<Morning, readonly TodayBlock[]>> = {
-  calm: ["head", "horizon", "places", "releases", "motion"],
-  busy: ["band", "horizon", "places", "releases", "motion"],
-  bad: ["caveat", "band", "horizon", "places", "releases"],
+  calm: ["table", "horizon", "places", "releases", "motion"],
+  busy: ["table", "horizon", "places", "releases", "motion"],
+  bad: ["caveat", "table", "horizon", "places", "releases"],
 };
 const absent: Readonly<Record<Morning, readonly TodayBlock[]>> = {
-  calm: ["caveat", "band"],
+  calm: ["head", "caveat"],
   busy: ["head", "caveat"],
   bad: ["head", "motion"],
 };
-/** The verdict Today draws: only on the calm morning, whose band is empty. */
-const headlines: Readonly<Record<Morning, RegExp>> = {
-  calm: /^Nothing urgent needs you\./,
-  busy: /^$/,
-  bad: /^$/,
-};
 
 export const MORNING_SURFACES = MORNINGS.flatMap((morning) => [
-  { id: `today-${morning}`, morning, detail: false, widths: [1440, 740] },
+  {
+    id: `today-${morning}`,
+    morning,
+    detail: false,
+    widths: morning === "busy" ? [1440, 1000, 740] : [1440, 740],
+  },
   { id: `today-${morning}-detail`, morning, detail: true, widths: [1440] },
 ]) satisfies { id: string; morning: Morning; detail: boolean; widths: number[] }[];
 export type MorningSurface = (typeof MORNING_SURFACES)[number];
@@ -82,9 +81,11 @@ export interface MorningEvidence {
   fixture: string;
   detail: boolean;
   sections: string[];
+  /** The verdict Today draws; none on a morning whose lines core sends. */
   headline: string;
-  /** Open Interrupts drawn on Today: the Needs you cards and the Stops the line block. */
-  interrupts: number;
+  /** The members Blocked and Waiting on you count, and the members of the fixture's lines. */
+  members: number;
+  lineMembers: number;
   /** The sidebar's Today count, empty when it draws none. */
   todayCount: string;
   viewportHeight: number;
@@ -117,19 +118,17 @@ export function assertMorningEvidence(
     morningSections(surface.morning, surface.detail, shot.viewportWidth),
     `Wrong decision sections: ${label}`,
   );
-  assert(
-    typeof evidence.headline === "string" && headlines[surface.morning].test(evidence.headline),
-    `Wrong headline: ${label}`,
-  );
-  const { interrupts, todayCount } = evidence;
-  assert(typeof interrupts === "number" && interrupts >= 0, `Missing Interrupt count: ${label}`);
-  if (surface.morning === "calm")
-    assert.equal(interrupts, 0, `Interrupt on the calm morning: ${label}`);
-  else assert(interrupts > 0, `No open Interrupt drawn under the band: ${label}`);
+  assert.equal(evidence.headline, "", `Wrong headline: ${label}`);
+  const { members, lineMembers, todayCount } = evidence;
+  assert(typeof lineMembers === "number" && lineMembers > 0, `Missing line members: ${label}`);
   assert.equal(
-    todayCount,
-    interrupts > 0 ? String(interrupts) : "",
-    `Sidebar Today count differs from the ${interrupts} Interrupts Today draws: ${label}`,
+    members,
+    lineMembers,
+    `Blocked and Waiting on you count ${members} of the fixture's ${lineMembers} members: ${label}`,
+  );
+  assert(
+    typeof todayCount === "string" && /^\d*$/.test(todayCount),
+    `Missing Today count: ${label}`,
   );
   const qualifiers = shot.qualifiers;
   assert(

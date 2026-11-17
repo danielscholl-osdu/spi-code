@@ -27,7 +27,6 @@ import { createWatchStore } from "../../store/watch.js";
 import { dropRunning, setRunning } from "../../test-utils/environment.test-helper.js";
 import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { timedText } from "../../time.js";
-import { lineStop } from "../today/LineStop.js";
 import Environment from "./index.js";
 import { eventWhen, hourTicks, place } from "./timeline.js";
 
@@ -800,15 +799,6 @@ it.each([
   } finally {
     await view.done();
   }
-});
-
-it("stops Today's line only from a Held lane that was read, as the place leads", () => {
-  const body = mixedSnapshot(mixed);
-  expect(lineStop(body)?.item.id).toBe("stack:38181620856");
-  const lifecycle = body.areas.find(({ area }) => area === "lifecycle");
-  if (!lifecycle) throw new Error("Mixed snapshot needs a lifecycle area");
-  lifecycle.envelope = { source: "lifecycle", state: "unread" };
-  expect(lineStop(body)).toBeUndefined();
 });
 
 it("draws the last 24 hours open between the tiles and the items, an open hold apart from an ended one", async () => {

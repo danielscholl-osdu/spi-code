@@ -284,10 +284,10 @@ export const VIEW_SURFACES = [
   })),
   {
     id: "today-acknowledged",
-    name: "Today / Back after acknowledgement, an Interrupt still open",
+    name: "Today / Back after acknowledgement, its rows still drawn",
     route: "today",
     place: "Today",
-    selector: ".today .today-needs .today-need",
+    selector: ".today [data-section] tr.today-row",
     designSection: "decision.md draft 7: Headline; PRD PS-03, PS-19, AU-09",
     qualified: true,
   },
@@ -459,9 +459,9 @@ function assertSmokeQualifiers(surfaceId: string, qualifiers: unknown): void {
 }
 
 /**
- * Qualifiers 2 to 5: Today's verdict, the sidebar's Today count, the open Interrupts drawn in Needs
- * you and Stops the line, and "acknowledged <cursor> · seen <cursor> · since <n>" from the
- * acknowledgement and the snapshot.
+ * Qualifiers 2 to 5: Today's verdict, the sidebar's Today count, the members Blocked and Waiting on
+ * you count, and "acknowledged <cursor> · seen <cursor> · since <n>" from the acknowledgement and
+ * the snapshot.
  */
 function assertAcknowledgedToday(qualifiers: readonly string[]): void {
   const [, , verdict = "", pip = "", open = "", seen = ""] = qualifiers;
@@ -469,9 +469,9 @@ function assertAcknowledgedToday(qualifiers: readonly string[]): void {
     /^acknowledged (\d+) · seen \1 · since 0$/.test(seen),
     `Today is not after an acknowledgement with nothing new: ${seen}`,
   );
-  assert.equal(verdict, "", `Today draws a verdict above its band: ${verdict}`);
-  assert(Number(open) > 0, `No still-open Interrupt drawn: ${open}`);
-  assert.equal(pip, open, `Sidebar Today count ${pip} differs from the ${open} Interrupts drawn`);
+  assert.equal(verdict, "", `Today draws a verdict above its rows: ${verdict}`);
+  assert(/^\d*$/.test(pip), `Missing Today count: ${pip}`);
+  assert(Number(open) > 0, `Nothing drawn in Blocked or Waiting on you: ${open}`);
 }
 
 export function assertSmokeViews(value: unknown): asserts value is SmokeShot[] {

@@ -227,24 +227,17 @@ it("omits a Related entry whose text is only emoji, and Related when none is lef
   assertRules("Related with only emoji entries");
 });
 
-it.each([false, true])("cleans Today decision text with a token: %s", async (withToken) => {
+it("cleans a Today line's headline of its job emoji", async () => {
   const body = structuredClone(snapshots.find(({ name }) => name === "snapshot-1106.json")?.body);
-  const group = body?.briefing.decisions?.groups.find(({ text }) =>
-    text.includes("Release PR #89"),
-  );
-  if (!body || !group) throw new Error("Missing recorded release decision");
-  group.text += " › ⇣ ✕ ! ◐ ○ ⌀";
-  group.token = withToken ? "📊 Code Coverage" : undefined;
+  const line = body?.briefing.lines?.find(({ headline }) => headline.includes("Release PR #89"));
+  if (!body || !line) throw new Error("Missing recorded release line");
   await open(body);
-  const row = [...container.querySelectorAll(".today-decision")].find(
-    (element) => element.getAttribute("data-decision-id") === group.id,
+  const headline = container.querySelector(
+    `tr[data-line-id="${line.id}"]:not(.today-row--sub) .today-row-what button`,
   );
-  const cause = row?.querySelector(".today-decision-cause");
-  const text = "Release PR #89 fails Code Coverage › ⇣ ✕ ! ◐ ○ ⌀";
-  expect(row?.getAttribute("title")).toBe(text);
-  expect(cause?.getAttribute("aria-label")).toBe(text);
-  expect(cause?.textContent).toBe(withToken ? "Code Coverage" : text);
-  assertRules("Today decision with recorded job emoji");
+  expect(line.headline).toContain("📊");
+  expect(headline?.textContent).toBe("Release PR #89 fails Code Coverage");
+  assertRules("Today line with recorded job emoji");
 });
 
 const GLYPHS = "› ⇣ ✕ ! ◐ ○ ⌀ ⏸ ⇡";
@@ -279,19 +272,6 @@ it.each(snapshots.filter(({ name }) => name.startsWith("snapshot-1106")))(
     expect(marked.filter((label) => !label.includes(GLYPHS))).toEqual([]);
   },
 );
-
-it("shows an emoji-only decision token as the cleaned decision text", async () => {
-  const body = structuredClone(snapshots.find(({ name }) => name === "snapshot-1106.json")?.body);
-  const group = body?.briefing.decisions?.groups[0];
-  if (!body || !group) throw new Error("Missing a decision");
-  group.token = "📊";
-  await open(body);
-  const cause = container.querySelector(
-    `.today-decision[data-decision-id="${group.id}"] .today-decision-cause`,
-  );
-  expect(cause?.textContent).toBe(plainTitle(group.text));
-  expect(cause?.textContent).not.toBe("");
-});
 
 it("strips injected emoji from the template queue row", async () => {
   const body = structuredClone(snapshots[0]?.body);

@@ -52,6 +52,39 @@
       ]
     },
     {
+      "id": "blocked:sync-run:indexer",
+      "section": "blocked",
+      "subject": "indexer",
+      "cause": "Sync Upstream failed with halt issue #72 open.",
+      "effect": "Nothing else waits on it.",
+      "steps": [],
+      "headline": "sync failed",
+      "age": "33m",
+      "members": [
+        {
+          "id": "sync-run:indexer",
+          "ids": ["sync-run:indexer"],
+          "fork": "indexer",
+          "subject": "https://github.com/Azure/osdu-spi-indexer/actions/runs/43988443150",
+          "primary": {
+            "label": "run Sync Upstream 18:32",
+            "url": "https://github.com/Azure/osdu-spi-indexer/actions/runs/43988443150",
+            "kind": "run"
+          },
+          "since": "2026-11-17T00:32:26Z",
+          "age": "33m",
+          "cause": "Sync Upstream failed with halt issue #72 open.",
+          "effect": "Nothing else waits on it.",
+          "steps": [],
+          "evidence": {
+            "areas": ["github", "runs"],
+            "attributed": "item",
+            "notRead": []
+          }
+        }
+      ]
+    },
+    {
       "id": "waiting:gate2:storage",
       "section": "waiting",
       "subject": "storage",
@@ -80,6 +113,39 @@
             "areas": ["github", "details"],
             "attributed": "item",
             "notRead": ["Validation Summary job"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "waiting:lane-deploy:partition",
+      "section": "waiting",
+      "subject": "partition",
+      "cause": "The deployment record reports a failure; its cause has not been read.",
+      "effect": "Nothing else waits on it.",
+      "steps": [],
+      "headline": "lane deploy failed",
+      "age": "20m",
+      "members": [
+        {
+          "id": "lane-deploy:partition",
+          "ids": ["lane-deploy:partition"],
+          "fork": "partition",
+          "subject": "https://github.com/Azure/osdu-spi-partition/deployments",
+          "primary": {
+            "label": "deployment FAILURE",
+            "url": "https://github.com/Azure/osdu-spi-partition/deployments",
+            "kind": "deploy"
+          },
+          "since": "2026-11-17T00:46:00Z",
+          "age": "20m",
+          "cause": "The deployment record reports a failure; its cause has not been read.",
+          "effect": "Nothing else waits on it.",
+          "steps": [],
+          "evidence": {
+            "areas": ["github", "lifecycle"],
+            "attributed": "item",
+            "notRead": ["Deployment failure's cause"]
           }
         }
       ]
@@ -436,6 +502,198 @@
           }
         }
       ]
+    },
+    {
+      "id": "waiting:sync-review",
+      "section": "waiting",
+      "subject": "crs-conversion",
+      "cause": "Sync PR #41 waits for review.",
+      "effect": "13 upstream commits wait on this PR.",
+      "steps": [],
+      "headline": "sync PR to review",
+      "age": "7d",
+      "members": [
+        {
+          "id": "gate1:crs-conversion",
+          "ids": ["gate1:crs-conversion"],
+          "fork": "crs-conversion",
+          "subject": "https://github.com/Azure/osdu-spi-crs-conversion/pull/41",
+          "primary": {
+            "label": "PR #41",
+            "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/41",
+            "kind": "pr"
+          },
+          "since": "2026-11-10T00:08:09Z",
+          "age": "7d",
+          "cause": "Sync PR #41 waits for review.",
+          "effect": "13 upstream commits wait on this PR.",
+          "steps": [],
+          "evidence": {
+            "areas": ["github", "upstream"],
+            "attributed": "item",
+            "notRead": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "waiting:release-approval",
+      "section": "waiting",
+      "subject": "2 forks",
+      "cause": "The release/upstream PRs need your approval.",
+      "effect": "Each PR merges upstream changes into the fork main.",
+      "steps": [],
+      "headline": "release/upstream PR waits for approval",
+      "age": "6d 22h",
+      "members": [
+        {
+          "id": "gate2:search",
+          "ids": ["gate2:search"],
+          "fork": "search",
+          "subject": "https://github.com/Azure/osdu-spi-search/pull/76",
+          "primary": {
+            "label": "PR #76",
+            "url": "https://github.com/Azure/osdu-spi-search/pull/76",
+            "kind": "pr"
+          },
+          "since": "2026-11-10T02:08:10Z",
+          "age": "6d 22h",
+          "cause": "Release/upstream PR #76 waits for approval; merge with a merge commit.",
+          "effect": "Nothing else waits on it.",
+          "steps": [],
+          "evidence": {
+            "areas": ["github"],
+            "attributed": "item",
+            "notRead": []
+          }
+        },
+        {
+          "id": "gate2:partition",
+          "ids": ["gate2:partition"],
+          "fork": "partition",
+          "subject": "https://github.com/Azure/osdu-spi-partition/pull/248",
+          "primary": {
+            "label": "PR #248",
+            "url": "https://github.com/Azure/osdu-spi-partition/pull/248",
+            "kind": "pr"
+          },
+          "since": "2026-11-17T00:20:25Z",
+          "age": "45m",
+          "cause": "Release/upstream PR #248 waits for approval; merge with a merge commit.",
+          "effect": "Nothing else waits on it.",
+          "steps": [],
+          "evidence": {
+            "areas": ["github"],
+            "attributed": "item",
+            "notRead": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "waiting:rollout",
+      "section": "waiting",
+      "subject": "7 forks",
+      "cause": "osdu-spi main 1a4730d is on its way to the fleet: 6 of 13 forks merged.",
+      "effect": "The change reaches actions, so every PR and every merge takes a deploy lane: 14 lanes, 5 at a time still to go.",
+      "steps": [],
+      "headline": "template 1a4730d not synced yet",
+      "age": "4h",
+      "deadline": {
+        "at": "2026-11-17T08:00:00.000Z",
+        "reason": "Dispatch before Tue 02:00, when the scheduled sync opens all 7 PRs at once"
+      },
+      "members": [
+        {
+          "id": "rollout",
+          "ids": ["rollout"],
+          "fork": "fleet",
+          "primary": {
+            "label": "main 1a4730d",
+            "url": "https://github.com/Azure/osdu-spi/commit/1a4730d327268b5c2a57257fb7289738d4357b0a",
+            "kind": "commit"
+          },
+          "since": "2026-11-16T20:55:36Z",
+          "age": "4h",
+          "cause": "osdu-spi main 1a4730d is on its way to the fleet: 6 of 13 forks merged.",
+          "effect": "The change reaches actions, so every PR and every merge takes a deploy lane: 14 lanes, 5 at a time still to go.",
+          "steps": [],
+          "deadline": {
+            "at": "2026-11-17T08:00:00.000Z",
+            "reason": "Dispatch before Tue 02:00, when the scheduled sync opens all 7 PRs at once"
+          },
+          "evidence": {
+            "areas": [
+              "github",
+              "runs",
+              "approvals",
+              "lifecycle",
+              "details",
+              "upstream",
+              "radar",
+              "template",
+              "security"
+            ],
+            "attributed": "sweep",
+            "notRead": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "waiting:port:entitlements",
+      "section": "waiting",
+      "subject": "12 forks",
+      "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+      "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+      "steps": [],
+      "headline": "23 upstream provider changes to port",
+      "age": "63d",
+      "members": [
+        {
+          "id": "port:entitlements",
+          "ids": [
+            "port:entitlements",
+            "port:unit",
+            "port:indexer",
+            "port:legal",
+            "port:partition",
+            "port:search",
+            "port:workflow",
+            "port:crs-conversion",
+            "port:file",
+            "port:schema",
+            "port:crs-catalog",
+            "port:storage"
+          ],
+          "fork": "12 forks",
+          "primary": {
+            "label": "!968",
+            "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+            "kind": "mr"
+          },
+          "since": "2026-09-14T14:02:39Z",
+          "age": "63d",
+          "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+          "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+          "steps": [],
+          "evidence": {
+            "areas": [
+              "github",
+              "runs",
+              "approvals",
+              "lifecycle",
+              "details",
+              "upstream",
+              "radar",
+              "template",
+              "security"
+            ],
+            "attributed": "sweep",
+            "notRead": []
+          }
+        }
+      ]
     }
   ],
   "items": [
@@ -467,6 +725,76 @@
       "age": "6d",
       "actor": "operator",
       "subject": "https://github.com/Azure/osdu-spi-crs-conversion/issues/44"
+    },
+    {
+      "origin": "system",
+      "id": "sync-run:indexer",
+      "ids": ["sync-run:indexer"],
+      "rung": 0,
+      "cls": "INCIDENT",
+      "scope": "indexer",
+      "title": "Sync Upstream failed with halt issue #72 open",
+      "sub": "33m",
+      "cause": "Sync Upstream failed with halt issue #72 open.",
+      "effect": "Nothing else waits on it.",
+      "next": "Read halt issue #72, then open the failed Sync Upstream run.",
+      "verb": "Investigate",
+      "evidence": [
+        {
+          "label": "issue #72",
+          "url": "https://github.com/Azure/osdu-spi-indexer/issues/72",
+          "kind": "issue"
+        },
+        {
+          "label": "run Sync Upstream 18:32",
+          "url": "https://github.com/Azure/osdu-spi-indexer/actions/runs/43988443150",
+          "kind": "run"
+        }
+      ],
+      "age": "33m",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-indexer/actions/runs/43988443150"
+    },
+    {
+      "origin": "system",
+      "id": "rollout",
+      "ids": ["rollout"],
+      "rung": 1,
+      "cls": "ROLLOUT",
+      "scope": "fleet",
+      "title": "Rollout to template 1a4730d",
+      "sub": "6 of 13 merged · 2 of 5 lanes busy",
+      "cause": "osdu-spi main 1a4730d is on its way to the fleet: 6 of 13 forks merged.",
+      "effect": "The change reaches actions, so every PR and every merge takes a deploy lane: 14 lanes, 5 at a time still to go.",
+      "next": "Dispatch Sync Template to indexer, search and workflow. Three lanes are free.",
+      "verb": "Dispatch",
+      "evidence": [
+        {
+          "label": "main 1a4730d",
+          "url": "https://github.com/Azure/osdu-spi/commit/1a4730d327268b5c2a57257fb7289738d4357b0a",
+          "kind": "commit"
+        },
+        {
+          "label": "forks on d3ddff5",
+          "url": "https://github.com/Azure/osdu-spi/compare/d3ddff562b24cf3b259c8a215fd8b7962df1eb97...1a4730d327268b5c2a57257fb7289738d4357b0a",
+          "kind": "compare"
+        }
+      ],
+      "actor": "operator",
+      "more": [
+        {
+          "label": "Plan",
+          "text": "2 waves · lanes 5 from rollout.json · search merges after storage and indexer"
+        },
+        {
+          "label": "Watch",
+          "text": "Upstream sync at 11-17 18:00 opens 4 PRs (crs-conversion halts instead) that share these lanes. The 11-17 02:00 template sync opens every fork still without a PR at once (7 now)."
+        },
+        {
+          "label": "Reaches",
+          "text": "java-build action"
+        }
+      ]
     },
     {
       "origin": "system",
@@ -534,6 +862,40 @@
       "age": "54m",
       "actor": "operator",
       "subject": "https://github.com/Azure/osdu-spi-storage/pull/83"
+    },
+    {
+      "origin": "system",
+      "id": "lane-deploy:partition",
+      "ids": ["lane-deploy:partition"],
+      "rung": 1,
+      "cls": "UNREAD",
+      "scope": "Environment",
+      "title": "Last lane deploy failed on partition",
+      "sub": "20m",
+      "cause": "The deployment record reports a failure; its cause has not been read.",
+      "effect": "Nothing else waits on it.",
+      "next": "Open the fork's deployment history and its workflow run to diagnose the failure.",
+      "verb": "Investigate",
+      "evidence": [
+        {
+          "label": "fork partition",
+          "url": "https://github.com/Azure/osdu-spi-partition",
+          "kind": "other"
+        },
+        {
+          "label": "deployment FAILURE",
+          "url": "https://github.com/Azure/osdu-spi-partition/deployments",
+          "kind": "deploy"
+        },
+        {
+          "label": "head 9bea4ff",
+          "url": "https://github.com/Azure/osdu-spi-partition/commit/9bea4ff20266108d0f0f83dd9e01f8595d34dae5",
+          "kind": "commit"
+        }
+      ],
+      "age": "20m",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-partition/deployments"
     },
     {
       "origin": "upstream",
@@ -677,6 +1039,30 @@
     },
     {
       "origin": "upstream",
+      "id": "gate1:crs-conversion",
+      "ids": ["gate1:crs-conversion"],
+      "rung": 1,
+      "cls": "GATE",
+      "scope": "crs-conversion",
+      "title": "Sync PR #41 waits for review",
+      "sub": "13 commits held · 7d",
+      "cause": "Sync PR #41 waits for review.",
+      "effect": "13 upstream commits wait on this PR.",
+      "next": "Review the sync PR on GitHub and merge it.",
+      "verb": "Review on GitHub",
+      "evidence": [
+        {
+          "label": "PR #41",
+          "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/41",
+          "kind": "pr"
+        }
+      ],
+      "age": "7d",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-crs-conversion/pull/41"
+    },
+    {
+      "origin": "upstream",
       "id": "gate1:search",
       "ids": ["gate1:search"],
       "rung": 1,
@@ -779,6 +1165,30 @@
     },
     {
       "origin": "system",
+      "id": "gate2:search",
+      "ids": ["gate2:search"],
+      "rung": 1,
+      "cls": "GATE",
+      "scope": "search",
+      "title": "Release/upstream PR #76 waits for approval",
+      "sub": "merge with a merge commit · 6d 22h",
+      "cause": "Release/upstream PR #76 waits for approval; merge with a merge commit.",
+      "effect": "Nothing else waits on it.",
+      "next": "Approve the release/upstream PR and merge it with a merge commit, never a squash.",
+      "verb": "Merge",
+      "evidence": [
+        {
+          "label": "PR #76",
+          "url": "https://github.com/Azure/osdu-spi-search/pull/76",
+          "kind": "pr"
+        }
+      ],
+      "age": "6d 22h",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-search/pull/76"
+    },
+    {
+      "origin": "system",
       "id": "gate2:legal",
       "ids": ["gate2:legal"],
       "rung": 1,
@@ -806,6 +1216,30 @@
       "actor": "operator",
       "subject": "https://github.com/Azure/osdu-spi-legal/pull/90",
       "blockedBy": "stack:lanes"
+    },
+    {
+      "origin": "system",
+      "id": "gate2:partition",
+      "ids": ["gate2:partition"],
+      "rung": 1,
+      "cls": "GATE",
+      "scope": "partition",
+      "title": "Release/upstream PR #248 waits for approval",
+      "sub": "merge with a merge commit · 45m",
+      "cause": "Release/upstream PR #248 waits for approval; merge with a merge commit.",
+      "effect": "Nothing else waits on it.",
+      "next": "Approve the release/upstream PR and merge it with a merge commit, never a squash.",
+      "verb": "Merge",
+      "evidence": [
+        {
+          "label": "PR #248",
+          "url": "https://github.com/Azure/osdu-spi-partition/pull/248",
+          "kind": "pr"
+        }
+      ],
+      "age": "45m",
+      "actor": "operator",
+      "subject": "https://github.com/Azure/osdu-spi-partition/pull/248"
     },
     {
       "origin": "system",
@@ -896,6 +1330,56 @@
       "actor": "operator",
       "subject": "https://github.com/Azure/osdu-spi-indexer/pull/73",
       "blockedBy": "stack:lanes"
+    },
+    {
+      "origin": "upstream",
+      "id": "port:entitlements",
+      "ids": [
+        "port:entitlements",
+        "port:unit",
+        "port:indexer",
+        "port:legal",
+        "port:partition",
+        "port:search",
+        "port:workflow",
+        "port:crs-conversion",
+        "port:file",
+        "port:schema",
+        "port:crs-catalog",
+        "port:storage"
+      ],
+      "rung": 1,
+      "cls": "PORT",
+      "scope": "12 forks",
+      "title": "23 upstream provider changes not ported",
+      "sub": "entitlements 4 · unit 3 · indexer 3 · legal 2 · partition 2 · search 2 · workflow 2 · crs-conversion 1 · file 1 · schema 1 · crs-catalog 1 · storage 1",
+      "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+      "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+      "next": "Port !968 into provider/entitlements-v2-azure; cite the MR URL in the PR body.",
+      "verb": "Port",
+      "evidence": [
+        {
+          "label": "!968",
+          "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+          "kind": "mr"
+        },
+        {
+          "label": "!967",
+          "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
+          "kind": "mr"
+        },
+        {
+          "label": "!963",
+          "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
+          "kind": "mr"
+        },
+        {
+          "label": "!956",
+          "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
+          "kind": "mr"
+        }
+      ],
+      "actor": "operator"
     }
   ]
 }

@@ -1326,7 +1326,7 @@ export async function captureSmokeViews(
               ...(await window.webContents.executeJavaScript(`[
                 document.querySelector(".today .today-headline")?.textContent.trim() ?? "",
                 document.querySelector('[data-sidebar-row=today] .sidebar-pip')?.textContent.trim() ?? "",
-                String(document.querySelectorAll(".today .today-needs .today-need, .today .today-stop").length)
+                String([...document.querySelectorAll(".today [data-section] .today-section-count")].reduce((n, count) => n + Number(count.textContent), 0))
               ]`)),
               seen,
             );
@@ -1511,7 +1511,7 @@ the persisted-snapshot and supervision host proof runs separately, after these f
 Only view.snapshot hands over the first-sweep list; the refresh preserves the older brief.
 Today after acknowledgement shows the Nov 6 projection in the foreground, leaves for Upstream, waits for
 the window's own view.acknowledge, receives that sweep pushed again with the acknowledged baseline
-(${ACKNOWLEDGED_FIXTURE}: nothing new since, its Interrupt still open) and comes back to Today.
+(${ACKNOWLEDGED_FIXTURE}: nothing new since, its rows still drawn) and comes back to Today.
 Settings / Sweep and the Evidence header use schema-valid sweep.status, sweep.progress and
 view.snapshot fixtures. Each named header, schedule line and Sweep now control must be inside
 its panel and viewport. At 740 px the native picker must select Sweep and every cadence and

@@ -10,9 +10,8 @@ import { openHold } from "../views/environment/hold.js";
 import { heldLaneRead } from "../views/environment/lead.js";
 import { eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
 import { releaseSectionCases } from "../views/releases/reachability.test-helper.js";
-import { bandHolds } from "../views/today/Band.js";
-import { lineStop } from "../views/today/LineStop.js";
 import { todayReleasesCases } from "../views/today/releases.test-helper.js";
+import { ageInOneUnit } from "../views/today/Table.js";
 import { lensFields } from "./lens-fields.test-helper.js";
 import type { Destination, Registry, Route } from "./navigation.js";
 import { placeReachCases } from "./place-reachability.test-helper.js";
@@ -36,8 +35,12 @@ export type Home = {
   clock?: number;
 };
 
-/** What a click on the drawn field opens: the item's Detail, or a place. */
-export type Opens = { click: Selector } & ({ detail: string } | { place: Destination });
+/** What a click on the drawn field opens: the item's Detail, a place, or the row's body in place. */
+export type Opens = { click: Selector } & (
+  | { detail: string }
+  | { place: Destination }
+  | { opened: string }
+);
 
 export type Reach = {
   pointer: string;
@@ -256,7 +259,7 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
   );
 
   const verdict = briefing.verdict;
-  if (verdict && !bandHolds(snapshot)) {
+  if (verdict && !briefing.lines) {
     add("/briefing/verdict/text", verdict.text, TODAY, ".today-verdict .today-headline");
     add("/briefing/verdict/mark", verdict.mark, TODAY, ".today-verdict", {
       attribute: "data-mark",
@@ -264,7 +267,7 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
   }
 
   cases.push(
-    ...bandCases(snapshot),
+    ...tableCases(snapshot),
     ...horizonCases(snapshot),
     ...todayReleasesCases(snapshot, TODAY),
   );
@@ -832,7 +835,6 @@ type Add = (
   extra?: Partial<Reach>,
 ) => void;
 
-const verbOf = (element: Element) => (element.textContent ?? "").replace(/ ›$/, "");
 const nth = (selector: string, index: number) => (root: ParentNode) =>
   root.querySelectorAll(selector)[index];
 
@@ -844,199 +846,79 @@ export function briefingItems(briefing: ViewSnapshot["briefing"]) {
   ];
 }
 
-/** In-system items carry no upstream chip (today-design 'Two origins, one mark'). */
-const chipOrigin = (element: Element) =>
-  element.querySelector(".kit-chip--upstream") ? "upstream" : "system";
-
-/** Today's attention band: each Interrupt's card, the in-system decisions and the Failing run. */
-export function bandCases(snapshot: ViewSnapshot): Reach[] {
-  const { briefing } = snapshot;
+/** Today's Blocked and Waiting on you: each line's row, and a sub-row per member of a group. */
+export function tableCases(snapshot: ViewSnapshot): Reach[] {
   const cases: Reach[] = [];
   const add: Add = (pointer, value, where, selector, extra = {}) => {
     cases.push({ pointer, value: String(value), home: where, selector, ...extra });
   };
-  const band = ".today-band";
-  const items = briefingItems(briefing);
-  const known = new Set(treeServices(snapshot.tree));
-  const themes = new Set(briefing.themes.map(({ id }) => id));
-  const place = (service: string): Route => ({ kind: "service", id: service });
-  const stop = lineStop(snapshot)?.item;
-  for (const [pointer, item] of items) {
-    if (item.attention !== "interrupt") continue;
-    if (item.id === stop?.id) {
-      const block = `${band} .today-stop[data-item-id=${quote(item.id)}]`;
-      const detail = { click: `${block} .today-verb`, detail: item.id };
-      add(`${pointer}/verb`, item.verb, TODAY, `${block} .today-verb`, {
-        read: verbOf,
-        opens: detail,
-      });
-      if (item.blocks) {
-        const chip = `${block} .today-stop-blocks .kit-chip`;
-        add(`${pointer}/blocks/text`, item.blocks.text, TODAY, chip);
-        add(`${pointer}/blocks/count`, item.blocks.count, TODAY, chip, { contains: true });
-      }
-      continue;
-    }
-    const card = `${band} li.today-need[data-item-id=${quote(item.id)}]`;
-    const title = `${card} .today-need-title`;
-    const detail = { click: title, detail: item.id };
-    add(`${pointer}/title`, item.title, TODAY, title);
-    add(`${pointer}/scope`, item.scope, TODAY, `${card} .today-need-scope`, {
-      opens: known.has(item.scope)
-        ? { click: `${card} .today-need-scope`, place: place(item.scope) }
-        : detail,
-    });
-    add(`${pointer}/rung`, `P${item.rung}`, TODAY, `${card} > .kit-chip`);
-    add(`${pointer}/verb`, item.verb, TODAY, `${card} .today-verb`, { read: verbOf });
-    if (item.origin)
-      add(`${pointer}/origin`, item.origin, TODAY, card, {
-        attribute: "data-origin",
-        opens: detail,
-      });
-    if (item.age) add(`${pointer}/age`, item.age, TODAY, `${card} .kit-chip--age`);
-    if (item.blocks) {
-      const chip = `${card} .today-need-blocks .kit-chip`;
-      add(`${pointer}/blocks/text`, item.blocks.text, TODAY, chip);
-      add(`${pointer}/blocks/count`, item.blocks.count, TODAY, chip, { contains: true });
-    }
-  }
-
-  const decisions = briefing.decisions;
-  if (decisions && decisions.groups.length > 0) {
-    const heading = `${band} .today-decisions .today-band-heading`;
-    add("/briefing/decisions/text", decisions.text, TODAY, heading, { contains: true });
-    add("/briefing/decisions/items", decisions.items, TODAY, heading, { contains: true });
-    decisions.groups.forEach((group, index) => {
-      const pointer = `/briefing/decisions/groups/${index}`;
-      const row = `${band} li.today-decision[data-decision-id=${quote(group.id)}]`;
-      add(`${pointer}/id`, group.id, TODAY, row, { attribute: "data-decision-id" });
-      add(`${pointer}/theme`, group.theme, TODAY, row, { attribute: "data-theme" });
-      add(`${pointer}/text`, plainTitle(group.text), TODAY, row, { attribute: "title" });
-      if (group.kind) add(`${pointer}/kind`, group.kind, TODAY, row, { attribute: "data-kind" });
-      if (group.token)
-        add(`${pointer}/token`, plainTitle(group.token), TODAY, `${row} .today-decision-cause`);
-      if (group.verb)
-        add(`${pointer}/verb`, group.verb, TODAY, `${row} .today-verb`, { read: verbOf });
-      group.itemIds.forEach((id, at) => {
-        add(`${pointer}/itemIds/${at}`, id, TODAY, row, {
-          attribute: "data-item-ids",
-          contains: true,
-        });
-      });
-      group.scope.forEach(({ service, pr }, at) => {
-        const fork = nth(`${row} .today-decision-fork`, at);
-        const base = `${pointer}/scope/${at}`;
-        add(`${base}/service`, service, TODAY, fork, { attribute: "data-service" });
-        if (!pr) return;
-        add(
-          `${base}/pr/number`,
-          `#${pr.number}`,
-          TODAY,
-          (root) => fork(root)?.querySelector(".kit-pr"),
-          {
-            canon: (value) => value.replace(/^#/, ""),
-          },
-        );
-        if (pr.url) add(`${base}/pr/url`, pr.url, TODAY, fork, { attribute: "data-pr-url" });
-        if (pr.inspect)
-          add(`${base}/pr/inspect`, pr.inspect, TODAY, fork, { attribute: "data-inspect" });
-      });
-      const [first = ""] = group.itemIds;
-      const target =
-        group.itemIds.length > 1 && themes.has(group.theme) ? `theme:${group.theme}` : first;
-      const detail = { click: `${row} .today-decision-cause`, detail: target };
-      const forks = group.scope.map(({ service }) => service);
-      const [fork] = forks;
+  const items = briefingItems(snapshot.briefing);
+  (snapshot.briefing.lines ?? []).forEach((line, index) => {
+    const pointer = `/briefing/lines/${index}`;
+    const head = `tr.today-row:not(.today-row--sub)${at(pointer)}`;
+    const single = line.members.length === 1;
+    add(`${pointer}/id`, line.id, TODAY, head, { attribute: "data-line-id" });
+    add(
+      `${pointer}/section`,
+      line.section,
+      TODAY,
+      (root) => root.querySelector(head)?.closest("section"),
+      { attribute: "data-section" },
+    );
+    add(`${pointer}/subject`, line.subject, TODAY, `${head} .today-row-fork button`);
+    add(`${pointer}/headline`, plainTitle(line.headline), TODAY, `${head} .today-row-what button`);
+    if (line.age)
+      add(`${pointer}/age`, ageInOneUnit(line.age), TODAY, `${head} .today-row-age-text`);
+    if (line.deadline)
+      add(
+        `${pointer}/deadline/reason`,
+        plainTitle(timedText(line.deadline.reason, { hint: false })),
+        TODAY,
+        `${head} .today-row-clock`,
+        {
+          attribute: "aria-label",
+        },
+      );
+    line.members.forEach((member, at_) => {
+      const base = `${pointer}/members/${at_}`;
+      const row = single ? head : `tr.today-row--sub${at(base)}`;
+      add(`${base}/id`, member.id, TODAY, row, { attribute: "data-item-id" });
+      const fork = single ? line.subject : member.fork;
+      const opens = {
+        click: `${row} .today-row-fork button`,
+        opened: `${row}[data-open] + tr.today-row-body .opened-body`,
+      };
       for (const [item, entry] of items) {
-        if (!group.itemIds.includes(entry.id)) continue;
+        if (entry.id !== member.id && !member.ids.includes(entry.id)) continue;
         if (entry.origin)
-          add(`${item}/origin`, entry.origin, TODAY, row, { read: chipOrigin, opens: detail });
-        if (!fork || entry.scope !== forks.join(", ")) continue;
-        add(`${item}/scope`, entry.scope, TODAY, row, {
-          read: (element) =>
-            [...element.querySelectorAll(".today-decision-fork")]
-              .map((span) => span.getAttribute("data-service"))
-              .join(", "),
-          opens: known.has(fork)
-            ? { click: `${row} .today-decision-fork .kit-chip--service`, place: place(fork) }
-            : detail,
-        });
-      }
-    });
-  }
-
-  const failing = briefing.ambient?.failing;
-  if (failing && failing.lines.length > 0) {
-    const heading = `${band} .today-failing .today-band-heading`;
-    add("/briefing/ambient/failing/text", failing.text, TODAY, heading, { contains: true });
-    add("/briefing/ambient/failing/items", failing.items, TODAY, heading, { contains: true });
-    failing.lines.forEach((line, index) => {
-      const pointer = `/briefing/ambient/failing/lines/${index}`;
-      const row = `${band} li.today-item-row[data-line-id=${quote(line.id)}]`;
-      add(`${pointer}/id`, line.id, TODAY, row, { attribute: "data-line-id" });
-      add(`${pointer}/count`, line.count, TODAY, row, { attribute: "data-count" });
-      add(`${pointer}/origin`, line.origin, TODAY, row, { attribute: "data-origin" });
-      add(`${pointer}/text`, line.text, TODAY, row, { attribute: "title" });
-      line.itemIds.forEach((id, at) => {
-        add(`${pointer}/itemIds/${at}`, id, TODAY, row, {
-          attribute: "data-item-ids",
-          contains: true,
-        });
-      });
-      if (line.service)
-        add(`${pointer}/service`, line.service, TODAY, `${row} .today-item-service`);
-      if (line.station)
-        add(`${pointer}/station`, line.station, TODAY, `${row} .today-item-glyph`, {
-          attribute: "data-station",
-        });
-      if (line.pr) {
-        const pr = `${row} .today-item-pr`;
-        add(`${pointer}/pr/number`, `#${line.pr.number}`, TODAY, `${pr} .kit-pr`, {
-          canon: (value) => value.replace(/^#/, ""),
-        });
-        if (line.pr.url)
-          add(`${pointer}/pr/url`, line.pr.url, TODAY, pr, { attribute: "data-pr-url" });
-        if (line.pr.inspect)
-          add(`${pointer}/pr/inspect`, line.pr.inspect, TODAY, pr, { attribute: "data-inspect" });
-      }
-      if (line.state) {
-        const state = `${row} .today-item-state`;
-        add(`${pointer}/state/text`, line.state.text, TODAY, `${state} > .kit-chip`);
-        add(`${pointer}/state/tone`, line.state.tone, TODAY, state, { attribute: "data-tone" });
-      }
-      if (line.followUp)
-        add(`${pointer}/followUp`, line.followUp, TODAY, `${row} .kit-chip--plain`);
-      if (line.age) add(`${pointer}/age`, line.age, TODAY, `${row} .kit-chip--age`);
-      const [first = ""] = line.itemIds;
-      const detail = { click: `${row} .today-item-open`, detail: first };
-      for (const [item, entry] of items) {
-        if (!line.itemIds.includes(entry.id)) continue;
-        if (entry.origin === line.origin)
           add(`${item}/origin`, entry.origin, TODAY, row, {
             attribute: "data-origin",
-            opens: detail,
+            contains: true,
+            opens,
           });
-        if (line.service && entry.scope === line.service)
-          add(`${item}/scope`, entry.scope, TODAY, `${row} .today-item-service`, {
-            opens: known.has(line.service)
-              ? { click: `${row} button.today-item-service`, place: place(line.service) }
-              : detail,
-          });
+        if (entry.scope === fork)
+          add(`${item}/scope`, entry.scope, TODAY, `${row} .today-row-fork button`, { opens });
       }
+      if (member.age)
+        add(`${base}/age`, ageInOneUnit(member.age), TODAY, `${row} .today-row-age-text`);
+      if (member.primary)
+        add(`${base}/primary/url`, member.primary.url, TODAY, `${row} .today-row-open a`, {
+          attribute: "href",
+        });
     });
-  }
+  });
   return cases;
 }
 
 /** The 740-only group opener reaches every core line in that group's full Detail list. */
 export function moreCases(snapshot: ViewSnapshot): Reach[] {
-  return TODAY_GROUPS.flatMap((group) => {
+  const drawn = TODAY_GROUPS.filter((group) => group === "horizon" || group === "motion");
+  return drawn.flatMap((group) => {
     const row = todayGroupRow(snapshot, group);
     const entries = row.entries ?? [];
     if (entries.length <= 3) return [];
     const prefix = row.prefixes?.[0];
-    const list =
-      group === "horizon" ? prefix : `${prefix}/${group === "decisions" ? "groups" : "lines"}`;
+    const list = group === "horizon" ? prefix : `${prefix}/lines`;
     return entries.map((entry, index) => ({
       pointer: `${list}/${index}/text`,
       value: plainTitle(entry.title),
@@ -1187,14 +1069,9 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
   },
   "today-lines": {
     patterns: [
-      "/briefing/lines/#/age",
       "/briefing/lines/#/cause",
       "/briefing/lines/#/deadline/at",
-      "/briefing/lines/#/deadline/reason",
       "/briefing/lines/#/effect",
-      "/briefing/lines/#/headline",
-      "/briefing/lines/#/id",
-      "/briefing/lines/#/members/#/age",
       "/briefing/lines/#/members/#/cause",
       "/briefing/lines/#/members/#/deadline/at",
       "/briefing/lines/#/members/#/deadline/reason",
@@ -1202,20 +1079,16 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
       "/briefing/lines/#/members/#/evidence/areas/#",
       "/briefing/lines/#/members/#/evidence/attributed",
       "/briefing/lines/#/members/#/fork",
-      "/briefing/lines/#/members/#/id",
       "/briefing/lines/#/members/#/ids/#",
       "/briefing/lines/#/members/#/primary/kind",
       "/briefing/lines/#/members/#/primary/label",
-      "/briefing/lines/#/members/#/primary/url",
       "/briefing/lines/#/members/#/since",
       "/briefing/lines/#/members/#/steps/#",
       "/briefing/lines/#/members/#/subject",
-      "/briefing/lines/#/section",
       "/briefing/lines/#/steps/#",
-      "/briefing/lines/#/subject",
     ],
     reason:
-      "spicode-djg.6: core situation lines are drawn by Today in spicode-djg.9 and opened bodies in spicode-djg.8",
+      "spicode-djg.9: these line fields show only in a row's opened body (spicode-djg.8), or are core's join keys",
   },
   ...PENDING,
   transport: {
@@ -1343,10 +1216,40 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
     reason:
       "spicode-f0s.47: briefing.since stays in the contract and no surface draws it (PS-03; spicode-eib ruling R2)",
   },
-  "verdict-with-band": {
+  "today-row-item": {
+    patterns: ["/briefing/focus/#/verb", "/briefing/focus/#/age"],
+    reason:
+      "spicode-djg.9: an Interrupt on Today is its line's row, with no verb (X1) and its object's age (S)",
+    when: (_value, { pointer, snapshot }) => {
+      const item = snapshot.briefing.focus[Number(pointer.split("/")[3])];
+      return (
+        item?.attention === "interrupt" &&
+        !!snapshot.briefing.lines?.some(({ members }) => members.some(({ id }) => id === item.id))
+      );
+    },
+  },
+  "today-decisions": {
+    patterns: [
+      "/briefing/decisions/items",
+      "/briefing/decisions/text",
+      "/briefing/decisions/groups/#/id",
+      "/briefing/decisions/groups/#/theme",
+      "/briefing/decisions/groups/#/itemIds/#",
+      "/briefing/decisions/groups/#/verb",
+      "/briefing/decisions/groups/#/text",
+      "/briefing/decisions/groups/#/scope/#/service",
+      "/briefing/decisions/groups/#/scope/#/pr/number",
+      "/briefing/decisions/groups/#/scope/#/pr/url",
+      "/briefing/decisions/groups/#/scope/#/pr/inspect",
+    ],
+    reason:
+      "spicode-djg.9: Blocked and Waiting on you replace Decisions waiting; core's lines group the same items (X1, X2)",
+  },
+  "verdict-with-lines": {
     patterns: ["/briefing/verdict/text", "/briefing/verdict/mark"],
-    reason: "Today draws the verdict only when the attention band is empty (PS-03)",
-    when: (_value, { snapshot }) => bandHolds(snapshot),
+    reason:
+      "spicode-djg.9: Today's lede is the date only (X3); the verdict is drawn only without lines",
+    when: (_value, { snapshot }) => snapshot.briefing.lines !== undefined,
   },
   "briefing-voice": {
     patterns: ["/briefing/headline", "/briefing/summary", "/briefing/doctor/state"],

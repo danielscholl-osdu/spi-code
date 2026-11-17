@@ -359,14 +359,14 @@ const rejected: Record<string, string> = {
 
 const morningBlocks: Record<MorningSurface["morning"], MorningEvidence["blocks"]> = {
   calm: [
-    { name: "head", top: 108, height: 77 },
+    { name: "table", top: 108, height: 77 },
     { name: "horizon", top: 201, height: 247 },
     { name: "places", top: 470, height: 221 },
     { name: "releases", top: 712, height: 196 },
     { name: "motion", top: 712, height: 122 },
   ],
   busy: [
-    { name: "band", top: 108, height: 369 },
+    { name: "table", top: 108, height: 369 },
     { name: "horizon", top: 499, height: 374 },
     { name: "places", top: 895, height: 221 },
     { name: "releases", top: 1137, height: 271 },
@@ -374,7 +374,7 @@ const morningBlocks: Record<MorningSurface["morning"], MorningEvidence["blocks"]
   ],
   bad: [
     { name: "caveat", top: 201, height: 35 },
-    { name: "band", top: 254, height: 396 },
+    { name: "table", top: 254, height: 396 },
     { name: "horizon", top: 672, height: 478 },
     { name: "places", top: 1171, height: 293 },
     { name: "releases", top: 1486, height: 196 },
@@ -411,12 +411,9 @@ function morningShot(
       fixture: MORNING_FIXTURES[surface.morning],
       detail: surface.detail,
       sections: morningSections(surface.morning, surface.detail, viewportWidth),
-      headline: {
-        calm: "Nothing urgent needs you. v0.35.3 is ready; all 13 forks are flowing.",
-        busy: "",
-        bad: "",
-      }[surface.morning],
-      interrupts: { calm: 0, busy: 1, bad: 3 }[surface.morning],
+      headline: "",
+      members: { calm: 1, busy: 13, bad: 14 }[surface.morning],
+      lineMembers: { calm: 1, busy: 13, bad: 14 }[surface.morning],
       todayCount: { calm: "", busy: "1", bad: "3" }[surface.morning],
       viewportHeight: 800,
       scrollHeight: 1594,
@@ -871,12 +868,10 @@ it("requires Today after acknowledgement at every width and appearance", () => {
 });
 
 it.each([
-  [2, "1 thing needs you; 1 fork is stopped.", "draws a verdict above its band"],
-  [2, "Nothing urgent needs you.", "draws a verdict above its band"],
-  [3, "", "Sidebar Today count  differs"],
-  [3, "2", "Sidebar Today count 2 differs"],
-  [4, "2", "Sidebar Today count 1 differs from the 2 Interrupts drawn"],
-  [4, "0", "No still-open Interrupt drawn"],
+  [2, "1 thing needs you; 1 fork is stopped.", "draws a verdict above its rows"],
+  [2, "Nothing urgent needs you.", "draws a verdict above its rows"],
+  [3, "one", "Missing Today count"],
+  [4, "0", "Nothing drawn in Blocked or Waiting on you"],
   [5, "acknowledged 1 · seen 1 · since 1", "not after an acknowledgement"],
   [5, "acknowledged 1 · seen 2 · since 0", "not after an acknowledgement"],
   [5, "", "not after an acknowledgement"],
@@ -1084,16 +1079,20 @@ const evidence = (
   change: { [K in keyof MorningEvidence]?: MorningEvidence[K] | undefined },
 ) => ({ morning: { ...shot.morning, ...change } as MorningEvidence });
 
-it("lists Today on calm, busy and bad at 1440 and 740 in both appearances, and Detail open at 1440", () => {
+it("lists Today on calm, busy and bad at 1440 and 740, busy also at 1000, in both appearances, and Detail open at 1440", () => {
   expect(
     mornings.map(
       ({ surface, viewportWidth, appearance }) => `${surface}/${viewportWidth}/${appearance}`,
     ),
-  ).toHaveLength(18);
+  ).toHaveLength(20);
   for (const morning of ["calm", "busy", "bad"])
     for (const id of [`today-${morning}`, `today-${morning}-detail`])
       for (const appearance of ["light", "dark"]) {
-        const widths = id.endsWith("-detail") ? [1440] : [1440, 740];
+        const widths = id.endsWith("-detail")
+          ? [1440]
+          : morning === "busy"
+            ? [1440, 1000, 740]
+            : [1440, 740];
         for (const viewportWidth of widths) {
           const matches = (shot: SmokeReport["views"][number]) =>
             shot.surface === id &&
@@ -1201,7 +1200,7 @@ it("fails a capture that stops at window height or leaves a block outside the im
   expect(() => assertSmokeViews(reordered)).toThrow("Blocks out of order: today-busy/1440");
 });
 
-it("accepts busy's projected In motion beside its full band", () => {
+it("accepts busy's projected In motion below its table", () => {
   const snapshot = ViewSnapshotSchema.parse(JSON.parse(readGenerated("snapshot-busy.json")));
   const inMotion =
     (snapshot.briefing.ambient?.inProgress.lines.length ?? 0) > 0 ||
@@ -1253,24 +1252,23 @@ it("fails a morning without its fixture, decision sections, headline, Detail or 
       (shot) => evidence(shot, { sections: morningSections("bad", false, 1440) }),
       "Wrong decision sections: today-bad/740",
     ],
-    ["today-calm", (shot) => evidence(shot, { headline: "" }), "Wrong headline"],
+    [
+      "today-calm",
+      (shot) => evidence(shot, { headline: "Nothing urgent needs you." }),
+      "Wrong headline",
+    ],
     [
       "today-busy",
       (shot) => evidence(shot, { headline: "1 thing needs you; 2 forks are stopped." }),
       "Wrong headline",
     ],
     [
-      "today-calm",
-      (shot) => evidence(shot, { interrupts: 1, todayCount: "1" }),
-      "Interrupt on the calm",
-    ],
-    [
       "today-busy",
-      (shot) => evidence(shot, { interrupts: 0, todayCount: "" }),
-      "No open Interrupt",
+      (shot) => evidence(shot, { members: 12 }),
+      "Blocked and Waiting on you count 12 of the fixture's 13 members",
     ],
-    ["today-bad", (shot) => evidence(shot, { todayCount: "2" }), "Sidebar Today count differs"],
-    ["today-busy", (shot) => evidence(shot, { interrupts: undefined }), "Missing Interrupt count"],
+    ["today-bad", (shot) => evidence(shot, { lineMembers: 0 }), "Missing line members"],
+    ["today-calm", (shot) => evidence(shot, { todayCount: undefined }), "Missing Today count"],
     ["today-busy-detail", (shot) => evidence(shot, { detailTitle: undefined }), "Missing Detail"],
     [
       "today-busy",

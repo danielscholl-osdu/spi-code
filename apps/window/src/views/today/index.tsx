@@ -12,13 +12,13 @@ import { openFreshness } from "../../components/sweep/reveal.js";
 import { failedCount, settled } from "../../components/sweep/words.js";
 import { openReadiness } from "../../settings/readiness.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
-import { AttentionBand, bandHolds } from "./Band.js";
 import { CaveatBand } from "./CaveatBand.js";
 import { TodayFrame } from "./Frame.js";
 import { Horizon } from "./Horizon.js";
 import { motionSlot } from "./InMotion.js";
 import { Places } from "./Places.js";
 import { releasesSlot } from "./Releases.js";
+import { TodayTable } from "./Table.js";
 import { Verdict } from "./Verdict.js";
 import "./today.css";
 
@@ -123,7 +123,7 @@ export default function Today({
       <TodayFrame
         sweptAt={body.sweptAt}
         head={
-          bandHolds(body) || !body.briefing.verdict ? null : (
+          body.briefing.lines || !body.briefing.verdict ? null : (
             <Verdict verdict={body.briefing.verdict} />
           )
         }
@@ -136,7 +136,7 @@ export default function Today({
           />
         }
         slots={{
-          band: bandHolds(body) ? <AttentionBand snapshot={body} /> : null,
+          table: body.briefing.lines ? <TodayTable snapshot={body} /> : null,
           horizon: <Horizon snapshot={body} store={store} onOpenEvidence={openEvidence} />,
           places: <Places snapshot={body} onNavigate={onNavigate} />,
           releases: releasesSlot(body),
