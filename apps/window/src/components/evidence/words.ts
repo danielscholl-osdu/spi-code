@@ -129,36 +129,6 @@ export function envelopeSentence(envelope: Envelope, now: number, sweptAt?: stri
   return `${envelope.state}${read}, complete`;
 }
 
-/**
- * An area on the Evidence page: when the data it holds was observed (and how long before the
- * sweep ended, when that is more than a few minutes) and its completeness. A failed area keeps
- * the observation it retained; an area with none says it was not observed. An unread area the
- * sweep's list `logged` as read says only that this snapshot holds no observation for it.
- */
-export function areaObservation(
-  envelope: Envelope,
-  sweptAt: string,
-  now: number,
-  { logged = false }: { logged?: boolean } = {},
-): string {
-  if (envelope.state === "unread")
-    return logged ? "no observation recorded in this snapshot" : "not read yet · not observed";
-  const { completeness, observedAt } = envelope;
-  const cut =
-    completeness.kind === "cut"
-      ? `${count(completeness.read)} of ${count(completeness.total)} read`
-      : "";
-  if (observedAt === undefined)
-    return ["read failed, nothing retained", "not observed", ...(cut ? [cut] : [])].join(" · ");
-  const before = Math.round((Date.parse(sweptAt) - Date.parse(observedAt)) / 60_000);
-  const observed = `observed ${clockTime(observedAt, { now, hint: false })}`;
-  return [
-    envelope.state === "failed" ? `read failed, kept data ${observed}` : observed,
-    ...(before > 5 ? [`${before} min before the sweep ended`] : []),
-    cut || "complete",
-  ].join(" · ");
-}
-
 const observedClock = (at: string, now: number) => clockTime(at, { now, hint: false });
 
 const cutRead = ({ completeness }: Exclude<Envelope, { state: "unread" }>) =>

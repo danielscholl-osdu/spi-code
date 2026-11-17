@@ -13,7 +13,7 @@ import {
 } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, expect, it } from "vitest";
+import { afterAll, afterEach, expect, it, vi } from "vitest";
 import {
   type EvidenceRoute,
   openEvidence,
@@ -26,6 +26,16 @@ import { EvidencePage, type EvidenceSnapshot } from "./EvidencePage.js";
 import { AREA_NAMES } from "./words.js";
 
 const now = Date.parse("2026-11-17T01:10:00Z");
+const previousZone = process.env.TZ;
+process.env.TZ = "UTC";
+vi.useFakeTimers({ toFake: ["Date"] });
+vi.setSystemTime(now);
+afterAll(() => {
+  vi.useRealTimers();
+  if (previousZone === undefined) delete process.env.TZ;
+  else process.env.TZ = previousZone;
+});
+
 const sweptAt = "2026-11-17T01:06:12Z";
 const at = (minutes: number) => new Date(Date.parse(sweptAt) - minutes * 60_000).toISOString();
 
@@ -171,7 +181,9 @@ it("lists an item's not-read first, then its fork's reads with times, then its a
   );
   expect(view.names("Reads of Azure/osdu-spi-storage")).toEqual(["port PRs", "main · pom.xml"]);
   expect(view.names("Areas")).toEqual([AREA_NAMES.github, AREA_NAMES.details]);
-  expect(view.page?.textContent).toContain("14 min before the sweep ended");
+  expect(
+    view.page?.querySelector('tr[data-source="details"] td[title]')?.getAttribute("title"),
+  ).toContain("14 min before the sweep ended");
   expect(view.page?.textContent).toContain("SPI Code read this item from these areas.");
   expect(view.page?.textContent).not.toMatch(/GitLab|indexer|partition/);
 });
@@ -271,12 +283,11 @@ const failing: EvidenceSnapshot = {
 it("gives a selection's failed areas their observed time and completeness, or says none was observed", async () => {
   const view = await render(item("gate2:storage"), failing);
   const fact = (area: AreaName) =>
-    view.page?.querySelector(`table[aria-label="Areas"] tr[data-source="${area}"] td:last-child`)
-      ?.textContent;
-  expect(fact("details")).toBe(
-    `read failed, kept data observed ${clock(18)} · 18 min before the sweep ended · 3 of 9 read`,
-  );
-  expect(fact("github")).toBe("read failed, nothing retained · not observed");
+    view.page
+      ?.querySelector(`table[aria-label="Areas"] tr[data-source="${area}"] td:last-child`)
+      ?.textContent?.trim();
+  expect(fact("details")).toBe(`failed · showing ${clock(18)}`);
+  expect(fact("github")).toBe("failed · nothing kept");
 });
 
 const START = at(3);
@@ -574,19 +585,31 @@ it.each([
     "failed · nothing kept",
     "Read failed, nothing kept, not observed, complete.",
   ],
+  [
+    "cut",
+    "security",
+    "cut · 40 of 52 read",
+    `Cut, observed ${clock(1)}, 1 min before the sweep ended, 40 of 52 read.`,
+  ],
   ["not read", "auth", "not read yet", "Not read yet, not observed."],
 ] as const)(
-  "says an area %s in one phrase without the sweep's list",
+  "says an area %s in one phrase on sweep and selection pages without the sweep's list",
   async (label, area, phrase, title) => {
-    const view = await render(
-      { kind: "evidence" },
-      label.startsWith("failed") || label === "not read" ? failing : snapshot,
-    );
-    const row = view.page?.querySelector(`.sweep-row[data-source="${area}"]`);
-    expect(row?.querySelector(".sweep-outcome")?.textContent).toBe(phrase);
-    expect(row?.querySelector(".sweep-outcome")?.getAttribute("title")).toBe(title);
-    expect(row?.getAttribute("aria-label")).toBe(`${AREA_NAMES[area]} · ${phrase}. ${title}`);
-    expect(view.page?.textContent).not.toMatch(UNSAID);
+    const body =
+      label.startsWith("failed") || label === "not read"
+        ? failing
+        : label === "cut"
+          ? kinds
+          : snapshot;
+    for (const route of [{ kind: "evidence" } as EvidenceRoute, item("radar:partition")]) {
+      const view = await render(route, body);
+      const row = view.page?.querySelector(`[data-source="${area}"]`);
+      const outcome = row?.querySelector(route.selection ? "td[data-state]" : ".sweep-outcome");
+      expect(outcome?.textContent?.trim()).toBe(phrase);
+      expect(outcome?.getAttribute("title")).toBe(title);
+      expect(row?.getAttribute("aria-label")).toBe(`${AREA_NAMES[area]} · ${phrase}. ${title}`);
+      expect(view.page?.textContent).not.toMatch(UNSAID);
+    }
   },
 );
 
@@ -609,3 +632,33 @@ it("says a selection the briefing no longer holds is gone and keeps Whole sweep"
   expect(view.parts()).toEqual([]);
   expect(view.page?.querySelector("[data-evidence-whole]")).not.toBeNull();
 });
+
+const pageVariants = [
+  ["fresh", snapshot, null],
+  ["failed", failing, null],
+  ["cut", kinds, kindsSweep],
+  ["cut without sweep list", kinds, null],
+  ["not due", snapshot, kindsSweep],
+  ["partial failure", partial, partialSweep],
+] as const;
+const routes: readonly (readonly [string, EvidenceRoute])[] = [
+  ["whole sweep", { kind: "evidence" }],
+  ["item", item("radar:partition")],
+  [
+    "group",
+    { kind: "evidence", selection: { kind: "line", id: "waiting:upgrade:os-core-common" } },
+  ],
+];
+
+it.each(
+  routes.flatMap(([scope, route]) =>
+    pageVariants.map(([state, body, completed]) => ({ scope, route, state, body, completed })),
+  ),
+)(
+  "keeps old row verbiage off the $scope Evidence page, $state",
+  async ({ route, body, completed }) => {
+    const view = await render(route, body, completed);
+    expect(view.page).not.toBeNull();
+    expect(view.page?.textContent).not.toMatch(UNSAID);
+  },
+);

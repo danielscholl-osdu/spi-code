@@ -57,17 +57,30 @@ import "./evidence.css";
 
 export type Row = { key: string; name: string; tone: EvidenceTone; word: string; sentence: string };
 
-export function EvidenceTable({ label, rows }: { label: string; rows: readonly Row[] }) {
+export function EvidenceTable({
+  label,
+  rows,
+  compact = false,
+}: {
+  label: string;
+  rows: readonly Row[];
+  compact?: boolean;
+}) {
   return (
     <table className="evidence-table" aria-label={label}>
       <tbody>
         {rows.map((row) => (
-          <tr key={row.key} data-source={row.key} data-tone={row.tone}>
+          <tr
+            key={row.key}
+            data-source={row.key}
+            data-tone={row.tone}
+            aria-label={compact ? `${row.name} · ${row.word}. ${row.sentence}` : undefined}
+          >
             <th scope="row">{row.name}</th>
-            <td data-state={row.word}>
+            <td data-state={row.word} title={compact ? row.sentence : undefined}>
               <span className="evidence-dot" data-tone={row.tone} aria-hidden /> {row.word}
             </td>
-            <td>{row.sentence}</td>
+            {!compact && <td>{row.sentence}</td>}
           </tr>
         ))}
       </tbody>

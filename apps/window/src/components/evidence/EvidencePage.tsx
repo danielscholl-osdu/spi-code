@@ -21,7 +21,7 @@ import { EvidenceTable, SweepEvidence, sourceRow } from "./EvidenceTab.js";
 import { type PageEvidence, pageEvidence, type ReadGroup } from "./page-evidence.js";
 import type { SweepLineSnapshot } from "./SweepLine.js";
 import { useNow } from "./useNow.js";
-import { AREA_NAMES, areaObservation, plain } from "./words.js";
+import { AREA_NAMES, areaPhrase, areaSentence, plain } from "./words.js";
 import "../sweep/sweep.css";
 import "./evidence.css";
 
@@ -114,7 +114,13 @@ function SelectionPage({
     const envelope = envelopes.get(area);
     if (!envelope) return [];
     const row = sourceRow({ key: area, name: AREA_NAMES[area], envelope }, now);
-    return [{ ...row, sentence: areaObservation(envelope, sweptAt, now) }];
+    return [
+      {
+        ...row,
+        word: areaPhrase(envelope, sweptAt, now),
+        sentence: areaSentence(envelope, sweptAt, now),
+      },
+    ];
   });
   return (
     <>
@@ -153,7 +159,7 @@ function SelectionPage({
       <section aria-label="Areas" data-evidence-part="areas">
         <h3>Areas</h3>
         <p className="evidence-line">{areaNote(evidence.attributed, subject)}</p>
-        <EvidenceTable label="Areas" rows={rows} />
+        <EvidenceTable label="Areas" rows={rows} compact />
       </section>
     </>
   );
