@@ -4,7 +4,7 @@
 import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterAll, afterEach, expect, it, vi } from "vitest";
 import recorded from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { openSelection, setOpenSelection } from "../../app/navigation.js";
 import { treeServices } from "../../app/queue.js";
@@ -31,6 +31,14 @@ const popoverFields = (container: HTMLElement) =>
     field.querySelector("dt")?.textContent,
     field.querySelector("dd")?.textContent,
   ]);
+
+// Pinned before any test formats a time, since the window caches its local-zone formatter.
+const previousZone = process.env.TZ;
+process.env.TZ = "America/Chicago";
+afterAll(() => {
+  if (previousZone === undefined) delete process.env.TZ;
+  else process.env.TZ = previousZone;
+});
 
 const cleanups: (() => Promise<void>)[] = [];
 const snapshot = () => ViewSnapshotSchema.parse(JSON.parse(recorded));
@@ -203,17 +211,13 @@ it("renders no empty or future parts on the recorded sweep or when optional fact
   ).toBeNull();
 });
 
-/** Read in Chicago at the sweep, where core's 00:00 UTC deadline falls at 18:00 the same day. */
+/** Read at the sweep, where core's 00:00 UTC deadline falls at 18:00 the same day in Chicago. */
 async function pinned<T>(run: () => Promise<T>): Promise<T> {
-  const zone = process.env.TZ;
-  process.env.TZ = "America/Chicago";
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(Date.parse(snapshot().sweptAt));
   try {
     return await run();
   } finally {
-    if (zone === undefined) delete process.env.TZ;
-    else process.env.TZ = zone;
     vi.useRealTimers();
   }
 }
