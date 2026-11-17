@@ -380,14 +380,25 @@ async function captureFindPins(
   }
 }
 
-/** The sweep segment opens a popover; its Evidence opens the sweep's Evidence. */
+/** The sweep segment opens a popover; its Evidence opens the sweep's Evidence page. */
 async function openSweepEvidence(window: BrowserWindow): Promise<void> {
   await window.webContents.executeJavaScript('document.querySelector("[data-sweep-line]").click()');
   await rendered(window, 'document.querySelector("[data-sweep-popover] .capsule-evidence")');
   await window.webContents.executeJavaScript(
     'document.querySelector("[data-sweep-popover] .capsule-evidence").click()',
   );
-  await rendered(window, '!document.querySelector("[data-sweep-popover]")');
+  await rendered(
+    window,
+    '!document.querySelector("[data-sweep-popover]") && location.hash.startsWith("#evidence") && document.querySelector("[data-evidence-page] [data-evidence=sweep]") && document.querySelector("[data-place]")?.textContent === "Evidence"',
+  );
+}
+
+/** Back on the Evidence page returns to the place it was opened from. */
+async function leaveEvidence(window: BrowserWindow): Promise<void> {
+  await window.webContents.executeJavaScript(
+    'document.querySelector("[data-evidence-page] [data-evidence-back]").click()',
+  );
+  await rendered(window, '!document.querySelector("[data-evidence-page]")');
 }
 
 async function settingsSection(
@@ -484,7 +495,7 @@ async function measure(
     switch (${JSON.stringify(rule)}) {
       case "sweep-visible": {
         const settings = document.querySelector("[data-settings-section=sweep]");
-        const panel = settings ? element("[role=dialog].settings") : element("[data-sweep-header]").closest(".panel-body");
+        const panel = settings ? element("[role=dialog].settings") : element("[data-evidence-page]");
         const header = element(settings ? ".settings-header" : "[data-sweep-header]");
         const schedule = element(settings ? ".sweep-summary" : "[data-sweep-schedule]");
         return { rule: "sweep-visible", viewport, panel: rect(panel),
@@ -505,7 +516,7 @@ async function measure(
       case "failed-reads": {
         const section = element("[data-evidence=sweep] .evidence-failures");
         return { rule: "failed-reads", section: rect(section),
-          panel: rect(section.closest(".panel-body")),
+          panel: rect(section.closest("[data-evidence-page]")),
           rows: [...section.querySelectorAll(".evidence-failure")].map(row => ({
             source: row.querySelector(".sweep-name").textContent,
             outcome: row.querySelector(".sweep-outcome").textContent
@@ -969,7 +980,6 @@ export async function captureSmokeViews(
               fixture(window, "sweep.progress", scheduledSweep.progress);
             fixture(window, "sweep.status", scheduledSweep.status);
             await rendered(window, 'document.querySelector(".today .place-reading")');
-            if (surface.id === "evidence-header-idle") await openSweepEvidence(window);
           }
           if (surface.id === "first-sweep-running") {
             await window.webContents.executeJavaScript(`{
@@ -1046,6 +1056,7 @@ export async function captureSmokeViews(
               `document.querySelector("[data-place]")?.textContent === ${JSON.stringify(surface.place)}`,
             );
           }
+          if (surface.id.startsWith("evidence-header-")) await openSweepEvidence(window);
           if (surface.id.startsWith("first-sweep-")) {
             const state =
               surface.id === "first-sweep-throttled"
@@ -1241,7 +1252,7 @@ export async function captureSmokeViews(
           if (scheduled) {
             await window.webContents.executeJavaScript(`{
               const settings = document.querySelector("[data-settings-section=sweep]");
-              const panel = settings ?? document.querySelector("[data-sweep-header]").closest(".panel-body");
+              const panel = settings ?? document.querySelector("[data-evidence-page]");
               panel.scrollTop = 0;
             }`);
             await rendered(window, "true");
@@ -1274,17 +1285,12 @@ export async function captureSmokeViews(
           for (const rule of geometryRules(surface.id, viewportWidth)) {
             if (rule === "overlay-drag") {
               const settings = surface.id.startsWith("settings-sweep-");
-              const backdrop = settings
-                ? ".settings-backdrop"
-                : await window.webContents.executeJavaScript(
-                    'document.querySelector(".detail-backdrop") ? ".detail-backdrop" : ""',
-                  );
               geometry.push(
                 await measure(
                   window,
                   rule,
-                  settings ? "[role=dialog].settings" : ".right-panel-frame",
-                  backdrop,
+                  settings ? "[role=dialog].settings" : "[data-evidence-page]",
+                  settings ? ".settings-backdrop" : "",
                 ),
               );
             } else geometry.push(await measure(window, rule));
@@ -1376,10 +1382,9 @@ export async function captureSmokeViews(
               '!document.querySelector("#app-sidebar:not([data-mobile])[data-state=collapsed]")',
             );
           }
-          if (
-            surface.id === "evidence-header-sweeping" ||
-            ["detail", "detail-related", "panes", "first-sweep-evidence"].includes(surface.id)
-          )
+          if (surface.id.startsWith("evidence-header-") || surface.id === "first-sweep-evidence")
+            await leaveEvidence(window);
+          if (["detail", "detail-related", "panes"].includes(surface.id))
             await window.webContents.executeJavaScript(
               "document.querySelector(\"[aria-label='Close detail']\").click()",
             );

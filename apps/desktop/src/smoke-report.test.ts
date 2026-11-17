@@ -261,10 +261,10 @@ function geometry(surface: string, width: number): SmokeGeometry[] {
         };
       case "overlay-drag": {
         const settings = surface.startsWith("settings-sweep-");
-        const backdrop = settings || width < 1440 ? rect(0, 0, width, 800) : undefined;
+        const backdrop = settings ? rect(0, 0, width, 800) : undefined;
         return {
           rule,
-          overlay: settings ? "[role=dialog].settings" : ".right-panel-frame",
+          overlay: settings ? "[role=dialog].settings" : "[data-evidence-page]",
           viewport: rect(0, 0, width, 800),
           regions: [
             { appRegion: "drag", rect: rect(0, 0, width, 44) },
