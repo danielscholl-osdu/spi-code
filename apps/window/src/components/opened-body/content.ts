@@ -8,9 +8,10 @@ import type {
   TodayDeadline,
   TodayLine,
   TodayMember,
+  TodaySummary,
 } from "@spi-code/contracts";
+import { bridgeOpens } from "../../app/external-links.js";
 import type { Destination, EvidenceSelection, OpenSelection } from "../../app/navigation.js";
-import { bridgeOpens } from "../../panels/detail-action.js";
 
 export type BodyPlace = {
   label: string;
@@ -29,6 +30,7 @@ export type OpenedContent = {
   steps?: readonly string[];
   deadline?: TodayDeadline;
   primary?: Link;
+  fork?: string;
   links?: readonly Link[];
   notRead?: readonly string[];
 };
@@ -51,11 +53,27 @@ export function todayContent({
   const one = member ?? (line.members.length === 1 ? line.members[0] : undefined);
   const members = one ? [one] : line.members;
   const lead = members[0];
-  const ids = new Set(lead ? [lead.id, ...lead.ids] : []);
   const blockers = new Set(members.map((m) => m.blockedBy));
-  const sources = items.filter((item) => ids.has(item.id) && !blockers.has(item.id));
+  const memberSources = members.map((m) => {
+    const ids = new Set([m.id, ...m.ids]);
+    return [
+      ...(m.primary ? [m.primary] : []),
+      ...items
+        .filter((item) => ids.has(item.id) && !blockers.has(item.id))
+        .flatMap((item) => item.evidence),
+    ];
+  });
+  const common = (memberSources[0] ?? []).filter(({ url }) =>
+    memberSources.every((sources) => sources.some((link) => link.url === url)),
+  );
+  const memberUrls = new Set(memberSources.flat().map(({ url }) => url));
+  const sources = one ? (memberSources[0] ?? []) : common;
+  const companions = one
+    ? links
+    : links.filter(({ url }) => !memberUrls.has(url) || common.some((link) => link.url === url));
   const reading = one ?? line;
-  const next = sources.find((item) => item.id === lead?.id)?.next;
+  const next = items.find((item) => item.id === lead?.id)?.next;
+  const primary = lead?.primary && sources.find(({ url }) => url === lead.primary?.url);
   return {
     title: `${one?.fork ?? line.subject} · ${line.headline}`,
     place,
@@ -65,40 +83,43 @@ export function todayContent({
     effect: reading.effect,
     steps: reading.steps.length ? reading.steps : next ? [next] : [],
     ...(reading.deadline ? { deadline: reading.deadline } : {}),
-    ...(members[0]?.primary ? { primary: members[0].primary } : {}),
-    links: [...sources.flatMap((item) => item.evidence), ...links],
+    ...(primary ? { primary } : {}),
+    ...(one && line.members.length > 1 ? { fork: one.fork } : {}),
+    links: [...sources, ...companions],
     notRead: [...new Set(members.flatMap((m) => m.evidence.notRead))],
   };
 }
 
-/** A repository source follows the existing URL association until core's companion join lands. */
+/** Repository disposition comes only from core membership and counted Can wait URLs. */
 export function repositoryContent({
   entry,
   lines,
   items,
   place,
   source,
+  canWait = [],
 }: {
   entry: RepoLine;
   lines: readonly TodayLine[];
   items: readonly FocusItem[];
   place: BodyPlace;
   source?: Link;
+  canWait?: TodaySummary["canWait"];
 }): OpenedContent {
-  const eligible = items.filter(({ actor }) => actor === "operator");
-  const item = entry.url
-    ? (eligible.find(({ subject }) => subject === entry.url) ??
-      eligible.find(({ evidence }) => evidence.some(({ url }) => url === entry.url)))
-    : undefined;
-  const line = item && lines.find(({ members }) => members.some((m) => m.ids.includes(item.id)));
-  const member = line?.members.find((m) => m.id === item?.id || m.ids.includes(item?.id ?? ""));
+  const id = entry.onToday?.id;
+  const line =
+    id === undefined ? undefined : lines.find(({ members }) => members.some((m) => m.id === id));
+  const member = line?.members.find((m) => m.id === id);
   if (line && member)
     return todayContent({ line, member, items, place, links: source ? [source] : [] });
   return {
     title: entry.text,
     place,
     subject: null,
-    cause: "Not on Today. Counted under Can wait.",
+    ...(entry.url &&
+    canWait.some(({ counts }) => counts.some(({ urls }) => urls.includes(entry.url ?? "")))
+      ? { cause: "Not on Today. Counted under Can wait." }
+      : {}),
     ...(source ? { primary: source } : {}),
   };
 }
@@ -108,7 +129,7 @@ export function bodySources(content: OpenedContent, rowUrl?: string): Link[] {
   const primary = content.primary && bridgeOpens(content.primary.url) ? content.primary : undefined;
   const seen = new Set([rowUrl, primary?.url]);
   return [
-    ...(primary ? [primary] : []),
+    ...(primary && primary.url !== rowUrl ? [primary] : []),
     ...(content.links ?? []).filter(({ url }) => {
       if (seen.has(url) || !bridgeOpens(url)) return false;
       seen.add(url);

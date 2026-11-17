@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { InspectResult, ViewSnapshot } from "@spi-code/contracts";
+import { bridgeOpens } from "../app/external-links.js";
 import { navigate, type Route, routeLabel } from "../app/navigation.js";
 import type { SelectionRow } from "./selection-rows.js";
 
@@ -9,26 +10,6 @@ import type { SelectionRow } from "./selection-rows.js";
 export type DetailAction =
   | { kind: "external"; label: string; url: string }
   | { kind: "place"; label: string; route: Route };
-
-/**
- * Mirrors the desktop link bridge's allowlist (apps/desktop/src/external-links.ts): only
- * HTTPS GitHub and community.opengroup.org URLs without credentials open. The parity test in
- * detail-kinds.test.tsx keeps both gates aligned; an action the bridge refuses never renders.
- */
-export function bridgeOpens(url: string) {
-  try {
-    const parsed = new URL(url);
-    return (
-      parsed.protocol === "https:" &&
-      (parsed.origin === "https://github.com" ||
-        parsed.origin === "https://community.opengroup.org") &&
-      parsed.username === "" &&
-      parsed.password === ""
-    );
-  } catch {
-    return false;
-  }
-}
 
 function external(url: string | undefined): DetailAction | undefined {
   if (!url || !bridgeOpens(url)) return undefined;

@@ -10,7 +10,7 @@ import {
   routeHash,
   setOpenSelection,
 } from "../../app/navigation.js";
-import { LinkPill } from "../kit/LinkPill.js";
+import { LinkPill, linkPillText } from "../kit/LinkPill.js";
 import { bodySources, type OpenedContent, restatesHeadline } from "./content.js";
 import "./opened-body.css";
 
@@ -18,7 +18,7 @@ export type OpenedBodyProps = {
   content: OpenedContent;
   selection: OpenSelection;
   origin: "today" | "place";
-  /** The source already on the collapsed row; only secondary pills are omitted for it. */
+  /** The source already on the collapsed Today row. */
   rowUrl?: string;
   onClose(): void;
 };
@@ -26,13 +26,21 @@ export type OpenedBodyProps = {
 /** One body for an expanded Today row or a place's anchored popover; the caller owns its mount. */
 export function OpenedBody({ content, selection, origin, rowUrl, onClose }: OpenedBodyProps) {
   const sources = bodySources(content, origin === "today" ? rowUrl : undefined);
-  const primary = content.primary && sources.find(({ url }) => url === content.primary?.url);
+  const primary =
+    content.primary && bodySources(content).find(({ url }) => url === content.primary?.url);
+  const { kind, id } = selection;
+  const subjectKind = content.subject?.kind;
+  const subjectId = content.subject?.id;
   useEffect(() => {
-    setOpenSelection(selection, content.subject);
+    const registered = { kind, id };
+    setOpenSelection(
+      registered,
+      subjectKind && subjectId ? { kind: subjectKind, id: subjectId } : null,
+    );
     return () => {
-      if (openSelection() === selection) setOpenSelection(null);
+      if (openSelection() === registered) setOpenSelection(null);
     };
-  }, [selection, content.subject]);
+  }, [kind, id, subjectKind, subjectId]);
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
@@ -108,7 +116,11 @@ export function OpenedBody({ content, selection, origin, rowUrl, onClose }: Open
       {sources.length > 0 && (
         <nav className="opened-body-sources" aria-label="Sources">
           {sources.map((link) => (
-            <LinkPill key={link.url} link={link} />
+            <LinkPill
+              key={link.url}
+              link={link}
+              {...(content.fork ? { label: `${content.fork} · ${linkPillText(link)}` } : {})}
+            />
           ))}
         </nav>
       )}

@@ -1,11 +1,22 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { FocusItemSchema, TodayLineSchema } from "@spi-code/contracts";
+import {
+  FocusItemSchema,
+  type RepoLine,
+  TodayLineSchema,
+  type TodaySummary,
+} from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
-import { leaveEvidence, openEvidence, parseRoute, setOpenSelection } from "../../app/navigation.js";
+import {
+  leaveEvidence,
+  openEvidence,
+  parseRoute,
+  setOpenSelection,
+  useOpenSelection,
+} from "../../app/navigation.js";
 import { installSpi } from "../../test-utils/harness.js";
 import { type OpenedContent, repositoryContent, todayContent } from "./content.js";
 import { OpenedBody, type OpenedBodyProps } from "./OpenedBody.js";
@@ -100,6 +111,8 @@ it("a single member uses core's primary and the item's manual step when core has
   expect(container.querySelector(".opened-body-sources a")?.getAttribute("href")).toBe(
     halt.primary?.url,
   );
+  expect(container.textContent).toContain(halt.cause);
+  expect(container.querySelector(".opened-body-effect")?.textContent).toBe(halt.effect);
   expect(container.querySelector("time")?.dateTime).toBe(line("halt:").deadline?.at);
 });
 
@@ -231,22 +244,139 @@ it("Evidence and the Swept capsule use the body's subject, keeping the place sel
   });
 });
 
-it("repository sources resolve to Today only when an operator item and a core member prove it", () => {
-  const entry = {
+it("repository disposition follows core onToday and counted Can wait URLs only", () => {
+  const entry: RepoLine = {
     text: "Halt issue #44",
     url: halt.primary?.url,
     sub: "",
     tag: "human-required",
     tone: "neutral",
-  } as const;
-  const matched = repositoryContent({ entry, lines, items, place });
-  expect(matched.subject).toEqual(halt.subject);
-  const unknown = repositoryContent({
-    entry,
-    lines,
-    items: items.map((item) => ({ ...item, actor: undefined })),
-    place,
+    onToday: { id: "halt:crs-conversion", rel: "source" },
+  };
+  const canWait: TodaySummary["canWait"] = [
+    {
+      id: "pulls",
+      label: "Pull requests",
+      place: "engineering",
+      notRead: [],
+      counts: [
+        {
+          kind: "pr",
+          label: "open",
+          count: 1,
+          tone: "neutral",
+          names: ["storage"],
+          urls: ["https://github.com/Azure/osdu-spi-storage/pull/67"],
+        },
+      ],
+    },
+  ];
+  const content = (entry: RepoLine) =>
+    repositoryContent({
+      entry,
+      lines,
+      items: items.map((item) => ({ ...item, actor: undefined })),
+      place,
+      canWait,
+    });
+  expect(content(entry).subject).toEqual(halt.subject);
+  expect(
+    content({
+      ...entry,
+      url: "https://github.com/Azure/osdu-spi-crs-conversion/issues/42",
+      onToday: { id: "halt:crs-conversion", rel: "companion" },
+    }).subject,
+  ).toEqual(halt.subject);
+  const storage = content({ ...entry, url: canWait[0]?.counts[0]?.urls[0], onToday: undefined });
+  expect(storage.subject).toBeNull();
+  expect(storage.cause).toBe("Not on Today. Counted under Can wait.");
+  const partition = content({
+    ...entry,
+    url: "https://github.com/Azure/osdu-spi-partition/issues/245",
+    onToday: undefined,
   });
-  expect(unknown.subject).toBeNull();
-  expect(unknown.cause).toBe("Not on Today. Counted under Can wait.");
+  expect(partition.subject).toBeNull();
+  expect(partition.cause).toBeUndefined();
+  expect(content({ ...entry, onToday: undefined }).subject).toBeNull();
+  expect(content({ ...entry, onToday: { id: "missing", rel: "source" } }).cause).toBeUndefined();
+});
+
+function InlineCaller({ onRender }: { onRender(): void }) {
+  const selected = useOpenSelection();
+  onRender();
+  return (
+    <div data-selected={selected?.id}>
+      <OpenedBody
+        content={todayContent({ line: line("halt:"), items, place })}
+        selection={{ kind: "item", id: "halt:crs-conversion" }}
+        origin="today"
+        onClose={() => {}}
+      />
+    </div>
+  );
+}
+
+it("inline selection and content props settle while their caller reads the open selection", async () => {
+  const bridge = installSpi();
+  cleanups.push(bridge.restore);
+  window.location.hash = "#today";
+  let renders = 0;
+  const onRender = () => {
+    if (++renders > 10) throw new Error("Open selection did not settle within 10 renders");
+  };
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  cleanups.push(async () => {
+    await act(async () => root.unmount());
+  });
+  await act(async () => root.render(<InlineCaller onRender={onRender} />));
+  expect(container.querySelector("[data-selected]")?.getAttribute("data-selected")).toBe(
+    "halt:crs-conversion",
+  );
+  expect(renders).toBeLessThanOrEqual(3);
+});
+
+it.each(["today", "place"] as const)(
+  "%s omits only its row pill and preserves the primary keyboard target",
+  async (origin) => {
+    if (!halt.primary) throw new Error("The halt has a primary source");
+    const { container, bridge } = await mount(halt, { origin, rowUrl: halt.primary.url });
+    const urls = [...container.querySelectorAll(".opened-body-sources a")].map((a) =>
+      a.getAttribute("href"),
+    );
+    if (origin === "today") expect(urls).not.toContain(halt.primary?.url);
+    else expect(urls[0]).toBe(halt.primary?.url);
+    await act(async () =>
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", metaKey: true })),
+    );
+    expect(bridge.openExternal).toHaveBeenCalledExactlyOnceWith(halt.primary?.url);
+  },
+);
+
+it("line~rerun keeps member pills on sub-rows and allows a whole-group source", async () => {
+  const { container } = await mount(group);
+  expect(container.querySelectorAll(".opened-body-sources a")).toHaveLength(0);
+  const shared = {
+    kind: "run",
+    label: "Validation",
+    url: "https://github.com/Azure/osdu-spi-stack/actions/runs/123",
+  } as const;
+  const sharedItems = items.map((item) =>
+    line("blocker:").members.some((m) => m.ids.includes(item.id))
+      ? { ...item, evidence: [...item.evidence, shared] }
+      : item,
+  );
+  const common = await mount(todayContent({ line: line("blocker:"), items: sharedItems, place }));
+  expect(
+    [...common.container.querySelectorAll(".opened-body-sources a")].map((a) =>
+      a.getAttribute("href"),
+    ),
+  ).toEqual([shared.url]);
+  const member = line("blocker:").members[0];
+  if (!member) throw new Error("The rerun group has a member");
+  const own = await mount(todayContent({ line: line("blocker:"), member, items, place }));
+  for (const pill of own.container.querySelectorAll(".opened-body-sources a")) {
+    expect(pill.textContent).toContain(member.fork);
+  }
+  expect(own.container.querySelectorAll(".opened-body-sources a").length).toBeGreaterThan(0);
 });
