@@ -12,7 +12,7 @@ The scaffold uses Node 22.16 or newer, matching `engines` in `package.json`, and
 `scripts/**/*.test.ts` (`vitest.config.ts`).
 The header check covers tracked and untracked, non-ignored sources, including
 extensionless shebang scripts. Build output and dependencies are ignored.
-Biome excludes only the oversized recorded inputs `packages/core/test/fixtures/upstream.json` and `packages/core/test/fixtures/upstream-1106.json`: they are captured verbatim and never hand-edited.
+Biome excludes only the oversized recorded inputs `packages/core/test/fixtures/upstream.json`, `upstream-1106.json` and `upstream-1116.json`: they are captured verbatim and never hand-edited. `upstream-1116.json` is the facts of the sweep behind the Today and places mock (Mon 16 Nov 19:06 Chicago), copied from the desktop store's `facts_snapshots` row; `packages/core/test/sweep-1116.ts` loads it, and later beads add their own fixtures beside it rather than editing it.
 
 The window's text rules render every Watch snapshot named in
 `test-utils/watch-fixtures.test-helper.ts`, one `app/text-rules.<stem>.test.tsx` per
