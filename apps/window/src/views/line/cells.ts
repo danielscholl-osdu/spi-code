@@ -60,9 +60,12 @@ export function cellText(station: Station, items: readonly FocusItem[]): string 
   const halt = items.find((item) => item.id.startsWith("halt:"));
   const subject = halt?.title.match(/^Sync halted on (.+)$/)?.[1];
   return station.text
-    .replace(
-      /halted: [A-Z][A-Z_]+/,
-      subject ? `halted: no filter rule for ${subject}` : "sync halted",
+    .replace(/halted: ([A-Z][A-Z_]+)/, (_halt, code: string) =>
+      (code === "UNKNOWN_TOP_LEVEL" || code === "UNKNOWN_TESTING_ENTRY") &&
+      subject &&
+      subject !== "an entry"
+        ? `halted: no filter rule for ${subject}`
+        : "sync halted",
     )
     .replace(/port owed/, "provider changes to port");
 }

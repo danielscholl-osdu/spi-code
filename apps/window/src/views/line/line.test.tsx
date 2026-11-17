@@ -538,20 +538,40 @@ it("opens a new column or an unfiltered sheet over a pinned sheet without keepin
   expect(sheet()?.querySelector('[aria-label="Station filter"]')).toBeNull();
 });
 
-it("reports no Today membership or halt subject when the briefing cannot prove it", async () => {
-  const body = november16();
-  body.briefing.focus = [];
-  body.briefing.rest = [];
-  watchStore.setState({ snapshot: { cursor: body.cursor, body } });
-  await mount();
-  await open();
-  expect(sheet()?.querySelector("button[data-on-today]")).toBeNull();
-  const halt = sheet()?.querySelector(
-    '[data-service="crs-conversion"] button[data-station="sync"]',
-  );
-  expect(halt?.textContent).toContain("sync halted");
-  expect(halt?.textContent).not.toMatch(/UNKNOWN_TOP_LEVEL|schemathesis-tests/);
-});
+it.each([
+  ["UNKNOWN_TOP_LEVEL", undefined],
+  ["MERGE_CONFLICT", "pom.xml"],
+  ["HALT", "an entry"],
+  ["UNKNOWN_TOP_LEVEL", "an entry"],
+  ["UNKNOWN_TESTING_ENTRY", "an entry"],
+])(
+  "reports no Today membership or halt cause when the briefing cannot prove it (%s, %s)",
+  async (code, subject) => {
+    const body = november16();
+    body.briefing.focus = body.briefing.focus.filter((item) => {
+      if (!subject || item.id !== "halt:crs-conversion") return false;
+      item.title = `Sync halted on ${subject}`;
+      return true;
+    });
+    body.briefing.rest = [];
+    const station = body.stations
+      .find(({ service }) => service === "crs-conversion")
+      ?.stations.find(({ id }) => id === "sync");
+    if (!station) throw new Error("Missing fixture station");
+    station.text = `halted: ${code}`;
+    watchStore.setState({ snapshot: { cursor: body.cursor, body } });
+    await mount();
+    await open();
+    if (!subject) expect(sheet()?.querySelector("button[data-on-today]")).toBeNull();
+    const halt = sheet()?.querySelector(
+      '[data-service="crs-conversion"] button[data-station="sync"]',
+    );
+    expect(halt?.textContent).toContain("sync halted");
+    expect(halt?.textContent).not.toMatch(
+      /halted:|no filter rule|schemathesis-tests|pom.xml|an entry/,
+    );
+  },
+);
 
 it("keeps every removed release PR reachable on Releases with its own source", async () => {
   const body = loadFixture("snapshot-1106.json");
