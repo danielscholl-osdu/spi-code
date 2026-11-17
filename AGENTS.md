@@ -5,11 +5,11 @@ A macOS and Windows desktop app for running the OSDU SPI program, with GitHub Co
 - `design/spi-code-product-brief.md`: what the product is and why
 - `design/spi-code-prd.md`: requirements with IDs, milestones and checks; appendix C maps each capability to its source
 - `design/spi-code-window-design.html`: the window's information design (the strip, Today, the Line sheet, places, threads, attention and agents)
-- `design/spi-code-window-layout.html`: the window's layout (the top row, flush and resizable panes in a width budget, the Detail panel, and the Settings dialog with Readiness and Appearance)
+- `design/spi-code-window-layout.html`: the window's layout (the top row, flush and resizable panes in a width budget, where rows and popovers open, and the Settings dialog with Readiness and Appearance)
 - `design/spi-code-visual-design.html`: the palette, the component kit, the thread and hand-off design, and the T3 Code source map
-- `design/spi-code-today-and-places.md` with its mock `design/spi-code-today-and-places.html`: the settled Today table, rows that open in place, popovers on the places, the Evidence page, and no Detail panel
+- `design/spi-code-today-and-places.md` with its mock `design/spi-code-today-and-places.html`: the settled Today table, rows that open in place, popovers on the places, the Evidence page, and no side panel outside a thread
 
-Each page owns its own topic. Where two disagree, the window layout wins, then the window design, then the visual design. The exception is Today, the places' selections, Evidence and the Detail panel: there `spi-code-today-and-places.md` wins over all three until the pages are rewritten to match it. All of them win over the original combined design (`design/spi-code-design.pdf`).
+Each page owns its own topic. Where two disagree, the window layout wins, then the window design, then the visual design. The exception is the visual design's palette tables, which still name Today's On the horizon block as the `upstream` role's use: there `spi-code-today-and-places.md` wins until those tables are rewritten to match it. All of them win over the original combined design (`design/spi-code-design.pdf`).
 
 ## How work moves
 

@@ -190,96 +190,24 @@ code{font-family:var(--mono);font-size:.9em}
 @media (max-width:560px){ .picker{grid-template-columns:1fr} .picker .ml{border-right:none;border-bottom:1px solid var(--line)} }
 .appendix{margin-top:56px;padding-top:30px;border-top:3px solid var(--line)}
 .appendix section{margin-top:32px;padding-top:22px}
-/* Today, the daily briefing */
-.bf{display:flex;flex-direction:column;gap:14px;font-size:12.5px;color:var(--ink-2);min-width:0}
-.bf b{color:var(--ink);font-weight:500}
-.bf-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 16px}
-.bf-head .headline{margin:0}
-.bf-h{font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin:0 0 6px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
-.bf-h .n,.bf-h .ch{text-transform:none;letter-spacing:0;font-weight:500}
-.bf-h .end{margin-left:auto}
-.mk{font-family:var(--mono);font-weight:600}
-.mk.x{color:var(--bad)} .mk.w{color:var(--warn)} .mk.p{color:var(--o2-ink)} .mk.o{color:var(--ink-3)}
-.sl{display:inline-block;position:relative;flex:none;width:9px;height:9px;border-radius:50%;border:1.4px solid var(--ink-3);vertical-align:-1px}
-.sl.occ{background:var(--ink-2);border-color:var(--ink-2)}
-.sl.done{background:var(--o3);border-color:var(--o3)}
-.sl.done::after{content:"";position:absolute;left:2px;top:.4px;width:2px;height:4px;border:solid var(--surface);border-width:0 1.3px 1.3px 0;transform:rotate(45deg)}
-.sl.wait{border:0;border-radius:0;background:var(--warn);clip-path:polygon(50% 0,100% 100%,0 100%)}
-.sl.wait.up{background:var(--up)}
-.sl.brk{border:0;border-radius:0;width:7px;height:7px;margin:0 1px;background:var(--bad);transform:rotate(45deg)}
-.sl.unk::after{content:"";position:absolute;left:2.1px;top:2.1px;width:2.2px;height:2.2px;border-radius:50%;background:var(--ink-3)}
-.slots{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px}
-.ch{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;padding:0 6px;border-radius:4px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);white-space:nowrap}
-.ch.svc{font-weight:600;color:var(--ink)}
-.ch .pr{font-family:var(--mono);font-weight:400;color:var(--ink-3)}
-.ch.bad{background:var(--bad-bg);color:var(--bad);border-color:transparent}
-.ch.warn{background:var(--warn-bg);color:var(--warn);border-color:transparent}
-.ch.ok{background:var(--ok-bg);color:var(--ok);border-color:transparent}
-.ch.up{background:var(--up-bg);color:var(--up-ink);border-color:transparent}
-.ch.mute{background:transparent;color:var(--ink-3)}
-.tok{font-family:var(--mono);font-size:11.5px;padding:0 5px;border:1px solid var(--line-strong);border-radius:3px;color:var(--ink);white-space:nowrap}
-.verb{margin-left:auto;font-size:11.5px;padding:0 8px;border:1px solid var(--line-strong);border-radius:5px;color:var(--ink);white-space:nowrap}
-.verb.pri{background:var(--o3);border-color:var(--o3);color:var(--surface)}
-.abnd{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px 18px}
-.ny{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;border:1px solid var(--line);border-left:3px solid var(--bad);border-radius:6px;padding:8px 10px;background:var(--surface)}
-.ny .t{flex:1 1 220px;color:var(--ink);font-weight:500}
-.irow{display:grid;grid-template-columns:92px 46px 34px minmax(0,1fr) 30px;gap:8px;align-items:center;padding:3px 0;border-bottom:1px solid var(--line)}
-.irow:last-of-type{border-bottom:0}
-.irow .svcn{font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.irow .st{display:flex;flex-wrap:wrap;gap:4px}
-.irow .age{color:var(--ink-3);text-align:right;font-variant-numeric:tabular-nums}
-.lg{display:flex;align-items:center;width:100%}
-.lg i{display:inline-block;width:11px;height:2px;background:var(--ink-3)}
-.lg i.rest{width:auto;flex:1;min-width:18px;height:0;background:none;border-top:2px dotted var(--line-strong)}
-.lgleg{font-size:11px;color:var(--ink-3);margin-top:4px}
-.hz{display:flex;flex-direction:column;gap:10px;border:1px solid var(--line);border-left:3px solid var(--up);border-radius:10px;padding:10px 12px}
-.hz>.bf-h{color:var(--up-ink);margin:0}
-.conv{display:grid;grid-template-columns:minmax(0,1fr) 14px minmax(0,1.5fr) 14px minmax(0,1fr);gap:6px}
-.stg{display:flex;flex-direction:column;gap:5px;min-width:0;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--bg)}
-.stg .k{font-size:11.5px;color:var(--ink-3)}
-.stg .k b{font-size:15px;font-weight:600;color:var(--ink);margin-right:4px}
-.stg .chs{display:flex;flex-wrap:wrap;gap:4px}
-.stg .wl{font-size:11px;color:var(--ink-3);display:flex;flex-wrap:wrap;align-items:center;gap:4px}
-.arr{align-self:center;text-align:center;color:var(--up-ink)}
-.hsub{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12px}
-.hcards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.hc{display:flex;flex-wrap:wrap;align-items:center;gap:5px 6px;min-width:0;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--surface)}
-.hc.quiet{border-style:dashed;background:transparent}
-.hc .kg{color:var(--up-ink);font-family:var(--mono)}
-.hc .mk{margin-left:auto}
-.owed{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
-.segbar{display:flex;flex:1;min-width:140px;gap:2px;height:8px}
-.segbar i{border-radius:2px;background:var(--up);opacity:.35}
-.pcards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
-.pc{display:flex;flex-direction:column;gap:6px;min-width:0;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--surface)}
-.pc .nm{display:flex;align-items:center;gap:6px;font-weight:600;color:var(--ink)}
-.pc .nm .ch{margin-left:auto;font-weight:400}
-.pc .fig{font-size:12px;color:var(--ink-3)}
-.pc .fig b{font-size:17px;font-weight:600;color:var(--ink);margin-right:3px}
-.pc .fig b.warnink{color:var(--warn)}
-.pc .chs{display:flex;flex-wrap:wrap;gap:4px}
-.lc{display:grid;grid-template-columns:48px minmax(0,1fr) 34px;gap:6px;align-items:center;font-size:11px;color:var(--ink-3)}
-.lc .tr{height:5px;border-radius:3px;overflow:hidden;background:var(--surface-2)}
-.lc .tr i{display:block;height:100%;background:var(--o2)}
-.lc span:last-child{text-align:right;font-variant-numeric:tabular-nums}
-.cols13{display:flex;align-items:flex-end;gap:3px;height:24px;border-bottom:1px solid var(--line-strong)}
-.cols13 i{width:6px;background:var(--warn);opacity:.75}
-.cols13 i.z{height:1px!important;background:var(--line-strong)}
-.lower{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:14px 20px}
-.vers{display:grid;grid-template-rows:repeat(5,auto);grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:2px 14px;font-size:12px;font-variant-numeric:tabular-nums}
-.vers span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.vers em{font-style:normal;color:var(--ink-3)}
-.relx{display:flex;flex-direction:column;gap:5px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
-.stack{display:flex;flex:1;min-width:140px;height:8px;border-radius:3px;overflow:hidden}
-.stack i{display:block;height:100%}
-.relx .row{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
-.legend2{display:flex;flex-wrap:wrap;gap:2px 10px;font-size:11px;color:var(--ink-3)}
-.legend2 span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:-1px;background:var(--c)}
-.motion{display:flex;flex-direction:column;gap:6px}
-.motion .irow{grid-template-columns:86px 46px 34px minmax(0,1fr)}
-.cwait{display:flex;flex-wrap:wrap;gap:4px}
-@media (max-width:760px){ .abnd,.conv,.hcards,.lower{grid-template-columns:minmax(0,1fr)} .pcards{grid-template-columns:repeat(2,minmax(0,1fr))} .arr{transform:rotate(90deg);height:12px} .vers{grid-template-rows:repeat(7,auto)} }
-@media (max-width:520px){ .pcards{grid-template-columns:minmax(0,1fr)} .irow{grid-template-columns:80px 46px minmax(0,1fr) 28px} .irow>span:nth-child(3){display:none} }
+/* Today as a table */
+.tt{width:100%;border-collapse:collapse;font-size:12.5px;table-layout:fixed}
+.tt th{text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--line)}
+.tt td{padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis}
+.tt tr.sec td{padding-top:12px;font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--ink);border-bottom:none}
+.tt tbody.blk td{background:var(--bad-bg)}
+.tt tbody.hist tr:not(.sec) td{border-top:1px dashed var(--line-strong);border-bottom:1px dashed var(--line-strong)}
+.tt .fk{font-weight:600;color:var(--ink);white-space:nowrap}
+.tt tr.sub .fk{padding-left:20px;font-weight:500}
+.tt .wt{color:var(--ink)}
+.tt .age{text-align:right;white-space:nowrap;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.tt tr.on td{border-bottom:none}
+.tt tr.ob td{font-size:12px;line-height:1.55;padding-bottom:10px}
+.tt tr.ob .pl{color:var(--o3-ink)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:0;box-sizing:border-box}
+.dot.bad{background:var(--bad)} .dot.warn{background:var(--warn)} .dot.grey{background:var(--line-strong)} .dot.move{background:var(--o2)} .dot.ring{border:1.5px solid var(--ink-3)}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:0 7px;border:1px solid var(--line-strong);border-radius:10px;white-space:nowrap;color:var(--ink-2);background:var(--surface)}
+.pill.pr{border-color:var(--o3);color:var(--o3-ink)} .pill.is{border-color:var(--o2);color:var(--o2-ink)} .pill.mr{border-color:var(--up);color:var(--up-ink)}
 /* the shell: fixed status rows, removable pins and the footer sweep */
 svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-2px}
 .screen .bar .footer-sweep{flex:none}
@@ -329,7 +257,7 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
 
   <div class="problem">
     <p><b>The current window reads like a transcript of the sweep, and the first revision of this page made it a better dashboard.</b> A service page shows about 520 words. The revised Today packed a 13 × 6 grid, three bands and a queue into one view, which is busier than the rib console it replaces. It still asked the operator to visit pages and coordinate the work mentally. Threads were annotations on those pages.</p>
-    <p><b>This revision makes the thread the place work happens.</b> The window has three layers. The fixed Line, Environment and Engineering system rows and the removable Upstream pin show the line's state, and the footer says when it was read. The centre holds either a short brief (Today), a place such as a service, or a thread. The right panel holds context for whatever the centre shows. Attention has four tiers decided by core, and only a decision that's yours interrupts. Watchers and campaign threads notice problems and draft the exact approval card. The operator decides, in one place per card.</p>
+    <p><b>This revision makes the thread the place work happens.</b> The window has three layers. The fixed Line, Environment and Engineering system rows and the removable Upstream pin show the line's state, and the footer says when it was read. The centre holds Today, a place such as a service, or a thread. Outside a thread the window is the sidebar and the centre; a thread adds its own context pane on the right. Attention has four tiers decided by core, and only a decision that's yours interrupts. Watchers and campaign threads notice problems and draft the exact approval card. The operator decides, in one place per card.</p>
     <p><b>Some things this doesn't change or provide.</b> Every write still needs its own card (AU-03 to AU-10), and no agent approves anything. Lane occupancy, collision attribution, seen-state and due times are new data, marked where they appear. Sequencing across forks must be enforced in the stack's workflows, because the app can't stop jobs GitHub starts on its own.</p>
   </div>
 
@@ -343,11 +271,11 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
 
   <section>
     <h2>The window</h2>
-    <p>The window is T3 Code's shell. The sidebar holds work. The centre holds one thing: a brief, a place or a thread. The right panel is closed until the centre has context worth showing. The fixed status block and the Upstream pin carry the program's state, and the footer carries the sweep on every surface, so the line is never more than a glance away.</p>
-    <div class="callout">The mockups on this page draw what each surface says, not how the window is laid out. Their fixed sidebar and right-panel widths and their one bar across the top are superseded by the <a href="spi-code-window-layout.html">window layout</a>: each pane owns its part of one 44 px top row, the pin control sits at the end of the centre's part and the sweep beside the footer gear, panes are flush and resize within a width budget, and Settings is a dialog behind the sidebar's gear. For layout, panes, the top row and Settings, the <a href="spi-code-window-layout.html">window layout</a> wins over this page.</div>
+    <p>The window is T3 Code's shell. The sidebar holds work. The centre holds one thing: Today, a place or a thread. The right panel belongs to a thread; outside one there is no panel and no panel toggle. Today's rows open in place and a place's marks open a popover, so nothing about a selection needs a second column. A thread brings its context pane (M3). The fixed status block and the Upstream pin carry the program's state, and the footer carries the sweep on every surface, so the line is never more than a glance away.</p>
+    <div class="callout">The mockups on this page draw what each surface says, not how the window is laid out. Their fixed sidebar and thread-pane widths and their one bar across the top are superseded by the <a href="spi-code-window-layout.html">window layout</a>: each pane owns its part of one 44 px top row, the pin control sits at the end of the centre's part and the sweep beside the footer gear, panes are flush and resize within a width budget, and Settings is a dialog behind the sidebar's gear. For layout, panes, the top row and Settings, the <a href="spi-code-window-layout.html">window layout</a> wins over this page.</div>
 
     <h3>The top row and footer</h3>
-    <p>The top row holds the place's title and chips, and a pinnable place's or service's icon control at the right end of the centre's part, before the right-panel toggle while the panel is closed. It stays at every width; Today, release months and the fixed places have no control. The program's states sit on the sidebar rows that explain them.</p>
+    <p>The top row holds the place's title and chips, and a pinnable place's or service's icon control at the right end of the centre's part. It stays at every width; Today, release months and the fixed places have no control. The program's states sit on the sidebar rows that explain them.</p>
     <ul class="plain">
       <li><b>The sweep is said once, beside the footer gear:</b> a plain 28 px button with the time, muted when every area read; an amber alert when an area is stale, incomplete or cut, and a red alert when one failed; "Sweeping" or "First sweep" with a spinner while running. No count follows the time. Its sentence is its hover and accessible name. Clicking opens the source popover upward, with the next sweep and upstream sync, Sweep now and Evidence. While a sweep runs, a 2 px line stays under the whole top row, with the sidebar shown, hidden or off-canvas.</li>
       <li><b>There are no service pips.</b> A service is reached from the Line sheet, a place or ⌘K, and pinned with the same icon control on its place, Line row or Find result (PS-17).</li>
@@ -377,210 +305,112 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
       <li><b>One control pins from where a thing is found.</b> A hollow pin means unpinned, a filled pin means pinned, and a filled control shows pin-off on hover or focus. It sits at the top row's right end on a place or service, at a Find result's end, and immediately after a service's name on the Line sheet; the sheet's row menu has Open, then Pin to sidebar or Unpin from sidebar. The control's action name and title name the thing. After a click its new glyph stays until pointer or focus leaves. ⌘⇧P (Ctrl+Shift+P) toggles the open place or service, or Find's highlighted result. It does nothing on Today, a release month or a fixed place, under another dialog or while Line overlays the centre. ⌘↩ on a Find result opens and pins, never unpins, and a fixed result simply opens. Clicking Find's control toggles in place, with the palette, query, highlight and focus unchanged.</li>
       <li><b>A pinned service carries a word,</b> and only when it is read and not fine: "stopped" in red, "waiting" in amber. Releases and Security carry nothing; Today and their places say how they stand.</li>
       <li><b>Each row keeps its icon, label and status.</b> Icons use the <a href="spi-code-visual-design.html">visual design</a>'s muted line set; only Upstream's clock uses upstream ink. Hover and focus add the background and, on Pinned rows, the grip; the mark or word never hides, moves or swaps. Keyboard focus adds a ring. A Pinned row's context menu (right click, long press, Shift-F10 or Menu key) has Open, Move up, Move down, a separator and Unpin from sidebar. Alt+Up and Alt+Down move a focused pin. Drag reorders within Pinned with an insertion line, and a drop on the fixed block or outside does nothing. After Unpin, focus goes next, else previous, else the Pinned header, else the fixed block's last row.</li>
-      <li><b>A hidden sidebar still says something needs you.</b> Its toggle carries one dot: error when Today's count is above 0, a status mark is error or the sweep is bad; otherwise warning when a mark is warning or the sweep is warn. Error wins across sources; an unread sweep adds nothing. A collapsed Pinned header reads only its rows' marks and service words, stopped in error and waiting in warning; no word read gives no dot.</li>
+      <li><b>Today's count is what is yours.</b> It counts the members on Today's Blocked and Waiting on you, 18 on 16 Nov, and each place's head counts its own share of them, so the place counts add up to it (Places, below). It falls when a member leaves Today, not when it is acknowledged.</li>
+      <li><b>A hidden sidebar still says something needs you.</b> Its toggle carries one dot: error when an Interrupt is open (Attention, below), a status mark is error or the sweep is bad; otherwise warning when a mark is warning or the sweep is warn. Error wins across sources; an unread sweep adds nothing. A collapsed Pinned header reads only its rows' marks and service words, stopped in error and waiting in warning; no word read gives no dot.</li>
       <li><b>Every unpin offers Undo.</b> "Unpinned partition · Undo" lasts 8 s, in the band above the footer or at the window's bottom left while the sidebar is hidden or off-canvas. Undo or ⌘Z (Ctrl+Z) restores the old position. A pin appends and flashes the new row's accent background for about 1 s when Pinned is visible and open; otherwise it offers "Pinned partition · Undo", whose Undo unpins. The newest notice replaces the last. The status region starts empty so it is announced, Undo is keyboard reachable, and hover or focus pauses the timer. A shown notice owns ⌘Z inside Find too, until another key; normal Undo works elsewhere. Changes and Undo update this window even if storage refuses a write: the notice names the change without claiming it was saved, and reload reads the last list storage accepted.</li>
       <li><b>The gear takes a dot</b> only when Readiness is known to need the operator. Ready, or not yet checked, shows none. ⌘, opens the same dialog.</li>
     </ul>
     <p>Threads join the sidebar under Pinned at M3, in shelves by status; the shell around them does not move.</p>
 
-    <h3>Today: the daily briefing</h3>
-    <p>Today is the operator's daily briefing on the whole program. It reads in the order a briefing is given: what needs you, what is coming from upstream, how the system stands place by place, the forming release, then what is moving and what can wait. Places are the drill-down: every row on Today opens the place, or the item, that owns it, and Today states each fact once. Time isn't Today's spine. There's no "due by", no "before 18:00" group and no clock rail; a time appears only as a fact about an event: "failed 13 h ago", "4 commits at the 18:00 sync", "green since 11-09 22:27".</p>
-    <p>Top to bottom: the verdict sentence, only when the band is empty; a caveat band when a source failed; the <b>attention band</b>, only when an Interrupt or in-system work asks for you, led by <b>Stops the line</b> when the shared environment is stopped; <b>On the horizon</b>, what is coming from upstream GitLab, on every morning; four <b>place cards</b>; then <b>Releases</b>, about two-thirds of the width, beside <b>In motion</b> and <b>Can wait</b>. Today lifts the centre's 960 px content cap and uses the full centre width; the <a href="spi-code-window-layout.html#panes">window layout</a> states the exception.</p>
-    <div class="screen" role="img" aria-label="Mockup of Today on a busy morning: the top row with the title, the fixed block and pins with their marks and the footer sweep, the attention band with Needs you and Failing and no verdict above it, On the horizon from upstream GitLab, four place cards, and Releases beside In motion and Can wait">
-      <div class="bar"><span><b>Today</b> · Tuesday 10 Nov</span></div>
-      <div class="scr2">
-        <div class="side">
-          <div class="row find"><span><svg class="i"><use href="#i-search"/></svg>Find or ask</span><small>⌘K</small></div>
-          <div class="row on"><span><svg class="i"><use href="#i-sun"/></svg>Today</span><span class="fc">1</span></div>
-          <div class="row" title="Forks: 2 stopped. Stopped: storage, indexer-queue"><span><svg class="i"><use href="#i-rows"/></svg>Line</span><span class="oc bad">2</span></div>
-          <div class="row" title="Environment: v0.35.5 is ready, green at 11-09 22:27"><span><svg class="i"><use href="#i-server"/></svg>Environment</span><span class="smk ok"><svg class="i"><use href="#i-check"/></svg></span></div>
-          <div class="row" title="Templates: 6 pending. Template d3ddff5 is pending on storage, indexer, workflow, indexer-queue, crs-catalog, crs-conversion"><span><svg class="i"><use href="#i-layers"/></svg>Engineering system</span><span class="oc warn">6</span></div>
-          <div class="grp">Pinned</div>
-          <div class="row"><span><svg class="i"><use href="#i-upstream"/></svg>Upstream</span></div>
-          <div class="row"><span><svg class="i"><use href="#i-tag"/></svg>Releases</span></div>
-          <div class="row"><span><svg class="i"><use href="#i-shield"/></svg>Security</span></div>
-          <div class="row"><span><svg class="i"><use href="#i-box"/></svg>storage</span><small class="c-stop">stopped</small></div>
-          <div class="row gear"><svg class="i"><use href="#i-gear"/></svg><span class="footer-sweep"><span class="sg sw idle" title="Swept 08:15 · all areas read"><svg class="i"><use href="#i-refresh"/></svg>08:15</span></span></div>
-        </div>
-        <div class="main">
-          <div class="bf">
-            <div class="abnd">
-              <div>
-                <p class="bf-h">Needs you <span class="n">· 1</span><span class="ch up end">⇣ 4 upstream need you first</span></p>
-                <div class="ny"><span class="prio p0">P0</span><span class="ch svc">storage</span><span class="t">Sync Upstream failed with no halt issue open</span><span class="ch mute">13 h</span><span class="verb pri">Investigate ›</span></div>
-              </div>
-              <div>
-                <p class="bf-h">Failing <span class="n">· 3 in 2</span></p>
-                <div class="irow"><span class="svcn">storage</span><span class="lg"><i></i><span class="sl brk"></span><i class="rest"></i></span><span class="mut">#75</span><span class="st"><span class="ch bad">Deploy and Test</span></span><span class="age">13 h</span></div>
-                <div class="irow"><span class="svcn">indexer-queue</span><span class="lg"><i></i><span class="sl brk"></span><i class="rest"></i></span><span class="mut">#67</span><span class="st"><span class="ch bad">Verify</span><span class="ch">⟲ after drain</span></span><span class="age">3 d</span></div>
-                <p class="lgleg"><span class="lg" style="width:46px;display:inline-flex;vertical-align:middle"><i></i><span class="sl"></span><i class="rest"></i></span> sync PR → release/upstream PR → main → release</p>
-              </div>
-            </div>
-            <div class="hz">
-              <p class="bf-h">⇣ On the horizon <span class="n">· from upstream GitLab</span><span class="ch warn">⌀ diffs cut · 8 services</span></p>
-              <div class="conv">
-                <div class="stg"><span class="k"><b>8</b>next sync 18:00</span><span class="chs"><span class="ch svc">partition <span class="pr">2</span></span><span class="ch svc">legal <span class="pr">2</span></span><span class="ch svc">schema <span class="pr">4</span></span></span><span class="wl">won't land <span class="ch svc"><span class="sl brk"></span>storage <span class="pr">5</span></span></span></div>
-                <span class="arr">→</span>
-                <div class="stg"><span class="k"><b>69</b>in 5 open sync PRs</span><span class="chs"><span class="ch svc">indexer <span class="pr">#58</span></span><span class="ch svc">workflow <span class="pr">#60</span></span><span class="ch svc">unit <span class="pr">#50</span></span><span class="ch svc">crs-conversion <span class="pr">#41</span></span><span class="ch svc">crs-catalog <span class="pr">#54</span></span></span></div>
-                <span class="arr">→</span>
-                <div class="stg"><span class="k"><b>4</b>your forks, current</span><span class="chs"><span class="ch">entitlements</span><span class="ch">file</span><span class="ch">search</span><span class="ch">indexer-queue</span></span></div>
-              </div>
-              <div class="hsub"><span><span class="mk w">!</span> <b>4</b> need you before they land</span><span><span class="mk o">○</span> <b>1</b> to watch</span></div>
-              <div class="hcards">
-                <div class="hc"><span class="kg">⇡</span><span class="tok">os-core-common 8.5.0</span><span class="mk w">!</span><span class="ch svc">indexer <span class="pr">#58</span></span><span class="ch svc">workflow <span class="pr">#60</span></span><span class="ch svc">unit <span class="pr">#50</span></span><span class="verb">Absorb ›</span></div>
-                <div class="hc"><span class="kg">⏸</span><span class="tok">schemathesis-tests</span><span class="mk w">!</span><span class="ch svc">legal <span class="pr">18:00</span></span><span class="ch svc">crs-conversion <span class="pr">#41</span></span><span class="verb">Pre-classify ›</span></div>
-                <div class="hc"><span class="kg">⇡</span><span class="tok">Java 25</span><span class="mk w">!</span><span class="ch svc"><span class="sl brk"></span>storage <span class="pr">stopped</span></span><span class="verb">Move pin ›</span></div>
-                <div class="hc"><span class="kg">⇡</span><span class="tok">os-core-common 10.0.0</span><span class="mk w">!</span><span class="ch svc">partition <span class="pr">18:00</span></span><span class="verb">Absorb ›</span></div>
-                <div class="hc quiet"><span class="kg">⇡</span><span class="tok">jackson-3 SNAPSHOT</span><span class="ch svc">workflow <span class="pr">#60</span></span><span class="ch mute">held</span></div>
-              </div>
-              <div class="owed"><b>Ports owed</b><span class="segbar" title="23 upstream provider changes not ported, across 12 forks"><i style="flex:4"></i><i style="flex:3"></i><i style="flex:3"></i><i style="flex:2"></i><i style="flex:2"></i><i style="flex:2"></i><i style="flex:2"></i><i style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i></span><span><b>23</b> · 12 forks</span></div>
-            </div>
-            <div class="pcards">
-              <div class="pc"><span class="nm"><span class="mk x">✕</span>Line</span><span class="fig"><b>2/13</b>stopped</span><span class="slots"><span class="sl wait up"></span><span class="sl"></span><span class="sl wait up"></span><span class="sl"></span><span class="sl"></span><span class="sl brk"></span><span class="sl wait up"></span><span class="sl wait"></span><span class="sl wait up"></span><span class="sl brk"></span><span class="sl wait up"></span><span class="sl wait up"></span><span class="sl wait up"></span></span><span class="chs"><span class="ch bad">lanes: storage, indexer</span><span class="ch up">⇣ 7 on the horizon</span></span></div>
-              <div class="pc"><span class="nm"><span class="mk p">◐</span>Environment</span><span class="fig"><b>v0.35.5</b>ready</span><span class="lc"><span>refresh</span><span class="tr"><i style="width:88%"></i></span><span>14/16</span></span><span class="lc"><span>upgrade</span><span class="tr"><i style="width:100%"></i></span><span>17/17</span></span><span class="lc"><span>smoke</span><span class="tr"><i style="width:95%"></i></span><span>20/21</span></span><span class="lc"><span>sweeper</span><span class="tr"><i style="width:100%"></i></span><span>21/21</span></span><span class="chs"><span class="ch warn">lane failed</span><span class="ch">green since 11-09 22:27</span></span></div>
-              <div class="pc"><span class="nm"><span class="mk p">◐</span>Engineering system</span><span class="fig"><b>7/13</b>on d3ddff5</span><span class="slots"><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl occ"></span><span class="sl occ"></span><span class="sl done"></span><span class="sl occ"></span><span class="sl occ"></span><span class="sl done"></span><span class="sl occ"></span><span class="sl occ"></span></span><span class="chs"><span class="ch warn">verification pending</span></span></div>
-              <div class="pc"><span class="nm"><span class="mk o">○</span>Security</span><span class="fig"><b class="warnink">28</b>high or critical</span><span class="cols13" title="High or critical findings per fork, in the Line card's order"><i style="height:30%"></i><i style="height:30%"></i><i style="height:45%"></i><i style="height:15%"></i><i style="height:30%"></i><i style="height:45%"></i><i style="height:30%"></i><i style="height:30%"></i><i style="height:45%"></i><i style="height:30%"></i><i style="height:30%"></i><i style="height:30%"></i><i style="height:30%"></i></span><span class="chs"><span class="ch">CSRF · 12 forks</span><span class="ch">none blocking</span></span></div>
-            </div>
-            <div class="lower">
-              <div>
-                <p class="bf-h">Releases <span class="n">· 9 release PRs wait for review, none failing ›</span></p>
-                <div class="vers"><span>partition 1.3.4</span><span>entitlements 1.2.2</span><span>legal 1.2.2</span><span>schema 1.2.1</span><span>file 1.2.1</span><span>storage 1.4.1 <em>→ 1.4.2</em></span><span>indexer 1.4.0 <em>→ 1.4.1</em></span><span>search 1.4.0 <em>→ 1.4.1</em></span><span>workflow 1.3.1 <em>→ 1.3.2</em></span><span>indexer-queue 1.4.0 <em>→ 1.5.0</em></span><span>unit 1.4.0 <em>→ 1.4.1</em></span><span>crs-catalog 1.4.0 <em>→ 1.4.1</em></span><span>crs-conversion 1.4.0 <em>→ 1.4.1</em></span></div>
-                <div class="relx">
-                  <div class="row"><span class="mut">Platform</span><span>stack v0.35.5</span><span>template v1.4.0 <em class="mut">→ 1.5.0</em></span><span>core-lib-azure 5.0.0 ×2 · 4.0.0 ×4 · 3.0.x ×6 · 2.5.10 ×1</span></div>
-                  <div class="row"><span class="mut">Unreleased, 9 PRs</span><span class="stack" title="1 breaking, 9 new, 31 fixed, 4 security, 6 other"><i style="width:2%;background:var(--bad)"></i><i style="width:18%;background:var(--o3)"></i><i style="width:61%;background:var(--o2)"></i><i style="width:8%;background:var(--warn)"></i><i style="width:11%;background:var(--line-strong)"></i></span></div>
-                  <div class="legend2"><span style="--c:var(--bad)">1 breaking</span><span style="--c:var(--o3)">9 new</span><span style="--c:var(--o2)">31 fixed</span><span style="--c:var(--warn)">4 security</span><span style="--c:var(--line-strong)">6 other</span></div>
-                  <div class="row"><span class="mut">Notable</span><span>‹breaking change› on storage; ‹security fix› on search and unit</span></div>
-                </div>
-              </div>
-              <div class="motion">
-                <p class="bf-h" style="margin:0">In motion</p>
-                <div class="owed"><span class="mut">Template rollout · next</span><span class="ch svc">indexer</span><span class="ch svc">crs-catalog</span><span class="ch svc">crs-conversion</span></div>
-                <div class="irow"><span class="svcn">crs-catalog</span><span class="lg"><span class="sl wait up"></span><i class="rest"></i></span><span class="mut">#54</span><span class="st"><span class="ch warn">review</span><span class="ch up">⇣</span></span></div>
-                <div class="irow"><span class="svcn">search</span><span class="lg"><i></i><span class="sl wait"></span><i class="rest"></i></span><span class="mut">#76</span><span class="st"><span class="ch warn">approval</span></span></div>
-                <p class="bf-h" style="margin:6px 0 0">Can wait</p>
-                <div class="cwait"><span class="ch">232 upstream-owned</span><span class="ch">entitlements</span><span class="ch">file</span><span class="mut">›</span></div>
-              </div>
-            </div>
-          </div>
-        </div>
+    <h3>Today</h3>
+    <p>Today is a to-do list, not a summary: what is yours to move today, as a table. State lives on the sidebar's rows and on the places, and Today says nothing they already say. <a href="spi-code-today-and-places.md">Today and its places</a> holds the settled anatomy with every ruling behind it, and <a href="spi-code-today-and-places.html">its mock</a> draws it from the live sweep of 16 Nov; this section is the summary the rest of this page builds on.</p>
+    <p>Top to bottom: the date, which is the whole lede; a caveat band when a source failed; then five sections in one row grid. Today lifts the centre's 960 px content cap and uses the full centre width; the <a href="spi-code-window-layout.html#panes">window layout</a> states the exception.</p>
+    <div class="tblwrap">
+      <table class="tbl compact">
+        <thead><tr><th>Section</th><th>Holds</th><th>Drawn</th></tr></thead>
+        <tbody>
+          <tr><td><b>Blocked</b></td><td>Items that stop something until you act: core's rung 0</td><td><span class="dot bad"></span>a red dot, in a red-tinted box</td></tr>
+          <tr><td><b>Waiting on you</b></td><td>Everything else whose next move is yours; nothing is stuck on it</td><td><span class="dot warn"></span>an amber dot</td></tr>
+          <tr><td><b>Can wait</b></td><td>One row per pile that is yours but not today (Release PRs, Repositories, Security), as counts. What is already on Today is left out of the piles.</td><td><span class="dot grey"></span>a grey dot</td></tr>
+          <tr><td><b>Moving without you</b></td><td>At most three rows, each a thing in motion or scheduled, time first</td><td><span class="dot move"></span>a blue dot</td></tr>
+          <tr><td><b>Last 24 hours</b></td><td>One row per workflow, as counts per outcome: failed in red, merged in green, names on hover. It reads "Since you last looked" only when core has a seen cursor.</td><td><span class="dot ring"></span>a hollow ring, in a dashed box</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="screen" role="img" aria-label="Mockup of Today on 16 Nov: the date, then Blocked with crs-conversion's halted sync opened in place under its row and indexer's failed sync, Waiting on you with a five-fork group for red release/upstream PRs and two of its sub-rows, storage's PR #83 with a not-read mark, partition's lane and the template's seven forks with a clock, then one row each under Can wait, Moving without you and Last 24 hours">
+      <div class="bar"><span><b>Today</b> · Monday 16 Nov</span></div>
+      <div class="main">
+        <table class="tt">
+          <thead><tr><th style="width:118px">Fork</th><th>What</th><th style="width:118px">Open</th><th style="width:64px;text-align:right">Age</th></tr></thead>
+          <tbody class="blk">
+            <tr class="sec"><td colspan="4"><span class="dot bad"></span>Blocked <span class="mut">· 2</span></td></tr>
+            <tr class="on"><td class="fk">crs-conversion</td><td class="wt">sync halted on schemathesis-tests</td><td><span class="pill is">Issue #44 ↗</span></td><td class="age"><span title="Before the next upstream sync, Tue 18:00">◷</span> 6d</td></tr>
+            <tr class="ob"><td></td><td colspan="3"><span class="pl">Line › crs-conversion › Sync</span><br><span title="deadline">◷ Before the next upstream sync, Tue 18:00</span><br>Upstream adds schemathesis-tests, a top-level entry the fork's filter has no rule for. <span class="mut">13 upstream commits wait behind the halt.</span><br>Add a rule for schemathesis-tests to .github/upstream-filter.yml, then dispatch sync.<br><span class="pill">Sync Upstream run ↗</span></td></tr>
+            <tr><td class="fk">indexer</td><td class="wt">Sync Upstream failed; halt issue #72 open</td><td><span class="pill is">Issue #72 ↗</span></td><td class="age">34m</td></tr>
+          </tbody>
+          <tbody>
+            <tr class="sec"><td colspan="4"><span class="dot warn"></span>Waiting on you <span class="mut">· 16</span></td></tr>
+            <tr><td class="fk">5 forks</td><td class="wt">release/upstream PR red: its deploy lane failed</td><td></td><td class="age">7d</td></tr>
+            <tr class="sub"><td class="fk">legal</td><td></td><td><span class="pill pr">PR #90 ↗</span></td><td class="age">7d</td></tr>
+            <tr class="sub"><td class="fk">entitlements</td><td></td><td><span class="pill pr">PR #89 ↗</span></td><td class="age">5d</td></tr>
+            <tr><td class="fk">storage</td><td class="wt">release/upstream PR #83 fails Validation Summary</td><td><span class="pill pr">PR #83 ↗</span></td><td class="age"><span class="mut">⌀ 1</span> 3d</td></tr>
+            <tr><td class="fk">partition</td><td class="wt">lane deploy failed; a rerun is in progress</td><td><span class="pill">Deployments ↗</span></td><td class="age">13h</td></tr>
+            <tr><td class="fk">7 forks</td><td class="wt">template 1a4730d not synced yet</td><td><span class="pill">Template change ↗</span></td><td class="age"><span title="Dispatch before Tue 02:00, when the scheduled sync opens all 7 PRs at once">◷</span></td></tr>
+          </tbody>
+          <tbody>
+            <tr class="sec"><td colspan="4"><span class="dot grey"></span>Can wait</td></tr>
+            <tr><td class="fk">Repositories</td><td class="wt">8 human-required issues</td><td></td><td class="age">›</td></tr>
+            <tr class="sec"><td colspan="4"><span class="dot move"></span>Moving without you</td></tr>
+            <tr><td class="fk">partition</td><td class="wt">1 lane busy: partition</td><td></td><td class="age">›</td></tr>
+          </tbody>
+          <tbody class="hist">
+            <tr class="sec"><td colspan="4"><span class="dot ring"></span>Last 24 hours</td></tr>
+            <tr><td class="fk">Sync Upstream</td><td class="wt"><span class="c-stop" title="indexer, search, crs-conversion">3 failed</span> · 9 not read</td><td></td><td class="age">›</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
-    <p class="note">The busy morning at 1440 × 900 with Detail closed, drawn smaller. Storage and indexer-queue are stopped, one Interrupt is open, the template is on 7 of 13 forks and nine release PRs wait. The release-change kinds and the Notable titles are illustrative, and so are the Security columns until core sends each fork's count; everything else is example data of the shape core sends. With no seen baseline no "new" chip shows. The band is drawn, so the verdict sentence is not, and the band has no frame of its own. No in-system Surface item is open this morning, so Decisions waiting isn't drawn: every Surface item here comes from upstream and sits on its horizon card. The environment isn't stopped, so there is no Stops the line block. The fixed rows carry Environment's check, an outlined 6 in amber on Engineering system and an outlined 2 in red on Line; Upstream has no clock, because the 18:00 sync is more than 2 hours away. The top row holds the title, and the footer holds the sweep. There is no due count.</p>
+    <p class="note">Today on 16 Nov, drawn smaller and without the sidebar, with crs-conversion's row opened in place. Names, links and counts come from that morning's sweep; the ages other than crs-conversion's are illustrative. The drawing shows two of the five-fork group's sub-rows and one row of each lower section; the window draws all of them. The opened row doesn't repeat Issue #44, which is already in its Open column. Its last step is a sentence: SPI Code has no operation for it, so nothing is drawn as a button.</p>
     <ul class="plain">
-      <li><b>Today says nothing the status rows already say.</b> There is no since row or legend under a headline and no place marks above Needs you; the environment, template and fork states are the marks on the Environment, Engineering system and Line rows, and the place cards below carry each place's mark.</li>
-      <li><b>The verdict</b> is core's <code>briefing.verdict</code>: one sentence built from the tier counts, the environment's state and the stopped forks, naming both origins when both ask for you. It is drawn only when the band is empty, because the band already says what needs you. When the environment is in maintenance it leads: "The environment has been in maintenance for 2 d 13 h, and nothing is running to clear it.", or names the run that is clearing it, and the other Interrupts follow as "n other things need you". A hold whose start core doesn't know leads without a length; a hold core can't read isn't mentioned. The place cards agree with it. The date line carries the date only; freshness stays on the top row.</li>
-      <li><b>The attention band</b> holds every Interrupt, whatever its origin, and the in-system work that asks for you, and is drawn only when it has some. It has no border or background of its own. <b>Stops the line</b> leads it when the shared environment is stopped and needs you (below); then <b>Needs you</b>, every other Interrupt whole and in rung order, never folded, with a "⇣ n upstream need you first" chip on its heading line that scrolls to the horizon; <b>Decisions waiting</b> beside it, the in-system Surface items grouped once per core theme, drawn only with items; then <b>Failing</b>, TEST items and GATE items whose check is red, folded by shared evidence so one lane failure is one line.</li>
-      <li><b>Stops the line</b> is drawn above Needs you when the open hold in the environment's Held lane names an Interrupt item. Every prove borrows the shared environment, so its stop comes first. The block gives how long ("2 d 13 h") and since when, the environment reading's headline as its title, which opens the Environment place, the item's cause as Why and its next step as Next, the forks or work it holds up as a chip when core sends one, and the item's verb, which selects it in Detail. Needs you then lists the rest, headed "Needs you · services" when every remaining item is a service's. A hold with no item, an item that isn't an Interrupt, or a Held lane that wasn't read draws no block, and the item stays in Needs you. The Today count still counts every Interrupt.</li>
-      <li><b>Each group holds one tier, and each item has one home.</b> Interrupt: Needs you, whatever its origin, except an Interrupt that is a stop of the shared environment, which is drawn in Stops the line above it and still counted in the Today count; an upstream Interrupt's horizon card also carries ✕. Surface: its horizon card when it comes from upstream, Decisions waiting when it's in your system. Ambient: Failing in the band, or In progress in In motion. Background: a place card's count, or Can wait. Today never re-tiers an item, and heading counts are item counts ("Failing · 3 in 2").</li>
-      <li><b>A place card describes its place, not its items.</b> Its mark is the place's highest tier in the kit's tier marks (✕ ! ◐ ○), named in words on hover ("Background: nothing asks you today"). Its figure takes the reading's tone in ink, so Security's 28 shows in warn ink beside ○. When the mark isn't ○, a reason chip says why. ⌀ joins the figure when an area the card reads, from core's <code>briefing.places[].areas</code>, was cut or not read, with core's shortened qualifier as its caveat line. A "new" chip shows when the place has items new since you last looked. Upstream has no card: On the horizon is its summary, and Releases has no card because the Releases block is its summary.</li>
-      <li><b>Releases</b> shows all 13 released versions, filled column-first and never folded. The released version comes from <code>services[].releases[]</code>; an open release PR's proposed version follows an arrow labelled on hover as the open release PR, whose accessible name reads "released 1.4.1, proposed 1.4.2". The platform line shows the stack, the template and core-lib-azure's spread across the 13, because one version would hide that services build on different library versions. The unreleased bar counts what the open release PRs carry, by kind, summing to the total; Notable names the one or two most material changes and the services they reach. A body that wasn't read reads "not read", never 0. Release history stays on Releases.</li>
-      <li><b>In motion</b> is the In progress run, ROLLOUT, GATE, PORT and ENV items in core's order: the rollout's next merges as chips, and each waiting PR as an item row. Work that is moving isn't trouble, so it lives with the state, not in the band. <b>Can wait</b> is chips for the Background items no place card counts and the services with nothing waiting ("entitlements and file: no sync, gate or release waiting"), and opens the Can wait list in Detail with why each can wait.</li>
+      <li><b>Rows.</b> Fork, What, Open, Age. A single item is one row: its fork, a short headline in the operator's words, its source pill and its age. A group is a header row ("5 forks", the shared headline, the oldest age) and one sub-row per member with its fork, its pill and its own age, so every link sits in one column and every age in another. A member's age is the age of the object you act on: unit's is its sync PR's 10d, not the 59d its upstream change has been queued.</li>
+      <li><b>No verbs and no restated facts.</b> Core's verb names (Classify entry, Investigate, Re-run lanes) never show; lines group by situation, not by verb. A line doesn't repeat its age, its link, a rank or what its section already says, and the lower three sections are counts, not sentences. There are no P0 or P1 chips.</li>
+      <li><b>Links are typed pills,</b> an icon with the kind and number: PR in teal, Issue in blue, a GitLab MR in the upstream colour, Commit, Run and Deployments in grey. A pill opens its source in the browser and does nothing else.</li>
+      <li><b>A deadline is a clock</b> by the age, with its reason on hover and focus ("Before the next upstream sync, Tue 18:00"). A condition such as "after lanes drain" is not a deadline; it is the first step in the opened row.</li>
+      <li><b>⌀ n</b> by the age says SPI Code didn't read n things behind the row. It opens Evidence for that row. A member shows ⌀ only for a gap its group doesn't already mark.</li>
+      <li><b>Three grouping rules,</b> all core's. <b>Whose move decides Today:</b> an item is on Today when its next move is yours, whatever its tier. <b>One member per object:</b> two items on the same PR are one member, whose opened row names both moves in order (upgrade os-core-common on the fork, then review the sync PR). <b>A blocked item's move is its blocker's:</b> the five red release/upstream PRs failed on their deploy lanes, so their move is the lanes' re-run and they group under one headline. On 16 Nov this turns 23 items into 10 rows and 18 members: 2 Blocked and 16 Waiting on you.</li>
+      <li><b>A row opens in place.</b> Clicking a row's fork or headline expands it under the row, across What to Age: the place link (Line › fork › station), the deadline in full, the cause as its first sentence, the effect as a muted second one (dropped when nothing waits on it), the steps as a numbered list only when there are two, the source pills, and "⌀ n not read · Evidence ›" when something wasn't read. There are no field labels. A group opens under its header with the shared cause and steps; its members are already the sub-rows, so the body carries no single member's pill, and a pill about one member names its fork. A sub-row opens under itself. The opened row never repeats the pill in its own Open column. One row is open at a time; clicking it again, Esc or a click elsewhere closes it.</li>
+      <li><b>No action buttons yet.</b> A pill is the way out to a source, and the first pill is the primary one, which ⌘↵ opens. An operation only SPI Code can run ("Queue the re-run of all 5 lanes", "Dispatch Sync Template to 7 forks") needs a request the window can send, which M4 Act brings; until then it takes no space and its step reads as a sentence. What the operator does by hand is a sentence naming the file or MR it touches. How SPI Code works with Copilot from a row is a separate design.</li>
+      <li><b>The lower three sections open their place.</b> Their rows have nothing to open in place, so the whole row opens its place, with › at the end and the place's name on hover; a Line row opens the Line sheet.</li>
     </ul>
 
     <h3>Calm first</h3>
-    <p>Calm is the goal state, so Today is designed for the calm morning and grows for the bad one. The state frame (the horizon, the place cards, Releases, In motion) is the same on every morning and looks complete when nothing needs you. The band takes the height it needs and pushes the frame down; it never changes the frame's layout, so a calm morning and a bad one differ by one band, not by a different page.</p>
-    <div class="screen" role="img" aria-label="Mockup of Today on a calm morning: the top row with the title, the verdict with a hollow mark, no attention band, On the horizon with nothing that needs you, and four quiet place cards">
+    <p>Calm is the goal state. On a calm morning Blocked and Waiting on you are replaced by one line, "Nothing is yours to move today.", and Can wait, Moving without you and Last 24 hours follow as on every morning. A bad morning differs by the rows it holds, not by a different page: the sections keep their order and their grid.</p>
+    <div class="screen" role="img" aria-label="Mockup of Today on a calm morning: the date, the line Nothing is yours to move today, then one row each under Can wait, Moving without you and Last 24 hours">
       <div class="bar"><span><b>Today</b> · Wednesday 11 Nov</span></div>
       <div class="main">
-        <div class="bf">
-          <div>
-            <div class="bf-head"><p class="headline"><span class="mk o">○</span> Nothing urgent needs you. v0.35.5 is ready; all 13 forks are flowing.</p></div>
-          </div>
-          <div class="hz">
-            <p class="bf-h">⇣ On the horizon <span class="n">· from upstream GitLab</span></p>
-            <div class="conv">
-              <div class="stg"><span class="k"><b>38</b>next sync 18:00</span><span class="chs"><span class="ch svc">partition <span class="pr">21</span></span><span class="ch svc">legal <span class="pr">17</span></span></span></div>
-              <span class="arr">→</span>
-              <div class="stg"><span class="k"><b>0</b>in open sync PRs</span><span class="wl">nothing held</span></div>
-              <span class="arr">→</span>
-              <div class="stg"><span class="k"><b>11</b>your forks, current</span><span class="wl">schema, file, storage and 8 more</span></div>
-            </div>
-            <div class="hsub"><span><span class="mk o">○</span> Nothing needs you before it lands.</span></div>
-            <div class="hcards"><div class="hc quiet"><span class="kg">⇡</span><span class="tok">os-core-common 10.0.0</span><span class="ch svc">partition</span><span class="ch mute">absorbed · lands 18:00</span></div></div>
-          </div>
-          <div class="pcards">
-            <div class="pc"><span class="nm"><span class="mk w">!</span>Line</span><span class="fig"><b>0/13</b>stopped</span><span class="slots"><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl wait"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span></span><span class="chs"><span class="ch warn">search: approval</span></span></div>
-            <div class="pc"><span class="nm"><span class="mk o">○</span>Environment</span><span class="fig"><b>v0.35.5</b>ready</span><span class="lc"><span>refresh</span><span class="tr"><i style="width:94%"></i></span><span>15/16</span></span><span class="lc"><span>smoke</span><span class="tr"><i style="width:100%"></i></span><span>21/21</span></span><span class="chs"><span class="ch">green since 11-10 22:05</span></span></div>
-            <div class="pc"><span class="nm"><span class="mk o">○</span>Engineering system</span><span class="fig"><b>13/13</b>on d3ddff5</span><span class="slots"><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span></span></div>
-            <div class="pc"><span class="nm"><span class="mk o">○</span>Security</span><span class="fig"><b class="warnink">28</b>high or critical</span><span class="chs"><span class="ch">none blocking</span></span></div>
-          </div>
-          <p class="mut" style="margin:0;font-size:12px">Releases, In motion and Can wait follow, as on the busy morning; In motion shows only the runs that have items.</p>
-        </div>
+        <p class="headline" style="font-size:15px">Nothing is yours to move today.</p>
+        <table class="tt">
+          <tbody>
+            <tr class="sec"><td colspan="4"><span class="dot grey"></span>Can wait</td></tr>
+            <tr><td class="fk" style="width:118px">Release PRs</td><td class="wt">9 open · none failing</td><td style="width:118px"></td><td class="age" style="width:64px">›</td></tr>
+            <tr class="sec"><td colspan="4"><span class="dot move"></span>Moving without you</td></tr>
+            <tr><td class="fk">Upstream</td><td class="wt">Tue 18:00 · next upstream sync</td><td></td><td class="age">›</td></tr>
+          </tbody>
+          <tbody class="hist">
+            <tr class="sec"><td colspan="4"><span class="dot ring"></span>Last 24 hours</td></tr>
+            <tr><td class="fk">Sync Upstream</td><td class="wt"><span class="c-ok">13 succeeded</span></td><td></td><td class="age">›</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
-    <p class="note">A calm morning, drawn smaller and without the sidebar. The band is empty, so the verdict is drawn, with ○. There is no band, no empty heading, no "0" count and no empty box. The status rows say the rest, out of frame: Environment's check, nothing on Engineering system because every fork is current, and an outlined 1 in amber on Line, because search waits for an approval in your system. The cards are full and quiet: calm ink, not green, because the tier marks stay. Line's ! is honest for the same reason. Nothing grows to fill space, so a calm Today is shorter, not emptier, and with nothing selected Detail stays closed.</p>
+    <p class="note">A calm morning, drawn smaller and without the sidebar; example values. There is no empty heading, no "0" count and no empty box. The status rows say the rest, out of frame. Nothing grows to fill space, so a calm Today is shorter, not emptier.</p>
 
-    <h3>On the horizon</h3>
-    <p>Everything on Today belongs to one of two origins, told apart at a glance by position and one mark. <b>In your system</b>: the SPI forks, their PRs, the environment, the template and the releases. <b>From upstream</b>: commits made in upstream GitLab that haven't fully landed in the forks, whether queued for the next sync or held in open sync PRs, and merged upstream provider changes not yet ported. Upstream origin has one owner colour, the visual design's <code>upstream</code> role, and one inbound glyph, ⇣. They mark the horizon block, every upstream chip and an upstream wait's slot, and nothing else; colour is never the only signal.</p>
-    <ul class="plain">
-      <li><b>The block</b> is Upstream's summary on Today, the way the Releases block is Releases'. It sits full width under the band and above the place cards on every morning, because upstream always has a horizon. Its heading opens the Upstream place and takes ⌀ when the radar was cut.</li>
-      <li><b>The conveyor</b> runs in three stages: the next sync, the open sync PRs, then your forks. Each stage shows its count and its fork chips from core's horizon stages; 18:00 is a fact on its stage. A fork whose sync is stopped or halted won't land at the next sync, wherever it appears: it moves to an uncounted "won't land" row under its stage, as a broken chip, so the heading counts exactly the chips above it. At 740 px the conveyor compacts to one line ("8 at 18:00 → 69 in 5 PRs → 4 current") and the stages expand on click.</li>
-      <li><b>What's coming</b> is one card per upstream change core groups by theme: a kind glyph (toolchain ⇡, halt ⏸), the change as a token, the forks it reaches with their stage (a PR badge when a sync PR holds it, the time when it's queued), and the verb. A card that holds a Surface item carries ! and its verb as a button ("Absorb ›", "Pre-classify ›", "Move pin ›"). A change that needs nothing is a quiet card; it says it lands on its own only when core confirms a delivery state, and a held card says "held". The sub-heading counts both: "4 need you before they land · 1 to watch".</li>
-      <li><b>Ports owed</b>, upstream provider changes not yet ported, are a per-fork segmented bar in the upstream tint at low saturation, with the figure carrying the number.</li>
-      <li><b>Upstream marks elsewhere.</b> Apart from an upstream Interrupt in Needs you, whose horizon card also carries ✕, the band holds only in-system work. A sync PR is in your system as a PR but its content is upstream, so it carries the ⇣ chip in In motion and is counted on the conveyor's PR stage. On the Line card, a slot whose wait is upstream draws in the upstream colour and the card adds a "⇣ n on the horizon" chip, counted from the same join core builds for the cards. Upstream-owned findings are already in the forks, so "232 upstream-owned" carries no ⇣.</li>
-    </ul>
+    <h3>From upstream</h3>
+    <p>Everything on Today is either in your system (the SPI forks, their PRs, the environment, the template and the releases) or comes from upstream GitLab (commits queued for the next sync or held in open sync PRs, and merged provider changes not yet ported). Upstream origin has one owner colour, the visual design's <code>upstream</code> role, and one inbound glyph, ⇣. They mark GitLab MR pills, the Upstream place and its marks, and nothing else; colour is never the only signal. Today has no horizon block. An upstream change that needs you is a row like any other, whose home is Upstream unless a fork's sync PR already carries it, in which case it is a member on the Line. What is coming at the next sync is read on Upstream.</p>
 
     <h3>Words and visuals</h3>
-    <p>Today is read at a glance, not read through. A word stays only when it carries something nothing else can: a decision, an action (the verb), the title of a change, or a caveat. So the words left are the headline, the Needs you title and verb, a decision's cause and verb, the failing check's name, the Notable titles and the caveats. Counts, states, progress, membership and time become marks, slots, bars and chips from the <a href="spi-code-visual-design.html">visual design's kit</a>. The sentence a visual replaces becomes its hover and accessible name, from the same core field ("Sync Upstream failed on storage at 18:27"), and Detail keeps the full text. Every visual draws from a number or list core sends; the window computes nothing beyond layout.</p>
-    <p><b>Slot grammar: one meaning per slot shape, everywhere.</b> Wherever Today draws a row of slots (the Line card's pips, the conveyor's fork chips, the rollout cells), a slot is in one of six states, told apart by shape as well as colour:</p>
-    <div class="tblwrap">
-      <table class="tbl compact">
-        <thead><tr><th>State</th><th>Means</th><th>Drawn as</th></tr></thead>
-        <tbody>
-          <tr><td><span class="sl"></span> <b>empty</b></td><td>Nothing in the queue: the run had nothing to bring, nothing is waiting</td><td>A hollow circle</td></tr>
-          <tr><td><span class="sl occ"></span> <b>occupied</b></td><td>Something in the queue and moving: commits brought, a PR open, a change on its way</td><td>A filled circle</td></tr>
-          <tr><td><span class="sl done"></span> <b>done</b></td><td>It landed: merged, adopted</td><td>A filled accent circle with a check</td></tr>
-          <tr><td><span class="sl wait"></span> <b>waiting</b></td><td>Something in the queue waits on a person</td><td>A filled warn triangle; upstream colour when the wait is upstream-origin</td></tr>
-          <tr><td><span class="sl brk"></span> <b>broken</b></td><td>Something in the queue is broken</td><td>A filled bad diamond</td></tr>
-          <tr><td><span class="sl unk"></span> <b>ran, effect unknown</b></td><td>The run finished but core can't prove what it did</td><td>A hollow circle with a dot</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p>Hovering any slot gives its fork and its sentence. The grammar is Today's own: the top row draws no slots, only the title and end controls, and the sidebar's status rows draw counts and icons. Core still computes <code>briefing.since</code>, the per-run outcomes since the last look, and no surface draws it; whether it stays in the contract is decided with the other undrawn briefing fields (spicode-f0s.47).</p>
-    <p><b>Item rows: one grammar for Failing and In motion.</b> Every PR item is one row with fixed columns, so the eye reads down columns instead of across sentences. The sentence each row replaced is its hover and accessible name.</p>
-    <div class="tblwrap">
-      <table class="tbl compact">
-        <thead><tr><th>Column</th><th>Shows</th><th>From</th></tr></thead>
-        <tbody>
-          <tr><td><b>Fork</b></td><td>The service name</td><td>The item's scope</td></tr>
-          <tr><td><b>Line glyph</b></td><td>The service line: sync PR → release/upstream PR → main → release. Passed stages are a solid segment; only the item's own station is a slot shape (broken when failing, waiting when it waits on a person). A one-line legend shows the first time it appears.</td><td>The item's class and gate</td></tr>
-          <tr><td><b>PR</b></td><td><code>#75</code></td><td>The item's evidence</td></tr>
-          <tr><td><b>State chip</b></td><td>What's wrong, the failing check (<code>Deploy and Test</code>, <code>Verify</code>), in bad tone, or what it waits for (<code>review</code>, <code>approval</code>) in warn tone; a plain second chip for a follow-up (<code>⟲ after drain</code>)</td><td>The item's cause and next step</td></tr>
-          <tr><td><b>Age</b></td><td><code>13 h</code>, <code>3 d</code></td><td>The item's sub line</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p>Fleet-wide items take a bar in place of the glyph, PR and chip: the template rollout as 13 cells, and ports owed as one bar segmented per fork, sized by count. The rollout's 13 cells live on the Engineering system card (state); In motion keeps only its next-merge chips (action).</p>
-    <p><b>Each place card's micro-visual</b> draws from <code>briefing.places[].visual</code>, which core sends so the window never computes it:</p>
-    <div class="tblwrap">
-      <table class="tbl compact">
-        <thead><tr><th>Card</th><th>Figure</th><th>Visual</th><th>Reason chip, when not ○</th></tr></thead>
-        <tbody>
-          <tr><td><b>Line</b></td><td>2 of 13 stopped</td><td>13 slots in fork order, each the fork's worst station; stopped forks named under their slots; a "⇣ n on the horizon" chip when waits are upstream</td><td><code>lanes: storage, indexer</code></td></tr>
-          <tr><td><b>Environment</b></td><td>v0.35.5 ready</td><td>The 21-day lifecycle as four small pass-rate bars (refresh, upgrade, smoke, sweeper), and a "green since 11-09 22:27" chip</td><td><code>lane failed</code></td></tr>
-          <tr><td><b>Engineering system</b></td><td>7 of 13 on d3ddff5</td><td>The 13-cell rollout</td><td><code>verification pending</code></td></tr>
-          <tr><td><b>Security</b></td><td>28 high or critical</td><td>13 thin columns in the Line card's fork order, so the two cards line up slot for slot, each that fork's high or critical count in SPI-owned shipped code with a baseline tick for zero; the largest group as a chip in its own unit (<code>CSRF · 12 forks</code>)</td><td><code>none blocking</code></td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p>"Healthy" for the environment is core's verdict on whether a prove can deploy to it: ready, running the latest release, green since when, and the last proof. Fork-lane failures belong to the forks and show on the Line card, not as an environment caveat.</p>
+    <p>Today is read at a glance, not read through. A word stays only when it does work: the fork, the headline, the pill's kind and number, the age. Everything else is a mark whose sentence is its hover and accessible name: the section's dot, the clock, ⌀ n. The opened row and the popover follow the same rule. Grouping, headlines, steps and deadlines are core's output; the window draws them and computes nothing beyond layout.</p>
+    <p>Two glyph sets are still drawn, each with one meaning everywhere it appears. The Line sheet's stations use ✕ stopped, ! waits on you, ◐ running, ◷ waits on time, ⌀ not read and · fine (The Line sheet, below). The Engineering system's rollout ladder gives each fork one stage: verified, merged · verification pending, to dispatch, failed or not read. Merged is read only from Sync Template's own merge results, so a result that wasn't read says not read, never merged.</p>
 
-    <h3>One column, and Detail open</h3>
-    <p>At 740 px, and at 1440 with Detail open (a centre of about 850), Today is one column: the band if any, or the verdict when there is none, On the horizon, the place cards in a two- or three-wide grid, Releases, then In motion and Can wait.</p>
-    <ul class="plain">
-      <li><b>Opening Detail never folds anything.</b> Every group shows in full. When the column count changes, the selected row keeps its place on screen and the page scrolls around it.</li>
-      <li><b>Folds happen only at 740 px.</b> Decisions waiting and each Ambient run show three lines, then an "n more ›" line that counts items like the headings and opens that group's full list in Detail. Folds are decided when the width changes; the selected row is kept among the lines shown, replacing the third, so the fold height stays fixed. Selecting never changes a fold, so Today under a Detail sheet doesn't move. Needs you never folds.</li>
-      <li><b>Releases</b> keeps all 13 versions, in two columns at 740 and three at 850, filled column-first, and keeps its change lines.</li>
-    </ul>
+    <h3>Narrow widths</h3>
+    <p>Today is the same table at every width. When the centre is under 640 px the Fork, Open and Age columns narrow and What keeps the rest. Nothing folds, no group shows "n more", and an opened row still spans What to Age. A long pill label ends in an ellipsis with the full label in its title. At 740 px the sidebar goes off-canvas and the table keeps the whole centre.</p>
 
     <h3>The bad morning</h3>
-    <p>Three Interrupts, and GitHub failed to read.</p>
+    <p>More rows under Blocked and Waiting on you, and GitHub failed to read.</p>
     <ul class="plain">
-      <li><b>No verdict:</b> the band holds the three Interrupts, so core's sentence ("3 things need you; 4 forks are stopped. GitHub wasn't read this sweep.") isn't drawn.</li>
-      <li><b>A caveat band</b>, full width at the top: "GitHub read failed at 08:15; items from it may be missing. Evidence ›". It adds "Open Settings ›" only when the failure's code is one Readiness fixes, such as <code>signin</code>. The band covers the lists, so items, In motion and Can wait take no ⌀.</li>
-      <li><b>All three Interrupts show whole</b>, in rung order: the P0 first, then the P1s.</li>
-      <li><b>Each place card whose areas went unread</b> takes ⌀ and keeps its last good figure in muted ink, with that area's own last good time ("from 07:52"). Areas fail separately, so two cards can carry different times; a card with several unread areas shows the oldest and its hover lists each.</li>
-      <li><b>Releases</b> keeps its versions in muted ink with the releases area's last good time, and the change lines read "not read this sweep", never 0.</li>
+      <li><b>A caveat band</b>, full width under the date: "GitHub read failed at 08:15; items from it may be missing. Evidence ›". It adds "Open Settings ›" only when the failure's code is one Readiness fixes, such as <code>signin</code>.</li>
+      <li><b>A row SPI Code couldn't fully read</b> carries ⌀ n by its age, and its opened row ends "⌀ n not read · Evidence ›".</li>
+      <li><b>A pile or workflow core didn't read says "not read"</b>, with ⌀ n opening Evidence, never 0. A pile that was read and holds nothing says none.</li>
       <li>The sidebar rows and footer behave as they do on every morning: a row whose source wasn't read carries no mark, never a check, and the sweep takes the red alert icon for the failed read.</li>
     </ul>
 
@@ -589,32 +419,42 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
       <table class="tbl compact">
         <thead><tr><th>On Today</th><th>Opens</th></tr></thead>
         <tbody>
-          <tr><td>A place card</td><td>That place, in the centre; the Line card opens the Line sheet</td></tr>
-          <tr><td>The horizon heading</td><td>Upstream, in the centre</td></tr>
-          <tr><td>A fork name on the Line card, in a scope chip or on a conveyor stage</td><td>That service's place</td></tr>
-          <tr><td>An item in Needs you, Decisions waiting, Failing or In motion, or a horizon card</td><td>The item in Detail: cause, effect, next step, evidence</td></tr>
-          <tr><td>A PR number in a chip</td><td>That PR in Detail</td></tr>
-          <tr><td>A version, or a version arrow</td><td>That service's release, or its release PR, in Detail</td></tr>
-          <tr><td>The unreleased bar</td><td>Releases, scrolled to the forming releases' changes</td></tr>
-          <tr><td>The platform line</td><td>Releases, scrolled to the shared components, with each service's core-lib-azure version</td></tr>
-          <tr><td>A notable change</td><td>That change in Detail, with its release PR</td></tr>
-          <tr><td>A ⌀ mark</td><td>That source in Evidence</td></tr>
-          <tr><td>A "new" chip</td><td>The place, with its new items marked</td></tr>
-          <tr><td>The "⇣ n upstream need you first" chip</td><td>Scrolls to On the horizon</td></tr>
-          <tr><td>Can wait</td><td>The Can wait list in Detail</td></tr>
-          <tr><td>"n more ›" (740 px only)</td><td>That group's full list in Detail</td></tr>
+          <tr><td>A row's fork or headline, or a group's header</td><td>That row in place, under itself; clicking again, Esc or a click elsewhere closes it</td></tr>
+          <tr><td>A sub-row's fork</td><td>That member, in place under the sub-row</td></tr>
+          <tr><td>A pill</td><td>Its source in the browser</td></tr>
+          <tr><td>⌘↵ on a row</td><td>The row's primary source: the pill in its Open column. A group header with no pill there has none, and ⌘↵ does nothing.</td></tr>
+          <tr><td>The place link in an opened row</td><td>The place, with the subject marked and its popover open</td></tr>
+          <tr><td>⌀ n, or "⌀ n not read · Evidence ›"</td><td>Evidence for that row, with "‹ Today" to come back</td></tr>
+          <tr><td>A row under Can wait, Moving without you or Last 24 hours</td><td>Its place; a Line row opens the Line sheet</td></tr>
+          <tr><td>Evidence › in the caveat band</td><td>Evidence for the failed source</td></tr>
         </tbody>
       </table>
     </div>
-    <p>Each place opens on what Today can't show, and keeps its own headline, because Today quotes it:</p>
+    <div class="tblwrap">
+      <table class="tbl compact">
+        <thead><tr><th>On a place</th><th>Opens</th></tr></thead>
+        <tbody>
+          <tr><td>A Line cell</td><td>A popover on the cell with the member it holds, led by a Blocked one, or a sentence on what holds the cell, with the station's source</td></tr>
+          <tr><td>A rollout rung</td><td>A popover on the rung; a to-dispatch rung opens the dispatch member, which names its seven forks</td></tr>
+          <tr><td>An environment run or hold</td><td>A popover with the run's result and whether anything on Today waits on it</td></tr>
+          <tr><td>A repository line</td><td>A popover. A line that is an item's source or companion issue opens that item; one off Today says "Not on Today. Counted under Can wait."</td></tr>
+          <tr><td>An Upstream hold or theme, a release month, a service station or row</td><td>A popover with the same body</td></tr>
+          <tr><td>"On Today · Blocked ›" in a popover</td><td>Today, with that row open</td></tr>
+          <tr><td>"n yours on Today ‹ ›" in a place's head</td><td>Each of the place's members in turn, marked on the instrument with its popover open</td></tr>
+          <tr><td>⌀ n in a popover, or the footer sweep's Evidence while one is open</td><td>Evidence for that subject, with the way back to the place</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>A popover hangs under what was clicked, flips above when it would leave the window and stays inside it. It carries the same body as an opened row, plus a title, because its subject isn't otherwise on screen, and it doesn't repeat what the place shows beside it. Esc or a click outside closes it and returns focus to what opened it; a click on the footer sweep keeps it open and opens Evidence for it. Opening an item from ⌘K, the tray or a notification goes to Today with its row open: an item merged into one member opens that member; one shared by several members of a line opens the line's header; one on rows of different lines, or on none, opens Today with nothing open.</p>
+    <p>Each place opens on what Today can't show. Every place has the same head: its name, its status (one field, which the sidebar reads too), then "n yours on Today ‹ ›" for the members whose home it is. Core names one home per member, so the place counts add up to Today's count: on 16 Nov Line 16, Engineering system 1 and Upstream 1 make 18. A repository line that is a member's source or companion issue keeps an "On Today" mark as a cross-reference, but Engineering system doesn't count it.</p>
     <div class="tblwrap">
       <table class="tbl compact">
         <thead><tr><th>Place</th><th>Keeps</th></tr></thead>
         <tbody>
-          <tr><td><b>Line</b></td><td>The 13 × 6 sheet</td></tr>
+          <tr><td><b>Line</b></td><td>The five-station sheet</td></tr>
           <tr><td><b>Upstream</b></td><td>The radar, per-fork commits, filters and ports</td></tr>
           <tr><td><b>Environment</b></td><td>Its own state first (Maintenance or Running, Ready · 21 days, Last proof), the last 24 hours open, its items, fork deploys, runs and the stack repo</td></tr>
-          <tr><td><b>Engineering system</b></td><td>The rollout ladder and the template PRs</td></tr>
+          <tr><td><b>Engineering system</b></td><td>The rollout as a ladder of forks, and the repositories table: issues (human · other), PRs and Dependabot bumps per repository, each row marked "on Today" when a line in it is. An expanded repository with nothing listed says "No lines listed here."</td></tr>
           <tr><td><b>Releases</b></td><td>Months, notes, every release PR, and each forming release's full change list</td></tr>
           <tr><td><b>Security</b></td><td>Rules, packages, owners and campaigns</td></tr>
         </tbody>
@@ -623,20 +463,20 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
 
     <h3>What goes</h3>
     <ul class="plain">
-      <li>Today's three tiles, the "more" fold and the 75-word and five-item caps.</li>
-      <li>The deadline groups (Before the next sync) and the New group. New is a chip.</li>
-      <li>Grouping by when an item bites. Each group holds one tier.</li>
+      <li>The briefing that Today used to be: the verdict sentence, the attention band with Stops the line, Needs you, Decisions waiting and Failing, the upstream horizon, the four place cards, the Releases block and In motion. Their items are rows; their state is on the sidebar rows and the places.</li>
+      <li>The P0, P1 and P2 rank chips, and every "n more" fold.</li>
+      <li>A second column for the selection outside a thread. A row opens in place, a place's mark opens a popover, and Evidence is a page.</li>
+      <li>The composer at the foot of Today. Starting a thread from Today waits for the Copilot design.</li>
+      <li>Today's three tiles and the 75-word and five-item caps.</li>
+      <li>The deadline groups (Before the next sync) and the New group. A deadline is a clock on its row.</li>
       <li>The old top row's "n due before 18:00" field. The Upstream pin shows the next upstream sync only within 2 hours of it, as a clock.</li>
       <li>The old top row's service pips and the stopped names. The Line row carries a count; the names are in its hover and on the Line sheet.</li>
-      <li>The since pips and their legend, the place marks above Needs you, and the band's frame.</li>
-      <li>The verdict sentence on a morning with a band.</li>
       <li>Release months on Today. Release history stays on Releases.</li>
     </ul>
-    <p>Each item keeps its P0, P1 or P2 rank as a chip. A pending card raised by a button is an Interrupt and is decided in Needs you (AU-10). A Surface item can still be snoozed until the next sync, and a composer anchored to the program closes the brief.</p>
-    <p>Before the first sweep finishes there is no brief yet. Today shows the sweep's own sources live from <code>sweep.progress</code>, in sweep order and in Evidence words, each with what it reads and its state, and hands over to the brief in place when <code>view.snapshot</code> lands. Places open one line saying when they can be read, the pins carry no marks, and the footer sweep shows "First sweep" with a spinner. If the first sweep stops, Today keeps the list and offers Try again and Open Settings. The <a href="spi-code-window-layout.html#first-sweep">window layout's first-sweep frame</a> draws it.</p>
+    <p>Before the first sweep finishes there is nothing to list yet. Today shows the sweep's own sources live from <code>sweep.progress</code>, in sweep order and in Evidence words, each with what it reads and its state, and hands over to the table in place when <code>view.snapshot</code> lands. Places open one line saying when they can be read, the pins carry no marks, and the footer sweep shows "First sweep" with a spinner. If the first sweep stops, Today keeps the list and offers Try again and Open Settings. The <a href="spi-code-window-layout.html#first-sweep">window layout's first-sweep frame</a> draws it.</p>
 
     <h3>When something needs you</h3>
-    <p>A notification reads "indexer's prove failed while storage held the lane. A retry card is waiting." Clicking it opens the thread that owns the finding, in the centre. It never replaces a thread you're typing in. Today's count goes to 1.</p>
+    <p>A notification reads "indexer's prove failed while storage held the lane. A retry card is waiting." Clicking it opens the thread that owns the finding, in the centre. It never replaces a thread you're typing in.</p>
     <div class="screen" role="img" aria-label="Mockup of the Lane watch thread with a pending retry card">
       <div class="bar"><span><b>Lane watch</b></span></div>
       <div class="scr3">
@@ -670,25 +510,30 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
     <p class="note">Run ids, times and the smoke step are example values. The lane bars need lane events (new data, M3). The card is M4 and sits in this thread's composer strip, the only place it is decided (AU-10). Once approved it reads <b>approved, waiting</b> until the restore ends; the host re-reads its bindings when the wait fires, not at approval (AU-06). An overlap alone is "possible contention". The watcher calls it environment-caused only when the failure log corroborates it, such as an error from a service the other run had replaced. At narrow widths the lane panel stacks under the thread instead of hiding. The top row here shows no lane holder or waiting card: their home is open, decided by spicode-cp0.1.</p>
 
     <h3>The Line sheet</h3>
-    <p>⌘L or the Line row opens the round 1 grid as a sheet over the centre. It closes back to where you were, or you can dock it beside the centre for a monitoring session. Rows that need nothing fold. A campaign chip filters the sheet to that campaign's forks and adds its wave column.</p>
-    <div class="screen" role="img" aria-label="Mockup of the Line sheet">
-      <div class="bar"><span><b>Line</b> · 13 forks</span><span><span class="chip">all</span> <span class="chip">os-core-common 8.5.0 · 8</span> <span class="chip">template 7d269b5 · 13</span></span></div>
+    <p>⌘L or the Line row opens the sheet over the centre. It closes back to where you were, or you can dock it beside the centre for a monitoring session. The sheet is fork × five stations: Upstream, Sync PR, Cascade, Main and Lane. Release PRs belong to Releases, so there is no Release PR column. A campaign chip highlights the forks carrying a toolchain move.</p>
+    <div class="screen" role="img" aria-label="Mockup of the Line sheet with five station columns">
+      <div class="bar"><span><b>Line</b> · 13 forks</span><span>7 of 13 forks stopped · <span class="mut">16 yours on Today ‹ ›</span></span></div>
       <div class="main gridwrap">
         <table class="grid">
-          <thead><tr><th>Service</th><th>Upstream</th><th>Sync PR</th><th>Cascade</th><th>Main</th><th>Release PR</th></tr></thead>
+          <thead><tr><th>Service</th><th>Upstream</th><th>Sync PR</th><th>Cascade</th><th>Main</th><th>Lane</th></tr></thead>
           <tbody>
-            <tr><td>entitlements</td><td class="c-ok">✓ current</td><td>· clean</td><td class="c-stop">✕ conflict 21h</td><td>·</td><td class="c-q">#89 coverage fails</td></tr>
-            <tr><td>partition</td><td class="c-you">! 8 · halts 18:00</td><td>· clean</td><td>·</td><td>·</td><td class="c-q">#198 ready</td></tr>
-            <tr><td>legal</td><td class="c-you">! 17 · SNAPSHOT held</td><td>· clean</td><td>·</td><td>·</td><td class="c-q">#48 ready</td></tr>
-            <tr><td>indexer-queue</td><td class="c-q">◷ 3</td><td class="c-you">! #58 review</td><td>·</td><td>·</td><td class="c-q">#45 ready</td></tr>
-            <tr><td>storage</td><td class="c-q">◷ 11</td><td class="c-you">! #58 review</td><td>·</td><td>·</td><td class="c-q">#57 ready</td></tr>
-            <tr><td>indexer</td><td class="c-q">◷ 25</td><td class="c-you">! #58 review</td><td>·</td><td>·</td><td class="c-q">#33 ready</td></tr>
-            <tr><td colspan="6" class="mut">▸ 7 moving normally: schema, file, search, workflow, unit, crs-conversion, crs-catalog</td></tr>
+            <tr><td>crs-conversion <span class="c-stop" title="On Today">•</span></td><td class="c-stop">✕ held by the halted sync</td><td class="c-stop">✕ halted: no filter rule for schemathesis-tests</td><td>·</td><td>·</td><td>·</td></tr>
+            <tr><td>legal <span class="c-you" title="On Today">•</span></td><td class="c-q">◷ next sync</td><td>·</td><td>·</td><td class="c-you">! #90 red on its failed lane</td><td class="c-stop">✕ deploy failed</td></tr>
+            <tr><td>partition</td><td class="c-q">◷ next sync</td><td>·</td><td>·</td><td>·</td><td class="c-move">◐ rerunning · last run failed</td></tr>
+            <tr><td>storage <span class="c-you" title="On Today">•</span></td><td>·</td><td>·</td><td>·</td><td class="c-you">! #83 fails Validation Summary</td><td class="mut">⌀ not read</td></tr>
+            <tr><td colspan="6" class="mut">▸ 1 moving normally: file</td></tr>
           </tbody>
         </table>
       </div>
     </div>
-    <p class="note">The fleet fact "carries os-core-common 8.5.0" lives on the campaign chip, not in eight cells. Glyphs: ✕ stopped · ! needs a person · ◐ in progress · ◷ scheduled · · nothing to do. Each needs the typed station sub-state. The repeated "#58" is unverified (appendix E).</p>
+    <p class="note">Four of the 13 forks, with cell text shortened; the names come from the 16 Nov sweep and the rest is example data. Glyphs: ✕ stopped · ! waits on you · ◐ running · ◷ waits on time · ⌀ not read · · fine. A cell's text runs to two lines. A dot after the fork marks a cell that holds one of the Line's members on Today.</p>
+    <ul class="plain">
+      <li><b>One vocabulary for every station.</b> A running lane whose last run failed reads "◐ rerunning · last run failed". Core codes never reach a cell: a halt says what holds it ("halted: no filter rule for schemathesis-tests"), not UNKNOWN_TOP_LEVEL.</li>
+      <li><b>Quiet forks fold.</b> Forks whose cells are only fine or waiting on time fold into "▸ n moving normally", which opens in fleet order, unless every fork is quiet; a running, unread or Today-held fork never folds.</li>
+      <li><b>A dot marks a member whose home is the Line.</b> The head's "16 yours on Today" and the dots count the same members, and the head's ‹ › steps through them, opening each cell's popover.</li>
+      <li><b>Open: upstream members on the Upstream column.</b> A cell whose Today member's home is Upstream, such as an upstream change no sync PR carries yet, draws no dot; the member is stepped and opened from Upstream. Whether such a cell should carry some other cross-reference mark is not settled; the checkpoint on the packaged window decides it.</li>
+      <li><b>Narrow on Windows.</b> When the docked sheet is the rightmost pane, its Undock and Close stay whole and clear of the caption buttons; the "· 13 forks" count drops first, then the "Line" title ends in an ellipsis.</li>
+    </ul>
 
     <h3>Places</h3>
     <p>A place is any anchor you can open: a service, the environment, the engineering system, a release month, a campaign. Places are Today's drill-down: each opens on what Today can't show (Click targets, above). Line, Environment and Engineering system stay in the fixed block; Upstream, Releases and Security seed the removable pins, and a service joins Pinned when the operator pins it (The sidebar, above). Every place has the same three parts. Its <b>reading</b> is a headline, three tiles and at most five items, the rib's shape. Next come <b>its threads</b> with their status. Last is a <b>composer anchored to it</b>, so typing a question starts a thread there. The entitlements page from the first revision becomes the service reading, without "gate 3" (it reads "release review") and without the future "Upstream MRs" line. Its Threads section becomes the place's thread list and composer. <b>Security</b> is a place whose reading is SPI-owned findings across the fleet: tiles for high, total and upstream-origin counts, items grouped by rule, and each rule that spans forks shown as a detected campaign.</p>
@@ -706,7 +551,7 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
     <p>A fork check that failed on the environment and should be re-run lives with the fork, not here: its re-run lands on the fork's PR, so the item's scope is that fork and its title leads with the ask ("Re-run …") once the environment is ready. When several forks failed, it stays one item whose scope counts them.</p>
 
     <h3>Upstream</h3>
-    <p>The line has an input, the machinery and an output. Upstream is the input: what GitLab will hand each fork at the next sync. It gathers what was spread across three spots: the next sync time, each service's commits incoming and the Line sheet's Upstream column. Today summarizes it as On the horizon. Upstream is where you go for the radar, per-fork commits, filters and ports, and its toolchain moves are what campaign detection reads.</p>
+    <p>The line has an input, the machinery and an output. Upstream is the input: what GitLab will hand each fork at the next sync. It gathers what was spread across three spots: the next sync time, each service's commits incoming and the Line sheet's Upstream column. Today has no summary of it: an upstream change that needs you is a row there, and Upstream is where you go for the radar, per-fork commits, filters and ports, and its toolchain moves are what campaign detection reads.</p>
     <div class="screen" role="img" aria-label="Mockup of the Upstream place">
       <div class="bar"><span><b>Upstream</b></span></div>
       <div class="scr2">
@@ -743,7 +588,7 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
         </div>
       </div>
     </div>
-    <p class="note">Counts, holds and the cut come from the 08:06 sweep's upstream radar: 10 forks with queued commits, 8 of them carrying os-core-common 8.5.0. The cut spans 12 merge-request reads for entitlements, partition, file, schema, storage and search; the radar envelope today records only the first, so the subline reads the per-read provenance. Its Before 18:00 rows and the detection are the same items as Today's horizon cards, one record in two places, so resolving one clears both. The thread is illustrative. The place's Line view is the Line sheet filtered to the Upstream column. Upstream sits first among the places because it comes first on the line.</p>
+    <p class="note">Counts, holds and the cut come from the 08:06 sweep's upstream radar: 10 forks with queued commits, 8 of them carrying os-core-common 8.5.0. The cut spans 12 merge-request reads for entitlements, partition, file, schema, storage and search; the radar envelope today records only the first, so the subline reads the per-read provenance. Its Before 18:00 rows are the same items as their rows on Today, one record in two places, so resolving one clears both; each opens a popover on Upstream and its row on Today. The thread is illustrative. The place's Line view is the Line sheet filtered to the Upstream column. Upstream sits first among the places because it comes first on the line.</p>
   </section>
 
   <section>
@@ -753,19 +598,19 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
       <table class="tbl compact">
         <thead><tr><th>Tier</th><th>What qualifies</th><th>How it reaches you</th></tr></thead>
         <tbody>
-          <tr><td><b>Interrupt</b></td><td>A card waiting on your decision. A new or worsened P0. An owned item whose thread Failed, stalled or lost coverage. A failed recovery. An unowned item that is due within its lead time (2 hours by default).</td><td>One OS notification per item and the Today count, which gives a hidden sidebar's toggle its red dot. If it arrived since you last acknowledged, the app opens on Today.</td></tr>
-          <tr><td><b>Surface</b></td><td>A new P1, a newly detected theme, a thread Done, an item due before the next sync but outside its lead time</td><td>Its home on Today: its horizon card when it comes from upstream, Decisions waiting when it's in your system, with a "new" chip on its place. No notification.</td></tr>
-          <tr><td><b>Ambient</b></td><td>Work moving normally, successful retries, routine sweeps, no-rush items</td><td>The status rows' marks, the Line sheet, and Today's Failing run or In motion</td></tr>
-          <tr><td><b>Background</b></td><td>Work that asks nothing of you today</td><td>A place card's count, or Can wait. No notification.</td></tr>
+          <tr><td><b>Interrupt</b></td><td>A card waiting on your decision. A new or worsened P0. An owned item whose thread Failed, stalled or lost coverage. A failed recovery. An unowned item that is due within its lead time (2 hours by default).</td><td>One OS notification per item, the dock badge and a hidden sidebar's red dot. If it arrived since you last acknowledged, the app opens on Today, where it is a row when its next move is yours.</td></tr>
+          <tr><td><b>Surface</b></td><td>A new P1, a newly detected theme, a thread Done, an item due before the next sync but outside its lead time</td><td>Its row on Today when its next move is yours. No notification.</td></tr>
+          <tr><td><b>Ambient</b></td><td>Work moving normally, successful retries, routine sweeps, no-rush items</td><td>The status rows' marks, the Line sheet and its place; Moving without you or Last 24 hours on Today when it is in motion or has run</td></tr>
+          <tr><td><b>Background</b></td><td>Work that asks nothing of you today</td><td>Can wait's piles, or its place. No notification.</td></tr>
         </tbody>
       </table>
     </div>
     <ul class="plain">
-      <li><b>Since you last looked.</b> The seen state decides the "new" chips and whether the app opens on Today; the verdict is core's <code>briefing.verdict</code>, not a diff, and no row on Today lists what ran since the last look. Notifications use the same seen state, as T3 Code's background-thread announcer stays quiet on first sight and announces each run's end once. Acknowledging never clears a stopped station; the Line row keeps counting it.</li>
+      <li><b>Since you last looked.</b> The seen state decides whether the app opens on Today, and Today's last section reads "Since you last looked" instead of "Last 24 hours" only when core has a seen cursor. Notifications use the same seen state, as T3 Code's background-thread announcer stays quiet on first sight and announces each run's end once. Acknowledging never clears a stopped station; the Line row keeps counting it.</li>
       <li><b>Ownership suppresses duplicates, not escalation.</b> When a thread owns an item (TH-05), it keeps its home on Today with the thread's marker and its repeat notifications stop. If the owning thread fails, stalls, loses coverage, or the item worsens, the item interrupts again. A stopped fork stays in the Line row's red count until the line is green; a thread finishing doesn't make the line healthy.</li>
-      <li><b>Due items escalate by tier, not by group.</b> Today has no deadline group and the top row no due count. Inside its lead time, if nobody owns it, core makes an item an Interrupt, so it reaches Needs you, the Today count and a notification. A partition halt can't arrive unannounced because the app restored a thread instead of Today.</li>
-      <li><b>One count, of distinct items.</b> The Today count is the number of Interrupt items: a pending card counts once, and the thread waiting on that card and the P0 it owns are not counted again. The count falls when an item is resolved, not when it's acknowledged. Acknowledging clears the notification and the open-on-Today trigger.</li>
-      <li><b>One home per tier.</b> Interrupt in Needs you, including a pending card raised by a button, except a stop of the shared environment, which is drawn in Stops the line above Needs you and still counted in the Today count; Surface on its horizon card or in Decisions waiting; Ambient in Failing or In motion; Background in a place card's count or Can wait. Today never re-tiers an item to fit a group. The P0/P1 rank stays as the chip on each row.</li>
+      <li><b>Due items escalate by tier, not by group.</b> Today has no deadline group and the top row no due count. Inside its lead time, if nobody owns it, core makes an item an Interrupt, so it notifies and reaches the dock badge; on Today its row carries the clock either way. A partition halt can't arrive unannounced because the app restored a thread instead of Today.</li>
+      <li><b>Two counts, one open question.</b> Today's count on the sidebar is the members on Blocked and Waiting on you, and falls when a member leaves Today, not when it's acknowledged. Notifications, the dock badge, the tray and a hidden sidebar's dot count distinct Interrupts: a pending card counts once, and the thread waiting on it and the P0 it owns are not counted again. Whether they should count the same members as the sidebar is open, for the checkpoint on the packaged window (spicode-djg.29). Acknowledging clears the notification and the open-on-Today trigger.</li>
+      <li><b>Whose move decides Today, not the tier.</b> The tier decides how loud an item is, not where it sits. An item is on Today when its next move is yours, whatever its tier: under Blocked when it stops something until you act (core's rung 0), otherwise under Waiting on you. Work whose move isn't yours is counted under Can wait, shown under Moving without you or Last 24 hours, or marked at its place. Today never re-tiers an item, and draws no rank chip.</li>
       <li><b>Snooze until the next sync</b> for a Surface item, borrowed from T3 Code's snooze dialog.</li>
     </ul>
   </section>
@@ -800,7 +645,7 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
       </table>
     </div>
     <ul class="plain">
-      <li><b>Cards are decided in one place.</b> A thread's card is decided in that thread's composer strip. A button's card is decided in Today's Needs you, which replaces the Inbox as the one place for those (AU-09, AU-10). Everywhere else shows the card's state and links there.</li>
+      <li><b>Cards are decided in one place.</b> A thread's card is decided in that thread's composer strip. A card a button raises (M4) is decided in the one place the M4 Act design gives it, which replaces the Inbox (AU-09, AU-10). Everywhere else shows the card's state and links there.</li>
       <li><b>Approved is not executed.</b> A card bound to a wait reads <b>approved, waiting</b> until the wait fires. The host then re-reads its bindings (AU-06). If one changed, the card moves to binding failed and names it.</li>
       <li><b>Core admits work to the lane.</b> Waves from every campaign, reruns and ordinary proves enter one admission queue, ordered by core's pacing and ordering guards and capped by lane capacity. These are the bindings Consequential calls already re-read. Lane watch reports on the queue but admits nothing. The stack's workflow guard enforces the same order for jobs the app didn't start.</li>
     </ul>
@@ -847,8 +692,8 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
       <table class="tbl compact">
         <thead><tr><th>To start</th><th>Ways</th><th>Lands in</th></tr></thead>
         <tbody>
-          <tr><td><b>A thread</b></td><td>Type in any place's composer, which anchors the thread there. Today's composer and ⌘N start a thread anchored to the program. Every thread has exactly one anchor (TH-01); @ in the composer adds other places (@legal, @environment) as context attachments, so one thread can draw on several without changing its anchor (TH-08, PS-14). "Ask about this" on a Today item or a Detail field anchors to that item with its evidence attached.</td><td>The centre, under Threads by status</td></tr>
-          <tr><td><b>A campaign</b></td><td>Ask: "move every fork to Java 25 and Boot 4" in Today's composer or ⌘K. Track a detection on Today, Upstream or a Line chip. Select rows on the Line sheet and choose Campaign from these.</td><td>A campaign thread with a drafted plan you edit. No write runs until a wave's own card is approved.</td></tr>
+          <tr><td><b>A thread</b></td><td>Type in any place's composer, which anchors the thread there. ⌘N starts a thread anchored to the program. Every thread has exactly one anchor (TH-01); @ in the composer adds other places (@legal, @environment) as context attachments, so one thread can draw on several without changing its anchor (TH-08, PS-14). Starting a thread from a Today row or a popover, anchored to that item with its evidence attached, waits for the Copilot design.</td><td>The centre, under Threads by status</td></tr>
+          <tr><td><b>A campaign</b></td><td>Ask: "move every fork to Java 25 and Boot 4" in ⌘K or a new thread. Track a detection on Upstream or a Line chip. Select rows on the Line sheet and choose Campaign from these.</td><td>A campaign thread with a drafted plan you edit. No write runs until a wave's own card is approved.</td></tr>
           <tr><td><b>A pin</b></td><td>The icon control at a place's top-row end, after a service's Line-sheet name or at a Find result's end. The row menu's Pin to sidebar. ⌘⇧P toggles; ⌘↩ opens and pins in Find.</td><td>The sidebar's Pinned group, the only way a service appears there</td></tr>
           <tr><td><b>A watcher</b></td><td>"Watch the lane" in the Environment composer, or Start on a watcher's place</td><td>A standing operate thread with coverage, Pause and Stop</td></tr>
         </tbody>
@@ -895,13 +740,13 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
       <table class="tbl compact">
         <thead><tr><th>Journey</th><th>What happens</th></tr></thead>
         <tbody>
-          <tr><td><b>Morning</b></td><td>The dock badge is 0, so the app restores your last thread. The Line row carries an outlined 1 in red, owned; Upstream has no clock until the 18:00 sync is within 2 hours. Today, if you open it, says nothing urgent needs you, and the partition halt waits on its horizon card with Pre-classify ›. If nobody takes it, it becomes an Interrupt inside its lead time and notifies. About five seconds. ⌘L if you want everything.</td></tr>
+          <tr><td><b>Morning</b></td><td>The dock badge is 0, so the app restores your last thread. The Line row carries an outlined 1 in red, owned; Upstream has no clock until the 18:00 sync is within 2 hours. Today, if you open it, has nothing under Blocked, and the partition halt waits under Waiting on you with a clock for the 18:00 sync. If nobody takes it, it becomes an Interrupt inside its lead time and notifies. About five seconds. ⌘L if you want everything.</td></tr>
           <tr><td><b>Collision and retry</b></td><td>Lane watch posts the overlap and a rerun card, and one notification arrives. Approve in the thread. The wait holds until storage restores and admission allows it. The watcher reports the result once. The Cascade cell shows dashed until the next sweep confirms it. A second failure or an unknown restore comes back to you.</td></tr>
           <tr><td><b>Owner fails</b></td><td>Diagnose fails at 11:20 while the cascade is still blocked. The item interrupts again: one notification, Today goes to 1, the Line row keeps counting entitlements stopped, and the notification opens Diagnose's thread at its failure with the next decision: retry Diagnose or start a code thread.</td></tr>
           <tr><td><b>Steward</b></td><td>⌘K "legal", ⌘↩ opens and pins it. Its place reads 17 commits incoming, a SNAPSHOT hold, 1 SPI-owned CodeQL finding and Release #48 ready. Ask "which of the 17 touch the Azure provider?" in its composer, and that starts a legal thread.</td></tr>
-          <tr><td><b>Java 25 + Boot 4</b></td><td>Ask for it in Today's composer, or Today's horizon card and Upstream show "Detected: os-core-common 8.5.0 on 8 forks · Track" once. Either starts a campaign thread, which drafts pilot indexer-queue, waves and lane cap 1 as a plan for you to edit. Each wave is one Consequential <code>start_upstream</code> card with the wave's name typed. Core admits its forks through the shared lane queue. Forks failing on their own code get child code threads at M5. From then on it's one row under Working, with a meter.</td></tr>
+          <tr><td><b>Java 25 + Boot 4</b></td><td>Ask for it with ⌘N or ⌘K, or Upstream shows "Detected: os-core-common 8.5.0 on 8 forks · Track" once. Either starts a campaign thread, which drafts pilot indexer-queue, waves and lane cap 1 as a plan for you to edit. Each wave is one Consequential <code>start_upstream</code> card with the wave's name typed. Core admits its forks through the shared lane queue. Forks failing on their own code get child code threads at M5. From then on it's one row under Working, with a meter.</td></tr>
           <tr><td><b>Template rollout</b></td><td>The same mechanics as a campaign of kind engineering. Each wave is one Consequential <code>roll_out</code> card, and a lone template PR is a <code>merge_pr</code> card (AU-07). The Engineering system row counts forks not yet verified on the target revision, not PRs left to merge, so it reads an outlined 13 and falls only as adoption is confirmed, then draws nothing.</td></tr>
-          <tr><td><b>Code change</b></td><td>The entitlements Cascade item is owned, so Detail's single action opens the Diagnose thread (TH-05). Diagnose proposes "Fix in code thread", which starts a child code thread. It opens in the centre with the branch and head shown. A changed file opens its diff over the timeline (CT-14), with Detail one tab away. The push is a card. The PR shows dashed in the Cascade cell until a sweep reads it.</td></tr>
+          <tr><td><b>Code change</b></td><td>The entitlements Cascade item is owned, so its row on Today and its Cascade cell's popover carry the Diagnose thread's marker (TH-05); how they open the thread waits for the Copilot design, and the sidebar opens it meanwhile. Diagnose proposes "Fix in code thread", which starts a child code thread. It opens in the centre with the branch and head shown. A changed file opens its diff over the timeline (CT-14), with the item's reading one tab away in the thread's right panel. The push is a card. The PR shows dashed in the Cascade cell until a sweep reads it.</td></tr>
         </tbody>
       </table>
     </div>
@@ -922,7 +767,7 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
         <tbody>
           <tr><td><b>Services 14 to 20</b></td><td>Line sheet rows (folded when quiet), the forks named behind the Line row's count, tile denominators</td><td>Sidebar, Today, thread layout</td></tr>
           <tr><td><b>A second campaign</b></td><td>One thread under Working with its meter, one filter chip on the Line sheet</td><td>One lane queue: core's admission queue serializes both, and Lane watch reports on it</td></tr>
-          <tr><td><b>New kind of work</b> (e.g. certificate rotation)</td><td>A new anchor kind with its reading and attention rule. Threads anchored to it.</td><td>Brief, pins and their marks, attention tiers, card locations. Writes wait for a typed tool; chat grants no new authority.</td></tr>
+          <tr><td><b>New kind of work</b> (e.g. certificate rotation)</td><td>A new anchor kind with its reading and attention rule. Threads anchored to it.</td><td>Today, pins and their marks, attention tiers, card locations. Writes wait for a typed tool; chat grants no new authority.</td></tr>
         </tbody>
       </table>
     </div>
@@ -931,15 +776,16 @@ svg.i{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-widt
   <section>
     <h2>Text rules</h2>
     <ul class="plain">
-      <li><b>Headlines state a verdict or a change.</b> At most 12 words. Today's verdict is the exception: it keeps "all of it; it is the briefing's one sentence". The rib's "One filter entry would stop 4 future halts" is the model.</li>
-      <li><b>Nothing to say when fine, a count of what is not; never "n of m".</b> A status row shows nothing when its count is fine and otherwise its worst count, outlined, with the count's words in its hover ("3 pending", "1 failed", "4 stopped"); a place's list reads All passed when nothing is wrong and otherwise counts only what is wrong ("2 failed"). The names behind a count are in its hover. The sidebar's status rows and the Environment place follow this; Today's place cards keep their figures.</li>
-      <li><b>Ready and Maintenance.</b> Wherever the window words the environment's state, in hovers, headlines and the Environment place, it says Ready, not "deployable", and Maintenance, not "held". "Deployable" stays the name of core's check and of the bindings that wait on it, in Detail and Evidence.</li>
+      <li><b>No word that doesn't do work.</b> Today shows no verb, no field label, no restated age, link or rank, and no explanation under a heading; an opened row or a popover says only what its pills and its place don't (<a href="spi-code-today-and-places.md">Today and its places</a>, X1, X3, X11).</li>
+      <li><b>Headlines state a situation or a change.</b> At most 12 words, in the operator's words: the fork and what is wrong ("crs-conversion sync halted"). The rib's "One filter entry would stop 4 future halts" is the model.</li>
+      <li><b>Nothing to say when fine, a count of what is not; never "n of m".</b> A status row shows nothing when its count is fine and otherwise its worst count, outlined, with the count's words in its hover ("3 pending", "1 failed", "4 stopped"); a place's list reads All passed when nothing is wrong and otherwise counts only what is wrong ("2 failed"). The names behind a count are in its hover. The sidebar's status rows and the Environment place follow this.</li>
+      <li><b>Ready and Maintenance.</b> Wherever the window words the environment's state, in hovers, headlines and the Environment place, it says Ready, not "deployable", and Maintenance, not "held". "Deployable" stays the name of core's check and of the bindings that wait on it, in Evidence.</li>
       <li><b>An item lives where its action lands.</b> A fork check to re-run after the environment failed it belongs to the fork, because the re-run lands on the fork's PR, and its title leads with the ask. State is shown once, on the surface that owns it.</li>
       <li><b>Every measure names what it counts,</b> and a summary never says more than its source: "1 stopped" doesn't become "12 moving", and "13 open" doesn't become "13 ready". The rib's "27 min" is a run duration that reads like proof age. "Stopped 16 days" next to "21h" needs both labels.</li>
       <li><b>Causes need evidence.</b> Overlap is "possible contention" until a log corroborates it; nothing is exonerated by timing alone.</li>
       <li><b>One verb per action.</b> "Fix in code thread", not "Open in inspector · Investigate, then Dispatch cascade".</li>
       <li><b>No sentence repeats what a component draws, and fleet facts appear once,</b> on the campaign.</li>
-      <li><b>Internal names stay in Detail and Evidence.</b> That covers <code>fork_upstream</code>, "gate 3", "presses" and "cut". Raw issue-title emoji are stripped.</li>
+      <li><b>Internal names stay in Evidence.</b> That covers <code>fork_upstream</code>, "gate 3", "presses" and "cut". Core's verb names and error codes (UNKNOWN_TOP_LEVEL) never reach the operator. Raw issue-title emoji are stripped.</li>
       <li><b>Absent features take no space.</b> No "not available yet" sections, and no future lines in mockups or pages.</li>
     </ul>
   </section>
