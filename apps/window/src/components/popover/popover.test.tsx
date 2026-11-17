@@ -31,6 +31,24 @@ it.each([
     200,
     { top: 136, left: 568 },
   ],
+  [
+    "stays inside the window when its anchor scrolls above it",
+    { top: -80, bottom: -50, left: 40 },
+    200,
+    { top: 12, left: 40 },
+  ],
+  [
+    "stays inside the window when its anchor scrolls below it",
+    { top: 1100, bottom: 1130, left: 40 },
+    200,
+    { top: 588, left: 40 },
+  ],
+  [
+    "fits the window's height when its anchor is above it and it is taller",
+    { top: -80, bottom: -50, left: 40 },
+    1000,
+    { top: 12, left: 40, maxHeight: 776 },
+  ],
 ] as const)("%s", (_name, anchor, height, expected) => {
   expect(placePopover(anchor, { width: 420, height }, { width: 1000, height: 800 })).toMatchObject(
     expected,
@@ -125,19 +143,21 @@ it("closes on a click outside, but not on its anchor or inside itself", async ()
   expect(openSelection()).toBeNull();
 });
 
-it("closes only on clicks inside its anchor's scope", async () => {
-  container.setAttribute("data-popover-scope", "");
-  const capsule = document.createElement("button");
-  document.body.append(capsule);
+it.each([
+  ["a control that acts on it", "<button data-keeps-popover></button>"],
+  ["a button inside one", "<div data-keeps-popover><button></button></div>"],
+])("stays open on a click on %s, and closes on any other click outside", async (_name, html) => {
+  const chrome = document.createElement("div");
+  chrome.innerHTML = html;
+  document.body.append(chrome);
   try {
     await act(async () => root.render(<Harness />));
-    await act(async () => capsule.click());
+    await act(async () => chrome.querySelector("button")?.click());
     expect(popover()).not.toBeNull();
-    await act(async () => container.querySelector<HTMLButtonElement>(".other")?.click());
+    await act(async () => chrome.click());
     expect(popover()).toBeNull();
   } finally {
-    capsule.remove();
-    container.removeAttribute("data-popover-scope");
+    chrome.remove();
   }
 });
 

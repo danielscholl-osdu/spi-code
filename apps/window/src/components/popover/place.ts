@@ -10,9 +10,17 @@ const MARGIN = 12;
 
 /**
  * Hangs a popover under its anchor, flips it above when only that side fits, and otherwise keeps
- * the roomier side with a height that fits. It never crosses the viewport's margin.
+ * the roomier side with a height that fits. It never crosses the viewport's margin, even when its
+ * anchor has scrolled out of view: it then waits at the nearest edge.
  */
 export function placePopover(anchor: Box, size: Size, viewport: Size): Placement {
+  const at = hang(anchor, size, viewport);
+  const height = Math.min(at.maxHeight ?? size.height, Math.max(0, viewport.height - 2 * MARGIN));
+  const top = Math.max(MARGIN, Math.min(at.top, viewport.height - MARGIN - height));
+  return { ...at, top, ...(height < size.height ? { maxHeight: height } : {}) };
+}
+
+function hang(anchor: Box, size: Size, viewport: Size): Placement {
   const left = Math.max(MARGIN, Math.min(anchor.left, viewport.width - size.width - MARGIN));
   const below = viewport.height - MARGIN - (anchor.bottom + GAP);
   const above = anchor.top - GAP - MARGIN;

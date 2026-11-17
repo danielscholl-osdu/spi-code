@@ -19,9 +19,9 @@ export type PopoverProps = {
   /** The shared reading; its title heads the popover, since the place does not show the subject. */
   content: OpenedContent;
   /**
-   * Clear the open selection. Called on Escape, the close button and a click outside it within the
-   * anchor's nearest `[data-popover-scope]` (the place's page or sheet), so the Swept capsule can
-   * still open Evidence for what is open.
+   * Clear the open selection. Called on Escape, the close button and any click outside it except on
+   * a control marked `data-keeps-popover`, one that acts on what is open, as the Swept capsule opens
+   * Evidence for it.
    */
   onClose(): void;
   /** Rows under the body that belong to this place, such as a cell's other members. */
@@ -90,8 +90,8 @@ export function Popover({ anchor, selection, content, onClose, children }: Popov
     const outside = (event: MouseEvent) => {
       const target = event.target;
       if (!(target instanceof Node) || popover?.contains(target) || anchor.contains(target)) return;
-      if (!(anchor.closest("[data-popover-scope]") ?? document).contains(target)) return;
-      if (target instanceof Element && target.closest("[role='menu']")) return;
+      if (target instanceof Element && target.closest("[data-keeps-popover], [role='menu']"))
+        return;
       if (mine()) close.current();
     };
     window.addEventListener("keydown", onEscape, true);

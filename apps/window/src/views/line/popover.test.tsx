@@ -132,28 +132,81 @@ it("leads crs-conversion Sync with the blocked halt's filter-rule step and names
   expect(cell("crs-conversion:sync").getAttribute("aria-expanded")).toBe("true");
 });
 
+const commandEnter = () =>
+  act(async () => {
+    (document.activeElement ?? document.body).dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        metaKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  });
+const pills = () =>
+  [...(popover()?.querySelectorAll<HTMLAnchorElement>("[aria-label=Sources] a") ?? [])].map((a) => [
+    a.textContent?.replace("↗", "").trim(),
+    a.getAttribute("href"),
+  ]);
+
 it.each([
-  ["legal:upstream", "legal · Upstream", "Nothing waits here."],
+  [
+    "legal:upstream",
+    "legal · Upstream",
+    "Nothing waits here.",
+    ["Sync Upstream run", "https://github.com/Azure/osdu-spi-legal/actions/runs/42134144237"],
+  ],
   [
     "crs-conversion:upstream",
     "crs-conversion · Upstream",
     "Held by the blocked sync: crs-conversion sync halted.",
+    [
+      "Sync Upstream run",
+      "https://github.com/Azure/osdu-spi-crs-conversion/actions/runs/42134640759",
+    ],
   ],
   [
     "storage:lane",
     "storage · Lane",
     "Not on Today. SPI Code has no item for this and didn't read the run.",
+    ["Deployments", "https://github.com/Azure/osdu-spi-storage/deployments"],
   ],
-])("says what an itemless cell %s holds, with no Evidence subject", async (id, title, sentence) => {
-  await open(id);
-  expect(popover()?.querySelector("h3")?.textContent).toBe(title);
-  expect(popover()?.querySelector(".opened-body p")?.textContent).toBe(sentence);
-  expect(popover()?.textContent).not.toMatch(/On Today|⌀/);
-  openEvidence();
-  const route = parseRoute(window.location.hash) as EvidenceRoute;
-  expect(route.selection).toBeUndefined();
-  expect(route.open).toEqual({ kind: "cell", id });
-});
+])(
+  "says what an itemless cell %s holds, with no Evidence subject, and opens its own source",
+  async (id, title, sentence, source) => {
+    await open(id);
+    expect(popover()?.querySelector("h3")?.textContent).toBe(title);
+    expect(popover()?.querySelector(".opened-body p")?.textContent).toBe(sentence);
+    expect(popover()?.textContent).not.toMatch(/On Today|⌀/);
+    expect(pills()).toEqual([source]);
+    await commandEnter();
+    expect(harness.spi.openExternal).toHaveBeenCalledExactlyOnceWith(source[1]);
+    openEvidence();
+    const route = parseRoute(window.location.hash) as EvidenceRoute;
+    expect(route.selection).toBeUndefined();
+    expect(route.open).toEqual({ kind: "cell", id });
+  },
+);
+
+it.each(["legal:upstream", "storage:lane"])(
+  "gives %s no source and no ⌘↵ when the sweep read no run for its fork",
+  async (id) => {
+    const body = watchStore.getState().snapshot?.body as ViewSnapshot;
+    const fork = id.split(":")[0];
+    const unread = {
+      ...body,
+      services: body.services?.filter(({ service }) => service !== fork),
+    };
+    await act(async () =>
+      watchStore.setState({ snapshot: { cursor: unread.cursor, body: unread } }),
+    );
+    await open(id);
+    expect(popover()).not.toBeNull();
+    expect(popover()?.querySelector("[aria-label=Sources]")).toBeNull();
+    await commandEnter();
+    expect(harness.spi.openExternal).not.toHaveBeenCalled();
+  },
+);
 
 it("Escape and an outside click close the popover and leave the sheet open", async () => {
   await open("legal:main");
@@ -169,6 +222,29 @@ it("Escape and an outside click close the popover and leave the sheet open", asy
   await open("legal:main");
   await open("legal:main");
   expect(popover()).toBeNull();
+});
+
+it("closes on a click in the window's chrome, but not on the Swept capsule, which opens Evidence for the cell", async () => {
+  await open("legal:main");
+  await act(async () =>
+    container.querySelector<HTMLElement>("[data-slot=sidebar-content]")?.click(),
+  );
+  expect(popover()).toBeNull();
+  await open("legal:main");
+  const capsule = container.querySelector<HTMLElement>(
+    "[data-slot=sidebar-footer] [data-sweep-line]",
+  );
+  await act(async () => capsule?.click());
+  expect(popover()).not.toBeNull();
+  await act(async () =>
+    document.querySelector<HTMLElement>("[data-sweep-popover] .capsule-pop-head")?.click(),
+  );
+  expect(popover()).not.toBeNull();
+  const evidence = document.querySelector<HTMLElement>("[data-sweep-popover] .capsule-evidence");
+  await act(async () => evidence?.click());
+  const route = parseRoute(window.location.hash) as EvidenceRoute;
+  expect(route.selection).toEqual({ kind: "item", id: "gate2:legal" });
+  expect(route.open).toEqual({ kind: "cell", id: "legal:main" });
 });
 
 it("steps each Line member onto its cell's popover", async () => {

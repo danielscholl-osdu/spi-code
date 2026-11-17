@@ -17,6 +17,7 @@ export type CellOpening = {
 };
 
 const WORKFLOWS: Partial<Record<Station["id"], string>> = {
+  upstream: "Sync Upstream",
   sync: "Sync Upstream",
   cascade: "Cascade Integration",
   main: "Validation",
@@ -37,13 +38,29 @@ function heldBy(snapshot: ViewSnapshot, service: string, station: Station["id"])
   return cellMembers(snapshot, service, "sync").find(({ line }) => line.section === "blocked");
 }
 
-function latestRun(snapshot: ViewSnapshot, service: string, station: Station["id"]) {
-  const workflow = WORKFLOWS[station];
+/** The fork's repository, from a run the sweep read on it; unknown when it read none. */
+function forkRepository(runs: readonly { url: string }[]) {
+  const url = runs[0] && new URL(runs[0].url);
+  const [owner, repo] = url?.pathname.split("/").filter(Boolean) ?? [];
+  return url && owner && repo ? `${url.origin}/${owner}/${repo}` : undefined;
+}
+
+/** A cell with no member opens its station's latest run, the lane's deployments, or the fork's Actions page. */
+function cellSource(
+  snapshot: ViewSnapshot,
+  service: string,
+  station: Station["id"],
+): Link | undefined {
   const runs = snapshot.services?.find((row) => row.service === service)?.runs ?? [];
   const run = runs
-    .filter((run) => run.workflow === workflow)
+    .filter((run) => run.workflow === WORKFLOWS[station])
     .sort((a, b) => b.time.localeCompare(a.time))[0];
-  return run && ({ kind: "run", label: `${run.workflow} run`, url: run.url } satisfies Link);
+  if (run) return { kind: "run", label: `${run.workflow} run`, url: run.url };
+  const repository = forkRepository(runs);
+  if (!repository) return undefined;
+  return station === "lane"
+    ? { kind: "deploy", label: "Deployments", url: `${repository}/deployments` }
+    : { kind: "other", label: "Actions", url: `${repository}/actions` };
 }
 
 function stateSentence(state: ReturnType<typeof cellState>, held: PlaceMember | undefined) {
@@ -106,7 +123,7 @@ export function cellOpening(
     };
   }
   const held = cellState(station) === "stopped" ? heldBy(snapshot, service, column.id) : undefined;
-  const run = latestRun(snapshot, service, column.id);
+  const source = cellSource(snapshot, service, column.id);
   return {
     cell,
     content: {
@@ -114,7 +131,7 @@ export function cellOpening(
       place,
       subject: null,
       cause: stateSentence(cellState(station), held),
-      ...(run ? { primary: run, links: [run] } : {}),
+      ...(source ? { primary: source, links: [source] } : {}),
     },
     related: [],
   };

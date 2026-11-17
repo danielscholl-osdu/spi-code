@@ -42,7 +42,6 @@ export function LineSheet({
       id="app-line-sheet"
       className="line-sheet"
       data-presentation={presentation}
-      data-popover-scope
       aria-label="Line"
       tabIndex={-1}
     >

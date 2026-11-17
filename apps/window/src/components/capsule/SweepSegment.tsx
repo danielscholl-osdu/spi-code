@@ -132,6 +132,7 @@ export function SidebarSweep() {
       <Popover.Trigger
         className="sidebar-sweep capsule-sweep"
         data-sweep-line=""
+        data-keeps-popover=""
         data-field="freshness"
         data-tone={view.tone}
         aria-labelledby={labelId}
@@ -147,7 +148,7 @@ export function SidebarSweep() {
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner side="top" sideOffset={8} align="end" className="capsule-positioner">
-          <Popover.Popup className="capsule-popup" data-sweep-popover="">
+          <Popover.Popup className="capsule-popup" data-sweep-popover="" data-keeps-popover="">
             <SweepPopover now={now} onClose={() => setOpen(false)} />
           </Popover.Popup>
         </Popover.Positioner>
