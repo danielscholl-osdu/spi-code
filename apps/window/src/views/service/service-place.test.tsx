@@ -203,33 +203,98 @@ it("renders no empty or future parts on the recorded sweep or when optional fact
   ).toBeNull();
 });
 
+/** Read in Chicago at the sweep, where core's 00:00 UTC deadline falls at 18:00 the same day. */
+async function pinned<T>(run: () => Promise<T>): Promise<T> {
+  const zone = process.env.TZ;
+  process.env.TZ = "America/Chicago";
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(Date.parse(snapshot().sweptAt));
+  try {
+    return await run();
+  } finally {
+    if (zone === undefined) delete process.env.TZ;
+    else process.env.TZ = zone;
+    vi.useRealTimers();
+  }
+}
+
+const sources = (container: HTMLElement) =>
+  [...(popover(container)?.querySelectorAll(".opened-body-sources a") ?? [])].map((a) =>
+    a.getAttribute("href"),
+  );
+
 const stationLabels = ["Upstream", "Sync PR", "Cascade", "Main", "Release review", "Lane context"];
 it.each([0, 1, 2, 3, 4, 5])(
   "opens station %i's Line cell, or its release review, with its reading",
-  async (index) => {
-    const body = snapshot();
-    const station = body.stations.find(({ service }) => service === "legal")?.stations[index];
-    if (!station) throw new Error("Recorded legal station missing");
-    const { container, click } = await mount(body);
-    await click(`[data-station="${station.id}"]`);
-    expect(container.querySelector(`[data-station="${station.id}"]`)?.textContent).toBe(
-      stationLabels[index],
-    );
-    const title = popover(container)?.querySelector("h3")?.textContent;
-    if (station.id === "release") {
-      expect(openSelection()).toEqual({ kind: "station", id: "legal:release" });
-      expect(title).toBe("legal · Release review");
-      expect(popover(container)?.querySelector(".opened-body > p")?.textContent).toBe(station.text);
-      return;
-    }
-    const cell = { kind: "cell", id: `legal:${station.id}` };
-    expect(openSelection()).toEqual(cell);
-    expect(title).toBe(cellOpening(body, cell)?.content.title);
-    expect(popoverFields(container)).toEqual([
-      [stationLabels[index]?.replace("Lane context", "Lane"), station.text],
-    ]);
-  },
+  (index) =>
+    pinned(async () => {
+      const body = snapshot();
+      const station = body.stations.find(({ service }) => service === "legal")?.stations[index];
+      if (!station) throw new Error("Recorded legal station missing");
+      const { container, click } = await mount(body);
+      await click(`[data-station="${station.id}"]`);
+      expect(container.querySelector(`[data-station="${station.id}"]`)?.textContent).toBe(
+        stationLabels[index],
+      );
+      const title = popover(container)?.querySelector("h3")?.textContent;
+      if (station.id === "release") {
+        expect(openSelection()).toEqual({ kind: "station", id: "legal:release" });
+        expect(title).toBe("legal · Release review");
+        expect(popover(container)?.querySelector(".opened-body > p")?.textContent).toBe(
+          `${station.text}. Not on Today.`,
+        );
+        expect(sources(container)).toEqual(["https://github.com/Azure/osdu-spi-legal/pull/48"]);
+        return;
+      }
+      const cell = { kind: "cell", id: `legal:${station.id}` };
+      expect(openSelection()).toEqual(cell);
+      expect(title).toBe(cellOpening(body, cell)?.content.title);
+      expect(popoverFields(container)).toEqual([
+        [stationLabels[index]?.replace("Lane context", "Lane"), station.text],
+      ]);
+      if (station.id === "upstream")
+        expect(popover(container)?.querySelector(".opened-body-deadline")?.textContent).toBe(
+          "◷ Before the next upstream sync, 18:00",
+        );
+    }),
 );
+
+it.each([
+  {
+    name: "entitlements' release-red PR with its Today member's reading",
+    service: "entitlements",
+    unread: false,
+    place: "On Today · Waiting on you ›",
+    title: /^entitlements · /,
+    cause: undefined,
+    source: "https://github.com/Azure/osdu-spi-entitlements/pull/89",
+  },
+  {
+    name: "an unread station as not read, with the release PR it knows",
+    service: "legal",
+    unread: true,
+    place: undefined,
+    title: /^legal · Release review$/,
+    cause: "SPI Code didn't read this station.",
+    source: "https://github.com/Azure/osdu-spi-legal/pull/48",
+  },
+])("opens $name", async ({ service, unread, place, title, cause, source }) => {
+  const body = snapshot();
+  const station = body.stations
+    .find((row) => row.service === service)
+    ?.stations.find(({ id }) => id === "release");
+  if (!station) throw new Error("Recorded release station missing");
+  if (unread) {
+    station.state = "unknown";
+    station.text = "";
+  }
+  const { container, click } = await mount(body, service);
+  await click('[data-station="release"]');
+  expect(popover(container)?.querySelector(".opened-body-place")?.textContent).toBe(place);
+  expect(popover(container)?.querySelector("h3")?.textContent).toMatch(title);
+  if (cause) expect(popover(container)?.querySelector(".opened-body > p")?.textContent).toBe(cause);
+  expect(sources(container)).toContain(source);
+});
 
 it.each([
   "Behind",

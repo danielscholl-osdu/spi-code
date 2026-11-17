@@ -1,15 +1,54 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { ViewSnapshot } from "@spi-code/contracts";
+import type { Link, Station, ViewSnapshot } from "@spi-code/contracts";
 import type { OpenSelection } from "../../app/navigation.js";
-import type { BodyPlace, OpenedContent } from "../../components/opened-body/content.js";
+import {
+  type BodyPlace,
+  type OpenedContent,
+  todayContent,
+} from "../../components/opened-body/content.js";
+import { todayMembers } from "../../components/place/members.js";
 import { itemContent, timed } from "../../components/place/opening.js";
 import { type SelectionField, selectionRows } from "../../panels/selection-rows.js";
 import { cellOpening } from "../line/cell-content.js";
-import { columns } from "../line/cells.js";
+import { cellState, columns } from "../line/cells.js";
 
 export type ServiceOpening = { content: OpenedContent; fields: readonly SelectionField[] };
+
+/** The fork's release review: core's Today member for its release PR, else the station's own reading. */
+function releaseContent(
+  snapshot: ViewSnapshot,
+  fork: string,
+  station: Station,
+  place: BodyPlace,
+): OpenedContent {
+  const pr = snapshot.services
+    ?.find((row) => row.service === fork)
+    ?.releases.filter(({ releasePr }) => releasePr)
+    .sort((a, b) => b.month.localeCompare(a.month))[0]?.releasePr;
+  const source: Link | undefined = pr && { kind: "pr", label: `PR #${pr.number}`, url: pr.url };
+  const held =
+    pr &&
+    todayMembers(snapshot.briefing).find(
+      ({ member }) =>
+        member.fork === fork && (member.subject === pr.url || member.primary?.url === pr.url),
+    );
+  if (held) {
+    const items = [...snapshot.briefing.focus, ...snapshot.briefing.rest];
+    return todayContent({ ...held, items, place, links: source ? [source] : [] });
+  }
+  return {
+    title: `${fork} · Release review`,
+    place,
+    subject: null,
+    cause:
+      cellState(station) === "unread"
+        ? "SPI Code didn't read this station."
+        : `${station.text}. Not on Today.`,
+    ...(source ? { primary: source, links: [source] } : {}),
+  };
+}
 
 /**
  * What opens over a service page: an item (the repository's too), its Line cell, its release
@@ -40,7 +79,7 @@ export function serviceOpening(
       const label = columns.find((column) => column.id === id)?.label;
       return (
         cell && {
-          content: cell.content,
+          content: timed(cell.content),
           fields: station?.text && label ? [{ label, value: station.text }] : [],
         }
       );
@@ -52,12 +91,7 @@ export function serviceOpening(
         ?.stations.find((station) => station.id === id);
       if (!station) return undefined;
       return {
-        content: timed({
-          title: `${service} · Release review`,
-          place,
-          subject: null,
-          cause: station.text,
-        }),
+        content: timed(releaseContent(snapshot, fork ?? service, station, place)),
         fields: [],
       };
     }

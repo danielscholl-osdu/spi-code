@@ -534,9 +534,9 @@ async function measure(
         return { rule: "window", viewport, scroll,
           panes: [...document.querySelectorAll(".app-sidebar:not([inert]), .middle-frame, .line-sheet, .right-panel-frame")].map(rect) };
       case "related":
-        return { rule: "related", panel: rect(element(".right-panel-frame")),
-          label: rect(element(".inspector-related dt")), labelText: element(".inspector-related dt").textContent,
-          values: [...document.querySelectorAll(".inspector-related dd")].map(rect) };
+        return { rule: "related", panel: rect(element(".popover")),
+          label: rect(element(".popover-fields dt")), labelText: element(".popover-fields dt").textContent,
+          values: [...document.querySelectorAll(".popover-fields dd")].map(rect) };
       case "panes":
         return { rule: "panes", viewport, scroll, panes: [".app-sidebar", ".middle-frame", ".line-sheet", ".right-panel"].map(selector => {
           const item = element(selector);
@@ -635,7 +635,7 @@ interface BrokenProof {
 const BREAKS: Partial<Record<string, BrokenProof>> = {
   "detail-related/1440": {
     rule: "related",
-    selector: ".inspector-related dd",
+    selector: ".popover-fields dd",
     property: "width",
     value: "159px",
   },
@@ -1393,7 +1393,13 @@ export async function captureSmokeViews(
           }
           if (surface.id.startsWith("evidence-header-") || surface.id === "first-sweep-evidence")
             await leaveEvidence(window);
-          if (["detail", "detail-related", "panes"].includes(surface.id))
+          if (surface.id === "detail" || surface.id === "detail-related") {
+            await window.webContents.executeJavaScript(
+              'document.querySelector(".popover .popover-close").click()',
+            );
+            await rendered(window, '!document.querySelector(".popover")');
+          }
+          if (surface.id === "panes")
             await window.webContents.executeJavaScript(
               "document.querySelector(\"[aria-label='Close detail']\").click()",
             );

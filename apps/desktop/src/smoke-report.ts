@@ -119,11 +119,11 @@ export const VIEW_SURFACES = [
   },
   {
     id: "detail",
-    name: "Detail: detected os-core-common 8.5.0",
+    name: "Popover: detected os-core-common 8.5.0",
     route: "upstream",
     place: "Upstream",
-    selector: "aside[aria-label=Detail] .detail-row-fields",
-    designSection: "A / PS-04; Journeys; D / Detail defects",
+    selector: ".popover[data-selection^='item~campaign:'] .popover-fields",
+    designSection: "A / PS-04; Journeys; Today and places / Popovers on the places",
     qualified: true,
   },
   {
@@ -164,11 +164,11 @@ export const VIEW_SURFACES = [
   },
   {
     id: "detail-related",
-    name: "Detail / Long Related label at 280 px",
+    name: "Popover / Further ahead theme forks",
     route: "upstream",
     place: "Upstream",
-    selector: ".inspector-related",
-    designSection: "Layout / Detail panel; Validation",
+    selector: ".popover[data-selection^='theme~'] .popover-fields",
+    designSection: "Today and places / Popovers on the places; Validation",
     qualified: true,
   },
   {

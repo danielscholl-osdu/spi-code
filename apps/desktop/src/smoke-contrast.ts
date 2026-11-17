@@ -822,7 +822,7 @@ const ROOT_STATE = `(() => {
 })()`;
 
 /**
- * Measures every visible text on Today, the sweep popover, Upstream, the Line sheet, Detail, three
+ * Measures every visible text on Today, the sweep popover, Upstream and its popovers, the Line sheet, three
  * Settings sections and Find or ask, in both palettes and both themes, at rest and with every :hover
  * target forced.
  * Each view is mounted once and shaded in place by writing the root attributes Settings > Appearance
@@ -1092,15 +1092,19 @@ export async function assertRenderedContrast(
     await js(
       "document.querySelector(\".place-item-content[data-selection-id='campaign:toolchain:os-core-common%208.5.0']\").click()",
     );
-    await rendered(window, 'document.querySelector("aside[aria-label=Detail] .detail-row-fields")');
-    await everyShade("detail", "aside[aria-label=Detail]");
+    await rendered(
+      window,
+      "document.querySelector(\".popover[data-selection^='item~campaign:'] .popover-fields\")",
+    );
+    await everyShade("detail", ".popover");
     await js('document.querySelector(".upstream-theme-head").click()');
     await rendered(
       window,
-      'document.querySelector("aside[aria-label=Detail]:not([aria-busy=true]) article.inspector")',
+      "document.querySelector(\".popover[data-selection^='theme~'] .popover-fields\")",
     );
-    await everyShade("detail-reading", "aside[aria-label=Detail]");
-    await js("document.querySelector(\"[aria-label='Close detail']\").click()");
+    await everyShade("detail-reading", ".popover");
+    await js('document.querySelector(".popover .popover-close").click()');
+    await rendered(window, '!document.querySelector(".popover")');
     await js(`location.hash = "#service/${FIND_UNPINNED}"`);
     await rendered(
       window,

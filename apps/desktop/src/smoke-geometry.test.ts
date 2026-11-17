@@ -13,10 +13,10 @@ const rect = (x: number, y: number, width: number, height: number) => ({
 
 const related: SmokeGeometry = {
   rule: "related",
-  panel: rect(1160, 75, 280, 725),
-  label: rect(1184, 300, 232, 54),
-  labelText: "A deliberately long Related label that wraps over multiple lines at 280 px",
-  values: [rect(1184, 356, 232, 42), rect(1184, 420, 232, 42)],
+  panel: rect(800, 200, 420, 360),
+  label: rect(814, 260, 90, 18),
+  labelText: "partition",
+  values: [rect(916, 260, 270, 18), rect(916, 280, 270, 18)],
 };
 const panes: SmokeGeometry = {
   rule: "panes",
@@ -233,11 +233,11 @@ it.each([
 });
 
 it.each([
-  { ...related, values: [rect(1184, 356, 159.99, 42)] },
-  { ...related, panel: rect(1160, 75, 281, 725) },
-  { ...related, label: rect(1184, 356, 232, 54) },
+  { ...related, values: [rect(916, 260, 159.99, 18)] },
+  { ...related, values: [rect(916, 260, 320, 18)] },
+  { ...related, values: [rect(814, 280, 270, 18)] },
   { ...related, values: [] },
-  { ...related, labelText: "Short" },
+  { ...related, labelText: " " },
 ])("fails a squeezed or unexercised Related rule: %j", (value) => {
   expect(() => assertSmokeGeometry(value)).toThrow(/Related/);
 });

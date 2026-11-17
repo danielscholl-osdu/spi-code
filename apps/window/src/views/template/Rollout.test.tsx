@@ -222,12 +222,21 @@ it("opens a verified rung without claiming unread merges or inventing a run", as
   expect(dialog()).toBeNull();
 });
 
+const dialogs = () =>
+  [...container.querySelectorAll<HTMLElement>('[role="dialog"]')].map(
+    ({ dataset }) => dataset.selection,
+  );
+
 it("reopens a rung from its selection and anchors a stepped dispatch member at a pending fork", async () => {
   setOpenSelection({ kind: "rung", id: "partition" });
   await mount(snapshot1116());
-  expect(dialog()?.dataset.selection).toBe("rung~partition");
-  await act(async () => setOpenSelection({ kind: "item", id: "rollout" }));
-  expect(dialog()?.dataset.selection).toBe("item~rollout");
+  expect(dialogs()).toEqual(["rung~partition"]);
+  await act(async () => setOpenSelection(null));
+  const item = container.querySelector<HTMLButtonElement>(
+    '.place-item-content[data-selection-id="rollout"]',
+  );
+  await act(async () => item?.click());
+  expect(dialogs()).toEqual(["item~rollout"]);
   expect(container.querySelector('[data-rung="indexer"]')?.getAttribute("aria-expanded")).toBe(
     "true",
   );

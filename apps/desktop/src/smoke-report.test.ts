@@ -282,10 +282,10 @@ function geometry(surface: string, width: number): SmokeGeometry[] {
       case "related":
         return {
           rule,
-          panel: rect(1160, 75, 280, 725),
-          label: rect(1184, 300, 232, 54),
-          labelText: "A deliberately long Related label that wraps over multiple lines at 280 px",
-          values: [rect(1184, 356, 232, 42)],
+          panel: rect(800, 200, 420, 360),
+          label: rect(814, 260, 90, 18),
+          labelText: "partition",
+          values: [rect(916, 260, 270, 18)],
         };
       case "panes":
         return {

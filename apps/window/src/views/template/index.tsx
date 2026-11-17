@@ -86,9 +86,11 @@ export default function Template({ store = watchStore }: { store?: typeof watchS
   const parts = snapshot && templateParts(snapshot);
   const sections =
     parts?.repository && repositorySections(parts.repository.entry, parts.repository.pointer);
+  const ladder = snapshot && rolloutLadder(snapshot);
   const opened =
     snapshot &&
     marked?.kind === "item" &&
+    !(marked.id === ROLLOUT && ladder?.rungs.some(({ member }) => member)) &&
     itemContent(snapshot, marked.id, {
       label: "Engineering system",
       destination: ENGINEERING,
@@ -96,7 +98,6 @@ export default function Template({ store = watchStore }: { store?: typeof watchS
     });
   const isOpen = (selection: OpenSelection) =>
     marked?.kind === selection.kind && marked.id === selection.id;
-  const ladder = snapshot && rolloutLadder(snapshot);
   const fact = parts?.fact;
   const fleetFacts =
     snapshot?.briefing.repositories.facts
