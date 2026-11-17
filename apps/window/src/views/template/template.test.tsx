@@ -76,7 +76,8 @@ it("renders the engineering reading with verified-on-target, open-PR and rollout
   const template = body.briefing.repositories.template;
   if (template) template.figure = "13 of 13";
   await mount(body);
-  expect(container.querySelector(".place h1")?.textContent).toBe("Engineering system");
+  expect(container.querySelector(".place h1")?.textContent).toBe("Template");
+  expect(container.querySelector(".place")?.getAttribute("aria-label")).toBe("Template");
   expect(container.querySelector(".place-headline")?.textContent).toBe(reading?.headline);
   expect(
     container.querySelector(".place-headline")?.textContent?.split(/\s+/).length,
@@ -88,7 +89,7 @@ it("renders the engineering reading with verified-on-target, open-PR and rollout
       ),
     ),
   ).toEqual([
-    ["Engineering system", "0 of 13", "forks on 7d269b5"],
+    ["Template", "0 of 13", "forks on 7d269b5"],
     ["Template PRs", "13", "open across the forks"],
     ["Rollout", "In progress", "13 forks left to verify"],
   ]);
@@ -184,7 +185,7 @@ it.each([
 
 it("omits empty and unshipped parts, including before the first sweep", async () => {
   await render(<Template store={createWatchStore(vi.fn())} />);
-  expect(container.querySelector("h1")?.textContent).toBe("Engineering system");
+  expect(container.querySelector("h1")?.textContent).toBe("Template");
   expect(container.querySelector(".place-reading, details, [data-part]")).toBeNull();
   const empty = snapshot();
   empty.readings = [];
@@ -226,12 +227,12 @@ it("omits missing facts, rollout details and empty sections", async () => {
   expect(line?.textContent).toBe("bugNo idopened 1d ago");
 });
 
-it("opens the Engineering system through the existing Template route and its repository's popover", async () => {
+it("opens Template through its existing route and its repository's popover", async () => {
   const body = snapshot();
   watchStore.setState({ snapshot: { cursor: body.cursor, body } });
   window.location.hash = "#template";
   await render(<Shell />);
-  expect(container.querySelector("main h1")?.textContent).toBe("Engineering system");
+  expect(container.querySelector("main h1")?.textContent).toBe("Template");
   await openDetails();
   await click('[data-part="repository"] .template-repo-lead');
   expect(container.querySelectorAll(".popover")).toHaveLength(1);

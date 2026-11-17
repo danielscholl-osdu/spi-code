@@ -54,7 +54,7 @@ async function openHome(home: string, body = fixture()) {
     if (place?.startsWith("Service ")) navigate({ kind: "service", id: place.slice(8) });
     else if (place === "Today") navigate({ kind: "today" });
     else if (place === "Environment") navigate({ kind: "environment" });
-    else if (place === "Engineering system") navigate({ kind: "engineering-system" });
+    else if (place === "Template") navigate({ kind: "engineering-system" });
     else navigate({ kind: "upstream" });
     root.render(<Shell />);
   });
@@ -142,7 +142,7 @@ it.each([
   ],
   [
     "/briefing/repositories/facts/0/figure",
-    "Engineering system · Details",
+    "Template · Details",
     (body: ViewSnapshot) => {
       const fact = body.briefing.repositories.facts[0];
       if (!fact) throw new Error("Missing Issues fact");
@@ -151,7 +151,7 @@ it.each([
   ],
   [
     "/briefing/repositories/headline",
-    "Engineering system · Details",
+    "Template · Details",
     (body: ViewSnapshot) => {
       body.briefing.repositories.headline = "Changed repository verdict";
     },
@@ -210,7 +210,7 @@ it("draws newly readable security fleet facts and hides either unread marker", a
   if (!fact) throw new Error("Missing vulnerability fact");
   fact.figure = "7";
   fact.sub = "7 critical or high in shipped code";
-  await openHome("Engineering system · Details", body);
+  await openHome("Template · Details", body);
   const selector = '[data-pointer="/briefing/repositories/facts/3"]';
   expect(container.querySelector(selector)?.textContent).toContain("Vulnerabilities · ours");
   expect(container.querySelector(`${selector} strong`)?.textContent).toBe("7");

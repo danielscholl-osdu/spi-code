@@ -61,7 +61,7 @@ export function rolloutLadder({ briefing }: ViewSnapshot): RolloutLadder | undef
 function rungContent(snapshot: ViewSnapshot, ladder: RolloutLadder, rung: Rung): OpenedContent {
   const { service, stage } = rung;
   const place = {
-    label: `Engineering system › Rollout › ${service}`,
+    label: `Template › Rollout › ${service}`,
     destination: { kind: "engineering-system" } as const,
     selection: { kind: "rung", id: service },
   };

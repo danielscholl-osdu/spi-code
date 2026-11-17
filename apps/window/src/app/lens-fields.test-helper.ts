@@ -167,7 +167,7 @@ export function lensFields({ briefing }: ViewSnapshot): LensField[] {
     "Repositories",
     "/briefing/repositories/headline",
     repositories.headline,
-    "Engineering system · Details",
+    "Template · Details",
     at("/briefing/repositories/headline"),
   );
   repositories.facts.forEach((fact, index) => {
@@ -184,7 +184,7 @@ export function lensFields({ briefing }: ViewSnapshot): LensField[] {
         "Repositories",
         `${pointer}/${key}`,
         fact[key],
-        "Engineering system · Details",
+        "Template · Details",
         `${at(pointer)} ${selector}`,
         extra,
       );
@@ -193,7 +193,7 @@ export function lensFields({ briefing }: ViewSnapshot): LensField[] {
     const pointer = `/briefing/repositories/rows/${index}`;
     const home =
       repo.name === "osdu-spi"
-        ? "Engineering system · Details"
+        ? "Template · Details"
         : repo.name === "osdu-spi-stack"
           ? "Environment · Stack repository"
           : `Service ${repo.name} · Repository`;

@@ -234,7 +234,7 @@ it("hands the pin control to the top row's end slot, not beside the title", asyn
 
 it.each([
   ["Environment", "place:environment"],
-  ["Engineering system", "place:engineering-system"],
+  ["Template", "place:engineering-system"],
 ])(
   "draws no pin control in %s's header, which sits in the sidebar's fixed block",
   async (name, pin) => {

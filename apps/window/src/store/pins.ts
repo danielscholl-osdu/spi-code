@@ -6,7 +6,7 @@ import type { Destination } from "../app/navigation.js";
 
 /**
  * Pins (PS-08): the sidebar's Pinned list, in the operator's order. A pin is a place or a service by
- * its id. Line, Environment and Engineering system sit in the sidebar's fixed block and are never in
+ * its id. Line, Environment and Template sit in the sidebar's fixed block and are never in
  * the list. A service pin stays in storage when the snapshot stops naming that service; the sidebar
  * draws only the pins it can open.
  */

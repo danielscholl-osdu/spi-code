@@ -7,7 +7,7 @@ type BriefFactJson = { label: string };
 
 /**
  * The frozen rib briefing in today's contract: its Today tiles, n-more count and ready lines retired,
- * its template tile as the Engineering system's fact, and its in-flight upgrade not deployable.
+ * its template tile as the Template place's fact, and its in-flight upgrade not deployable.
  */
 function ribBriefing(frozen: {
   facts?: BriefFactJson[];

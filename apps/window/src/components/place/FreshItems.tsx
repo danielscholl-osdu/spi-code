@@ -73,7 +73,7 @@ export function FreshItems({
             place === "line"
               ? "Line"
               : place === "engineering"
-                ? "Engineering system"
+                ? "Template"
                 : place === "environment"
                   ? "Environment"
                   : "Security",

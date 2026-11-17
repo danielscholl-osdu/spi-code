@@ -68,12 +68,12 @@ function adopt(f: Facts, name: string, status: "in_progress" | "completed", conc
   return runs;
 }
 
-describe("Engineering system reading", () => {
+describe("Template reading", () => {
   it("counts verified forks on the recorded target, never open or merged PRs", () => {
     const input = fixture();
     const reading = engineeringReading(input);
     expect(reading.tiles[0]).toEqual({
-      label: "Engineering system",
+      label: "Template",
       value: "0 of 13",
       counts: "forks on 7d269b5",
     });
@@ -171,7 +171,7 @@ describe("Engineering system reading", () => {
   it("does not turn unread template positions or PR lists into zero", () => {
     const model = buildModel(emptyFacts(), now, {}, context);
     const reading = engineeringReading({ model, items: [], reads: {} });
-    expect(reading.headline).toBe("Engineering system not read yet.");
+    expect(reading.headline).toBe("Template not read yet.");
     expect(reading.tiles.map((tile) => tile.value)).toEqual([NOT_READ, NOT_READ, NOT_READ]);
     expect(readingText(reading).join(" ")).not.toMatch(/\b0\b/);
     expect(reading).not.toHaveProperty("verifiedTemplate");

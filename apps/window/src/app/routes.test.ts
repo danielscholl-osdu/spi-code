@@ -14,7 +14,7 @@ import {
 it.each<[string, Route, string]>([
   ["#today", { kind: "today" }, "Today"],
   ["#upstream", { kind: "upstream" }, "Upstream"],
-  ["#engineering-system", { kind: "engineering-system" }, "Engineering system"],
+  ["#engineering-system", { kind: "engineering-system" }, "Template"],
   ["#security", { kind: "security" }, "Security"],
   ["#service/legal", { kind: "service", id: "legal" }, "legal"],
   ["#service/crs-catalog", { kind: "service", id: "crs-catalog" }, "crs-catalog"],

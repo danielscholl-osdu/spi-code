@@ -14,7 +14,7 @@ export type LowerPlace = { label: string; destination: Destination };
 export const LOWER_PLACES = {
   line: { label: "Line", destination: LINE },
   environment: { label: "Environment", destination: { kind: "environment" } },
-  engineering: { label: "Engineering system", destination: { kind: "engineering-system" } },
+  engineering: { label: "Template", destination: { kind: "engineering-system" } },
   upstream: { label: "Upstream", destination: { kind: "upstream" } },
   releases: { label: "Releases", destination: { kind: "releases" } },
   security: { label: "Security", destination: { kind: "security" } },

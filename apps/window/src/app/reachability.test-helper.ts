@@ -102,7 +102,7 @@ export const STARTS = {
   line: start("Line sheet", { kind: "line" }, "sheet"),
   upstream: start("Upstream", { kind: "upstream" }),
   environment: start("Environment", { kind: "environment" }),
-  engineering: start("Engineering system", { kind: "engineering-system" }),
+  engineering: start("Template", { kind: "engineering-system" }),
   releases: start("Releases", { kind: "releases" }),
   security: start("Security", { kind: "security" }),
   service: (id: string) => start(`Service ${id}`, { kind: "service", id }),
@@ -138,7 +138,7 @@ function lensHome(name: string): Home {
     ? STARTS.service(place.slice(8))
     : place === "Environment"
       ? STARTS.environment
-      : place === "Engineering system"
+      : place === "Template"
         ? STARTS.engineering
         : place === "Today"
           ? STARTS.today
@@ -191,7 +191,7 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
   }
 
   const { template } = briefing.repositories;
-  const engineeringDetails = lensHome("Engineering system · Details");
+  const engineeringDetails = lensHome("Template · Details");
   const templateFact = at("/briefing/repositories/template");
   if (template)
     for (const [key, selector] of [
@@ -587,7 +587,7 @@ function repositoryCases(
     upstream: (line: Line) => Partial<Reach> & { selector: string };
   };
   if (repo.name === "osdu-spi") {
-    where = lensHome("Engineering system · Details");
+    where = lensHome("Template · Details");
     const lead = `.template-repo-lead${at(pointer)}`;
     sub = `${lead} .template-line-sub`;
     note = "p.template-note";
@@ -875,7 +875,7 @@ export const AT_PLACE: Readonly<Record<string, Exemption>> = {
   "row-names-forks": {
     patterns: ["/briefing/focus/#/scope", "/briefing/rest/#/scope"],
     reason:
-      "spicode-djg.10: a Today row names the forks it covers (13 forks), not core's scope; the template rollout's scope shows at Engineering system",
+      "spicode-djg.10: a Today row names the forks it covers (13 forks), not core's scope; the template rollout's scope shows at Template",
     when: (_value, { pointer, snapshot }) => {
       const item = itemAt(pointer, snapshot);
       return (snapshot.briefing.lines ?? []).some(({ subject, members }) =>

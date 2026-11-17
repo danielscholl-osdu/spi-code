@@ -1096,7 +1096,7 @@ it("opens Settings on Readiness when the first host state is not ready and gates
   expect(watchRoutes.map((button) => button.textContent)).toEqual([
     "Today",
     "Environment",
-    "Engineering system",
+    "Template",
     "Upstream",
     "Releases",
     "Security",

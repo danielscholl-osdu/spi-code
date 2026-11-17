@@ -329,7 +329,7 @@ function PinItem({
 }
 
 /**
- * The sidebar (PS-08): Find or ask; Today with its count, Line, Environment and Engineering system
+ * The sidebar (PS-08): Find or ask; Today with its count, Line, Environment and Template
  * as one fixed block; one Pinned list in the operator's order; and a footer gear that opens Settings, with a dot only when Readiness needs the operator. The
  * Settled shelf waits for threads (M3).
  */

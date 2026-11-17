@@ -321,7 +321,7 @@ it("lists only registered places in the sidebar and Find, and falls back from th
     [...(nav?.querySelectorAll(`ul[aria-label="${group}"] .sidebar-row-label`) ?? [])].map(
       (row) => row.textContent,
     );
-  expect(rows("Program")).toEqual(["Today", "Engineering system"]);
+  expect(rows("Program")).toEqual(["Today", "Template"]);
   expect(rows("Inbox")).toEqual([]);
   expect(rows("Places")).toEqual([]);
   expect(rows("Pinned")).toEqual([
@@ -341,7 +341,7 @@ it("lists only registered places in the sidebar and Find, and falls back from th
     [...(palette?.querySelectorAll(`[data-group="${group}"] .palette-label`) ?? [])].map(
       (row) => row.textContent,
     );
-  expect(found("go-to")).toEqual(["Today", "Engineering system", "Releases", "Settings"]);
+  expect(found("go-to")).toEqual(["Today", "Template", "Releases", "Settings"]);
   expect(found("services")).toEqual(["partition", "entitlements", "legal", "schema", "file"]);
   expect(found("lenses")).toEqual([]);
   await press("k");

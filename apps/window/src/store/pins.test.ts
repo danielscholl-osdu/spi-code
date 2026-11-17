@@ -176,7 +176,7 @@ it("holds the migrated list when storage refuses its write, and migrates again o
   expect(stored()).toEqual(["legal"]);
 });
 
-it("refuses to pin or unpin Line, Environment and Engineering system, and writes nothing", async () => {
+it("refuses to pin or unpin Line, Environment and Template, and writes nothing", async () => {
   const storage = watchWrites();
   const tryFixed = () => {
     for (const id of FIXED) {
