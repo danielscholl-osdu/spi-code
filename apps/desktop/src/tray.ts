@@ -288,7 +288,9 @@ export function createSweepTray(
             const count = today();
             notify(
               "Today is ready",
-              count === null || count === 0 ? undefined : `${count} need${count === 1 ? "s" : ""} you.`,
+              count === null || count === 0
+                ? undefined
+                : `${count} need${count === 1 ? "s" : ""} you.`,
             );
           }
         }

@@ -306,7 +306,7 @@ it.each([
 ])("hands over with $members Today members and body $body", ({ members, body }) => {
   const notify = vi.fn();
   const tray = createSweepTray(vi.fn(), vi.fn(), { hidden: () => true, notify });
-  const brief = snapshot(["fresh"], { interrupts: 2, members });
+  const brief = snapshot(["fresh"], { interrupts: 2, members: members ?? 0 });
   if (brief.type !== "view.snapshot") throw new Error("expected a snapshot");
   if (members === undefined) delete brief.payload.briefing.lines;
   tray.observe(progress("running"));
