@@ -183,7 +183,9 @@ export function createSweepTray(
     if (latest.areas.every(({ envelope }) => envelope.inferred)) return ["unread", "Inferred"];
     return ["fresh", "All fresh"];
   };
-  const today = () => (latest ? todayMembers(latest.briefing).length : 0);
+  /** The Today count, or null where core sent no Today lines and so proved no zero. */
+  const today = () =>
+    latest?.briefing.lines === undefined ? null : todayMembers(latest.briefing).length;
   const tooltip = (): [Dot, string] => {
     if (halt) return [halt.dot, halt.text];
     const [dot, text] = state();
@@ -199,6 +201,10 @@ export function createSweepTray(
       ];
     if (signedOut) return ["failed", `Can't read: ${signedOut} signed out`];
     const count = today();
+    if (count === null)
+      return dot === "failed" || dot === "warning"
+        ? [dot, `${text} · swept ${swept}`]
+        : ["unread", `Today not read · swept ${swept}`];
     if (count > 0) return [dot, `${count} need${count === 1 ? "s" : ""} you · swept ${swept}`];
     return [dot, `${text} · swept ${swept}`];
   };
@@ -238,7 +244,7 @@ export function createSweepTray(
         ]),
       );
     }
-    const counted = dockBadge(today());
+    const counted = dockBadge(today() ?? 0);
     if (badge && counted !== shownBadge) {
       shownBadge = counted;
       badge(counted);

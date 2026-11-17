@@ -596,6 +596,7 @@ it("badges and tips the 16 Nov brief with the sidebar's 18 Today members, never 
   const badge = vi.fn();
   const tray = createSweepTray(vi.fn(), vi.fn(), { badge });
   const tip = () => electron.trays[0]?.setToolTip.mock.calls.at(-1)?.[0];
+  const dot = () => electron.bitmap.mock.calls.at(-1)?.[0];
   const brief = nov16();
   if (brief.type !== "view.snapshot") throw new Error("expected a snapshot");
   expect(todayMembers(brief.payload.briefing)).toHaveLength(18);
@@ -603,10 +604,12 @@ it("badges and tips the 16 Nov brief with the sidebar's 18 Today members, never 
   tray.observe(brief);
   expect(badge.mock.calls).toEqual([[dockBadge(18)]]);
   expect(tip()).toBe("SPI Code - 18 need you · swept 08:02");
+  const fresh = dot();
   delete brief.payload.briefing.lines;
   tray.observe(brief);
   expect(badge.mock.calls.at(-1)).toEqual([""]);
-  expect(tip()).toBe("SPI Code - All fresh · swept 08:02");
+  expect(tip()).toBe("SPI Code - Today not read · swept 08:02");
+  expect(dot()).not.toEqual(fresh);
 });
 
 it("sends Sweep now from the tray through the real relay to the host's sweep.request route", async () => {
