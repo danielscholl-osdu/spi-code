@@ -4,7 +4,12 @@
 import assert from "node:assert/strict";
 import { APPENDIX_A_TOOLS } from "@spi-code/host";
 import { assertSmokeGeometry, type SmokeGeometry } from "./smoke-geometry.js";
-import { assertMorningEvidence, MORNING_SURFACES, type MorningEvidence } from "./smoke-mornings.js";
+import {
+  assertDrawnMembers,
+  assertMorningEvidence,
+  MORNING_SURFACES,
+  type MorningEvidence,
+} from "./smoke-mornings.js";
 import type { SupervisionReport } from "./smoke-supervision.js";
 
 export const VIEW_WIDTHS = [1440, 900, 740] as const;
@@ -459,19 +464,19 @@ function assertSmokeQualifiers(surfaceId: string, qualifiers: unknown): void {
 }
 
 /**
- * Qualifiers 2 to 5: Today's verdict, the sidebar's Today count, the members Blocked and Waiting on
- * you count, and "acknowledged <cursor> · seen <cursor> · since <n>" from the acknowledgement and
- * the snapshot.
+ * Qualifiers 2 to 6: Today's verdict, the sidebar's Today count, the member rows Blocked and
+ * Waiting on you draw, the members of the fixture's lines, and "acknowledged <cursor> · seen
+ * <cursor> · since <n>" from the acknowledgement and the snapshot.
  */
 function assertAcknowledgedToday(qualifiers: readonly string[]): void {
-  const [, , verdict = "", pip = "", open = "", seen = ""] = qualifiers;
+  const [, , verdict = "", pip = "", drawn = "", members = "", seen = ""] = qualifiers;
   assert(
     /^acknowledged (\d+) · seen \1 · since 0$/.test(seen),
     `Today is not after an acknowledgement with nothing new: ${seen}`,
   );
   assert.equal(verdict, "", `Today draws a verdict above its rows: ${verdict}`);
   assert(/^\d*$/.test(pip), `Missing Today count: ${pip}`);
-  assert(Number(open) > 0, `Nothing drawn in Blocked or Waiting on you: ${open}`);
+  assertDrawnMembers(drawn, members, "today-acknowledged");
 }
 
 export function assertSmokeViews(value: unknown): asserts value is SmokeShot[] {

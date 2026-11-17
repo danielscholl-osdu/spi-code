@@ -8,6 +8,7 @@ import { expect, it } from "vitest";
 import { readGenerated } from "../../../scripts/watch-generated.mjs";
 import type { SmokeGeometry } from "./smoke-geometry.js";
 import {
+  lineMembersText,
   MORNING_FIXTURES,
   MORNING_SURFACES,
   type MorningEvidence,
@@ -59,7 +60,8 @@ const acknowledgedQualifiers = [
   "Upstream radar read failed; items may be missing.",
   "",
   "1",
-  "1",
+  "blocked conflict:entitlements:121 · waiting rollout",
+  "blocked conflict:entitlements:121 · waiting rollout",
   "acknowledged 1 · seen 1 · since 0",
 ];
 const scheduledQualifiers: Record<string, string[]> = {
@@ -357,6 +359,15 @@ const rejected: Record<string, string> = {
   "strip-20/740": "Toggle sidebar at 76,8 28x28 lies in a drag rectangle",
 };
 
+const lineMembers = Object.fromEntries(
+  (["calm", "busy", "bad"] as const).map((morning) => [
+    morning,
+    lineMembersText(
+      ViewSnapshotSchema.parse(JSON.parse(readGenerated(MORNING_FIXTURES[morning]))).briefing.lines,
+    ),
+  ]),
+) as Record<MorningSurface["morning"], string>;
+
 const morningBlocks: Record<MorningSurface["morning"], MorningEvidence["blocks"]> = {
   calm: [
     { name: "table", top: 108, height: 77 },
@@ -412,8 +423,8 @@ function morningShot(
       detail: surface.detail,
       sections: morningSections(surface.morning, surface.detail, viewportWidth),
       headline: "",
-      members: { calm: 1, busy: 13, bad: 14 }[surface.morning],
-      lineMembers: { calm: 1, busy: 13, bad: 14 }[surface.morning],
+      members: lineMembers[surface.morning],
+      lineMembers: lineMembers[surface.morning],
       todayCount: { calm: "", busy: "1", bad: "3" }[surface.morning],
       viewportHeight: 800,
       scrollHeight: 1594,
@@ -871,10 +882,12 @@ it.each([
   [2, "1 thing needs you; 1 fork is stopped.", "draws a verdict above its rows"],
   [2, "Nothing urgent needs you.", "draws a verdict above its rows"],
   [3, "one", "Missing Today count"],
-  [4, "0", "Nothing drawn in Blocked or Waiting on you"],
-  [5, "acknowledged 1 · seen 1 · since 1", "not after an acknowledgement"],
-  [5, "acknowledged 1 · seen 2 · since 0", "not after an acknowledgement"],
-  [5, "", "not after an acknowledgement"],
+  [4, "blocked conflict:entitlements:121 · waiting", 'Today draws "blocked conflict'],
+  [4, "blocked · waiting conflict:entitlements:121 rollout", "Today draws"],
+  [5, "blocked · waiting", "Missing line members"],
+  [6, "acknowledged 1 · seen 1 · since 1", "not after an acknowledgement"],
+  [6, "acknowledged 1 · seen 2 · since 0", "not after an acknowledgement"],
+  [6, "", "not after an acknowledgement"],
 ] as const)("rejects acknowledged Today with qualifier %i as %j", (index, text, message) => {
   const qualifiers = [...acknowledgedQualifiers];
   qualifiers[index] = text;
@@ -1264,10 +1277,27 @@ it("fails a morning without its fixture, decision sections, headline, Detail or 
     ],
     [
       "today-busy",
-      (shot) => evidence(shot, { members: 12 }),
-      "Blocked and Waiting on you count 12 of the fixture's 13 members",
+      (shot) =>
+        evidence(shot, {
+          members: lineMembers.busy.replace("gate1:workflow gate1:unit", "gate1:workflow"),
+        }),
+      "not core's",
     ],
-    ["today-bad", (shot) => evidence(shot, { lineMembers: 0 }), "Missing line members"],
+    [
+      "today-busy",
+      (shot) =>
+        evidence(shot, {
+          members: lineMembers.busy
+            .replace(" gate1:unit", "")
+            .replace("blocked sync-run:storage", "blocked sync-run:storage gate1:unit"),
+        }),
+      "not core's",
+    ],
+    [
+      "today-bad",
+      (shot) => evidence(shot, { lineMembers: "blocked · waiting" }),
+      "Missing line members",
+    ],
     ["today-calm", (shot) => evidence(shot, { todayCount: undefined }), "Missing Today count"],
     ["today-busy-detail", (shot) => evidence(shot, { detailTitle: undefined }), "Missing Detail"],
     [

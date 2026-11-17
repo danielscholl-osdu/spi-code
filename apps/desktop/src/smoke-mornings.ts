@@ -12,6 +12,44 @@ export const MORNING_FIXTURES: Readonly<Record<Morning, string>> = {
   bad: "snapshot-bad.json",
 };
 
+export const TODAY_SECTIONS = ["blocked", "waiting"] as const;
+
+/** Each section's member ids as "blocked <ids> · waiting <ids>", in the order Today lists them. */
+export function membersText(members: Readonly<Record<string, readonly string[]>>): string {
+  return TODAY_SECTIONS.map((section) => [section, ...(members[section] ?? [])].join(" ")).join(
+    " · ",
+  );
+}
+
+/** The members of core's lines, by section. */
+export function lineMembersText(
+  lines: readonly { section: string; members: readonly { id: string }[] }[] | undefined,
+): string {
+  return membersText(
+    Object.fromEntries(
+      TODAY_SECTIONS.map((section) => [
+        section,
+        (lines ?? [])
+          .filter((line) => line.section === section)
+          .flatMap((line) => line.members.map(({ id }) => id)),
+      ]),
+    ),
+  );
+}
+
+/** In the window: the member rows Today draws in each section, single lines and group sub-rows. */
+export const DRAWN_MEMBERS = `Object.fromEntries(${JSON.stringify(TODAY_SECTIONS)}.map(section => [section,
+  [...document.querySelectorAll(".today [data-section=" + section + "] tr.today-row[data-item-id]")].map(row => row.dataset.itemId)]))`;
+
+/** Throws unless Today draws a row for every member of core's lines, each in its section. */
+export function assertDrawnMembers(drawn: unknown, members: unknown, label: string): void {
+  assert(
+    typeof members === "string" && members !== membersText({}),
+    `Missing line members: ${label}`,
+  );
+  assert.equal(drawn, members, `Today draws "${drawn}", not core's "${members}": ${label}`);
+}
+
 /** Today's blocks top to bottom, as the frame draws them; each capture names the ones it holds. */
 export const TODAY_BLOCKS = [
   "head",
@@ -83,9 +121,9 @@ export interface MorningEvidence {
   sections: string[];
   /** The verdict Today draws; none on a morning whose lines core sends. */
   headline: string;
-  /** The members Blocked and Waiting on you count, and the members of the fixture's lines. */
-  members: number;
-  lineMembers: number;
+  /** The member rows Blocked and Waiting on you draw, and the members of the fixture's lines. */
+  members: string;
+  lineMembers: string;
   /** The sidebar's Today count, empty when it draws none. */
   todayCount: string;
   viewportHeight: number;
@@ -120,12 +158,7 @@ export function assertMorningEvidence(
   );
   assert.equal(evidence.headline, "", `Wrong headline: ${label}`);
   const { members, lineMembers, todayCount } = evidence;
-  assert(typeof lineMembers === "number" && lineMembers > 0, `Missing line members: ${label}`);
-  assert.equal(
-    members,
-    lineMembers,
-    `Blocked and Waiting on you count ${members} of the fixture's ${lineMembers} members: ${label}`,
-  );
+  assertDrawnMembers(members, lineMembers, label);
   assert(
     typeof todayCount === "string" && /^\d*$/.test(todayCount),
     `Missing Today count: ${label}`,

@@ -16,7 +16,13 @@ import {
 } from "@spi-code/contracts";
 import { type BrowserWindow, ipcMain, nativeImage } from "electron";
 import { assertSmokeGeometry, type SmokeGeometry } from "./smoke-geometry.js";
-import { MORNING_SURFACES, type Morning } from "./smoke-mornings.js";
+import {
+  DRAWN_MEMBERS,
+  lineMembersText,
+  MORNING_SURFACES,
+  type Morning,
+  membersText,
+} from "./smoke-mornings.js";
 import {
   assertSmokeShot,
   assertSmokeViews,
@@ -1325,9 +1331,10 @@ export async function captureSmokeViews(
             qualifiers.push(
               ...(await window.webContents.executeJavaScript(`[
                 document.querySelector(".today .today-headline")?.textContent.trim() ?? "",
-                document.querySelector('[data-sidebar-row=today] .sidebar-pip')?.textContent.trim() ?? "",
-                String([...document.querySelectorAll(".today [data-section] .today-section-count")].reduce((n, count) => n + Number(count.textContent), 0))
+                document.querySelector('[data-sidebar-row=today] .sidebar-pip')?.textContent.trim() ?? ""
               ]`)),
+              membersText(await window.webContents.executeJavaScript(DRAWN_MEMBERS)),
+              lineMembersText(acknowledged.briefing.lines),
               seen,
             );
           const file = `${surface.id}-${viewportWidth}-${appearance}.png`;

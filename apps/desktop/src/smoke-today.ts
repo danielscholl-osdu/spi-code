@@ -10,9 +10,12 @@ import { type BrowserWindow, nativeImage } from "electron";
 import type { SmokeGeometry } from "./smoke-geometry.js";
 import {
   assertMorningEvidence,
+  DRAWN_MEMBERS,
+  lineMembersText,
   MORNING_SURFACES,
   type Morning,
   type MorningEvidence,
+  membersText,
   morningSections,
 } from "./smoke-mornings.js";
 import { assertSmokeImage, type SmokeShot } from "./smoke-report.js";
@@ -162,10 +165,14 @@ export async function captureMornings(
           };
         })()`);
         const geometry = [await context.measure("window"), platformGeometry];
-        const [headline, members, todayCount, ...qualifiers]: string[] =
-          await window.webContents.executeJavaScript(`[
+        const [headline, members, todayCount, ...qualifiers]: [
+          string,
+          Record<string, string[]>,
+          string,
+          ...string[],
+        ] = await window.webContents.executeJavaScript(`[
           document.querySelector(".today-headline")?.textContent.trim() ?? "",
-          String([...document.querySelectorAll(".today [data-section] .today-section-count")].reduce((n, count) => n + Number(count.textContent), 0)),
+          ${DRAWN_MEMBERS},
           document.querySelector('[data-sidebar-row=today] .sidebar-pip')?.textContent.trim() ?? "",
           document.getElementById(document.querySelector("[data-sweep-line]")?.getAttribute("aria-labelledby") ?? "")?.textContent ?? "",
           document.querySelector("main .today-caveat")?.innerText?.replace(/\\s+/g, " ").trim() ?? ""
@@ -193,11 +200,8 @@ export async function captureMornings(
             detail: surface.detail,
             sections: morningSections(surface.morning, surface.detail, viewportWidth),
             headline: headline ?? "",
-            members: Number(members),
-            lineMembers: (snapshot.briefing.lines ?? []).reduce(
-              (n, line) => n + line.members.length,
-              0,
-            ),
+            members: membersText(members),
+            lineMembers: lineMembersText(snapshot.briefing.lines),
             todayCount: todayCount ?? "",
             viewportHeight: page.height,
             scrollHeight: page.scrollHeight,
