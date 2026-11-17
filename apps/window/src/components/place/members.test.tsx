@@ -219,7 +219,7 @@ it("marks every stepped Line member on its cells and the Engineering member on i
       ).toBe(true);
     }
     const engineering = container.querySelector<HTMLButtonElement>(
-      '[aria-label="Engineering system"] [aria-label="Next of yours"]',
+      '[aria-label="Template"] [aria-label="Next of yours"]',
     );
     await act(async () => engineering?.click());
     expect(openSelection()?.id).toBe("rollout");

@@ -60,7 +60,7 @@ const run: OpenedContent = {
 };
 const repository: OpenedContent = {
   title: "Review the sync filter",
-  place: { label: "Engineering system", destination: { kind: "engineering-system" } },
+  place: { label: "Template", destination: { kind: "engineering-system" } },
   subject: null,
   cause: "Not on Today. Counted under Can wait.",
   primary: {

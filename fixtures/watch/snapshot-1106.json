@@ -4755,7 +4755,7 @@
         "headline": "Template rollout is in progress; verification is still pending.",
         "tiles": [
           {
-            "label": "Engineering system",
+            "label": "Template",
             "value": "0 of 13",
             "counts": "forks on 7d269b5"
           },

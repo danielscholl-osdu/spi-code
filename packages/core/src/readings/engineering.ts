@@ -110,7 +110,7 @@ export function engineeringReading<T extends EngineeringItem>(
       ? "Verified"
       : "Awaiting verification";
   const headline = !positionsRead
-    ? `Engineering system ${NOT_READ}.`
+    ? `Template ${NOT_READ}.`
     : rollout?.phase === "stopped"
       ? "Template rollout stopped; a fork's main validation failed."
       : verified === total
@@ -144,7 +144,7 @@ export function engineeringReading<T extends EngineeringItem>(
     ...(qualifier ? { qualifier } : {}),
     tiles: [
       {
-        label: "Engineering system",
+        label: "Template",
         value: positionsRead ? `${verified} of ${total}` : NOT_READ,
         counts: target ? `forks on ${short(target)}${note(unread)}` : "forks on the target template",
       },

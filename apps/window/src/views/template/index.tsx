@@ -92,7 +92,7 @@ export default function Template({ store = watchStore }: { store?: typeof watchS
     marked?.kind === "item" &&
     !(marked.id === ROLLOUT && ladder?.rungs.some(({ member }) => member)) &&
     itemContent(snapshot, marked.id, {
-      label: "Engineering system",
+      label: "Template",
       destination: ENGINEERING,
       selection: marked,
     });
@@ -106,7 +106,7 @@ export default function Template({ store = watchStore }: { store?: typeof watchS
   return (
     <div className="inbox template" data-view-pane="engineering-system" ref={pane}>
       <Place
-        name="Engineering system"
+        name="Template"
         pin={placePin("engineering-system")}
         reading={reading}
         snapshot={snapshot}

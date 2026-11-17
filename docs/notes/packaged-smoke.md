@@ -171,7 +171,7 @@ Each view is mounted once and shaded in place; Settings is shaded through its ow
 which checks the in-place shading writes the same root attributes. It runs after the
 screencast stops, so its waits watch DOM mutations rather than animation frames.
 Today runs with a stopped service (entitlements) pinned under the `.v3` key, and fails unless it
-measures that pin's sidebar word at rest and hovered, and Line's and Engineering system's hovered
+measures that pin's sidebar word at rest and hovered, and Line's and Template's hovered
 digits. The key is restored after the rule, since supervision pins under the legacy key.
 Find or ask is the last view: its results carry `data-pin-state` (`always` on the sidebar's fixed
 block, which draws no pin control), which the collector names in selectors, and the rule requires

@@ -83,10 +83,10 @@ export const VIEW_SURFACES = [
   },
   {
     id: "engineering-system",
-    name: "Engineering system",
+    name: "Template",
     route: "engineering-system",
-    place: "Engineering system",
-    selector: ".place[aria-label='Engineering system'] .place-reading",
+    place: "Template",
+    selector: ".place[aria-label='Template'] .place-reading",
     designSection: "The window / Places",
     qualified: false,
   },

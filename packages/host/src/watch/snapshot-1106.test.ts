@@ -73,7 +73,7 @@ describe("the 6 Nov sweep with five forks' GitHub reads failed", () => {
     });
     const reading = unread.readings.find(({ anchor }) => anchor.kind === "engineering")?.content;
     expect(reading?.tiles[0]).toEqual({
-      label: "Engineering system",
+      label: "Template",
       value: "0 of 13",
       counts: "forks on 7d269b5 · 5 not read yet",
     });
@@ -105,7 +105,7 @@ describe("the 6 Nov sweep with partition verified and legal merged but red on ma
       figure: "1 of 13",
     });
     expect(reading?.tiles[0]).toEqual({
-      label: "Engineering system",
+      label: "Template",
       value: "1 of 13",
       counts: "forks on 7d269b5",
     });

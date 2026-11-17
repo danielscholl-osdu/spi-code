@@ -46,7 +46,7 @@ const SECTIONS = [
 const PLACES = {
   line: { label: "Line", destination: LINE },
   environment: { label: "Environment", destination: { kind: "environment" } },
-  engineering: { label: "Engineering system", destination: { kind: "engineering-system" } },
+  engineering: { label: "Template", destination: { kind: "engineering-system" } },
   security: { label: "Security", destination: { kind: "security" } },
   upstream: { label: "Upstream", destination: { kind: "upstream" } },
 } satisfies Record<string, BodyPlace>;

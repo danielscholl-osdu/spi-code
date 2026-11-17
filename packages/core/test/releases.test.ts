@@ -219,7 +219,7 @@ describe("the document", () => {
     expect(doc.headline).toBe("37 releases across 8 repositories in October 2026.");
     expect(doc.required.every((a) => a.level === "recommended")).toBe(true);
     expect(doc.required.length).toBeGreaterThan(0);
-    const engineering = doc.changelog.find((a) => a.area === "Engineering system");
+    const engineering = doc.changelog.find((a) => a.area === "Template");
     expect(engineering?.items).toHaveLength(1);
     expect(engineering?.items[0]?.text).toContain("to fork automation");
   });

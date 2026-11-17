@@ -20,7 +20,7 @@ it("gives each place its line and where its source falls in the first sweep", ()
   ).toEqual([
     "Upstream opens after the first sweep. It is read 9th of 12.",
     "Environment opens after the first sweep. It is read 6th of 12.",
-    "Engineering system opens after the first sweep. It is read 7th of 12.",
+    "Template opens after the first sweep. It is read 7th of 12.",
     "Releases opens after the first sweep. It is read 12th of 12.",
     "Security opens after the first sweep. It is read 11th of 12.",
     "partition opens after the first sweep. It is read 2nd of 12.",

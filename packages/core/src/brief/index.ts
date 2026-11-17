@@ -460,8 +460,8 @@ function envFact(model: Model, now: Date, context: CoreContext): BriefFact {
   return env;
 }
 
-// Forks verified on osdu-spi main over every fork, the count the strip and the Engineering
-// system place show (PS-18); adoption of the latest release is the second line. A fork whose
+// Forks verified on osdu-spi main over every fork, the count the strip and the Template place
+// show (PS-18); adoption of the latest release is the second line. A fork whose
 // position was not read stays in the count and is named as not read yet.
 function templateFact(model: Model): BriefFact {
   const { template, rollout } = model;

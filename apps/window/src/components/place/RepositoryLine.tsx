@@ -31,7 +31,7 @@ export function RepositoryLine({
   snapshot,
   className,
   place = {
-    label: `Engineering system › ${repository} › ${section}`,
+    label: `Template › ${repository} › ${section}`,
     destination: { kind: "engineering-system" },
   },
   children,
@@ -42,7 +42,7 @@ export function RepositoryLine({
   pointer: string;
   snapshot: ViewSnapshot;
   className?: string;
-  /** Where the line is drawn, for its popover's place; Engineering system unless given. */
+  /** Where the line is drawn, for its popover's place; Template unless given. */
   place?: Omit<BodyPlace, "selection">;
   children: ReactNode;
 }) {

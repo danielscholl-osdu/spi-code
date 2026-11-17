@@ -60,7 +60,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-it("names the 5 forks not read in the Engineering system place", async () => {
+it("names the 5 forks not read in the Template place", async () => {
   const place = await mount(unread, "#engineering-system");
   expect(place.tile).toEqual(["0 of 13", "forks on 7d269b5 · 5 not read yet"]);
 });

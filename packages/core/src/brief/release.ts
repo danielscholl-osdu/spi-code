@@ -104,10 +104,10 @@ const AREA: Readonly<Record<ComponentKind, string>> = Object.freeze({
   service: "Services",
   library: "Library",
   stack: "Environment",
-  template: "Engineering system",
+  template: "Template",
 });
 
-const AREA_ORDER = Object.freeze(["Services", "Library", "Environment", "Engineering system"]);
+const AREA_ORDER = Object.freeze(["Services", "Library", "Environment", "Template"]);
 
 function notesOf(read: NotesRead | undefined): Notes | undefined {
   return read?.state === "ok" ? read.notes : undefined;

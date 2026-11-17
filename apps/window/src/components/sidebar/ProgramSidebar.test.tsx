@@ -44,7 +44,7 @@ afterEach(async () => {
 
 const recordedBody = ViewSnapshotSchema.parse(JSON.parse(recorded));
 const currentBody = ViewSnapshotSchema.parse(JSON.parse(current));
-const FIXED_LABELS = ["Today", "Line", "Environment", "Engineering system"];
+const FIXED_LABELS = ["Today", "Line", "Environment", "Template"];
 const SEED_LABELS = ["Upstream", "Releases", "Security"];
 const storePins = (pins: readonly string[]) =>
   localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(pins));
@@ -135,7 +135,7 @@ it("leads with Find or ask, then a headerless fixed block, then Pinned seeded wi
   await act(async () => row("line")?.click());
   expect(onLine).toHaveBeenCalledExactlyOnceWith();
   await render();
-  expect(rows("Program")).toEqual(["Today", "Environment", "Engineering system"]);
+  expect(rows("Program")).toEqual(["Today", "Environment", "Template"]);
 });
 
 it("draws the fixed block with no grip, menu or pin control, and no row with an unpin button", async () => {
@@ -184,7 +184,7 @@ it("draws a service pin only while the sweep names it, in pin order, lights the 
   for (const id of ["schema", "place:releases", "entitlements"]) await act(async () => unpin(id));
   expect(container.querySelector('[data-group="pinned"]')).toBeNull();
   expect(header("Pinned")).toBeUndefined();
-  expect(rows("Program")).toEqual(["Today", "Environment", "Engineering system"]);
+  expect(rows("Program")).toEqual(["Today", "Environment", "Template"]);
   expect(readPins()).toEqual(["gone"]);
 });
 it("words a pinned service only when its line is read and not fine, and never a place", async () => {

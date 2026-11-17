@@ -226,7 +226,7 @@ export function routeLabel(route: Route): string {
     case "environment":
       return "Environment";
     case "engineering-system":
-      return "Engineering system";
+      return "Template";
     case "releases":
       return "Releases";
     case "security":

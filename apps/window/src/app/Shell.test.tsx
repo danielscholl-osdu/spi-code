@@ -193,7 +193,7 @@ it("names every navigated place in the centre header and keeps it in the documen
     );
     for (const [label, hash, heading = label] of [
       ["Today", "#today"],
-      ["Engineering system", "#engineering-system"],
+      ["Template", "#engineering-system"],
       ["Environment", "#environment"],
       ["Releases", "#releases"],
     ] as const) {

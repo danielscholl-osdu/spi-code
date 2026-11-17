@@ -152,7 +152,7 @@ it("lists Go to, Services and Queue from the routes and the snapshot, without le
     "Linepage",
     "Upstreampage",
     "Environmentpage",
-    "Engineering systempage",
+    "Templatepage",
     "Releasespage",
     "Securitypage",
     "SettingsReadiness",
@@ -396,12 +396,12 @@ it("pins and unpins a result in place from its pin control, leaving Find as it w
   expect(window.location.hash).toBe("#releases");
 });
 
-it("draws no pin control on Line, Environment or Engineering system, and none on Queue results", async () => {
+it("draws no pin control on Line, Environment or Template, and none on Queue results", async () => {
   await shortcut({ ctrlKey: true });
   for (const [query, text, name] of [
     ["Line", "Linepage", "Line"],
     ["Environment", "Environmentpage", "Environment"],
-    ["Engineering", "Engineering systempage", "Engineering system"],
+    ["Template", "Templatepage", "Template"],
   ] as const) {
     await type(query);
     expect(option(text)?.getAttribute("aria-label")).toBe(`${name}, page, always in the sidebar`);
