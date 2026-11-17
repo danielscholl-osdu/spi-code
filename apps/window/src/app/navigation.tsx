@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { PROTOCOL_VERSION, parseMessage, type Station } from "@spi-code/contracts";
+import { PROTOCOL_VERSION, parseMessage, type Station, StationIdSchema } from "@spi-code/contracts";
 import {
   createContext,
   type ReactNode,
@@ -40,11 +40,20 @@ export type PlaceRoute =
 /** What Evidence was opened for: a Today item, or a Today line with each of its members. */
 export type EvidenceSelection = { kind: "item" | "line"; id: string };
 
-/** The page Evidence was opened from, and what was open there; with no selection, the whole sweep. */
+/** What is open on a page or in the Line sheet: a Today row, a place's popover, a Line cell. */
+export type OpenSelection = { kind: string; id: string };
+
+/**
+ * Evidence for a selection, or the whole sweep with none, and the way back: the page it was
+ * opened from, what was open there (the selection when absent), and the Line sheet if it lay over
+ * that page.
+ */
 export type EvidenceRoute = {
   kind: "evidence";
   from?: { kind: "today" } | PlaceRoute;
   selection?: EvidenceSelection;
+  open?: OpenSelection;
+  sheet?: LineSheetOptions;
 };
 
 /** What the centre can hold. */
@@ -98,19 +107,51 @@ function decode(segment: string): string | undefined {
 }
 
 const SELECTION = /^(item|line)~(.+)$/;
+const OPEN = /^([a-z][a-z-]*)~(.+)$/;
+const SHEET = /^line(?:~(.+))?$/;
+const COLUMNS: ReadonlySet<string> = new Set(
+  StationIdSchema.options.filter((id): id is LineColumn => id !== "lane"),
+);
 
-/** `#evidence?from=today&sel=item~gate2:storage`: a `from` that is not a page is dropped. */
-function parseEvidence(query: string): EvidenceRoute {
-  const params = new URLSearchParams(query);
-  const from = parseRoute(params.get("from") ?? "");
-  const selection = SELECTION.exec(params.get("sel") ?? "");
+const sameSelection = (a: OpenSelection, b: OpenSelection) => a.kind === b.kind && a.id === b.id;
+
+function evidenceRoute(
+  from: Route | undefined,
+  selection: EvidenceSelection | null | undefined,
+  open: OpenSelection | null | undefined,
+  sheet: LineSheetOptions | undefined,
+): EvidenceRoute {
   return {
     kind: "evidence",
     ...(from && from.kind !== "evidence" ? { from } : {}),
-    ...(selection?.[1] && selection[2]
-      ? { selection: { kind: selection[1] as EvidenceSelection["kind"], id: selection[2] } }
-      : {}),
+    ...(selection ? { selection } : {}),
+    ...(open && !(selection && sameSelection(open, selection)) ? { open } : {}),
+    ...(sheet ? { sheet } : {}),
   };
+}
+
+/**
+ * `#evidence?from=today&sel=item~gate2:storage&open=cell~storage:sync&sheet=line~sync`: a `from`
+ * that is not a page, and a sheet that is not the Line, are dropped.
+ */
+function parseEvidence(query: string): EvidenceRoute {
+  const params = new URLSearchParams(query);
+  const selection = SELECTION.exec(params.get("sel") ?? "");
+  const open = OPEN.exec(params.get("open") ?? "");
+  const sheet = SHEET.exec(params.get("sheet") ?? "");
+  const column = sheet?.[1];
+  return evidenceRoute(
+    parseRoute(params.get("from") ?? ""),
+    selection?.[1] && selection[2]
+      ? { kind: selection[1] as EvidenceSelection["kind"], id: selection[2] }
+      : undefined,
+    open?.[1] && open[2] ? { kind: open[1], id: open[2] } : undefined,
+    sheet && (column === undefined || COLUMNS.has(column))
+      ? column === undefined
+        ? {}
+        : { column: column as LineColumn }
+      : undefined,
+  );
 }
 
 /** Reads a location hash (`#service/legal`, `release/2026-10`); undefined when it names no route. */
@@ -152,6 +193,9 @@ export function routeHash(route: Route): string {
       const params = new URLSearchParams();
       if (route.from) params.set("from", routeHash(route.from).slice(1));
       if (route.selection) params.set("sel", `${route.selection.kind}~${route.selection.id}`);
+      if (route.open) params.set("open", `${route.open.kind}~${route.open.id}`);
+      if (route.sheet)
+        params.set("sheet", route.sheet.column ? `line~${route.sheet.column}` : "line");
       const query = params.toString();
       return query ? `#evidence?${query}` : "#evidence";
     }
@@ -308,55 +352,81 @@ export function navigate(destination: Destination) {
   emit();
 }
 
-/** What is open on a page (a Today row or a place's popover), by the hash it is open under. */
-let opened: { hash: string; selection: EvidenceSelection } | null = null;
+/** What is open, by the hash it is open under and whether the Line sheet lay over that page. */
+let opened: { hash: string; sheet: boolean; selection: OpenSelection } | null = null;
 
 function readOpened() {
   return opened;
 }
 
-/** Called by a page when a row or popover opens or closes, so the Swept capsule follows it. */
-export function setOpenSelection(selection: EvidenceSelection | null) {
-  const next = selection ? { hash: window.location.hash, selection } : null;
-  if (opened?.hash === next?.hash && opened?.selection === next?.selection) return;
+const overlaid = () => readPresentation() === "overlay";
+
+/** Called when a row, popover or Line cell opens or closes, so the Swept capsule follows it. */
+export function setOpenSelection(selection: OpenSelection | null) {
+  const next = selection ? { hash: window.location.hash, sheet: overlaid(), selection } : null;
+  if (
+    opened?.hash === next?.hash &&
+    opened?.sheet === next?.sheet &&
+    opened?.selection === next?.selection
+  )
+    return;
   opened = next;
   emit();
 }
 
-/** What is open on the page showing now; null when nothing is. */
-export function openSelection(): EvidenceSelection | null {
-  return opened !== null && opened.hash === window.location.hash ? opened.selection : null;
+const openedAt = (hash: string, sheet: boolean) =>
+  opened !== null && opened.hash === hash && opened.sheet === sheet ? opened.selection : null;
+
+/** What is open on the page or Line sheet showing now; null when nothing is. */
+export function openSelection(): OpenSelection | null {
+  return openedAt(window.location.hash, overlaid());
 }
 
-/** What is open on the page showing now, for the page to reopen after Evidence closes. */
-export function useOpenSelection(): EvidenceSelection | null {
-  const current = useSyncExternalStore(subscribe, readOpened, readOpened);
+/** What is open on the page or Line sheet showing now, for it to reopen after Evidence closes. */
+export function useOpenSelection(): OpenSelection | null {
+  useSyncExternalStore(subscribe, readOpened, readOpened);
   const hash = useSyncExternalStore(subscribe, readHash, readHash);
-  return current !== null && current.hash === hash ? current.selection : null;
+  const presentation = useSyncExternalStore(subscribe, readPresentation, readPresentation);
+  return openedAt(hash, presentation === "overlay");
 }
+
+const evidenceSubject = (open: OpenSelection | null): EvidenceSelection | null =>
+  open && (open.kind === "item" || open.kind === "line") ? { kind: open.kind, id: open.id } : null;
 
 /**
- * Opens Evidence for a selection, or for what is open on the current page, or the whole sweep
- * when nothing is. From Evidence itself it keeps the page Evidence was opened from.
+ * Opens Evidence for a selection, or for what is open now when it is one, or the whole sweep.
+ * Back returns to the page, the Line sheet if it lay over it, and what was open; from Evidence
+ * itself it keeps that way back.
  */
-export function openEvidence(selection: EvidenceSelection | null = openSelection()) {
+export function openEvidence(selection?: EvidenceSelection | null) {
   const current = parseRoute(window.location.hash);
-  const from = current?.kind === "evidence" ? current.from : current;
-  navigate({
-    kind: "evidence",
-    ...(from ? { from } : {}),
-    ...(selection ? { selection } : {}),
-  });
+  const here = openSelection();
+  const subject = selection === undefined ? evidenceSubject(here) : selection;
+  if (current?.kind === "evidence") {
+    navigate(
+      evidenceRoute(current.from, subject, current.open ?? current.selection, current.sheet),
+    );
+    return;
+  }
+  const sheet = overlaid()
+    ? sheetRequest.column
+      ? { column: sheetRequest.column }
+      : {}
+    : undefined;
+  navigate(evidenceRoute(current, subject, here ?? subject, sheet));
 }
 
-/** Back to the page Evidence came from, with its selection open again. */
+/** The whole sweep, keeping the way back to the page and what was open on it. */
+export function showWholeSweep(route: EvidenceRoute) {
+  navigate(evidenceRoute(route.from, null, route.open ?? route.selection, route.sheet));
+}
+
+/** Back to the page Evidence came from, with the Line sheet over it and what was open, open again. */
 export function leaveEvidence(route: EvidenceRoute) {
-  const back = route.from ?? { kind: "today" };
-  navigate(back);
-  if (route.selection) {
-    opened = { hash: routeHash(back), selection: route.selection };
-    emit();
-  }
+  navigate(route.from ?? { kind: "today" });
+  if (route.sheet) openSheet(route.sheet);
+  const open = route.open ?? route.selection;
+  if (open) setOpenSelection(open);
 }
 
 const RegistryContext = createContext<Registry | undefined>(undefined);

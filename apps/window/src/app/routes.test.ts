@@ -40,6 +40,27 @@ it.each<[string, Route, string]>([
     },
     "Evidence",
   ],
+  [
+    "#evidence?from=environment&sel=item%7Egate2%3Astorage&open=cell%7Estorage%3Async&sheet=line%7Esync",
+    {
+      kind: "evidence",
+      from: { kind: "environment" },
+      selection: { kind: "item", id: "gate2:storage" },
+      open: { kind: "cell", id: "storage:sync" },
+      sheet: { column: "sync" },
+    },
+    "Evidence",
+  ],
+  [
+    "#evidence?from=today&open=line%7Ewaiting%3Aradar%3Apartition&sheet=line",
+    {
+      kind: "evidence",
+      from: { kind: "today" },
+      open: { kind: "line", id: "waiting:radar:partition" },
+      sheet: {},
+    },
+    "Evidence",
+  ],
 ])("parses %s and writes it back", (hash, route, label) => {
   expect(parseRoute(hash)).toEqual(route);
   expect(parseRoute(hash.slice(1))).toEqual(route);
@@ -50,6 +71,8 @@ it.each<[string, Route, string]>([
 it("reads an Evidence hash that names no page or selection as the whole sweep", () => {
   expect(parseRoute("#evidence?from=evidence&sel=cell~legal")).toEqual({ kind: "evidence" });
   expect(parseRoute("#evidence?from=nowhere")).toEqual({ kind: "evidence" });
+  expect(parseRoute("#evidence?sheet=pins&open=~x")).toEqual({ kind: "evidence" });
+  expect(parseRoute("#evidence?sheet=line~lane")).toEqual({ kind: "evidence" });
   expect(parseRoute("#evidence/extra")).toBeUndefined();
 });
 

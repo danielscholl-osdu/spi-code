@@ -3,7 +3,6 @@
 
 import type {
   AreaEnvelope,
-  Envelope,
   ReadRecord,
   SweepProgress,
   SweepStatus,
@@ -13,8 +12,8 @@ import {
   type EvidenceRoute,
   type EvidenceSelection,
   leaveEvidence,
-  navigate,
   routeLabel,
+  showWholeSweep,
 } from "../../app/navigation.js";
 import { PaneTitle } from "../../app/title-row.js";
 import { clockTime } from "../../time.js";
@@ -22,7 +21,7 @@ import { EvidenceTable, SweepEvidence, sourceRow } from "./EvidenceTab.js";
 import { type PageEvidence, pageEvidence, type ReadGroup } from "./page-evidence.js";
 import type { SweepLineSnapshot } from "./SweepLine.js";
 import { useNow } from "./useNow.js";
-import { AREA_NAMES, envelopeSentence, plain } from "./words.js";
+import { AREA_NAMES, areaObservation, plain } from "./words.js";
 import "../sweep/sweep.css";
 import "./evidence.css";
 
@@ -32,21 +31,6 @@ export type EvidenceSnapshot = SweepLineSnapshot & {
 };
 
 const count = (value: number) => value.toLocaleString("en-US");
-
-/** State, observed time and how long before the sweep ended, and completeness. */
-function areaSentence(envelope: Envelope, sweptAt: string, now: number): string {
-  if (envelope.state === "unread" || envelope.state === "failed" || !envelope.observedAt)
-    return envelopeSentence(envelope, now);
-  const before = Math.round((Date.parse(sweptAt) - Date.parse(envelope.observedAt)) / 60_000);
-  const { completeness } = envelope;
-  return [
-    `observed ${clockTime(envelope.observedAt, { now, hint: false })}`,
-    ...(before > 5 ? [`${before} min before the sweep ended`] : []),
-    completeness.kind === "cut"
-      ? `${count(completeness.read)} of ${count(completeness.total)} read`
-      : "complete",
-  ].join(" · ");
-}
 
 type ReadLine = { key: string; name: string; tone?: "warn" | "bad"; note?: string; time: string };
 
@@ -130,7 +114,7 @@ function SelectionPage({
     const envelope = envelopes.get(area);
     if (!envelope) return [];
     const row = sourceRow({ key: area, name: AREA_NAMES[area], envelope }, now);
-    return [{ ...row, sentence: areaSentence(envelope, sweptAt, now) }];
+    return [{ ...row, sentence: areaObservation(envelope, sweptAt, now) }];
   });
   return (
     <>
@@ -205,7 +189,6 @@ export function EvidencePage({
     selection && snapshot
       ? pageEvidence(selection, snapshot.briefing.lines ?? [], snapshot.reads)
       : null;
-  const wholeSweep = () => navigate({ kind: "evidence", ...(route.from ? { from } : {}) });
   return (
     <div className="evidence evidence-page" data-evidence-page="">
       <PaneTitle>
@@ -231,7 +214,7 @@ export function EvidencePage({
               type="button"
               className="evidence-whole"
               data-evidence-whole=""
-              onClick={wholeSweep}
+              onClick={() => showWholeSweep(route)}
             >
               Whole sweep ›
             </button>
@@ -253,6 +236,7 @@ export function EvidencePage({
           progress={progress}
           completed={completed}
           {...(onOpenSettings ? { onOpenSettings } : {})}
+          observed
           now={now}
         />
       )}

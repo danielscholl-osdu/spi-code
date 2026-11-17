@@ -6,6 +6,8 @@ import {
   type AreaEnvelope,
   type AreaName,
   type ReadRecord,
+  type SweepProgress,
+  SweepProgressSchema,
   type TodayLine,
   type TodayMember,
 } from "@spi-code/contracts";
@@ -19,6 +21,7 @@ import {
   parseRoute,
   setOpenSelection,
 } from "../../app/navigation.js";
+import { clockTime } from "../../time.js";
 import { EvidencePage, type EvidenceSnapshot } from "./EvidencePage.js";
 import { AREA_NAMES } from "./words.js";
 
@@ -112,13 +115,22 @@ afterEach(async () => {
   window.location.hash = "";
 });
 
-async function render(route: EvidenceRoute, body = snapshot) {
+async function render(
+  route: EvidenceRoute,
+  body = snapshot,
+  completed: SweepProgress | null = null,
+) {
+  await cleanup?.();
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
-  await act(async () =>
-    root.render(<EvidencePage route={route} snapshot={body} sweep={null} now={now} />),
-  );
+  const draw = (shown: EvidenceRoute) =>
+    act(async () =>
+      root.render(
+        <EvidencePage route={shown} snapshot={body} sweep={null} completed={completed} now={now} />,
+      ),
+    );
+  await draw(route);
   cleanup = async () => {
     await act(async () => root.unmount());
     container.remove();
@@ -126,6 +138,8 @@ async function render(route: EvidenceRoute, body = snapshot) {
   const page = container.querySelector<HTMLElement>("[data-evidence-page]");
   return {
     page,
+    /** Renders the route the location hash names now, as the window does after navigating. */
+    follow: () => draw(parseRoute(window.location.hash) as EvidenceRoute),
     parts: () =>
       [...(page?.querySelectorAll("[data-evidence-part]") ?? [])].map((part) =>
         part.getAttribute("data-evidence-part"),
@@ -204,27 +218,21 @@ it("says a fork has no reads rather than borrowing another fork's", async () => 
   expect(view.page?.textContent).toContain("No reads recorded for storage.");
 });
 
-it("goes back to the page and selection it came from, and Whole sweep shows every area", async () => {
+it("goes back to the page and selection it came from, through Whole sweep", async () => {
   window.location.hash = "#service/storage";
-  setOpenSelection({ kind: "item", id: "gate2:storage" });
-  openEvidence();
-  const route = parseRoute(window.location.hash);
-  expect(route).toEqual({
-    kind: "evidence",
-    from: { kind: "service", id: "storage" },
-    selection: { kind: "item", id: "gate2:storage" },
-  });
-  const view = await render(route as EvidenceRoute);
+  openEvidence({ kind: "item", id: "gate2:storage" });
+  const view = await render(parseRoute(window.location.hash) as EvidenceRoute);
   expect(view.page?.querySelector("[data-evidence-back]")?.textContent).toBe("‹ storage");
   await view.click("[data-evidence-whole]");
-  expect(parseRoute(window.location.hash)).toEqual({
-    kind: "evidence",
-    from: { kind: "service", id: "storage" },
-  });
+  await view.follow();
+  expect(view.page?.querySelector("[data-evidence-whole]")).toBeNull();
+  expect(view.page?.querySelector('[data-evidence="sweep"]')).not.toBeNull();
   await view.click("[data-evidence-back]");
   expect(window.location.hash).toBe("#service/storage");
   expect(openSelection()).toEqual({ kind: "item", id: "gate2:storage" });
+});
 
+it("shows every area on the whole sweep and goes back to Today when it came from nowhere", async () => {
   const whole = await render({ kind: "evidence" });
   expect(whole.page?.querySelector("[data-evidence-back]")?.textContent).toBe("‹ Today");
   expect(whole.page?.querySelector("[data-evidence-whole]")).toBeNull();
@@ -233,6 +241,78 @@ it("goes back to the page and selection it came from, and Whole sweep shows ever
   ].map((name) => name.textContent);
   expect(sources).toEqual(AREAS.map((area: AreaName) => AREA_NAMES[area]));
 });
+
+const clock = (minutes: number) => clockTime(at(minutes), { now, hint: false });
+/** details failed but kept a read from 18 minutes before; github failed and kept nothing. */
+const failing: EvidenceSnapshot = {
+  ...snapshot,
+  areas: areas.map((entry) =>
+    entry.area === "details"
+      ? {
+          area: "details",
+          envelope: {
+            source: "details",
+            state: "failed",
+            observedAt: at(18),
+            completeness: { kind: "cut", reason: "limit", read: 3, total: 9 },
+          },
+        }
+      : entry.area === "github"
+        ? {
+            area: "github",
+            envelope: { source: "github", state: "failed", completeness: { kind: "complete" } },
+          }
+        : entry.area === "auth"
+          ? { area: "auth", envelope: { source: "auth", state: "unread" } }
+          : entry,
+  ),
+};
+
+it("gives a selection's failed areas their observed time and completeness, or says none was observed", async () => {
+  const view = await render(item("gate2:storage"), failing);
+  const fact = (area: AreaName) =>
+    view.page?.querySelector(`table[aria-label="Areas"] tr[data-source="${area}"] td:last-child`)
+      ?.textContent;
+  expect(fact("details")).toBe(
+    `read failed, kept data observed ${clock(18)} · 18 min before the sweep ended · 3 of 9 read`,
+  );
+  expect(fact("github")).toBe("read failed, nothing retained · not observed");
+});
+
+const listed = SweepProgressSchema.parse({
+  sweep: "sweep-1",
+  startedAt: at(30),
+  first: false,
+  usualMs: null,
+  outcome: "committed",
+  nextAttemptAt: null,
+  sources: AREAS.map((source) => ({
+    source,
+    state: "read",
+    startedAt: at(30),
+    endedAt: at(1),
+  })),
+});
+
+it.each([
+  ["from the snapshot's areas", null],
+  ["beside the sweep's list", listed],
+] as const)(
+  "gives every whole-sweep area its own observed time and completeness, %s",
+  async (_, list) => {
+    const view = await render({ kind: "evidence" }, failing, list);
+    const fact = (area: AreaName) =>
+      view.page?.querySelector(`.sweep-row[data-source="${area}"] .sweep-outcome`)?.textContent;
+    expect(fact("fleet")).toContain(`observed ${clock(1)} · complete`);
+    expect(fact("runs")).toContain(`observed ${clock(1)} · complete`);
+    expect(fact("details")).toContain(
+      `read failed, kept data observed ${clock(18)} · 18 min before the sweep ended · 3 of 9 read`,
+    );
+    expect(fact("github")).toContain("nothing retained · not observed");
+    expect(fact("github")).not.toMatch(/\d\d:\d\d/);
+    if (list === null) expect(fact("auth")).toBe("not read yet · not observed");
+  },
+);
 
 it("says a selection the briefing no longer holds is gone and keeps Whole sweep", async () => {
   const view = await render(item("gate2:gone"));

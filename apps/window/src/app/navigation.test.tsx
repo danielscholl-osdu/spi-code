@@ -11,8 +11,13 @@ import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import {
   closeSheet,
   DEFAULT_REGISTRY,
+  type EvidenceRoute,
   LINE,
+  leaveEvidence,
   navigate,
+  openEvidence,
+  openSelection,
+  parseRoute,
   pinSheet,
   type Registry,
   type Route,
@@ -20,6 +25,7 @@ import {
   relaunch,
   routeHash,
   routeLabel,
+  setOpenSelection,
   unpinSheet,
 } from "./routes.js";
 import { Shell } from "./Shell.js";
@@ -110,6 +116,7 @@ afterEach(async () => {
   watchStore.setState(previousWatch, true);
   window.location.hash = "";
   closeSheet();
+  setOpenSelection(null);
   localStorage.removeItem(PINNED_KEY);
   localStorage.removeItem(LAST_PLACE_KEY);
   localStorage.removeItem(PINS_STORAGE_KEY);
@@ -263,6 +270,30 @@ it("closes the Line sheet when the operator goes somewhere else", async () => {
   expect(lineSheet()).toBeNull();
   await setHash("#environment");
   expect(lineSheet()).toBeNull();
+});
+
+it("comes back from Evidence to the Line sheet over the same place, with its cell open again", async () => {
+  await mount({ views: { ...every, evidence: view }, sheet, fallback: { kind: "today" } });
+  const cell = { kind: "cell", id: "storage:sync" };
+  await go({ kind: "environment" });
+  await act(async () => navigate({ ...LINE, column: "sync" }));
+  await act(async () => setOpenSelection(cell));
+  expect(openSelection()).toEqual(cell);
+  await act(async () => openEvidence({ kind: "item", id: "gate2:storage" }));
+  expect(lineSheet()).toBeNull();
+  const route = parseRoute(window.location.hash) as EvidenceRoute;
+  expect(shown()).toBe(routeHash(route));
+  expect(route.from).toEqual({ kind: "environment" });
+  expect(route.selection).toEqual({ kind: "item", id: "gate2:storage" });
+
+  await act(async () => leaveEvidence(route));
+  expect(window.location.hash).toBe("#environment");
+  expect(lineSheet()?.dataset.presentation).toBe("overlay");
+  expect(sheet).toHaveBeenLastCalledWith({ kind: "environment" }, "overlay");
+  expect(openSelection()).toEqual(cell);
+  await press("Escape", {});
+  expect(lineSheet()).toBeNull();
+  expect(openSelection()).toBeNull();
 });
 
 it("leaves ⌘L alone when no Line sheet is registered", async () => {

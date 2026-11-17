@@ -130,6 +130,29 @@ export function envelopeSentence(envelope: Envelope, now: number, sweptAt?: stri
 }
 
 /**
+ * An area on the Evidence page: when the data it holds was observed (and how long before the
+ * sweep ended, when that is more than a few minutes) and its completeness. A failed area keeps
+ * the observation it retained; an area with none says it was not observed.
+ */
+export function areaObservation(envelope: Envelope, sweptAt: string, now: number): string {
+  if (envelope.state === "unread") return "not read yet · not observed";
+  const { completeness, observedAt } = envelope;
+  const cut =
+    completeness.kind === "cut"
+      ? `${count(completeness.read)} of ${count(completeness.total)} read`
+      : "";
+  if (observedAt === undefined)
+    return ["read failed, nothing retained", "not observed", ...(cut ? [cut] : [])].join(" · ");
+  const before = Math.round((Date.parse(sweptAt) - Date.parse(observedAt)) / 60_000);
+  const observed = `observed ${clockTime(observedAt, { now, hint: false })}`;
+  return [
+    envelope.state === "failed" ? `read failed, kept data ${observed}` : observed,
+    ...(before > 5 ? [`${before} min before the sweep ended`] : []),
+    cut || "complete",
+  ].join(" · ");
+}
+
+/**
  * What an area's envelope adds to a sweep source's row, which already says how this sweep read
  * it: when it was last read, and whether the data is stale or retained from an earlier read. An
  * unread area adds nothing. `reusedFrom` is the oldest read this sweep's read carried over from an

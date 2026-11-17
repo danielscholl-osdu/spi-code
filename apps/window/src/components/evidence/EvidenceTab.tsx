@@ -24,6 +24,7 @@ import {
   AREA_NAMES,
   ago,
   areaFact,
+  areaObservation,
   byWorst,
   cachedFrom,
   chipText,
@@ -116,11 +117,13 @@ function EnvelopeRows({
   sources,
   now,
   sweptAt,
+  observed,
 }: {
   label: string;
   sources: readonly EvidenceSource[];
   now: number;
   sweptAt: string;
+  observed: boolean;
 }) {
   return (
     <div className="sweep-sources">
@@ -137,7 +140,11 @@ function EnvelopeRows({
             </span>
             <span className="sweep-name">{name}</span>
             <span className="sweep-what">{sourceReads(key) ?? ""}</span>
-            <span className="sweep-outcome">{envelopeSentence(envelope, now, sweptAt)}</span>
+            <span className="sweep-outcome">
+              {observed
+                ? areaObservation(envelope, sweptAt, now)
+                : envelopeSentence(envelope, now, sweptAt)}
+            </span>
           </li>
         ))}
       </ul>
@@ -163,6 +170,7 @@ export function SweepEvidence({
   completed = null,
   onOpenSettings = () => {},
   onRequestSweep = () => watchStore.getState().requestSweep(),
+  observed = false,
   now,
 }: {
   snapshot: (SweepLineSnapshot & { reads: readonly ReadRecord[] }) | null;
@@ -176,6 +184,8 @@ export function SweepEvidence({
   completed?: SweepProgress | null | undefined;
   onOpenSettings?: () => void;
   onRequestSweep?: () => void | Promise<void>;
+  /** Each source's own observed time and completeness, as the Evidence page shows them. */
+  observed?: boolean;
   now?: number | undefined;
 }) {
   const live = progress?.outcome === "running" ? progress : null;
@@ -217,10 +227,15 @@ export function SweepEvidence({
     // A read the snapshot does not hold yet says only what the sweep recorded it reused; the
     // snapshot's age is the previous read's, not this one's.
     const words: { text: string; tone?: EvidenceTone } | null | undefined =
-      read !== undefined && !own
-        ? read.reused && { text: cachedFrom(read.reused.from, at) }
-        : envelope &&
-          areaFact(envelope, at, { reusedFrom: read?.reused?.from, sweptAt: snapshot.sweptAt });
+      observed && envelope
+        ? {
+            text: areaObservation(envelope, snapshot.sweptAt, at),
+            ...(envelope.state === "failed" ? { tone: "bad" as const } : {}),
+          }
+        : read !== undefined && !own
+          ? read.reused && { text: cachedFrom(read.reused.from, at) }
+          : envelope &&
+            areaFact(envelope, at, { reusedFrom: read?.reused?.from, sweptAt: snapshot.sweptAt });
     return (
       words && (
         <span className="evidence-fact" data-tone={words.tone}>
@@ -292,13 +307,20 @@ export function SweepEvidence({
               sources={unlisted}
               now={at}
               sweptAt={snapshot.sweptAt}
+              observed={observed}
             />
           )}
         </section>
       ) : (
         <section aria-label="Sources">
           <h3>Sources</h3>
-          <EnvelopeRows label="Sources" sources={sources} now={at} sweptAt={snapshot.sweptAt} />
+          <EnvelopeRows
+            label="Sources"
+            sources={sources}
+            now={at}
+            sweptAt={snapshot.sweptAt}
+            observed={observed}
+          />
         </section>
       )}
       {failed.length > 0 && (

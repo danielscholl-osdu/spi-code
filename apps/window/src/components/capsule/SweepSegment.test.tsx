@@ -150,7 +150,11 @@ it("opens Evidence for what is open on the page, and the whole sweep from Eviden
     "partition · next sync has an entry without a filter rule",
   );
   await openEvidence();
-  expect(window.location.hash).toBe("#evidence?from=today");
+  expect(parseRoute(window.location.hash)).toEqual({
+    kind: "evidence",
+    from: { kind: "today" },
+    open: { kind: "line", id: "waiting:radar:partition" },
+  });
   expect(page()?.querySelector('[data-evidence="sweep"]')).not.toBeNull();
 });
 
