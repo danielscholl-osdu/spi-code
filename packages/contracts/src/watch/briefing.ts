@@ -434,7 +434,7 @@ export type TodayEntry = { line: TodayLine; member: TodayMember };
 
 /**
  * Today's members on Blocked and Waiting on you, each once in line order: the one count of what is
- * yours, behind the sidebar's Today row, the dock badge, the tray tooltip and the hidden sidebar's dot.
+ * yours, behind the sidebar's Today row, the dock badge and the tray tooltip.
  */
 export function todayMembers(briefing: { lines?: readonly TodayLine[] | undefined }): TodayEntry[] {
   const seen = new Set<string>();

@@ -1,13 +1,12 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { TodayLineSchema, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
+import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import current from "../../../../fixtures/watch/snapshot-1106.json?raw";
 import { sweepSources } from "../components/evidence/words.js";
-import nov16 from "../components/place/members-1116.json?raw";
 import { SidebarProvider } from "../components/sidebar/ui-sidebar.js";
 import { midSweep } from "../components/sweep/test-helper.js";
 import { watchStore } from "../store/watch.js";
@@ -61,13 +60,14 @@ it.each(["inline", "off-canvas"] as const)(
   },
 );
 
-it("dots the hidden sidebar's toggle for Today's members, never its Interrupts, then for the worst mark or sweep tone", async () => {
+it("dots the hidden sidebar's toggle for Today's count, then for the worst mark or sweep tone", async () => {
   await mount("off-canvas");
   expect(dot()).toBeUndefined();
   await show(nov6);
   expect(dot()).toBe("error");
   const calm = structuredClone(nov6);
-  calm.briefing.lines = [];
+  calm.briefing.focus = [];
+  calm.briefing.rest = [];
   for (const row of calm.stations)
     for (const station of row.stations) {
       station.state = "idle";
@@ -99,16 +99,17 @@ it("dots the hidden sidebar's toggle for Today's members, never its Interrupts, 
   await show(marked);
   expect(dot()).toBe("error");
   source.envelope.state = "stale";
-  const members = structuredClone(calm);
-  members.briefing.lines = TodayLineSchema.array().parse(JSON.parse(nov16).lines);
-  await show(members);
+  const interrupted = structuredClone(calm);
+  interrupted.briefing.focus = nov6.briefing.focus;
+  await show(interrupted);
   expect(dot()).toBe("error");
 });
 
 it("draws no dot for unread fields and sweep, but reports a stopped first sweep", async () => {
   await mount("off-canvas");
   const unread = structuredClone(nov6);
-  unread.briefing.lines = [];
+  unread.briefing.focus = [];
+  unread.briefing.rest = [];
   for (const row of unread.stations)
     for (const station of row.stations) {
       station.state = "unknown";

@@ -300,15 +300,15 @@ const quiet: StatusMark[] = [
 ];
 
 it.each([
-  ["a member on Today", 1, quiet, "error"],
+  ["an interrupt on Today", 1, quiet, "error"],
   ["an error mark", 0, [warning, error], "error"],
-  ["Today members beside a warning mark", 2, [warning], "error"],
+  ["an interrupt beside a warning mark", 2, [warning], "error"],
   ["a warning mark", 0, [...quiet, warning], "warning"],
   ["a warning count", 0, [{ kind: "count", tone: "warning", count: 3 } as StatusMark], "warning"],
   ["only quiet marks", 0, quiet, undefined],
   ["nothing marked", 0, [undefined, undefined], undefined],
-] as const)("dots %s", (_name, today, marks, dot) => {
-  expect(statusDot(today, marks)).toBe(dot);
+] as const)("dots %s", (_name, interrupts, marks, dot) => {
+  expect(statusDot(interrupts, marks)).toBe(dot);
 });
 
 it("draws no dot when every field is unread", () => {
