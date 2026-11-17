@@ -6,7 +6,14 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
-import { closeSheet, parseRoute, setOpenSelection } from "../../app/navigation.js";
+import {
+  closeSheet,
+  type EvidenceRoute,
+  openSelection,
+  openSheet,
+  parseRoute,
+  setOpenSelection,
+} from "../../app/navigation.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { PINS_STORAGE_KEY } from "../../store/pins.js";
@@ -156,6 +163,60 @@ it("opens Evidence for what is open on the page, and the whole sweep from Eviden
     open: { kind: "line", id: "waiting:radar:partition" },
   });
   expect(page()?.querySelector('[data-evidence="sweep"]')).not.toBeNull();
+});
+
+const back = () =>
+  act(async () => container.querySelector<HTMLButtonElement>("[data-evidence-back]")?.click());
+
+it("opens Evidence for a restored Line cell's item, not the whole sweep", async () => {
+  window.location.hash = "#environment";
+  await mount();
+  const cell = { kind: "cell", id: "storage:sync" };
+  const item = { kind: "item", id: "gate1:storage" } as const;
+  await act(async () => openSheet({ column: "sync" }));
+  await act(async () => setOpenSelection(cell, item));
+  await openEvidence();
+  expect(parseRoute(window.location.hash)).toEqual({
+    kind: "evidence",
+    from: { kind: "environment" },
+    selection: item,
+    open: cell,
+    about: item,
+    sheet: { column: "sync" },
+  });
+  await act(async () =>
+    container.querySelector<HTMLButtonElement>("[data-evidence-whole]")?.click(),
+  );
+  expect((parseRoute(window.location.hash) as EvidenceRoute).selection).toBeUndefined();
+  await back();
+  expect(window.location.hash).toBe("#environment");
+  expect(sheet()).not.toBeNull();
+  expect(openSelection()).toEqual(cell);
+  await openEvidence();
+  expect((parseRoute(window.location.hash) as EvidenceRoute).selection).toEqual(item);
+  await back();
+  expect(openSelection()).toEqual(cell);
+});
+
+it("opens the whole sweep for a Line cell with no item behind it, and Back reopens the cell", async () => {
+  window.location.hash = "#environment";
+  await mount();
+  const cell = { kind: "cell", id: "storage:sync" };
+  await act(async () => openSheet({ column: "sync" }));
+  await act(async () => setOpenSelection(cell, null));
+  await openEvidence();
+  expect(parseRoute(window.location.hash)).toEqual({
+    kind: "evidence",
+    from: { kind: "environment" },
+    open: cell,
+    sheet: { column: "sync" },
+  });
+  expect(container.querySelector('.centre-body [data-evidence="sweep"]')).not.toBeNull();
+  await back();
+  expect(sheet()).not.toBeNull();
+  expect(openSelection()).toEqual(cell);
+  await openEvidence();
+  expect((parseRoute(window.location.hash) as EvidenceRoute).selection).toBeUndefined();
 });
 
 it.each([
