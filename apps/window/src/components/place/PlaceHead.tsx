@@ -63,20 +63,20 @@ export function PlaceHead({
     place === "line" && field?.classification === "stopped"
       ? `${field.count} of ${fields?.forks.services} forks stopped`
       : field?.text;
+  const unread = snapshot?.briefing.places?.some(
+    (row) => row.place === place && (row.unread?.areas.length ?? 0) > 0,
+  );
+  const statusWord = word || status?.sentence || (unread ? "not read yet" : undefined);
   if (!snapshot) return heading ?? <h1 data-place>{name}</h1>;
   return (
     <>
       {heading ?? <h1 data-place>{name}</h1>}
       <div className="place-status" data-place-head={place} title={status?.sentence}>
-        <span className="place-status-word" data-tone={field?.tone}>
-          {word ? (
-            <TimedText text={word} hint={false} />
-          ) : status?.sentence ? (
-            <TimedText text={status.sentence} hint={false} />
-          ) : (
-            "not read yet"
-          )}
-        </span>
+        {statusWord && (
+          <span className="place-status-word" data-tone={field?.tone}>
+            <TimedText text={statusWord} hint={false} />
+          </span>
+        )}
         {members.length > 0 && (
           <span className="place-yours" data-member-count={members.length}>
             <span>{members.length} yours on Today</span>

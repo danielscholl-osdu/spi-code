@@ -37,6 +37,11 @@ export function lineMembersText(
   );
 }
 
+/** The number of members in the fixture's section lists, independent of their grouping. */
+export function lineMemberCount(members: string): number {
+  return members.split(" · ").reduce((count, section) => count + section.split(" ").length - 1, 0);
+}
+
 /** In the window: the member rows Today draws in each section, single lines and group sub-rows. */
 export const DRAWN_MEMBERS = `Object.fromEntries(${JSON.stringify(TODAY_SECTIONS)}.map(section => [section,
   [...document.querySelectorAll(".today [data-section=" + section + "] tr.today-row[data-item-id]")].map(row => row.dataset.itemId)]))`;
@@ -165,7 +170,7 @@ export function assertMorningEvidence(
   );
   assert.equal(
     todayCount,
-    String({ calm: 1, busy: 13, bad: 14 }[surface.morning]),
+    String(lineMemberCount(lineMembers as string)),
     `Sidebar Today count differs from core line members: ${label}`,
   );
   const qualifiers = shot.qualifiers;

@@ -8,6 +8,8 @@ import { expect, it } from "vitest";
 import { readGenerated } from "../../../scripts/watch-generated.mjs";
 import type { SmokeGeometry } from "./smoke-geometry.js";
 import {
+  assertMorningEvidence,
+  lineMemberCount,
   lineMembersText,
   MORNING_FIXTURES,
   MORNING_SURFACES,
@@ -59,7 +61,7 @@ const acknowledgedQualifiers = [
   "swept 08:02 · 1 failed",
   "Upstream radar read failed; items may be missing.",
   "",
-  "15",
+  "2",
   "blocked conflict:entitlements:121 · waiting rollout",
   "blocked conflict:entitlements:121 · waiting rollout",
   "acknowledged 1 · seen 1 · since 0",
@@ -425,7 +427,7 @@ function morningShot(
       headline: "",
       members: lineMembers[surface.morning],
       lineMembers: lineMembers[surface.morning],
-      todayCount: { calm: "1", busy: "13", bad: "14" }[surface.morning],
+      todayCount: String(lineMemberCount(lineMembers[surface.morning])),
       viewportHeight: 800,
       scrollHeight: 1594,
       clientHeight: 692,
@@ -882,6 +884,7 @@ it.each([
   [2, "1 thing needs you; 1 fork is stopped.", "draws a verdict above its rows"],
   [2, "Nothing urgent needs you.", "draws a verdict above its rows"],
   [3, "one", "Missing Today count"],
+  [3, "3", "Sidebar Today count 3 differs from core line members"],
   [4, "blocked conflict:entitlements:121 · waiting", 'Today draws "blocked conflict'],
   [4, "blocked · waiting conflict:entitlements:121 rollout", "Today draws"],
   [5, "blocked · waiting", "Missing line members"],
@@ -1322,6 +1325,24 @@ it("fails a morning without its fixture, decision sections, headline, Detail or 
         ),
       ),
     ).toThrow(message);
+});
+
+it("compares the sidebar with core membership when a morning regroups", () => {
+  const surface = MORNING_SURFACES.find(({ id }) => id === "today-busy");
+  const shot = mornings.find(({ surface }) => surface === "today-busy");
+  if (!surface || !shot) throw new Error("Missing busy capture");
+  const members = "blocked conflict:entitlements:121 · waiting rollout";
+  const regrouped = {
+    ...shot,
+    ...evidence(shot, { members, lineMembers: members, todayCount: "2" }),
+  };
+  expect(() => assertMorningEvidence(surface, regrouped)).not.toThrow();
+  expect(() =>
+    assertMorningEvidence(surface, {
+      ...regrouped,
+      ...evidence(regrouped, { todayCount: "3" }),
+    }),
+  ).toThrow("Sidebar Today count differs from core line members");
 });
 
 it("names decision.md's sections per morning, width and Detail state", () => {

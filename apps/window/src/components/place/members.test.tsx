@@ -6,9 +6,10 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import recorded from "../../../../../fixtures/watch/snapshot-1106.json?raw";
+import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { openSelection, setOpenSelection } from "../../app/navigation.js";
 import { createWatchStore, watchStore } from "../../store/watch.js";
-import { installSpi } from "../../test-utils/harness.js";
+import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import Line from "../../views/line/index.js";
 import Template from "../../views/template/index.js";
 import { ProgramSidebar } from "../sidebar/ProgramSidebar.js";
@@ -118,6 +119,29 @@ it("partitions the 16 Nov Today members by home, with each head stepping exactly
   }
   expect(harness.spi.postMessage).not.toHaveBeenCalled();
 });
+
+it.each(["snapshot-busy.json", "snapshot-bad.json"] as const)(
+  "draws no unread claim in Security's head after core read it (%s)",
+  async (name) => {
+    const snapshot = fixtureLoader(readFixture)(name);
+    const security = snapshot.briefing.places?.find(({ place }) => place === "security");
+    expect(security?.unread).toBeUndefined();
+    expect(security?.figure).toBe("26 high or critical");
+    await act(async () =>
+      root.render(<PlaceHead name="Security" place="security" snapshot={snapshot} />),
+    );
+    expect(container.querySelector(".place-status-word")).toBeNull();
+    expect(container.querySelector("[data-member-count]")?.textContent).toContain(
+      "1 yours on Today",
+    );
+    if (!security) throw new Error("Missing Security place");
+    security.unread = { areas: ["security"] };
+    await act(async () =>
+      root.render(<PlaceHead name="Security" place="security" snapshot={snapshot} />),
+    );
+    expect(container.querySelector(".place-status-word")?.textContent).toBe("not read yet");
+  },
+);
 
 it("claims no home without membership, or when core names two homes; absent lines have no Today count", () => {
   const snapshot = body();

@@ -7,6 +7,7 @@ import { assertSmokeGeometry, type SmokeGeometry } from "./smoke-geometry.js";
 import {
   assertDrawnMembers,
   assertMorningEvidence,
+  lineMemberCount,
   MORNING_SURFACES,
   type MorningEvidence,
 } from "./smoke-mornings.js";
@@ -477,7 +478,11 @@ function assertAcknowledgedToday(qualifiers: readonly string[]): void {
   assert.equal(verdict, "", `Today draws a verdict above its rows: ${verdict}`);
   assert(/^\d*$/.test(pip), `Missing Today count: ${pip}`);
   assertDrawnMembers(drawn, members, "today-acknowledged");
-  assert.equal(pip, "15", `Sidebar Today count ${pip} differs from the 15 core line members`);
+  assert.equal(
+    pip,
+    String(lineMemberCount(members)),
+    `Sidebar Today count ${pip} differs from core line members`,
+  );
 }
 
 export function assertSmokeViews(value: unknown): asserts value is SmokeShot[] {
