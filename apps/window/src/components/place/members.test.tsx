@@ -6,12 +6,13 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import recorded from "../../../../../fixtures/watch/snapshot-1106.json?raw";
-import { readFixture } from "../../../../../scripts/watch-generated.mjs";
+import { readFixture, watchFixtures } from "../../../../../scripts/watch-generated.mjs";
 import { openSelection, setOpenSelection } from "../../app/navigation.js";
 import { createWatchStore, watchStore } from "../../store/watch.js";
 import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import Line from "../../views/line/index.js";
 import Template from "../../views/template/index.js";
+import sweepText from "../opened-body/sweep-1116.json?raw";
 import { ProgramSidebar } from "../sidebar/ProgramSidebar.js";
 import { SidebarProvider } from "../sidebar/ui-sidebar.js";
 import { type MemberPlace, placeMembers, todayMembers } from "./members.js";
@@ -36,7 +37,6 @@ const body = (): ViewSnapshot => {
     },
   });
 };
-const fixture = body().briefing;
 let harness: ReturnType<typeof installSpi>;
 let container: HTMLDivElement;
 let root: ReturnType<typeof createRoot>;
@@ -52,6 +52,42 @@ afterEach(async () => {
   container.remove();
   setOpenSelection(null);
   harness.restore();
+});
+
+it("partitions Today once across the place heads on every watch fixture and 16 Nov", async () => {
+  const snapshots = watchFixtures()
+    .filter(({ name }) => name.startsWith("snapshot-"))
+    .map(({ name, path }) => ({
+      name,
+      snapshot: ViewSnapshotSchema.parse(JSON.parse(readFixture(path))),
+    }));
+  snapshots.push({ name: "members-1116", snapshot: body() });
+  const sweep = JSON.parse(sweepText);
+  const sweepSnapshot = body();
+  sweepSnapshot.briefing.lines = sweep.lines;
+  snapshots.push({ name: "sweep-1116", snapshot: sweepSnapshot });
+  for (const { name, snapshot } of snapshots) {
+    const members = todayMembers(snapshot.briefing).map(({ member }) => member.id);
+    const homes = places.flatMap((place) =>
+      placeMembers(snapshot, place).map(({ member }) => member.id),
+    );
+    const store = createWatchStore(vi.fn());
+    store.setState({ snapshot: { cursor: snapshot.cursor, body: snapshot } });
+    await act(async () =>
+      root.render(
+        <SidebarProvider>
+          <ProgramSidebar store={store} route={{ kind: "today" }} onNavigate={vi.fn()} />
+        </SidebarProvider>,
+      ),
+    );
+    const sidebar = container.querySelector("[data-sidebar-row=today] .sidebar-pip");
+    expect
+      .soft(homes.length, `${name}: heads sum to sidebar Today`)
+      .toBe(Number(sidebar?.textContent));
+    expect.soft(homes.length, `${name}: counts every Today member`).toBe(members.length);
+    expect.soft(new Set(homes).size, `${name}: no member has two homes`).toBe(homes.length);
+    expect.soft([...homes].sort(), `${name}: every member has a home`).toEqual([...members].sort());
+  }
 });
 
 it("partitions the 16 Nov Today members by home, with each head stepping exactly its sidebar share", async () => {
@@ -143,18 +179,13 @@ it.each(["snapshot-busy.json", "snapshot-bad.json"] as const)(
   },
 );
 
-it("claims no home without membership, or when core names two homes; absent lines have no Today count", () => {
+it("claims no home without core's home field; absent lines have no Today count", () => {
   const snapshot = body();
-  const id = fixture.lines?.[0]?.members[0]?.id;
-  if (!id) throw new Error("Missing member");
   snapshot.briefing.places = [];
-  expect(placeMembers(snapshot, "line")).toEqual([]);
-  expect(placeMembers(snapshot, "upstream").map(({ member }) => member.id)).toEqual([
-    "port:entitlements",
-  ]);
   snapshot.briefing.focus = [];
-  expect(places.flatMap((place) => placeMembers(snapshot, place))).toEqual([]);
-  snapshot.briefing.places = (fixture.places ?? []).map((row) => ({ ...row, itemIds: [id] }));
+  snapshot.briefing.rest = [];
+  expect(places.flatMap((place) => placeMembers(snapshot, place))).toHaveLength(18);
+  for (const { member } of todayMembers(snapshot.briefing)) delete member.home;
   expect(places.flatMap((place) => placeMembers(snapshot, place))).toEqual([]);
   delete snapshot.briefing.lines;
   expect(todayMembers(snapshot.briefing)).toEqual([]);

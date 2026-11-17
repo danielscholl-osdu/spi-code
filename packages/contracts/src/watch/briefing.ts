@@ -399,6 +399,7 @@ export const TodayMemberSchema = z.strictObject({
   id: IdentifierSchema,
   ids: z.array(IdentifierSchema),
   fork: z.string(),
+  home: z.enum(["line", "environment", "engineering", "upstream", "security"]).optional(),
   subject: z.string().optional(),
   primary: LinkSchema.extend({ kind: LinkKindSchema }).optional(),
   since: ObservedAtSchema.optional(),

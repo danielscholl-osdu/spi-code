@@ -70,6 +70,7 @@ describe("Today's situation lines", () => {
       steps: ["Upgrade os-core-common in the fork's pom.xml.", "Review and merge the sync PR."],
     });
     expect(line?.members[0]).toMatchObject({
+      home: "line",
       id: "gate1:unit",
       ids: ["radar:unit", "gate1:unit"],
       age: "10d",
@@ -96,6 +97,7 @@ describe("Today's situation lines", () => {
       "radar:workflow",
     ]);
     expect(group?.headline).not.toContain("sync PR");
+    expect(group?.members.every((member) => member.home === "upstream")).toBe(true);
     const changed = structuredClone(model);
     const value = changed.queue.items
       .find((q) => q.id === "radar:search")
@@ -210,6 +212,13 @@ describe("Today's situation lines", () => {
       todayLines(model, [blocker, { ...sample, blockedBy: blocker.id }], now, context),
     ).toEqual([]);
     expect(todayLines(model, [{ ...sample, rung: 2 }], now, context)).toHaveLength(1);
+    const unknown = todayLines(
+      model,
+      [{ ...sample, id: "unknown", scope: "unknown" }],
+      now,
+      context,
+    );
+    expect(unknown[0]?.members[0]).not.toHaveProperty("home");
     const red = items.find((i) => i.id === "gate2:legal");
     const lanes = items.find((i) => i.id === "stack:lanes");
     if (!red || !lanes) throw new Error("red PR and its lanes blocker are in the sweep");

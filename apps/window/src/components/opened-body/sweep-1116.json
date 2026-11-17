@@ -18,6 +18,7 @@
           "id": "halt:crs-conversion",
           "ids": ["halt:crs-conversion"],
           "fork": "crs-conversion",
+          "home": "line",
           "subject": "https://github.com/Azure/osdu-spi-crs-conversion/issues/44",
           "primary": {
             "label": "issue #44",
@@ -65,6 +66,7 @@
           "id": "sync-run:indexer",
           "ids": ["sync-run:indexer"],
           "fork": "indexer",
+          "home": "line",
           "subject": "https://github.com/Azure/osdu-spi-indexer/actions/runs/43988443150",
           "primary": {
             "label": "run Sync Upstream 18:32",
@@ -98,6 +100,7 @@
           "id": "gate2:storage",
           "ids": ["gate2:storage"],
           "fork": "storage",
+          "home": "line",
           "subject": "https://github.com/Azure/osdu-spi-storage/pull/83",
           "primary": {
             "label": "PR #83",
@@ -131,6 +134,7 @@
           "id": "lane-deploy:partition",
           "ids": ["lane-deploy:partition"],
           "fork": "partition",
+          "home": "line",
           "subject": "https://github.com/Azure/osdu-spi-partition/deployments",
           "primary": {
             "label": "deployment FAILURE",
@@ -167,6 +171,7 @@
           "id": "gate2:indexer-queue",
           "ids": ["gate2:indexer-queue", "stack:lanes"],
           "fork": "indexer-queue",
+          "home": "line",
           "subject": "https://github.com/Azure/osdu-spi-indexer-queue/pull/67",
           "primary": {
             "label": "PR #67",
@@ -205,6 +210,7 @@
           "id": "gate2:legal",
           "ids": ["gate2:legal", "stack:lanes"],
           "fork": "legal",
+          "home": "line",
           "subject": "https://github.com/Azure/osdu-spi-legal/pull/90",
           "primary": {
             "label": "PR #90",
@@ -243,6 +249,7 @@
           "id": "gate2:entitlements",
           "ids": ["gate2:entitlements", "stack:lanes"],
           "fork": "entitlements",
+          "home": "line",
           "subject": "https://github.com/Azure/osdu-spi-entitlements/pull/152",
           "primary": {
             "label": "PR #152",
@@ -281,6 +288,7 @@
           "id": "gate2:schema",
           "ids": ["gate2:schema", "stack:lanes"],
           "fork": "schema",
+          "home": "line",
           "subject": "https://github.com/Azure/osdu-spi-schema/pull/104",
           "primary": {
             "label": "PR #104",
@@ -319,6 +327,7 @@
           "id": "gate2:indexer",
           "ids": ["gate2:indexer", "stack:lanes"],
           "fork": "indexer",
+          "home": "line",
           "subject": "https://github.com/Azure/osdu-spi-indexer/pull/73",
           "primary": {
             "label": "PR #73",
@@ -369,6 +378,7 @@
           "id": "gate1:unit",
           "ids": ["radar:unit", "gate1:unit"],
           "fork": "unit",
+          "home": "line",
           "subject": "https://github.com/Azure/osdu-spi-unit/pull/50",
           "primary": {
             "label": "PR #50",
@@ -403,6 +413,7 @@
           "id": "gate1:workflow",
           "ids": ["radar:workflow", "gate1:workflow"],
           "fork": "workflow",
+          "home": "line",
           "subject": "https://github.com/Azure/osdu-spi-workflow/pull/60",
           "primary": {
             "label": "PR #60",
@@ -437,6 +448,7 @@
           "id": "gate1:crs-catalog",
           "ids": ["radar:crs-catalog", "gate1:crs-catalog"],
           "fork": "crs-catalog",
+          "home": "line",
           "subject": "https://github.com/Azure/osdu-spi-crs-catalog/pull/54",
           "primary": {
             "label": "PR #54",
@@ -471,6 +483,7 @@
           "id": "gate1:search",
           "ids": ["radar:search", "gate1:search"],
           "fork": "search",
+          "home": "line",
           "subject": "https://github.com/Azure/osdu-spi-search/pull/77",
           "primary": {
             "label": "PR #77",
@@ -517,6 +530,7 @@
           "id": "gate1:crs-conversion",
           "ids": ["gate1:crs-conversion"],
           "fork": "crs-conversion",
+          "home": "line",
           "subject": "https://github.com/Azure/osdu-spi-crs-conversion/pull/41",
           "primary": {
             "label": "PR #41",
@@ -550,6 +564,7 @@
           "id": "gate2:search",
           "ids": ["gate2:search"],
           "fork": "search",
+          "home": "line",
           "subject": "https://github.com/Azure/osdu-spi-search/pull/76",
           "primary": {
             "label": "PR #76",
@@ -571,6 +586,7 @@
           "id": "gate2:partition",
           "ids": ["gate2:partition"],
           "fork": "partition",
+          "home": "line",
           "subject": "https://github.com/Azure/osdu-spi-partition/pull/248",
           "primary": {
             "label": "PR #248",
@@ -608,6 +624,7 @@
           "id": "rollout",
           "ids": ["rollout"],
           "fork": "fleet",
+          "home": "engineering",
           "primary": {
             "label": "main 1a4730d",
             "url": "https://github.com/Azure/osdu-spi/commit/1a4730d327268b5c2a57257fb7289738d4357b0a",
@@ -667,6 +684,7 @@
             "port:storage"
           ],
           "fork": "12 forks",
+          "home": "upstream",
           "primary": {
             "label": "!968",
             "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",

@@ -1067,6 +1067,11 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
     ],
     reason: "spicode-djg.18: core lower-section summaries are drawn by Today in spicode-djg.10",
   },
+  "today-member-home": {
+    patterns: ["/briefing/lines/#/members/#/home"],
+    reason:
+      "Core's routing key for place head counts and steppers; members.test.tsx checks the partition on every fixture",
+  },
   "today-lines": {
     patterns: [
       "/briefing/lines/#/cause",

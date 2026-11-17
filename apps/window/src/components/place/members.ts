@@ -3,7 +3,7 @@
 
 import type { TodayLine, TodayMember, ViewSnapshot, WatchBriefing } from "@spi-code/contracts";
 
-export type MemberPlace = "line" | "environment" | "engineering" | "upstream" | "security";
+export type MemberPlace = NonNullable<TodayMember["home"]>;
 export type PlaceMember = { line: TodayLine; member: TodayMember };
 
 /** The lines own identity and order; repository associations are cross-references, never homes. */
@@ -23,14 +23,5 @@ export function placeMembers(
   place: MemberPlace,
 ): PlaceMember[] {
   if (!snapshot) return [];
-  const items = [...snapshot.briefing.focus, ...snapshot.briefing.rest];
-  return todayMembers(snapshot.briefing).filter(({ member }) => {
-    const homes = (snapshot.briefing.places ?? []).filter(({ itemIds }) =>
-      itemIds.includes(member.id),
-    );
-    if (homes.length === 1) return homes[0]?.place === place;
-    if (homes.length > 1) return false;
-    const item = items.find(({ id }) => id === member.id);
-    return place === "upstream" && item?.cls === "PORT" && item.origin === "upstream";
-  });
+  return todayMembers(snapshot.briefing).filter(({ member }) => member.home === place);
 }

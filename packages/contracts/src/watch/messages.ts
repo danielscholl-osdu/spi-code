@@ -19,7 +19,7 @@ import { ViewSnapshotSchema } from "./snapshot.js";
 // doesn't know, even an optional one: bump on any wire shape change, a new optional key included,
 // so a mismatched pair fails on the envelope rather than mid-payload. Changes that ship in one
 // release share one bump.
-export const PROTOCOL_VERSION = 9;
+export const PROTOCOL_VERSION = 10;
 /** Reasons are plain text the host chose for display, never command output; the window branches on code. */
 export const SWEEP_REASON_MAX_LENGTH = 200;
 export const SweepReasonSchema = z.string().min(1).max(SWEEP_REASON_MAX_LENGTH);

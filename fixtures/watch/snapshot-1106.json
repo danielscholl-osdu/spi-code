@@ -25,6 +25,7 @@
             "id": "conflict:entitlements:121",
             "ids": ["conflict:entitlements:121"],
             "fork": "entitlements",
+            "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-entitlements/issues/121",
             "primary": {
               "label": "issue #121",
@@ -68,6 +69,7 @@
             "id": "release-red:Azure/osdu-spi-entitlements#89",
             "ids": ["release-red:Azure/osdu-spi-entitlements#89"],
             "fork": "entitlements",
+            "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-entitlements/pull/89",
             "primary": {
               "label": "PR #89",
@@ -115,6 +117,7 @@
             "id": "radar:legal",
             "ids": ["radar:legal"],
             "fork": "legal",
+            "home": "upstream",
             "subject": "https://github.com/Azure/osdu-spi-legal/blob/main/.github/upstream-filter.yml",
             "primary": {
               "label": "commit 0cab1090",
@@ -150,6 +153,7 @@
             "id": "radar:file",
             "ids": ["radar:file"],
             "fork": "file",
+            "home": "upstream",
             "subject": "https://github.com/Azure/osdu-spi-file/blob/main/.github/upstream-filter.yml",
             "primary": {
               "label": "commit 4d0ff1f4",
@@ -185,6 +189,7 @@
             "id": "radar:search",
             "ids": ["radar:search"],
             "fork": "search",
+            "home": "upstream",
             "subject": "https://github.com/Azure/osdu-spi-search/blob/main/.github/upstream-filter.yml",
             "primary": {
               "label": "commit aded8a3f",
@@ -220,6 +225,7 @@
             "id": "radar:schema",
             "ids": ["radar:schema"],
             "fork": "schema",
+            "home": "upstream",
             "subject": "https://github.com/Azure/osdu-spi-schema/blob/main/.github/upstream-filter.yml",
             "primary": {
               "label": "commit 28d5a930",
@@ -255,6 +261,7 @@
             "id": "radar:crs-conversion",
             "ids": ["radar:crs-conversion"],
             "fork": "crs-conversion",
+            "home": "upstream",
             "subject": "https://github.com/Azure/osdu-spi-crs-conversion/blob/main/.github/upstream-filter.yml",
             "primary": {
               "label": "commit 80e3497b",
@@ -290,6 +297,7 @@
             "id": "radar:unit",
             "ids": ["radar:unit"],
             "fork": "unit",
+            "home": "upstream",
             "subject": "https://github.com/Azure/osdu-spi-unit/blob/main/.github/upstream-filter.yml",
             "primary": {
               "label": "commit 3a69766c",
@@ -325,6 +333,7 @@
             "id": "radar:workflow",
             "ids": ["radar:workflow"],
             "fork": "workflow",
+            "home": "upstream",
             "subject": "https://github.com/Azure/osdu-spi-workflow/blob/main/.github/upstream-filter.yml",
             "primary": {
               "label": "commit d6847cea",
@@ -376,6 +385,7 @@
             "id": "radar:partition",
             "ids": ["radar:partition"],
             "fork": "partition",
+            "home": "upstream",
             "subject": "https://github.com/Azure/osdu-spi-partition/blob/main/.github/upstream-filter.yml",
             "primary": {
               "label": "commit 69785fa5",
@@ -427,6 +437,7 @@
             "id": "gate1:storage",
             "ids": ["radar:storage", "gate1:storage"],
             "fork": "storage",
+            "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-storage/pull/58",
             "primary": {
               "label": "PR #58",
@@ -461,6 +472,7 @@
             "id": "gate1:indexer",
             "ids": ["radar:indexer", "gate1:indexer"],
             "fork": "indexer",
+            "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-indexer/pull/58",
             "primary": {
               "label": "PR #58",
@@ -511,6 +523,7 @@
             "id": "gate1:indexer-queue",
             "ids": ["gate1:indexer-queue"],
             "fork": "indexer-queue",
+            "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-indexer-queue/pull/58",
             "primary": {
               "label": "PR #58",
@@ -544,6 +557,7 @@
             "id": "rollout",
             "ids": ["rollout"],
             "fork": "fleet",
+            "home": "engineering",
             "primary": {
               "label": "main 7d269b5",
               "url": "https://github.com/Azure/osdu-spi/commit/7d269b57e9b114711a7de9d0052b5ae4fd261e97",
@@ -599,6 +613,7 @@
               "port:storage"
             ],
             "fork": "12 forks",
+            "home": "upstream",
             "primary": {
               "label": "!968",
               "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",

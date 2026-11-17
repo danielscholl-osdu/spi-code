@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { dueOf } from "../attention.js";
+import { shortRepo, TEMPLATE_REPO } from "../config.js";
 import type { CoreContext } from "../context.js";
 import { itemEvidence, type ItemEvidence } from "../inspect/item-evidence.js";
 import { prVerdict } from "../model/checks.js";
@@ -20,6 +21,7 @@ export interface TodayMember {
   id: string;
   ids: string[];
   fork: string;
+  home?: "line" | "environment" | "engineering" | "upstream" | "security";
   subject?: string;
   primary?: Link & { kind: LinkKind };
   since?: string;
@@ -88,6 +90,20 @@ function deadlineOf(
   return undefined;
 }
 
+/** The object's home, independent of the other items and sources its move carries. */
+function homeOf(model: Model, item: Item, context: CoreContext): TodayMember["home"] {
+  if (item.cls === "SECURITY") return "security";
+  if (item.id === "stack:lanes" || item.id.startsWith("lane-deploy:")) return "line";
+  const kind = model.queue.items.find((queued) => queued.id === item.id)?.kind;
+  if (kind === "radar" || kind === "port") return "upstream";
+  if (item.scope === "osdu-spi" || item.scope === TEMPLATE_REPO ||
+    item.id.startsWith("template-pr:") || item.id === "rollout" || item.id === "template-set")
+    return "engineering";
+  if (item.scope === "Environment" || item.scope === shortRepo(context.stackRepo)) return "environment";
+  if (model.lines.some((line) => line.fork.id === item.scope)) return "line";
+  return undefined;
+}
+
 function objectMove(
   model: Model,
   moves: NonEmpty<Item>,
@@ -116,10 +132,12 @@ function objectMove(
   const fork = queued?.cause.find((fact) => fact.label === "fork")?.value ?? item.scope;
   const deadline = deadlineOf(model, ids, now, context);
   const steps = [...(blocker ? [blocker.next] : []), ...ordered.map((i) => i.next)].map(plain);
+  const home = homeOf(model, item, context);
   const member: TodayMember = {
     id: item.id,
     ids,
     fork,
+    ...(home ? { home } : {}),
     ...(item.subject ? { subject: item.subject } : {}),
     ...(primary?.kind ? { primary: { ...primary, kind: primary.kind } } : {}),
     ...(since ? { since, age: age(since, now) } : {}),
