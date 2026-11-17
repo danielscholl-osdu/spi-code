@@ -229,7 +229,7 @@ export function SweepEvidence({
     const words: { text: string; tone?: EvidenceTone } | null | undefined =
       observed && envelope
         ? {
-            text: areaObservation(envelope, snapshot.sweptAt, at),
+            text: areaObservation(envelope, snapshot.sweptAt, at, { logged: read !== undefined }),
             ...(envelope.state === "failed" ? { tone: "bad" as const } : {}),
           }
         : read !== undefined && !own

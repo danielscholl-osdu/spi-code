@@ -132,10 +132,17 @@ export function envelopeSentence(envelope: Envelope, now: number, sweptAt?: stri
 /**
  * An area on the Evidence page: when the data it holds was observed (and how long before the
  * sweep ended, when that is more than a few minutes) and its completeness. A failed area keeps
- * the observation it retained; an area with none says it was not observed.
+ * the observation it retained; an area with none says it was not observed. An unread area the
+ * sweep's list `logged` as read says only that this snapshot holds no observation for it.
  */
-export function areaObservation(envelope: Envelope, sweptAt: string, now: number): string {
-  if (envelope.state === "unread") return "not read yet · not observed";
+export function areaObservation(
+  envelope: Envelope,
+  sweptAt: string,
+  now: number,
+  { logged = false }: { logged?: boolean } = {},
+): string {
+  if (envelope.state === "unread")
+    return logged ? "no observation recorded in this snapshot" : "not read yet · not observed";
   const { completeness, observedAt } = envelope;
   const cut =
     completeness.kind === "cut"

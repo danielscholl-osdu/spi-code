@@ -314,6 +314,16 @@ it.each([
   },
 );
 
+it("keeps a logged read with no observation in the snapshot as read, not as unread", async () => {
+  const view = await render({ kind: "evidence" }, failing, listed);
+  const row = view.page?.querySelector('.sweep-row[data-source="auth"] .sweep-outcome');
+  expect(row?.textContent).toMatch(/^read · /);
+  expect(row?.textContent).not.toContain("not read yet");
+  expect(row?.querySelector(".evidence-fact")?.textContent).toBe(
+    "no observation recorded in this snapshot",
+  );
+});
+
 it("says a selection the briefing no longer holds is gone and keeps Whole sweep", async () => {
   const view = await render(item("gate2:gone"));
   expect(view.page?.querySelector(".evidence-lede")?.textContent).toContain(
