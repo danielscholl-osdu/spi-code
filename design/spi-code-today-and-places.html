@@ -490,9 +490,10 @@ function renderToday() {
   h += `<h2 class="sh sh-past"><i></i>${basis}</h2><div class="box box-past">${since().map(calm).join("")}</div>`;
   return h;
 }
+const countedUnderCanWait = l => l.tag === "human-required";
 function canWait() {
   const f = k => D.repoFacts.find(x => x.label === k);
-  const hr = D.repos.flatMap(r => r.sections.flatMap(s => s.lines)).filter(l => l.tag === "human-required");
+  const hr = D.repos.flatMap(r => r.sections.flatMap(s => s.lines)).filter(countedUnderCanWait);
   const hrOn = hr.filter(l => l.item && memberOf(l.item)).length, iss = hr.length - hrOn, prs = f("Pull Requests"), dep = f("Dependabot Bumps"), vul = f("Vulnerabilities · ours"), cs = f("Code scanning · ours");
   return [
     { s: "Release PRs", t: `${D.releases.prs.length + 1} open · ${(D.releases.readyLine.match(/(\d+) is ready to merge/) || [0, 0])[1]} ready to merge`, home: "releases" },
@@ -523,7 +524,7 @@ function since() {
     }
     if (r.workflow === "template") {
       const done = by("done"), unk = by("unknown");
-      return { s: "Sync Template", t: `${r.slots.length} forks · ${[n(done.length, done, "merged", "tone-ok"), n(unk.length, unk, "nothing to merge")].filter(Boolean).join(" · ")}`, home: "engineering" };
+      return { s: "Sync Template", t: `${r.slots.length} forks · ${[n(done.length, done, "merged", "tone-ok"), n(unk.length, unk, "not read")].filter(Boolean).join(" · ")}`, home: "engineering" };
     }
     return { s: r.label, t: esc(r.countText.replace("/", " of ")), home: "line" };
   });
@@ -536,7 +537,7 @@ function placeHead(id, lede) {
   return `<h1>${placeName(id)}</h1><div class="status"><span class="word ${tone}">${esc(s.word)}</span>${s.more ? `<span class="muted">${esc(s.more)}</span>` : ""}${mine.length ? `<span class="foryou"><span>${mine.length} yours on Today</span><button data-step="-1" aria-label="Previous of yours">‹</button><button data-step="1" aria-label="Next of yours">›</button></span>` : ""}</div>${lede ? `<p class="lede">${lede}</p>` : ""}`;
 }
 function renderLine() {
-  let h = placeHead("line", "Each fork's five stations, from upstream to its deploy lane. A dot marks a cell that holds something on Today. Release PRs are on Releases.");
+  let h = placeHead("line", "Each fork's five stations, from upstream to its deploy lane. A dot marks a cell that holds one of the Line's members on Today. Release PRs are on Releases.");
   const p = D.flow.plan;
   h += `<div class="plan"><span><b>${esc(p.title)}</b></span>${p.lines.map(l => `<span>${esc(l.label)}: <b>${esc(l.label === "Wave 1" ? l.text.split(", ").length + " forks" : l.text.replace("workflow (SNAPSHOT)", "workflow (waits for a released os-core-common)").replace("(filter rule)", "(needs a filter rule)"))}</b></span>`).join("")}${(() => { const named = p.lines.flatMap(l => l.text.split(", ").map(x => x.split(" ")[0])); const rest = p.lines.length ? D.stations.map(s => s.service).filter(x => !named.includes(x)) : []; return rest.length ? `<span>Not in a wave: <b>${esc(rest.join(", "))}</b> (on main)</span>` : ""; })()}</div>`;
   const camps = D.campaigns.filter(c => c.kind === "toolchain").slice(0, 4);
@@ -790,7 +791,7 @@ function detailRLine(key) {
   const kind = /\/pull\//.test(l.url || "") ? "pr" : "issue";
   let h = crumbs([{ t: "Template", nav: "engineering" }, { t: l.repo, repo: l.repo }, { t: l.section }]);
   h += `<div class="dt">${esc(l.text)}</div>`;
-  h += `<div class="fl"><div class="v">${l.tag === "human-required" ? "Not on Today. Counted under Can wait." : "Not on Today."}</div></div>`;
+  h += `<div class="fl"><div class="v">${countedUnderCanWait(l) ? "Not on Today. Counted under Can wait." : "Not on Today."}</div></div>`;
   h += `<div class="act">${btn({ label: `Open ${kind === "pr" ? "PR" : "issue"} ${(l.text.match(/#\d+/) || [""])[0]} on GitHub ↗`, url: l.url }, true)}</div>`;
   return h;
 }
