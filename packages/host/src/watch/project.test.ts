@@ -127,12 +127,26 @@ describe("Watch projection", () => {
     const snapshot = projectWatch(fixtureInput());
     const legacy = withoutAdditions(snapshot);
     // The rib's 17-word flow headline breaks the 12-word rule; its pilot sentence leads sub instead.
-    const frozen = settingsReach(oracle("briefing")) as {
+    // SPI retired the rib's Today tiles, n-more count and ready lines.
+    const {
+      facts: _facts,
+      more: _more,
+      ready: _ready,
+      ...frozen
+    } = settingsReach(oracle("briefing")) as {
+      facts: unknown;
+      more: unknown;
+      ready: unknown;
       flow: { headline: string; sub: string };
       themes: { id: string; next: string }[];
     };
+    // The deployable state and the template fact are SPI's, not the rib's.
+    const { deployable: _deployable, ...environment } = legacy.briefing.environment;
+    const { template: _template, ...repositories } = legacy.briefing.repositories;
     const frozenFields = {
       ...legacy.briefing,
+      environment,
+      repositories,
       horizon: { headline: legacy.briefing.horizon.headline },
       focus: legacy.briefing.focus.map(({ origin: _o, age: _a, blocks: _b, ...item }) => item),
       rest: legacy.briefing.rest.map(({ origin: _o, age: _a, blocks: _b, ...item }) => item),

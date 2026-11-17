@@ -38,7 +38,7 @@ describe("evidence helpers on the mixed-source fixture", () => {
   });
 
   it("leaves observed peers and values without provenance uninferred", () => {
-    expect(isInferred(mixed, "/briefing/facts/1/figure")).toBe(false);
+    expect(isInferred(mixed, "/briefing/repositories/template/figure")).toBe(false);
     expect(isInferred(mixed, "/briefing/flow/rows/0")).toBe(false);
     expect(isInferred(mixed, "/stations/0/stations/4")).toBe(false);
     expect(isInferred(mixed, "/briefing/headline")).toBe(false);
@@ -67,13 +67,7 @@ describe("evidence helpers on the mixed-source fixture", () => {
       "radar",
     ]);
     expect(names("/briefing/environment")).toEqual(["github", "lifecycle"]);
-    expect(names("/briefing/facts")).toEqual([
-      "github",
-      "runs",
-      "lifecycle",
-      "details",
-      "template",
-    ]);
+    expect(names("/briefing/repositories/template")).toEqual(["github", "template"]);
     expect(names("/briefing/repositories/rows/0/cells/issues")).toEqual([
       "github",
       "radar",

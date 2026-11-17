@@ -18,7 +18,9 @@ const verdictOf = (input: WatchInput) => projectWatch(input).briefing.verdict;
 describe("Today's verdict (decision.md: Headline, Calm and bad mornings)", () => {
   it("calm: says nothing urgent, names the ready version and every fork flowing, with ○", () => {
     const view = projectWatch(calmInput());
-    const version = view.briefing.facts.find(({ label }) => label === "Environment")?.figure;
+    const version = view.briefing.environment.facts.find(
+      ({ label }) => label === "Running",
+    )?.figure;
     expect(version).toMatch(/^v\d/);
     expect(view.briefing.verdict).toEqual({
       text: `Nothing urgent needs you. ${version} is ready; all 13 forks are flowing.`,

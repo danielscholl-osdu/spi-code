@@ -3,13 +3,36 @@
 
 import { AREAS, BriefingSchema, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 
+type BriefFactJson = { label: string };
+
+/**
+ * The frozen rib briefing in today's contract: its Today tiles, n-more count and ready lines retired,
+ * its template tile as the Engineering system's fact, and its in-flight upgrade not deployable.
+ */
+function ribBriefing(frozen: {
+  facts?: BriefFactJson[];
+  more?: number;
+  ready?: unknown[];
+  environment: object;
+  repositories: object;
+}) {
+  const { facts, more: _more, ready: _ready, ...rest } = frozen;
+  if (!facts) return frozen;
+  const template = facts.find(({ label }) => label.startsWith("Template"));
+  return {
+    ...rest,
+    environment: { ...rest.environment, deployable: "no" },
+    repositories: { ...rest.repositories, ...(template ? { template } : {}) },
+  };
+}
+
 export function testSnapshot(
   briefing: string,
   releases: string,
   overrides: Partial<ViewSnapshot> = {},
 ): ViewSnapshot {
   const sweptAt = "2026-10-12T21:58:14.428Z";
-  const core = BriefingSchema.parse(JSON.parse(briefing));
+  const core = BriefingSchema.parse(ribBriefing(JSON.parse(briefing)));
   return ViewSnapshotSchema.parse({
     cursor: 1,
     sweptAt,

@@ -217,7 +217,9 @@ it("keeps inferred evidence coarse in Detail without per-record inferred markers
 });
 
 it("selecting a Today item sends inspect.request with its id and renders the reply", async () => {
-  const focus = BriefingSchema.parse(JSON.parse(briefing)).focus.find((f) => f.cls === "HALT");
+  const focus = BriefingSchema.shape.focus
+    .parse(JSON.parse(briefing).focus)
+    .find((f) => f.cls === "HALT");
   if (!focus) throw new Error("No HALT focus item in the briefing oracle");
   const port = fakePort();
   const view = await mount(port.store);

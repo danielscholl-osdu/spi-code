@@ -109,10 +109,11 @@ async function captureStatusStates(
     const body = structuredClone(snapshot);
     body.cursor = cursor++;
     delete body.briefing.nextSyncAt;
-    const environment = body.briefing.facts.find(({ label }) => label === "Environment");
+    const environment = body.briefing.environment.facts.find(({ label }) => label === "Running");
     assert(environment);
     environment.tone = "ok";
-    environment.sub = "deployable";
+    environment.sub = "ready";
+    body.briefing.environment.deployable = "yes";
     const holds = body.briefing.environment.lanes.find(({ id }) => id === "holds");
     if (holds) holds.events = [];
     for (const row of body.stations)
@@ -140,6 +141,7 @@ async function captureStatusStates(
       }
     }
     if (scene === "maintenance" || scene === "refreshing") {
+      body.briefing.environment.deployable = "no";
       environment.tone = scene === "maintenance" ? "bad" : "warn";
       environment.sub = scene === "maintenance" ? "held" : "refresh running · at deploy";
       assert(holds);

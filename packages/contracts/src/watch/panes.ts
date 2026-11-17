@@ -54,6 +54,8 @@ export const RepoEntrySchema = z.strictObject({
 export const RepositoriesSchema = z.strictObject({
   headline: z.string(),
   facts: z.array(BriefFactSchema),
+  /** The template fact Engineering system's Details draws: forks verified on osdu-spi main. */
+  template: BriefFactSchema.optional(),
   rows: z.array(RepoEntrySchema),
   first: z.string().optional(),
 });

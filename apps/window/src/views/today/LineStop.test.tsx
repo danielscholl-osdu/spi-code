@@ -10,6 +10,7 @@ import { ProgramSidebar } from "../../components/sidebar/ProgramSidebar.js";
 import { SidebarProvider } from "../../components/sidebar/ui-sidebar.js";
 import { createSelectionStore } from "../../panels/selection.js";
 import { createWatchStore } from "../../store/watch.js";
+import { dropRunning, setRunning } from "../../test-utils/environment.test-helper.js";
 import { fixtureLoader } from "../../test-utils/harness.js";
 import { plainTitle } from "../../text.js";
 import { clockTime, timedText } from "../../time.js";
@@ -30,11 +31,9 @@ const recorded = () => structuredClone(RECORDED);
 /** The same hold with nothing running to clear it, worded as core words it. */
 function noRun() {
   const body = recorded();
-  const fact = body.briefing.facts.find(({ label }) => label === "Environment");
   const reading = body.readings.find(({ anchor }) => anchor.kind === "environment")?.content;
-  if (!fact || !reading) throw new Error("the recorded sweep carries no Environment fact");
-  fact.tone = "bad";
-  fact.sub = "held · maintenance set";
+  if (!reading) throw new Error("the recorded sweep carries no environment reading");
+  setRunning(body, { tone: "bad", sub: "held · maintenance set" });
   reading.headline = "v0.28.0 in maintenance for 9 d 16 h, with no run in flight.";
   return body;
 }
@@ -120,16 +119,10 @@ describe("Stops the line", () => {
   });
 
   const withoutFact = () => {
-    const body = recorded();
-    body.briefing.facts = body.briefing.facts.filter(({ label }) => label !== "Environment");
-    return body;
+    return dropRunning(recorded());
   };
   const unreadFact = () => {
-    const body = recorded();
-    const fact = body.briefing.facts.find(({ label }) => label === "Environment");
-    if (!fact) throw new Error("the recorded sweep carries no Environment fact");
-    Object.assign(fact, { figure: "?", sub: "deployability unread", tone: "neutral" });
-    return body;
+    return setRunning(recorded(), { figure: "?", sub: "deployability unread", tone: "neutral" });
   };
 
   it.each([

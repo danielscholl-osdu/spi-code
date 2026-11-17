@@ -448,7 +448,9 @@ describe("area envelopes and provenance", () => {
         services: snapshot.services,
         releases: snapshot.releases,
       })
-        .map((leaf) => leaf.replace(/\/facts\/(\d+)\/(label|sub|tone)$/, "/facts/$1/figure"))
+        .map((leaf) =>
+          leaf.replace(/(\/facts\/\d+|\/repositories\/template)\/(label|sub|tone)$/, "$1/figure"),
+        )
         .filter((leaf) => !covered(leaf));
       expect(missing).toEqual([]);
     }
@@ -456,9 +458,7 @@ describe("area envelopes and provenance", () => {
 
   it("pins every fixture fact and flow tile label to the areas that feed it", () => {
     const pinned: Record<string, AreaName[]> = {
-      "facts:Environment": ["lifecycle"],
-      "facts:Upstream sync": ["github", "runs", "details", "template"],
-      "facts:Template": ["github", "template"],
+      "repositories/template": ["github", "template"],
       "environment/facts:Running": ["lifecycle"],
       "environment/facts:Deployable · 21 days": ["lifecycle"],
       "environment/facts:Last proof": ["lifecycle"],
@@ -485,7 +485,9 @@ describe("area envelopes and provenance", () => {
       expect(areas("/briefing/horizon/owed")).toEqual(["github", "radar"]);
       const { briefing } = snapshot;
       const seen = [
-        ...briefing.facts.map((f, i) => [`facts:${f.label}`, `/briefing/facts/${i}/figure`]),
+        ...(briefing.repositories.template
+          ? [["repositories/template", "/briefing/repositories/template/figure"]]
+          : []),
         ...briefing.environment.facts.map((f, i) => [
           `environment/facts:${f.label}`,
           `/briefing/environment/facts/${i}/figure`,
@@ -498,10 +500,7 @@ describe("area envelopes and provenance", () => {
           `flow/tiles:${t.label}`,
           `/briefing/flow/tiles/${i}`,
         ]),
-      ].map(([key, path]) => [
-        (key as string).replace(/^facts:Template\b.*$/, "facts:Template"),
-        path,
-      ]);
+      ];
       for (const [key, path] of seen) {
         expect(pinned[key as string], `unpinned label ${key}`).toBeDefined();
         expect(areas(path as string), key).toEqual(pinned[key as string]);
@@ -517,8 +516,6 @@ describe("area envelopes and provenance", () => {
       facts: { ...input.facts, lifecycle: {} },
     });
     const areasAt = (at: string) => snapshot.provenance.find(({ path }) => path === at)?.areas;
-    expect(snapshot.briefing.facts[0]?.figure).not.toBe("?");
-    expect(areasAt("/briefing/facts/0/figure")).toEqual(["github", "lifecycle"]);
     const running = snapshot.briefing.environment.facts.findIndex(
       ({ label }) => label === "Running",
     );

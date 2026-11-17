@@ -66,18 +66,13 @@ describe("the recorded sweep", () => {
     expect(b.summary).toBe("2 forks have been stopped for 4 days. 1 PR is ready for review.");
   });
 
-  test("every fact's figure is a version or a count, never a status word", () => {
-    expect(b.facts.map((f) => f.label)).toEqual([
-      "Environment",
-      "Upstream sync",
-      "Template · main bb49a03",
-    ]);
-    for (const f of b.facts) expect(f.figure).toMatch(/^(v\d+\.\d+\.\d+|\d+ of \d+|\?)$/);
-    expect(b.facts[2]).toMatchObject({
+  test("the template fact's figure is a count, never a status word", () => {
+    expect(b.repositories.template).toEqual({
+      label: "Template · main bb49a03",
       figure: "0 of 5",
       sub: "on main · 4 changes reach the forks · 5 of 5 on v1.2.0",
+      tone: "warn",
     });
-    expect(b.facts[0]?.sub).toBe("upgrade running · at verify · declares v0.28.2");
   });
 
   test("the template fact names forks not read and shows ? when none was read", () => {
@@ -86,7 +81,9 @@ describe("the recorded sweep", () => {
     m.template.read = 0;
     m.template.current = 0;
     m.template.onRelease = 0;
-    expect(buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext).facts[2]).toMatchObject({
+    expect(
+      buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext).repositories.template,
+    ).toMatchObject({
       figure: "?",
       sub: "on main · 5 not read yet · 4 changes reach the forks · 0 of 5 on v1.2.0",
     });
@@ -199,8 +196,7 @@ describe("the recorded sweep", () => {
     for (const t of b.themes) if (t.inspect) expect(ids.has(t.inspect)).toBe(true);
   });
 
-  test("ready work is one line per kind and never ranked into focus", () => {
-    expect(b.ready.map((r) => r.text)).toEqual(["1 release PR"]);
+  test("ready work is never ranked into focus", () => {
     expect(b.focus.some((f) => f.rung === 2)).toBe(false);
   });
 });
@@ -210,7 +206,6 @@ describe("other days", () => {
     const b = buildBriefing(withQueue([]), CLEAR, FIXTURE_NOW, fixtureContext);
     expect(b.headline).toBe("Nothing needs you. Next sync at 00:00.");
     expect(b.focus).toEqual([]);
-    expect(b.facts[1]).toMatchObject({ figure: "0 of 5", tone: "ok" });
   });
 
   test("a day with only ready work says nothing is broken", () => {
@@ -470,7 +465,6 @@ describe("other days", () => {
     const b = buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext);
     expect(b.headline).toBe("Restore the environment. Unhalt a. 3 more causes below.");
     expect(b.focus).toHaveLength(5);
-    expect(b.more).toBe(1);
     expect(b.rest).toHaveLength(1);
     const ids = [...b.focus, ...b.rest].map((f) => f.id);
     expect(new Set(ids).size).toBe(6);
@@ -494,7 +488,8 @@ describe("other days", () => {
     m.measured = false;
     const b = buildBriefing(m, { state: "waiting", problems: [] }, FIXTURE_NOW, fixtureContext);
     expect(b.headline).toBe("The first sweep has not finished.");
-    expect(b.facts).toEqual([]);
+    expect(b.repositories.template).toBeUndefined();
+    expect(b.environment).toMatchObject({ facts: [], deployable: "unknown" });
   });
 });
 
@@ -567,20 +562,6 @@ describe("the horizon", () => {
   });
 });
 
-describe("wording", () => {
-  test("ready lines keep the lead of a long PR text", () => {
-    const bump = item({
-      id: "bump",
-      kind: "bump",
-      rung: 2,
-      text: "env bump to v0.28.6 is open; merging it starts env-upgrade",
-    });
-    expect(
-      buildBriefing(withQueue([bump]), CLEAR, FIXTURE_NOW, fixtureContext).ready[0]?.text,
-    ).toBe("env bump to v0.28.6 is open");
-  });
-});
-
 describe("the environment", () => {
   const FIGURE = /^(v\d+\.\d+\.\d+|\d+%|\d+\u00a0(min|h|d)( \d+\u00a0(min|h))?|\?)$/;
   const IN_FLIGHT = 38312331838;
@@ -592,7 +573,7 @@ describe("the environment", () => {
   function envOf(facts: Facts, context = fixtureContext) {
     const m = buildModel(facts, FIXTURE_NOW, {}, context);
     const briefing = buildBriefing(m, CLEAR, FIXTURE_NOW, context);
-    return { m, env: briefing.environment, facts: briefing.facts };
+    return { m, env: briefing.environment };
   }
 
   // The recorded in-flight upgrade, finished green at 21:58 with maintenance cleared.
@@ -638,6 +619,8 @@ describe("the environment", () => {
     expect(holds[0]?.end).toBeUndefined();
     figuresHold(env.facts);
     expect(env.facts[0]?.sub).toBe("upgrade running · at verify · declares v0.28.2");
+    expect(env.facts[0]?.tone).toBe("warn");
+    expect(env.deployable).toBe("no");
     expect(env.facts[2]).toMatchObject({
       figure: "26\u00a0min",
       sub: "smoke · fresh cluster · 12\u00a0h 52\u00a0min ago · 7 in a row",
@@ -672,6 +655,7 @@ describe("the environment", () => {
     );
     expect(env.facts[0]?.sub).toMatch(/^held · env-upgrade v0\.28\.1 cancelled at verify/);
     expect(env.facts[0]?.tone).toBe("bad");
+    expect(env.deployable).toBe("no");
     expect(env.facts[1]?.sub).toContain("held since");
     figuresHold(env.facts);
     const app = envOf(facts, appWords).env;
@@ -705,6 +689,8 @@ describe("the environment", () => {
       /^The environment is not deployable: env-upgrade v0\.28\.2 failed/,
     );
     expect(env.facts[0]?.sub).toMatch(/^not deployable · env-upgrade v0\.28\.2 failed/);
+    expect(env.facts[0]?.tone).toBe("bad");
+    expect(env.deployable).toBe("unknown");
     const app = envOf(facts, appWords).env;
     expect(app.headline).toMatch(/^The environment is not ready: env-upgrade v0\.28\.2 failed/);
     expect(app.facts[0]?.sub).toMatch(/^not ready · env-upgrade v0\.28\.2 failed/);
@@ -722,19 +708,13 @@ describe("the environment", () => {
     );
     expect(env.facts[0]).toMatchObject({ figure: "v0.28.2", tone: "ok" });
     expect(env.facts[0]?.sub).toMatch(/^deployable · green at /);
+    expect(env.deployable).toBe("yes");
     figuresHold(env.facts);
     const app = envOf(finished(), appWords).env;
     expect(app.headline).toBe(
       "Ready on v0.28.2 since 21:58, after 2 failed attempts in the last day.",
     );
     expect(app.facts[0]?.sub).toMatch(/^ready · green at /);
-  });
-
-  test("briefing.facts keeps 'deployable' for the app, because the top row reads it until spicode-f0s.47", () => {
-    const { facts, env } = envOf(finished(), appWords);
-    expect(facts[0]).toMatchObject({ label: "Environment", figure: "v0.28.2" });
-    expect(facts[0]?.sub).toMatch(/^deployable · green at /);
-    expect(env.facts[0]?.sub).toBe(facts[0]?.sub.replace(/^deployable/, "ready"));
   });
 
   test("a day of green runs says so", () => {
@@ -819,6 +799,7 @@ describe("the environment", () => {
     const { env } = envOf(facts);
     figuresHold(env.facts);
     expect(env.facts.map((f) => f.figure)).toEqual(["v0.28.2", "?", "?"]);
+    expect(env.deployable).toBe("unknown");
     expect(env.lanes.every((l) => l.events.length === 0)).toBe(true);
     expect(env.headline).toBe("Deployability is unknown; no lifecycle run in the window says.");
     expect(env.facts[0]?.sub).toMatch(/^deployability unread/);

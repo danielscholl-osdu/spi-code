@@ -66,7 +66,7 @@ describe("the 6 Nov sweep with five forks' GitHub reads failed", () => {
   });
 
   it("counts the engineering system over all 13 forks and names the 5 not read", () => {
-    expect(unread.briefing.facts[2]).toMatchObject({
+    expect(unread.briefing.repositories.template).toMatchObject({
       label: "Template · main 7d269b5",
       figure: "0 of 13",
       sub: "on main · 5 not read yet · 1 change reaches the forks · 8 of 13 on v1.4.0",
@@ -81,7 +81,7 @@ describe("the 6 Nov sweep with five forks' GitHub reads failed", () => {
   });
 
   it("leaves the fact unchanged when every fork is read", () => {
-    expect(snapshot.briefing.facts[2]).toMatchObject({
+    expect(snapshot.briefing.repositories.template).toMatchObject({
       figure: "0 of 13",
       sub: "on main · 1 change reaches the forks · 13 of 13 on v1.4.0",
     });
@@ -100,7 +100,7 @@ describe("the 6 Nov sweep with partition verified and legal merged but red on ma
     expect(reading?.items[0]?.sub).toBe(
       "2 of 13 merged · 1 main run green · 1 red · 11 forks held",
     );
-    expect(unverified.briefing.facts[2]).toMatchObject({
+    expect(unverified.briefing.repositories.template).toMatchObject({
       label: "Template · main 7d269b5",
       figure: "1 of 13",
     });

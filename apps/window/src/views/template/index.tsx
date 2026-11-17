@@ -28,8 +28,7 @@ const ROLLOUT = "rollout";
 const NO_READING: Reading = { anchor: { kind: "engineering" }, content: null };
 
 function templateParts({ briefing }: ViewSnapshot) {
-  const factIndex = briefing.facts.findIndex(({ label }) => label.startsWith("Template"));
-  const fact = briefing.facts[factIndex];
+  const fact = briefing.repositories.template;
   const queue: QueueEntry[] = [
     ...briefing.focus.map((item, index) => ({ item, pointer: `/briefing/focus/${index}` })),
     ...briefing.rest.map((item, index) => ({ item, pointer: `/briefing/rest/${index}` })),
@@ -39,7 +38,7 @@ function templateParts({ briefing }: ViewSnapshot) {
   );
   const repository = briefing.repositories.rows[repoIndex];
   return {
-    fact: fact && { fact, pointer: `/briefing/facts/${factIndex}` },
+    fact: fact && { fact, pointer: "/briefing/repositories/template" },
     rollout: queue.find(({ item }) => item.id === ROLLOUT),
     repository: repository && {
       entry: repository,

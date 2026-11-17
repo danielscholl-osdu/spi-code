@@ -5,12 +5,15 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { BriefingSchema } from "./briefing.js";
 
-const oracle: unknown = JSON.parse(
+const frozen = JSON.parse(
   readFileSync(
     new URL("../../../../fixtures/rib-59d6895/oracle/briefing.json", import.meta.url),
     "utf8",
   ),
 );
+// SPI retired the rib's Today tiles, n-more count and ready lines; the rib's upgrade is in flight.
+const { facts: _facts, more: _more, ready: _ready, ...current } = frozen;
+const oracle = { ...current, environment: { ...current.environment, deployable: "no" } };
 const briefing = BriefingSchema.parse(oracle);
 const focus = briefing.focus[0];
 const lane = briefing.environment.lanes[0];
@@ -19,6 +22,13 @@ if (!focus || !lane) throw new Error("The Briefing oracle must include focus and
 describe("Briefing contract", () => {
   it("round-trips the frozen rib Briefing without dropping fields", () => {
     expect(briefing).toEqual(oracle);
+  });
+  it.each(["facts", "more", "ready"])("rejects the retired %s field", (key) => {
+    expect(BriefingSchema.safeParse({ ...briefing, [key]: frozen[key] }).success).toBe(false);
+  });
+  it("rejects an environment without its deployable state", () => {
+    const { deployable: _deployable, ...environment } = briefing.environment;
+    expect(BriefingSchema.safeParse({ ...briefing, environment }).success).toBe(false);
   });
   it("keeps an additive origin on base briefing items", () => {
     const withOrigin = { ...briefing, focus: [{ ...focus, origin: "upstream" }] };
@@ -76,9 +86,15 @@ describe("Briefing contract", () => {
   it.each([
     { ...briefing, extra: true },
     { ...briefing, doctor: { ...briefing.doctor, extra: true } },
-    { ...briefing, facts: [{ ...briefing.facts[0], extra: true }] },
+    { ...briefing, environment: { ...briefing.environment, deployable: "maybe" } },
     { ...briefing, horizon: { headline: "", extra: true } },
-    { ...briefing, ready: [{ id: "", text: "", count: -1 }] },
+    {
+      ...briefing,
+      repositories: {
+        ...briefing.repositories,
+        template: { label: "", figure: "", sub: "", tone: "neutral", extra: true },
+      },
+    },
     {
       ...briefing,
       themes: [{ ...briefing.themes[0], certain: [{ fork: "", state: "", extra: true }] }],

@@ -160,7 +160,7 @@ describe("Engineering system reading", () => {
     ]);
     expect(template.verified).toBe(1);
     const fact = buildBriefing(input.model, { state: "clear", problems: [] }, now, context)
-      .facts[2];
+      .repositories.template;
     expect(fact).toMatchObject({ label: "Template · main 7d269b5", figure: "1 of 13" });
     expect(fact?.sub).toMatch(/^on main · /);
     const reading = engineeringReading(input);

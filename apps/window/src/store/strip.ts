@@ -3,6 +3,7 @@
 
 import { isStoppedFork, type StationSubstate, type ViewSnapshot } from "@spi-code/contracts";
 import { openHold } from "../views/environment/hold.js";
+import { runningFact } from "../views/environment/lead.js";
 
 export type PipState = "stopped" | "needs-person" | "in-progress" | "nothing-due" | "unread";
 
@@ -181,7 +182,8 @@ function templateState(rollout: Rollout | undefined, fleet: readonly string[]): 
 }
 
 function environmentState(snapshot: ViewSnapshot): StripState {
-  const fact = snapshot.briefing.facts.find(({ label }) => label === "Environment");
+  const fact = runningFact(snapshot);
+  const { deployable } = snapshot.briefing.environment;
   if (!fact?.figure.trim() || fact.figure === "?")
     return state(
       "Environment",
@@ -199,7 +201,7 @@ function environmentState(snapshot: ViewSnapshot): StripState {
     const run = fact.sub.split(" · ")[0]?.trim() || "a run is in flight";
     return state("Environment", `Maintenance · ${run}`, "warn", `${held}; ${run}.`, "refreshing");
   }
-  if (hold || fact.tone === "bad")
+  if (hold || deployable === "no")
     return state(
       "Environment",
       hold?.label ? `Maintenance ${hold.label}` : "Maintenance",
@@ -207,7 +209,7 @@ function environmentState(snapshot: ViewSnapshot): StripState {
       `${held}, and nothing is running to clear it.`,
       "maintenance",
     );
-  if (fact.tone === "ok" && /^deployable\b/.test(fact.sub))
+  if (deployable === "yes")
     return state("Environment", "Ready", "ok", `${version} is ready.`, "fine");
   return state("Environment", NOT_READ, "plain", `The state of ${version} was not read.`, "unread");
 }
