@@ -1,7 +1,12 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { FocusItem, ViewSnapshot } from "@spi-code/contracts";
+import type { FocusItem, Link, ViewSnapshot } from "@spi-code/contracts";
+import { useCallback, useState } from "react";
+import { setOpenSelection, useOpenSelection } from "../../app/navigation.js";
+import { type OpenedContent, todayContent } from "../../components/opened-body/content.js";
+import { placeMembers } from "../../components/place/members.js";
+import { Popover } from "../../components/popover/Popover.js";
 import "./rollout.css";
 
 export type RolloutStage = "verified" | "pending" | "todo" | "failed" | "unread";
@@ -53,15 +58,62 @@ export function rolloutLadder({ briefing }: ViewSnapshot): RolloutLadder | undef
   return { target: visual.target, commit, rungs, member };
 }
 
-export function Rollout({
-  ladder,
-  selected,
-  onSelect,
-}: {
-  ladder: RolloutLadder;
-  selected?: boolean;
-  onSelect: () => void;
-}) {
+function rungContent(snapshot: ViewSnapshot, ladder: RolloutLadder, rung: Rung): OpenedContent {
+  const { service, stage } = rung;
+  const place = {
+    label: `Engineering system › Rollout › ${service}`,
+    destination: { kind: "engineering-system" } as const,
+    selection: { kind: "rung", id: service },
+  };
+  const items = [...snapshot.briefing.focus, ...snapshot.briefing.rest];
+  const dispatch = placeMembers(snapshot, "engineering").find(
+    ({ member }) => member.id === "rollout",
+  );
+  const change = items
+    .find(({ id }) => id === "rollout")
+    ?.evidence.find(({ kind, url }) => kind === "compare" && url.endsWith(ladder.target));
+  const templateChange = change && { ...change, label: "Template change" };
+  if (stage === "todo" && dispatch) {
+    const content = todayContent({ ...dispatch, items, place });
+    const forks = ladder.rungs
+      .filter(({ stage }) => stage === "todo")
+      .map(({ service }) => service);
+    return {
+      ...content,
+      title: dispatch.line.headline,
+      cause: `${content.cause ? `${content.cause} ` : ""}To ${forks.length} forks: ${forks.join(", ")}.`,
+      ...(templateChange ? { primary: templateChange, links: [templateChange] } : {}),
+    };
+  }
+  const slot = snapshot.briefing.since?.rows
+    .find(({ workflow }) => workflow === "template")
+    ?.slots.find((slot) => slot.service === service);
+  const run = snapshot.services
+    ?.find((row) => row.service === service)
+    ?.runs.filter(({ workflow }) => workflow === "Sync Template")
+    .sort((a, b) => b.time.localeCompare(a.time))[0];
+  const source: Link | undefined = run && { kind: "run", label: "Sync Template run", url: run.url };
+  return {
+    title: `${service}: template ${ladder.target.slice(0, 7)} ${STAGES[stage].word}`,
+    place,
+    subject: null,
+    cause: `What SPI Code read: ${slot?.text ?? "No Sync Template result was read."}${stage === "pending" ? " Verification of the new template on main has not been read as green yet." : ""}`,
+    ...(source ? { primary: source } : templateChange ? { primary: templateChange } : {}),
+    links: [...(source ? [source] : []), ...(templateChange ? [templateChange] : [])],
+  };
+}
+
+export function Rollout({ ladder, snapshot }: { ladder: RolloutLadder; snapshot: ViewSnapshot }) {
+  const marked = useOpenSelection();
+  const selected =
+    marked?.kind === "rung"
+      ? marked.id
+      : marked?.kind === "item" && marked.id === "rollout"
+        ? ladder.rungs.find(({ member }) => member)?.service
+        : undefined;
+  const rung = ladder.rungs.find(({ service }) => service === selected);
+  const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
+  const close = useCallback(() => setOpenSelection(null), []);
   const short = ladder.target.slice(0, 7);
   const count = (stage: RolloutStage) => ladder.rungs.filter((rung) => rung.stage === stage).length;
   const dotted = ladder.rungs.filter(({ member }) => member).length;
@@ -99,25 +151,35 @@ export function Rollout({
               data-stage={stage}
               data-member={member || undefined}
             >
-              {member ? (
-                <button
-                  type="button"
-                  aria-label={label}
-                  aria-pressed={selected ?? false}
-                  data-selected={selected || undefined}
-                  onClick={onSelect}
-                >
-                  {body}
-                </button>
-              ) : (
-                <div role="img" aria-label={label}>
-                  {body}
-                </div>
-              )}
+              <button
+                ref={selected === service ? setAnchor : undefined}
+                type="button"
+                data-rung={service}
+                aria-label={label}
+                aria-haspopup="dialog"
+                aria-expanded={selected === service}
+                data-member-marked={
+                  (member && marked?.kind === "item" && marked.id === "rollout") || undefined
+                }
+                data-selected={selected === service || undefined}
+                onClick={() =>
+                  setOpenSelection(selected === service ? null : { kind: "rung", id: service })
+                }
+              >
+                {body}
+              </button>
             </li>
           );
         })}
       </ul>
+      {rung && marked && anchor?.isConnected && anchor.dataset.rung === rung.service && (
+        <Popover
+          anchor={anchor}
+          selection={marked}
+          content={rungContent(snapshot, ladder, rung)}
+          onClose={close}
+        />
+      )}
       <ul className="rollout-key" aria-label="Stages">
         {(Object.keys(STAGES) as RolloutStage[]).map((stage) => (
           <li key={stage} data-stage={stage}>

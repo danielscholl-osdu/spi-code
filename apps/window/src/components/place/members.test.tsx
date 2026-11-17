@@ -224,9 +224,11 @@ it("marks every stepped Line member on its cells and the Engineering member on i
     await act(async () => engineering?.click());
     expect(openSelection()?.id).toBe("rollout");
     expect(
-      container.querySelectorAll(".rollout-rung[data-member] button[data-selected]"),
+      container.querySelectorAll(".rollout-rung[data-member] button[data-member-marked]"),
     ).toHaveLength(7);
-    expect(container.querySelector(".opened-body")).toBeNull();
+    expect(
+      container.querySelector('.popover[data-selection="item~rollout"] .opened-body'),
+    ).not.toBeNull();
     expect(harness.spi.postMessage).not.toHaveBeenCalled();
   } finally {
     await act(async () => watchStore.setState(previous, true));

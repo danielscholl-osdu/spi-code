@@ -62,6 +62,9 @@ button.rollout-commit:hover {
 .rollout-rung > button {
   cursor: default;
 }
+.rollout-rung > [data-member-marked] {
+  border-color: var(--accent);
+}
 .rollout-rung > [data-selected] {
   box-shadow: 0 0 0 2px var(--accent);
 }
@@ -87,6 +90,7 @@ button.rollout-commit:hover {
 }
 .rollout-rung[data-member]::after {
   position: absolute;
+  pointer-events: none;
   top: 5px;
   right: 5px;
   width: 6px;

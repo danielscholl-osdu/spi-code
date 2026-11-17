@@ -32,6 +32,7 @@ import {
   VIEW_SURFACES,
   VIEW_WIDTHS,
 } from "./smoke-report.js";
+import { captureRollout } from "./smoke-rollout.js";
 import { captureSidebarPins } from "./smoke-sidebar.js";
 import { smokeScheduledSweep, smokeSweepProgress } from "./smoke-sweep.js";
 import { captureMornings, loadMornings } from "./smoke-today.js";
@@ -1407,6 +1408,16 @@ export async function captureSmokeViews(
         );
         section(`top-row pin ${viewportWidth}/${appearance}`);
         if (viewportWidth === 1440) {
+          await captureRollout(
+            window,
+            { ...snapshot, cursor: scheduledCursor + 50 },
+            output,
+            designPath,
+            appearance,
+            (condition) => rendered(window, condition),
+            (body) => fixture(window, "view.snapshot", body),
+          );
+          section(`rollout rung ${appearance}`);
           fixture(window, "sweep.progress", progress.committed);
           await captureStatusStates(
             window,
