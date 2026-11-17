@@ -60,9 +60,6 @@ export function FirstSweepBody({
           : "A first sweep takes a few minutes. Today opens here when it's done."}
       </p>
       {progress && <SweepSources progress={progress} now={now} onOpenSettings={onOpenSettings} />}
-      <p className="today-first-foot">
-        You can close this window. SPI Code tells you when Today is ready.
-      </p>
     </div>
   );
 }

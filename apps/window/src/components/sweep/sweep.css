@@ -20,10 +20,6 @@
 .today-first-actions button {
   padding: 3px 12px;
 }
-.today-first-foot {
-  margin: 16px 0 0;
-  color: var(--text-muted);
-}
 .sweep-sources {
   container: sweep-sources / inline-size;
   font: 13px/1.5 var(--font-sans);

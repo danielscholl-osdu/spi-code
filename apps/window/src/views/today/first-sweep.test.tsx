@@ -113,9 +113,7 @@ it("reads the program before any progress, then lists the sweep live with no raw
   expect(one(container, ".today-first-sub")).toBe(
     "A first sweep takes a few minutes. Today opens here when it's done.",
   );
-  expect(one(container, ".today-first-foot")).toBe(
-    "You can close this window. SPI Code tells you when Today is ready.",
-  );
+  expect(container.textContent).not.toContain("You can close this window");
   expect(container.querySelector(".sweep-row, .sweep-bar")).toBeNull();
   await receive("sweep.status", {
     remaining: 123,
@@ -231,7 +229,7 @@ it("says where a timeout stopped the first sweep, when it tries again, and offer
     "2026-11-09T08:07:00Z",
   );
   expect(status(container)).toBe("The first sweep stopped.");
-  expect(container.querySelector(".today-first-foot, .sweep-meta")).toBeNull();
+  expect(container.querySelector(".sweep-meta")).toBeNull();
   const outcomes = () =>
     [...container.querySelectorAll(".sweep-outcome")].map((element) => element.textContent);
   expect(outcomes()).toEqual([
