@@ -14,7 +14,7 @@ const allowed = new Set(["time.tsx", "store/strip.ts:toISOString"]);
 
 it("formats visible times only through time.tsx", () => {
   const files = directoryPaths(source).filter(
-    (file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$|test-helper\.ts$/.test(file),
+    (file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$|test-helper\.tsx?$/.test(file),
   );
   expect(files).toContain("time.tsx");
   const found = files.flatMap((file) => {

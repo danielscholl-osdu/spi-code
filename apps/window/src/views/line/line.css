@@ -2,12 +2,15 @@
 /* SPDX-License-Identifier: MIT */
 
 .line-content { min-height: 100%; }
-.line-toolbar { position: sticky; top: 0; z-index: 1; gap: 12px; padding: 0 24px; background: var(--chrome); }
+.line-toolbar { position: sticky; top: 0; z-index: 1; gap: 12px; padding: 0 24px; background: var(--chrome); container-type: inline-size; }
 .line-body { padding: 20px 24px; }
 .line-before-sweep { margin: 0; color: var(--text-muted); }
-.line-toolbar h1 { margin: 0; font-size: 16px; }
-.line-toolbar > span { color: var(--text-muted); font-size: 12px; }
-.line-controls { display: flex; gap: 6px; margin-left: auto; }
+.line-toolbar h1 { min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; }
+.line-toolbar > span { flex: none; color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+.line-controls { display: flex; flex: none; gap: 6px; margin-left: auto; white-space: nowrap; }
+@container (width < 260px) {
+  .line-toolbar > span { display: none; }
+}
 .line-campaigns { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; padding: 0; border: 0; min-width: 0; }
 .line-campaigns button { padding: 2px 6px; border-radius: 4px; font-size: 11.5px; }
 .line-campaigns button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-surface); }
