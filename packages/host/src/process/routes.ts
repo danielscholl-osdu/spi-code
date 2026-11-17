@@ -14,7 +14,6 @@ import {
   ViewSnapshotSchema,
 } from "@spi-code/contracts";
 import {
-  buildModel,
   type CoreContext,
   cacheSchema,
   createSweeper,
@@ -25,7 +24,6 @@ import {
   type InspectOptions,
   runsObservedAt,
   SWEEP_MS,
-  sinceOf,
   sweepStateSchema,
 } from "@spi-code/core";
 import { z } from "zod";
@@ -40,6 +38,7 @@ import {
   type SeenBaseline,
   seenBriefing,
   seenSince,
+  sinceFromSweep,
 } from "../watch/seen.js";
 import type { HostRoutes, HostSend } from "./port.js";
 
@@ -342,15 +341,8 @@ export class WatchRoutes {
 
   /** The since pips rebuilt from the persisted sweep from `at`; undefined keeps the stored ones. */
   private sinceFrom(latest: Persisted, at: string): Since | undefined {
-    const stored = latest.view.briefing.since;
-    if (!stored || stored.basis === "stale") return undefined;
-    const state = sweepStateSchema(factsSchema, cacheSchema).safeParse(latest.state);
-    if (!state.success) return undefined;
     try {
-      const now = new Date(latest.view.sweptAt);
-      const { reads } = sweepEvidence(state.data, SWEEP_MS, now);
-      const model = buildModel(state.data.facts, now, {}, this.options.ctx);
-      return sinceOf(model, state.data.facts, now, SWEEP_MS, at, reads);
+      return sinceFromSweep(latest.view, latest.state, this.options.ctx, at);
     } catch (error) {
       this.options.onError(error);
       return undefined;

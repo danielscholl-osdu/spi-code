@@ -144,6 +144,7 @@ export function Horizon({
   const stagesId = useId();
   const horizon = snapshot.briefing.horizon;
   const { stages, compact, cards, counts, owed } = horizon;
+  const countsUnread = !compact || Object.values(compact).every((count) => count === null);
   const selected = useStore(inspector, (state) => state.selected);
   const fold = useFold(cards ?? [], selected, (row) => [
     `theme:${row.id}`,
@@ -195,35 +196,41 @@ export function Horizon({
             aria-controls={stagesId}
             onClick={() => setExpanded(!expanded)}
           >
-            <span title={plainTitle(stages.nextSync.text)}>
-              <span data-pointer={`${ROOT}/compact/nextSyncCount`}>
-                {compact?.nextSyncCount ?? "unknown"}
-              </span>
-              {stages.nextSync.at && (
-                <>
-                  {" "}
-                  at <Time at={stages.nextSync.at} hint={false} />
-                </>
-              )}
-            </span>
-            <span aria-hidden="true">→</span>
-            <span title={plainTitle(stages.held.text)}>
-              <span data-pointer={`${ROOT}/compact/heldCount`}>
-                {compact?.heldCount ?? "unknown"}
-              </span>{" "}
-              in{" "}
-              <span data-pointer={`${ROOT}/compact/heldPrCount`}>
-                {compact?.heldPrCount ?? "unknown"}
-              </span>{" "}
-              PRs
-            </span>
-            <span aria-hidden="true">→</span>
-            <span title={plainTitle(stages.forks.text)}>
-              <span data-pointer={`${ROOT}/compact/currentForkCount`}>
-                {compact?.currentForkCount ?? "unknown"}
-              </span>{" "}
-              current
-            </span>
+            {countsUnread ? (
+              <span>Sync and fork counts not read yet</span>
+            ) : (
+              <>
+                <span title={plainTitle(stages.nextSync.text)}>
+                  <span data-pointer={`${ROOT}/compact/nextSyncCount`}>
+                    {compact?.nextSyncCount ?? "unknown"}
+                  </span>
+                  {stages.nextSync.at && (
+                    <>
+                      {" "}
+                      at <Time at={stages.nextSync.at} hint={false} />
+                    </>
+                  )}
+                </span>
+                <span aria-hidden="true">→</span>
+                <span title={plainTitle(stages.held.text)}>
+                  <span data-pointer={`${ROOT}/compact/heldCount`}>
+                    {compact?.heldCount ?? "unknown"}
+                  </span>{" "}
+                  in{" "}
+                  <span data-pointer={`${ROOT}/compact/heldPrCount`}>
+                    {compact?.heldPrCount ?? "unknown"}
+                  </span>{" "}
+                  {compact?.heldPrCount === 1 ? "PR" : "PRs"}
+                </span>
+                <span aria-hidden="true">→</span>
+                <span title={plainTitle(stages.forks.text)}>
+                  <span data-pointer={`${ROOT}/compact/currentForkCount`}>
+                    {compact?.currentForkCount ?? "unknown"}
+                  </span>{" "}
+                  current
+                </span>
+              </>
+            )}
             <span aria-hidden="true">{expanded ? "⌃" : "⌄"}</span>
           </button>
           <div className="horizon-stages" id={stagesId}>

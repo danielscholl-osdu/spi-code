@@ -8,8 +8,18 @@ import {
   type WatchBriefing,
   type WatchItem,
 } from "@spi-code/contracts";
-import type { Model } from "@spi-code/core";
+import {
+  buildModel,
+  type CoreContext,
+  cacheSchema,
+  factsSchema,
+  type Model,
+  SWEEP_MS,
+  sinceOf,
+  sweepStateSchema,
+} from "@spi-code/core";
 import { z } from "zod";
+import { sweepEvidence } from "../sweep/evidence.js";
 import type { WatchInput } from "./project.js";
 
 /** What the operator last acknowledged: the briefing items of the snapshot at `cursor`. */
@@ -121,6 +131,28 @@ export function sinceStart(baseline: SeenBaseline | undefined): string | undefin
 
 export function seenState(_model: Model, input: WatchInput, briefing: WatchBriefing): SeenState {
   return seenSince(input.baseline, briefing);
+}
+
+/** Rebuilds since pips from the persisted sweep's evidence at its fixed cadence. */
+export function sinceFromSweep(
+  view: { briefing: WatchBriefing; sweptAt: string },
+  stored: unknown,
+  context: CoreContext,
+  at: string,
+): Since | undefined {
+  if (!view.briefing.since || view.briefing.since.basis === "stale") return undefined;
+  const state = sweepStateSchema(factsSchema, cacheSchema).safeParse(stored);
+  if (!state.success) return undefined;
+  const now = new Date(view.sweptAt);
+  const { reads } = sweepEvidence(state.data, SWEEP_MS, now);
+  return sinceOf(
+    buildModel(state.data.facts, now, {}, context),
+    state.data.facts,
+    now,
+    SWEEP_MS,
+    at,
+    reads,
+  );
 }
 
 /**

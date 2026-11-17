@@ -227,3 +227,43 @@ it("has a compact 740 conveyor that expands and collapses, with the strip's exac
   await click(container, ".horizon-compact");
   expect(toggle?.getAttribute("aria-expanded")).toBe("false");
 });
+
+it.each(["nextSyncCount", "heldCount", "heldPrCount", "currentForkCount"] as const)(
+  "keeps an unread compact %s unknown while preserving known counts",
+  async (key) => {
+    const body = morning("busy");
+    body.briefing.horizon.compact = {
+      nextSyncCount: 8,
+      heldCount: 69,
+      heldPrCount: 1,
+      currentForkCount: 4,
+      [key]: null,
+    };
+    const { container } = await mount(body);
+    for (const [slot, count] of Object.entries(body.briefing.horizon.compact)) {
+      expect(
+        container.querySelector(`.horizon-compact [data-pointer$="/${slot}"]`)?.textContent,
+      ).toBe(count === null ? "unknown" : String(count));
+    }
+  },
+);
+
+it("keeps wholly unread compact counts quiet and wide stage counts unknown", async () => {
+  const body = morning("busy");
+  const horizon = body.briefing.horizon;
+  if (!horizon.stages) throw new Error("missing stages");
+  horizon.compact = {
+    nextSyncCount: null,
+    heldCount: null,
+    heldPrCount: null,
+    currentForkCount: null,
+  };
+  horizon.stages.nextSync.count = null;
+  horizon.stages.held.count = null;
+  const { container } = await mount(body);
+  const compact = container.querySelector(".horizon-compact");
+  expect(compact?.textContent).toContain("Sync and fork counts not read yet");
+  expect(compact?.textContent).not.toMatch(/unknown|\b0\b/);
+  for (const stage of ["nextSync", "held"])
+    expect(container.querySelector(`.horizon-stage--${stage} strong`)?.textContent).toBe("unknown");
+});
