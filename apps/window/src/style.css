@@ -73,4 +73,4 @@ button:disabled { cursor: default; opacity: 0.6; }
 details { margin-top: 24px; }
 [role="alert"] { color: var(--error-text); }
 .right-panel-frame[data-sheet] { position: fixed; top: var(--pane-header-height); right: 0; bottom: 0; z-index: 40; width: min(var(--right-panel-width), calc(100vw - 48px)); box-shadow: -8px 0 24px #0003; }
-.detail-backdrop { position: fixed; inset: var(--pane-header-height) 0 0; z-index: 39; background: #0003; }
+.context-backdrop { position: fixed; inset: var(--pane-header-height) 0 0; z-index: 39; background: #0003; }

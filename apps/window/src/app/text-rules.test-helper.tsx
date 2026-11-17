@@ -6,17 +6,16 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { selectionStore } from "../panels/selection.js";
-import { runRow, type SelectionRow, selectionRows } from "../panels/selection-rows.js";
 import { watchStore } from "../store/watch.js";
-import {
-  fixtureLoader,
-  type InspectionName,
-  installSpi,
-  type SnapshotName,
-} from "../test-utils/harness.js";
-import { type Read, WATCH_INSPECTIONS } from "../test-utils/watch-fixtures.test-helper.js";
+import { fixtureLoader, installSpi, type SnapshotName } from "../test-utils/harness.js";
+import type { Read } from "../test-utils/watch-fixtures.test-helper.js";
 import { closeSheet, navigate, type Route, relaunch } from "./navigation.js";
 import { Shell } from "./Shell.js";
+
+vi.hoisted(() => {
+  process.env.TZ = "UTC";
+  vi.useFakeTimers({ toFake: ["Date"], now: Date.parse("2026-11-06T14:02:00Z") });
+});
 
 const internal = /\bfork_upstream\b|\bgate\s+\d+\b|\bpresses\b|\bcut\b/i;
 const machineTime = /\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}|\bUTC\b/;
@@ -85,11 +84,11 @@ let root: Root;
 
 export function shellHooks() {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"], now: Date.parse("2026-11-06T14:02:00Z") });
     localStorage.clear();
     closeSheet();
     relaunch();
     selectionStore.getState().clear();
-    selectionStore.getState().setTab("detail");
     window.location.hash = "#today";
     harness = installSpi();
     container = document.createElement("div");
@@ -106,6 +105,7 @@ export function shellHooks() {
     closeSheet();
     relaunch();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 }
 
@@ -122,15 +122,15 @@ export function assertRules(label: string, scope: ParentNode = document.body) {
   expect(violations(scope), label).toEqual([]);
 }
 
-/** The text rules on every route, the Line sheet, Cmd-K and every Detail of one listed snapshot. */
+/** The text rules on every route, the Line sheet, Cmd-K and Evidence of one listed snapshot. */
 export function textRulesOn(name: SnapshotName, read: Read) {
   shellHooks();
   const loadFixture = fixtureLoader(read);
-  const inspections = WATCH_INSPECTIONS.flatMap((name) => loadFixture(name as InspectionName));
   const snapshot = { name, body: loadFixture(name) };
   describe.each([snapshot])("window text rules on $name", ({ body }) => {
     const routes: Route[] = [
       { kind: "today" },
+      { kind: "evidence" },
       { kind: "upstream" },
       { kind: "environment" },
       { kind: "engineering-system" },
@@ -156,81 +156,5 @@ export function textRulesOn(name: SnapshotName, read: Read) {
       expect(document.querySelector('[role="dialog"][aria-label="Find or ask"]')).not.toBeNull();
       assertRules("Cmd-K");
     });
-
-    const rows: SelectionRow[] = [
-      ...selectionRows(body),
-      ...(body.services ?? []).flatMap((service, index) =>
-        service.runs.map((run) => runRow(run, index)),
-      ),
-      { id: "step:recorded", title: "Template revision", kind: "template-step" as const },
-    ];
-    const kinds = [...new Set(rows.map(({ kind }) => kind))].sort();
-    it("covers every selection kind", () => {
-      expect(kinds).toEqual(
-        [
-          "queue",
-          "flow",
-          "plan",
-          "repository",
-          "repository-line",
-          "template-step",
-          "theme",
-          "environment",
-          "release",
-          "station",
-          "today-more",
-          ...((body.services ?? []).some((service) => service.runs.length > 0) ? ["run"] : []),
-          ...(body.briefing.canWait?.chips.length ? ["can-wait"] : []),
-          ...(body.releases.today?.versions.some(({ state }) => state === "released")
-            ? ["release-version"]
-            : []),
-          ...(body.releases.today?.versions.some(
-            (version) => version.state === "released" && version.pr,
-          )
-            ? ["release-pr"]
-            : []),
-          ...(body.releases.forming?.notable.length ? ["release-notable"] : []),
-        ].sort(),
-      );
-    });
-
-    it.each(kinds)(
-      "renders Detail for every %s selection, omitting absent fields",
-      async (kind) => {
-        await open(body);
-        let first = true;
-        for (const row of rows.filter((row) => row.kind === kind)) {
-          const result = inspections.find(({ id }) => id === (row.inspectId ?? row.id));
-          await act(async () => {
-            selectionStore.getState().select(row.id, row);
-            selectionStore.setState({
-              result: result ?? {
-                id: row.inspectId ?? row.id,
-                class: "READY",
-                cause: "",
-                effect: "",
-                next: "",
-                why: "",
-                evidence: [],
-                related: [],
-                approval: null,
-                actions: [],
-              },
-              request: null,
-            });
-          });
-          expect(container.querySelector(".detail-title"), row.id).not.toBeNull();
-          const label = `Detail ${row.kind}: ${row.id}`;
-          if (first) {
-            assertRules(label);
-            first = false;
-          } else {
-            const panel = container.querySelector("#app-right-panel");
-            expect(panel, label).not.toBeNull();
-            if (panel) assertRules(label, panel);
-          }
-        }
-      },
-    );
   });
 }

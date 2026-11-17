@@ -35,24 +35,24 @@ function serialize(element: Element): string {
   );
 }
 
-/** Recorded from Shell on main at 45e318c2, less the top-row height it no longer measures. */
-const RECORDED_ON_MAIN: Record<string, string> = {
+/** The outside-thread Shell at the packaged widths, even when the old panel state asks to open. */
+const OUTSIDE_THREAD_ROOTS: Record<string, string> = {
   "1440 closed":
     "div.shell data-layout=wide data-line-presentation=closed data-line-sheet=closed data-right-panel=closed data-right-presentation=closed data-sidebar-presentation=inline data-sidebar-state=expanded data-slot=sidebar-wrapper data-window-controls=none --panel-col:0px --right-panel-width:0px --sheet-col:0px --sidebar-col:232px --sidebar-width:232px",
   "1440 right panel":
-    "div.shell data-layout=wide data-line-presentation=closed data-line-sheet=closed data-right-panel=open data-right-presentation=inline data-sidebar-presentation=inline data-sidebar-state=expanded data-slot=sidebar-wrapper data-window-controls=none --panel-col:360px --right-panel-width:360px --sheet-col:0px --sidebar-col:232px --sidebar-width:232px",
+    "div.shell data-layout=wide data-line-presentation=closed data-line-sheet=closed data-right-panel=closed data-right-presentation=closed data-sidebar-presentation=inline data-sidebar-state=expanded data-slot=sidebar-wrapper data-window-controls=none --panel-col:0px --right-panel-width:0px --sheet-col:0px --sidebar-col:232px --sidebar-width:232px",
   "1440 line sheet":
     "div.shell data-layout=wide data-line-presentation=inline data-line-sheet=pinned data-right-panel=closed data-right-presentation=closed data-sidebar-presentation=inline data-sidebar-state=expanded data-slot=sidebar-wrapper data-window-controls=none --panel-col:0px --right-panel-width:0px --sheet-col:360px --sidebar-col:232px --sidebar-width:232px",
   "900 closed":
     "div.shell data-layout=wide data-line-presentation=closed data-line-sheet=closed data-right-panel=closed data-right-presentation=closed data-sidebar-presentation=inline data-sidebar-state=expanded data-slot=sidebar-wrapper data-window-controls=none --panel-col:0px --right-panel-width:0px --sheet-col:0px --sidebar-col:232px --sidebar-width:232px",
   "900 right panel":
-    "div.shell data-layout=wide data-line-presentation=closed data-line-sheet=closed data-right-panel=open data-right-presentation=sheet data-sidebar-presentation=inline data-sidebar-state=expanded data-slot=sidebar-wrapper data-window-controls=none --panel-col:0px --right-panel-width:360px --sheet-col:0px --sidebar-col:232px --sidebar-width:232px",
+    "div.shell data-layout=wide data-line-presentation=closed data-line-sheet=closed data-right-panel=closed data-right-presentation=closed data-sidebar-presentation=inline data-sidebar-state=expanded data-slot=sidebar-wrapper data-window-controls=none --panel-col:0px --right-panel-width:0px --sheet-col:0px --sidebar-col:232px --sidebar-width:232px",
   "900 line sheet":
     "div.shell data-layout=wide data-line-presentation=stacked data-line-sheet=pinned data-right-panel=closed data-right-presentation=closed data-sidebar-presentation=inline data-sidebar-state=expanded data-slot=sidebar-wrapper data-window-controls=none --panel-col:0px --right-panel-width:0px --sheet-col:0px --sidebar-col:232px --sidebar-width:232px",
   "740 closed":
     "div.shell data-layout=narrow data-line-presentation=closed data-line-sheet=closed data-right-panel=closed data-right-presentation=closed data-sidebar-presentation=off-canvas data-sidebar-state=collapsed data-slot=sidebar-wrapper data-window-controls=none --panel-col:0px --right-panel-width:0px --sheet-col:0px --sidebar-col:0px --sidebar-width:232px",
   "740 right panel":
-    "div.shell data-layout=narrow data-line-presentation=closed data-line-sheet=closed data-right-panel=open data-right-presentation=sheet data-sidebar-presentation=off-canvas data-sidebar-state=collapsed data-slot=sidebar-wrapper data-window-controls=none --panel-col:0px --right-panel-width:360px --sheet-col:0px --sidebar-col:0px --sidebar-width:232px",
+    "div.shell data-layout=narrow data-line-presentation=closed data-line-sheet=closed data-right-panel=closed data-right-presentation=closed data-sidebar-presentation=off-canvas data-sidebar-state=collapsed data-slot=sidebar-wrapper data-window-controls=none --panel-col:0px --right-panel-width:0px --sheet-col:0px --sidebar-col:0px --sidebar-width:232px",
   "740 line sheet":
     "div.shell data-layout=narrow data-line-presentation=stacked data-line-sheet=pinned data-right-panel=closed data-right-presentation=closed data-sidebar-presentation=off-canvas data-sidebar-state=collapsed data-slot=sidebar-wrapper data-window-controls=none --panel-col:0px --right-panel-width:0px --sheet-col:0px --sidebar-col:0px --sidebar-width:232px",
 };
@@ -92,5 +92,5 @@ it("renders the same Shell root element on snapshot-1106 at 1440, 900 and 740", 
       roots[`${width} ${panes}`] = await root(width, panes);
     }
   }
-  expect(roots).toEqual(RECORDED_ON_MAIN);
+  expect(roots).toEqual(OUTSIDE_THREAD_ROOTS);
 });

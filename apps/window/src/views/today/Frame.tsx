@@ -4,7 +4,6 @@
 import type { ReactNode } from "react";
 import { PaneTitle } from "../../app/title-row.js";
 import { dayLine } from "../../time.js";
-import { useTodayAnchor } from "./anchor.js";
 
 /** Today top to bottom: the date, the caveat band when a read failed, then the table. */
 export function TodayFrame({
@@ -16,7 +15,6 @@ export function TodayFrame({
   caveat: ReactNode;
   table: ReactNode;
 }) {
-  const frame = useTodayAnchor();
   return (
     <section className="place" aria-label="Today">
       <PaneTitle>
@@ -25,7 +23,7 @@ export function TodayFrame({
           {dayLine(sweptAt)}
         </time>
       </PaneTitle>
-      <section ref={frame} className="place-reading today-frame" aria-label="Today reading">
+      <section className="place-reading today-frame" aria-label="Today reading">
         {caveat}
         {table}
       </section>

@@ -532,13 +532,15 @@ async function measure(
       }
       case "window":
         return { rule: "window", viewport, scroll,
+          rightPanels: document.querySelectorAll("#app-right-panel").length,
+          panelToggles: document.querySelectorAll("[aria-controls=app-right-panel], [aria-label='Toggle right panel'], [aria-label='Close detail']").length,
           panes: [...document.querySelectorAll(".app-sidebar:not([inert]), .middle-frame, .line-sheet, .right-panel-frame")].map(rect) };
       case "related":
         return { rule: "related", panel: rect(element(".popover")),
           label: rect(element(".popover-fields dt")), labelText: element(".popover-fields dt").textContent,
           values: [...document.querySelectorAll(".popover-fields dd")].map(rect) };
       case "panes":
-        return { rule: "panes", viewport, scroll, panes: [".app-sidebar", ".middle-frame", ".line-sheet", ".right-panel"].map(selector => {
+        return { rule: "panes", viewport, scroll, panes: [".app-sidebar", ".middle-frame", ".line-sheet"].map(selector => {
           const item = element(selector);
           const style = getComputedStyle(item);
           return { rect: rect(item), borderLeft: parseFloat(style.borderLeftWidth), borderRight: parseFloat(style.borderRightWidth) };
@@ -553,8 +555,7 @@ async function measure(
         const parts = [
           [".app-sidebar:not([data-mobile]):not([inert]):not([data-state=collapsed])", ".sidebar-top"],
           [".middle-frame", ".centre-bar"],
-          [".line-sheet[data-presentation=pinned]", ".line-toolbar"],
-          [".right-panel-frame:not([data-sheet]) .right-panel", ".panel-tabs"]
+          [".line-sheet[data-presentation=pinned]", ".line-toolbar"]
         ].flatMap(([pane, header]) => {
           const item = document.querySelector(pane);
           return item && item.getBoundingClientRect().width > 0 ? [[item, item.querySelector(header)]] : [];
@@ -585,7 +586,7 @@ async function measure(
           });
         return { rule: "drag", services: Number(document.querySelector("[data-sidebar-row=line]")?.dataset.services ?? 0),
           controls, clear, viewport, centre: rect(element(".centre-bar")),
-          detailSheet: Boolean(document.querySelector(".right-panel-frame[data-sheet]")), regions, targets };
+          regions, targets };
       }
       case "pin-end":
         return ${PIN_END_PROBE};
@@ -633,7 +634,7 @@ interface BrokenProof {
 }
 
 const BREAKS: Partial<Record<string, BrokenProof>> = {
-  "detail-related/1440": {
+  "upstream-theme/1440": {
     rule: "related",
     selector: ".popover-fields dd",
     property: "width",
@@ -641,7 +642,7 @@ const BREAKS: Partial<Record<string, BrokenProof>> = {
   },
   "panes/1440": {
     rule: "headers",
-    selector: ".panel-tabs",
+    selector: ".line-toolbar",
     property: "margin-top",
     value: "4px",
   },
@@ -872,7 +873,7 @@ export async function captureSmokeViews(
           related: [
             {
               state:
-                "A deliberately long Related label that wraps over multiple lines at a 280 px right panel",
+                "A deliberately long Related label that wraps over multiple lines in a popover",
               text: "The Related value retains its full reading width.",
             },
             { state: "", text: "A second value without a label also keeps its width." },
@@ -1131,12 +1132,12 @@ export async function captureSmokeViews(
             );
             await rendered(window, 'document.querySelector(".line-grid")');
           }
-          if (surface.id === "detail") {
+          if (surface.id === "upstream-item") {
             await window.webContents.executeJavaScript(
               "document.querySelector(\".place-item-content[data-selection-id='campaign:toolchain:os-core-common%208.5.0']\").click()",
             );
           }
-          if (surface.id === "detail-related" || surface.id === "panes") {
+          if (surface.id === "upstream-theme" || surface.id === "panes") {
             if (surface.id === "panes") {
               await window.webContents.executeJavaScript(
                 '[...document.querySelectorAll(".line-toolbar button")].find(button => button.textContent === "Dock").click()',
@@ -1144,9 +1145,6 @@ export async function captureSmokeViews(
               await rendered(
                 window,
                 'document.querySelector(".line-sheet:not([data-presentation=overlay])")',
-              );
-              await window.webContents.executeJavaScript(
-                "document.querySelector(\"[aria-label='Toggle right panel']\").click()",
               );
             } else {
               await window.webContents.executeJavaScript(`{
@@ -1393,16 +1391,12 @@ export async function captureSmokeViews(
           }
           if (surface.id.startsWith("evidence-header-") || surface.id === "first-sweep-evidence")
             await leaveEvidence(window);
-          if (surface.id === "detail" || surface.id === "detail-related") {
+          if (surface.id === "upstream-item" || surface.id === "upstream-theme") {
             await window.webContents.executeJavaScript(
               'document.querySelector(".popover .popover-close").click()',
             );
             await rendered(window, '!document.querySelector(".popover")');
           }
-          if (surface.id === "panes")
-            await window.webContents.executeJavaScript(
-              "document.querySelector(\"[aria-label='Close detail']\").click()",
-            );
         }
         section(`captures ${viewportWidth}/${appearance}`);
         await captureTopRowPins(

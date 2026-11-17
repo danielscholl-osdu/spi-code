@@ -1,271 +1,58 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, expect, it, vi } from "vitest";
-import { widthBudget } from "../app/width-budget.js";
+import { expect, it } from "vitest";
 import { RightPanelFrame } from "./RightPanelFrame.js";
-import { createSelectionStore } from "./selection.js";
 
-afterEach(() => vi.restoreAllMocks());
-
-async function mount(width: number) {
-  const store = createSelectionStore({ postMessage: vi.fn() });
-  const container = document.createElement("div");
-  document.body.append(container);
-  const root = createRoot(container);
-  const render = () => {
-    const budget = widthBudget({
-      windowWidth: width,
-      open: { sidebar: true, rightPanel: true, lineSheet: false },
-    });
-    root.render(
-      <>
-        <button
-          type="button"
-          aria-controls="app-right-panel"
-          onClick={() => store.getState().setOpen(!store.getState().open)}
-        >
-          Detail
+function Thread({ presentation }: { presentation: "inline" | "sheet" }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" aria-controls="app-right-panel" onClick={() => setOpen(true)}>
+        Context
+      </button>
+      <RightPanelFrame open={open} presentation={presentation} onClose={() => setOpen(false)}>
+        <button type="button" onClick={() => setOpen(false)}>
+          Close context
         </button>
-        <button type="button" onClick={() => store.getState().select("repo:legal")}>
-          Legal
-        </button>
-        <RightPanelFrame store={store} presentation={budget.rightPanel.presentation} />
-      </>,
-    );
-  };
-  await act(async () => render());
-  const trigger = container.querySelector<HTMLButtonElement>("[aria-controls]");
-  const row = container.querySelectorAll<HTMLButtonElement>("button")[1];
-  if (!trigger || !row) throw new Error("Missing test controls");
-  return {
-    store,
-    container,
-    trigger,
-    row,
-    panel: () => container.querySelector("#app-right-panel"),
-    resize: async (next: number) =>
-      act(async () => {
-        width = next;
-        render();
-      }),
-    cleanup: async () => {
-      await act(async () => root.unmount());
-      container.remove();
-    },
-  };
+      </RightPanelFrame>
+    </>
+  );
 }
 
-it.each([1100, 1280])(
-  "starts closed, and navigation clears the selection and closes the panel at %i px",
-  async (width) => {
-    const view = await mount(width);
+it.each(["inline", "sheet"] as const)(
+  "keeps thread context keyboard access and restores its opener as %s",
+  async (presentation) => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
     try {
-      expect(view.panel()).toBeNull();
-      view.store.getState().visit("repositories", ["repo:legal"], 0);
-      view.row.focus();
-      await act(async () => view.row.click());
-      expect(view.panel()).not.toBeNull();
-      await act(async () => view.store.getState().visit("setup", [], 0));
-      expect(view.store.getState().selected).toBeNull();
-      expect(view.store.getState().request).toBeNull();
-      // PS-11: nothing selected leaves nothing to show, at every width.
-      expect(view.panel()).toBeNull();
-      expect(document.activeElement).toBe(view.row);
-      await act(async () => view.row.click());
-      await act(async () => view.store.getState().clear());
-      expect(view.panel()).toBeNull();
-      expect(view.container.textContent).not.toContain("No selection");
+      await act(async () => root.render(<Thread presentation={presentation} />));
+      const opener = container.querySelector<HTMLButtonElement>("[aria-controls]");
+      if (!opener) throw new Error("Missing opener");
+      opener.focus();
+      await act(async () => opener.click());
+      const close = container.querySelector<HTMLButtonElement>("#app-right-panel button");
+      if (!close) throw new Error("Missing close control");
+      if (presentation === "sheet") expect(document.activeElement).toBe(close);
+      close.focus();
+      await act(async () =>
+        close.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+        ),
+      );
+      expect(container.querySelector("#app-right-panel")).toBeNull();
+      expect(document.activeElement).toBe(opener);
+      await act(async () => opener.click());
+      await act(async () =>
+        container.querySelector<HTMLButtonElement>("#app-right-panel button")?.click(),
+      );
+      expect(document.activeElement).toBe(opener);
     } finally {
-      await view.cleanup();
-    }
-  },
-);
-
-it.each([1031, 1032])(
-  "keeps focus inside or outside the panel when crossing the budget's sheet step from %i px",
-  async (width) => {
-    const view = await mount(width);
-    try {
-      view.row.focus();
-      await act(async () => view.row.click());
-      const evidence = view.panel()?.querySelector<HTMLButtonElement>('[role="tab"]:nth-child(2)');
-      if (!evidence) throw new Error("Missing Evidence tab");
-      evidence.focus();
-      await act(async () => evidence.click());
-      for (const next of [width === 1031 ? 1032 : 1031, width]) {
-        await view.resize(next);
-        expect(document.activeElement).toBe(evidence);
-        expect(view.panel()?.hasAttribute("data-sheet")).toBe(next === 1031);
-        expect(evidence.getAttribute("aria-selected")).toBe("true");
-      }
-      view.row.focus();
-      await view.resize(width === 1031 ? 1032 : 1031);
-      expect(document.activeElement).toBe(view.row);
-      evidence.focus();
-      await act(async () => view.store.getState().setOpen(false));
-      expect(document.activeElement).toBe(view.row);
-    } finally {
-      await view.cleanup();
-    }
-  },
-);
-
-it("keeps the sweep Evidence and its focus when it becomes a sheet", async () => {
-  const view = await mount(1100);
-  try {
-    await act(async () => view.trigger.click());
-    const detail = view.panel()?.querySelector<HTMLButtonElement>('[role="tab"]');
-    if (!detail) throw new Error("Missing Detail tab");
-    detail.focus();
-    await view.resize(900);
-    expect(view.panel()?.hasAttribute("data-sheet")).toBe(true);
-    expect(document.activeElement).toBe(detail);
-  } finally {
-    await view.cleanup();
-  }
-});
-
-it.each([1100, 1280])(
-  "keeps a closed panel closed on narrowing from %i px without moving outside focus",
-  async (width) => {
-    const view = await mount(width);
-    try {
-      view.row.focus();
-      await view.resize(900);
-      expect(view.panel()).toBeNull();
-      expect(view.container.querySelector(".detail-backdrop")).toBeNull();
-      expect(document.activeElement).toBe(view.row);
-      view.trigger.focus();
-      await act(async () => view.trigger.click());
-      expect(view.panel()?.hasAttribute("data-sheet")).toBe(true);
-      expect(view.panel()?.contains(document.activeElement)).toBe(true);
-      await act(async () => view.store.getState().setOpen(false));
-      expect(document.activeElement).toBe(view.trigger);
-    } finally {
-      await view.cleanup();
-    }
-  },
-);
-
-it.each([900, 1100])("Escape closes only with focus inside the panel at %i px", async (width) => {
-  const view = await mount(width);
-  const pressEscape = (target: EventTarget, prevented = false) => {
-    const event = new KeyboardEvent("keydown", {
-      key: "Escape",
-      bubbles: true,
-      cancelable: true,
-    });
-    if (prevented) event.preventDefault();
-    target.dispatchEvent(event);
-    return event;
-  };
-  try {
-    view.row.focus();
-    await act(async () => view.row.click());
-    view.trigger.focus();
-    await act(async () => {
-      expect(pressEscape(view.trigger).defaultPrevented).toBe(false);
-    });
-    expect(view.panel()).not.toBeNull();
-    const detail = view.panel()?.querySelector<HTMLButtonElement>('[role="tab"]');
-    if (!detail) throw new Error("Missing Detail tab");
-    detail.focus();
-    await act(async () => pressEscape(detail, true));
-    expect(view.panel()).not.toBeNull();
-    await act(async () => {
-      expect(pressEscape(detail).defaultPrevented).toBe(true);
-    });
-    expect(view.panel()).toBeNull();
-    expect(document.activeElement).toBe(view.row);
-  } finally {
-    await view.cleanup();
-  }
-});
-
-it.each([900, 1100, 1280])(
-  "keeps the sweep's Evidence reachable with nothing selected at %i px",
-  async (width) => {
-    const view = await mount(width);
-    try {
-      await act(async () => view.store.getState().openSweepEvidence());
-      expect(view.panel()).not.toBeNull();
-      await act(async () => view.store.getState().clear());
-      expect(view.panel()).not.toBeNull();
-      expect(view.store.getState()).toMatchObject({ tab: "evidence", evidenceScope: "sweep" });
-      await act(async () => view.store.getState().setOpen(false));
-      expect(view.panel()).toBeNull();
-      await act(async () => view.trigger.click());
-      expect(view.panel()).not.toBeNull();
-      expect(view.store.getState()).toMatchObject({ tab: "evidence", evidenceScope: "sweep" });
-      await act(async () => view.row.click());
-      await act(async () => view.store.getState().setTab("detail"));
-      await act(async () => view.store.getState().clear());
-      expect(view.panel()).toBeNull();
-    } finally {
-      await view.cleanup();
-    }
-  },
-);
-
-it.each([900, 1280])(
-  "reopens the selected item's Detail after either Evidence scope at %i px",
-  async (width) => {
-    const view = await mount(width);
-    try {
-      await act(async () => view.row.click());
-      const request = view.store.getState().request;
-      for (const scope of ["selection", "sweep"]) {
-        await act(async () =>
-          scope === "sweep"
-            ? view.store.getState().openSweepEvidence()
-            : view.store.getState().setTab("evidence"),
-        );
-        await act(async () => view.trigger.click());
-        expect(view.panel()).toBeNull();
-        expect(view.store.getState().tab).toBe("evidence");
-        await act(async () => view.trigger.click());
-        expect(view.store.getState()).toMatchObject({
-          selected: "repo:legal",
-          request,
-          tab: "detail",
-          evidenceScope: "selection",
-        });
-        expect(view.panel()?.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
-          "Detail",
-        );
-        expect(view.panel()?.querySelector('[role="status"]')?.textContent).toContain("repo:legal");
-      }
-    } finally {
-      await view.cleanup();
-    }
-  },
-);
-
-it.each([900, 1280])(
-  "closes rather than showing an empty Detail after the sweep's Evidence at %i px",
-  async (width) => {
-    const view = await mount(width);
-    try {
-      view.trigger.focus();
-      await act(async () => view.trigger.click());
-      expect(view.store.getState()).toMatchObject({ tab: "evidence", evidenceScope: "sweep" });
-      const detail = [
-        ...(view.panel()?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? []),
-      ].find((tab) => tab.textContent === "Detail");
-      if (!detail) throw new Error("Missing Detail tab");
-      detail.focus();
-      await act(async () => detail.click());
-      expect(view.panel()).toBeNull();
-      expect(view.container.textContent).not.toContain("No selection");
-      expect(document.activeElement).toBe(view.trigger);
-      await act(async () => view.trigger.click());
-      expect(view.store.getState()).toMatchObject({ tab: "evidence", evidenceScope: "sweep" });
-      expect(view.panel()).not.toBeNull();
-    } finally {
-      await view.cleanup();
+      await act(async () => root.unmount());
+      container.remove();
     }
   },
 );

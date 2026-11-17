@@ -6,8 +6,8 @@ import { expect, it, vi } from "vitest";
 import { readFixture } from "../../../../scripts/watch-generated.mjs";
 import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
-import { fixtureLoader, type InspectionName } from "../test-utils/harness.js";
-import { WATCH_INSPECTIONS, WATCH_SNAPSHOTS } from "../test-utils/watch-fixtures.test-helper.js";
+import { fixtureLoader } from "../test-utils/harness.js";
+import { WATCH_SNAPSHOTS } from "../test-utils/watch-fixtures.test-helper.js";
 import { plainTitle } from "../text.js";
 import { clockTime } from "../time.js";
 import {
@@ -29,7 +29,6 @@ const sweepSchedule = {
 
 const loadFixture = fixtureLoader(readFixture);
 const snapshots = WATCH_SNAPSHOTS.map((name) => ({ name, body: loadFixture(name) }));
-const inspections = WATCH_INSPECTIONS.flatMap((name) => loadFixture(name as InspectionName));
 
 shellHooks();
 
@@ -84,19 +83,13 @@ it("opens the upstream plan without presenting preparation as the button's actio
   expect(selectionStore.getState().selected).toBeNull();
 });
 
-it.each(inspections)("renders the recorded Detail and Evidence for $id", async (result) => {
+it("renders the whole sweep on the Evidence page", async () => {
   const body = snapshots[0]?.body;
   if (!body) throw new Error("Missing snapshot");
-  await open(body);
-  await act(async () => {
-    selectionStore.getState().select(result.id);
-    selectionStore.setState({ result, request: null });
-  });
-  assertRules(`Recorded Detail ${result.id}`);
-  await act(async () => selectionStore.getState().setTab("evidence"));
-  const panel = container.querySelector(".right-panel");
-  expect(panel, result.id).not.toBeNull();
-  if (panel) assertRules(`Recorded Evidence ${result.id}`, panel);
+  await open(body, { kind: "evidence" });
+  const page = container.querySelector(".evidence-page");
+  expect(page).not.toBeNull();
+  if (page) assertRules("Recorded Evidence", page);
 });
 
 it("reads the Sweep budget reset and the sweep line as local clock times with ISO attributes", async () => {
@@ -145,89 +138,6 @@ it("reads the Sweep budget reset and the sweep line as local clock times with IS
   } finally {
     vi.useRealTimers();
   }
-});
-
-it("strips emoji from every Detail field without removing ordinary symbols", async () => {
-  const body = snapshots[0]?.body;
-  const recorded = inspections[0];
-  if (!body || !recorded) throw new Error("Missing snapshot or inspection");
-  await open(body);
-  const result = {
-    ...recorded,
-    cause: "📊 Code Coverage failed ©",
-    effect: "🚨 Release blocked ™",
-    next: "🔧 Fix the check ✔",
-    why: "👩🏽‍💻 Keep the release safe",
-  };
-  await act(async () => {
-    selectionStore.getState().select(result.id);
-    selectionStore.setState({ result, request: null });
-  });
-  for (const [field, text] of Object.entries({
-    cause: "Code Coverage failed ©",
-    effect: "Release blocked ™",
-    next: "Fix the check ✔",
-    why: "Keep the release safe",
-  })) {
-    expect(container.querySelector(`[data-field="${field}"]`)?.textContent).toBe(text);
-  }
-  assertRules("Detail fields with emoji");
-});
-
-it("omits Detail fields and their list when they contain only emoji", async () => {
-  const body = snapshots[0]?.body;
-  const recorded = inspections[0];
-  if (!body || !recorded) throw new Error("Missing snapshot or inspection");
-  await open(body);
-  const result = {
-    ...recorded,
-    cause: "📊",
-    effect: "🚨",
-    next: "🔧",
-    why: "👩🏽‍💻",
-    related: [],
-  };
-  await act(async () => {
-    selectionStore.getState().select(result.id);
-    selectionStore.setState({ result, request: null });
-  });
-  expect(container.querySelector(".inspector dl")).toBeNull();
-  assertRules("Emoji-only Detail fields");
-});
-
-it("omits a Related entry whose text is only emoji, and Related when none is left", async () => {
-  const body = snapshots[0]?.body;
-  const recorded = inspections[0];
-  if (!body || !recorded) throw new Error("Missing snapshot or inspection");
-  await open(body);
-  const result = {
-    ...recorded,
-    related: [
-      { text: "📥", state: "Upstream" },
-      { text: "#32 📥 Upstream Sync Ready for Review", state: "Sync" },
-      { text: "🏴\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F} 🔄", state: "Cascade" },
-    ],
-  };
-  await act(async () => {
-    selectionStore.getState().select(result.id);
-    selectionStore.setState({ result, request: null });
-  });
-  const rows = [...(container.querySelector('dl[aria-label="Related"]')?.children ?? [])];
-  expect(rows.map((row) => [row.querySelector("dt")?.textContent, row.textContent])).toEqual([
-    ["Sync", "Sync#32 Upstream Sync Ready for Review"],
-  ]);
-  assertRules("Related with an emoji-only entry");
-  await act(async () => {
-    selectionStore.setState({
-      result: { ...result, related: [{ text: "📥", state: "Upstream" }] },
-      request: null,
-    });
-  });
-  expect(container.querySelector('[aria-label="Related"]')).toBeNull();
-  expect(
-    [...container.querySelectorAll(".inspector h3")].map((heading) => heading.textContent),
-  ).not.toContain("Related");
-  assertRules("Related with only emoji entries");
 });
 
 it("cleans a Today line's headline of its job emoji", async () => {
@@ -345,11 +255,10 @@ it.each([
   expect(violations(container).some((failure) => failure.startsWith(`${kind}:`))).toBe(true);
 });
 
-it("allows internal names only in Detail or Evidence, never placeholders", () => {
-  container.innerHTML =
-    '<aside class="right-panel"><p>fork_upstream gate 3 presses cut</p></aside><section data-evidence><p>cut</p></section>';
+it("allows internal names only in Evidence, never placeholders", () => {
+  container.innerHTML = "<section data-evidence><p>fork_upstream gate 3 presses cut</p></section>";
   expect(violations(container)).toEqual([]);
-  container.querySelector("aside")?.append("Not stated");
+  container.querySelector("section")?.append("Not stated");
   expect(violations(container)).toEqual([expect.stringContaining("unstated:")]);
 });
 

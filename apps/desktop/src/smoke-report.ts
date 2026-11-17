@@ -118,7 +118,7 @@ export const VIEW_SURFACES = [
     qualified: true,
   },
   {
-    id: "detail",
+    id: "upstream-item",
     name: "Popover: detected os-core-common 8.5.0",
     route: "upstream",
     place: "Upstream",
@@ -163,7 +163,7 @@ export const VIEW_SURFACES = [
     qualified: false,
   },
   {
-    id: "detail-related",
+    id: "upstream-theme",
     name: "Popover / Further ahead theme forks",
     route: "upstream",
     place: "Upstream",
@@ -173,7 +173,7 @@ export const VIEW_SURFACES = [
   },
   {
     id: "panes",
-    name: "Pinned Line and Detail",
+    name: "Pinned Line beside Upstream",
     route: "upstream",
     place: "Upstream",
     selector: ".line-sheet:not([data-presentation=overlay]) .line-grid",
@@ -300,7 +300,7 @@ export const VIEW_SURFACES = [
 ] as const;
 
 export const BROKEN_PROOFS: Partial<Record<string, RegExp>> = {
-  "detail-related/1440": /^Related value squeezed to 159 px$/,
+  "upstream-theme/1440": /^Related value squeezed to 159 px$/,
   "panes/1440": /^Header top: 4 != 0$/,
   "strip-20/740": /^Toggle sidebar at .* lies in a drag rectangle$/,
 };
@@ -313,9 +313,11 @@ export function geometryRules(surface: string, width: number): SmokeGeometry["ru
   if (surface === "first-sweep-evidence") return ["window", "headers", "failed-reads"];
   if (surface.startsWith("first-sweep-")) return ["window", "headers"];
   if (surface.startsWith("settings")) return ["window", "settings"];
-  if (surface === "detail-related") return ["window", "related"];
+  if (surface === "upstream-theme") return ["window", "related"];
   if (surface === "panes" && width === 1440) return ["window", "panes", "headers", "drag"];
-  if (["today", "detail", "panes", "strip-20", "sidebar", "sidebar-hidden"].includes(surface))
+  if (
+    ["today", "upstream-item", "panes", "strip-20", "sidebar", "sidebar-hidden"].includes(surface)
+  )
     return ["window", "headers", "drag"];
   return ["window"];
 }
@@ -519,8 +521,8 @@ export function assertSmokeViews(value: unknown): asserts value is SmokeShot[] {
           if (id === "panes" && viewportWidth === 1440 && geometry.rule === "headers")
             assert.equal(
               geometry.headers.length,
-              4,
-              "Header probe requires sidebar, centre, Line and Detail",
+              3,
+              "Header probe requires sidebar, centre and Line",
             );
           if (id === "strip-20" && geometry.rule === "drag")
             assert.equal(geometry.services, 20, "Drag probe requires 20 services");

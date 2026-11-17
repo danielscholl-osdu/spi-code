@@ -1,8 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { readFileSync } from "node:fs";
-import { InspectResultSchema, PROTOCOL_VERSION, type ReadRecord } from "@spi-code/contracts";
+import { PROTOCOL_VERSION } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { beforeEach, expect, it, vi } from "vitest";
@@ -13,13 +12,18 @@ import { selectionStore } from "../panels/selection.js";
 import { PINS_STORAGE_KEY } from "../store/pins.js";
 import { testSnapshot } from "../store/test-snapshot.js";
 import { watchStore } from "../store/watch.js";
-import { fixtureLoader, installSpi } from "../test-utils/harness.js";
+import { installSpi } from "../test-utils/harness.js";
 import { PANES_STORAGE_KEY } from "./pane-layout.js";
-import { closeSheet, navigate, pinSheet, type Registry, type Route } from "./routes.js";
+import {
+  closeSheet,
+  navigate,
+  openEvidence,
+  pinSheet,
+  type Registry,
+  type Route,
+} from "./routes.js";
 import { Shell } from "./Shell.js";
 import { PaneTitle } from "./title-row.js";
-
-const loadFixture = fixtureLoader((path) => readFileSync(path, "utf8"));
 
 type HappyWindow = { happyDOM: { setViewport(viewport: { width: number; height: number }): void } };
 const viewport = (width: number, height = 900) =>
@@ -64,13 +68,11 @@ beforeEach(() => {
     result: null,
     request: null,
     open: true,
-    tab: "detail",
-    evidenceScope: "selection",
   });
 });
 
 it.each(["failed", "cancelled"] as const)(
-  "opens the right panel with nothing selected onto the same %s first-sweep panel as Today",
+  "opens the Evidence page onto the same %s first-sweep state as Today",
   async (outcome) => {
     vi.useFakeTimers({ now: SWEEP_START + 130_000, toFake: ["Date"] });
     const previous = watchStore.getState();
@@ -95,14 +97,10 @@ it.each(["failed", "cancelled"] as const)(
     try {
       expect(selectionStore.getState().selected).toBeNull();
       expect(shell.container.querySelector("#app-right-panel")).toBeNull();
-      await act(async () =>
-        shell.container
-          .querySelector<HTMLButtonElement>('[aria-label="Toggle right panel"]')
-          ?.click(),
-      );
-      const today = shell.container.querySelector("main .today-first");
-      const evidence = shell.container.querySelector('#app-right-panel [data-evidence="sweep"]');
-      expect(evidence?.querySelector(".today-first")?.outerHTML).toBe(today?.outerHTML);
+      const today = shell.container.querySelector("main .today-first")?.outerHTML;
+      await act(async () => openEvidence(null));
+      const evidence = shell.container.querySelector('.evidence-page [data-evidence="sweep"]');
+      expect(evidence?.querySelector(".today-first")?.outerHTML).toBe(today);
       expect(evidence?.querySelector("h2")?.textContent).toBe("The first sweep stopped.");
       expect(evidence?.textContent).not.toContain("Waiting for the first sweep");
       await act(async () =>
@@ -125,14 +123,14 @@ it("re-decides the pane presentations and widths through all eight drawn cases",
   if (!layout) throw new Error("Missing shell");
   try {
     for (const [width, pinned, centre, sidebar, line, lineWidth, detail, detailWidth] of [
-      [1600, false, 1008, "inline", "closed", 0, "inline", 360],
-      [1440, true, 520, "inline", "inline", 360, "inline", 328],
-      [1280, true, 688, "inline", "inline", 360, "sheet", 360],
-      [1100, false, 520, "inline", "closed", 0, "inline", 348],
-      [1100, true, 520, "inline", "inline", 348, "sheet", 360],
-      [980, false, 748, "inline", "closed", 0, "sheet", 360],
-      [900, true, 668, "inline", "stacked", 668, "sheet", 360],
-      [740, false, 740, "off-canvas", "closed", 0, "sheet", 360],
+      [1600, false, 1368, "inline", "closed", 0, "closed", 0],
+      [1440, true, 848, "inline", "inline", 360, "closed", 0],
+      [1280, true, 688, "inline", "inline", 360, "closed", 0],
+      [1100, false, 868, "inline", "closed", 0, "closed", 0],
+      [1100, true, 520, "inline", "inline", 348, "closed", 0],
+      [980, false, 748, "inline", "closed", 0, "closed", 0],
+      [900, true, 668, "inline", "stacked", 668, "closed", 0],
+      [740, false, 740, "off-canvas", "closed", 0, "closed", 0],
     ] as const) {
       await act(async () => {
         viewport(width);
@@ -149,9 +147,7 @@ it("re-decides the pane presentations and widths through all eight drawn cases",
           Number.parseFloat(layout.style.getPropertyValue("--sheet-col")) -
           Number.parseFloat(layout.style.getPropertyValue("--panel-col")),
       ).toBe(centre);
-      expect(layout.style.getPropertyValue("--panel-col")).toBe(
-        `${detail === "inline" ? detailWidth : 0}px`,
-      );
+      expect(layout.style.getPropertyValue("--panel-col")).toBe("0px");
       expect(layout.style.getPropertyValue("--sheet-col")).toBe(
         `${line === "inline" ? lineWidth : 0}px`,
       );
@@ -162,9 +158,9 @@ it("re-decides the pane presentations and widths through all eight drawn cases",
       expect(shell.container.querySelector(".line-sheet")?.getAttribute("data-presentation")).toBe(
         pinned ? (line === "stacked" ? "stacked" : "pinned") : undefined,
       );
-      expect(shell.container.querySelector("#app-right-panel")?.hasAttribute("data-sheet")).toBe(
-        detail === "sheet",
-      );
+      expect(
+        shell.container.querySelector("#app-right-panel, [aria-controls=app-right-panel]"),
+      ).toBeNull();
     }
     await act(async () => {
       viewport(600);
@@ -222,21 +218,21 @@ it("names every navigated place in the centre header and keeps it in the documen
     }
     expect(button("Releases")?.getAttribute("aria-current")).toBe("true");
     expect(container.querySelectorAll("[data-place]")).toHaveLength(1);
-    expect(container.querySelector("aside")?.getAttribute("aria-label")).toBe("Detail");
+    expect(container.querySelector("#app-right-panel")).toBeNull();
   } finally {
     await shell.cleanup();
     expect(shell.unsubscribe).toHaveBeenCalledTimes(1);
   }
 });
 
-it("toggles the sidebar and right panel, omitting the unshipped terminal", async () => {
+it("toggles the sidebar with no right panel outside a thread, omitting the unshipped terminal", async () => {
   const shell = await mountShell();
   const { container } = shell;
   try {
     const toggle = (label: string) =>
       container.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
     const sidebar = () => container.querySelector<HTMLElement>('nav[aria-label="Sidebar"]');
-    for (const label of ["Toggle sidebar", "Close detail"]) {
+    for (const label of ["Toggle sidebar"]) {
       expect(toggle(label)?.disabled).toBe(false);
       expect(toggle(label)?.tabIndex).toBe(0);
     }
@@ -251,17 +247,15 @@ it("toggles the sidebar and right panel, omitting the unshipped terminal", async
     await press("b", { metaKey: true });
     expect(sidebar()?.getAttribute("data-state")).toBe("expanded");
 
-    expect(container.querySelector("aside")).not.toBeNull();
-    await act(async () => toggle("Close detail")?.click());
-    expect(container.querySelector("aside")).toBeNull();
-    expect(toggle("Toggle right panel")?.getAttribute("aria-pressed")).toBe("false");
+    expect(container.querySelector("#app-right-panel")).toBeNull();
+    expect(toggle("Toggle right panel")).toBeNull();
     await press("i");
-    expect(container.querySelector("aside")).not.toBeNull();
+    expect(container.querySelector("#app-right-panel")).toBeNull();
 
     expect(toggle("Toggle terminal")).toBeNull();
     await press("j");
     expect(sidebar()?.getAttribute("data-state")).toBe("expanded");
-    expect(container.querySelector("aside")).not.toBeNull();
+    expect(container.querySelector("#app-right-panel")).toBeNull();
   } finally {
     await shell.cleanup();
   }
@@ -339,66 +333,7 @@ it("opens the sidebar at the off-canvas budget step and closes it on Escape, bac
   }
 });
 
-it.each([740, 900, 980, 1100, 1280])(
-  "opens one detail surface at %i px and restores focus on Escape or close",
-  async (width) => {
-    viewport(width);
-    const previous = watchStore.getState();
-    const body = loadFixture("snapshot-1106.json");
-    watchStore.setState({ snapshot: { cursor: body.cursor, body } });
-    const shell = await mountShell();
-    const { container } = shell;
-    await act(async () => navigate({ kind: "upstream" }));
-    const row = container.querySelector<HTMLButtonElement>("main .place-item-content");
-    const trigger = () =>
-      container.querySelector<HTMLButtonElement>('.centre-bar [aria-controls="app-right-panel"]');
-    try {
-      expect(row).not.toBeNull();
-      row?.focus();
-      await act(async () => selectionStore.getState().select(row?.dataset.selectionId ?? ""));
-      expect(container.querySelectorAll('aside[aria-label="Detail"]')).toHaveLength(1);
-      expect(container.querySelector("#app-right-panel")?.hasAttribute("data-sheet")).toBe(
-        width < 1032,
-      );
-      if (width < 1032)
-        expect(container.querySelector("#app-right-panel")?.contains(document.activeElement)).toBe(
-          true,
-        );
-      for (const control of container.querySelectorAll<HTMLButtonElement>(
-        "#app-right-panel button",
-      )) {
-        expect(control.getAttribute("aria-label") || control.textContent?.trim()).toBeTruthy();
-      }
-      container.querySelector<HTMLButtonElement>('#app-right-panel [role="tab"]')?.focus();
-      await press("Escape", {});
-      expect(container.querySelector("#app-right-panel")).toBeNull();
-      expect(document.activeElement).toBe(row);
-      const opener = trigger();
-      opener?.focus();
-      await act(async () => opener?.click());
-      if (width < 1032)
-        expect(container.querySelector("#app-right-panel")?.contains(document.activeElement)).toBe(
-          true,
-        );
-      await act(async () =>
-        container.querySelector<HTMLButtonElement>('[aria-label="Close detail"]')?.click(),
-      );
-      expect(container.querySelector("#app-right-panel")).toBeNull();
-      expect(document.activeElement).toBe(trigger());
-      row?.focus();
-      await act(async () => selectionStore.getState().select("halt:legal"));
-      await act(async () => selectionStore.getState().clear());
-      // PS-11: with nothing selected the panel has nothing to show, at every width.
-      expect(container.querySelector("#app-right-panel")).toBeNull();
-      expect(document.activeElement).toBe(row);
-    } finally {
-      await shell.cleanup();
-      watchStore.setState(previous);
-    }
-  },
-);
-
-it("keeps a Flow selection on its service and restores centre-body scroll when returning", async () => {
+it("restores centre-body scroll when returning to a service", async () => {
   const previous = watchStore.getState();
   const body = testSnapshot(briefing, releases);
   watchStore.setState({ snapshot: { cursor: body.cursor, body } });
@@ -412,14 +347,11 @@ it("keeps a Flow selection on its service and restores centre-body scroll when r
   };
   try {
     await act(async () => navigate({ kind: "service", id: flow.fork }));
-    await act(async () => selectionStore.getState().select(flow.inspect));
     bodyScroll().scrollTop = 320;
     await act(async () => bodyScroll().dispatchEvent(new Event("scroll")));
     expect(shell.container.querySelector("main")?.scrollTop).toBe(0);
     await act(async () => navigate({ kind: "security" }));
-    expect(selectionStore.getState().selected).toBeNull();
     await act(async () => navigate({ kind: "service", id: flow.fork }));
-    expect(selectionStore.getState().selected).toBe(flow.inspect);
     expect(bodyScroll().scrollTop).toBe(320);
   } finally {
     await shell.cleanup();
@@ -427,30 +359,24 @@ it("keeps a Flow selection on its service and restores centre-body scroll when r
   }
 });
 
-it("keeps the narrow Sidebar and Detail toggles reachable without stacking their overlays", async () => {
+it("keeps the narrow sidebar reachable and ignores the right-panel shortcut outside a thread", async () => {
   viewport(740);
-  selectionStore.setState({ open: false });
   const shell = await mountShell();
   try {
     const sidebar = shell.container.querySelector<HTMLButtonElement>(
       '[aria-label="Toggle sidebar"]',
     );
-    const detail = shell.container.querySelector<HTMLButtonElement>(
-      '[aria-label="Toggle right panel"]',
-    );
-    detail?.focus();
-    await act(async () => detail?.click());
-    expect(shell.container.querySelector("[data-sheet]")).not.toBeNull();
     sidebar?.focus();
     await act(async () => sidebar?.click());
-    expect(shell.container.querySelector("[data-sheet]")).toBeNull();
     expect(shell.container.querySelector('nav[data-state="expanded"]')).not.toBeNull();
     await press("i");
-    expect(shell.container.querySelector("[data-sheet]")).not.toBeNull();
-    expect(shell.container.querySelector('nav[data-state="expanded"]')).toBeNull();
-    await press("b");
-    expect(shell.container.querySelector("[data-sheet]")).toBeNull();
+    expect(
+      shell.container.querySelector("#app-right-panel, [aria-controls=app-right-panel]"),
+    ).toBeNull();
     expect(shell.container.querySelector('nav[data-state="expanded"]')).not.toBeNull();
+    await press("b");
+    expect(shell.container.querySelector('nav[data-state="expanded"]')).toBeNull();
+    expect(document.activeElement).toBe(sidebar);
   } finally {
     await shell.cleanup();
   }
@@ -546,31 +472,6 @@ it.each([600, 1280])(
   },
 );
 
-it.each([900, 1280])(
-  "closes cleared selection Evidence on navigation only when presented as a sheet at %i px",
-  async (width) => {
-    viewport(width);
-    selectionStore.setState({ open: false });
-    const shell = await mountShell();
-    try {
-      await act(async () => selectionStore.getState().select("repo:legal"));
-      await act(async () => selectionStore.getState().openSweepEvidence());
-      expect(selectionStore.getState().selected).toBe("repo:legal");
-      expect(shell.container.querySelector("#app-right-panel")?.hasAttribute("data-sheet")).toBe(
-        width === 900,
-      );
-      await act(async () => navigate({ kind: "releases" }));
-      expect(shell.container.querySelector("main h1")?.textContent).toBe("Releases");
-      expect(selectionStore.getState().selected).toBeNull();
-      expect(selectionStore.getState().open).toBe(width === 1280);
-      expect(shell.container.querySelector("#app-right-panel") !== null).toBe(width === 1280);
-      expect(shell.container.querySelector(".detail-backdrop")).toBeNull();
-    } finally {
-      await shell.cleanup();
-    }
-  },
-);
-
 it("returns sidebar focus to its toggle when resizing hides the inline sidebar", async () => {
   const shell = await mountShell();
   const toggle = shell.container.querySelector<HTMLButtonElement>('[aria-label="Toggle sidebar"]');
@@ -589,192 +490,6 @@ it("returns sidebar focus to its toggle when resizing hides the inline sidebar",
     await shell.cleanup();
   }
 });
-
-it.each([900, 1280])(
-  "keeps a Related selection through snapshot refresh at %i px, but clears a removed listed row",
-  async (width) => {
-    viewport(width);
-    const previous = watchStore.getState();
-    const body = testSnapshot(briefing, releases);
-    watchStore.setState({ snapshot: { cursor: body.cursor, body } });
-    const item = body.briefing.focus[0];
-    if (!item) throw new Error("Missing recorded queue item");
-    const relatedId = "step:abc";
-    const shell = await mountShell();
-    const refresh = async (cursor: number, removeListed = false) =>
-      act(async () =>
-        watchStore.getState().receive({
-          version: PROTOCOL_VERSION,
-          id: `snapshot-${cursor}`,
-          kind: "event",
-          type: "view.snapshot",
-          payload: {
-            ...body,
-            cursor,
-            briefing: removeListed
-              ? { ...body.briefing, focus: body.briefing.focus.filter(({ id }) => id !== item.id) }
-              : body.briefing,
-          },
-        }),
-      );
-    try {
-      await act(async () => navigate({ kind: "today" }));
-      await act(async () => selectionStore.getState().select(item.id));
-      await act(async () =>
-        selectionStore.getState().receive({
-          version: PROTOCOL_VERSION,
-          id: selectionStore.getState().request,
-          kind: "response",
-          type: "inspect.result",
-          payload: {
-            id: item.id,
-            class: item.cls,
-            cause: item.cause,
-            effect: item.effect,
-            next: item.next,
-            why: "",
-            actions: [],
-            evidence: [],
-            approval: null,
-            related: [{ text: "Template step", state: "waiting", inspect: relatedId }],
-          },
-        }),
-      );
-      const related = shell.container.querySelector<HTMLButtonElement>(
-        'dl[aria-label="Related"] button',
-      );
-      expect(related).not.toBeNull();
-      await act(async () => related?.click());
-      const request = selectionStore.getState().request;
-      await refresh(2);
-      await refresh(3);
-      expect(selectionStore.getState().selected).toBe(relatedId);
-      expect(selectionStore.getState().request).toBe(request);
-      expect(shell.container.querySelector("#app-right-panel")).not.toBeNull();
-      expect(shell.container.querySelector("#app-right-panel")?.hasAttribute("data-sheet")).toBe(
-        width < 1032,
-      );
-      await act(async () => navigate({ kind: "security" }));
-      expect(selectionStore.getState().selected).toBeNull();
-      await act(async () => navigate({ kind: "today" }));
-      await act(async () => selectionStore.getState().select(item.id));
-      await refresh(4);
-      expect(selectionStore.getState().selected).toBe(item.id);
-      await refresh(5, true);
-      expect(selectionStore.getState().selected).toBeNull();
-      expect(shell.container.querySelector("#app-right-panel")).toBeNull();
-    } finally {
-      await shell.cleanup();
-      watchStore.setState(previous);
-    }
-  },
-);
-
-it.each([900, 1280])(
-  "shows selection Evidence areas then repository reads in the detail surface at %i px",
-  async (width) => {
-    viewport(width);
-    const previous = watchStore.getState();
-    const body = testSnapshot(briefing, releases);
-    const read = (source: string, object: string): ReadRecord => ({
-      source,
-      object,
-      observedAt: body.sweptAt,
-      completeness: { kind: "complete" },
-    });
-    body.reads = [
-      read("github", "Azure/osdu-spi-partition"),
-      read("Azure/osdu-spi-partition", "fork-runs"),
-      read("github", "Azure/osdu-spi-indexer"),
-    ];
-    const result = InspectResultSchema.parse({
-      id: "repo:partition",
-      title: "partition",
-      class: "SECURITY",
-      cause: "Recorded repository reading",
-      effect: "",
-      next: "",
-      why: "",
-      evidence: [read("Azure/osdu-spi-partition", "security")],
-      related: [],
-      approval: null,
-      actions: [],
-      areas: body.areas.map(({ area }) => ({
-        area,
-        envelope: {
-          source: area,
-          state: area === "runs" ? "stale" : "fresh",
-          observedAt: body.sweptAt,
-          completeness: { kind: "complete" },
-        },
-      })),
-      provenance: [
-        { path: "/cause", areas: ["github"] },
-        { path: "/next", areas: ["runs"] },
-      ],
-    });
-    watchStore.setState({ snapshot: { cursor: body.cursor, body } });
-    const shell = await mountShell();
-    try {
-      await act(async () =>
-        selectionStore
-          .getState()
-          .select(result.id, { id: result.id, title: "partition", kind: "repository" }),
-      );
-      await act(async () =>
-        selectionStore.getState().receive({
-          version: PROTOCOL_VERSION,
-          id: selectionStore.getState().request,
-          kind: "response",
-          type: "inspect.result",
-          payload: result,
-        }),
-      );
-      const panel = shell.container.querySelector("#app-right-panel");
-      expect(panel?.hasAttribute("data-sheet")).toBe(width < 1032);
-      const chips = panel?.querySelectorAll<HTMLButtonElement>("[data-selection-evidence]");
-      expect(chips).toHaveLength(1);
-      expect(panel?.querySelector(".detail-title")?.nextElementSibling).toBe(chips?.[0]);
-      expect(panel?.querySelector(".inspector [data-selection-evidence]")).toBeNull();
-      expect(panel?.querySelectorAll(".evidence-chip")).toHaveLength(1);
-      expect(chips?.[0]?.textContent).toContain("stale");
-      await act(async () =>
-        [...shell.container.querySelectorAll<HTMLButtonElement>('[role="tab"]')]
-          .find((tab) => tab.textContent === "Evidence")
-          ?.click(),
-      );
-      const article = panel?.querySelector('[data-evidence="selection"]');
-      expect(
-        [...(article?.querySelectorAll("h3") ?? [])].map((heading) => heading.textContent),
-      ).toEqual(["Areas", "Reads for partition"]);
-      expect(
-        [...(article?.querySelectorAll('table[aria-label="Areas"] th') ?? [])].map(
-          (heading) => heading.textContent,
-        ),
-      ).toEqual(["GitHub issues and PRs", "Workflow runs"]);
-      expect(
-        [...(article?.querySelectorAll('table[aria-label="Reads for partition"] th') ?? [])].map(
-          (heading) => heading.textContent,
-        ),
-      ).toEqual([
-        "Azure/osdu-spi-partition · security",
-        "GitHub issues and PRs · Azure/osdu-spi-partition",
-        "Azure/osdu-spi-partition · fork-runs",
-      ]);
-      expect(article?.textContent).not.toContain("Azure/osdu-spi-indexer");
-      await act(async () =>
-        shell.container.querySelector<HTMLButtonElement>('[role="tab"]')?.click(),
-      );
-      await act(async () =>
-        shell.container.querySelector<HTMLButtonElement>("[data-selection-evidence]")?.click(),
-      );
-      expect(panel?.querySelector('[data-evidence="selection"]')).not.toBeNull();
-    } finally {
-      await shell.cleanup();
-      watchStore.setState(previous);
-    }
-  },
-);
 
 it.each([900, 1280])(
   "opens the footer sweep Evidence as the whole sweep's page at %i px even with a selection",
@@ -918,9 +633,6 @@ it("updates the footer sweep from the live areas with the worst tone, and opens 
       else expect(name).toContain(words);
       expect(line()?.querySelector("[data-sweep-display]")?.textContent).not.toContain("inferred");
     }
-    await act(async () =>
-      container.querySelector<HTMLButtonElement>('[aria-label="Close detail"]')?.click(),
-    );
     expect(container.querySelector("#app-right-panel")).toBeNull();
     await act(async () => line()?.click());
     await act(async () =>
@@ -1075,7 +787,7 @@ it("opens the sweep's Evidence when desktop main routes the tray's View sweep, a
     },
   });
   watchStore.setState({ snapshot: { cursor: 1, body: testSnapshot(briefing, releases) } });
-  selectionStore.setState({ open: false, tab: "detail" });
+  selectionStore.setState({ open: false });
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -1118,7 +830,7 @@ it("closes Settings before View sweep opens the sweep's Evidence, and opens Read
     },
   });
   watchStore.setState({ snapshot: { cursor: 1, body: testSnapshot(briefing, releases) } });
-  selectionStore.setState({ open: false, tab: "detail" });
+  selectionStore.setState({ open: false });
   const agent = vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (Macintosh)");
   const container = document.createElement("div");
   document.body.append(container);

@@ -19,7 +19,9 @@ describe("width budget", () => {
   ] as const)(
     "matches the drawn %i px case with Line pinned=%s",
     (windowWidth, lineSheet, centreWidth, sidebarPresentation, lineWidth, linePresentation, rightWidth, rightPresentation, centreHeight, lineHeight) => {
-      expect(widthBudget({ windowWidth, open: { ...allOpen, lineSheet } })).toEqual({
+      expect(
+        widthBudget({ context: "thread", windowWidth, open: { ...allOpen, lineSheet } }),
+      ).toEqual({
         centre: { width: centreWidth, heightFraction: centreHeight },
         sidebar: { width: 232, presentation: sidebarPresentation },
         rightPanel: { width: rightWidth, presentation: rightPresentation },
@@ -47,9 +49,17 @@ describe("width budget", () => {
   ] as const)(
     "uses the first fitting step at %i px and either side",
     (threshold, pane, at, below) => {
-      const aboveBudget = widthBudget({ windowWidth: threshold + 1, open: allOpen });
-      const atBudget = widthBudget({ windowWidth: threshold, open: allOpen });
-      const belowBudget = widthBudget({ windowWidth: threshold - 1, open: allOpen });
+      const aboveBudget = widthBudget({
+        context: "thread",
+        windowWidth: threshold + 1,
+        open: allOpen,
+      });
+      const atBudget = widthBudget({ context: "thread", windowWidth: threshold, open: allOpen });
+      const belowBudget = widthBudget({
+        context: "thread",
+        windowWidth: threshold - 1,
+        open: allOpen,
+      });
       expect(aboveBudget[pane]).toMatchObject(at);
       expect(atBudget[pane]).toMatchObject(at);
       expect(belowBudget[pane]).toMatchObject(below);
@@ -64,7 +74,11 @@ describe("width budget", () => {
   );
 
   it.each([1031, 1032, 1033])("folds Detail without a pinned Line at %i px", (windowWidth) => {
-    const budget = widthBudget({ windowWidth, open: { ...allOpen, lineSheet: false } });
+    const budget = widthBudget({
+      context: "thread",
+      windowWidth,
+      open: { ...allOpen, lineSheet: false },
+    });
     expect(budget.rightPanel).toEqual(
       windowWidth < 1032
         ? { width: 360, presentation: "sheet" }
@@ -77,8 +91,13 @@ describe("width budget", () => {
     "moves the %i px threshold by the sidebar's preferred-width increase",
     (threshold) => {
       for (const offset of [-1, 0, 1]) {
-        const original = widthBudget({ windowWidth: threshold + offset, open: allOpen });
+        const original = widthBudget({
+          context: "thread",
+          windowWidth: threshold + offset,
+          open: allOpen,
+        });
         const wider = widthBudget({
+          context: "thread",
           windowWidth: threshold + offset + 64,
           preferred: { sidebar: 296 },
           open: allOpen,
@@ -102,6 +121,7 @@ describe("width budget", () => {
     (pane) => {
       for (const offset of [-1, 0, 1]) {
         const budget = widthBudget({
+          context: "thread",
           windowWidth: 1472 + 64 + offset,
           preferred: { [pane]: 424 },
           open: allOpen,
@@ -118,24 +138,38 @@ describe("width budget", () => {
 
   it("restores preferred inline widths after Detail folds, without changing preferences", () => {
     const preferred = Object.freeze({ sidebar: 232, rightPanel: 424, lineSheet: 424 });
-    const atMinimum = widthBudget({ windowWidth: 1352, preferred, open: allOpen });
+    const atMinimum = widthBudget({
+      context: "thread",
+      windowWidth: 1352,
+      preferred,
+      open: allOpen,
+    });
     expect(atMinimum.rightPanel).toEqual({ width: 280, presentation: "inline" });
     expect(atMinimum.lineSheet.width).toBe(320);
-    const folded = widthBudget({ windowWidth: 1351, preferred, open: allOpen });
+    const folded = widthBudget({ context: "thread", windowWidth: 1351, preferred, open: allOpen });
     expect(folded.rightPanel).toEqual({ width: 424, presentation: "sheet" });
     expect(folded.lineSheet.width).toBe(424);
-    const expanded = widthBudget({ windowWidth: 1600, preferred, open: allOpen });
+    const expanded = widthBudget({
+      context: "thread",
+      windowWidth: 1600,
+      preferred,
+      open: allOpen,
+    });
     expect(expanded.rightPanel.width).toBe(424);
     expect(expanded.lineSheet.width).toBe(424);
   });
 
   it("caps a Detail sheet at the window width less 48, not the saved preference", () => {
     const preferred = Object.freeze({ rightPanel: 900 });
-    expect(widthBudget({ windowWidth: 740, preferred, open: allOpen }).rightPanel).toEqual({
+    expect(
+      widthBudget({ context: "thread", windowWidth: 740, preferred, open: allOpen }).rightPanel,
+    ).toEqual({
       width: 692,
       presentation: "sheet",
     });
-    expect(widthBudget({ windowWidth: 2200, preferred, open: allOpen }).rightPanel).toEqual({
+    expect(
+      widthBudget({ context: "thread", windowWidth: 2200, preferred, open: allOpen }).rightPanel,
+    ).toEqual({
       width: 900,
       presentation: "inline",
     });
@@ -151,7 +185,11 @@ describe("width budget", () => {
   ] as const)(
     "omits closed panes (sidebar=%s, Detail=%s, Line=%s)",
     (sidebar, rightPanel, lineSheet, centreWidth, sidebarPresentation, sidebarWidth, linePresentation, lineWidth, rightPresentation, centreHeight, lineHeight) => {
-      const budget = widthBudget({ windowWidth: 740, open: { sidebar, rightPanel, lineSheet } });
+      const budget = widthBudget({
+        context: "thread",
+        windowWidth: 740,
+        open: { sidebar, rightPanel, lineSheet },
+      });
       expect(budget).toEqual({
         centre: { width: centreWidth, heightFraction: centreHeight },
         sidebar: { width: sidebarWidth, presentation: sidebarPresentation },
@@ -164,7 +202,9 @@ describe("width budget", () => {
   it.each([Number.NaN, Number.POSITIVE_INFINITY, 739])(
     "rejects invalid window width %s",
     (windowWidth) => {
-      expect(() => widthBudget({ windowWidth, open: allOpen })).toThrow(RangeError);
+      expect(() => widthBudget({ context: "thread", windowWidth, open: allOpen })).toThrow(
+        RangeError,
+      );
     },
   );
 
@@ -176,6 +216,26 @@ describe("width budget", () => {
     { rightPanel: Number.NaN },
     { lineSheet: Number.POSITIVE_INFINITY },
   ])("rejects invalid preferred widths %j", (preferred) => {
-    expect(() => widthBudget({ windowWidth: 1600, preferred, open: allOpen })).toThrow(RangeError);
+    expect(() =>
+      widthBudget({ context: "thread", windowWidth: 1600, preferred, open: allOpen }),
+    ).toThrow(RangeError);
   });
 });
+
+it.each([1600, 1440, 1280, 1100, 980, 900, 752, 740])(
+  "reserves no panel outside a thread at %i px",
+  (windowWidth) => {
+    for (const lineSheet of [false, true]) {
+      const budget = widthBudget({ windowWidth, open: { ...allOpen, lineSheet } });
+      expect(budget).toEqual(
+        widthBudget({
+          windowWidth,
+          context: "thread",
+          open: { ...allOpen, lineSheet, rightPanel: false },
+        }),
+      );
+      expect(budget.rightPanel).toEqual({ width: 0, presentation: "closed" });
+      expect(budget.centre.width).toBeGreaterThanOrEqual(520);
+    }
+  },
+);

@@ -3,11 +3,9 @@
 
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { readFixture } from "../../../../scripts/watch-generated.mjs";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { selectionStore } from "../panels/selection.js";
-import { watchStore } from "../store/watch.js";
-import { fixtureLoader, installSpi } from "../test-utils/harness.js";
+import { installSpi } from "../test-utils/harness.js";
 import { loadPanes, PANES_STORAGE_KEY, savePanes } from "./pane-layout.js";
 import { closeSheet, pinSheet } from "./routes.js";
 import { Shell } from "./Shell.js";
@@ -133,27 +131,21 @@ describe("pane separators", () => {
     await pointer(sidebar, "pointerup", 272);
     expect(saved().widths.sidebar).toBe(272);
 
-    const right = shell.separator("Resize right panel");
-    expect(right?.getAttribute("aria-controls")).toBe("app-right-panel");
-    await drag(right, 1240, 1200);
-    expect(saved().widths.rightPanel).toBe(400);
-    expect(shell.column("--panel-col")).toBe("400px");
-
     const line = shell.separator("Resize Line sheet");
     expect(line?.getAttribute("aria-controls")).toBe("app-line-sheet");
     expect(shell.container.querySelector("#app-line-sheet")).not.toBeNull();
-    expect(line?.getAttribute("aria-valuemax")).toBe("408");
+    expect(line?.getAttribute("aria-valuemax")).toBe("808");
     await drag(line, 900, 700);
-    expect(saved().widths.lineSheet).toBe(408);
-    expect(shell.column("--sheet-col")).toBe("408px");
-    expect(1600 - 272 - 400 - 408).toBe(520);
-    expect(shell.layout.dataset.rightPresentation).toBe("inline");
+    expect(saved().widths.lineSheet).toBe(560);
+    expect(shell.column("--sheet-col")).toBe("560px");
+    expect(1600 - 272 - 560).toBe(768);
+    expect(shell.layout.dataset.rightPresentation).toBe("closed");
     expect(shell.layout.dataset.linePresentation).toBe("inline");
 
     await act(async () => {
       line?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowRight" }));
     });
-    expect(saved().widths.lineSheet).toBe(392);
+    expect(saved().widths.lineSheet).toBe(544);
     await act(async () => {
       sidebar.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
     });
@@ -163,11 +155,6 @@ describe("pane separators", () => {
 
   it("stops a drag where the centre would fall below 520 px", async () => {
     const shell = await mountShell();
-    const right = shell.separator("Resize right panel");
-    expect(right?.getAttribute("aria-valuemax")).toBe("528");
-    await drag(right, 900, 400);
-    expect(saved().widths.rightPanel).toBe(528);
-    expect(shell.column("--panel-col")).toBe("528px");
     await shell.unmount();
 
     selectionStore.setState({ open: false });
@@ -181,67 +168,9 @@ describe("pane separators", () => {
     expect(narrow.layout.dataset.sidebarPresentation).toBe("inline");
   });
 
-  it("shows a narrower width than the saved one without rewriting it, and widening restores it", async () => {
-    savePanes({ widths: { rightPanel: 440 } });
-    const shell = await mountShell();
-    expect(shell.column("--panel-col")).toBe("440px");
-    await resizeWindow(1100);
-    expect(shell.column("--panel-col")).toBe("348px");
-    expect(shell.separator("Resize right panel")?.getAttribute("aria-valuenow")).toBe("348");
-    expect(saved().widths.rightPanel).toBe(440);
-    await resizeWindow(1280);
-    expect(shell.column("--panel-col")).toBe("440px");
-    await shell.unmount();
-
-    savePanes({ widths: { rightPanel: 880 }, open: { sidebar: false } });
-    await resizeWindow(1600);
-    const wide = await mountShell();
-    expect(wide.column("--panel-col")).toBe("880px");
-    await resizeWindow(1280);
-    expect(wide.column("--panel-col")).toBe("704px");
-    expect(wide.separator("Resize right panel")?.getAttribute("aria-valuemax")).toBe("704");
-    expect(saved().widths.rightPanel).toBe(880);
-  });
-
-  it("keeps the preferred width when the stop blocks an outward drag on a narrowed pane", async () => {
-    savePanes({ widths: { rightPanel: 440 } });
-    const shell = await mountShell();
-    await resizeWindow(1100);
-    expect(shell.column("--panel-col")).toBe("348px");
-    await drag(shell.separator("Resize right panel"), 752, 700);
-    expect(shell.column("--panel-col")).toBe("348px");
-    expect(saved().widths.rightPanel).toBe(440);
-    await resizeWindow(1280);
-    expect(shell.column("--panel-col")).toBe("440px");
-  });
-
-  it("keeps the preferred width when an unmoved press spans a window resize", async () => {
-    savePanes({ widths: { rightPanel: 440 } });
-    const shell = await mountShell();
-    const right = shell.separator("Resize right panel");
-    if (!right) throw new Error("Missing right panel separator");
-    await pointer(right, "pointerdown", 840);
-    await resizeWindow(1100);
-    expect(shell.column("--panel-col")).toBe("348px");
-    await pointer(right, "pointerup", 840);
-    expect(saved().widths.rightPanel).toBe(440);
-    await resizeWindow(1280);
-    expect(shell.column("--panel-col")).toBe("440px");
-  });
-
-  it("keeps a preferred width above the 55% maximum when an outward drag is held there", async () => {
-    savePanes({ widths: { rightPanel: 880 }, open: { sidebar: false } });
-    const shell = await mountShell();
-    expect(shell.column("--panel-col")).toBe("704px");
-    await drag(shell.separator("Resize right panel"), 576, 400);
-    expect(saved().widths.rightPanel).toBe(880);
-    await resizeWindow(1600);
-    expect(shell.column("--panel-col")).toBe("880px");
-  });
-
   it("keeps the pinned Line sheet's preferred width when the stop holds its drag", async () => {
     savePanes({ widths: { lineSheet: 440 } });
-    await resizeWindow(1400);
+    await resizeWindow(1120);
     pinSheet();
     const shell = await mountShell();
     const shown = shell.column("--sheet-col");
@@ -251,94 +180,21 @@ describe("pane separators", () => {
     expect(saved().widths.lineSheet).toBe(440);
   });
 
-  it("saves a real drag inward while narrowed, as the width the user dragged to", async () => {
-    savePanes({ widths: { rightPanel: 440 } });
-    const shell = await mountShell();
-    await resizeWindow(1100);
-    await drag(shell.separator("Resize right panel"), 752, 800);
-    expect(saved().widths.rightPanel).toBe(300);
-    expect(shell.column("--panel-col")).toBe("300px");
-    await resizeWindow(1280);
-    expect(shell.column("--panel-col")).toBe("300px");
-  });
-
-  it("restores widths and open or collapsed panes on the next launch", async () => {
-    await resizeWindow(1600);
-    pinSheet();
-    selectionStore.setState({ open: false });
-    const shell = await mountShell();
-    await act(async () =>
-      shell.container
-        .querySelector<HTMLButtonElement>('[aria-label="Toggle right panel"]')
-        ?.click(),
-    );
-    await drag(shell.separator("Resize right panel"), 1240, 1180);
-    await drag(shell.separator("Resize Line sheet"), 900, 880);
-    await act(async () =>
-      shell.container.querySelector<HTMLButtonElement>('[aria-label="Toggle sidebar"]')?.click(),
-    );
-    expect(saved()).toEqual({
-      widths: { sidebar: 232, rightPanel: 420, lineSheet: 380 },
-      open: { sidebar: false, rightPanel: true },
-    });
-    await shell.unmount();
-
-    selectionStore.setState({ open: false });
-    const relaunched = await mountShell();
-    expect(selectionStore.getState().open).toBe(true);
-    expect(relaunched.layout.dataset.sidebarPresentation).toBe("closed");
-    expect(relaunched.container.querySelector("#app-sidebar")?.getAttribute("data-state")).toBe(
-      "collapsed",
-    );
-    expect(relaunched.column("--panel-col")).toBe("420px");
-    expect(relaunched.column("--sheet-col")).toBe("380px");
-    expect(relaunched.separator("Resize sidebar")).toBeNull();
-    await act(async () =>
-      relaunched.container.querySelector<HTMLButtonElement>('[aria-label="Close detail"]')?.click(),
-    );
-    expect(saved().open.rightPanel).toBe(false);
-    await relaunched.unmount();
-
-    const closed = await mountShell();
-    expect(selectionStore.getState().open).toBe(false);
-    expect(closed.layout.dataset.rightPresentation).toBe("closed");
-  });
-
-  it("opens a saved open right panel at launch only where it would sit inline", async () => {
-    savePanes({ open: { rightPanel: true } });
-    selectionStore.setState({ open: false });
-    await resizeWindow(900);
-    await mountShell();
-    expect(selectionStore.getState().open).toBe(false);
-    expect(saved().open.rightPanel).toBe(true);
-  });
-
-  it("restores a saved open right panel before the shell first visits a route", async () => {
-    const previousWatch = watchStore.getState();
-    const { visit } = selectionStore.getState();
-    const openAt: { visit?: boolean } = {};
-    try {
-      const body = fixtureLoader(readFixture)("snapshot-1106.json");
-      watchStore.setState({ snapshot: { cursor: body.cursor, body }, setup: null });
-      savePanes({ open: { rightPanel: true } });
-      selectionStore.setState({
-        selected: null,
-        row: null,
-        open: false,
-        visit: (...args) => {
-          openAt.visit ??= selectionStore.getState().open;
-          return visit(...args);
-        },
-      });
-      await resizeWindow(1440);
-      await mountShell();
-      expect(openAt).toEqual({ visit: true });
-    } finally {
-      vi.restoreAllMocks();
-      selectionStore.setState({ visit });
-      watchStore.setState(previousWatch, true);
-    }
-  });
+  it.each([740, 900, 1440])(
+    "keeps a saved open context pane closed outside a thread at %i px",
+    async (width) => {
+      savePanes({ widths: { rightPanel: 440 }, open: { rightPanel: true } });
+      await resizeWindow(width);
+      const shell = await mountShell();
+      expect(shell.column("--panel-col")).toBe("0px");
+      expect(shell.separator("Resize right panel")).toBeNull();
+      expect(
+        shell.container.querySelector("#app-right-panel, [aria-label='Toggle right panel']"),
+      ).toBeNull();
+      expect(saved().widths.rightPanel).toBe(440);
+      expect(saved().open.rightPanel).toBe(true);
+    },
+  );
 
   it("remembers the inline sidebar's state, not an off-canvas peek at 740 px", async () => {
     selectionStore.setState({ open: false });

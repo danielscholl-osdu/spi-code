@@ -3,11 +3,10 @@
 
 import type { PrRef, ViewSnapshot } from "@spi-code/contracts";
 import { useRef, useState } from "react";
-import { navigate } from "../../app/navigation.js";
+import { navigate, openEvidence } from "../../app/navigation.js";
 import { SectionEvidence, sectionSources } from "../../components/evidence/SectionEvidence.js";
 import { stateWord } from "../../components/evidence/words.js";
 import { Chip, PrBadge, ServiceChip } from "../../components/kit/Chip.js";
-import { selectionStore } from "../../panels/selection.js";
 import { FORMING_RELEASES_ANCHOR, SHARED_COMPONENTS_ANCHOR } from "./anchors.js";
 
 type OpenItem = (id: string, element: HTMLElement) => boolean;
@@ -77,7 +76,7 @@ export function ReleaseSections({
                 className="kit-chip kit-chip--plain release-held"
                 title={caveat}
                 aria-label={`${caveat}. Open Evidence.`}
-                onClick={() => selectionStore.getState().openSweepEvidence()}
+                onClick={() => openEvidence(null)}
               >
                 <span aria-hidden="true">⌀</span>
               </button>

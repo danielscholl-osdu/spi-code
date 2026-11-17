@@ -3,32 +3,24 @@
 
 import type { ViewSnapshot } from "@spi-code/contracts";
 import { type UIEvent, useLayoutEffect, useRef } from "react";
-import { selectionStore } from "../panels/index.js";
-import { routeSelectionIds } from "../panels/selection-rows.js";
 import { type Route, routeHash } from "./routes.js";
 
 /** Keeps the centre body's scroll position per route. */
 export function useRouteScroll(route: Route, snapshot: ViewSnapshot | undefined) {
   const middle = useRef<HTMLDivElement>(null);
+  const positions = useRef(new Map<string, number>());
   const position = useRef({ route: routeHash(route), top: 0 });
   useLayoutEffect(() => {
+    if (!snapshot) return;
     const frame = middle.current?.querySelector<HTMLElement>(
       ':scope > :not([role="alert"], .place-header, [role="status"], button)',
     );
     if (!frame) return;
     const key = routeHash(route);
-    const top = selectionStore
-      .getState()
-      .visit(
-        key,
-        [
-          ...(snapshot ? routeSelectionIds(snapshot, route) : []),
-          ...Array.from(frame.querySelectorAll<HTMLElement>("[data-selection-id]")).flatMap(
-            (element) => (element.dataset.selectionId ? [element.dataset.selectionId] : []),
-          ),
-        ],
-        position.current.route === key ? frame.scrollTop : position.current.top,
-      );
+    if (position.current.route !== key)
+      positions.current.set(position.current.route, position.current.top);
+    const top =
+      position.current.route === key ? frame.scrollTop : (positions.current.get(key) ?? 0);
     frame.scrollTop = top;
     position.current = { route: key, top };
   }, [route, snapshot]);

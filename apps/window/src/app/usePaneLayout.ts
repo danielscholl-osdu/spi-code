@@ -1,16 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { createSidebarOpenStore } from "../components/sidebar/ui-sidebar.js";
-import { selectionStore } from "../panels/index.js";
 import { edgePanes } from "./PaneEdges.js";
 import { budgetPreferred, loadPanes, type ResizablePane, savePanes } from "./pane-layout.js";
 import type { Registry, SheetPresentation } from "./routes.js";
@@ -73,13 +65,6 @@ export function usePaneLayout(
       savePanes({ open: { sidebar: open } });
     });
   }, [sidebarStore]);
-  useEffect(
-    () =>
-      selectionStore.subscribe((state, previous) => {
-        if (state.open !== previous.open) savePanes({ open: { rightPanel: state.open } });
-      }),
-    [],
-  );
   const edges = edgePanes(settled, sheet === "pinned" && Boolean(registry.sheet)).join();
   useEffect(() => {
     // A drag ends without a width when its pane folds mid-drag.
@@ -87,13 +72,6 @@ export function usePaneLayout(
       if (!edges.split(",").includes(pane)) resizeLive(pane, undefined);
     }
   }, [live, edges, resizeLive]);
-  const launch = useRef(budgetInput);
-  useLayoutEffect(() => {
-    const input = launch.current;
-    if (!saved.open.rightPanel || selectionStore.getState().open) return;
-    const restored = widthBudget({ ...input, open: { ...input.open, rightPanel: true } });
-    if (restored.rightPanel.presentation === "inline") selectionStore.getState().setOpen(true);
-  }, [saved]);
   const sidebarPresentation = sidebarOpen
     ? budget.sidebar.presentation
     : widthBudget({ ...budgetInput, open: { ...budgetInput.open, sidebar: true } }).sidebar

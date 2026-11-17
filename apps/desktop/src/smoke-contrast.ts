@@ -906,7 +906,8 @@ export async function assertRenderedContrast(
     if (!parsed.ok || parsed.message.type !== "inspect.request") return;
     const result = inspections.get(parsed.message.payload.id);
     if (result) fixture(window, "inspect.result", result, parsed.message.id);
-    else console.error(`Packaged contrast: no recorded Detail for ${parsed.message.payload.id}`);
+    else
+      console.error(`Packaged contrast: no recorded inspection for ${parsed.message.payload.id}`);
   };
   const debug = window.webContents.debugger;
   const attached = debug.isAttached();
@@ -1096,13 +1097,13 @@ export async function assertRenderedContrast(
       window,
       "document.querySelector(\".popover[data-selection^='item~campaign:'] .popover-fields\")",
     );
-    await everyShade("detail", ".popover");
+    await everyShade("upstream-item", ".popover");
     await js('document.querySelector(".upstream-theme-head").click()');
     await rendered(
       window,
       "document.querySelector(\".popover[data-selection^='theme~'] .popover-fields\")",
     );
-    await everyShade("detail-reading", ".popover");
+    await everyShade("upstream-reading", ".popover");
     await js('document.querySelector(".popover .popover-close").click()');
     await rendered(window, '!document.querySelector(".popover")');
     await js(`location.hash = "#service/${FIND_UNPINNED}"`);

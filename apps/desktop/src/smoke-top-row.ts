@@ -45,8 +45,8 @@ export const PIN_END_PROBE = `(() => {
 })()`;
 
 /**
- * The top row's pin control on a pinned place and an unpinned service, with the right panel closed
- * and open: the pin-end geometry at each width, captures at 1440 and 740 px (and the pinned control
+ * The top row's pin control on a pinned place and an unpinned service: the pin-end geometry
+ * at each width, captures at 1440 and 740 px (and the pinned control
  * hovered), and the two broken rules rejected in light.
  */
 export async function captureTopRowPins(
@@ -77,13 +77,16 @@ export async function captureTopRowPins(
       await rendered(
         `document.querySelector("[data-place]")?.textContent === ${JSON.stringify(place)} && document.querySelector(".centre-end > .pin-control[data-pinned=${pinned}]")`,
       );
-      for (const panel of ["closed", "open"] as const) {
-        if (panel === "open") {
-          await js(`document.querySelector("[aria-label='Toggle right panel']").click()`);
-          await rendered('document.querySelector("#app-right-panel")');
-        }
+      {
+        assert.equal(
+          await js(
+            `document.querySelectorAll("#app-right-panel, [aria-controls=app-right-panel]").length`,
+          ),
+          0,
+          "Panel or toggle outside a thread",
+        );
         await rendered("true");
-        const state = `${pinned ? "pinned" : "unpinned"}-panel-${panel}`;
+        const state = `${pinned ? "pinned" : "unpinned"}`;
         const geometry = await measure();
         measured.push({ state, geometry });
         if (captured) {
@@ -93,14 +96,7 @@ export async function captureTopRowPins(
             (await window.webContents.capturePage({ x: 0, y: 0, width, height: 44 })).toPNG(),
           );
           figures.push(`<figure><figcaption>${state}</figcaption><img src="${file}"></figure>`);
-          if (pinned && panel === "closed")
-            figures.push(await captureHover(window, output, width, appearance, rendered));
-        }
-        if (panel === "open") {
-          await js(`document.querySelector("[aria-label='Close detail']").click()`);
-          await rendered(
-            "document.querySelector(\".centre-end [aria-label='Toggle right panel']\")",
-          );
+          if (pinned) figures.push(await captureHover(window, output, width, appearance, rendered));
         }
       }
     }
@@ -118,7 +114,7 @@ export async function captureTopRowPins(
   if (captured)
     writeFileSync(
       join(output, `top-row-pins-${width}-${appearance}.html`),
-      `<!doctype html><meta charset="utf-8"><title>Top-row pin control</title><style>body{font:14px system-ui;padding:24px}figure{margin:16px 0}img{max-width:100%;border:1px solid #888}</style><h1>Top-row pin control / ${width} px / ${appearance}</h1><p>Design: epic spicode-1l9, PS-11 and PS-17. Upstream pinned (filled), partition unpinned (hollow); the control ends 6 px before the right-panel toggle, or last with the panel open.</p>${figures.join("")}`,
+      `<!doctype html><meta charset="utf-8"><title>Top-row pin control</title><style>body{font:14px system-ui;padding:24px}figure{margin:16px 0}img{max-width:100%;border:1px solid #888}</style><h1>Top-row pin control / ${width} px / ${appearance}</h1><p>Design: epic spicode-1l9, PS-11 and PS-17. Upstream pinned (filled), partition unpinned (hollow); the control sits at the end of the top row.</p>${figures.join("")}`,
     );
 }
 

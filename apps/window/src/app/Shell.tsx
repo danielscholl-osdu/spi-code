@@ -4,20 +4,17 @@
 import { type CSSProperties, useCallback, useState } from "react";
 import { useStore } from "zustand";
 import { SweepProgressLine } from "../components/capsule/SweepSegment.js";
-import { SweepEvidence } from "../components/evidence/EvidenceTab.js";
 import { SweepLine } from "../components/evidence/SweepLine.js";
 import { WindowPinNotice } from "../components/pin/PinNotice.js";
 import { ProgramSidebar } from "../components/sidebar/ProgramSidebar.js";
 import { SidebarProvider } from "../components/sidebar/ui-sidebar.js";
 import { openFreshness } from "../components/sweep/reveal.js";
 import { CommandPalette } from "../palette/CommandPalette.js";
-import { selectionStore } from "../panels/index.js";
-import { RightPanelFrame } from "../panels/RightPanelFrame.js";
 import { SettingsDialog, type SettingsSection } from "../settings/SettingsDialog.js";
 import { watchStore } from "../store/watch.js";
 import { LineSheet } from "./LineSheet.js";
 import { PaneEdges } from "./PaneEdges.js";
-import { PanelShortcuts, RightPanelToggle, SidebarToggle } from "./PanelControls.js";
+import { PanelShortcuts, SidebarToggle } from "./PanelControls.js";
 import {
   DEFAULT_REGISTRY,
   LINE,
@@ -43,9 +40,8 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
   const snapshot = useStore(watchStore, (state) => state.snapshot?.body);
   const sweep = useStore(watchStore, (state) => state.sweep);
   const progress = useStore(watchStore, (state) => state.progress);
-  const completed = useStore(watchStore, (state) => state.completed);
   const { route, sheet, navigate, toggleSheet, closeSheet } = useNavigation(registry);
-  const rightPanelOpen = useStore(selectionStore, (state) => state.open);
+  const rightPanelOpen = false;
   const {
     sidebarStore,
     sidebarPresentation,
@@ -56,10 +52,6 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
     resizeLive,
     commitWidth,
   } = usePaneLayout(registry, sheet, rightPanelOpen);
-  const toggleRightPanel = useCallback(
-    () => selectionStore.getState().setOpen(!selectionStore.getState().open),
-    [],
-  );
   const openSweepLine = useCallback(() => openFreshness(watchStore.getState().snapshot), []);
   const [titles] = useState(createTitleStore);
   const [findOpen, setFindOpen] = useState(false);
@@ -113,13 +105,9 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
             } as CSSProperties
           }
         >
-          <PanelShortcuts
-            rightPanelOpen={rightPanelOpen}
-            onToggleRightPanel={toggleRightPanel}
-            onToggleFind={toggleFind}
-          />
+          <PanelShortcuts onToggleFind={toggleFind} />
           <WindowPinNotice />
-          <SidebarToggle rightPanelOpen={rightPanelOpen} onToggleRightPanel={toggleRightPanel} />
+          <SidebarToggle />
           <ProgramSidebar
             store={watchStore}
             route={route}
@@ -167,7 +155,6 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
                 </div>
                 <div className="centre-end">
                   <TitleEnd store={titles} />
-                  {!rightPanelOpen && <RightPanelToggle onToggleRightPanel={toggleRightPanel} />}
                 </div>
               </div>
             </header>
@@ -189,20 +176,6 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
               {registry.sheet(route, sheet)}
             </LineSheet>
           )}
-          <RightPanelFrame
-            store={selectionStore}
-            presentation={budget.rightPanel.presentation}
-            {...(snapshot ? { snapshot } : {})}
-            sweepEvidence={
-              <SweepEvidence
-                snapshot={snapshot ?? null}
-                sweep={sweep}
-                progress={progress}
-                completed={completed}
-                onOpenSettings={openReadiness}
-              />
-            }
-          />
           <PaneEdges
             budget={budget}
             settled={settled}

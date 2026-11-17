@@ -33,7 +33,7 @@ import { watchStore } from "../store/watch.js";
 import { countInterrupts } from "../views/today/selectors.js";
 import { ariaShortcut, matchesShortcut, shortcutLabel } from "./shortcuts.js";
 
-/** Opening the narrow sidebar closes Detail, and opening Detail closes the narrow sidebar. */
+/** Opening the narrow sidebar closes the context pane, and opening the context pane closes the narrow sidebar. */
 function usePanelToggles(rightPanelOpen: boolean, onToggleRightPanel: () => void) {
   const { toggleSidebar, isMobile, openMobile, setOpenMobile } = useSidebar();
   const closeDetailForSidebar = useCallback(() => {
@@ -48,17 +48,17 @@ function usePanelToggles(rightPanelOpen: boolean, onToggleRightPanel: () => void
 
 /** The shell's panel shortcuts: sidebar (B), right panel (I) and Find (K). */
 export function PanelShortcuts({
-  rightPanelOpen,
+  rightPanelOpen = false,
   onToggleRightPanel,
   onToggleFind,
 }: {
-  rightPanelOpen: boolean;
-  onToggleRightPanel(): void;
+  rightPanelOpen?: boolean;
+  onToggleRightPanel?(): void;
   onToggleFind?(): void;
 }) {
   const { toggleSidebar, closeDetailForSidebar, toggleDetail } = usePanelToggles(
     rightPanelOpen,
-    onToggleRightPanel,
+    onToggleRightPanel ?? (() => {}),
   );
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -66,7 +66,7 @@ export function PanelShortcuts({
       if (matchesShortcut(event, "b")) {
         closeDetailForSidebar();
         toggleSidebar();
-      } else if (matchesShortcut(event, "i")) toggleDetail();
+      } else if (onToggleRightPanel && matchesShortcut(event, "i")) toggleDetail();
       else if (
         onToggleFind &&
         matchesShortcut(event, "k") &&
@@ -79,7 +79,7 @@ export function PanelShortcuts({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [toggleSidebar, closeDetailForSidebar, toggleDetail, onToggleFind]);
+  }, [toggleSidebar, closeDetailForSidebar, toggleDetail, onToggleFind, onToggleRightPanel]);
   return null;
 }
 
@@ -100,13 +100,16 @@ function useHiddenSidebarDot() {
  * the sidebar is out of sight it carries the dot.
  */
 export function SidebarToggle({
-  rightPanelOpen,
+  rightPanelOpen = false,
   onToggleRightPanel,
 }: {
-  rightPanelOpen: boolean;
-  onToggleRightPanel(): void;
-}) {
-  const { closeDetailForSidebar } = usePanelToggles(rightPanelOpen, onToggleRightPanel);
+  rightPanelOpen?: boolean;
+  onToggleRightPanel?(): void;
+} = {}) {
+  const { closeDetailForSidebar } = usePanelToggles(
+    rightPanelOpen,
+    onToggleRightPanel ?? (() => {}),
+  );
   const { visible } = useSidebar();
   const dot = useHiddenSidebarDot();
   return (

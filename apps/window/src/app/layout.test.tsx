@@ -90,7 +90,6 @@ it.each(["overlay", "pinned"] as const)(
     try {
       await act(async () => {
         navigate({ kind: "service", id: "indexer" });
-        selectionStore.getState().openSweepEvidence();
         openSheet();
         if (presentation === "pinned") pinSheet();
       });
@@ -101,12 +100,12 @@ it.each(["overlay", "pinned"] as const)(
       expect(tokens.getPropertyValue("--centre-content-padding-block").trim()).toBe("20px");
       expect(tokens.getPropertyValue("--centre-content-padding-inline").trim()).toBe("24px");
       expect(["", "0px", "normal"]).toContain(getComputedStyle(shell).columnGap);
-      for (const selector of [".middle-frame", ".line-sheet", ".right-panel"]) {
+      for (const selector of [".middle-frame", ".line-sheet"]) {
         const computed = getComputedStyle(element(view.container, selector));
         expect(computed.padding, selector).toBe("0px");
         expect(["", "0px", "0"]).toContain(computed.borderRadius);
       }
-      for (const selector of [".centre-bar", ".line-toolbar", ".panel-tabs"]) {
+      for (const selector of [".centre-bar", ".line-toolbar"]) {
         const header = element(view.container, selector);
         expect(header.classList.contains("pane-header"), selector).toBe(true);
         const computed = getComputedStyle(header);
@@ -129,7 +128,6 @@ it.each(["overlay", "pinned"] as const)(
       expect(lineHeader.paddingRight).toBe("24px");
       expect(lineBody.querySelector(".line-grid")).not.toBeNull();
       expect(view.container.querySelector(".line-toolbar :is(table, fieldset)")).toBeNull();
-      expect(getComputedStyle(element(view.container, ".panel-body")).overflow).toBe("auto");
       for (const name of ["attention", "repository", "release", "runs"]) {
         const header = element(
           view.container,
@@ -225,14 +223,12 @@ it("keeps Watch gate siblings below a 44 px header instead of making each a full
   }
 });
 it.each(["light", "dark"])(
-  "keeps the centre on surface, the panel on chrome and logical sections flat in %s",
+  "keeps the centre on surface and logical sections flat in %s",
   async (theme) => {
     const view = await mount();
     try {
       document.documentElement.dataset.theme = theme;
-      await act(async () => selectionStore.getState().openSweepEvidence());
       const main = element(view.container, "main");
-      const panel = element(view.container, "aside");
       const topRow = element(view.container, ".centre-bar");
       const tokens = getComputedStyle(document.documentElement);
       expect(getComputedStyle(topRow).backgroundColor).toBe(
@@ -244,9 +240,7 @@ it.each(["light", "dark"])(
       expect(getComputedStyle(main).backgroundColor).toBe(
         tokens.getPropertyValue("--surface").trim(),
       );
-      expect(getComputedStyle(panel).backgroundColor).toBe(
-        tokens.getPropertyValue("--chrome").trim(),
-      );
+      expect(view.container.querySelector("#app-right-panel")).toBeNull();
       const routes: Route[] = [
         { kind: "today" },
         { kind: "upstream" },

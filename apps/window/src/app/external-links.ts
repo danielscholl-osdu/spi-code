@@ -4,7 +4,7 @@
 /**
  * Mirrors the desktop link bridge's allowlist (apps/desktop/src/external-links.ts): only
  * HTTPS GitHub and community.opengroup.org URLs without credentials open. The parity test in
- * detail-kinds.test.tsx keeps both gates aligned; an action the bridge refuses never renders.
+ * external-links.test.ts keeps both gates aligned; an action the bridge refuses never renders.
  */
 export function bridgeOpens(url: string) {
   try {

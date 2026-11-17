@@ -520,37 +520,6 @@ it("closes on Escape and returns focus to the control that opened it", async () 
   expect(document.activeElement).toBe(field);
 });
 
-it("closes only the palette on Escape while the right panel is open", async () => {
-  await act(async () => selectionStore.getState().setOpen(true));
-  await shortcut({ ctrlKey: true });
-  expect(palettes()).toHaveLength(1);
-  await key("Escape");
-  expect(palettes()).toHaveLength(0);
-  expect(selectionStore.getState().open).toBe(true);
-  expect(container.querySelector("#app-right-panel")).not.toBeNull();
-  container.querySelector<HTMLButtonElement>('#app-right-panel [role="tab"]')?.focus();
-  await act(async () => {
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-  });
-  expect(selectionStore.getState().open).toBe(false);
-  await act(async () => selectionStore.getState().setOpen(true));
-});
-
-it("closes only the palette on Escape when opened from inside the right panel", async () => {
-  await act(async () => selectionStore.getState().setOpen(true));
-  const detail = container.querySelector<HTMLButtonElement>('#app-right-panel [role="tab"]');
-  if (!detail) throw new Error("Missing Detail tab");
-  detail.focus();
-  await shortcut({ ctrlKey: true });
-  expect(palettes()).toHaveLength(1);
-  expect(document.activeElement).toBe(input());
-  await key("Escape");
-  expect(palettes()).toHaveLength(0);
-  expect(selectionStore.getState().open).toBe(true);
-  expect(container.querySelector("#app-right-panel")).not.toBeNull();
-  expect(document.activeElement).toBe(detail);
-});
-
 it("ranks the best match class first and keeps group order on ties", () => {
   const groups = buildPaletteGroups(body);
   expect(filterPaletteGroups(groups, "").map(({ value }) => value)).toEqual([

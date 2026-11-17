@@ -248,6 +248,8 @@ function geometry(surface: string, width: number): SmokeGeometry[] {
       case "window":
         return {
           rule,
+          rightPanels: 0,
+          panelToggles: 0,
           viewport: rect(0, 0, width, 800),
           scroll: { width, height: 800 },
           panes: [rect(0, 0, width, 800)],
@@ -292,7 +294,7 @@ function geometry(surface: string, width: number): SmokeGeometry[] {
           rule,
           viewport: rect(0, 0, width, 800),
           scroll: { width, height: 800 },
-          panes: [232, 568, 360, 280].map((size, index, sizes) => ({
+          panes: [232, 848, 360].map((size, index, sizes) => ({
             rect: rect(
               sizes.slice(0, index).reduce((a, b) => a + b, 0),
               0,
@@ -306,18 +308,10 @@ function geometry(surface: string, width: number): SmokeGeometry[] {
       case "headers":
         return {
           rule,
-          panes: [
-            rect(0, 0, 231, 800),
-            rect(232, 0, 568, 800),
-            rect(801, 0, 359, 800),
-            rect(1161, 0, 279, 800),
-          ],
-          headers: [
-            rect(0, 0, 231, 44),
-            rect(232, 0, 568, 44),
-            rect(801, 0, 359, 44),
-            rect(1161, 0, 279, 44),
-          ].map((header, index) => ({ rect: header, rule: index === 0 ? 0 : 1 })),
+          panes: [rect(0, 0, 231, 800), rect(232, 0, 848, 800), rect(1081, 0, 359, 800)],
+          headers: [rect(0, 0, 231, 44), rect(232, 0, 848, 44), rect(1081, 0, 359, 44)].map(
+            (header, index) => ({ rect: header, rule: index === 0 ? 0 : 1 }),
+          ),
         };
       case "failed-reads":
         return {
@@ -339,16 +333,12 @@ function geometry(surface: string, width: number): SmokeGeometry[] {
           clear: rect(0, 0, width, 44),
           viewport: rect(0, 0, width, 800),
           centre: rect(0, 0, width, 44),
-          detailSheet: false,
           regions: [
             { appRegion: "drag", rect: rect(0, 0, width, 44) },
             { appRegion: "no-drag", rect: rect(76, 8, 28, 28) },
             { appRegion: "no-drag", rect: rect(width - 40, 8, 28, 28) },
           ],
-          targets: [
-            { label: "Toggle sidebar", rect: rect(76, 8, 28, 28) },
-            { label: "Toggle right panel", rect: rect(width - 40, 8, 28, 28) },
-          ],
+          targets: [{ label: "Toggle sidebar", rect: rect(76, 8, 28, 28) }],
         };
     }
     throw new Error(`Unknown geometry rule: ${rule}`);
@@ -356,7 +346,7 @@ function geometry(surface: string, width: number): SmokeGeometry[] {
 }
 
 const rejected: Record<string, string> = {
-  "detail-related/1440": "Related value squeezed to 159 px",
+  "upstream-theme/1440": "Related value squeezed to 159 px",
   "panes/1440": "Header top: 4 != 0",
   "strip-20/740": "Toggle sidebar at 76,8 28x28 lies in a drag rectangle",
 };
@@ -971,7 +961,7 @@ it("fails missing or broken renderer geometry in the terminal report", () => {
         ),
       })),
     ),
-  ).toThrow("Header probe requires sidebar, centre, Line and Detail");
+  ).toThrow("Header probe requires sidebar, centre and Line");
   expect(() =>
     assertSmokeViews(
       report.views.map((shot) => ({
@@ -1031,7 +1021,7 @@ it("fails undersized or truncated images", () => {
   ).toThrow("Invalid bitmap");
 });
 
-it.each(["today", "upstream", "service", "detail"])(
+it.each(["today", "upstream", "service", "upstream-item"])(
   "fails when %s lacks its envelope qualifier at capture time",
   (surface) => {
     const image = syntheticImage(24, 20000);

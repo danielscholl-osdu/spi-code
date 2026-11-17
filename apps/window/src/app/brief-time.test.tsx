@@ -1,7 +1,6 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { PROTOCOL_VERSION } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
@@ -68,35 +67,6 @@ it.each([
           .querySelector(`[data-item-id="${item.id}"] .place-item-content`)
           ?.getAttribute("title"),
     ).toContain(`Before ${item.due?.before}`);
-  }
-  const answers = load("inspect-1106.json");
-  const timed = answers.filter(({ id, related, effect }) =>
-    id.startsWith("theme:")
-      ? related.some(({ state }) => state.includes(body.briefing.nextSyncAt ?? "missing"))
-      : effect.includes(body.briefing.nextSyncAt ?? "missing"),
-  );
-  expect(timed.some(({ id }) => id.startsWith("theme:"))).toBe(true);
-  expect(timed.some(({ id }) => !id.startsWith("theme:"))).toBe(true);
-  for (const answer of timed) {
-    await act(async () => selectionStore.getState().select(answer.id));
-    await act(async () =>
-      selectionStore.getState().receive({
-        version: PROTOCOL_VERSION,
-        id: selectionStore.getState().request,
-        kind: "response",
-        type: "inspect.result",
-        payload: answer,
-      }),
-    );
-    const theme = answer.id.startsWith("theme:");
-    const field = theme ? ".inspector-related dt" : '.inspector [data-field="effect"]';
-    const times = host.querySelectorAll(`${field} time[datetime="2026-11-07T00:00:00.000Z"]`);
-    const expected = theme
-      ? answer.related.filter(({ state }) => state.includes(body.briefing.nextSyncAt ?? "missing"))
-          .length
-      : 1;
-    expect(times.length, answer.id).toBe(expected);
-    for (const time of times) expect(time.textContent).toContain(sync);
   }
   await act(async () => navigate({ kind: "environment" }));
   expect(host.querySelector(".place-headline")?.textContent).toBe(

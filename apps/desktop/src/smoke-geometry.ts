@@ -16,6 +16,8 @@ export type SmokeGeometry =
       viewport: SmokeRect;
       scroll: { width: number; height: number };
       panes: SmokeRect[];
+      rightPanels: number;
+      panelToggles: number;
     }
   | { rule: "related"; panel: SmokeRect; label: SmokeRect; labelText: string; values: SmokeRect[] }
   | {
@@ -47,7 +49,6 @@ export type SmokeGeometry =
       clear: SmokeRect;
       viewport: SmokeRect;
       centre: SmokeRect;
-      detailSheet: boolean;
       regions: SmokeAppRegion[];
       targets: { label: string; rect: SmokeRect }[];
     }
@@ -249,6 +250,8 @@ export function assertSmokeGeometry(
       break;
     }
     case "window": {
+      assert.equal(value.rightPanels, 0, "Right panel outside a thread");
+      assert.equal(value.panelToggles, 0, "Panel toggle outside a thread");
       assert(Array.isArray(value.panes), "Window panes missing");
       for (const pane of value.panes) rect(pane);
       windowEdges(value.viewport, value.scroll, value.panes);
@@ -278,8 +281,8 @@ export function assertSmokeGeometry(
     }
     case "panes": {
       assert(
-        Array.isArray(value.panes) && value.panes.length === 4,
-        "Pane probe requires sidebar, centre, Line and Detail",
+        Array.isArray(value.panes) && value.panes.length === 3,
+        "Pane probe requires sidebar, centre and Line",
       );
       let previous: { rect: SmokeRect; borderRight: number } | undefined;
       for (const pane of value.panes) {
@@ -391,8 +394,8 @@ export function assertSmokeGeometry(
       );
       assert.equal(
         labels.filter((label) => label === "Toggle right panel" || label === "Close detail").length,
-        value.detailSheet ? 0 : 1,
-        "Top row needs one right-panel toggle",
+        0,
+        "Top row must have no right-panel toggle outside a thread",
       );
       const left = Math.max(value.centre.x, value.clear.x);
       const right = Math.min(

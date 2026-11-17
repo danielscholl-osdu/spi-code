@@ -395,7 +395,7 @@ it("moves focus into the dialog on open and back to where it was on close", asyn
   const shell = await mountShell();
   try {
     const opener = shell.container.querySelector<HTMLButtonElement>(
-      'header button[aria-label="Toggle right panel"]',
+      'button[aria-label="Toggle sidebar"]',
     );
     opener?.focus();
     expect(document.activeElement).toBe(opener);
@@ -1052,11 +1052,11 @@ describe("the Sweep section", () => {
       expect(view?.textContent).toBe("View live sweep →");
       await act(async () => view?.click());
       expect(dialog()).toBeNull();
-      expect(selectionStore.getState()).toMatchObject({
-        open: true,
-        tab: "evidence",
-        evidenceScope: "sweep",
-      });
+      expect(window.location.hash).toMatch(/^#evidence(?:\?|$)/);
+      expect(
+        shell.container.querySelector('.evidence-page [data-evidence="sweep"]'),
+      ).not.toBeNull();
+      expect(shell.container.querySelector("#app-right-panel")).toBeNull();
     } finally {
       await shell.cleanup();
     }

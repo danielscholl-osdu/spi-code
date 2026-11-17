@@ -24,17 +24,11 @@ const panes: SmokeGeometry = {
   scroll: { width: 1440, height: 800 },
   panes: [
     { rect: rect(0, 0, 232, 800), borderLeft: 0, borderRight: 1 },
-    { rect: rect(232, 0, 568, 800), borderLeft: 0, borderRight: 0 },
-    { rect: rect(800, 0, 360, 800), borderLeft: 1, borderRight: 0 },
-    { rect: rect(1160, 0, 280, 800), borderLeft: 1, borderRight: 0 },
+    { rect: rect(232, 0, 848, 800), borderLeft: 0, borderRight: 0 },
+    { rect: rect(1080, 0, 360, 800), borderLeft: 1, borderRight: 0 },
   ],
 };
-const headerPanes = [
-  rect(0, 0, 231, 800),
-  rect(232, 0, 568, 800),
-  rect(801, 0, 359, 800),
-  rect(1161, 0, 279, 800),
-];
+const headerPanes = [rect(0, 0, 231, 800), rect(232, 0, 848, 800), rect(1081, 0, 359, 800)];
 const headers: SmokeGeometry = {
   rule: "headers",
   panes: headerPanes,
@@ -45,6 +39,8 @@ const headers: SmokeGeometry = {
 };
 const window: SmokeGeometry = {
   rule: "window",
+  rightPanels: 0,
+  panelToggles: 0,
   viewport: panes.viewport,
   scroll: panes.scroll,
   panes: panes.panes.map((pane) => pane.rect),
@@ -56,7 +52,7 @@ const settings: SmokeGeometry = {
 };
 const sidebarToggle = { label: "Toggle sidebar", rect: rect(76, 8, 28, 28) };
 const titleControl = { label: "Pin", rect: rect(542, 8, 240, 28) };
-const closeDetail = { label: "Close detail", rect: rect(1260, 8, 28, 28) };
+const endControl = { label: "Pin service", rect: rect(1260, 8, 28, 28) };
 const drag: SmokeGeometry = {
   rule: "drag",
   services: 20,
@@ -64,7 +60,6 @@ const drag: SmokeGeometry = {
   clear: rect(0, 0, 1302, 44),
   viewport: rect(0, 0, 1440, 800),
   centre: rect(232, 0, 568, 44),
-  detailSheet: false,
   regions: [
     { appRegion: "no-drag", rect: sidebarToggle.rect },
     { appRegion: "drag", rect: rect(0, 0, 231, 44) },
@@ -72,9 +67,9 @@ const drag: SmokeGeometry = {
     { appRegion: "drag", rect: rect(232, 0, 568, 44) },
     { appRegion: "no-drag", rect: titleControl.rect },
     { appRegion: "drag", rect: rect(1161, 0, 279, 44) },
-    { appRegion: "no-drag", rect: closeDetail.rect },
+    { appRegion: "no-drag", rect: endControl.rect },
   ],
-  targets: [sidebarToggle, titleControl, closeDetail],
+  targets: [sidebarToggle, titleControl, endControl],
 };
 const failedReads: SmokeGeometry = {
   rule: "failed-reads",
@@ -213,11 +208,11 @@ it("rejects a mutually flush pane row inset from any window edge", () => {
   for (const changed of [
     panes.panes.map((pane, index) => ({
       ...pane,
-      rect: { ...pane.rect, x: pane.rect.x + 15, width: pane.rect.width - (index === 3 ? 15 : 0) },
+      rect: { ...pane.rect, x: pane.rect.x + 15, width: pane.rect.width - (index === 2 ? 15 : 0) },
     })),
     panes.panes.map((pane, index) => ({
       ...pane,
-      rect: { ...pane.rect, width: pane.rect.width - (index === 3 ? 15 : 0) },
+      rect: { ...pane.rect, width: pane.rect.width - (index === 2 ? 15 : 0) },
     })),
     panes.panes.map((pane) => ({ ...pane, rect: { ...pane.rect, height: 710 } })),
   ])
@@ -264,7 +259,7 @@ it("fails a header out of line with the top row, its pane or the shared rule", (
       at === index ? { rect: { ...header.rect, ...change }, rule: rule ?? header.rule } : header,
     );
   for (const [changed, message] of [
-    [moved(3, { y: 4 }), "Header top: 4 != 0"],
+    [moved(2, { y: 4 }), "Header top: 4 != 0"],
     [moved(1, { height: 43 }), "Header height"],
     [moved(2, { width: 345 }), "Header width"],
     [moved(0, { x: 15 }), "Header left"],
@@ -313,14 +308,13 @@ it("accepts the wide Settings maximum and rejects a wider dialog", () => {
   expect(() => assertSmokeGeometry({ ...wide, dialog: rect(310, 120, 821, 560) })).toThrow();
 });
 
-it("accepts one top row with both toggles clear of the caption buttons", () => {
+it("accepts one top row with its controls clear of the caption buttons", () => {
   expect(() => assertSmokeGeometry(drag)).not.toThrow();
   expect(() =>
     assertSmokeGeometry({
       ...drag,
       controls: "inset",
       clear: rect(0, 0, 1440, 44),
-      detailSheet: true,
       targets: [sidebarToggle, titleControl],
     }),
   ).not.toThrow();
@@ -330,14 +324,14 @@ it("fails a top-row control in a drag rectangle, under the caption buttons or of
   expect(() =>
     assertSmokeGeometry({ ...drag, regions: drag.regions.filter((_, index) => index !== 2) }),
   ).toThrow("Toggle sidebar at 76,8 28x28 lies in a drag rectangle");
-  const under = { label: "Close detail", rect: rect(1300, 8, 28, 28) };
+  const under = { label: "Pin service", rect: rect(1300, 8, 28, 28) };
   expect(() =>
     assertSmokeGeometry({ ...drag, targets: [sidebarToggle, titleControl, under] }),
-  ).toThrow("Top row target under the window controls: Close detail at 1300,8 28x28");
+  ).toThrow("Top row target under the window controls: Pin service at 1300,8 28x28");
   expect(() =>
     assertSmokeGeometry({
       ...drag,
-      targets: [{ ...sidebarToggle, rect: rect(76, 30, 28, 28) }, titleControl, closeDetail],
+      targets: [{ ...sidebarToggle, rect: rect(76, 30, 28, 28) }, titleControl, endControl],
     }),
   ).toThrow("Top row target off the row");
   expect(() => assertSmokeGeometry({ ...drag, clear: rect(0, 0, 1440, 44) })).toThrow(
@@ -345,21 +339,30 @@ it("fails a top-row control in a drag rectangle, under the caption buttons or of
   );
 });
 
-it("needs exactly one toggle for the sidebar and one for the right panel", () => {
-  expect(() => assertSmokeGeometry({ ...drag, targets: [titleControl, closeDetail] })).toThrow(
+it("requires one sidebar toggle and no right-panel toggle outside a thread", () => {
+  expect(() => assertSmokeGeometry({ ...drag, targets: [titleControl, endControl] })).toThrow(
     "one sidebar toggle",
   );
   expect(() =>
-    assertSmokeGeometry({
-      ...drag,
-      targets: [sidebarToggle, sidebarToggle, titleControl, closeDetail],
-    }),
+    assertSmokeGeometry({ ...drag, targets: [sidebarToggle, sidebarToggle, titleControl] }),
   ).toThrow("one sidebar toggle");
-  expect(() => assertSmokeGeometry({ ...drag, targets: [sidebarToggle, titleControl] })).toThrow(
-    "one right-panel toggle",
+  for (const label of ["Toggle right panel", "Close detail"]) {
+    expect(() =>
+      assertSmokeGeometry({
+        ...drag,
+        targets: [sidebarToggle, titleControl, { ...endControl, label }],
+      }),
+    ).toThrow("no right-panel toggle outside a thread");
+  }
+});
+
+it("rejects a right panel or toggle anywhere outside a thread", () => {
+  expect(() => assertSmokeGeometry(window)).not.toThrow();
+  expect(() => assertSmokeGeometry({ ...window, rightPanels: 1 })).toThrow(
+    "Right panel outside a thread",
   );
-  expect(() => assertSmokeGeometry({ ...drag, detailSheet: true })).toThrow(
-    "one right-panel toggle",
+  expect(() => assertSmokeGeometry({ ...window, panelToggles: 1 })).toThrow(
+    "Panel toggle outside a thread",
   );
 });
 
@@ -370,7 +373,7 @@ it("requires a contiguous 48 px drag span in the centre, not a sum of smaller ga
       ...drag.regions.filter((region) => region.rect !== titleControl.rect),
       ...middle.map((rect) => ({ appRegion: "no-drag" as const, rect })),
     ],
-    targets: [sidebarToggle, ...middle.map((rect) => ({ label: "Line", rect })), closeDetail],
+    targets: [sidebarToggle, ...middle.map((rect) => ({ label: "Line", rect })), endControl],
   });
   expect(() => assertSmokeGeometry(crowded(rect(232, 8, 521, 28)))).toThrow(
     "Drag area is 47 px, below 48",

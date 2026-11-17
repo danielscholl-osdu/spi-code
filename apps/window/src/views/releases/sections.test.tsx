@@ -205,8 +205,11 @@ it("opens a PR's item in a popover, else its source, reports failed browser open
     pointer("/releases/forming/prs/1")?.querySelector('[role="alert"]')?.textContent,
   ).toContain("Could not open");
   await act(async () => container.querySelector<HTMLButtonElement>(".release-held")?.click());
-  expect(selectionStore.getState().evidenceScope).toBe("sweep");
-  expect(selectionStore.getState().tab).toBe("evidence");
+  expect(parseRoute(window.location.hash)).toMatchObject({
+    kind: "evidence",
+    from: { kind: "releases" },
+  });
+  expect(parseRoute(window.location.hash)).not.toHaveProperty("selection");
 });
 
 it("registers every drawn section field in reachability and clears only the place's pending scope", async () => {

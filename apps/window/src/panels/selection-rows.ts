@@ -26,7 +26,7 @@ export type SelectionKind =
   | "release-notable";
 
 /**
- * Lists pass a row to select(id, row), or use useSelectionList in displayed order.
+ * Rows retain the source fields used by place popovers.
  * The id is stable across routes; inspectId overrides it for stations (null means row-only).
  * Fields are the row's own reading, not a second inspector. Omit them when inspect carries it all.
  */

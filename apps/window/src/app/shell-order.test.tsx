@@ -17,7 +17,7 @@ it("opens a tray destination the preload held from before the renderer subscribe
   const previousSelection = selectionStore.getState();
   const body = loadFixture("snapshot-1106.json");
   watchStore.setState({ snapshot: { cursor: body.cursor, body }, setup: null });
-  selectionStore.setState({ selected: null, open: false, tab: "detail" });
+  selectionStore.setState({ selected: null, open: false });
   const harness = installSpi({
     onNavigate: (listener) => {
       listener({ to: "evidence" });

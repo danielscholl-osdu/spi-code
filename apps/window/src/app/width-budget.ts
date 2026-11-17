@@ -9,6 +9,7 @@ export interface PaneWidths {
 
 export interface WidthBudgetInput {
   readonly windowWidth: number;
+  readonly context?: "thread";
   readonly preferred?: Partial<PaneWidths>;
   readonly open: {
     readonly sidebar: boolean;
@@ -49,7 +50,13 @@ function narrow(windowWidth: number, sidebar: number, rightPanel: number, lineSh
   return { centre: windowWidth - sidebar - rightPanel - lineSheet, rightPanel, lineSheet };
 }
 
-export function widthBudget({ windowWidth, preferred, open }: WidthBudgetInput): WidthBudget {
+export function widthBudget({
+  windowWidth,
+  preferred,
+  open: requested,
+  context,
+}: WidthBudgetInput): WidthBudget {
+  const open = { ...requested, rightPanel: context === "thread" && requested.rightPanel };
   validateWidth("Window", windowWidth, 740);
   const sidebar = preferred?.sidebar ?? 232;
   const rightPanel = preferred?.rightPanel ?? 360;

@@ -58,6 +58,11 @@ function load(read: Read) {
   }
 }
 
+vi.hoisted(() => {
+  process.env.TZ = "UTC";
+  vi.useFakeTimers({ toFake: ["Date"], now: Date.parse("2026-11-06T14:02:00Z") });
+});
+
 const previous = watchStore.getState();
 let harness: ReturnType<typeof installSpi>;
 export let container: HTMLDivElement;
@@ -66,6 +71,7 @@ let root: Root;
 export function shellHooks(read: Read) {
   load(read);
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"], now: Date.parse("2026-11-06T14:02:00Z") });
     closeSheet();
     relaunch();
     localStorage.clear();
