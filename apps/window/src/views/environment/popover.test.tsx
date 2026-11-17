@@ -88,6 +88,9 @@ it.each([
   "a refresh failing during the run",
   "readiness unknown",
   "the Held lane unread",
+  "the Held lane's provenance missing",
+  "the lifecycle read failed",
+  "the lifecycle history cut",
 ])("does not claim the environment stayed ready with %s", async (change) => {
   const body = november16();
   const env = body.briefing.environment;
@@ -119,6 +122,22 @@ it.each([
   const lifecycle = body.areas.find(({ area }) => area === "lifecycle");
   if (change === "the Held lane unread" && lifecycle)
     lifecycle.envelope = { source: "lifecycle", state: "unread" };
+  if (change === "the Held lane's provenance missing") {
+    const held = `/briefing/environment/lanes/${env.lanes.findIndex(({ id }) => id === "holds")}`;
+    body.provenance = body.provenance.filter(({ path }) => path !== held);
+  }
+  if (change === "the lifecycle read failed" && lifecycle)
+    lifecycle.envelope = {
+      source: "lifecycle",
+      state: "failed",
+      completeness: { kind: "complete" },
+    };
+  if (change === "the lifecycle history cut" && lifecycle?.envelope.state === "fresh")
+    lifecycle.envelope = {
+      ...lifecycle.envelope,
+      state: "incomplete",
+      completeness: { kind: "cut", reason: "page-limit", read: 20, total: 40 },
+    };
   await render(body);
   await act(async () => bar(SMOKE).click());
   expect(read().effect).toBe(

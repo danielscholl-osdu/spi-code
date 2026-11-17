@@ -10,8 +10,8 @@ import {
   todayContent,
 } from "../../components/opened-body/content.js";
 import { todayMembers } from "../../components/place/members.js";
+import { envelopesFor } from "../../store/evidence.js";
 import { plainTitle } from "../../text.js";
-import { heldLaneRead } from "./lead.js";
 import { eventKey, eventSpan } from "./timeline.js";
 
 const ENVIRONMENT = { kind: "environment" } as const;
@@ -46,15 +46,38 @@ function overlaps(a: [number, number], b: [number, number]) {
   return a[0] <= b[1] && b[0] <= a[1];
 }
 
+const READY_LANES = ["holds", "refresh", "upgrade"];
+
+/** Each lane came from at least one successful, complete read observed after the run ended. */
+function lanesReadOver(snapshot: ViewSnapshot, run: [number, number]): boolean {
+  const { lanes } = snapshot.briefing.environment;
+  return READY_LANES.every((id) => {
+    const index = lanes.findIndex((lane) => lane.id === id);
+    const reads = index < 0 ? [] : envelopesFor(snapshot, `/briefing/environment/lanes/${index}`);
+    return (
+      reads.length > 0 &&
+      reads.every(
+        ({ envelope }) =>
+          (envelope.state === "fresh" || envelope.state === "stale") &&
+          envelope.completeness.kind === "complete" &&
+          envelope.observedAt !== undefined &&
+          Date.parse(envelope.observedAt) >= run[1],
+      )
+    );
+  });
+}
+
 /**
- * The running environment is ready now, the Held lane was read and holds nothing over the run, and
- * no refresh or upgrade that touched it failed, was cancelled or was still running meanwhile.
+ * The running environment is ready now, the Held, refresh and upgrade lanes were read in full since
+ * the run, the Held lane holds nothing over it, and no refresh or upgrade that touched it failed,
+ * was cancelled or was still running meanwhile.
  */
 function stayedReady(snapshot: ViewSnapshot, e: EnvEvent): boolean {
   const env = snapshot.briefing.environment;
-  if (env.deployable !== "yes" || !heldLaneRead(snapshot)) return false;
+  if (env.deployable !== "yes") return false;
   const to = Date.parse(env.to);
   const run = span(e, to);
+  if (!lanesReadOver(snapshot, run)) return false;
   return !env.lanes.some(
     (lane) =>
       lane.id !== "smoke" &&
