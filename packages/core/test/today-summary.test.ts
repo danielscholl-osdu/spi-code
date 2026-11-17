@@ -6,6 +6,7 @@ import { todayLines } from "../src/brief/lines";
 import { releasesToday } from "../src/brief/releases-today";
 import { sinceOf } from "../src/brief/since";
 import { todayHistory, todaySummary } from "../src/brief/today-summary";
+import { workflowEvidence } from "../src/inspect/item-evidence";
 import {
   sweep1116Context as context,
   SWEEP_1116_NOW as now,
@@ -25,7 +26,9 @@ describe("Today's lower sections on the unchanged 16 Nov sweep", () => {
   test("one pile per place with the release, repository and security counts", () => {
     const piles = summary().canWait;
     const release = releasesToday({ services: [], documents: [], facts, provenance: [], context });
-    expect(release.readyLine).toContain("osdu-spi-stack #474 ready to merge");
+    expect(release.readyLine).toBe(
+      "14 release PRs open: osdu-spi-stack #474 ready to merge, 13 wait for review, none failing",
+    );
     expect(release.ready).toEqual([
       {
         name: "osdu-spi-stack",
@@ -59,6 +62,36 @@ describe("Today's lower sections on the unchanged 16 Nov sweep", () => {
       "osdu-spi-stack #474",
     ]);
   });
+
+  test.each(["all repositories", "one repository"])(
+    "Can wait names GitHub not read for %s",
+    (scope) => {
+      const unread = sweep1116Facts();
+      const missing = model.repositories.rows.filter(
+        (r) => scope === "all repositories" || r.name === "indexer",
+      );
+      expect(missing.length).toBeGreaterThan(0);
+      if (scope === "all repositories") unread.github = {};
+      else for (const r of missing) delete unread.github.data?.repos[r.repo];
+      const unreadModel = sweep1116Model(unread);
+      const unreadItems = sweep1116Items(unreadModel);
+      const piles = todaySummary({
+        model: unreadModel,
+        facts: unread,
+        items: unreadItems,
+        lines: todayLines(unreadModel, unreadItems, now, context),
+        since,
+        now,
+        context,
+      }).canWait;
+      expect(piles.find((p) => p.id === "repositories")?.notRead).toEqual(
+        missing.map((r) => `${r.name}: issues and PRs`),
+      );
+      expect(piles.find((p) => p.id === "releases")?.notRead).toEqual(
+        missing.map((r) => `${r.name}: release PRs`),
+      );
+    },
+  );
 
   test("no member or source of a Today line is in Can wait; exclusion uses the supplied lines", () => {
     const urls = new Set(
@@ -110,7 +143,21 @@ describe("Today's lower sections on the unchanged 16 Nov sweep", () => {
     const unread = sweep1116Facts();
     unread.runs = {};
     const unreadModel = sweep1116Model(unread);
-    const history = todayHistory(unreadModel, unread, undefined, now);
+    for (const workflow of ["sync", "template"] as const) {
+      const evidence = workflowEvidence(
+        unreadModel,
+        unread,
+        "indexer",
+        workflow,
+        since?.from ?? new Date(now.getTime() - 86_400_000).toISOString(),
+        now.toISOString(),
+      );
+      expect(evidence.runsRead).toBe(false);
+      expect(evidence.notRead).toContain(
+        `${workflow === "sync" ? "Sync Upstream" : "Sync Template"} runs on indexer`,
+      );
+    }
+    const history = todayHistory(unreadModel, unread, since, now);
     for (const row of history.rows) {
       expect(row.counts).toEqual([expect.objectContaining({ kind: "not-read", count: 13 })]);
       expect(row.notRead).toHaveLength(13);

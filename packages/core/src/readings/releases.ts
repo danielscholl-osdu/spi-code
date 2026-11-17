@@ -62,15 +62,21 @@ const WAIT_HEAD: Readonly<Record<string, string>> = Object.freeze({
 });
 
 /** The release reading and Today use the same inventory, including the template PR. */
-export function releaseQueue(facts: Pick<Facts, "github" | "details">, context: CoreContext) {
+export function releaseQueue(
+  facts: Pick<Facts, "github" | "details">, context: CoreContext, options: { nameReady?: boolean } = {},
+) {
   const all = releasePrs(withoutNoise(facts.github.data?.repos ?? {}).repos, facts.details.data ?? {}, context);
   const red = all.filter((r) => r.real.length > 0);
   const open = all.filter((r) => r.real.length === 0);
   const groups = byWait(open);
   const [only] = groups;
+  const named = (g: typeof groups[number]) => options.nameReady && g.word === "ready to merge";
+  const describe = (g: typeof groups[number]) => named(g)
+    ? `${g.prs.map((r) => `${r.name} #${r.pr.number}`).join(", ")} ready to merge`
+    : `${g.prs.length} ${waitPhrase(g.word, g.prs.length)}`;
   const waits = groups.length === 1 && only
-    ? `${plural(open.length, "release PR")} ${waitPhrase(only.word, open.length)}`
-    : `${plural(open.length, "release PR")} open${groups.length ? `: ${groups.map((g) => `${g.prs.length} ${waitPhrase(g.word, g.prs.length)}`).join(", ")}` : ""}`;
+    ? named(only) ? describe(only) : `${plural(open.length, "release PR")} ${waitPhrase(only.word, open.length)}`
+    : `${plural(open.length, "release PR")} open${groups.length ? `: ${groups.map(describe).join(", ")}` : ""}`;
   const readyLine = !facts.github.data
     ? `Release PRs ${NOT_READ}`
     : all.length === 0

@@ -99,11 +99,12 @@ function canWait(input: Input): TodayPile[] {
       count("ready", "ready to merge", releaseRefs(releases.filter((r) => r.ready)), "ok"),
       count("review", "waiting for review", releaseRefs(releases.filter((r) => !r.ready && r.pr.reviewDecision === "REVIEW_REQUIRED"))),
       count("failed", "failing", releaseRefs(releases.filter((r) => r.real.length > 0)), "bad"),
-    ], notRead: facts.github.data ? [] : ["Release PRs"] },
+    ], notRead: repos.filter((r) => !facts.github.data?.repos[r.repo]).map((r) => `${r.name}: release PRs`) },
     { id: "repositories", label: "Repositories", place: "engineering", counts: [
       count("issues", "human-required issues", issues), count("changes", "chore PRs", changes),
       count("dependabot", "Dependabot bumps", bumps),
     ], notRead: repos.flatMap((r) => [
+      ...(!facts.github.data?.repos[r.repo] ? [`${r.name}: issues and PRs`] : []),
       ...(r.unreadIssues ? [`${r.name}: ${r.unreadIssues} issues`] : []),
       ...(r.unreadPrs ? [`${r.name}: ${r.unreadPrs} PRs`] : []),
     ]) },
