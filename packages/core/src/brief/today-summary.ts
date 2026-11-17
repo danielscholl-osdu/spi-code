@@ -12,6 +12,7 @@ import { releaseQueue } from "../readings/releases.js";
 import { stamp } from "../util.js";
 import type { FocusItem, Tone } from "./index.js";
 import type { TodayLine } from "./lines.js";
+import { syncCompanions } from "./repo-today.js";
 import type { Since } from "./since.js";
 
 export interface SummaryCount {
@@ -67,7 +68,7 @@ type Input = {
   context: CoreContext;
 };
 
-/** The supplied situation lines own membership, including folded moves and their sources. */
+/** The supplied situation lines own membership, including folded moves, their sources and the sync engine companions of those sources. */
 function canWait(input: Input): TodayPile[] {
   const { model, facts, context, items, lines } = input;
   const members = lines.flatMap((l) => l.members);
@@ -79,6 +80,7 @@ function canWait(input: Input): TodayPile[] {
     ...model.queue.items.filter((q) => ids.has(q.id)).flatMap((q) =>
       [q.url, ...q.cause.map((f) => f.url), ...q.effects.map((e) => e.url)]),
   ]);
+  for (const [issue, pr] of syncCompanions(model)) if (sources.has(pr)) sources.add(issue);
   const queue = releaseQueue(facts, context);
   const releases = queue.all.filter((r) => !sources.has(r.pr.url));
   const releaseRefs = (rows: typeof releases) => rows.map((r) => ({ name: `${r.name} #${r.pr.number}`, url: r.pr.url }));

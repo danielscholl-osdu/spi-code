@@ -9,6 +9,7 @@ import {
   type Model,
   type RepoLine,
   type Repositories,
+  type RepoToday,
 } from "@spi-code/core";
 
 const signature = ({ tag, tone, text, sub, upstream }: RepoLine) =>
@@ -61,8 +62,13 @@ function identitiesOf(repo: Model["repositories"]["rows"][number], now: Date) {
       : identities.get(`${section}:${signature(line)}`)?.shift();
 }
 
-/** Adds id and url to each line it can match to a recorded item; a line it cannot match keeps neither. */
-export function repositoryLines(repositories: Repositories, model: Model, now: Date) {
+/** Adds id and url to each line it can match to a recorded item, and the Today member core resolved for that url. */
+export function repositoryLines(
+  repositories: Repositories,
+  model: Model,
+  now: Date,
+  today: ReadonlyMap<string, RepoToday> = new Map(),
+) {
   return {
     ...repositories,
     rows: repositories.rows.map((entry) => {
@@ -72,10 +78,14 @@ export function repositoryLines(repositories: Repositories, model: Model, now: D
         ...entry,
         sections: entry.sections.map((section) => ({
           ...section,
-          lines: section.lines.map((line): RepoLine & Partial<Identity> => {
-            const identity = identify(section.title, line);
-            return identity ? { ...line, ...identity } : line;
-          }),
+          lines: section.lines.map(
+            (line): RepoLine & Partial<Identity> & { onToday?: RepoToday } => {
+              const identity = identify(section.title, line);
+              if (!identity) return line;
+              const onToday = today.get(identity.url);
+              return { ...line, ...identity, ...(onToday ? { onToday } : {}) };
+            },
+          ),
         })),
       };
     }),

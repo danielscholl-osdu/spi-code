@@ -812,8 +812,8 @@ describe("Watch protocol", () => {
       false,
     );
   });
-  it("bumps the version for a new optional key, so a version 7 peer fails on the envelope", () => {
-    expect(PROTOCOL_VERSION).toBe(8);
+  it("bumps the version for a new optional key, so a version 8 peer fails on the envelope", () => {
+    expect(PROTOCOL_VERSION).toBe(9);
     const message = messages[8];
     if (message?.type !== "view.snapshot") throw new Error("messages[8] must be the snapshot");
     const current = {
@@ -823,6 +823,31 @@ describe("Watch protocol", () => {
         briefing: {
           ...snapshot.briefing,
           lines: [],
+          repositories: {
+            ...snapshot.briefing.repositories,
+            rows: snapshot.briefing.repositories.rows.map((row, index) =>
+              index === 0
+                ? {
+                    ...row,
+                    sections: [
+                      {
+                        title: "Issues",
+                        count: "1",
+                        lines: [
+                          {
+                            tag: "sync",
+                            tone: "neutral",
+                            text: "Upstream Sync Ready for Review · #78",
+                            sub: "opened 6d ago",
+                            onToday: { id: "gate1:search", rel: "companion" },
+                          },
+                        ],
+                      },
+                    ],
+                  }
+                : row,
+            ),
+          },
           today: {
             canWait: [],
             moving: [],
@@ -833,7 +858,7 @@ describe("Watch protocol", () => {
     };
     expect(parseMessage(current).ok).toBe(true);
     for (const payload of [snapshot, current.payload]) {
-      const result = parseMessage({ ...message, version: 7, payload });
+      const result = parseMessage({ ...message, version: 8, payload });
       expect(result.ok).toBe(false);
       if (!result.ok)
         expect(result.rejection.issues.map(({ path }) => path)).toEqual([["version"]]);

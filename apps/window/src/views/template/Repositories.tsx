@@ -11,19 +11,14 @@ import "./repositories.css";
 const LISTED = ["Issues", "Pull Requests", "Dependabot Bumps"];
 const SECURITY = ["Vulnerabilities", "Code scanning"];
 
-/** Items whose next move is the operator's; an item without an actor is not claimed for Today. */
 export function todayItems({ briefing }: ViewSnapshot): FocusItem[] {
-  return [...briefing.focus, ...briefing.rest].filter(({ actor }) => actor === "operator");
+  return [...briefing.focus, ...briefing.rest];
 }
 
-/** The Today item a line is the source of: the item acts on it, or names it as evidence. */
+/** The Today member core resolved the line to; a line core left unassociated claims nothing. */
 export function lineItem(line: RepoLine, items: readonly FocusItem[]): FocusItem | undefined {
-  const { url } = line;
-  if (!url) return undefined;
-  return (
-    items.find(({ subject }) => subject === url) ??
-    items.find(({ evidence }) => evidence.some((link) => link.url === url))
-  );
+  const id = line.onToday?.id;
+  return id === undefined ? undefined : items.find((item) => item.id === id);
 }
 
 function sourceOf(url: string) {

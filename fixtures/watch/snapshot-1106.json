@@ -732,14 +732,10 @@
             {
               "kind": "issues",
               "label": "human-required issues",
-              "count": 3,
+              "count": 0,
               "tone": "neutral",
-              "names": ["storage #59", "indexer #59", "indexer-queue #59"],
-              "urls": [
-                "https://github.com/Azure/osdu-spi-storage/issues/59",
-                "https://github.com/Azure/osdu-spi-indexer/issues/59",
-                "https://github.com/Azure/osdu-spi-indexer-queue/issues/59"
-              ]
+              "names": [],
+              "urls": []
             },
             {
               "kind": "changes",
@@ -3240,7 +3236,11 @@
                   "tag": "human-required",
                   "tone": "bad",
                   "text": "🚨 Integration Validation Failed: Build/Test Errors - 2026-11-05 · #121",
-                  "sub": "opened 21h ago · 0 comments · from the sync engine"
+                  "sub": "opened 21h ago · 0 comments · from the sync engine",
+                  "onToday": {
+                    "id": "conflict:entitlements:121",
+                    "rel": "source"
+                  }
                 }
               ]
             }
@@ -3392,7 +3392,11 @@
                   "tag": "human-required",
                   "tone": "bad",
                   "text": "📥 Upstream Sync Ready for Review - 2026-11-05 · #59",
-                  "sub": "opened 1d 13h ago · 0 comments · from the sync engine"
+                  "sub": "opened 1d 13h ago · 0 comments · from the sync engine",
+                  "onToday": {
+                    "id": "gate1:storage",
+                    "rel": "companion"
+                  }
                 }
               ]
             }
@@ -3442,7 +3446,11 @@
                   "tag": "human-required",
                   "tone": "bad",
                   "text": "📥 Upstream Sync Ready for Review - 2026-11-05 · #59",
-                  "sub": "opened 1d 13h ago · 0 comments · from the sync engine"
+                  "sub": "opened 1d 13h ago · 0 comments · from the sync engine",
+                  "onToday": {
+                    "id": "gate1:indexer",
+                    "rel": "companion"
+                  }
                 }
               ]
             }
@@ -3560,7 +3568,11 @@
                   "tag": "human-required",
                   "tone": "bad",
                   "text": "📥 Upstream Sync Ready for Review - 2026-11-05 · #59",
-                  "sub": "opened 1d 13h ago · 0 comments · from the sync engine"
+                  "sub": "opened 1d 13h ago · 0 comments · from the sync engine",
+                  "onToday": {
+                    "id": "gate1:indexer-queue",
+                    "rel": "companion"
+                  }
                 }
               ]
             }

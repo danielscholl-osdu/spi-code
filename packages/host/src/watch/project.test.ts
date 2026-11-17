@@ -307,7 +307,9 @@ describe("Watch projection", () => {
             ...row,
             sections: row.sections.map((section) => ({
               ...section,
-              lines: section.lines.map(({ id: _id, url: _url, ...line }) => line),
+              lines: section.lines.map(
+                ({ id: _id, url: _url, onToday: _onToday, ...line }) => line,
+              ),
             })),
           })),
         },

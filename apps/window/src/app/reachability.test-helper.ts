@@ -1143,6 +1143,11 @@ export const AT_PLACE: Readonly<Record<string, Exemption>> = {
 
 /** Leaves the window draws nowhere by design, each with the reason or the bead that owns it. */
 export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
+  "today-join": {
+    patterns: ["/briefing/repositories/rows/#/sections/#/lines/#/onToday/rel"],
+    reason:
+      "spicode-djg.25: a line's source or companion join to its Today member is marked alike; rel names which",
+  },
   "today-summaries": {
     patterns: [
       "/briefing/today/canWait/#/counts/#/count",
@@ -1235,6 +1240,7 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
       "/briefing/repositories/rows/#/id",
       "/briefing/repositories/rows/#/sections/#/lines/#/id",
       "/briefing/repositories/rows/#/sections/#/lines/#/url",
+      "/briefing/repositories/rows/#/sections/#/lines/#/onToday/id",
       "/releases/lines/#/id",
     ],
     reason: "Transport: ids, inspect ids and links the window keys rows and opens Detail with",

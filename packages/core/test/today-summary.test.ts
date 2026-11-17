@@ -49,7 +49,7 @@ describe("Today's lower sections on the unchanged 16 Nov sweep", () => {
         ["failed", 0],
       ],
       [
-        ["issues", 13],
+        ["issues", 8],
         ["changes", 7],
         ["dependabot", 27],
       ],
@@ -58,6 +58,11 @@ describe("Today's lower sections on the unchanged 16 Nov sweep", () => {
         ["code-scanning", 22],
       ],
     ]);
+    const issues = Object.values(facts.github.data?.repos ?? {}).flatMap((r) => r.issues);
+    const human = piles[1]?.counts.find((c) => c.kind === "issues")?.urls ?? [];
+    expect(human.map((url) => issues.find((i) => i.url === url)?.title)).toEqual(
+      Array(8).fill(expect.stringContaining("CODEOWNERS")),
+    );
     expect(piles[0]?.counts.find((c) => c.kind === "ready")?.names).toEqual([
       "osdu-spi-stack #474",
     ]);

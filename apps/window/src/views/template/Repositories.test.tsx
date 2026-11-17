@@ -87,21 +87,25 @@ it("expands crs-conversion to issue #44 on Today and leaves storage's #67 off it
   expect(codeowners?.querySelector(".repos-on-today")).toBeNull();
 });
 
-it("marks a line the item acts on or names as evidence: crs-conversion's #44, indexer's #72", async () => {
-  const body = snapshot1116();
-  const halt = [...body.briefing.focus, ...body.briefing.rest].find(
-    ({ id }) => id === "halt:crs-conversion",
-  );
-  if (!halt) throw new Error("No halt:crs-conversion item");
-  halt.evidence = halt.evidence.filter(({ kind }) => kind !== "issue");
-  await mount(body);
+it("marks the lines core resolved: sources #44 and #72, companions such as search #78", async () => {
+  await mount(snapshot1116());
+  for (const name of ["search", "workflow", "unit", "crs-catalog", "crs-conversion", "indexer"])
+    expect(row(name).textContent).toContain("on Today");
   await expand("crs-conversion");
   expect(line("issue:Azure/osdu-spi-crs-conversion:44")?.dataset.onToday).toBe(
     "halt:crs-conversion",
   );
+  expect(line("issue:Azure/osdu-spi-crs-conversion:42")?.dataset.onToday).toBe(
+    "gate1:crs-conversion",
+  );
   await expand("indexer");
   expect(line("issue:Azure/osdu-spi-indexer:72")?.dataset.onToday).toBe("sync-run:indexer");
   expect(line("issue:Azure/osdu-spi-indexer:63")?.dataset.onToday).toBeUndefined();
+  await expand("search");
+  expect(line("issue:Azure/osdu-spi-search:65")?.dataset.onToday).toBeUndefined();
+  const companion = line("issue:Azure/osdu-spi-search:78");
+  expect(companion?.dataset.onToday).toBe("gate1:search");
+  expect(companion?.querySelector(".repos-on-today")?.textContent).toMatch(/^On Today · /);
 });
 
 it("claims no empty repository when partition counts an issue it does not list", async () => {
@@ -110,17 +114,4 @@ it("claims no empty repository when partition counts an issue it does not list",
   await expand("partition");
   const expanded = container.querySelector(".repos-expanded")?.textContent ?? "";
   expect(expanded).not.toMatch(/no open/i);
-});
-
-it("claims nothing for Today when the line's item is not the operator's move", async () => {
-  const body = snapshot1116();
-  for (const item of [...body.briefing.focus, ...body.briefing.rest]) {
-    if (item.id === "halt:crs-conversion") delete item.actor;
-    if (item.id === "sync-run:indexer") item.actor = "system";
-  }
-  await mount(body);
-  expect(row("crs-conversion").textContent).not.toContain("on Today");
-  expect(row("indexer").textContent).not.toContain("on Today");
-  await expand("crs-conversion");
-  expect(line("issue:Azure/osdu-spi-crs-conversion:44")?.dataset.onToday).toBeUndefined();
 });

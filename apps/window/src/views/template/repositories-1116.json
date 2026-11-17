@@ -745,7 +745,11 @@
                 "text": "🔄 Upstream Sync Failed 2026-11-17 · #72",
                 "sub": "opened 33m ago · 0 comments · from the sync engine",
                 "id": "issue:Azure/osdu-spi-indexer:72",
-                "url": "https://github.com/Azure/osdu-spi-indexer/issues/72"
+                "url": "https://github.com/Azure/osdu-spi-indexer/issues/72",
+                "onToday": {
+                  "id": "sync-run:indexer",
+                  "rel": "source"
+                }
               },
               {
                 "tag": "human-required",
@@ -885,7 +889,11 @@
                 "text": "📥 Upstream Sync Ready for Review - 2026-11-11 · #78",
                 "sub": "opened 6d ago · 0 comments · from the sync engine",
                 "id": "issue:Azure/osdu-spi-search:78",
-                "url": "https://github.com/Azure/osdu-spi-search/issues/78"
+                "url": "https://github.com/Azure/osdu-spi-search/issues/78",
+                "onToday": {
+                  "id": "gate1:search",
+                  "rel": "companion"
+                }
               },
               {
                 "tag": "human-required",
@@ -1035,7 +1043,11 @@
                 "text": "📥 Upstream Sync Ready for Review - 2026-11-10 · #61",
                 "sub": "opened 7d ago · 0 comments · from the sync engine",
                 "id": "issue:Azure/osdu-spi-workflow:61",
-                "url": "https://github.com/Azure/osdu-spi-workflow/issues/61"
+                "url": "https://github.com/Azure/osdu-spi-workflow/issues/61",
+                "onToday": {
+                  "id": "gate1:workflow",
+                  "rel": "companion"
+                }
               },
               {
                 "tag": "human-required",
@@ -1357,7 +1369,11 @@
                 "text": "📥 Upstream Sync Ready for Review - 2026-11-07 · #51",
                 "sub": "opened 10d ago · 0 comments · from the sync engine",
                 "id": "issue:Azure/osdu-spi-unit:51",
-                "url": "https://github.com/Azure/osdu-spi-unit/issues/51"
+                "url": "https://github.com/Azure/osdu-spi-unit/issues/51",
+                "onToday": {
+                  "id": "gate1:unit",
+                  "rel": "companion"
+                }
               }
             ],
             "rest": " · 0 other"
@@ -1498,7 +1514,11 @@
                 "text": "📥 Upstream Sync Ready for Review - 2026-11-10 · #55",
                 "sub": "opened 7d ago · 0 comments · from the sync engine",
                 "id": "issue:Azure/osdu-spi-crs-catalog:55",
-                "url": "https://github.com/Azure/osdu-spi-crs-catalog/issues/55"
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/issues/55",
+                "onToday": {
+                  "id": "gate1:crs-catalog",
+                  "rel": "companion"
+                }
               },
               {
                 "tag": "human-required",
@@ -1639,7 +1659,11 @@
                 "text": "🔄 Upstream Sync Failed 2026-11-11 · #44",
                 "sub": "opened 6d ago · 6 comments · from the sync engine",
                 "id": "issue:Azure/osdu-spi-crs-conversion:44",
-                "url": "https://github.com/Azure/osdu-spi-crs-conversion/issues/44"
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/issues/44",
+                "onToday": {
+                  "id": "halt:crs-conversion",
+                  "rel": "source"
+                }
               },
               {
                 "tag": "human-required",
@@ -1647,7 +1671,11 @@
                 "text": "📥 Upstream Sync Ready for Review - 2026-11-10 · #42",
                 "sub": "opened 7d ago · 0 comments · from the sync engine",
                 "id": "issue:Azure/osdu-spi-crs-conversion:42",
-                "url": "https://github.com/Azure/osdu-spi-crs-conversion/issues/42"
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/issues/42",
+                "onToday": {
+                  "id": "gate1:crs-conversion",
+                  "rel": "companion"
+                }
               },
               {
                 "tag": "human-required",

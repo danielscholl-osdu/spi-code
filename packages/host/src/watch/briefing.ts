@@ -14,6 +14,7 @@ import {
   horizonCards,
   type Model,
   placesOf,
+  repositoryToday,
   sinceOf,
   todayLines,
   todaySummary,
@@ -93,7 +94,12 @@ export function projectBriefing(
     since,
     focus,
     rest,
-    repositories: repositoryLines(coreBriefing.repositories, model, now),
+    repositories: repositoryLines(
+      coreBriefing.repositories,
+      model,
+      now,
+      repositoryToday(model, [...focus, ...rest], lines),
+    ),
   };
   return { briefing, horizon };
 }

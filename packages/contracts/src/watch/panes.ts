@@ -26,6 +26,10 @@ export const RepoLineSchema = z.strictObject({
   text: z.string(),
   sub: z.string(),
   upstream: z.boolean().optional(),
+  // The Today member the line stands for, as its source or as the sync engine's companion issue.
+  onToday: z
+    .strictObject({ id: IdentifierSchema, rel: z.enum(["source", "companion"]) })
+    .optional(),
 });
 export const RepoSectionSchema = z.strictObject({
   title: z.string(),
