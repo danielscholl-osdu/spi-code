@@ -80,7 +80,7 @@ const LINES: TodayLine[] = [
   ]),
 ];
 
-const read = (source: string, object: string, minutes = 2): ReadRecord => ({
+const readRecord = (source: string, object: string, minutes = 2): ReadRecord => ({
   source,
   object,
   observedAt: at(minutes),
@@ -88,15 +88,15 @@ const read = (source: string, object: string, minutes = 2): ReadRecord => ({
 });
 
 const READS: ReadRecord[] = [
-  read("Azure/osdu-spi-storage", "port PRs"),
-  read("Azure/osdu-spi-storage", "main:pom.xml", 3),
-  read("osdu/platform/system/storage", "merged MRs"),
-  read("Azure/osdu-spi-indexer", "port PRs"),
-  read("osdu/platform/system/indexer-service", "merged MRs"),
-  read("osdu/platform/system/indexer-service", "merge_requests/1248/diffs", 4),
-  read("Azure/osdu-spi-partition", ".github/upstream-filter.yml"),
-  read("osdu/platform/system/partition", "repository/tree?ref=master"),
-  read("Azure/osdu-spi-legal", "port PRs"),
+  readRecord("Azure/osdu-spi-storage", "port PRs"),
+  readRecord("Azure/osdu-spi-storage", "main:pom.xml", 3),
+  readRecord("osdu/platform/system/storage", "merged MRs"),
+  readRecord("Azure/osdu-spi-indexer", "port PRs"),
+  readRecord("osdu/platform/system/indexer-service", "merged MRs"),
+  readRecord("osdu/platform/system/indexer-service", "merge_requests/1248/diffs", 4),
+  readRecord("Azure/osdu-spi-partition", ".github/upstream-filter.yml"),
+  readRecord("osdu/platform/system/partition", "repository/tree?ref=master"),
+  readRecord("Azure/osdu-spi-legal", "port PRs"),
 ];
 
 const snapshot: EvidenceSnapshot = {
@@ -279,49 +279,230 @@ it("gives a selection's failed areas their observed time and completeness, or sa
   expect(fact("github")).toBe("read failed, nothing retained · not observed");
 });
 
-const listed = SweepProgressSchema.parse({
-  sweep: "sweep-1",
-  startedAt: at(30),
-  first: false,
-  usualMs: null,
-  outcome: "committed",
-  nextAttemptAt: null,
-  sources: AREAS.map((source) => ({
-    source,
-    state: "read",
-    startedAt: at(30),
-    endedAt: at(1),
-  })),
+const START = at(3);
+const after = (seconds: number) => new Date(Date.parse(START) + seconds * 1000).toISOString();
+const SERVICES = ["storage", "indexer", "search", "workflow", "indexer-queue"];
+const read = (source: string) => ({ source, state: "read", startedAt: START, endedAt: after(4) });
+const partly = {
+  source: "github",
+  state: "cut",
+  startedAt: START,
+  endedAt: after(22),
+  incomplete: { count: 0, total: 14, failed: 5 },
+  failure: `Reads failed for 5 services: ${SERVICES.join(", ")}.`,
+};
+const sweepOf = (sources: readonly object[]) =>
+  SweepProgressSchema.parse({
+    sweep: "sweep-2",
+    startedAt: START,
+    first: false,
+    usualMs: null,
+    outcome: "committed",
+    nextAttemptAt: null,
+    sources,
+  });
+const timedOut = (service: string): ReadRecord => ({
+  ...readRecord(`Azure/osdu-spi-${service}`, "pull requests", 1),
+  failure: "gh api graphql: HTTP 504 gateway timeout",
+  retainedFrom: at(40),
+});
+const envelopes = (values: Partial<Record<AreaName, Partial<AreaEnvelope["envelope"]>>>) =>
+  areas.map(
+    (entry): AreaEnvelope =>
+      values[entry.area]
+        ? {
+            area: entry.area,
+            envelope: { ...entry.envelope, ...values[entry.area] } as AreaEnvelope["envelope"],
+          }
+        : entry,
+  );
+/** The 17 Nov sweep: GitHub read but five services timed out, keeping data from 40 min before. */
+const partial: EvidenceSnapshot = {
+  ...snapshot,
+  areas: envelopes({ github: { state: "failed", observedAt: at(40) } }),
+  reads: SERVICES.map(timedOut),
+};
+const partialSweep = sweepOf(AREAS.map((source) => (source === "github" ? partly : read(source))));
+
+const rowOf = (page: HTMLElement | null, source: string) => {
+  const row = page?.querySelector(`.sweep-row[data-source="${source}"]`);
+  return {
+    tone: row?.getAttribute("data-tone"),
+    phrase: row?.querySelector(".sweep-outcome")?.textContent,
+    line: row?.querySelector(".sweep-why")?.textContent,
+    title: row?.querySelector(".sweep-outcome")?.getAttribute("title"),
+    name: row?.getAttribute("aria-label"),
+  };
+};
+const UNSAID = /\bcomplete\b|skipped|before the sweep ended/;
+
+it("says the 17 Nov partial GitHub failure once, in amber, with no Failed reads section", async () => {
+  const view = await render({ kind: "evidence" }, partial, partialSweep);
+  const github = rowOf(view.page, "github");
+  expect(github.phrase).toBe("read · 22 s · 5 reads failed");
+  expect(github.line).toBe(
+    `GitHub timed out: ${SERVICES.join(", ")}. Showing data from ${clock(40)}.`,
+  );
+  expect(github.tone).toBe("warn");
+  const text = view.page?.textContent ?? "";
+  expect(text.split(SERVICES.join(", ")).length - 1).toBe(1);
+  expect(text.split("timed out").length - 1).toBe(1);
+  expect(view.headings()).toEqual(["Sources"]);
+  expect(view.page?.querySelector(".evidence-failures")).toBeNull();
+  expect(view.page?.querySelector(".evidence-line")?.getAttribute("data-tone")).toBe("warn");
+  expect(view.page?.querySelectorAll('[data-tone="bad"]')).toHaveLength(0);
+  expect(github.title).toContain(`Read failed, kept data observed ${clock(40)}`);
+  expect(text).not.toMatch(UNSAID);
 });
 
+it("keeps a failure no source row shows in Failed reads", async () => {
+  const saving: ReadRecord = { ...readRecord("persist", "save", 1), failure: "disk full" };
+  const view = await render(
+    { kind: "evidence" },
+    { ...partial, reads: [...partial.reads, saving] },
+    partialSweep,
+  );
+  expect(view.headings()).toEqual(["Sources", "Failed reads"]);
+  expect(
+    [...(view.page?.querySelectorAll(".evidence-failure") ?? [])].map((row) =>
+      row.getAttribute("aria-label"),
+    ),
+  ).toEqual(["Local state · read failed"]);
+  expect(rowOf(view.page, "github").line).toContain("GitHub timed out");
+});
+
+/** One area per row kind, beside a sweep that read the rest in 4 s. */
+const kinds: EvidenceSnapshot = {
+  ...snapshot,
+  areas: envelopes({
+    upstream: { state: "failed", observedAt: at(20) },
+    radar: { state: "failed", observedAt: undefined },
+    security: {
+      state: "incomplete",
+      completeness: { kind: "cut", reason: "page_limit", read: 40, total: 52 },
+    },
+  }),
+};
+const failedSource = (source: string, reason: string) => ({
+  source,
+  state: "failed",
+  startedAt: START,
+  endedAt: after(1),
+  code: "timeout",
+  reason,
+});
+const kindsSweep = sweepOf(
+  AREAS.map((source) =>
+    source === "details"
+      ? { source, state: "skipped" }
+      : source === "upstream"
+        ? failedSource(source, "GitLab did not answer in time.")
+        : source === "radar"
+          ? failedSource(source, "GitLab did not answer in time.")
+          : read(source),
+  ),
+);
+
 it.each([
-  ["from the snapshot's areas", null],
-  ["beside the sweep's list", listed],
+  [
+    "read this sweep, complete",
+    "fleet",
+    "ok",
+    "read · 4 s",
+    `Fresh, observed ${clock(1)}, 1 min before the sweep ended, complete.`,
+  ],
+  [
+    "not due this sweep",
+    "details",
+    "idle",
+    `not due · from ${clock(14)}`,
+    `Fresh, observed ${clock(14)}, 14 min before the sweep ended, complete.`,
+  ],
+  [
+    "read this sweep, cut",
+    "security",
+    "ok",
+    "read · 4 s · 40 of 52 read",
+    `Cut, observed ${clock(1)}, 1 min before the sweep ended, 40 of 52 read.`,
+  ],
+  [
+    "failed, data kept",
+    "upstream",
+    "bad",
+    `failed · showing ${clock(20)}`,
+    `Read failed, kept data observed ${clock(20)}, 20 min before the sweep ended, complete.`,
+  ],
+  [
+    "failed, nothing kept",
+    "radar",
+    "bad",
+    "failed · nothing kept",
+    "Read failed, nothing kept, not observed, complete.",
+  ],
 ] as const)(
-  "gives every whole-sweep area its own observed time and completeness, %s",
-  async (_, list) => {
-    const view = await render({ kind: "evidence" }, failing, list);
-    const fact = (area: AreaName) =>
-      view.page?.querySelector(`.sweep-row[data-source="${area}"] .sweep-outcome`)?.textContent;
-    expect(fact("fleet")).toContain(`observed ${clock(1)} · complete`);
-    expect(fact("runs")).toContain(`observed ${clock(1)} · complete`);
-    expect(fact("details")).toContain(
-      `read failed, kept data observed ${clock(18)} · 18 min before the sweep ended · 3 of 9 read`,
+  "says a source %s in one phrase, with Ruling J in its title",
+  async (_, source, tone, phrase, title) => {
+    const view = await render({ kind: "evidence" }, kinds, kindsSweep);
+    const row = rowOf(view.page, source);
+    expect(row.tone).toBe(tone);
+    expect(row.phrase).toBe(phrase);
+    expect(row.title).toBe(title);
+    expect(row.name).toBe(`${AREA_NAMES[source]} · ${phrase}. ${title}`);
+    if (tone === "bad") expect(row.line).toBe("GitLab did not answer in time.");
+    expect(view.page?.textContent).not.toMatch(UNSAID);
+  },
+);
+
+it.each([
+  [
+    "fresh this sweep",
+    "fleet",
+    "fresh",
+    `Fresh, observed ${clock(1)}, 1 min before the sweep ended, complete.`,
+  ],
+  [
+    "fresh before it",
+    "details",
+    `fresh · from ${clock(14)}`,
+    `Fresh, observed ${clock(14)}, 14 min before the sweep ended, complete.`,
+  ],
+  [
+    "failed, data kept",
+    "details",
+    `failed · showing ${clock(18)}`,
+    `Read failed, kept data observed ${clock(18)}, 18 min before the sweep ended, 3 of 9 read.`,
+  ],
+  [
+    "failed, nothing kept",
+    "github",
+    "failed · nothing kept",
+    "Read failed, nothing kept, not observed, complete.",
+  ],
+  ["not read", "auth", "not read yet", "Not read yet, not observed."],
+] as const)(
+  "says an area %s in one phrase without the sweep's list",
+  async (label, area, phrase, title) => {
+    const view = await render(
+      { kind: "evidence" },
+      label.startsWith("failed") || label === "not read" ? failing : snapshot,
     );
-    expect(fact("github")).toContain("nothing retained · not observed");
-    expect(fact("github")).not.toMatch(/\d\d:\d\d/);
-    if (list === null) expect(fact("auth")).toBe("not read yet · not observed");
+    const row = view.page?.querySelector(`.sweep-row[data-source="${area}"]`);
+    expect(row?.querySelector(".sweep-outcome")?.textContent).toBe(phrase);
+    expect(row?.querySelector(".sweep-outcome")?.getAttribute("title")).toBe(title);
+    expect(row?.getAttribute("aria-label")).toBe(`${AREA_NAMES[area]} · ${phrase}. ${title}`);
+    expect(view.page?.textContent).not.toMatch(UNSAID);
   },
 );
 
 it("keeps a logged read with no observation in the snapshot as read, not as unread", async () => {
-  const view = await render({ kind: "evidence" }, failing, listed);
-  const row = view.page?.querySelector('.sweep-row[data-source="auth"] .sweep-outcome');
-  expect(row?.textContent).toMatch(/^read · /);
-  expect(row?.textContent).not.toContain("not read yet");
-  expect(row?.querySelector(".evidence-fact")?.textContent).toBe(
-    "no observation recorded in this snapshot",
+  const view = await render(
+    { kind: "evidence" },
+    failing,
+    sweepOf(AREAS.map((source) => read(source))),
   );
+  const row = rowOf(view.page, "auth");
+  expect(row.phrase).toBe("read · 4 s · no observation recorded in this snapshot");
+  expect(row.title).toBe("No observation recorded in this snapshot.");
 });
 
 it("says a selection the briefing no longer holds is gone and keeps Whole sweep", async () => {

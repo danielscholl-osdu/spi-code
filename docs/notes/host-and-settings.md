@@ -105,3 +105,7 @@ inspect binds the whole item with the empty JSON pointer.
 `provenance[].attributed` distinguishes an item attribution from the unchanged whole-model
 area fallback (`sweep`). Lane occupancy in a sweep does not confirm that the other lanes
 have drained before a re-run; those items keep that question in inspect's `notRead` list.
+On the whole-sweep Evidence page a failed or partly read source row takes the cause of the failed
+reads that `FailedReads` groups under the same source key; Failed reads lists only groups no row
+carries. Repo-level reads group under `github` whichever area collected them, so a template row's
+failures keep core's sentence and the github group stays in Failed reads.

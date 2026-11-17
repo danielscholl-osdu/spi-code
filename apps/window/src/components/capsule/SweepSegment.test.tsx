@@ -361,9 +361,13 @@ it("reads Sweeping over an older snapshot while a later sweep runs and opens its
     "live",
   );
   expect(evidence()?.querySelectorAll(".sweep-row")).toHaveLength(12);
-  const facts = [...(evidence()?.querySelectorAll(".sweep-row .evidence-fact") ?? [])];
-  expect(facts.length).toBeGreaterThan(0);
-  expect(facts.map((fact) => fact.textContent).join()).not.toMatch(/last read/);
+  const outcomes = [...(evidence()?.querySelectorAll(".sweep-row .sweep-outcome") ?? [])].map(
+    (outcome) => outcome.textContent ?? "",
+  );
+  expect(outcomes.filter((outcome) => / · (from|showing) /.test(outcome)).length).toBeGreaterThan(
+    0,
+  );
+  expect(outcomes.join()).not.toMatch(/last read/);
   await receive("sweep.progress", {
     ...later,
     outcome: "committed",

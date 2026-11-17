@@ -8,6 +8,7 @@ import {
   at,
   duration,
   failedCount,
+  outcomeLine,
   readinessCanFix,
   type SourceOutcome,
   sourceOutcome,
@@ -57,6 +58,7 @@ function Outcome({ outcome, now }: { outcome: SourceOutcome; now: number }) {
  * and a row each with its mark, name, what it reads and how it went. Today shows it on first
  * launch; Evidence shows the same list for a later sweep, with each source's `fact` after its
  * outcome and its `envelope`, so a source not due this sweep shows how its last read went.
+ * `describe` rewrites a row's outcome, and its `title` becomes the row's hover and accessible name.
  */
 export function SweepSources({
   progress,
@@ -65,6 +67,7 @@ export function SweepSources({
   onOpenSettings,
   fact,
   envelope,
+  describe,
 }: {
   progress: SweepProgress;
   now: number;
@@ -72,6 +75,12 @@ export function SweepSources({
   onOpenSettings: () => void;
   fact?: ((source: string) => ReactNode) | undefined;
   envelope?: ((source: string) => Envelope | undefined) | undefined;
+  describe?:
+    | ((
+        source: SweepSourceProgress,
+        outcome: SourceOutcome,
+      ) => { outcome: SourceOutcome; title?: string | undefined })
+    | undefined;
 }) {
   const end = sweepEnd(progress, now);
   const running = progress.outcome === "running";
@@ -82,10 +91,10 @@ export function SweepSources({
         .flatMap((source) => (source.state === "throttled" ? [source] : []))
         .sort((a, b) => Date.parse(a.resumeAt) - Date.parse(b.resumeAt))[0]
     : undefined;
-  const rows = progress.sources.map((source) => ({
-    source,
-    outcome: outcomeOf(progress, source, end, envelope?.(source.source)),
-  }));
+  const rows = progress.sources.map((source) => {
+    const outcome = outcomeOf(progress, source, end, envelope?.(source.source));
+    return { source, ...(describe?.(source, outcome) ?? { outcome }) };
+  });
   return (
     <div className="sweep-sources">
       {meta && (
@@ -106,7 +115,7 @@ export function SweepSources({
         ))}
       </div>
       <ul className="sweep-rows" aria-label="Sources">
-        {rows.map(({ source, outcome }) => {
+        {rows.map(({ source, outcome, title }) => {
           const failed = outcome.tone === "bad";
           const signin = failed && readinessCanFix(outcome.code);
           const extra = fact?.(source.source);
@@ -121,6 +130,11 @@ export function SweepSources({
               className="sweep-row"
               data-source={source.source}
               data-tone={outcome.tone}
+              {...(title
+                ? {
+                    "aria-label": `${sourceName(source.source)} · ${outcomeLine(outcome, now)}. ${title}`,
+                  }
+                : {})}
             >
               <span className="sweep-mark" aria-hidden="true">
                 {outcome.mark}
@@ -129,8 +143,8 @@ export function SweepSources({
               <span className="sweep-what">{sourceReads(source.source) ?? ""}</span>
               <span
                 className="sweep-outcome"
-                title={outcome.detail}
-                aria-description={outcome.detail}
+                title={title ?? outcome.detail}
+                aria-description={title ? undefined : outcome.detail}
               >
                 <Outcome outcome={outcome} now={now} />
                 {extra && <> · {extra}</>}

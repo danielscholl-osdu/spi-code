@@ -8,6 +8,7 @@ import type {
   InspectResult,
   ReadRecord,
   SweepProgress,
+  SweepSourceProgress,
   SweepStatus,
 } from "@spi-code/contracts";
 import { watchStore } from "../../store/watch.js";
@@ -16,15 +17,21 @@ import { FirstSweepBody } from "../sweep/FirstSweepBody.js";
 import { SweepNow } from "../sweep/SweepNow.js";
 import { SweepSources } from "../sweep/SweepSources.js";
 import { SweepStopped } from "../sweep/SweepStopped.js";
-import type { SourceTone } from "../sweep/words.js";
-import { FailedReads } from "./FailedReads.js";
+import type { SourceOutcome, SourceTone } from "../sweep/words.js";
+import {
+  type FailedReadGroup,
+  FailedReads,
+  failedReadGroups,
+  failureCause,
+} from "./FailedReads.js";
 import type { SweepLineSnapshot } from "./SweepLine.js";
 import { useNow } from "./useNow.js";
 import {
   AREA_NAMES,
   ago,
   areaFact,
-  areaObservation,
+  areaPhrase,
+  areaSentence,
   byWorst,
   cachedFrom,
   chipText,
@@ -34,6 +41,8 @@ import {
   envelopeTone,
   everyInferred,
   INFERRED_EVERY_SOURCE,
+  keptData,
+  observedFrom,
   plain,
   sourceName,
   sourceReads,
@@ -117,39 +126,118 @@ function EnvelopeRows({
   sources,
   now,
   sweptAt,
+  since,
   observed,
 }: {
   label: string;
   sources: readonly EvidenceSource[];
   now: number;
   sweptAt: string;
+  since?: string | undefined;
   observed: boolean;
 }) {
   return (
     <div className="sweep-sources">
       <ul className="sweep-rows" aria-label={label}>
-        {sources.map(({ key, name, envelope }) => (
-          <li
-            key={key}
-            className="sweep-row"
-            data-source={key}
-            data-tone={MARKS[envelope.state].tone}
-          >
-            <span className="sweep-mark" aria-hidden="true">
-              {MARKS[envelope.state].mark}
-            </span>
-            <span className="sweep-name">{name}</span>
-            <span className="sweep-what">{sourceReads(key) ?? ""}</span>
-            <span className="sweep-outcome">
-              {observed
-                ? areaObservation(envelope, sweptAt, now)
-                : envelopeSentence(envelope, now, sweptAt)}
-            </span>
-          </li>
-        ))}
+        {sources.map(({ key, name, envelope }) => {
+          const phrase = observed
+            ? areaPhrase(envelope, sweptAt, now, since)
+            : envelopeSentence(envelope, now, sweptAt);
+          const title = observed ? areaSentence(envelope, sweptAt, now) : undefined;
+          return (
+            <li
+              key={key}
+              className="sweep-row"
+              data-source={key}
+              data-tone={MARKS[envelope.state].tone}
+              {...(title ? { "aria-label": `${name} · ${phrase}. ${title}` } : {})}
+            >
+              <span className="sweep-mark" aria-hidden="true">
+                {MARKS[envelope.state].mark}
+              </span>
+              <span className="sweep-name">{name}</span>
+              <span className="sweep-what">{sourceReads(key) ?? ""}</span>
+              <span className="sweep-outcome" title={title}>
+                {phrase}
+              </span>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
+}
+
+/** A read this sweep that some reads of failed, the rest read. */
+const partlyRead = (source: SweepSourceProgress) =>
+  source.state === "cut" && ((source.incomplete.failed ?? 0) > 0 || source.failure !== undefined);
+
+/**
+ * A listed source's row on the Evidence page: the sweep's outcome and only the envelope's facts
+ * that carry information, a failure's cause once on the line under it, and Ruling J's full
+ * sentence as its title.
+ */
+function evidenceOutcome(
+  source: SweepSourceProgress,
+  outcome: SourceOutcome,
+  envelope: Envelope | undefined,
+  {
+    sweptAt,
+    since,
+    now,
+    groups,
+  }: {
+    sweptAt: string;
+    since: string | undefined;
+    now: number;
+    groups: readonly FailedReadGroup[];
+  },
+): { outcome: SourceOutcome; title?: string | undefined } {
+  const read = source.state === "read" || source.state === "cut";
+  const sentence =
+    envelope &&
+    areaSentence(envelope, sweptAt, now, { logged: read && envelope.state === "unread" });
+  const title = [outcome.detail, sentence].filter(Boolean).join(" ") || undefined;
+  const cause = failureCause(groups);
+  if (outcome.tone === "bad" && source.state !== "skipped")
+    return {
+      outcome: {
+        ...outcome,
+        text: envelope ? `failed · ${keptData(envelope, now)}` : "failed",
+        ...(outcome.why === undefined && cause ? { why: cause } : {}),
+      },
+      title,
+    };
+  if (partlyRead(source)) {
+    const kept =
+      envelope?.state === "failed" && envelope.observedAt !== undefined
+        ? `Showing data from ${clockTime(envelope.observedAt, { now, hint: false })}.`
+        : undefined;
+    const why = [cause ?? outcome.why, kept].filter(Boolean).join(" ");
+    return { outcome: { ...outcome, ...(why ? { why } : {}) }, title };
+  }
+  if (envelope === undefined) return { outcome, title };
+  // A read the snapshot does not hold yet has only the sweep's words; its envelope is older.
+  if (read && since === undefined) return { outcome, title };
+  const extra =
+    envelope.state === "unread"
+      ? read
+        ? ["no observation recorded in this snapshot"]
+        : []
+      : [
+          envelope.state === "failed"
+            ? keptData(envelope, now)
+            : observedFrom(envelope, sweptAt, now, since ?? sweptAt),
+          envelope.completeness.kind === "cut" &&
+          source.state !== "skipped" &&
+          source.state !== "cut"
+            ? `${envelope.completeness.read.toLocaleString("en-US")} of ${envelope.completeness.total.toLocaleString("en-US")} read`
+            : undefined,
+        ].filter((part): part is string => part !== undefined);
+  return {
+    outcome: { ...outcome, text: [outcome.text, ...extra].join(" · ") },
+    title,
+  };
 }
 
 const LIST: Readonly<Record<SweepProgress["outcome"], string>> = {
@@ -212,7 +300,7 @@ export function SweepEvidence({
     );
   const sources = sweepSources(snapshot);
   const line = sweepLine({ sources: sources.map(({ envelope }) => envelope) });
-  const failed = snapshot.reads.filter((record) => record.failure !== undefined);
+  const groups = failedReadGroups(snapshot.reads);
   const next = sweep?.nextSweepAt && Date.parse(sweep.nextSweepAt) > at ? sweep.nextSweepAt : null;
   const list = progress ?? completed;
   const envelopes = new Map(sources.map(({ key, envelope }) => [key, envelope]));
@@ -220,6 +308,38 @@ export function SweepEvidence({
   const unlisted = sources.filter(({ key }) => !listed.has(key));
   // A snapshot taken before the listed sweep began holds the previous sweep's reads.
   const own = list !== null && Date.parse(snapshot.sweptAt) >= Date.parse(list.startedAt);
+  const since = own ? list.startedAt : undefined;
+  // A row that says a source failed, or partly read, carries its failed reads' cause.
+  const carried = new Set(
+    observed
+      ? (list?.sources ?? [])
+          .filter(
+            (source) =>
+              source.state === "failed" ||
+              partlyRead(source) ||
+              (list?.outcome === "failed" &&
+                list.source === source.source &&
+                (source.state === "reading" || source.state === "throttled")),
+          )
+          .map(({ source }) => source)
+      : [],
+  );
+  const describe = (source: SweepSourceProgress, outcome: SourceOutcome) =>
+    evidenceOutcome(source, outcome, envelopes.get(source.source), {
+      sweptAt: snapshot.sweptAt,
+      since,
+      now: at,
+      groups: groups.filter((group) => group.source === source.source),
+    });
+  const uncarried = groups.filter((group) => !carried.has(group.source));
+  // A failed area this sweep partly read is amber, as its row is.
+  const cut = new Set(list?.sources.filter(partlyRead).map(({ source }) => source));
+  const tone =
+    observed &&
+    line.tone === "bad" &&
+    sources.every(({ key, envelope }) => envelope.state !== "failed" || cut.has(key))
+      ? "warn"
+      : line.tone;
   const fact = (source: string) => {
     const envelope = envelopes.get(source);
     const entry = list?.sources.find((candidate) => candidate.source === source);
@@ -227,15 +347,10 @@ export function SweepEvidence({
     // A read the snapshot does not hold yet says only what the sweep recorded it reused; the
     // snapshot's age is the previous read's, not this one's.
     const words: { text: string; tone?: EvidenceTone } | null | undefined =
-      observed && envelope
-        ? {
-            text: areaObservation(envelope, snapshot.sweptAt, at, { logged: read !== undefined }),
-            ...(envelope.state === "failed" ? { tone: "bad" as const } : {}),
-          }
-        : read !== undefined && !own
-          ? read.reused && { text: cachedFrom(read.reused.from, at) }
-          : envelope &&
-            areaFact(envelope, at, { reusedFrom: read?.reused?.from, sweptAt: snapshot.sweptAt });
+      read !== undefined && !own
+        ? read.reused && { text: cachedFrom(read.reused.from, at) }
+        : envelope &&
+          areaFact(envelope, at, { reusedFrom: read?.reused?.from, sweptAt: snapshot.sweptAt });
     return (
       words && (
         <span className="evidence-fact" data-tone={words.tone}>
@@ -276,7 +391,7 @@ export function SweepEvidence({
         {!live && <SweepNow onOpenReadiness={onOpenSettings} />}
       </header>
       {!live && (
-        <p className="evidence-line" data-tone={line.tone}>
+        <p className="evidence-line" data-tone={tone}>
           {line.text}
         </p>
       )}
@@ -298,8 +413,9 @@ export function SweepEvidence({
             now={at}
             meta={false}
             onOpenSettings={onOpenSettings}
-            fact={fact}
+            fact={observed ? undefined : fact}
             envelope={(source) => envelopes.get(source)}
+            describe={observed ? describe : undefined}
           />
           {unlisted.length > 0 && (
             <EnvelopeRows
@@ -307,6 +423,7 @@ export function SweepEvidence({
               sources={unlisted}
               now={at}
               sweptAt={snapshot.sweptAt}
+              since={since}
               observed={observed}
             />
           )}
@@ -323,10 +440,10 @@ export function SweepEvidence({
           />
         </section>
       )}
-      {failed.length > 0 && (
+      {uncarried.length > 0 && (
         <>
           <h3>Failed reads</h3>
-          <FailedReads reads={failed} />
+          <FailedReads groups={uncarried} />
         </>
       )}
     </article>

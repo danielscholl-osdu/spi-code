@@ -150,7 +150,7 @@ it("still calls Release lines stale when a sweep skips them and their last read 
   const view = await shown(notDue(14));
   expect(view.evidence).toEqual([
     "warn",
-    expect.stringMatching(/^skipped · stale, last read 14\u00a0h ago$/),
+    expect.stringMatching(/^not due · stale, last read 14\u00a0h ago$/),
   ]);
   expect(view.line).toContain("release lines stale");
   expect(view.header).toContain("1 stale");
