@@ -73,15 +73,13 @@ type Repo = ViewSnapshot["briefing"]["repositories"]["rows"][number];
 
 const at = (pointer: string) => `[data-pointer="${pointer}"]`;
 const quote = (value: string) => JSON.stringify(value);
-const firstClause = (value: string) => value.split(" · ")[0] ?? value;
 const lastWord = (value: string) => value.trim().split(/\s+/).pop() ?? "";
 const nextSync = (value: string) => value.replace(/^Next sync /, "");
 const subText = (value: string) => timedText(plainTitle(value), { hint: false });
-const pinClause = (element: Element) => {
+const pinDeployable = (element: Element) => {
   const state = element.getAttribute("aria-description")?.split(": ")[1]?.split(". ")[0] ?? "";
-  if (state === "Ready") return "deployable";
-  if (state.startsWith("Maintenance · ")) return state.slice("Maintenance · ".length);
-  return state.startsWith("Maintenance") ? "held" : state;
+  if (state === "Ready") return "yes";
+  return state.startsWith("Maintenance") ? "no" : "unknown";
 };
 const NOTES_STATE: Readonly<Record<string, string>> = {
   Approved: "approved",
@@ -210,28 +208,33 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
     cases.push({ ...field, home: lensHome(name) });
   }
 
-  const facts = briefing.facts;
+  const { template } = briefing.repositories;
   const engineeringDetails = lensHome("Engineering system · Details");
-  const fact2 = at("/briefing/facts/2");
-  if (facts[2])
+  const templateFact = at("/briefing/repositories/template");
+  if (template)
     for (const [key, selector] of [
       ["label", ".inbox-fact-label"],
       ["figure", ".inbox-fact-figure"],
       ["sub", ".inbox-fact-sub"],
     ] as const)
-      add(`/briefing/facts/2/${key}`, facts[2][key], engineeringDetails, `${fact2} ${selector}`, {
-        ...(key === "label" ? { canon: lastWord } : {}),
-      });
-  const environmentFact = facts.findIndex(({ label }) => label === "Environment");
-  const envFact = facts[environmentFact];
-  if (envFact && envFact.figure !== "?") {
-    const pointer = `/briefing/facts/${environmentFact}`;
+      add(
+        `/briefing/repositories/template/${key}`,
+        template[key],
+        engineeringDetails,
+        `${templateFact} ${selector}`,
+        { ...(key === "label" ? { canon: lastWord } : {}) },
+      );
+  const running = briefing.environment.facts.findIndex(({ label }) => label === "Running");
+  const runningFact = briefing.environment.facts[running];
+  if (runningFact && runningFact.figure !== "?") {
     const environment = '[data-sidebar-row="environment"]';
-    add(`${pointer}/figure`, envFact.figure, PINS, environment, {
+    add(`/briefing/environment/facts/${running}/figure`, runningFact.figure, PINS, environment, {
       attribute: "aria-description",
       contains: true,
     });
-    add(`${pointer}/sub`, firstClause(envFact.sub), PINS, environment, { read: pinClause });
+    add("/briefing/environment/deployable", briefing.environment.deployable, PINS, environment, {
+      read: pinDeployable,
+    });
   }
   if (briefing.nextSyncAt) {
     add(
@@ -1107,15 +1110,6 @@ function itemAt(pointer: string, { briefing }: Leaves) {
   return list === "focus" || list === "rest" ? briefing[list][Number(index)] : undefined;
 }
 
-/** A fact another surface draws: the third on Engineering system, Environment's on the strip. */
-function factElsewhere(pointer: string, { briefing }: Leaves) {
-  const [, index, key] = pointer.match(/^\/briefing\/facts\/(\d+)\/(\w+)$/) ?? [];
-  const fact = briefing.facts[Number(index)];
-  if (!fact) return false;
-  if (index === "2") return true;
-  return fact.label === "Environment" && fact.figure !== "?" && key !== "label";
-}
-
 /** Today briefing fields the contract carries before a window bead draws them; each names its bead. */
 export const PENDING: Readonly<Record<string, Exemption>> = {};
 
@@ -1158,7 +1152,6 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
       "/briefing/rest/#/id",
       "/briefing/rest/#/ids/#",
       "/briefing/rest/#/evidence/#/url",
-      "/briefing/ready/#/id",
       "/briefing/themes/#/id",
       "/briefing/themes/#/inspect",
       "/briefing/themes/#/certain/#/url",
@@ -1179,7 +1172,6 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
   },
   styling: {
     patterns: [
-      "/briefing/facts/#/tone",
       "/briefing/focus/#/attention",
       "/briefing/rest/#/attention",
       "/briefing/themes/#/tone",
@@ -1191,6 +1183,7 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
       "/briefing/flow/rows/#/next/tone",
       "/briefing/flow/rows/#/next/strong",
       "/briefing/environment/facts/#/tone",
+      "/briefing/repositories/template/tone",
       "/briefing/repositories/facts/#/tone",
       "/briefing/repositories/rows/#/tone",
       "/briefing/repositories/rows/#/cells/changes/tone",
@@ -1208,19 +1201,6 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
     patterns: ["/briefing/ambient/inProgress/items", "/briefing/ambient/inProgress/text"],
     reason: "An empty In progress run draws no heading and no 0 count (today-design 'Calm first')",
     when: (value) => value === 0 || value === "0 in 0",
-  },
-  "retired-today": {
-    patterns: [
-      "/briefing/facts/#/label",
-      "/briefing/facts/#/figure",
-      "/briefing/facts/#/sub",
-      "/briefing/more",
-      "/briefing/ready/#/text",
-      "/briefing/ready/#/count",
-    ],
-    reason:
-      "Today's tiles and its n-more fold are gone (today-design 'What goes'); the place cards and the Releases block draw from briefing.places and releases.today",
-    when: (_value, { pointer, snapshot }) => !factElsewhere(pointer, snapshot),
   },
   "item-chips": {
     patterns: ["/briefing/focus/#/age", "/briefing/rest/#/age"],

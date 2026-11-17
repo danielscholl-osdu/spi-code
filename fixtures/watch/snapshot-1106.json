@@ -10,26 +10,6 @@
     },
     "headline": "Resolve the entitlements conflict. Unblock entitlements. 11 more causes below.",
     "summary": "Entitlements has been stopped for 16 days. The environment is ready. 13 PRs are ready for review.",
-    "facts": [
-      {
-        "label": "Environment",
-        "figure": "v0.35.3",
-        "sub": "deployable · green at 2026-11-06T04:20:36.000Z",
-        "tone": "ok"
-      },
-      {
-        "label": "Upstream sync",
-        "figure": "1 of 13",
-        "sub": "forks stopped · entitlements",
-        "tone": "bad"
-      },
-      {
-        "label": "Template · main 7d269b5",
-        "figure": "0 of 13",
-        "sub": "on main · 1 change reaches the forks · 13 of 13 on v1.4.0",
-        "tone": "warn"
-      }
-    ],
     "focus": [
       {
         "id": "conflict:entitlements:121",
@@ -188,7 +168,6 @@
         "owned": false
       }
     ],
-    "more": 12,
     "rest": [
       {
         "id": "radar:schema",
@@ -525,13 +504,6 @@
         ],
         "attention": "surface",
         "owned": false
-      }
-    ],
-    "ready": [
-      {
-        "id": "releases",
-        "text": "13 release PRs",
-        "count": 13
       }
     ],
     "themes": [
@@ -1994,6 +1966,7 @@
           "tone": "ok"
         }
       ],
+      "deployable": "yes",
       "lanes": [
         {
           "id": "upgrade",
@@ -2081,6 +2054,12 @@
           "tone": "neutral"
         }
       ],
+      "template": {
+        "label": "Template · main 7d269b5",
+        "figure": "0 of 13",
+        "sub": "on main · 1 change reaches the forks · 13 of 13 on v1.4.0",
+        "tone": "warn"
+      },
       "rows": [
         {
           "id": "repo:osdu-spi",
@@ -13848,34 +13827,8 @@
       ]
     },
     {
-      "path": "/briefing/more",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ]
-    },
-    {
       "path": "/briefing/since",
       "areas": ["github", "runs", "template"]
-    },
-    {
-      "path": "/briefing/facts/0/figure",
-      "areas": ["lifecycle"]
-    },
-    {
-      "path": "/briefing/facts/1/figure",
-      "areas": ["github", "runs", "details", "template"]
-    },
-    {
-      "path": "/briefing/facts/2/figure",
-      "areas": ["github", "template"]
     },
     {
       "path": "/briefing/focus/0",
@@ -14103,20 +14056,6 @@
     },
     {
       "path": "/briefing/rest/11",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ]
-    },
-    {
-      "path": "/briefing/ready/0",
       "areas": [
         "github",
         "runs",
@@ -14485,6 +14424,10 @@
       "areas": ["lifecycle"]
     },
     {
+      "path": "/briefing/environment/deployable",
+      "areas": ["lifecycle"]
+    },
+    {
       "path": "/briefing/environment/lanes/0",
       "areas": ["lifecycle"]
     },
@@ -14527,6 +14470,10 @@
     {
       "path": "/briefing/repositories/facts/4/figure",
       "areas": ["radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/template/figure",
+      "areas": ["github", "template"]
     },
     {
       "path": "/briefing/repositories/rows/0",

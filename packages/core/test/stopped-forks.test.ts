@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, test } from "vitest";
-import { buildBriefing } from "../src/brief/index.js";
 import { builtInFleet, fleetOf } from "../src/config.js";
 import { createContext } from "../src/context.js";
 import { buildModel } from "../src/model/index.js";
@@ -33,7 +32,6 @@ function greenFacts() {
 
 function reading(facts: ReturnType<typeof greenFacts>) {
   const model = buildModel(facts, UPSTREAM_NOW, {}, context);
-  const briefing = buildBriefing(model, { state: "clear", problems: [] }, UPSTREAM_NOW, context);
   const stopped = model.lines
     .filter((line) =>
       line.stations.some(
@@ -41,10 +39,10 @@ function reading(facts: ReturnType<typeof greenFacts>) {
       ),
     )
     .map((line) => line.fork.id);
-  return { model, tile: briefing.facts.find(({ label }) => label === "Upstream sync"), stopped };
+  return { model, stopped };
 }
 
-describe("Today's stopped forks", () => {
+describe("stopped forks", () => {
   test("counts a failed Sync Upstream and a red main once each, as the strip does", () => {
     const facts = greenFacts();
     const sync = facts.runs.data?.["Azure/osdu-spi-storage"]?.sync[0];
@@ -52,42 +50,27 @@ describe("Today's stopped forks", () => {
     if (!sync || !main) throw new Error("Missing recorded workflow runs");
     sync.conclusion = "failure";
     main.conclusion = "failure";
-    const { model, tile, stopped } = reading(facts);
+    const { model, stopped } = reading(facts);
     expect(model.lines.find(({ fork }) => fork.id === "storage")?.syncRun?.conclusion).toBe(
       "failure",
     );
     expect(stopped).toEqual(["storage", "indexer-queue"]);
-    expect(tile).toEqual({
-      label: "Upstream sync",
-      figure: "2 of 13",
-      sub: "forks stopped · storage and indexer-queue",
-      tone: "bad",
-    });
-    expect(tile?.sub).not.toContain("every sync flowing");
+    expect(model.stoppedForks).toEqual(stopped);
   });
 
-  test("keeps every sync flowing when no line station is stopped", () => {
-    const { tile, stopped } = reading(greenFacts());
+  test("names no fork when no line station is stopped", () => {
+    const { model, stopped } = reading(greenFacts());
     expect(stopped).toEqual([]);
-    expect(tile).toEqual({
-      label: "Upstream sync",
-      figure: "0 of 13",
-      sub: "forks stopped · every sync flowing",
-      tone: "ok",
-    });
+    expect(model.stoppedForks).toEqual([]);
   });
 
-  test("a failed sync alone cannot read every sync flowing", () => {
+  test("a failed sync alone stops its fork", () => {
     const facts = greenFacts();
     const sync = facts.runs.data?.["Azure/osdu-spi-storage"]?.sync[0];
     if (!sync) throw new Error("Missing recorded Sync Upstream run");
     sync.conclusion = "failure";
-    const { tile, stopped } = reading(facts);
+    const { model, stopped } = reading(facts);
     expect(stopped).toEqual(["storage"]);
-    expect(tile).toMatchObject({
-      figure: "1 of 13",
-      sub: "forks stopped · storage",
-      tone: "bad",
-    });
+    expect(model.stoppedForks).toEqual(["storage"]);
   });
 });

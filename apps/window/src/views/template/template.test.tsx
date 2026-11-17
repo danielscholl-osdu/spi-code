@@ -100,9 +100,8 @@ it("renders the engineering reading with verified-on-target, open-PR and rollout
   const reading = body.readings.find(({ anchor }) => anchor.kind === "engineering")?.content;
   expect(reading).toBeTruthy();
   // The merged/adopted fact is not the reading's verified-on-target measure.
-  body.briefing.facts = body.briefing.facts.map((fact) =>
-    fact.label.startsWith("Template") ? { ...fact, figure: "13 of 13" } : fact,
-  );
+  const template = body.briefing.repositories.template;
+  if (template) template.figure = "13 of 13";
   await mount(body);
   expect(container.querySelector(".place h1")?.textContent).toBe("Engineering system");
   expect(container.querySelector(".place-headline")?.textContent).toBe(reading?.headline);
@@ -149,8 +148,7 @@ it.each([
   "keeps every former Template field one disclosure away in the %s sweep",
   async (_name, fixture) => {
     const body = loadFixture(fixture);
-    const factIndex = body.briefing.facts.findIndex(({ label }) => label.startsWith("Template"));
-    const fact = body.briefing.facts[factIndex];
+    const fact = body.briefing.repositories.template;
     const rollout = [...body.briefing.focus, ...body.briefing.rest].find(
       ({ id }) => id === "rollout",
     );
@@ -160,7 +158,7 @@ it.each([
     await openDetails();
     expect(parts()).toEqual(["fact", "rollout", "repository"]);
     const factNode = part("fact")?.querySelector(".inbox-fact");
-    expect(factNode?.getAttribute("data-pointer")).toBe(`/briefing/facts/${factIndex}`);
+    expect(factNode?.getAttribute("data-pointer")).toBe("/briefing/repositories/template");
     expect(factNode?.getAttribute("data-tone")).toBe(fact.tone);
     expect(
       [".inbox-fact-label", ".inbox-fact-figure", ".inbox-fact-sub"].map(
@@ -310,7 +308,7 @@ it("omits empty and unshipped parts, including before the first sweep", async ()
   expect(container.querySelector(".place-reading, details, [data-part]")).toBeNull();
   const empty = snapshot();
   empty.readings = [];
-  empty.briefing.facts = [];
+  delete empty.briefing.repositories.template;
   empty.briefing.focus = [];
   empty.briefing.rest = [];
   empty.briefing.repositories.rows = [];
@@ -324,7 +322,7 @@ it("omits empty and unshipped parts, including before the first sweep", async ()
 
 it("leaves unidentified lines static and omits missing facts, rollout details and empty sections", async () => {
   const body = snapshot();
-  body.briefing.facts = [];
+  delete body.briefing.repositories.template;
   const rollout = body.briefing.focus.find(({ id }) => id === "rollout");
   if (!rollout) throw new Error("Recorded rollout missing");
   rollout.more = undefined;

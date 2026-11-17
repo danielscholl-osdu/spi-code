@@ -24,6 +24,7 @@ import { routeSelectionIds, selectionRows } from "../../panels/selection-rows.js
 import { inspectFromOracle, type OracleBoard } from "../../panels/test-inspect.js";
 import { mixedSnapshot, testSnapshot } from "../../store/test-snapshot.js";
 import { createWatchStore } from "../../store/watch.js";
+import { dropRunning, setRunning } from "../../test-utils/environment.test-helper.js";
 import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { timedText } from "../../time.js";
 import { lineStop } from "../today/LineStop.js";
@@ -702,19 +703,16 @@ const HOLDS = [
 /** The recorded morning, with an open hold and the top row's Environment fact as each case reads. */
 function environmentAs(change: (typeof HOLDS)[number]) {
   const body = mixedSnapshot(recorded);
-  const fact = body.briefing.facts.find(({ label }) => label === "Environment");
   const holds = body.briefing.environment.lanes.find(({ id }) => id === "holds");
-  if (!fact || !holds)
-    throw new Error("Recorded snapshot needs the Environment fact and Held lane");
+  if (!holds) throw new Error("Recorded snapshot needs the Held lane");
   if (change !== "not held") holds.events.push(OPEN_HOLD);
   if (change === "held, nothing running")
-    Object.assign(fact, { sub: "held \u00b7 maintenance is set", tone: "bad" });
+    setRunning(body, { sub: "held \u00b7 maintenance is set", tone: "bad" });
   if (change === "held, a run in flight")
-    Object.assign(fact, { sub: "upgrade running \u00b7 at verify", tone: "warn" });
+    setRunning(body, { sub: "upgrade running \u00b7 at verify", tone: "warn" });
   if (change === "held, Environment fact unread")
-    Object.assign(fact, { figure: "?", sub: "held \u00b7 maintenance is set", tone: "bad" });
-  if (change === "held, no Environment fact")
-    body.briefing.facts = body.briefing.facts.filter((other) => other !== fact);
+    setRunning(body, { figure: "?", sub: "held \u00b7 maintenance is set", tone: "bad" });
+  if (change === "held, no Environment fact") dropRunning(body);
   return body;
 }
 

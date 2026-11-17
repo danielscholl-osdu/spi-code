@@ -6,11 +6,17 @@ import type { PlaceTile } from "../../components/place/Place.js";
 import { envelopesFor } from "../../store/evidence.js";
 import { openHold } from "./hold.js";
 
-/** The stop's tone from the Environment fact: failed or warning when read so, else nothing. */
+/** The environment's Running fact: the version core read and, while a run is in flight, that run. */
+export function runningFact(snapshot: Pick<ViewSnapshot, "briefing">) {
+  return snapshot.briefing.environment.facts.find(({ label }) => label === "Running");
+}
+
+/** The stop's tone: warning while a run is in flight, failed while not deployable, else nothing. */
 export function holdTone(snapshot: Pick<ViewSnapshot, "briefing">): "warn" | "bad" | undefined {
-  const fact = snapshot.briefing.facts.find(({ label }) => label === "Environment");
-  const read = fact && fact.figure !== "?";
-  return read && (fact.tone === "warn" || fact.tone === "bad") ? fact.tone : undefined;
+  const running = runningFact(snapshot);
+  if (!running || running.figure === "?") return undefined;
+  if (running.tone === "warn") return "warn";
+  return snapshot.briefing.environment.deployable === "no" ? "bad" : undefined;
 }
 
 /** Core sent the Held lane and no area feeding it went unread. */

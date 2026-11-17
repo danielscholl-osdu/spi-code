@@ -47,16 +47,6 @@ function versionAreas(stack: StackModel): readonly AreaName[] {
   return stack.running ? LIFECYCLE : STACK;
 }
 
-function briefFactAreas(label: string, stack: StackModel): readonly AreaName[] {
-  if (label === "Environment") return versionAreas(stack);
-  // Stopped pills: main red (runs, details), halts and cascade stops (github), template
-  // deliveries (runs) and compares (template), and failing sync or template PRs (github, details).
-  if (label === "Upstream sync") return ["github", "runs", "details", "template"];
-  // Forks whose marker (github) compares (template) at zero behind, of those read.
-  if (label.startsWith("Template")) return ["github", "template"];
-  return MODEL;
-}
-
 function environmentFactAreas(label: string, stack: StackModel): readonly AreaName[] {
   if (label === "Running") return versionAreas(stack);
   if (/^(Deployable|Ready) · /.test(label) || label === "Last proof") return LIFECYCLE;
@@ -134,18 +124,13 @@ export function briefingProvenance(briefing: Briefing, stack: StackModel): Value
   const each = (items: readonly unknown[], prefix: string, areas: readonly AreaName[]): void => {
     for (const i of items.keys()) add(`${prefix}/${i}`, areas);
   };
-  // The headline, summary, focus queue, ready line, themes and horizon read buildQueue and
-  // themes, which judge every area together.
+  // The headline, summary, focus queue, themes and horizon read buildQueue and themes, which
+  // judge every area together.
   add("/briefing/headline", MODEL);
   add("/briefing/summary", MODEL);
-  add("/briefing/more", MODEL);
   if ("since" in briefing && briefing.since) add("/briefing/since", ["runs", "github", "template"]);
-  for (const [i, fact] of briefing.facts.entries()) {
-    add(`/briefing/facts/${i}/figure`, briefFactAreas(fact.label, stack));
-  }
   each(briefing.focus, "/briefing/focus", MODEL);
   each(briefing.rest, "/briefing/rest", MODEL);
-  each(briefing.ready, "/briefing/ready", MODEL);
   each(briefing.themes, "/briefing/themes", MODEL);
   add("/briefing/horizon/headline", MODEL);
   if (briefing.horizon.compact) add("/briefing/horizon/compact", PHASE);
@@ -186,6 +171,7 @@ export function briefingProvenance(briefing: Briefing, stack: StackModel): Value
   for (const [i, fact] of environment.facts.entries()) {
     add(`/briefing/environment/facts/${i}/figure`, environmentFactAreas(fact.label, stack));
   }
+  add("/briefing/environment/deployable", LIFECYCLE);
   each(environment.lanes, "/briefing/environment/lanes", LIFECYCLE);
   // Fork lane deploys per day come from the forks' github deployments.
   if (environment.note !== undefined) add("/briefing/environment/note", GITHUB);
@@ -196,6 +182,8 @@ export function briefingProvenance(briefing: Briefing, stack: StackModel): Value
   for (const [i, fact] of repositories.facts.entries()) {
     add(`/briefing/repositories/facts/${i}/figure`, repositoryFactAreas(fact.label));
   }
+  // Forks whose marker (github) compares (template) at zero behind, of those read.
+  if (repositories.template) add("/briefing/repositories/template/figure", ["github", "template"]);
   for (const i of repositories.rows.keys()) {
     add(`/briefing/repositories/rows/${i}`, REPO);
     for (const [cell, areas] of Object.entries(REPO_CELLS)) {

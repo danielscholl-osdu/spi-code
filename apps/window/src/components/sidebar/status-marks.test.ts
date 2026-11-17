@@ -10,6 +10,7 @@ import {
 import { expect, it } from "vitest";
 import current from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { selectStrip } from "../../store/strip.js";
+import { dropRunning, setRunning } from "../../test-utils/environment.test-helper.js";
 import { type StatusMark, type StatusPin, statusDot, statusRows } from "./status-marks.js";
 
 const NOW = Date.parse("2026-11-06T15:04:00.000Z");
@@ -26,10 +27,7 @@ function base(): ViewSnapshot {
 }
 
 function environment(body: ViewSnapshot, fact: { tone: Tone; sub: string; figure?: string }) {
-  body.briefing.facts = body.briefing.facts.map((entry) =>
-    entry.label === "Environment" ? { ...entry, ...fact } : entry,
-  );
-  return body;
+  return setRunning(body, fact);
 }
 
 function held(body: ViewSnapshot) {
@@ -210,20 +208,16 @@ const cases: [string, (body: ViewSnapshot) => ViewSnapshot, StatusPin, StatusMar
     undefined,
   ],
   [
-    "ok tone without deployable",
-    (b) => environment(b, { tone: "ok", sub: "" }),
-    "place:environment",
-    undefined,
-  ],
-  [
-    "missing environment",
+    "ok tone while deployability is unknown",
     (b) => {
-      b.briefing.facts = b.briefing.facts.filter((f) => f.label !== "Environment");
+      environment(b, { tone: "ok", sub: "" });
+      b.briefing.environment.deployable = "unknown";
       return b;
     },
     "place:environment",
     undefined,
   ],
+  ["missing environment", (b) => dropRunning(b), "place:environment", undefined],
   ["sync exactly 2 h away", sync(2 * HOUR), "place:upstream", { kind: "clock", tone: "sync" }],
   ["sync inside 2 h", sync(HOUR), "place:upstream", { kind: "clock", tone: "sync" }],
   ["sync just past 2 h", sync(2 * HOUR + 1), "place:upstream", undefined],

@@ -379,7 +379,6 @@ export function snapshotHasSelection(snapshot: ViewSnapshot, id: string): boolea
   return (
     selectionRows(snapshot).some((row) => row.id === id || row.inspectId === id) ||
     [...briefing.focus, ...briefing.rest].some((item) => item.ids.includes(id)) ||
-    briefing.ready.some((row) => row.id === id) ||
     briefing.flow.also.some((row) => row.inspect === id) ||
     briefing.themes.some((theme) =>
       [...theme.certain, ...theme.possible].some((fork) => fork.inspect === id),
@@ -403,7 +402,6 @@ export function routeSelectionIds(snapshot: ViewSnapshot, route: Route): string[
       return [
         ...queue.map(({ id }) => id),
         ...TODAY_GROUPS.map((group) => todayGroupRow(snapshot, group).id),
-        ...briefing.ready.map(({ id }) => id),
         ...(briefing.canWait?.chips.length ? [CAN_WAIT_ID] : []),
         ...releaseRows(snapshot).map(({ id }) => id),
       ];

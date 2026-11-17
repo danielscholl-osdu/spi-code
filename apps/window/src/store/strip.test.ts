@@ -4,6 +4,7 @@
 import type { Station, Tone, ViewSnapshot } from "@spi-code/contracts";
 import { expect, it } from "vitest";
 import { readFixture } from "../../../../scripts/watch-generated.mjs";
+import { dropRunning, setRunning } from "../test-utils/environment.test-helper.js";
 import { fixtureLoader } from "../test-utils/harness.js";
 import { selectStrip } from "./strip.js";
 
@@ -16,9 +17,7 @@ function environment(
   fact: { tone: Tone; sub: string; figure?: string },
   hold?: string,
 ) {
-  body.briefing.facts = body.briefing.facts.map((entry) =>
-    entry.label === "Environment" ? { ...entry, ...fact } : entry,
-  );
+  setRunning(body, fact);
   const lane = body.briefing.environment.lanes.find(({ id }) => id === "holds");
   if (lane && hold !== undefined)
     lane.events.push({
@@ -191,8 +190,7 @@ const cases: [
   [
     "missing environment",
     (b) => {
-      b.briefing.facts = b.briefing.facts.filter((f) => f.label !== "Environment");
-      return b;
+      return dropRunning(b);
     },
     "environment",
     "unread",

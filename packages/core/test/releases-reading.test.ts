@@ -101,13 +101,12 @@ describe("Releases reading on the recorded 6 Nov sweep", () => {
   it("carries every Releases field of the briefing, in the reading or one level below", () => {
     const reading = releases();
     const text = readingText(reading).join("\n");
-    const ready = briefing.ready.find((r) => r.id === "releases");
-    expect(ready).toMatchObject({ text: "13 release PRs", count: 13 });
-    expect(reading.headline.startsWith(`${ready?.count} release PRs`)).toBe(true);
-    expect(reading.tiles[0].value).toBe(String(ready?.count));
+    const queued = model.queue.items.find((i) => i.id === "releases");
+    expect(queued?.effects).toHaveLength(13);
+    expect(reading.headline.startsWith("13 release PRs")).toBe(true);
+    expect(reading.tiles[0].value).toBe("13");
 
     // Each waiting release PR the briefing counts is named with its tag, number and what it waits on.
-    const queued = model.queue.items.find((i) => i.id === "releases");
     expect(queued?.cause).toHaveLength(13);
     for (const row of queued?.cause ?? []) {
       const [tag, number, state] = row.value.split(" · ");

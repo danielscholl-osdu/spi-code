@@ -67,6 +67,7 @@ export interface RepoEntry {
 export interface Repositories {
   headline: string;
   facts: BriefFact[];
+  template?: BriefFact;
   rows: RepoEntry[];
   // The row the tab opens on.
   first?: string;

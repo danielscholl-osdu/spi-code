@@ -39,11 +39,6 @@ export const FocusItemSchema = z.strictObject({
   /** What waits on the item, as a chip ("blocks 3"); absent when nothing does or core cannot tell. */
   blocks: z.strictObject({ count: z.int().positive(), text: z.string() }).optional(),
 });
-export const ReadyLineSchema = z.strictObject({
-  id: z.string(),
-  text: z.string(),
-  count: z.int().nonnegative(),
-});
 export const ThemeForkSchema = z.strictObject({
   fork: z.string(),
   state: z.string(),
@@ -86,6 +81,8 @@ export const EnvLaneSchema = z.strictObject({
 export const EnvironmentSchema = z.strictObject({
   headline: z.string(),
   facts: z.array(BriefFactSchema),
+  /** Whether the last lifecycle reading proves the stack deployable; no while a run is in flight or maintenance is set. */
+  deployable: z.enum(["yes", "no", "unknown"]),
   lanes: z.array(EnvLaneSchema),
   from: ObservedAtSchema,
   to: ObservedAtSchema,
@@ -377,11 +374,8 @@ export const BriefingSchema = z.strictObject({
   doctor: DoctorViewSchema,
   headline: z.string(),
   summary: z.string(),
-  facts: z.array(BriefFactSchema),
   focus: z.array(FocusItemSchema),
-  more: z.int().nonnegative(),
   rest: z.array(FocusItemSchema),
-  ready: z.array(ReadyLineSchema),
   themes: z.array(ThemeSchema),
   horizon: HorizonSchema,
   flow: UpstreamViewSchema,
@@ -421,7 +415,6 @@ export type WatchBriefing = z.infer<typeof WatchBriefingSchema>;
 export type ItemAttention = z.infer<typeof ItemAttentionSchema>;
 export type Link = z.infer<typeof LinkSchema>;
 export type FocusItem = z.infer<typeof FocusItemSchema>;
-export type ReadyLine = z.infer<typeof ReadyLineSchema>;
 export type ThemeFork = z.infer<typeof ThemeForkSchema>;
 export type ThemeKind = z.infer<typeof ThemeKindSchema>;
 export type Theme = z.infer<typeof ThemeSchema>;

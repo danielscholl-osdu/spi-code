@@ -8,6 +8,7 @@ import { afterEach, expect, it } from "vitest";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { selectStrip } from "../../store/strip.js";
 import { watchStore } from "../../store/watch.js";
+import { setRunning } from "../../test-utils/environment.test-helper.js";
 import { fixtureLoader } from "../../test-utils/harness.js";
 import { SidebarSweep } from "./SweepSegment.js";
 
@@ -24,9 +25,7 @@ type Change = (body: ViewSnapshot) => ViewSnapshot;
 const environment =
   (fact: { tone: Tone; sub: string; figure?: string }, hold = false): Change =>
   (body) => {
-    body.briefing.facts = body.briefing.facts.map((entry) =>
-      entry.label === "Environment" ? { ...entry, ...fact } : entry,
-    );
+    setRunning(body, fact);
     if (hold)
       body.briefing.environment.lanes
         .find(({ id }) => id === "holds")

@@ -90,12 +90,6 @@ export interface FocusItem {
   blocks?: { count: number; text: string } | undefined;
 }
 
-export interface ReadyLine {
-  id: string;
-  text: string;
-  count: number;
-}
-
 export interface ThemeFork {
   fork: string;
   state: string;
@@ -151,6 +145,7 @@ export interface EnvLane {
 export interface Environment {
   headline: string;
   facts: BriefFact[];
+  deployable: "yes" | "no" | "unknown";
   lanes: EnvLane[];
   // The axis window.
   from: string;
@@ -164,12 +159,8 @@ export interface Briefing {
   doctor: DoctorView;
   headline: string;
   summary: string;
-  facts: BriefFact[];
   focus: FocusItem[];
-  // Focus rows past the cap, still in the queue and the inspector.
-  more: number;
   rest: FocusItem[];
-  ready: ReadyLine[];
   themes: Theme[];
   horizon: Horizon;
   flow: UpstreamView;
@@ -430,7 +421,7 @@ function problemText(doctor: DoctorView): string {
   return (doctor.problems[0] ?? "").replace(/^⚠\s*/, "");
 }
 
-function factsOf(model: Model, now: Date, context: CoreContext): BriefFact[] {
+function envFact(model: Model, now: Date, context: CoreContext): BriefFact {
   const { stack } = model;
   const env: BriefFact = {
     label: "Environment",
@@ -452,19 +443,7 @@ function factsOf(model: Model, now: Date, context: CoreContext): BriefFact[] {
   if (stack.declared && stack.running && stack.declared !== stack.running.version) {
     env.sub += ` · declares ${stack.declared}`;
   }
-
-  const stopped = model.stoppedForks;
-  const sync: BriefFact = {
-    label: "Upstream sync",
-    figure: `${stopped.length} of ${model.lines.length}`,
-    sub:
-      stopped.length > 0
-        ? `forks stopped · ${list(stopped)}`
-        : "forks stopped · every sync flowing",
-    tone: stopped.length > 0 ? "bad" : "ok",
-  };
-
-  return [env, sync, templateFact(model)];
+  return env;
 }
 
 // Forks verified on osdu-spi main over every fork, the count the strip and the Engineering
@@ -907,24 +886,12 @@ export function readItem(model: Model, item: QueueItem, now: Date | undefined = 
   };
 }
 
-function readyOf(model: Model): ReadyLine[] {
-  const out: ReadyLine[] = [];
-  const onTemplate = model.queue.items.filter((i) => i.rung === 2 && i.kind === "template-pr");
-  for (const item of model.queue.items) {
-    if (item.rung !== 2 || item.kind === "template-pr") continue;
-    const count =
-      item.kind === "releases" || item.kind === "template-set" ? item.effects.length : 1;
-    out.push({ id: item.id, text: item.text.split(/ · |: |; /)[0] ?? item.text, count });
-  }
-  const first = onTemplate[0];
-  if (first) {
-    out.push({
-      id: first.id,
-      text: `${plural(onTemplate.length, "PR")} on osdu-spi`,
-      count: onTemplate.length,
-    });
-  }
-  return out;
+// PRs ready for review: a release or template set counts each PR it holds.
+function readyCount(model: Model): number {
+  return model.queue.items
+    .filter((item) => item.rung === 2)
+    .reduce((n, item) =>
+      n + (item.kind === "releases" || item.kind === "template-set" ? item.effects.length : 1), 0);
 }
 
 function addFork(list: ThemeFork[], fork: ThemeFork): void {
@@ -1405,16 +1372,13 @@ function proofFact(model: Model, now: Date): BriefFact {
 
 function envFacts(
   model: Model,
-  env: BriefFact | undefined,
+  env: BriefFact,
   held: string | undefined,
   now: Date,
   context: CoreContext,
 ): BriefFact[] {
   const { stack } = model;
-  const running: BriefFact = {
-    ...(env ?? { figure: "?", sub: "deployability unread", tone: "neutral" as const }),
-    label: "Running",
-  };
+  const running: BriefFact = { ...env, label: "Running" };
   const declares = running.sub.match(/ · declares \S+$/)?.[0] ?? "";
   const stopped = stoppedAttempts(stack).at(-1);
   const app = context.words === "app";
@@ -1449,13 +1413,14 @@ function deployNote(model: Model): string {
   return `${counted} Deploys are counted per day, so the timeline leaves them out.`;
 }
 
-function environmentOf(model: Model, env: BriefFact | undefined, now: Date, context: CoreContext): Environment {
+function environmentOf(model: Model, env: BriefFact, now: Date, context: CoreContext): Environment {
   const from = now.getTime() - DAY_MS;
   const lanes = envLanes(model, from, now);
   const held = heldReason(model, now, context);
   return {
     headline: envHeadline(model, lanes, held, now, context),
     facts: envFacts(model, env, held, now, context),
+    deployable: model.stack.deployable.state,
     lanes,
     from: new Date(from).toISOString(),
     to: now.toISOString(),
@@ -1483,17 +1448,15 @@ export function buildBriefing(model: Model, doctor: DoctorView, now: Date | unde
       ...base,
       headline,
       summary: "",
-      facts: [],
       focus: [],
-      more: 0,
       rest: [],
-      ready: [],
       themes: [],
       horizon: upstreamHorizon(model, headline),
       flow: upstreamView(model.upstream, now, context.voice, context),
       environment: {
         headline,
         facts: [],
+        deployable: "unknown",
         lanes: [],
         from: new Date(now.getTime() - DAY_MS).toISOString(),
         to: now.toISOString(),
@@ -1502,28 +1465,23 @@ export function buildBriefing(model: Model, doctor: DoctorView, now: Date | unde
     };
   }
   const focusable = model.queue.items.filter((i) => i.rung <= 1);
-  const ready = readyOf(model);
-  const readyCount = ready.reduce((n, r) => n + r.count, 0);
+  const ready = readyCount(model);
   const focus = focusOf(model, focusable, nextIso, now, context.voice, context);
   const themes = themesOf(model, now, next);
-  const facts = factsOf(model, now, context);
   const headline =
     doctor.state === "dark"
       ? `${sentence(problemText(doctor) || "GitHub cannot be read")} Figures are from the last good read.`
-      : headlineOf(model, focusable, readyCount, next, now, context);
+      : headlineOf(model, focusable, ready, next, now, context);
   return {
     ...base,
     headline,
-    summary: summaryOf(model, focusable, readyCount, doctor, now, context),
-    facts,
+    summary: summaryOf(model, focusable, ready, doctor, now, context),
     focus: focus.slice(0, FOCUS_MAX),
-    more: Math.max(0, focus.length - FOCUS_MAX),
     rest: focus.slice(FOCUS_MAX),
-    ready,
     themes,
     horizon: upstreamHorizon(model),
     flow: upstreamView(model.upstream, now, context.voice, context),
-    environment: environmentOf(model, facts[0], now, context),
-    repositories: repositoriesOf(model, now),
+    environment: environmentOf(model, envFact(model, now, context), now, context),
+    repositories: { ...repositoriesOf(model, now), template: templateFact(model) },
   };
 }

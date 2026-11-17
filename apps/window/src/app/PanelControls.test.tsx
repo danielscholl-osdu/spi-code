@@ -10,6 +10,7 @@ import { sweepSources } from "../components/evidence/words.js";
 import { SidebarProvider } from "../components/sidebar/ui-sidebar.js";
 import { midSweep } from "../components/sweep/test-helper.js";
 import { watchStore } from "../store/watch.js";
+import { dropRunning } from "../test-utils/environment.test-helper.js";
 import { SidebarToggle } from "./PanelControls.js";
 
 const nov6 = ViewSnapshotSchema.parse(JSON.parse(current));
@@ -117,7 +118,7 @@ it("draws no dot for unread fields and sweep, but reports a stopped first sweep"
   for (const place of unread.briefing.places ?? [])
     if (place.visual?.kind === "rollout")
       for (const slot of place.visual.slots) slot.state = "unknown";
-  unread.briefing.facts = unread.briefing.facts.filter(({ label }) => label !== "Environment");
+  dropRunning(unread);
   for (const { envelope } of sweepSources(unread)) {
     envelope.state = "unread";
     envelope.completeness = { kind: "complete" };

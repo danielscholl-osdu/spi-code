@@ -63,7 +63,16 @@ function oracle(name: string): unknown {
     ),
   );
 }
-const briefing = BriefingSchema.parse(oracle("briefing"));
+const {
+  facts: _facts,
+  more: _more,
+  ready: _ready,
+  ...frozen
+} = oracle("briefing") as Record<"environment" | "facts" | "more" | "ready", object>;
+const briefing = BriefingSchema.parse({
+  ...frozen,
+  environment: { ...frozen.environment, deployable: "no" },
+});
 const snapshot = {
   cursor: 1,
   sweptAt: at,

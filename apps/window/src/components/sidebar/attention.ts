@@ -4,6 +4,7 @@
 import type { FocusItem, ViewSnapshot } from "@spi-code/contracts";
 import { useState } from "react";
 import { queueGroups, scopeRoute, treeServices } from "../../app/queue.js";
+import { runningFact } from "../../views/environment/lead.js";
 
 export type SidebarAttention = {
   dot: "p0" | "p1" | "p2" | "unread" | undefined;
@@ -63,8 +64,8 @@ export function sidebarAttention(
     ({ entries }) => entries,
   );
   const facts = new Map([
-    ["template", briefing.facts.find(({ label }) => label.startsWith("Template"))?.figure],
-    ["environment", briefing.facts.find(({ label }) => label === "Environment")?.figure],
+    ["template", briefing.repositories.template?.figure],
+    ["environment", runningFact(body)?.figure],
     ["releases", body.releases.lines[0]?.name],
   ]);
   return new Map(
