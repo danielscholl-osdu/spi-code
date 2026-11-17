@@ -1086,12 +1086,10 @@ it("opens the sweep's Evidence when desktop main routes the tray's View sweep, a
       await act(async () => route?.(destination));
     expect(container.querySelector("#app-right-panel")).toBeNull();
     await act(async () => route?.({ to: "evidence" }));
-    expect(selectionStore.getState()).toMatchObject({
-      open: true,
-      tab: "evidence",
-      evidenceScope: "sweep",
-    });
-    const sweep = container.querySelector('#app-right-panel [data-evidence="sweep"]');
+    expect(window.location.hash).toBe("#evidence");
+    expect(container.querySelector("#app-right-panel")).toBeNull();
+    const sweep = container.querySelector(".evidence-page");
+    expect(sweep?.querySelector("[data-evidence-whole]")).toBeNull();
     expect(sweep?.querySelectorAll(".sweep-row[data-source]").length).toBeGreaterThanOrEqual(11);
     await act(async () => navigate({ kind: "environment" }));
     const item = watchStore.getState().snapshot?.body.briefing.focus[0];
@@ -1099,12 +1097,7 @@ it("opens the sweep's Evidence when desktop main routes the tray's View sweep, a
     await act(async () => route?.({ to: "today", item: item.id }));
     expect(window.location.hash).toBe("#today");
     expect(container.querySelector("main h1")?.textContent).toBe("Today");
-    expect(selectionStore.getState()).toMatchObject({
-      selected: item.id,
-      open: true,
-      tab: "detail",
-      evidenceScope: "selection",
-    });
+    expect(selectionStore.getState()).toMatchObject({ selected: null, open: false });
   } finally {
     await act(async () => root.unmount());
     expect(unroute).toHaveBeenCalledOnce();
@@ -1143,7 +1136,7 @@ it("closes Settings before View sweep opens the sweep's Evidence, and opens Read
     expect(settings()).not.toBeNull();
     await act(async () => route?.({ to: "evidence" }));
     expect(settings()).toBeNull();
-    const evidence = container.querySelector('#app-right-panel [data-evidence="sweep"]');
+    const evidence = container.querySelector(".evidence-page");
     expect(evidence).not.toBeNull();
     expect(evidence?.closest("[inert], [aria-hidden='true']")).toBeNull();
 

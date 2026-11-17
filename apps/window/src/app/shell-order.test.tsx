@@ -29,12 +29,8 @@ it("opens a tray destination the preload held from before the renderer subscribe
   const root = createRoot(container);
   try {
     await act(async () => root.render(<Shell />));
-    expect(selectionStore.getState()).toMatchObject({
-      open: true,
-      tab: "evidence",
-      evidenceScope: "sweep",
-    });
-    expect(container.querySelector('#app-right-panel [data-evidence="sweep"]')).not.toBeNull();
+    expect(selectionStore.getState()).toMatchObject({ selected: null, open: false });
+    expect(container.querySelector(".evidence-page")).not.toBeNull();
   } finally {
     await act(async () => root.unmount());
     container.remove();
