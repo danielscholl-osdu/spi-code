@@ -136,6 +136,8 @@ export type FailedReadGroup = {
   key: string;
   /** The sweep source the group's reads belong to, as the sweep's list names it. */
   source: string;
+  /** The sweep list's row that says these failures, when one does. */
+  row?: string | undefined;
   name: string;
   code: FailureCode;
   /** The cause in window words: `GitHub timed out`. */
@@ -144,27 +146,47 @@ export type FailedReadGroup = {
   details: readonly string[];
 };
 
-/** Failed reads grouped by source and cause, each naming its services once. */
-export function failedReadGroups(reads: readonly ReadRecord[]): FailedReadGroup[] {
+/** The services a sweep source's failure sentence names, as `failedReadsReason` in the host writes it. */
+export function failedServices(failure: string | undefined): readonly string[] {
+  const list = /^Reads failed for \d+ services?: (.+)\.$/.exec(failure ?? "")?.[1];
+  return list?.replace(/ and \d+ more$/, "").split(", ") ?? [];
+}
+
+/**
+ * Failed reads grouped by source and cause, each naming its services once. `rowOf` names the
+ * sweep list's row that says a read's failure, from the source and service it was read for.
+ */
+export function failedReadGroups(
+  reads: readonly ReadRecord[],
+  rowOf: (read: { source: string; service: string | undefined }) => string | undefined = () =>
+    undefined,
+): FailedReadGroup[] {
   const groups = new Map<
     string,
-    { source: WindowSource; code: FailureCode; services: Set<string>; details: Set<string> }
+    {
+      source: WindowSource;
+      row: string | undefined;
+      code: FailureCode;
+      services: Set<string>;
+      details: Set<string>;
+    }
   >();
   for (const record of reads) {
     if (record.failure === undefined) continue;
     const code = failureCode(record.failure);
     const source = windowSource(record);
-    const key = JSON.stringify([source, code]);
+    const service = serviceName(record, source);
+    const row = rowOf({ source, service });
+    const key = JSON.stringify([source, code, row ?? null]);
     let group = groups.get(key);
     if (!group) {
-      group = { source, code, services: new Set(), details: new Set() };
+      group = { source, row, code, services: new Set(), details: new Set() };
       groups.set(key, group);
     }
-    const service = serviceName(record, source);
     if (service !== undefined) group.services.add(service);
     group.details.add(`${record.source} · ${record.object}: ${record.failure}`);
   }
-  return [...groups].map(([key, { source, code, services, details }]) => {
+  return [...groups].map(([key, { source, row, code, services, details }]) => {
     const subject =
       code === "budget" ||
       code === "throttled" ||
@@ -177,6 +199,7 @@ export function failedReadGroups(reads: readonly ReadRecord[]): FailedReadGroup[
     return {
       key,
       source,
+      row,
       name: windowName(source),
       code,
       words: FAILURE_WORDS[code].replace("{forge} ", subject ? `${subject} ` : ""),

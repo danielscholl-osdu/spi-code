@@ -1081,7 +1081,15 @@ export async function captureSmokeViews(
                 window,
                 'document.querySelector(".today-first") && document.querySelectorAll(".sweep-row").length === 12',
               );
-              fixture(window, "view.snapshot", snapshot);
+              // Template's row says its own failed reads; this one no row says stays in Failed reads.
+              const denied = {
+                source: "Azure/osdu-spi-legal",
+                object: "pull requests",
+                observedAt: snapshot.sweptAt,
+                completeness: { kind: "complete" as const },
+                failure: "HTTP 403 forbidden",
+              };
+              fixture(window, "view.snapshot", { ...snapshot, reads: [...snapshot.reads, denied] });
               await rendered(
                 window,
                 'document.querySelector(".today .place-reading") && !document.querySelector(".today-leaving")',
