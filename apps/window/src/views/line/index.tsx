@@ -48,7 +48,8 @@ function LineContent({
 }) {
   const snapshot = useStore(watchStore, (state) => state.snapshot?.body);
   const marked = useOpenSelection();
-  const member = placeMembers(snapshot, "line").find(
+  const members = placeMembers(snapshot, "line");
+  const member = members.find(
     ({ member }) => marked?.kind === "item" && member.id === marked.id,
   )?.member;
   const opening = cellOpening(snapshot, marked);
@@ -207,8 +208,13 @@ function LineContent({
                           const isOpen = opening?.cell === cell;
                           const state = station && cellState(station);
                           const glyph = state && glyphs[state];
-                          const members = cellItems(items, service, id);
-                          const text = station ? cellText(station, members) : "not read";
+                          const onToday = members.some(
+                            ({ member }) =>
+                              member.fork === service && memberStations(member).includes(id),
+                          );
+                          const text = station
+                            ? cellText(station, cellItems(items, service, id))
+                            : "not read";
                           return (
                             <td key={id} data-station={id}>
                               {station && glyph && (
@@ -216,7 +222,7 @@ function LineContent({
                                   ref={isOpen ? setAnchor : undefined}
                                   type="button"
                                   className="line-cell"
-                                  data-on-today={members.length > 0 || undefined}
+                                  data-on-today={onToday || undefined}
                                   data-station={id}
                                   data-cell={cell}
                                   data-member-marked={
@@ -244,9 +250,7 @@ function LineContent({
                                   <span className="line-cell-text" title={text}>
                                     <TimedText text={text} hint={false} />
                                   </span>
-                                  {members.length > 0 && (
-                                    <span className="visually-hidden"> · on Today</span>
-                                  )}
+                                  {onToday && <span className="visually-hidden"> · on Today</span>}
                                 </button>
                               )}
                             </td>

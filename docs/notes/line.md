@@ -1,0 +1,1 @@
+R27-1/2: Line dots count occupied home-member stations, not members: snapshot-1106 has five Line-home members on four distinct cells, because two share entitlements Cascade. Upstream-home members and absorbed radar ids have no Upstream dot or substitute mark; the alternative mark remains a design question for the sweep.

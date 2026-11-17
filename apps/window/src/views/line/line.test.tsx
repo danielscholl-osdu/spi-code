@@ -6,14 +6,17 @@ import { ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { readFixture } from "../../../../../scripts/watch-generated.mjs";
+import { readFixture, watchFixtures } from "../../../../../scripts/watch-generated.mjs";
 import { closeSheet, navigate, openSheet, type Route, routeHash } from "../../app/navigation.js";
 import { DEFAULT_REGISTRY } from "../../app/routes.js";
 import { Shell } from "../../app/Shell.js";
+import { placeMembers } from "../../components/place/members.js";
+import memberFixture from "../../components/place/members-1116.json?raw";
 import { selectionStore } from "../../panels/selection.js";
 import { PINS_STORAGE_KEY, readPins, SEED_PINS } from "../../store/pins.js";
 import { watchStore } from "../../store/watch.js";
 import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
+import { memberStations } from "./cells.js";
 
 const loadFixture = fixtureLoader(readFixture);
 const recording = () => loadFixture("snapshot-59d6895.json");
@@ -250,16 +253,45 @@ function november16() {
   const body = loadFixture("snapshot-1106.json");
   return ViewSnapshotSchema.parse({
     ...body,
+    provenance: [],
     stations: fixture.stations,
     campaigns: fixture.campaigns,
     briefing: {
       ...body.briefing,
       focus: fixture.focus,
       rest: fixture.rest,
+      lines: JSON.parse(memberFixture).lines,
       flow: { ...body.briefing.flow, plan: fixture.plan },
     },
   });
 }
+
+it("dots exactly the Line-home members' stations over every watch fixture and 16 Nov", async () => {
+  const snapshots = watchFixtures()
+    .filter(({ name }) => name.startsWith("snapshot-"))
+    .map(({ name, path }) => ({
+      name,
+      body: ViewSnapshotSchema.parse(JSON.parse(readFixture(path))),
+    }));
+  const unproven = loadFixture("snapshot-1106.json");
+  delete unproven.briefing.lines;
+  snapshots.push({ name: "16 Nov", body: november16() }, { name: "no members", body: unproven });
+  await mount();
+  for (const { name, body } of snapshots) {
+    await act(async () => watchStore.setState({ snapshot: { cursor: body.cursor, body } }));
+    await act(async () => openSheet());
+    const fold = sheet()?.querySelector<HTMLButtonElement>('.line-fold[aria-expanded="false"]');
+    if (fold) await click(fold);
+    const expected = new Set(
+      placeMembers(body, "line").flatMap(({ member }) =>
+        memberStations(member).map((station) => `${member.fork}:${station}`),
+      ),
+    );
+    const dotted = [...(sheet()?.querySelectorAll<HTMLButtonElement>("[data-on-today]") ?? [])];
+    expect(new Set(dotted.map((cell) => cell.dataset.cell)), name).toEqual(expected);
+    await act(async () => closeSheet());
+  }
+});
 
 it("folds only file on 16 Nov and expands in fleet order", async () => {
   const body = november16();
@@ -279,6 +311,7 @@ it("leaves every fork visible on a calm morning", async () => {
   const body = november16();
   body.briefing.focus = [];
   body.briefing.rest = [];
+  body.briefing.lines = [];
   for (const row of body.stations)
     for (const station of row.stations) {
       station.state = "idle";
@@ -552,6 +585,7 @@ it.each([
       return true;
     });
     body.briefing.rest = [];
+    body.briefing.lines = [];
     const station = body.stations
       .find(({ service }) => service === "crs-conversion")
       ?.stations.find(({ id }) => id === "sync");
