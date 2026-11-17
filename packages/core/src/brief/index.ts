@@ -706,9 +706,12 @@ function describe(
   };
 }
 
-// A rollout waits on the system while the environment holds it or nothing is left to review.
+// A rollout waits on the system while the environment holds it, or while it has nothing to review
+// and no lane to start in.
 function rolloutActor(r: NonNullable<Model["rollout"]>): Actor {
-  return r.next === "env" || (r.next === "wait" && r.reviews.length === 0) ? "system" : "operator";
+  const blocked =
+    r.next === "wait" || (r.next === "start" && r.dispatchNext.slice(0, r.lanes.room).length === 0);
+  return r.next === "env" || (blocked && r.reviews.length === 0) ? "system" : "operator";
 }
 
 function focusOf(
