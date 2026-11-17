@@ -3,9 +3,8 @@
 
 import { IdentifierSchema } from "@spi-code/contracts";
 import { openFreshness } from "../components/sweep/reveal.js";
-import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
-import { navigate } from "./navigation.js";
+import { openTodayRow } from "../views/today/Table.js";
 
 /** The closed set of places desktop main can send the window to, as preload.cjs passes them. */
 export type WindowDestination =
@@ -49,8 +48,6 @@ export function parseDestination(input: unknown): WindowDestination | undefined 
 export function openDestination(input: unknown) {
   const destination = parseDestination(input);
   if (destination?.to === "evidence") openFreshness(watchStore.getState().snapshot);
-  else if (destination?.to === "today") {
-    navigate({ kind: "today" });
-    selectionStore.getState().select(destination.item);
-  }
+  else if (destination?.to === "today")
+    openTodayRow(watchStore.getState().snapshot?.body.briefing.lines, destination.item);
 }

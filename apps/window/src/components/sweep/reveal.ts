@@ -1,8 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { navigate } from "../../app/navigation.js";
-import { selectionStore } from "../../panels/selection.js";
+import { navigate, openEvidence } from "../../app/navigation.js";
 
 const FRAMES = 10;
 
@@ -20,8 +19,8 @@ export function revealFirstSweep() {
   requestAnimationFrame(() => step(FRAMES));
 }
 
-/** The freshness field's click: the list on first launch, the sweep's Evidence after it. */
+/** The freshness field's click: the list on first launch, the whole sweep's Evidence page after it. */
 export function openFreshness(snapshot: unknown) {
-  if (snapshot) selectionStore.getState().openSweepEvidence();
+  if (snapshot) openEvidence(null);
   else revealFirstSweep();
 }

@@ -32,6 +32,7 @@ import { PinControl } from "../components/pin/PinControl.js";
 import { useSidebarAttention } from "../components/sidebar/attention.js";
 import { isFixedPin, pin, togglePin, usePins } from "../store/pins.js";
 import type { createWatchStore } from "../store/watch.js";
+import { openTodayRow } from "../views/today/Table.js";
 import { buildPaletteGroups, filterPaletteGroups, type PaletteItem } from "./palette.logic.js";
 import "./palette.css";
 
@@ -109,7 +110,6 @@ function PaletteContent({
   onClose(): void;
 }) {
   const body = useStore(store, (state) => state.snapshot?.body);
-  const select = useStore(store, (state) => state.select);
   const [query, setQuery] = useState("");
   const [highlighted, setHighlighted] = useState<string | undefined>(undefined);
   const registry = useRegistry();
@@ -127,10 +127,7 @@ function PaletteContent({
     if (item.target.kind === "route") onNavigate(item.target.route);
     else if (item.target.kind === "line") onNavigate(LINE);
     else if (item.target.kind === "settings") onSettings();
-    else {
-      select(item.target.id);
-      onNavigate({ kind: "today" });
-    }
+    else openTodayRow(body?.briefing.lines, item.target.id);
     onClose();
   };
   return (

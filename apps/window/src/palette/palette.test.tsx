@@ -1,17 +1,18 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { PROTOCOL_VERSION, type ViewSnapshot } from "@spi-code/contracts";
+import { PROTOCOL_VERSION, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { readFixture } from "../../../../scripts/watch-generated.mjs";
-import { PLACES, routeLabel } from "../app/navigation.js";
+import { navigate, PLACES, routeLabel, setOpenSelection } from "../app/navigation.js";
 import { Shell } from "../app/Shell.js";
 import { selectionStore } from "../panels/selection.js";
 import { PINS_STORAGE_KEY, readPins } from "../store/pins.js";
 import { watchStore } from "../store/watch.js";
 import { fixtureLoader, installSpi } from "../test-utils/harness.js";
+import snapshot1116 from "../views/today/snapshot-1116.json?raw";
 import { buildPaletteGroups, filterPaletteGroups } from "./palette.logic.js";
 
 const loadFixture = fixtureLoader(readFixture);
@@ -37,6 +38,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
   selectionStore.getState().clear();
+  setOpenSelection(null);
   watchStore.setState(previous);
   harness.restore();
   window.location.hash = "";
@@ -482,14 +484,28 @@ it("lets Enter confirm an IME composition without choosing a row", async () => {
   expect(window.location.hash).toBe("#service/legal");
 });
 
-it("selects a Queue row's item on Today", async () => {
+it.each([
+  ["schemathesis", "blocked:halt:crs-conversion", "halt:crs-conversion", false],
+  ["PR #90 is red", "waiting:blocker:stack:lanes:gate2", "gate2:legal", true],
+  ["PR #50 carries", "waiting:upgrade:os-core-common", "gate1:unit", true],
+  ["Re-run 5 checks", "waiting:blocker:stack:lanes:gate2", undefined, false],
+])("opens a Queue result's row in place on Today: %s", async (query, line, member, sub) => {
+  const nov16 = ViewSnapshotSchema.parse(JSON.parse(snapshot1116));
+  await act(async () => watchStore.setState({ snapshot: { cursor: nov16.cursor, body: nov16 } }));
+  await act(async () => navigate({ kind: "upstream" }));
+  const scrolled = vi.spyOn(HTMLElement.prototype, "scrollIntoView").mockImplementation(() => {});
   await shortcut({ ctrlKey: true });
-  await type("schemathesis");
-  expect(highlighted()).toBe("P0entitlements · Sync halted on schemathesis-testsP0");
+  await type(query);
   await key("Enter");
   expect(palettes()).toHaveLength(0);
   expect(window.location.hash).toBe("#today");
-  expect(watchStore.getState().selection?.id).toBe("halt:entitlements");
+  const open = [...container.querySelectorAll<HTMLElement>("tr.today-row[data-open]")];
+  expect(open).toHaveLength(1);
+  expect(open[0]?.dataset.lineId).toBe(line);
+  expect(open[0]?.dataset.itemId).toBe(member);
+  expect(open[0]?.classList.contains("today-row--sub")).toBe(sub);
+  expect(scrolled.mock.contexts).toContain(open[0]);
+  expect(selectionStore.getState().selected).toBeNull();
 });
 
 it("closes on Escape and returns focus to the control that opened it", async () => {

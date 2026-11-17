@@ -23,6 +23,7 @@ import {
   type EvidenceSelection,
   LINE,
   type LineColumn,
+  navigate,
   openEvidence,
   setOpenSelection,
   useOpenSelection,
@@ -160,6 +161,28 @@ function rowsOf(line: TodayLine, index: number): Row[] {
 
 const isRow = (row: Row, open: { kind: string; id: string } | null) =>
   !!open && row.selection.kind === open.kind && row.selection.id === open.id;
+
+/**
+ * The row an item opens on Today: its member's own row, or its group's row when it is part of
+ * several members of one line; null when it is on no row or on rows of different lines.
+ */
+export function todayRowOf(lines: readonly TodayLine[], item: string): EvidenceSelection | null {
+  const rows = lines.flatMap(rowsOf);
+  const own = rows.find((row) => row.member?.id === item);
+  if (own) return own.selection;
+  const holders = rows.filter((row) => row.member?.ids.includes(item));
+  const [first] = holders;
+  if (!first) return null;
+  if (holders.length === 1) return first.selection;
+  if (holders.some((row) => row.line !== first.line)) return null;
+  return rows.find((row) => row.line === first.line && !row.sub)?.selection ?? null;
+}
+
+/** Goes to Today with an item's row open in place, or with nothing open when it has no row. */
+export function openTodayRow(lines: readonly TodayLine[] | undefined, item: string) {
+  navigate({ kind: "today" });
+  setOpenSelection(todayRowOf(lines ?? [], item));
+}
 
 function RowCells({
   row,
