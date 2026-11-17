@@ -328,7 +328,7 @@ async function captureSweepStates(
 const PINS_KEY = "spi-code.sidebar.pins.v3";
 
 /**
- * Find or ask with Line, Environment and Engineering system in the sidebar's fixed block, Upstream
+ * Find or ask with Line, Environment and Template in the sidebar's fixed block, Upstream
  * and entitlements pinned, and the unpinned partition highlighted, so its hollow pin shows.
  */
 async function captureFindPins(
@@ -378,7 +378,7 @@ async function captureFindPins(
     writeFileSync(join(output, file), (await window.webContents.capturePage(bounds)).toPNG());
     writeFileSync(
       join(output, `find-pins-${appearance}.html`),
-      `<!doctype html><meta charset="utf-8"><title>Find or ask pins</title><style>body{font:14px system-ui;padding:24px}img{max-width:100%}</style><h1>Find or ask pins / ${appearance}</h1><p>Design: epic spicode-1l9 and its rulings. Line, Environment and Engineering system sit in the sidebar's fixed block and draw no pin control; Upstream and entitlements are pinned (filled); partition is highlighted and unpinned (hollow).</p><img src="${file}" alt="Find or ask with pinned and unpinned results and the fixed block's places">`,
+      `<!doctype html><meta charset="utf-8"><title>Find or ask pins</title><style>body{font:14px system-ui;padding:24px}img{max-width:100%}</style><h1>Find or ask pins / ${appearance}</h1><p>Design: epic spicode-1l9 and its rulings. Line, Environment and Template sit in the sidebar's fixed block and draw no pin control; Upstream and entitlements are pinned (filled); partition is highlighted and unpinned (hollow).</p><img src="${file}" alt="Find or ask with pinned and unpinned results and the fixed block's places">`,
     );
     await window.webContents.executeJavaScript(
       'document.querySelector("[role=dialog].palette input").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))',
