@@ -295,6 +295,28 @@ it("draws a failed read's retained rows under the not-read line, with the mark o
   expect($("[data-work=pr] .service-list-unread")).not.toBeNull();
 });
 
+it("keeps the mark and the not-read line on a failed tab whose retained list holds no rows", async () => {
+  const at = "2026-11-16T07:38:00.000Z";
+  const body = sixteenth();
+  const { work } = serviceOf(body, "search");
+  Object.assign(work.issues, { read: false, at, count: 0, partial: false, rows: [] });
+  await mount(body, "#service/search/issues");
+  expect(chip("issues")).toBe("0 ⌀");
+  const find = buildPaletteGroups(body)
+    .flatMap(({ items }) => items)
+    .flatMap((item) => item.children?.items ?? [])
+    .find(({ value }) => value === "on:search:issues");
+  expect(find?.count === undefined || typeof find.count === "number").toBe(true);
+  await unmount();
+
+  Object.assign(work.issues, { count: null, partial: true });
+  await mount(body, "#service/search/issues");
+  expect(chip("issues")).toBe("⌀");
+  expect($("[data-work=issue] .service-list-unread")?.textContent).toBe(
+    `⌀ Issues not read. Showing the read from ${when(at, { now: Date.now() })}. Evidence ›`,
+  );
+});
+
 it("reads a failed tab with nothing retained as it did before", async () => {
   const body = sixteenth();
   const { work } = serviceOf(body, "search");

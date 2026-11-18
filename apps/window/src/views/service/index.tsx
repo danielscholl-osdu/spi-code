@@ -175,7 +175,7 @@ function Home({
               {entry.label}
               {unread ? (
                 <span className="service-tab-count" title="Not read">
-                  {count ? `${count} ⌀` : "⌀"}
+                  {typeof count === "number" ? `${count} ⌀` : "⌀"}
                 </span>
               ) : (
                 !!count && <span className="service-tab-count">{count}</span>

@@ -76,7 +76,7 @@ export function WorkList<T extends Row>({
       data-work={kind}
       aria-label={kind === "pr" ? "Pull requests" : "Issues"}
     >
-      {read === false && (count !== null || rows.length > 0) && (
+      {read === false && (count !== null || partial || rows.length > 0) && (
         <NotRead id={service} what={kind === "pr" ? "Pull requests" : "Issues"} at={at} />
       )}
       <div className="work-filters">

@@ -44,7 +44,9 @@ export function serviceWork(
     const open = github && !github.prsUnread ? line.prs : undefined;
     const past = github ? line.past : undefined;
     const issues = github && !github.issuesUnread ? github.issues : undefined;
-    const closed = github?.closedIssues;
+    const closedFailed = (reads.github ?? []).some((record) =>
+      record.object === `${repo}@closed-issues` && record.failure !== undefined);
+    const closed = closedFailed ? undefined : github?.closedIssues;
     const pulls: ServicePull[] = [
       ...(open ?? []).map(({ pr }): ServicePull => {
         const station = home?.stations.find(({ pr: pull }) => pr.url === pull?.url);

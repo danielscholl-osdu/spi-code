@@ -588,6 +588,17 @@ describe("a failed GitHub read of a fork", () => {
     expect(result?.pulls).toMatchObject({ count: 2, read: true });
     expect(result?.issues).toMatchObject({ count: 1, read: true, closedRead: false });
   });
+
+  test("of the repository and its closed issues never reads the retained closed history", () => {
+    const { facts, github } = held();
+    github.closedIssues = [{ ...issue({ number: 79, url: `${url}/issues/79` }), closedAt: merge }];
+    const repoFailed = failure(readAt).github;
+    const closedFailed = failure(undefined, `${repo}@closed-issues`).github;
+    expect(work(facts, { github: repoFailed })?.issues.closedRead).toBe(true);
+    const result = work(facts, { github: [...repoFailed, ...closedFailed] });
+    expect(result?.issues).toMatchObject({ count: 1, read: false, closedRead: false });
+    expect(result?.issues.rows.map(({ number }) => number)).toEqual([33]);
+  });
 });
 
 test("a Can wait PR row says what it needs in the Pull requests tab's words, and nothing it cannot read", () => {
