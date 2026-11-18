@@ -6,14 +6,18 @@ import type { Facts, IssueFact, PrFact } from "../facts.js";
 import { workflowEvidence } from "../inspect/item-evidence.js";
 import { groupUrl } from "../inspect/repo.js";
 import type { Model } from "../model/index.js";
+import type { ReleasePr } from "../model/queue.js";
+import type { RepoRow } from "../model/repos.js";
 import { stationSubstateOf } from "../model/substate.js";
 import { needsHuman } from "../model/work.js";
 import { releaseQueue } from "../readings/releases.js";
+import type { SweepReads } from "../sweep/index.js";
 import { stamp } from "../util.js";
 import type { FocusItem, Tone } from "./index.js";
-import { canWaitCauses } from "./can-wait-causes.js";
-import type { TodayLine } from "./lines.js";
-import { syncCompanions } from "./repo-today.js";
+import { canWaitCauses, type CauseObject } from "./can-wait-causes.js";
+import { type TodayLine, todaySources } from "./lines.js";
+import { pullsComplete, syncCompanions } from "./repo-today.js";
+import { doorsOf } from "./service-home.js";
 import type { Since } from "./since.js";
 
 export interface SummaryCount {
@@ -67,46 +71,100 @@ type Input = {
   since: Since | undefined;
   now: Date;
   context: CoreContext;
+  reads?: SweepReads;
 };
 
-function sourceObject(fork: string, object: PrFact | IssueFact, kind: "PR" | "Issue") {
+type Repository = { repo: string; name: string; group: CauseObject["group"] };
+
+function sourceObject(repository: Repository, object: PrFact | IssueFact, kind: "PR" | "Issue") {
+  const { repo, name: fork, group } = repository;
   return {
-    id: object.url, fork, title: object.title, url: object.url, since: object.createdAt,
+    id: object.url, repo, fork, group, title: object.title, url: object.url, since: object.createdAt,
     label: `${kind} #${object.number}`, name: `${fork} #${object.number}`,
   };
 }
 
+function dependencyObject(repository: Repository, pr: PrFact, pkg?: string) {
+  const ecosystem = /^dependabot\/([^/]+)\//i.exec(pr.head)?.[1]?.toLowerCase();
+  return { ...sourceObject(repository, pr, "PR"),
+    ...(ecosystem && pkg ? { package: { ecosystem, name: pkg } } : {}) };
+}
+
+type PrDoor = "release" | "dependabot" | "other";
+type PrObject = ReturnType<typeof dependencyObject> & Pick<CauseObject, "notRead">;
+
+function partitionPulls(input: Input, repos: ReadonlyMap<string, RepoRow>, sources: ReturnType<typeof todaySources>) {
+  const { model, facts, reads, context } = input;
+  const known = new Map<string, boolean>();
+  const objects: Record<PrDoor, PrObject[]> = { release: [], dependabot: [], other: [] };
+  const remainders = { release: { blocked: 0, waiting: 0 }, dependabot: { blocked: 0, waiting: 0 } };
+  for (const line of model.lines) {
+    const repo = line.fork.repo;
+    const repository = repos.get(repo);
+    if (repository?.group !== "fork") continue;
+    const complete = pullsComplete(repo, facts, reads);
+    known.set(repo, complete);
+    const byUrl = new Map(line.prs.map(({ pr }) => [pr.url, pr]));
+    const packages = new Map(repository.dependabot.map(({ pr, package: pkg }) => [pr.url, pkg]));
+    for (const door of doorsOf(line, [], complete)) {
+      const kind = door.id;
+      if (kind === "template") continue;
+      for (const { url } of door.prs) {
+        const section = sources.get(url);
+        if (section) {
+          if (complete && kind !== "other") remainders[kind][section]++;
+          continue;
+        }
+        const pr = byUrl.get(url);
+        if (pr) objects[kind].push({
+          ...dependencyObject(repository, pr, kind === "dependabot" ? packages.get(url) : undefined),
+          ...(!complete ? { notRead: true } : {}),
+        });
+      }
+    }
+  }
+  const releases = new Map(releaseQueue(facts, context).all.map((entry) => [entry.pr.url, entry]));
+  for (const { repo, name, pr } of releases.values()) {
+    const repository = repos.get(repo) ?? { repo, name, group: "unknown" };
+    if (repository.group !== "fork" && !sources.has(pr.url))
+      objects.release.push(sourceObject(repository, pr, "PR"));
+  }
+  for (const repository of repos.values()) {
+    if (repository.group === "fork") continue;
+    const available = (pr: PrFact) => !sources.has(pr.url) && !releases.has(pr.url);
+    objects.dependabot.push(...repository.dependabot.filter(({ pr }) => available(pr))
+      .map(({ pr, package: pkg }) => dependencyObject(repository, pr, pkg)));
+    objects.other.push(...repository.changes.filter(({ pr }) => available(pr))
+      .map(({ pr }) => sourceObject(repository, pr, "PR")));
+  }
+  return { objects, known, remainders, releases };
+}
+
 /** The supplied situation lines own membership, including folded moves, their sources and the sync engine companions of those sources. */
 function canWait(input: Input) {
-  const { model, facts, context, items, lines, now } = input;
-  const members = lines.flatMap((l) => l.members);
-  const ids = new Set(members.flatMap((m) => [m.id, ...m.ids, ...(m.blockedBy ? [m.blockedBy] : [])]));
-  const sources = new Set([
-    ...members.flatMap((m) => [m.subject, m.primary?.url]),
-    ...items.filter((i) => ids.has(i.id) || i.ids.some((id) => ids.has(id)))
-      .flatMap((i) => [i.subject, ...i.evidence.map((e) => e.url)]),
-    ...model.queue.items.filter((q) => ids.has(q.id)).flatMap((q) =>
-      [q.url, ...q.cause.map((f) => f.url), ...q.effects.map((e) => e.url)]),
-  ]);
-  for (const [issue, pr] of syncCompanions(model)) if (sources.has(pr)) sources.add(issue);
-  const queue = releaseQueue(facts, context);
-  const releases = queue.all.filter((r) => !sources.has(r.pr.url));
-  const releaseRefs = (rows: typeof releases) => rows.map((r) => sourceObject(r.name, r.pr, "PR"));
-  const releaseObjects = releaseRefs(releases);
+  const { model, facts, items, lines, now } = input;
+  const ids = new Set(lines.flatMap((line) => line.members.flatMap((m) => [m.id, ...m.ids])));
+  const sources = todaySources(model, items, lines);
+  for (const [issue, pr] of syncCompanions(model)) {
+    const section = sources.get(pr);
+    if (section) sources.set(issue, section);
+  }
   const repos = model.repositories.rows;
+  const { objects, known, remainders, releases } = partitionPulls(
+    input, new Map(repos.map((repo) => [repo.repo, repo])), sources,
+  );
+  const releaseRefs = (matches: (release: ReleasePr) => boolean) =>
+    objects.release.filter(({ url }) => {
+      const release = releases.get(url);
+      return release !== undefined && matches(release);
+    });
+  const unreadPulls = repos.filter((r) => r.group === "fork" && known.get(r.repo) !== true);
   const issues = repos.flatMap((r) => Object.values(r.issues).flat().filter((i) => needsHuman(i) && !sources.has(i.url))
-    .map((i) => sourceObject(r.name, i, "Issue")));
-  const changes = repos.flatMap((r) => r.changes.filter((p) => !sources.has(p.pr.url))
-    .map((p) => sourceObject(r.name, p.pr, "PR")));
-  const bumps = repos.flatMap((r) => r.dependabot.filter((p) => !sources.has(p.pr.url)).map((p) => {
-    const ecosystem = /^dependabot\/([^/]+)\//i.exec(p.pr.head)?.[1]?.toLowerCase();
-    return { ...sourceObject(r.name, p.pr, "PR"),
-      ...(ecosystem && p.package ? { package: { ecosystem, name: p.package } } : {}) };
-  }));
+    .map((i) => sourceObject(r, i, "Issue")));
   const alerts = repos.flatMap((r) => r.alerts.filter((a) => a.reach === "shipped" &&
     !ids.has(`alert:${r.repo}:${a.id}`) && !sources.has(groupUrl(r, a)))
     .map((a) => ({
-      id: `alert:${r.repo}:${a.id}`, fork: r.name, title: a.name,
+      id: `alert:${r.repo}:${a.id}`, repo: r.repo, fork: r.name, group: r.group, title: a.name,
       since: a.since, label: a.source === "dependabot" ? "Dependabot" : "Code scanning",
       rule: a.source === "code" && a.rule ? `${a.tool ?? ""}:${a.rule}` : `dependabot:${a.name}`,
       name: `${r.name}: ${a.name}`, url: groupUrl(r, a),
@@ -115,14 +173,15 @@ function canWait(input: Input) {
   const ownAlerts = alerts.filter((a) => a.owner !== "upstream");
   const [release, repositories, security]: [TodayPile, TodayPile, TodayPile] = [
     { id: "releases", label: "Release PRs", place: "releases", counts: [
-      count("open", "open", releaseObjects),
-      count("ready", "ready to merge", releaseRefs(releases.filter((r) => r.ready)), "ok"),
-      count("review", "waiting for review", releaseRefs(releases.filter((r) => !r.ready && r.pr.reviewDecision === "REVIEW_REQUIRED"))),
-      count("failed", "failing", releaseRefs(releases.filter((r) => r.real.length > 0)), "bad"),
-    ], notRead: repos.filter((r) => !facts.github.data?.repos[r.repo]).map((r) => `${r.name}: release PRs`) },
+      count("open", "open", objects.release),
+      count("ready", "ready to merge", releaseRefs((r) => r.ready), "ok"),
+      count("review", "waiting for review", releaseRefs((r) => !r.ready && r.pr.reviewDecision === "REVIEW_REQUIRED")),
+      count("failed", "failing", releaseRefs((r) => r.real.length > 0), "bad"),
+    ], notRead: repos.filter((r) => !facts.github.data?.repos[r.repo] || known.get(r.repo) === false)
+      .map((r) => `${r.name}: release PRs`) },
     { id: "repositories", label: "Repositories", place: "engineering", counts: [
-      count("issues", "human-required issues", issues), count("changes", "chore PRs", changes),
-      count("dependabot", "Dependabot bumps", bumps),
+      count("issues", "human-required issues", issues), count("changes", "chore PRs", objects.other),
+      count("dependabot", "Dependabot bumps", objects.dependabot),
     ], notRead: repos.flatMap((r) => [
       ...(!facts.github.data?.repos[r.repo] ? [`${r.name}: issues and PRs`] : []),
       ...(r.unreadIssues ? [`${r.name}: ${r.unreadIssues} issues`] : []),
@@ -139,10 +198,11 @@ function canWait(input: Input) {
   return {
     canWait: [release, repositories, security],
     causes: canWaitCauses(
-      { release: releaseObjects, dependabot: bumps, other: changes, issue: issues, alert: alerts },
-      { release: release.notRead, dependabot: repositories.notRead, other: repositories.notRead,
+      { ...objects, issue: issues, alert: alerts },
+      { release: release.notRead, dependabot: unreadPulls.map(({ name }) => name),
+        other: unreadPulls.map(({ name }) => name),
         issue: repositories.notRead, alert: security.notRead },
-      new Set(model.lines.map(({ fork }) => fork.id)),
+      remainders,
       now,
     ),
   };

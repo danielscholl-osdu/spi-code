@@ -16,6 +16,7 @@ import {
   type EvidenceSelection,
   navigate,
   openEvidence,
+  routeHash,
   setOpenSelection,
   useOpenSelection,
 } from "../../app/navigation.js";
@@ -60,7 +61,7 @@ type Row = {
 function rowsOf(line: TodayLine, index: number, whole: TodayLine = line): Row[] {
   const pointer = `/briefing/lines/${index}`;
   const [one, ...others] = line.members;
-  const single = one && others.length === 0 ? one : undefined;
+  const single = one && others.length === 0 && !line.rollout ? one : undefined;
   const lineGaps = distinct(line.members.flatMap((m) => m.evidence.notRead));
   const kept = distinct(line.members.map((m) => m.fork));
   const head: Row = {
@@ -109,7 +110,12 @@ const isRow = (row: Row, open: { kind: string; id: string } | null) =>
  */
 export function todayRowOf(lines: readonly TodayLine[], item: string): EvidenceSelection | null {
   const rows = lines.flatMap((line, index) => rowsOf(line, index));
-  const holders = rows.filter((row) => row.member?.id === item || row.member?.ids.includes(item));
+  const holders = rows.filter(
+    (row) =>
+      row.member?.id === item ||
+      row.member?.ids.includes(item) ||
+      (!row.sub && (row.line.id === item || (row.line.rollout && item === "rollout"))),
+  );
   const [first] = holders;
   if (!first) return null;
   if (holders.some((row) => row.line !== first.line)) return null;
@@ -171,8 +177,11 @@ function RowCells({
             aria-label={`${row.fork}: ${plainTitle(row.line.headline)}`}
             onClick={toggle}
           >
-            {open ? "⌃" : "⌄"}
+            Details {open ? "⌃" : "⌄"}
           </button>
+        )}
+        {row.member?.ids.some((id) => id.startsWith("port:")) && (
+          <span className="today-row-tag">Counted on Upstream</span>
         )}
       </td>
       <td className="today-row-open">{row.pill && <LinkPill link={row.pill} />}</td>
@@ -261,6 +270,7 @@ export function TodayTable({
   const services = new Set(snapshot.stations.map(({ service }) => service));
   const items: FocusItem[] = [...briefing.focus, ...briefing.rest];
   const originOf = (row: Row) => {
+    if (!row.member && row.line.rollout) return items.find(({ id }) => id === "rollout")?.origin;
     const ids = new Set(row.member ? [row.member.id, ...row.member.ids] : []);
     const origins = new Set(
       items.flatMap(({ id, origin }) => (ids.has(id) && origin ? [origin] : [])),
@@ -273,6 +283,7 @@ export function TodayTable({
     setOpenSelection(isRow(row, open) ? null : row.selection);
   };
   const body = (row: Row) => {
+    const rollout = row.member ? undefined : row.line.rollout;
     const content = todayContent({
       line: row.line,
       ...(row.member ? { member: row.member } : {}),
@@ -294,6 +305,27 @@ export function TodayTable({
               openers.current.get(row.key)?.focus();
             }}
           />
+          {rollout && (
+            <div className="today-rollout-detail">
+              {rollout.withoutPr.length > 0 && (
+                <p>
+                  No open template sync PR on <span>{rollout.withoutPr.join(", ")}</span>.
+                </p>
+              )}
+              <nav aria-label="Rollout">
+                <a href={routeHash({ kind: "engineering-system" })}>Template ›</a>
+                <a
+                  href={routeHash({ kind: "evidence", selection: row.selection })}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    openEvidence(row.selection);
+                  }}
+                >
+                  Evidence ›
+                </a>
+              </nav>
+            </div>
+          )}
         </td>
       </tr>
     );

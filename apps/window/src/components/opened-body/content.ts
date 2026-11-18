@@ -50,7 +50,8 @@ export function todayContent({
   /** Companion or place-specific links already resolved by the caller. */
   links?: readonly Link[];
 }): OpenedContent {
-  const one = member ?? (line.members.length === 1 ? line.members[0] : undefined);
+  const one = member ?? (line.members.length === 1 && !line.rollout ? line.members[0] : undefined);
+  const rollout = !member && line.rollout ? items.find(({ id }) => id === "rollout") : undefined;
   const members = one ? [one] : line.members;
   const lead = members[0];
   const blockers = new Set(members.map((m) => m.blockedBy));
@@ -67,12 +68,12 @@ export function todayContent({
     memberSources.every((sources) => sources.some((link) => link.url === url)),
   );
   const memberUrls = new Set(memberSources.flat().map(({ url }) => url));
-  const sources = one ? (memberSources[0] ?? []) : common;
+  const sources = one ? (memberSources[0] ?? []) : line.rollout ? [] : common;
   const companions = one
     ? links
     : links.filter(({ url }) => !memberUrls.has(url) || common.some((link) => link.url === url));
   const reading = one ?? line;
-  const next = items.find((item) => item.id === lead?.id)?.next;
+  const next = rollout?.next ?? items.find((item) => item.id === lead?.id)?.next;
   const primary = lead?.primary && sources.find(({ url }) => url === lead.primary?.url);
   return {
     title: `${one?.fork ?? line.subject} · ${line.headline}`,
@@ -85,7 +86,7 @@ export function todayContent({
     ...(reading.deadline ? { deadline: reading.deadline } : {}),
     ...(primary ? { primary } : {}),
     ...(one && line.members.length > 1 ? { fork: one.fork } : {}),
-    links: [...sources, ...companions],
+    links: [...sources, ...companions, ...(rollout?.evidence ?? [])],
     notRead: [...new Set(members.flatMap((m) => m.evidence.notRead))],
   };
 }

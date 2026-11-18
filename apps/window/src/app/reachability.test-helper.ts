@@ -694,7 +694,7 @@ export function tableCases(snapshot: ViewSnapshot): Reach[] {
   (snapshot.briefing.lines ?? []).forEach((line, index) => {
     const pointer = `/briefing/lines/${index}`;
     const head = `tr.today-row:not(.today-row--sub)${at(pointer)}`;
-    const single = line.members.length === 1;
+    const single = line.members.length === 1 && !line.rollout;
     add(`${pointer}/id`, line.id, TODAY, head, { attribute: "data-line-id" });
     add(
       `${pointer}/section`,
@@ -705,6 +705,29 @@ export function tableCases(snapshot: ViewSnapshot): Reach[] {
     );
     add(`${pointer}/subject`, line.subject, TODAY, `${head} .today-fork-name`);
     add(`${pointer}/headline`, plainTitle(line.headline), TODAY, `${head} .today-row-what button`);
+    if (line.rollout) {
+      const item = items.find(([, entry]) => entry.id === "rollout");
+      if (item?.[1].origin)
+        add(`${item[0]}/origin`, item[1].origin, TODAY, head, {
+          attribute: "data-origin",
+          opens: {
+            click: `${head} .today-row-what button`,
+            opened: `${head}[data-open] + tr .opened-body`,
+          },
+        });
+    }
+    line.rollout?.withoutPr.forEach((fork, at_) => {
+      const open = home("Today, rollout", STARTS.today, `${head} .today-row-what button`);
+      add(
+        `${pointer}/rollout/withoutPr/${at_}`,
+        fork,
+        open,
+        `${head} + tr .today-rollout-detail span`,
+        {
+          contains: true,
+        },
+      );
+    });
     if (line.age)
       add(`${pointer}/age`, ageInOneUnit(line.age), TODAY, `${head} .today-row-age-text`);
     if (line.deadline)
@@ -963,23 +986,49 @@ function causeCases(today: Summary, add: Add) {
     add(`${pointer}/headline`, plainTitle(cause.headline), TODAY, `${tr} .today-row-what button`, {
       opens: { click: `${tr} .today-row-what button`, opened: `${body} .today-cause-forks` },
     });
+    const groupUnread = cause.forks.some(({ group }) => group === undefined || group === "unknown");
+    const legacy = cause.forks.some(({ group }) => group === undefined);
+    const countUnread = cause.count === 0 && (groupUnread || causes.notRead[cause.kind].length > 0);
     add(`${pointer}/count`, cause.count, TODAY, `${tr} .today-row-age`, {
       read: (element) => (element.textContent ?? "").match(/(\d+) \S+$/)?.[1] ?? "",
+      blank: legacy || countUnread,
     });
-    add(`${pointer}/forkCount`, cause.forkCount, TODAY, tr, { attribute: "data-fork-count" });
+    add(`${pointer}/forkCount`, legacy ? 0 : cause.forkCount, TODAY, tr, {
+      attribute: "data-fork-count",
+    });
     if (cause.place)
       add(`${pointer}/place`, cause.place, TODAY, `${tr} .today-row-place`, {
         attribute: "data-place",
       });
-    cause.forks.forEach(({ fork }, at) => {
-      add(
-        `${pointer}/forks/${at}/fork`,
-        fork,
-        open,
-        (root) => root.querySelector(body)?.querySelectorAll(".today-cause-forks > *")[at],
-        { read: (element) => (element.textContent ?? "").split(" ")[0] ?? "" },
-      );
+    cause.forks.forEach(({ fork, group, notRead }, at) => {
+      const shelf =
+        group !== "fork"
+          ? ".today-cause-outside"
+          : notRead
+            ? ".today-cause-unread"
+            : ".today-cause-forks";
+      const chip = `${body} ${shelf} [data-cause-entry="${at}"]`;
+      add(`${pointer}/forks/${at}/fork`, fork, open, chip, {
+        read: (element) => (element.textContent ?? "").split(" ")[0] ?? "",
+      });
+      if (group)
+        add(`${pointer}/forks/${at}/group`, group, open, chip, {
+          read: () => group,
+        });
+      if (notRead)
+        add(`${pointer}/forks/${at}/notRead`, notRead, open, chip, {
+          read: (element) => String(!!element.closest(".today-cause-unread")),
+        });
     });
+    if (cause.remainder)
+      for (const section of ["blocked", "waiting"] as const) {
+        const count = cause.remainder[section];
+        add(`${pointer}/remainder/${section}`, count, open, `${body} .today-cause-body`, {
+          read: (element) =>
+            element.querySelector(`[data-remainder=${section}]`)?.textContent?.split(" ")[0] ?? "",
+          blank: count === 0,
+        });
+      }
     cause.packages?.forEach((entry, at) => {
       const li = `${body} .today-cause-packages li:nth-child(${at + 1})`;
       const leaf = `${pointer}/packages/${at}`;
@@ -1100,13 +1149,15 @@ export const AT_PLACE: Readonly<Record<string, Exemption>> = {
       "spicode-djg.10: a Today row names the forks it covers (13 forks), not core's scope; the template rollout's scope shows at Template",
     when: (_value, { pointer, snapshot }) => {
       const item = itemAt(pointer, snapshot);
-      return (snapshot.briefing.lines ?? []).some(({ subject, members }) =>
-        members.some(
-          ({ id, ids, fork }) =>
-            item !== undefined &&
-            (id === item.id || ids.includes(item.id)) &&
-            (members.length === 1 ? subject : fork) !== item.scope,
-        ),
+      return (snapshot.briefing.lines ?? []).some(
+        ({ subject, members, rollout }) =>
+          (rollout && item?.id === "rollout") ||
+          members.some(
+            ({ id, ids, fork }) =>
+              item !== undefined &&
+              (id === item.id || ids.includes(item.id)) &&
+              (members.length === 1 ? subject : fork) !== item.scope,
+          ),
       );
     },
   },

@@ -1,9 +1,11 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import type { Facts } from "../facts.js";
 import { classifyPr } from "../model/attribution.js";
 import type { Model } from "../model/index.js";
 import { needsHuman } from "../model/work.js";
+import type { SweepReads } from "../sweep/index.js";
 import type { FocusItem } from "./index.js";
 import type { TodayLine } from "./lines.js";
 
@@ -13,6 +15,14 @@ export interface RepoToday {
 }
 
 const READY_FOR_REVIEW = /Upstream Sync Ready for Review/;
+
+export function pullsComplete(repo: string, facts: Pick<Facts, "github">, reads?: SweepReads): boolean {
+  const github = facts.github.data?.repos[repo];
+  return !!github && !github.prsUnread && !facts.github.error &&
+    (github.openPrs === undefined || github.openPrs === github.prs.length) &&
+    !reads?.github?.some(({ source, object, failure }) =>
+      (source === repo || object === repo) && failure !== undefined);
+}
 
 /**
  * Each sync engine tracking issue by URL, mapped to the sync PR it was opened for: a fully read

@@ -50,7 +50,8 @@ type Fork = CanWaitCause["forks"][number];
 /** What a fork holds of a cause: its PR's age, its one object, or its count. */
 function forkDetail(kind: CanWaitCause["kind"], fork: Fork): string {
   const [only] = fork.objects;
-  if (kind === "release" && only?.age) return ageInOneUnit(only.age) ?? only.age;
+  if (kind === "release" && fork.objects.length === 1 && only?.age)
+    return ageInOneUnit(only.age) ?? only.age;
   if ((kind === "other" || kind === "issue") && fork.objects.length === 1 && only)
     return only.label;
   return String(fork.count);
@@ -67,7 +68,10 @@ function ForkPill({
   snapshot: ViewSnapshot;
 }) {
   const words = `${fork.fork} ${forkDetail(cause.kind, fork)}`;
-  const home = snapshot.services?.find(({ service }) => service === fork.fork)?.home;
+  const home =
+    fork.group === "fork"
+      ? snapshot.services?.find(({ service }) => service === fork.fork)?.home
+      : undefined;
   const urls = new Set(fork.objects.map(({ url }) => url));
   const row = home?.overview.find(({ links }) => links.some(({ url }) => urls.has(url)));
   const place = cause.place && PLACES[cause.place];
@@ -119,6 +123,18 @@ function CauseBody({
     [cause.id],
   );
   const { packages = [], rules } = cause;
+  const entries = cause.forks.map((fork, index) => ({
+    fork,
+    pill: (
+      <span key={fork.objects[0]?.id ?? fork.fork} data-cause-entry={index}>
+        <ForkPill cause={cause} fork={fork} snapshot={snapshot} />
+      </span>
+    ),
+  }));
+  const forks = entries.filter(({ fork }) => fork.group === "fork");
+  const outside = entries.filter(({ fork }) => fork.group !== "fork");
+  const partial = forks.filter(({ fork }) => fork.notRead);
+  const remainder = cause.remainder;
   return (
     <div className="opened-body today-cause-body">
       {packages.length > 0 && (
@@ -136,12 +152,34 @@ function CauseBody({
           {rules.mostForks.name} ({forksWord(rules.mostForks.count)}).
         </p>
       )}
-      <nav className="today-cause-forks" aria-label={`${plainTitle(cause.headline)} by fork`}>
-        {cause.forks.map((fork) => (
-          <ForkPill key={fork.fork} cause={cause} fork={fork} snapshot={snapshot} />
-        ))}
+      <nav
+        className="today-cause-pills today-cause-forks"
+        aria-label={`${plainTitle(cause.headline)} by fork`}
+      >
+        {forks.filter(({ fork }) => !fork.notRead).map(({ pill }) => pill)}
       </nav>
-      {notRead.length > 0 && <NotRead forks={notRead} />}
+      {(notRead.length > 0 || partial.length > 0) && (
+        <div className="today-cause-unread">
+          <NotRead forks={notRead.length ? notRead : partial.map(({ fork }) => fork.fork)} />
+          {partial.length > 0 && (
+            <nav className="today-cause-pills" aria-label="PRs held on forks not fully read">
+              {partial.map(({ pill }) => pill)}
+            </nav>
+          )}
+        </div>
+      )}
+      {outside.length > 0 && (
+        <div className="today-cause-outside">
+          <p>Outside the forks</p>
+          <nav className="today-cause-pills" aria-label="Outside the forks">
+            {outside.map(({ pill }) => pill)}
+          </nav>
+        </div>
+      )}
+      {!!remainder?.blocked && <p data-remainder="blocked">{remainder.blocked} more in Blocked</p>}
+      {!!remainder?.waiting && (
+        <p data-remainder="waiting">{remainder.waiting} more in Waiting on you</p>
+      )}
     </div>
   );
 }
@@ -188,8 +226,15 @@ export function CanWait({
         {causes.rows.map((cause) => {
           const opened = isCause(open, cause.id);
           const place = cause.place && PLACES[cause.place];
-          const [one] = cause.forks;
+          const forks = cause.forks.filter(({ group, notRead }) => group === "fork" && !notRead);
+          const [one] = forks;
           const notRead = causes.notRead[cause.kind];
+          const unknown = cause.forks.some(
+            ({ group }) => group === undefined || group === "unknown",
+          );
+          const gap = notRead.length > 0 || unknown;
+          const count = forks.length ? cause.count : 0;
+          const forkCount = forks.length;
           const [singular, plural] = UNITS[cause.kind];
           const close = () => {
             setOpenSelection(null);
@@ -201,15 +246,15 @@ export function CanWait({
                 className="today-row today-row--cause"
                 data-row={cause.id}
                 data-cause={cause.kind}
-                data-fork-count={cause.forkCount}
+                data-fork-count={forkCount}
                 {...(opened ? { "data-open": "" } : {})}
               >
                 <td className="today-row-fork">
-                  {cause.forks.length === 1 && one ? (
+                  {forkCount === 1 && one ? (
                     <ForkName fork={one.fork} services={services} />
                   ) : (
                     <span className="today-fork-name">
-                      {forksWord(cause.forkCount || cause.forks.length)}
+                      {forkCount || !gap ? forksWord(forkCount) : "Not read"}
                     </span>
                   )}
                 </td>
@@ -240,12 +285,15 @@ export function CanWait({
                   )}
                 </td>
                 <td className="today-row-age">
-                  {notRead.length > 0 && (
-                    <span className="today-row-gaps" title={notRead.join(", ")}>
+                  {gap && (
+                    <span
+                      className="today-row-gaps"
+                      title={notRead.join(", ") || "Repository group not read"}
+                    >
                       ⌀{" "}
                     </span>
                   )}
-                  {cause.count} {cause.count === 1 ? singular : plural}
+                  {(count > 0 || !gap) && `${count} ${count === 1 ? singular : plural}`}
                 </td>
               </tr>
               {opened && (

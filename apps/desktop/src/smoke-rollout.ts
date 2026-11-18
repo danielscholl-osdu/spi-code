@@ -27,6 +27,8 @@ export async function captureRollout(
   assert(engineering);
   engineering.visual = rollout.visual;
   body.briefing.since = rollout.since;
+  body.provenance =
+    body.provenance?.filter(({ path }) => !path.startsWith("/briefing/lines/")) ?? [];
   body.briefing.lines = body.briefing.lines?.map((line) =>
     line.id === "waiting:rollout"
       ? opened.lines.find((next: { id: string }) => next.id === line.id)

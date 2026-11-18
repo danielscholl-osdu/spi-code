@@ -1,12 +1,16 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { readFileSync } from "node:fs";
+import { ViewSnapshotSchema } from "@spi-code/contracts";
 import { describe, expect, test } from "vitest";
+import { watchFixtures } from "../../../scripts/watch-generated.mjs";
 import { todayLines } from "../src/brief/lines";
 import { releasesToday } from "../src/brief/releases-today";
+import { serviceHome } from "../src/brief/service-home";
 import { sinceOf } from "../src/brief/since";
 import { todayHistory, todaySummary } from "../src/brief/today-summary";
-import type { RepoAlerts } from "../src/facts";
+import type { PrFact, RepoAlerts } from "../src/facts";
 import { workflowEvidence } from "../src/inspect/item-evidence";
 import { groupUrl } from "../src/inspect/repo";
 import {
@@ -25,6 +29,199 @@ const since = sinceOf(model, facts, now, 300_000);
 const summary = () => todaySummary({ model, facts, items, lines, since, now, context });
 const objectsIn = (row: ReturnType<typeof summary>["causes"]["rows"][number]) =>
   row.forks.flatMap(({ objects }) => objects);
+
+test("Release and Dependabot reconcile by PR URL on every complete fork in the watch mornings", () => {
+  const recorded = new URL(
+    "../../../apps/window/src/views/today/snapshot-1116.json",
+    import.meta.url,
+  );
+  const fixtures = [
+    ...watchFixtures().filter(({ name }) => name.startsWith("snapshot-")),
+    { name: "16 Nov", path: recorded },
+  ];
+  for (const { name, path } of fixtures) {
+    const { briefing, services } = ViewSnapshotSchema.parse(JSON.parse(readFileSync(path, "utf8")));
+    const causes = name === "16 Nov" ? summary().causes : briefing.today?.causes;
+    if (!causes || !services) throw new Error(`${name} has no causes or services`);
+    const sources = new Map<string, "blocked" | "waiting">();
+    const evidence = new Map(
+      [...briefing.focus, ...briefing.rest].map((item) => [item.id, item.evidence]),
+    );
+    for (const section of ["waiting", "blocked"] as const) {
+      for (const line of briefing.lines ?? []) {
+        if (line.section !== section) continue;
+        for (const member of line.members) {
+          const urls = [
+            member.subject,
+            member.primary?.url,
+            ...member.ids.flatMap((id) => (evidence.get(id) ?? []).map(({ url }) => url)),
+          ];
+          for (const url of urls) if (url) sources.set(url, section);
+        }
+      }
+    }
+    for (const kind of ["release", "dependabot"] as const) {
+      const cause = causes.rows.find((row) => row.kind === kind);
+      const chips = cause?.forks.filter(({ group, notRead }) => group === "fork" && !notRead) ?? [];
+      const held = { blocked: 0, waiting: 0 };
+      let counted = 0;
+      for (const { service, home } of services) {
+        const door = home?.doors.find(({ id }) => id === kind);
+        if (!door || door.count === null) continue;
+        const remaining =
+          chips.find(({ fork }) => fork === service)?.objects.map(({ url }) => url) ?? [];
+        const inYours = door.prs.filter(({ url }) => sources.has(url));
+        for (const { url } of inYours) {
+          const section = sources.get(url);
+          if (section) held[section]++;
+        }
+        const partition = [...remaining, ...inYours.map(({ url }) => url)];
+        const at = `${name} ${service} ${kind}`;
+        expect(partition.sort(), at).toEqual(door.prs.map(({ url }) => url).sort());
+        expect(new Set(partition).size, at).toBe(door.count);
+        counted += remaining.length;
+      }
+      expect(cause?.forkCount ?? 0, name).toBe(chips.length);
+      expect(cause?.count ?? 0, name).toBe(counted);
+      expect(cause?.remainder ?? { blocked: 0, waiting: 0 }, name).toEqual(held);
+    }
+  }
+});
+
+test("classifies a second release and a labeled station PR, and exposes pulls held by a failed read", () => {
+  const input = sweep1116Facts();
+  const repo = "Azure/osdu-spi-search";
+  const github = input.github.data?.repos[repo];
+  if (!github || !input.github.data) throw new Error("Missing recorded search repository");
+  const pull = (number: number, head: string, base = "main", labels: string[] = []): PrFact => ({
+    repo,
+    number,
+    head,
+    base,
+    labels,
+    url: `https://github.com/${repo}/pull/${number}`,
+    title: `PR ${number}`,
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+    draft: false,
+    headSha: "abc",
+    checks: [],
+  });
+  const [release, second, station, dependabot] = [
+    pull(501, "release-please--branches--main"),
+    pull(502, "release-please--second"),
+    pull(503, "sync/upstream-new", "fork_upstream", ["autorelease: pending"]),
+    pull(504, "dependabot/maven/sample"),
+  ] as const;
+  github.prs = [release, second, station, dependabot];
+  github.openPrs = 4;
+  const unknown = {
+    ...release,
+    repo: "Elsewhere/search",
+    url: "https://github.com/Elsewhere/search/pull/501",
+  };
+  input.github.data.repos[unknown.repo] = {
+    ...github,
+    repo: unknown.repo,
+    prs: [unknown],
+    openPrs: 1,
+  };
+  const model = sweep1116Model(input);
+  const seed = lines[0];
+  const member = seed?.members[0];
+  if (!seed || !member) throw new Error("16 Nov has a Today member");
+  const held = (pr: PrFact, section: "blocked" | "waiting") => ({
+    ...seed,
+    id: `${section}:${pr.number}`,
+    section,
+    members: [{ ...member, id: pr.url, ids: [], subject: pr.url }],
+  });
+  const complete = todaySummary({
+    model,
+    facts: input,
+    items: [],
+    lines: [held(release, "waiting"), held(dependabot, "blocked")],
+    since,
+    now,
+    context,
+  });
+  expect(complete.causes.rows.find(({ kind }) => kind === "release")?.remainder).toEqual({
+    blocked: 0,
+    waiting: 1,
+  });
+  expect(complete.causes.rows.find(({ kind }) => kind === "dependabot")?.remainder).toEqual({
+    blocked: 1,
+    waiting: 0,
+  });
+  const reads = {
+    github: [
+      {
+        source: "github",
+        object: repo,
+        observedAt: now.toISOString(),
+        completeness: { kind: "complete" } as const,
+        failure: "GitHub unavailable",
+      },
+    ],
+  };
+  const projected = todaySummary({
+    model,
+    facts: input,
+    items: [],
+    lines: [],
+    since,
+    now,
+    context,
+    reads,
+  });
+  const home = serviceHome({
+    model,
+    facts: input,
+    items: [],
+    lines: [],
+    canWait: projected.canWait,
+    versions: [],
+    now,
+    reads,
+  }).get("search");
+  const leaves = (kind: string) => projected.causes.rows.filter((row) => row.kind === kind);
+  for (const [kind, pr] of [
+    ["release", release],
+    ["dependabot", dependabot],
+  ] as const) {
+    expect(home?.doors.find(({ id }) => id === kind)).toMatchObject({
+      count: null,
+      prs: [{ url: pr.url }],
+    });
+    expect(projected.causes.notRead[kind].join(", ")).toContain("search");
+    const [row] = leaves(kind);
+    expect(row?.forks).toContainEqual(
+      expect.objectContaining({
+        fork: "search",
+        group: "fork",
+        notRead: true,
+        objects: [expect.objectContaining({ url: pr.url })],
+      }),
+    );
+    expect(row?.count).toBe(
+      row?.forks
+        .filter(({ group, notRead }) => group === "fork" && !notRead)
+        .reduce((n, { count }) => n + count, 0),
+    );
+  }
+  expect(leaves("release")[0]?.forks).toContainEqual(
+    expect.objectContaining({
+      group: "unknown",
+      objects: [expect.objectContaining({ url: unknown.url })],
+    }),
+  );
+  expect(
+    leaves("other")
+      .flatMap(objectsIn)
+      .map(({ url }) => url),
+  ).toContain(second.url);
+  expect(projected.causes.rows.flatMap(objectsIn).map(({ url }) => url)).not.toContain(station.url);
+});
 
 describe("Today's lower sections on the unchanged 16 Nov sweep", () => {
   test("one pile per place with the release, repository and security counts", () => {
@@ -101,9 +298,9 @@ describe("Today's lower sections on the unchanged 16 Nov sweep", () => {
       );
       expect(causes.notRead).toMatchObject({
         release: piles[0]?.notRead,
-        other: piles[1]?.notRead,
+        other: missing.filter(({ group }) => group === "fork").map(({ name }) => name),
         issue: piles[1]?.notRead,
-        dependabot: piles[1]?.notRead,
+        dependabot: missing.filter(({ group }) => group === "fork").map(({ name }) => name),
         alert: piles[2]?.notRead,
       });
     },
@@ -274,7 +471,7 @@ describe("Today's lower sections on the unchanged 16 Nov sweep", () => {
       ["release", 1, 1],
       ["dependabot", 5, 4],
       ["issue", 8, 8],
-      ["other", 9, 7],
+      ["other", 8, 7],
       ["other", 1, 1],
       ["other", 1, 1],
       ["alert", 11, 3],
@@ -287,6 +484,13 @@ describe("Today's lower sections on the unchanged 16 Nov sweep", () => {
     expect(
       rows[3]?.forks.find(({ fork }) => fork === first)?.objects.map(({ label }) => label),
     ).toEqual(["PR #1", "PR #5"]);
+    expect(rows[3]?.forks).toContainEqual(
+      expect.objectContaining({
+        fork: "osdu-spi-stack",
+        group: "program",
+        objects: [expect.objectContaining({ url: programPr })],
+      }),
+    );
     expect(rows.slice(4, 6)).toMatchObject([
       { headline: "chore: audit manifests", forks: [{ fork: first }] },
       { headline: "chore: clean tests", forks: [{ fork: first }] },

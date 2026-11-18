@@ -778,7 +778,7 @@ type Required = Partial<Record<(typeof STATES)[number], { selector: string; text
 const PINS_KEY = "spi-code.sidebar.pins.v3";
 const PINNED_STOPPED = "entitlements";
 const PINS = ["place:upstream", "place:releases", "place:security", PINNED_STOPPED];
-const BLOCKED_MARK = { selector: "sidebar-mark[data-tone=error]", text: "2" };
+const BLOCKED_MARK = { selector: "sidebar-mark[data-tone=error]", text: "3" };
 const PINNED: Required = {
   rest: [BLOCKED_MARK],
   hover: [

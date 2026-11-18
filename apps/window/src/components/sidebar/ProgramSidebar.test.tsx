@@ -18,6 +18,7 @@ import { SidebarProvider } from "./ui-sidebar.js";
 
 const recorded = watchFixtureText("snapshot-59d6895.json", readFixture);
 const acknowledgedText = watchFixtureText("snapshot-1106-acknowledged.json", readFixture);
+const unreadText = watchFixtureText("snapshot-1106-unread.json", readFixture);
 
 let container: HTMLDivElement;
 let root: Root;
@@ -145,13 +146,13 @@ it("draws the fixed block with no grip, menu or pin control, and no row with an 
 it("counts core line members independently of focus, rest, tier and acknowledgement", async () => {
   const { store } = await render(undefined, undefined, currentBody);
   const pip = () => row("today")?.querySelector(".sidebar-pip");
-  expect(pip()?.textContent).toBe("15");
-  expect(pip()?.getAttribute("title")).toBe("15 yours on Today");
+  expect(pip()?.textContent).toBe("27");
+  expect(pip()?.getAttribute("title")).toBe("27 yours on Today");
   const body = structuredClone(currentBody);
   body.briefing.focus = [];
   body.briefing.rest = [];
   await act(async () => store.setState({ snapshot: { cursor: body.cursor, body } }));
-  expect(pip()?.textContent).toBe("15");
+  expect(pip()?.textContent).toBe("27");
   for (const lines of [[], undefined]) {
     const next = structuredClone(body);
     next.briefing.lines = lines;
@@ -188,7 +189,7 @@ it("marks each pinned service as its home's mark reads, and never a place", asyn
     ]),
   );
   expect(serviceMarks().map(([, label]) => label)).toEqual(
-    expect.arrayContaining(["2 blocked or waiting on you", "1 waiting on you", "Not read"]),
+    expect.arrayContaining(["3 blocked or waiting on you", "1 waiting on you", "2 waiting on you"]),
   );
   expect(row("environment")?.querySelector('.sidebar-mark[role="img"]')).toBeNull();
 });
@@ -383,7 +384,7 @@ it("draws each status mark on its own row, the fixed block's and a Pinned place'
     expect(marks()).toEqual([
       ["environment", "check", "success", ""],
       ["engineering-system", "count", "warning", "13"],
-      ["service/entitlements", "count", "error", "2"],
+      ["service/entitlements", "count", "error", "3"],
       ["upstream", "count", "warning", "3"],
     ]);
     await act(async () => movePin("place:upstream", "place:releases"));
@@ -423,18 +424,18 @@ it("keeps Today's count once the Interrupt is acknowledged", () =>
     unacknowledged.seen = { cursor: null, since: [interrupt.id] };
     const { store } = await render(undefined, undefined, unacknowledged);
     const pip = () => row("today")?.querySelector(".sidebar-pip")?.textContent;
-    expect(pip()).toBe("15");
+    expect(pip()).toBe("27");
     const acknowledged = ViewSnapshotSchema.parse(JSON.parse(acknowledgedText));
     expect(acknowledged.seen).toMatchObject({ cursor: currentBody.cursor, since: [] });
     await act(async () =>
       store.setState({ snapshot: { cursor: acknowledged.cursor, body: acknowledged } }),
     );
-    expect(pip()).toBe("15");
+    expect(pip()).toBe("27");
   }));
 
 it("dots a collapsed Pinned header by its services' marks: error for Blocked, warning for Waiting, none for a check or not read", async () => {
   storePins(["place:releases", "crs-catalog"]);
-  await render(undefined, undefined, currentBody);
+  await render(undefined, undefined, ViewSnapshotSchema.parse(JSON.parse(unreadText)));
   const dot = () => header("Pinned")?.querySelector(".sidebar-status-dot");
   await act(async () => header("Pinned")?.click());
   expect(dot()).toBeNull();

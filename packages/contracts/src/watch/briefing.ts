@@ -432,6 +432,7 @@ export const TodayLineSchema = z.strictObject({
   steps: z.array(z.string()),
   deadline: TodayDeadlineSchema.optional(),
   age: z.string().optional(),
+  rollout: z.strictObject({ withoutPr: z.array(z.string()) }).optional(),
   members: z.array(TodayMemberSchema),
 });
 export type TodayDeadline = z.infer<typeof TodayDeadlineSchema>;

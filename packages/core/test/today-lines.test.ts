@@ -67,6 +67,11 @@ describe("Today's situation lines", () => {
     expect(
       lines.filter((line) => line.section === "waiting").flatMap((l) => l.members),
     ).toHaveLength(16);
+    expect(
+      lines
+        .flatMap(({ members }) => members)
+        .filter(({ ids }) => ids.some((id) => id.startsWith("port:"))),
+    ).toHaveLength(1);
   });
 
   test("the same Today members and shared port work reach only the owing fork homes", () => {
@@ -508,6 +513,61 @@ describe("Today's situation lines", () => {
         reason: expect.stringContaining("all 7 PRs at once"),
       },
     });
+  });
+
+  test("rollout counts only behind, read forks with an open PR of their own", () => {
+    const facts = { ...emptyFacts(), ...(structuredClone(sweep1106) as unknown as Partial<Facts>) };
+    const repo = facts.github.data?.repos["Azure/osdu-spi-partition"];
+    const red = repo?.prs.find(({ head }) => head.startsWith("template-sync/"));
+    if (!red) throw new Error("6 Nov has a template sync PR for partition");
+    red.checks.push({
+      id: 999,
+      name: "Deploy and Test",
+      status: "COMPLETED",
+      conclusion: "FAILURE",
+    });
+    const model = sweep1116Model(facts);
+    const items = sweep1116Items(model);
+    const rollout = model.rollout;
+    const unread = rollout?.forks.find(({ service }) => service === "legal");
+    const onTarget = rollout?.forks.find(({ service }) => service === "schema");
+    const withoutPr = rollout?.forks.find(({ service }) => service === "file");
+    const cut = rollout?.forks.find(({ service }) => service === "storage");
+    const cutFacts = cut && facts.github.data?.repos[cut.repo];
+    if (!rollout || !unread?.pr || !onTarget?.pr || !withoutPr?.pr || !cut?.pr || !cutFacts)
+      throw new Error("6 Nov has open PRs for the rollout cases");
+    unread.unread = true;
+    onTarget.onTarget = true;
+    delete withoutPr.pr;
+    delete cut.pr;
+    cutFacts.openPrs = cutFacts.prs.length + 1;
+    const projected = todayLines(model, items, now, context, { facts });
+    const visible = fleetLines(projected, "template");
+    const line = visible.find(({ rollout }) => rollout);
+    const expected = rollout.forks.filter(
+      ({ pr, unread, onTarget }) => pr && pr.url !== red.url && !unread && !onTarget,
+    );
+    expect(expected.length).toBeGreaterThan(0);
+    expect(line).toMatchObject({
+      section: "waiting",
+      subject: `${expected.length} forks`,
+      rollout: { withoutPr: ["file"] },
+    });
+    expect(line?.members.map(({ id, fork, primary }) => [id, fork, primary?.url])).toEqual(
+      expected.map(({ service, pr }) => [`rollout:${service}`, service, pr?.url]),
+    );
+    expect(
+      visible
+        .flatMap(({ members }) => members)
+        .filter(({ primary }) => primary?.url === red.url)
+        .map(({ id }) => id),
+    ).toEqual(["template-red:partition"]);
+    expect(
+      todayLines({ ...model, rollout: undefined }, items, now, context).some(({ id }) =>
+        id.endsWith(":rollout"),
+      ),
+    ).toBe(false);
+    expect(lineWith("rollout")?.members.map(({ id }) => id)).toEqual(["rollout"]);
   });
 
   test("adding situation lines leaves the default core briefing byte-identical", () => {

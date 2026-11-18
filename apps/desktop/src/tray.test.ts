@@ -569,6 +569,34 @@ it("badges the dock with the Today count, 9+ past nine, and clears it when the c
   expect(electron.trays[0]?.setTitle).not.toHaveBeenCalled();
 });
 
+it("tips the 6 Nov snapshot with the same 27 members as Yours, and badges a smaller rollout", () => {
+  const badge = vi.fn();
+  const tray = createSweepTray(vi.fn(), vi.fn(), { badge });
+  const fresh = read(["fresh"], at(8, 2));
+  if (fresh.type !== "view.snapshot") throw new Error("expected a snapshot");
+  const path = new URL("../../../fixtures/watch/snapshot-1106.json", import.meta.url);
+  const body = ViewSnapshotSchema.parse(JSON.parse(readFileSync(path, "utf8")));
+  expect(todayMembers(body.briefing)).toHaveLength(27);
+  tray.observe({
+    ...fresh,
+    payload: { ...body, areas: fresh.payload.areas, sweptAt: fresh.payload.sweptAt },
+  });
+  expect(electron.trays[0]?.setToolTip).toHaveBeenLastCalledWith(
+    "SPI Code - 27 need you · swept 08:02",
+  );
+  expect(badge).toHaveBeenLastCalledWith("9+");
+
+  const rollout = body.briefing.lines?.find(({ rollout }) => rollout);
+  if (!rollout) throw new Error("6 Nov has template sync PRs");
+  body.provenance = [];
+  body.briefing.lines = [{ ...rollout, subject: "3 forks", members: rollout.members.slice(0, 3) }];
+  tray.observe({
+    ...fresh,
+    payload: { ...body, areas: fresh.payload.areas, sweptAt: fresh.payload.sweptAt },
+  });
+  expect(badge).toHaveBeenLastCalledWith("3");
+});
+
 /** The 16 Nov brief, whose 18 Today members the sidebar counts, over the 6 Nov sweep read fresh. */
 function nov16(): Message {
   const text = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");

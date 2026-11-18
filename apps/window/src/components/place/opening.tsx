@@ -107,6 +107,7 @@ function rawItemContent(
 ): OpenedContent | undefined {
   const items = [...snapshot.briefing.focus, ...snapshot.briefing.rest];
   for (const line of snapshot.briefing.lines ?? []) {
+    if (id === "rollout" && line.rollout) return todayContent({ line, items, place });
     const member = line.members.find((m) => m.id === id || m.ids.includes(id));
     if (!member) continue;
     return todayContent({ line, member, items, place });

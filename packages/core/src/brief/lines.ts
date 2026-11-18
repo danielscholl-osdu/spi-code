@@ -5,13 +5,16 @@ import type { TodayMemberStation } from "@spi-code/contracts";
 import { dueOf } from "../attention.js";
 import { shortRepo, TEMPLATE_REPO } from "../config.js";
 import type { CoreContext } from "../context.js";
+import type { Facts } from "../facts.js";
 import { itemEvidence, type ItemEvidence } from "../inspect/item-evidence.js";
 import { prVerdict } from "../model/checks.js";
 import type { Model } from "../model/index.js";
 import type { ItemKind, QueueItem } from "../model/queue.js";
+import type { SweepReads } from "../sweep/index.js";
 import { age, plural, short } from "../util.js";
 import type { FocusItem, Link } from "./index.js";
 import type { LinkKind } from "./move.js";
+import { pullsComplete } from "./repo-today.js";
 
 export interface TodayDeadline {
   at: string;
@@ -46,10 +49,33 @@ export interface TodayLine {
   steps: string[];
   deadline?: TodayDeadline;
   age?: string;
+  rollout?: { withoutPr: string[] };
   members: TodayMember[];
 }
 
+export function todaySources(
+  model: Model,
+  items: readonly FocusItem[],
+  lines: readonly TodayLine[],
+) {
+  const sections = new Map<string, TodayLine["section"]>();
+  for (const section of ["waiting", "blocked"] as const) {
+    const members = lines.filter((line) => line.section === section).flatMap((line) => line.members);
+    const ids = new Set(members.flatMap((m) => [m.id, ...m.ids, ...(m.blockedBy ? [m.blockedBy] : [])]));
+    const urls = [
+      ...members.flatMap((m) => [m.subject, m.primary?.url]),
+      ...items.filter((i) => ids.has(i.id) || i.ids.some((id) => ids.has(id)))
+        .flatMap((i) => [i.subject, ...i.evidence.map((e) => e.url)]),
+      ...model.queue.items.filter((q) => ids.has(q.id)).flatMap((q) =>
+        [q.url, ...q.cause.map((f) => f.url), ...q.effects.map((e) => e.url)]),
+    ];
+    for (const url of urls) if (url) sections.set(url, section);
+  }
+  return sections;
+}
+
 type Item = FocusItem & { attention?: string };
+type PullReads = { facts: Pick<Facts, "github">; reads?: SweepReads };
 type NonEmpty<T> = [T, ...T[]];
 type ObjectMove = {
   item: Item;
@@ -321,12 +347,46 @@ function describe(
   }
 }
 
+function rolloutMembers(
+  model: Model, items: readonly Item[], lines: TodayLine[], now: Date, pulls?: PullReads,
+) {
+  const rollout = model.rollout;
+  const line = lines.find(({ members }) => members.some(({ id }) => id === "rollout"));
+  if (!rollout || !line) return;
+  const held = todaySources(model, items, lines.filter((other) => other !== line));
+  const behind = rollout.forks.filter(({ onTarget, unread }) => !onTarget && !unread);
+  const members = behind.flatMap(({ service, pr }): TodayMember[] => {
+    if (!pr || held.has(pr.url)) return [];
+    held.set(pr.url, "waiting");
+    const id = `rollout:${service}`;
+    const opened = model.lines.find(({ fork }) => fork.id === service)?.templatePr?.pr;
+    const since = opened?.url === pr.url && Number.isFinite(Date.parse(opened.createdAt))
+      ? opened.createdAt : undefined;
+    return [{
+      id, ids: [id], fork: service, station: "template", home: "engineering",
+      subject: pr.url, primary: { kind: "pr", label: `PR #${pr.number}`, url: pr.url },
+      ...(since ? { since, age: age(since, now) } : {}),
+      cause: "Review the template sync PR.", effect: "", steps: [],
+      evidence: itemEvidence(model, ["rollout"]),
+    }];
+  });
+  if (!members.length) return;
+  line.section = "waiting";
+  line.subject = plural(members.length, "fork");
+  line.rollout = {
+    withoutPr: behind.filter(({ repo, pr }) => !pr && pulls && pullsComplete(repo, pulls.facts, pulls.reads))
+      .map(({ service }) => service),
+  };
+  line.members = members;
+}
+
 /** Today's operator-owned objects, grouped by shared situation, with no change to the rib briefing. */
 export function todayLines(
   model: Model,
   items: readonly Item[],
   now: Date | undefined,
   context: CoreContext,
+  pulls?: PullReads,
 ): TodayLine[] {
   now ??= context.clock.now();
   const byId = new Map(items.map((item) => [item.id, item]));
@@ -347,7 +407,9 @@ export function todayLines(
         ? item
         : undefined;
   };
-  const candidates = items.filter((item) => item.attention !== "background" && governing(item));
+  const candidates = items.filter((item) =>
+    (item.id !== "rollout" || model.rollout) && item.attention !== "background" && governing(item),
+  );
   const blockers = new Set(candidates.flatMap((item) => (item.blockedBy ? [item.blockedBy] : [])));
   const objects = new Map<string, NonEmpty<Item>>();
   for (const item of candidates) {
@@ -388,6 +450,7 @@ export function todayLines(
       members,
     };
   });
+  rolloutMembers(model, items, lines, now, pulls);
   const order = (line: TodayLine) =>
     line.id.includes("blocker:")
       ? 1
@@ -397,7 +460,7 @@ export function todayLines(
           ? 3
           : line.id.includes("release-approval")
             ? 4
-            : line.members[0]?.id === "rollout"
+            : line.rollout || line.members[0]?.id === "rollout"
               ? 5
               : line.members[0]?.id.startsWith("port:")
                 ? 6

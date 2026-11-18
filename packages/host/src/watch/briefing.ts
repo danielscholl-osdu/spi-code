@@ -69,7 +69,7 @@ export function projectBriefing(
       ...failedServices(radarReads, input.context.fleet),
     ],
   });
-  const lines = todayLines(model, [...focus, ...rest], now, input.context);
+  const lines = todayLines(model, [...focus, ...rest], now, input.context, input);
   const since = sinceOf(
     model,
     input.facts,
@@ -85,6 +85,7 @@ export function projectBriefing(
     today: todaySummary({
       model,
       facts: input.facts,
+      reads: input.reads,
       items: [...focus, ...rest],
       lines,
       since,

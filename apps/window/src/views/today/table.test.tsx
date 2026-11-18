@@ -23,7 +23,7 @@ import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import { clockTime, timedText } from "../../time.js";
 import { TodayHome } from "./Home.js";
 import snapshot1116 from "./snapshot-1116.json?raw";
-import { ageInOneUnit } from "./Table.js";
+import { ageInOneUnit, todayRowOf } from "./Table.js";
 
 const recorded = ViewSnapshotSchema.parse(JSON.parse(snapshot1116)).briefing;
 const lines = recorded.lines ?? [];
@@ -172,6 +172,32 @@ it("a fork's name opens its service page and opens no row; a subject that is no 
     expect(fork?.querySelector("button")).toBeNull();
     expect(fork?.querySelector("span.today-fork-name")).not.toBeNull();
   }
+});
+
+it("counts the 6 Nov rollout PRs in Yours and opens the group and each PR separately", async () => {
+  const snapshot = loadFixture("snapshot-1106.json");
+  const lines = snapshot.briefing.lines ?? [];
+  const group = lines.find(({ rollout }) => rollout);
+  if (!group) throw new Error("6 Nov has template sync PRs");
+  await render(snapshot);
+  expect(tab("yours")?.querySelector(".today-tab-count")?.textContent).toBe("27");
+  for (const member of group.members) {
+    expect(todayRowOf(lines, member.id)).toEqual({ kind: "item", id: member.id });
+    expect(row(group.id, member.id).querySelector(".today-row-open a")?.getAttribute("href")).toBe(
+      member.primary?.url,
+    );
+  }
+  await act(async () => navigate({ kind: "today", station: "template" }));
+  expect(
+    [...container.querySelectorAll<HTMLElement>(`[data-line="${group.id}"] [data-item-id]`)].map(
+      ({ dataset }) => dataset.itemId,
+    ),
+  ).toEqual(group.members.map(({ id }) => id));
+  expect(todayRowOf(lines, "rollout")).toEqual({ kind: "line", id: group.id });
+  await click(row(group.id).querySelector(".today-row-what button"));
+  const body = bodyAfter(row(group.id));
+  expect(body?.querySelector("a[href='#engineering-system']")).not.toBeNull();
+  expect(body?.querySelector("a[href^='#evidence']")).not.toBeNull();
 });
 
 it("Esc closes the open row and a click elsewhere on Today closes it", async () => {
@@ -784,33 +810,39 @@ describe("Forks on the 16 Nov sweep", () => {
 });
 
 describe("Can wait by cause", () => {
-  const causes = () => whole().briefing.today?.causes?.rows ?? [];
+  const current = () => loadFixture("snapshot-1106.json");
   const causeRow = (id: string) =>
     container.querySelector<HTMLElement>(`tr.today-row--cause[data-row=${JSON.stringify(id)}]`);
 
   it("draws one row per cause, each opening into its forks one at a time", async () => {
-    await render(whole());
-    const rows = causes();
+    const snapshot = current();
+    await render(snapshot);
+    const rows = snapshot.briefing.today?.causes?.rows ?? [];
     expect(
       [...container.querySelectorAll<HTMLElement>("tr.today-row--cause")].map(
         (tr) => tr.dataset.row,
       ),
     ).toEqual(rows.map(({ id }) => id));
-    const dependabot = rows.find(({ kind }) => kind === "dependabot");
-    if (!dependabot) throw new Error("16 Nov has its Dependabot cause");
-    await click(causeRow(dependabot.id)?.querySelector(".today-row-what button"));
-    expect(openSelection()).toEqual({ kind: "cause", id: dependabot.id });
-    const body = causeRow(dependabot.id)?.nextElementSibling;
+    const release = rows.find(({ kind }) => kind === "release");
+    if (!release) throw new Error("6 Nov has its Release cause");
+    await click(causeRow(release.id)?.querySelector(".today-row-what button"));
+    expect(openSelection()).toEqual({ kind: "cause", id: release.id });
+    const body = causeRow(release.id)?.nextElementSibling;
     const forks = [...(body?.querySelectorAll(".today-cause-forks > *") ?? [])];
-    expect(forks).toHaveLength(dependabot.forks.length);
-    await click(causeRow("release")?.querySelector(".today-row-what button"));
+    expect(forks).toHaveLength(release.forkCount);
+    expect(body?.querySelectorAll(".today-cause-outside [data-cause-entry]")).toHaveLength(1);
+    await click(
+      causeRow(rows.find(({ kind }) => kind === "other")?.id ?? "")?.querySelector(
+        ".today-row-what button",
+      ),
+    );
     expect(opened()).toHaveLength(1);
     await press("Escape");
     expect(opened()).toHaveLength(0);
   });
 
   it("a fork pill opens its service page with the row holding its object, else the cause's place", async () => {
-    await render(whole());
+    await render(current());
     await click(causeRow("release")?.querySelector(".today-row-what button"));
     const pill = (fork: string) =>
       container.querySelector<HTMLElement>(`.today-cause-fork[data-fork=${JSON.stringify(fork)}]`);
@@ -823,7 +855,7 @@ describe("Can wait by cause", () => {
     });
     await act(async () => navigate({ kind: "today" }));
     expect(causeRow("release")?.hasAttribute("data-open")).toBe(true);
-    await click(pill("osdu-spi-stack"));
+    await click(pill("osdu-spi"));
     expect(route()).toEqual({ kind: "releases" });
   });
 
@@ -868,18 +900,47 @@ describe("Can wait by cause", () => {
   });
 
   it("a cause kind core could not read says so, never zero", async () => {
-    const body = whole();
+    const body = current();
     const summary = body.briefing.today;
     if (!summary?.causes) throw new Error("16 Nov has its causes");
     summary.causes.rows = summary.causes.rows.filter(({ kind }) => kind !== "dependabot");
     summary.causes.notRead.dependabot = ["indexer", "search"];
     summary.causes.notRead.release = ["legal"];
+    const release = summary.causes.rows.find(({ id }) => id === "release");
+    const fork = release?.forks.find(({ fork }) => fork === "legal");
+    if (!release || !fork) throw new Error("6 Nov has a release PR for legal");
+    fork.notRead = true;
+    release.count -= fork.count;
+    release.forkCount--;
     await render(body);
     expect(container.querySelector("[data-unread=dependabot]")?.textContent).toMatch(
       /^⌀ Dependabot PRs not read on indexer, search\./,
     );
     expect(causeRow("release")?.querySelector(".today-row-gaps")?.getAttribute("title")).toBe(
       "legal",
+    );
+    await click(causeRow("release")?.querySelector(".today-row-what button"));
+    expect(container.querySelector(".today-cause-unread [data-fork=legal]")).not.toBeNull();
+    expect(container.querySelector(".today-cause-forks [data-fork=legal]")).toBeNull();
+  });
+
+  it.each([
+    [0, 1],
+    [2, 0],
+    [3, 4],
+  ])("shows only the nonzero remainders (%i Blocked, %i Waiting)", async (blocked, waiting) => {
+    const snapshot = current();
+    const release = snapshot.briefing.today?.causes?.rows.find(({ id }) => id === "release");
+    if (!release) throw new Error("6 Nov has its Release cause");
+    release.remainder = { blocked, waiting };
+    await render(snapshot);
+    await click(causeRow("release")?.querySelector(".today-row-what button"));
+    const body = causeRow("release")?.nextElementSibling;
+    expect(body?.querySelector("[data-remainder=blocked]")?.textContent).toBe(
+      blocked ? `${blocked} more in Blocked` : undefined,
+    );
+    expect(body?.querySelector("[data-remainder=waiting]")?.textContent).toBe(
+      waiting ? `${waiting} more in Waiting on you` : undefined,
     );
   });
 });

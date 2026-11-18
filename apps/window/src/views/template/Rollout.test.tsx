@@ -51,6 +51,8 @@ function snapshot1116(): ViewSnapshot {
   if (!engineering) throw new Error("No engineering place in snapshot-1106.json");
   engineering.visual = structuredClone(sweep1116.visual);
   body.briefing.since = structuredClone(sweep1116.since);
+  body.provenance =
+    body.provenance?.filter(({ path }) => !path.startsWith("/briefing/lines/")) ?? [];
   body.briefing.lines = body.briefing.lines?.map((line) =>
     structuredClone(
       opened1116.lines.find((next) => next.id === line.id && next.id === "waiting:rollout") ?? line,

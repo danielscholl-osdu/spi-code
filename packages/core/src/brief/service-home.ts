@@ -244,7 +244,7 @@ function stationsOf(
   return [upstream, sync, integration, main].map(attach);
 }
 
-function doorsOf(line: LineModel, rows: readonly ServiceHomeRow[], complete: boolean): ServiceHomeDoor[] {
+export function doorsOf(line: LineModel, rows: readonly ServiceHome["overview"][number][], complete: boolean): ServiceHome["doors"] {
   const doors: ServiceHomeDoor[] = (["template", "release", "other", "dependabot"] as const)
     .map((id) => ({ id, count: null, prs: [] }));
   const seen = new Set([line.syncPr?.pr.number, line.cascadePr?.pr.number]);

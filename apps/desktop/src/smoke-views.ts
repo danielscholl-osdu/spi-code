@@ -771,6 +771,11 @@ export async function captureSmokeViews(
   const acknowledged = ViewSnapshotSchema.parse(
     JSON.parse(readFileSync(join(dirname(fixturePath), "generated", ACKNOWLEDGED_FIXTURE), "utf8")),
   );
+  const unreadForks = ViewSnapshotSchema.parse(
+    JSON.parse(
+      readFileSync(join(dirname(fixturePath), "generated", "snapshot-1106-unread.json"), "utf8"),
+    ),
+  );
   assert(
     acknowledged.sweptAt === snapshot.sweptAt && acknowledged.cursor > snapshot.cursor,
     "The acknowledged fixture must push the Nov 6 sweep again",
@@ -1029,6 +1034,8 @@ export async function captureSmokeViews(
                 )
               : undefined;
           if (surface.id !== first.id) {
+            if (surface.id === "service-calm")
+              fixture(window, "view.snapshot", { ...unreadForks, cursor: scheduledCursor++ });
             await window.webContents.executeJavaScript(
               `location.hash = ${JSON.stringify(`#${surface.route}`)}`,
             );
@@ -1331,6 +1338,8 @@ export async function captureSmokeViews(
             ...(rejectedGeometry ? { rejectedGeometry } : {}),
             ...shot,
           });
+          if (surface.id === "service-calm")
+            fixture(window, "view.snapshot", { ...snapshot, cursor: scheduledCursor++ });
           if (seen !== undefined)
             await window.webContents.debugger.sendCommand("Emulation.setFocusEmulationEnabled", {
               enabled: false,

@@ -6,6 +6,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import recorded from "../../../../../fixtures/watch/snapshot-1106.json?raw";
+import { readGenerated } from "../../../../../scripts/watch-generated.mjs";
 import {
   navigate,
   parseRoute,
@@ -31,7 +32,10 @@ import nov16 from "../today/snapshot-1116.json?raw";
 import ServicePage from "./index.js";
 
 const sixteenth = () => ViewSnapshotSchema.parse(JSON.parse(nov16));
-const sixth = () => ViewSnapshotSchema.parse(JSON.parse(recorded));
+const sixth = (variant?: "unread") =>
+  ViewSnapshotSchema.parse(
+    JSON.parse(variant ? readGenerated("snapshot-1106-unread.json") : recorded),
+  );
 
 let container: HTMLElement;
 let unmount = async () => {};
@@ -160,7 +164,12 @@ it("opens the tab and the row a route names, and closes the row back to the tab"
 
 it.each([
   ["read", sixteenth, "file", "Nothing waiting on you"],
-  ["not read", sixth, "crs-catalog", "⌀ Part of this fork was not read. Evidence ›"],
+  [
+    "not read",
+    () => sixth("unread"),
+    "crs-catalog",
+    "⌀ Part of this fork was not read. Evidence ›",
+  ],
 ])("opens a quiet fork whose rows were %s on its one line", async (_, body, id, line) => {
   await mount(body(), `#service/${id}`);
   expect($(".service-quiet")?.textContent).toBe(line);

@@ -564,22 +564,422 @@
         "effect": "The change reaches actions, workflows and settings, so every PR and every merge takes a deploy lane: 13 lanes, 5 at a time still to go.",
         "steps": [],
         "age": "5h",
+        "rollout": {
+          "withoutPr": []
+        },
         "members": [
           {
-            "id": "rollout",
-            "ids": ["rollout"],
-            "fork": "fleet",
+            "id": "rollout:partition",
+            "ids": ["rollout:partition"],
+            "fork": "partition",
             "station": "template",
             "home": "engineering",
+            "subject": "https://github.com/Azure/osdu-spi-partition/pull/220",
             "primary": {
-              "label": "main 7d269b5",
-              "url": "https://github.com/Azure/osdu-spi/commit/7d269b57e9b114711a7de9d0052b5ae4fd261e97",
-              "kind": "commit"
+              "label": "PR #220",
+              "url": "https://github.com/Azure/osdu-spi-partition/pull/220",
+              "kind": "pr"
             },
             "since": "2026-11-06T08:03:42Z",
             "age": "5h",
-            "cause": "osdu-spi main 7d269b5 is on its way to the fleet: 0 of 13 forks merged.",
-            "effect": "The change reaches actions, workflows and settings, so every PR and every merge takes a deploy lane: 13 lanes, 5 at a time still to go.",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          },
+          {
+            "id": "rollout:entitlements",
+            "ids": ["rollout:entitlements"],
+            "fork": "entitlements",
+            "station": "template",
+            "home": "engineering",
+            "subject": "https://github.com/Azure/osdu-spi-entitlements/pull/123",
+            "primary": {
+              "label": "PR #123",
+              "url": "https://github.com/Azure/osdu-spi-entitlements/pull/123",
+              "kind": "pr"
+            },
+            "since": "2026-11-06T08:11:20Z",
+            "age": "5h",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          },
+          {
+            "id": "rollout:legal",
+            "ids": ["rollout:legal"],
+            "fork": "legal",
+            "station": "template",
+            "home": "engineering",
+            "subject": "https://github.com/Azure/osdu-spi-legal/pull/66",
+            "primary": {
+              "label": "PR #66",
+              "url": "https://github.com/Azure/osdu-spi-legal/pull/66",
+              "kind": "pr"
+            },
+            "since": "2026-11-06T08:11:14Z",
+            "age": "5h",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          },
+          {
+            "id": "rollout:schema",
+            "ids": ["rollout:schema"],
+            "fork": "schema",
+            "station": "template",
+            "home": "engineering",
+            "subject": "https://github.com/Azure/osdu-spi-schema/pull/81",
+            "primary": {
+              "label": "PR #81",
+              "url": "https://github.com/Azure/osdu-spi-schema/pull/81",
+              "kind": "pr"
+            },
+            "since": "2026-11-06T08:13:54Z",
+            "age": "5h",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          },
+          {
+            "id": "rollout:file",
+            "ids": ["rollout:file"],
+            "fork": "file",
+            "station": "template",
+            "home": "engineering",
+            "subject": "https://github.com/Azure/osdu-spi-file/pull/93",
+            "primary": {
+              "label": "PR #93",
+              "url": "https://github.com/Azure/osdu-spi-file/pull/93",
+              "kind": "pr"
+            },
+            "since": "2026-11-06T08:10:29Z",
+            "age": "5h",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          },
+          {
+            "id": "rollout:storage",
+            "ids": ["rollout:storage"],
+            "fork": "storage",
+            "station": "template",
+            "home": "engineering",
+            "subject": "https://github.com/Azure/osdu-spi-storage/pull/61",
+            "primary": {
+              "label": "PR #61",
+              "url": "https://github.com/Azure/osdu-spi-storage/pull/61",
+              "kind": "pr"
+            },
+            "since": "2026-11-06T08:08:35Z",
+            "age": "5h",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          },
+          {
+            "id": "rollout:indexer",
+            "ids": ["rollout:indexer"],
+            "fork": "indexer",
+            "station": "template",
+            "home": "engineering",
+            "subject": "https://github.com/Azure/osdu-spi-indexer/pull/61",
+            "primary": {
+              "label": "PR #61",
+              "url": "https://github.com/Azure/osdu-spi-indexer/pull/61",
+              "kind": "pr"
+            },
+            "since": "2026-11-06T08:07:07Z",
+            "age": "5h",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          },
+          {
+            "id": "rollout:search",
+            "ids": ["rollout:search"],
+            "fork": "search",
+            "station": "template",
+            "home": "engineering",
+            "subject": "https://github.com/Azure/osdu-spi-search/pull/61",
+            "primary": {
+              "label": "PR #61",
+              "url": "https://github.com/Azure/osdu-spi-search/pull/61",
+              "kind": "pr"
+            },
+            "since": "2026-11-06T08:17:26Z",
+            "age": "5h",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          },
+          {
+            "id": "rollout:workflow",
+            "ids": ["rollout:workflow"],
+            "fork": "workflow",
+            "station": "template",
+            "home": "engineering",
+            "subject": "https://github.com/Azure/osdu-spi-workflow/pull/51",
+            "primary": {
+              "label": "PR #51",
+              "url": "https://github.com/Azure/osdu-spi-workflow/pull/51",
+              "kind": "pr"
+            },
+            "since": "2026-11-06T08:15:40Z",
+            "age": "5h",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          },
+          {
+            "id": "rollout:indexer-queue",
+            "ids": ["rollout:indexer-queue"],
+            "fork": "indexer-queue",
+            "station": "template",
+            "home": "engineering",
+            "subject": "https://github.com/Azure/osdu-spi-indexer-queue/pull/61",
+            "primary": {
+              "label": "PR #61",
+              "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/61",
+              "kind": "pr"
+            },
+            "since": "2026-11-06T08:04:55Z",
+            "age": "5h",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          },
+          {
+            "id": "rollout:unit",
+            "ids": ["rollout:unit"],
+            "fork": "unit",
+            "station": "template",
+            "home": "engineering",
+            "subject": "https://github.com/Azure/osdu-spi-unit/pull/43",
+            "primary": {
+              "label": "PR #43",
+              "url": "https://github.com/Azure/osdu-spi-unit/pull/43",
+              "kind": "pr"
+            },
+            "since": "2026-11-06T08:11:54Z",
+            "age": "5h",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          },
+          {
+            "id": "rollout:crs-catalog",
+            "ids": ["rollout:crs-catalog"],
+            "fork": "crs-catalog",
+            "station": "template",
+            "home": "engineering",
+            "subject": "https://github.com/Azure/osdu-spi-crs-catalog/pull/43",
+            "primary": {
+              "label": "PR #43",
+              "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/43",
+              "kind": "pr"
+            },
+            "since": "2026-11-06T08:12:11Z",
+            "age": "5h",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          },
+          {
+            "id": "rollout:crs-conversion",
+            "ids": ["rollout:crs-conversion"],
+            "fork": "crs-conversion",
+            "station": "template",
+            "home": "engineering",
+            "subject": "https://github.com/Azure/osdu-spi-crs-conversion/pull/30",
+            "primary": {
+              "label": "PR #30",
+              "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/30",
+              "kind": "pr"
+            },
+            "since": "2026-11-06T08:13:48Z",
+            "age": "5h",
+            "cause": "Review the template sync PR.",
+            "effect": "",
             "steps": [],
             "evidence": {
               "areas": [
@@ -802,11 +1202,12 @@
             "workflow",
             "indexer-queue",
             "unit",
+            "crs-catalog",
             "crs-conversion"
           ],
           "stopped": ["entitlements"],
           "rest": {
-            "forks": ["crs-catalog"],
+            "forks": [],
             "stations": [
               {
                 "count": 0,
@@ -842,8 +1243,8 @@
                 "waitingOnPerson": []
               },
               {
-                "count": 1,
-                "forks": ["crs-catalog"],
+                "count": 0,
+                "forks": [],
                 "notRead": [],
                 "id": "main",
                 "stopped": [],
@@ -855,14 +1256,14 @@
             ],
             "doors": [
               {
-                "count": 1,
-                "forks": ["crs-catalog"],
+                "count": 0,
+                "forks": [],
                 "notRead": [],
                 "id": "template"
               },
               {
-                "count": 1,
-                "forks": ["crs-catalog"],
+                "count": 0,
+                "forks": [],
                 "notRead": [],
                 "id": "release"
               },
@@ -888,26 +1289,18 @@
             "id": "release",
             "kind": "release",
             "headline": "Release PRs",
-            "count": 13,
+            "count": 12,
             "forkCount": 12,
             "place": "releases",
+            "remainder": {
+              "blocked": 0,
+              "waiting": 1
+            },
             "forks": [
-              {
-                "fork": "osdu-spi",
-                "count": 1,
-                "objects": [
-                  {
-                    "id": "https://github.com/Azure/osdu-spi/pull/263",
-                    "url": "https://github.com/Azure/osdu-spi/pull/263",
-                    "label": "PR #263",
-                    "age": "16d",
-                    "count": 1
-                  }
-                ]
-              },
               {
                 "fork": "partition",
                 "count": 1,
+                "group": "fork",
                 "objects": [
                   {
                     "id": "https://github.com/Azure/osdu-spi-partition/pull/198",
@@ -921,6 +1314,7 @@
               {
                 "fork": "legal",
                 "count": 1,
+                "group": "fork",
                 "objects": [
                   {
                     "id": "https://github.com/Azure/osdu-spi-legal/pull/48",
@@ -934,6 +1328,7 @@
               {
                 "fork": "schema",
                 "count": 1,
+                "group": "fork",
                 "objects": [
                   {
                     "id": "https://github.com/Azure/osdu-spi-schema/pull/40",
@@ -947,6 +1342,7 @@
               {
                 "fork": "file",
                 "count": 1,
+                "group": "fork",
                 "objects": [
                   {
                     "id": "https://github.com/Azure/osdu-spi-file/pull/55",
@@ -960,6 +1356,7 @@
               {
                 "fork": "storage",
                 "count": 1,
+                "group": "fork",
                 "objects": [
                   {
                     "id": "https://github.com/Azure/osdu-spi-storage/pull/57",
@@ -973,6 +1370,7 @@
               {
                 "fork": "indexer",
                 "count": 1,
+                "group": "fork",
                 "objects": [
                   {
                     "id": "https://github.com/Azure/osdu-spi-indexer/pull/33",
@@ -986,6 +1384,7 @@
               {
                 "fork": "search",
                 "count": 1,
+                "group": "fork",
                 "objects": [
                   {
                     "id": "https://github.com/Azure/osdu-spi-search/pull/29",
@@ -999,6 +1398,7 @@
               {
                 "fork": "workflow",
                 "count": 1,
+                "group": "fork",
                 "objects": [
                   {
                     "id": "https://github.com/Azure/osdu-spi-workflow/pull/38",
@@ -1012,6 +1412,7 @@
               {
                 "fork": "indexer-queue",
                 "count": 1,
+                "group": "fork",
                 "objects": [
                   {
                     "id": "https://github.com/Azure/osdu-spi-indexer-queue/pull/45",
@@ -1025,6 +1426,7 @@
               {
                 "fork": "unit",
                 "count": 1,
+                "group": "fork",
                 "objects": [
                   {
                     "id": "https://github.com/Azure/osdu-spi-unit/pull/21",
@@ -1038,6 +1440,7 @@
               {
                 "fork": "crs-catalog",
                 "count": 1,
+                "group": "fork",
                 "objects": [
                   {
                     "id": "https://github.com/Azure/osdu-spi-crs-catalog/pull/19",
@@ -1051,12 +1454,27 @@
               {
                 "fork": "crs-conversion",
                 "count": 1,
+                "group": "fork",
                 "objects": [
                   {
                     "id": "https://github.com/Azure/osdu-spi-crs-conversion/pull/17",
                     "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/17",
                     "label": "PR #17",
                     "age": "14d",
+                    "count": 1
+                  }
+                ]
+              },
+              {
+                "fork": "osdu-spi",
+                "count": 1,
+                "group": "program",
+                "objects": [
+                  {
+                    "id": "https://github.com/Azure/osdu-spi/pull/263",
+                    "url": "https://github.com/Azure/osdu-spi/pull/263",
+                    "label": "PR #263",
+                    "age": "16d",
                     "count": 1
                   }
                 ]
@@ -1073,6 +1491,7 @@
               {
                 "fork": "partition",
                 "count": 1,
+                "group": "fork",
                 "objects": [
                   {
                     "id": "https://github.com/Azure/osdu-spi-partition/pull/218",
@@ -1137,7 +1556,6 @@
               "count": 13,
               "tone": "neutral",
               "names": [
-                "osdu-spi #263",
                 "partition #198",
                 "legal #48",
                 "schema #40",
@@ -1149,10 +1567,10 @@
                 "indexer-queue #45",
                 "unit #21",
                 "crs-catalog #19",
-                "crs-conversion #17"
+                "crs-conversion #17",
+                "osdu-spi #263"
               ],
               "urls": [
-                "https://github.com/Azure/osdu-spi/pull/263",
                 "https://github.com/Azure/osdu-spi-partition/pull/198",
                 "https://github.com/Azure/osdu-spi-legal/pull/48",
                 "https://github.com/Azure/osdu-spi-schema/pull/40",
@@ -1164,7 +1582,8 @@
                 "https://github.com/Azure/osdu-spi-indexer-queue/pull/45",
                 "https://github.com/Azure/osdu-spi-unit/pull/21",
                 "https://github.com/Azure/osdu-spi-crs-catalog/pull/19",
-                "https://github.com/Azure/osdu-spi-crs-conversion/pull/17"
+                "https://github.com/Azure/osdu-spi-crs-conversion/pull/17",
+                "https://github.com/Azure/osdu-spi/pull/263"
               ]
             },
             {
@@ -1181,7 +1600,6 @@
               "count": 12,
               "tone": "neutral",
               "names": [
-                "osdu-spi #263",
                 "partition #198",
                 "legal #48",
                 "schema #40",
@@ -1192,10 +1610,10 @@
                 "indexer-queue #45",
                 "unit #21",
                 "crs-catalog #19",
-                "crs-conversion #17"
+                "crs-conversion #17",
+                "osdu-spi #263"
               ],
               "urls": [
-                "https://github.com/Azure/osdu-spi/pull/263",
                 "https://github.com/Azure/osdu-spi-partition/pull/198",
                 "https://github.com/Azure/osdu-spi-legal/pull/48",
                 "https://github.com/Azure/osdu-spi-schema/pull/40",
@@ -1206,7 +1624,8 @@
                 "https://github.com/Azure/osdu-spi-indexer-queue/pull/45",
                 "https://github.com/Azure/osdu-spi-unit/pull/21",
                 "https://github.com/Azure/osdu-spi-crs-catalog/pull/19",
-                "https://github.com/Azure/osdu-spi-crs-conversion/pull/17"
+                "https://github.com/Azure/osdu-spi-crs-conversion/pull/17",
+                "https://github.com/Azure/osdu-spi/pull/263"
               ]
             },
             {
@@ -7477,7 +7896,8 @@
                 "number": 220,
                 "url": "https://github.com/Azure/osdu-spi-partition/pull/220"
               }
-            ]
+            ],
+            "row": "rollout:partition"
           },
           {
             "id": "release",
@@ -7525,6 +7945,22 @@
             ],
             "since": "2026-09-16T12:39:01.000+00:00",
             "age": "51d"
+          },
+          {
+            "id": "rollout:partition",
+            "section": "waiting",
+            "headline": "template 7d269b5 not synced yet",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #220",
+                "url": "https://github.com/Azure/osdu-spi-partition/pull/220",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-06T08:03:42Z"
           },
           {
             "id": "port:entitlements",
@@ -7595,7 +8031,7 @@
         ],
         "mark": {
           "kind": "count",
-          "count": 1,
+          "count": 2,
           "tone": "warning"
         }
       },
@@ -7622,7 +8058,9 @@
                 "state": "passing",
                 "passed": 15,
                 "failed": []
-              }
+              },
+              "gate": "template 7d269b5 not synced yet",
+              "waiting": true
             },
             {
               "number": 218,
@@ -9147,7 +9585,8 @@
                 "number": 123,
                 "url": "https://github.com/Azure/osdu-spi-entitlements/pull/123"
               }
-            ]
+            ],
+            "row": "rollout:entitlements"
           },
           {
             "id": "release",
@@ -9213,6 +9652,22 @@
             "age": "16d"
           },
           {
+            "id": "rollout:entitlements",
+            "section": "waiting",
+            "headline": "template 7d269b5 not synced yet",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #123",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/pull/123",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-06T08:11:20Z"
+          },
+          {
             "id": "port:entitlements",
             "section": "shared",
             "headline": "23 upstream provider changes to port",
@@ -9247,7 +9702,7 @@
         ],
         "mark": {
           "kind": "count",
-          "count": 2,
+          "count": 3,
           "tone": "error"
         }
       },
@@ -9274,7 +9729,9 @@
                 "state": "passing",
                 "passed": 16,
                 "failed": []
-              }
+              },
+              "gate": "template 7d269b5 not synced yet",
+              "waiting": true
             },
             {
               "number": 89,
@@ -10746,7 +11203,8 @@
                 "number": 66,
                 "url": "https://github.com/Azure/osdu-spi-legal/pull/66"
               }
-            ]
+            ],
+            "row": "rollout:legal"
           },
           {
             "id": "release",
@@ -10800,6 +11258,22 @@
             "age": "69d"
           },
           {
+            "id": "rollout:legal",
+            "section": "waiting",
+            "headline": "template 7d269b5 not synced yet",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #66",
+                "url": "https://github.com/Azure/osdu-spi-legal/pull/66",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-06T08:11:14Z"
+          },
+          {
             "id": "port:entitlements",
             "section": "shared",
             "headline": "23 upstream provider changes to port",
@@ -10851,7 +11325,7 @@
         ],
         "mark": {
           "kind": "count",
-          "count": 1,
+          "count": 2,
           "tone": "warning"
         }
       },
@@ -10878,7 +11352,9 @@
                 "state": "passing",
                 "passed": 14,
                 "failed": []
-              }
+              },
+              "gate": "template 7d269b5 not synced yet",
+              "waiting": true
             },
             {
               "number": 48,
@@ -11920,7 +12396,8 @@
                 "number": 81,
                 "url": "https://github.com/Azure/osdu-spi-schema/pull/81"
               }
-            ]
+            ],
+            "row": "rollout:schema"
           },
           {
             "id": "release",
@@ -11967,6 +12444,22 @@
             ],
             "since": "2026-09-16T16:33:50.000+00:00",
             "age": "50d"
+          },
+          {
+            "id": "rollout:schema",
+            "section": "waiting",
+            "headline": "template 7d269b5 not synced yet",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #81",
+                "url": "https://github.com/Azure/osdu-spi-schema/pull/81",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-06T08:13:54Z"
           },
           {
             "id": "port:entitlements",
@@ -12020,7 +12513,7 @@
         ],
         "mark": {
           "kind": "count",
-          "count": 1,
+          "count": 2,
           "tone": "warning"
         }
       },
@@ -12047,7 +12540,9 @@
                 "state": "passing",
                 "passed": 16,
                 "failed": []
-              }
+              },
+              "gate": "template 7d269b5 not synced yet",
+              "waiting": true
             },
             {
               "number": 40,
@@ -13172,7 +13667,8 @@
                 "number": 93,
                 "url": "https://github.com/Azure/osdu-spi-file/pull/93"
               }
-            ]
+            ],
+            "row": "rollout:file"
           },
           {
             "id": "release",
@@ -13214,6 +13710,22 @@
             ],
             "since": "2026-09-10T18:42:42.000+00:00",
             "age": "56d"
+          },
+          {
+            "id": "rollout:file",
+            "section": "waiting",
+            "headline": "template 7d269b5 not synced yet",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #93",
+                "url": "https://github.com/Azure/osdu-spi-file/pull/93",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-06T08:10:29Z"
           },
           {
             "id": "port:entitlements",
@@ -13266,7 +13778,7 @@
         ],
         "mark": {
           "kind": "count",
-          "count": 1,
+          "count": 2,
           "tone": "warning"
         }
       },
@@ -13293,7 +13805,9 @@
                 "state": "passing",
                 "passed": 14,
                 "failed": []
-              }
+              },
+              "gate": "template 7d269b5 not synced yet",
+              "waiting": true
             },
             {
               "number": 55,
@@ -14507,7 +15021,8 @@
                 "number": 61,
                 "url": "https://github.com/Azure/osdu-spi-storage/pull/61"
               }
-            ]
+            ],
+            "row": "rollout:storage"
           },
           {
             "id": "release",
@@ -14557,6 +15072,22 @@
             ],
             "since": "2026-11-05T00:29:19Z",
             "age": "1d 13h"
+          },
+          {
+            "id": "rollout:storage",
+            "section": "waiting",
+            "headline": "template 7d269b5 not synced yet",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #61",
+                "url": "https://github.com/Azure/osdu-spi-storage/pull/61",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-06T08:08:35Z"
           },
           {
             "id": "port:entitlements",
@@ -14610,7 +15141,7 @@
         ],
         "mark": {
           "kind": "count",
-          "count": 1,
+          "count": 2,
           "tone": "warning"
         }
       },
@@ -14637,7 +15168,9 @@
                 "state": "passing",
                 "passed": 14,
                 "failed": []
-              }
+              },
+              "gate": "template 7d269b5 not synced yet",
+              "waiting": true
             },
             {
               "number": 58,
@@ -15613,7 +16146,8 @@
                 "number": 61,
                 "url": "https://github.com/Azure/osdu-spi-indexer/pull/61"
               }
-            ]
+            ],
+            "row": "rollout:indexer"
           },
           {
             "id": "release",
@@ -15670,6 +16204,22 @@
             "age": "1d 13h"
           },
           {
+            "id": "rollout:indexer",
+            "section": "waiting",
+            "headline": "template 7d269b5 not synced yet",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #61",
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/61",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-06T08:07:07Z"
+          },
+          {
             "id": "port:entitlements",
             "section": "shared",
             "headline": "23 upstream provider changes to port",
@@ -15721,7 +16271,7 @@
         ],
         "mark": {
           "kind": "count",
-          "count": 1,
+          "count": 2,
           "tone": "warning"
         }
       },
@@ -15748,7 +16298,9 @@
                 "state": "passing",
                 "passed": 16,
                 "failed": []
-              }
+              },
+              "gate": "template 7d269b5 not synced yet",
+              "waiting": true
             },
             {
               "number": 58,
@@ -16705,7 +17257,8 @@
                 "number": 61,
                 "url": "https://github.com/Azure/osdu-spi-search/pull/61"
               }
-            ]
+            ],
+            "row": "rollout:search"
           },
           {
             "id": "release",
@@ -16747,6 +17300,22 @@
             ],
             "since": "2026-09-15T14:42:23.000+00:00",
             "age": "51d"
+          },
+          {
+            "id": "rollout:search",
+            "section": "waiting",
+            "headline": "template 7d269b5 not synced yet",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #61",
+                "url": "https://github.com/Azure/osdu-spi-search/pull/61",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-06T08:17:26Z"
           },
           {
             "id": "port:entitlements",
@@ -16800,7 +17369,7 @@
         ],
         "mark": {
           "kind": "count",
-          "count": 1,
+          "count": 2,
           "tone": "warning"
         }
       },
@@ -16827,7 +17396,9 @@
                 "state": "passing",
                 "passed": 16,
                 "failed": []
-              }
+              },
+              "gate": "template 7d269b5 not synced yet",
+              "waiting": true
             },
             {
               "number": 29,
@@ -17799,7 +18370,8 @@
                 "number": 51,
                 "url": "https://github.com/Azure/osdu-spi-workflow/pull/51"
               }
-            ]
+            ],
+            "row": "rollout:workflow"
           },
           {
             "id": "release",
@@ -17841,6 +18413,22 @@
             ],
             "since": "2026-09-23T14:35:24.000+00:00",
             "age": "43d"
+          },
+          {
+            "id": "rollout:workflow",
+            "section": "waiting",
+            "headline": "template 7d269b5 not synced yet",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #51",
+                "url": "https://github.com/Azure/osdu-spi-workflow/pull/51",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-06T08:15:40Z"
           },
           {
             "id": "port:entitlements",
@@ -17894,7 +18482,7 @@
         ],
         "mark": {
           "kind": "count",
-          "count": 1,
+          "count": 2,
           "tone": "warning"
         }
       },
@@ -17921,7 +18509,9 @@
                 "state": "passing",
                 "passed": 16,
                 "failed": []
-              }
+              },
+              "gate": "template 7d269b5 not synced yet",
+              "waiting": true
             },
             {
               "number": 38,
@@ -18763,7 +19353,8 @@
                 "number": 61,
                 "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/61"
               }
-            ]
+            ],
+            "row": "rollout:indexer-queue"
           },
           {
             "id": "release",
@@ -18807,6 +19398,22 @@
             "age": "1d 13h"
           },
           {
+            "id": "rollout:indexer-queue",
+            "section": "waiting",
+            "headline": "template 7d269b5 not synced yet",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #61",
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/61",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-06T08:04:55Z"
+          },
+          {
             "id": "can:releases:https://github.com/Azure/osdu-spi-indexer-queue/pull/45",
             "section": "can-wait",
             "headline": "chore: release 1.5.0",
@@ -18826,7 +19433,7 @@
         ],
         "mark": {
           "kind": "count",
-          "count": 1,
+          "count": 2,
           "tone": "warning"
         }
       },
@@ -18853,7 +19460,9 @@
                 "state": "passing",
                 "passed": 14,
                 "failed": []
-              }
+              },
+              "gate": "template 7d269b5 not synced yet",
+              "waiting": true
             },
             {
               "number": 58,
@@ -19784,7 +20393,8 @@
                 "number": 43,
                 "url": "https://github.com/Azure/osdu-spi-unit/pull/43"
               }
-            ]
+            ],
+            "row": "rollout:unit"
           },
           {
             "id": "release",
@@ -19831,6 +20441,22 @@
             ],
             "since": "2026-09-18T13:46:20.000+00:00",
             "age": "49d"
+          },
+          {
+            "id": "rollout:unit",
+            "section": "waiting",
+            "headline": "template 7d269b5 not synced yet",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #43",
+                "url": "https://github.com/Azure/osdu-spi-unit/pull/43",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-06T08:11:54Z"
           },
           {
             "id": "port:entitlements",
@@ -19884,7 +20510,7 @@
         ],
         "mark": {
           "kind": "count",
-          "count": 1,
+          "count": 2,
           "tone": "warning"
         }
       },
@@ -19911,7 +20537,9 @@
                 "state": "passing",
                 "passed": 16,
                 "failed": []
-              }
+              },
+              "gate": "template 7d269b5 not synced yet",
+              "waiting": true
             },
             {
               "number": 21,
@@ -20688,7 +21316,8 @@
                 "number": 43,
                 "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/43"
               }
-            ]
+            ],
+            "row": "rollout:crs-catalog"
           },
           {
             "id": "release",
@@ -20714,6 +21343,22 @@
         ],
         "openPrTotal": 2,
         "overview": [
+          {
+            "id": "rollout:crs-catalog",
+            "section": "waiting",
+            "headline": "template 7d269b5 not synced yet",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #43",
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/43",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-06T08:12:11Z"
+          },
           {
             "id": "port:entitlements",
             "section": "shared",
@@ -20765,7 +21410,9 @@
           }
         ],
         "mark": {
-          "kind": "unread"
+          "kind": "count",
+          "count": 1,
+          "tone": "warning"
         }
       },
       "work": {
@@ -20791,7 +21438,9 @@
                 "state": "passing",
                 "passed": 16,
                 "failed": []
-              }
+              },
+              "gate": "template 7d269b5 not synced yet",
+              "waiting": true
             },
             {
               "number": 19,
@@ -21524,7 +22173,8 @@
                 "number": 30,
                 "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/30"
               }
-            ]
+            ],
+            "row": "rollout:crs-conversion"
           },
           {
             "id": "release",
@@ -21566,6 +22216,22 @@
             ],
             "since": "2026-09-17T15:59:17.000+00:00",
             "age": "49d"
+          },
+          {
+            "id": "rollout:crs-conversion",
+            "section": "waiting",
+            "headline": "template 7d269b5 not synced yet",
+            "cause": "Review the template sync PR.",
+            "effect": "",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #30",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/30",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-06T08:13:48Z"
           },
           {
             "id": "port:entitlements",
@@ -21619,7 +22285,7 @@
         ],
         "mark": {
           "kind": "count",
-          "count": 1,
+          "count": 2,
           "tone": "warning"
         }
       },
@@ -21646,7 +22312,9 @@
                 "state": "passing",
                 "passed": 16,
                 "failed": []
-              }
+              },
+              "gate": "template 7d269b5 not synced yet",
+              "waiting": true
             },
             {
               "number": 17,
@@ -27922,6 +28590,186 @@
     },
     {
       "path": "/briefing/lines/6/members/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/6/members/1",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/6/members/2",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/6/members/3",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/6/members/4",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/6/members/5",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/6/members/6",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/6/members/7",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/6/members/8",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/6/members/9",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/6/members/10",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/6/members/11",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/6/members/12",
       "areas": [
         "github",
         "runs",

@@ -133,6 +133,16 @@
 .today-row-what button {
   color: var(--text);
 }
+.today-row-tag {
+  margin-inline-start: 8px;
+  padding: 1px 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
 .today-row :is(.today-row-fork, .today-row-what) button:hover,
 .today-row .today-row-place:hover,
 .today-not-read button:hover {
@@ -205,11 +215,23 @@
 .today-row-body > td {
   padding: 0 0 8px;
 }
-.today-row-body .opened-body {
+.today-row-body :is(.opened-body, .today-rollout-detail) {
   padding: 10px 14px 12px;
   border-left: 2px solid var(--accent);
   border-radius: 0 8px 8px 0;
   background: var(--surface-raised);
+}
+.today-row-body > td:has(.today-rollout-detail) > .opened-body {
+  padding-bottom: 0;
+  border-end-end-radius: 0;
+}
+.today-row-body .today-rollout-detail {
+  border-start-end-radius: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.today-rollout-detail p {
+  margin: 0 0 8px;
 }
 .today-table :is(button, [tabindex]):focus-visible {
   outline: 2px solid var(--accent);
@@ -227,7 +249,7 @@
   margin: 0;
   padding-left: 18px;
 }
-.today-cause-forks {
+.today-cause-pills {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -244,6 +266,14 @@
 }
 .today-cause-fork:hover {
   border-color: var(--text-muted);
+}
+.today-cause-outside > p,
+.today-cause-unread > .today-not-read {
+  margin: 0 0 4px;
+}
+.today-rollout-detail nav {
+  display: flex;
+  gap: 12px;
 }
 .today-not-read {
   margin: 0 0 10px;

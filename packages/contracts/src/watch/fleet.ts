@@ -25,10 +25,13 @@ const CauseSchema = z.strictObject({
   count: Count,
   forkCount: Count,
   place: z.enum(["releases", "security"]).optional(),
+  remainder: z.strictObject({ blocked: Count, waiting: Count }).optional(),
   forks: z.array(
     z.strictObject({
       fork: z.string(),
       count: Count,
+      group: z.enum(["fork", "program", "unknown"]).optional(),
+      notRead: z.literal(true).optional(),
       objects: z.array(
         z.strictObject({
           id: z.string(),

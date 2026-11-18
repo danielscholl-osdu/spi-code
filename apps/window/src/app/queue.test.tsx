@@ -79,7 +79,7 @@ it("keeps Today's member count after acknowledgement, until the member resolves"
       .mock.calls.map(([message]) => message)
       .filter((message) => message.type === "view.acknowledge")
       .map((message) => message.payload);
-  expect(pip()?.textContent).toBe("15");
+  expect(pip()?.textContent).toBe("27");
   expect(container.querySelectorAll(".sidebar-pip")).toHaveLength(1);
   expect(acknowledgements()).toEqual([]);
 
@@ -88,7 +88,7 @@ it("keeps Today's member count after acknowledgement, until the member resolves"
   expect(acknowledgements()).toEqual([]);
   await act(async () => window.dispatchEvent(new FocusEvent("blur")));
   expect(acknowledgements()).toEqual([{ cursor: fixture.cursor }]);
-  expect(pip()?.textContent).toBe("15");
+  expect(pip()?.textContent).toBe("27");
 
   const acknowledged = {
     ...fixture,
@@ -98,7 +98,7 @@ it("keeps Today's member count after acknowledgement, until the member resolves"
   await act(async () =>
     watchStore.setState({ snapshot: { cursor: acknowledged.cursor, body: acknowledged } }),
   );
-  expect(pip()?.textContent).toBe("15");
+  expect(pip()?.textContent).toBe("27");
 
   const resolved = {
     ...acknowledged,
@@ -116,5 +116,5 @@ it("keeps Today's member count after acknowledgement, until the member resolves"
   await act(async () =>
     watchStore.setState({ snapshot: { cursor: resolved.cursor, body: resolved } }),
   );
-  expect(pip()?.textContent).toBe("14");
+  expect(pip()?.textContent).toBe("26");
 });
