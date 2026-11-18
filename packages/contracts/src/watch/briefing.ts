@@ -102,6 +102,8 @@ export const EnvEventSchema = z.strictObject({
   detail: z.string(),
   inspect: z.string().optional(),
   byHand: z.literal(true).optional(),
+  /** Time-matched run attribution for a maintenance hold. */
+  likely: z.string().optional(),
 });
 export const EnvLaneSchema = z.strictObject({
   id: z.enum(["upgrade", "refresh", "reset", "smoke", "holds"]),
@@ -141,6 +143,34 @@ const EnvStatusSchema = z.strictObject({
 export type EnvBorrow = z.infer<typeof EnvBorrowSchema>;
 export type EnvStatus = z.infer<typeof EnvStatusSchema>;
 
+const EnvActivitySegmentSchema = z.strictObject({
+  kind: z.enum(["maintenance", "borrowed", "estimated", "overlap", "idle"]),
+  start: ObservedAtSchema,
+  end: ObservedAtSchema,
+  title: z.string().optional(),
+});
+const EnvActivitySchema = z.strictObject({
+  label: z.string(),
+  words: z.strictObject({
+    borrow: z.string(),
+    borrows: z.string(),
+    borrowed: z.string(),
+    maintenance: z.string(),
+    idle: z.string(),
+    overlap: z.string(),
+    held: z.string(),
+    estimated: z.string(),
+    estimatedNote: z.string(),
+    unknown: z.string(),
+    missed: z.string(),
+    byHand: z.string(),
+  }),
+  /** An exact partition of the briefing's range, before the window clips it to the visible range. */
+  segments: z.array(EnvActivitySegmentSchema),
+});
+export type EnvActivity = z.infer<typeof EnvActivitySchema>;
+export type EnvActivitySegment = z.infer<typeof EnvActivitySegmentSchema>;
+
 export const EnvironmentSchema = z.strictObject({
   headline: z.string(),
   facts: z.array(BriefFactSchema),
@@ -154,6 +184,7 @@ export const EnvironmentSchema = z.strictObject({
   line: z.string().optional(),
   borrows: z.array(EnvBorrowSchema).optional(),
   forksNote: z.string().optional(),
+  activity: EnvActivitySchema.optional(),
 });
 /** The strip's four marks: stopped or Interrupt, Surface, Ambient, and nothing due or Background. */
 export const MarkSchema = z.enum(["stopped", "needs-person", "in-progress", "nothing-due"]);

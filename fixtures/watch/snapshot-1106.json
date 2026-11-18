@@ -4023,7 +4023,8 @@
               "end": "2026-10-31T00:26:32.000Z",
               "state": "held",
               "label": "23 min",
-              "detail": "in maintenance for 23 min"
+              "detail": "in maintenance for 23 min",
+              "likely": "Likely set by Upgrade v0.33.3. Likely cleared by Upgrade v0.33.3."
             },
             {
               "id": "1793540408000",
@@ -4031,7 +4032,8 @@
               "end": "2026-11-01T14:44:11.000Z",
               "state": "held",
               "label": "1 h 4 min",
-              "detail": "in maintenance for 1 h 4 min"
+              "detail": "in maintenance for 1 h 4 min",
+              "likely": "Likely set by Upgrade v0.34.0. Likely cleared by Upgrade v0.34.0."
             },
             {
               "id": "1793592432000",
@@ -4039,7 +4041,8 @@
               "end": "2026-11-02T04:08:48.000Z",
               "state": "held",
               "label": "2 min",
-              "detail": "in maintenance for 2 min"
+              "detail": "in maintenance for 2 min",
+              "likely": "Likely set by Refresh v0.34.0. Likely cleared by Refresh v0.34.0."
             },
             {
               "id": "1793625940000",
@@ -4047,7 +4050,8 @@
               "end": "2026-11-02T13:41:12.000Z",
               "state": "held",
               "label": "16 min",
-              "detail": "in maintenance for 16 min"
+              "detail": "in maintenance for 16 min",
+              "likely": "Likely set by Upgrade v0.35.0. Likely cleared by Upgrade v0.35.0."
             },
             {
               "id": "1793678819000",
@@ -4055,7 +4059,8 @@
               "end": "2026-11-03T13:45:56.000Z",
               "state": "held",
               "label": "9 h 39 min",
-              "detail": "in maintenance for 9 h 39 min"
+              "detail": "in maintenance for 9 h 39 min",
+              "likely": "Likely set by Refresh v0.35.0. Likely cleared by Upgrade v0.35.1."
             },
             {
               "id": "1793765219000",
@@ -4063,7 +4068,8 @@
               "end": "2026-11-04T06:37:50.000Z",
               "state": "held",
               "label": "2 h 31 min",
-              "detail": "in maintenance for 2 h 31 min"
+              "detail": "in maintenance for 2 h 31 min",
+              "likely": "Likely set by Refresh v0.35.1. Likely cleared by Refresh v0.35.1."
             },
             {
               "id": "1793798036000",
@@ -4071,7 +4077,8 @@
               "end": "2026-11-04T13:29:04.000Z",
               "state": "held",
               "label": "15 min",
-              "detail": "in maintenance for 15 min"
+              "detail": "in maintenance for 15 min",
+              "likely": "Likely set by Upgrade v0.35.2. Likely cleared by Upgrade v0.35.2."
             },
             {
               "id": "1793827637000",
@@ -4079,7 +4086,8 @@
               "end": "2026-11-04T21:49:32.000Z",
               "state": "held",
               "label": "22 min",
-              "detail": "in maintenance for 22 min"
+              "detail": "in maintenance for 22 min",
+              "likely": "Likely set by Upgrade v0.35.3. Likely cleared by Upgrade v0.35.3."
             },
             {
               "id": "1793851622000",
@@ -4087,7 +4095,8 @@
               "end": "2026-11-05T04:09:38.000Z",
               "state": "held",
               "label": "3 min",
-              "detail": "in maintenance for 3 min"
+              "detail": "in maintenance for 3 min",
+              "likely": "Likely set by Refresh v0.35.3. Likely cleared by Refresh v0.35.3."
             },
             {
               "id": "1793938025000",
@@ -4095,7 +4104,8 @@
               "end": "2026-11-06T04:20:16.000Z",
               "state": "held",
               "label": "13 min",
-              "detail": "in maintenance for 13 min"
+              "detail": "in maintenance for 13 min",
+              "likely": "Likely set by Refresh v0.35.3. Likely cleared by Refresh v0.35.3."
             }
           ]
         }
@@ -6577,7 +6587,1435 @@
           "end": "2026-10-31T00:32:02.000Z",
           "links": []
         }
-      ]
+      ],
+      "activity": {
+        "label": "Activity",
+        "words": {
+          "borrow": "borrow",
+          "borrows": "borrows",
+          "borrowed": "borrowed",
+          "maintenance": "maintenance",
+          "idle": "idle",
+          "overlap": "fork overlap",
+          "held": "In maintenance",
+          "estimated": "end estimated",
+          "estimatedNote": "End estimated.",
+          "unknown": "end unknown",
+          "missed": "missed nightly",
+          "byHand": "by hand"
+        },
+        "segments": [
+          {
+            "kind": "idle",
+            "start": "2026-10-31T00:00:00.000Z",
+            "end": "2026-10-31T00:03:30.000Z"
+          },
+          {
+            "kind": "maintenance",
+            "start": "2026-10-31T00:03:30.000Z",
+            "end": "2026-10-31T00:26:32.000Z"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-10-31T00:26:32.000Z",
+            "end": "2026-10-31T00:28:52.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-10-31T00:28:52.000Z",
+            "end": "2026-10-31T00:32:02.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-10-31T00:32:02.000Z",
+            "end": "2026-10-31T00:48:38.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-10-31T00:48:38.000Z",
+            "end": "2026-10-31T00:55:28.000Z",
+            "title": "indexer-queue"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-10-31T00:55:28.000Z",
+            "end": "2026-10-31T01:18:44.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-10-31T01:18:44.000Z",
+            "end": "2026-10-31T01:24:38.000Z",
+            "title": "indexer-queue"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-10-31T01:24:38.000Z",
+            "end": "2026-10-31T01:40:58.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-10-31T01:40:58.000Z",
+            "end": "2026-10-31T01:42:34.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-10-31T01:42:34.000Z",
+            "end": "2026-10-31T01:46:06.000Z",
+            "title": "indexer × indexer-queue"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-10-31T01:46:06.000Z",
+            "end": "2026-10-31T01:47:17.000Z",
+            "title": "indexer-queue"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-10-31T01:47:17.000Z",
+            "end": "2026-10-31T01:52:10.000Z",
+            "title": "indexer-queue × workflow"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-10-31T01:52:10.000Z",
+            "end": "2026-10-31T02:01:22.000Z",
+            "title": "workflow"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-10-31T02:01:22.000Z",
+            "end": "2026-10-31T02:52:42.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-10-31T02:52:42.000Z",
+            "end": "2026-10-31T03:06:16.000Z",
+            "title": "workflow"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-10-31T03:06:16.000Z",
+            "end": "2026-10-31T12:31:16.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-10-31T12:31:16.000Z",
+            "end": "2026-10-31T12:36:07.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-10-31T12:36:07.000Z",
+            "end": "2026-10-31T12:37:03.000Z",
+            "title": "indexer × workflow"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-10-31T12:37:03.000Z",
+            "end": "2026-10-31T12:45:46.000Z",
+            "title": "workflow"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-10-31T12:45:46.000Z",
+            "end": "2026-10-31T12:49:52.000Z",
+            "title": "indexer × workflow"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-10-31T12:49:52.000Z",
+            "end": "2026-10-31T12:51:16.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-10-31T12:51:16.000Z",
+            "end": "2026-10-31T13:14:46.000Z"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-10-31T13:14:46.000Z",
+            "end": "2026-10-31T13:25:27.000Z",
+            "title": "storage"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-10-31T13:25:27.000Z",
+            "end": "2026-10-31T13:26:55.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-10-31T13:26:55.000Z",
+            "end": "2026-10-31T13:30:42.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-10-31T13:30:42.000Z",
+            "end": "2026-10-31T13:35:44.000Z",
+            "title": "crs-catalog × crs-conversion × indexer"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-10-31T13:35:44.000Z",
+            "end": "2026-10-31T13:38:52.000Z",
+            "title": "crs-conversion"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-10-31T13:38:52.000Z",
+            "end": "2026-11-01T13:40:08.000Z"
+          },
+          {
+            "kind": "maintenance",
+            "start": "2026-11-01T13:40:08.000Z",
+            "end": "2026-11-01T14:44:11.000Z"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-01T14:44:11.000Z",
+            "end": "2026-11-01T15:03:54.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-01T15:03:54.000Z",
+            "end": "2026-11-01T15:53:04.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-01T15:53:04.000Z",
+            "end": "2026-11-01T16:05:11.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-01T16:05:11.000Z",
+            "end": "2026-11-01T17:39:04.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-01T17:39:04.000Z",
+            "end": "2026-11-01T17:53:49.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-01T17:53:49.000Z",
+            "end": "2026-11-01T20:02:18.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-01T20:02:18.000Z",
+            "end": "2026-11-01T20:49:37.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-01T20:49:37.000Z",
+            "end": "2026-11-01T21:21:15.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-01T21:21:15.000Z",
+            "end": "2026-11-02T00:37:46.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-02T00:37:46.000Z",
+            "end": "2026-11-02T01:08:12.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-02T01:08:12.000Z",
+            "end": "2026-11-02T04:07:12.000Z"
+          },
+          {
+            "kind": "maintenance",
+            "start": "2026-11-02T04:07:12.000Z",
+            "end": "2026-11-02T04:08:48.000Z"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-02T04:08:48.000Z",
+            "end": "2026-11-02T08:11:22.000Z"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-02T08:11:22.000Z",
+            "end": "2026-11-02T08:17:35.000Z",
+            "title": "partition"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-02T08:17:35.000Z",
+            "end": "2026-11-02T08:20:34.000Z",
+            "title": "indexer-queue"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-02T08:20:34.000Z",
+            "end": "2026-11-02T08:47:21.000Z",
+            "title": "crs-conversion × entitlements × file × indexer-queue × legal × search × unit × workflow"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-02T08:47:21.000Z",
+            "end": "2026-11-02T09:02:10.000Z",
+            "title": "search"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-02T09:02:10.000Z",
+            "end": "2026-11-02T13:25:40.000Z"
+          },
+          {
+            "kind": "maintenance",
+            "start": "2026-11-02T13:25:40.000Z",
+            "end": "2026-11-02T13:41:12.000Z"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-02T13:41:12.000Z",
+            "end": "2026-11-02T14:10:33.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-02T14:10:33.000Z",
+            "end": "2026-11-02T14:41:29.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-02T14:41:29.000Z",
+            "end": "2026-11-02T15:27:37.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-02T15:27:37.000Z",
+            "end": "2026-11-02T16:00:08.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-02T16:00:08.000Z",
+            "end": "2026-11-02T16:21:54.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-02T16:21:54.000Z",
+            "end": "2026-11-02T16:50:38.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-02T16:50:38.000Z",
+            "end": "2026-11-02T17:44:38.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-02T17:44:38.000Z",
+            "end": "2026-11-02T17:45:26.000Z",
+            "title": "legal"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-02T17:45:26.000Z",
+            "end": "2026-11-02T17:49:18.000Z",
+            "title": "legal × search"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-02T17:49:18.000Z",
+            "end": "2026-11-02T17:49:30.000Z",
+            "title": "search"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-02T17:49:30.000Z",
+            "end": "2026-11-02T18:07:00.000Z",
+            "title": "crs-conversion × indexer-queue × search × workflow"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-02T18:07:00.000Z",
+            "end": "2026-11-02T18:30:26.000Z",
+            "title": "search"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-02T18:30:26.000Z",
+            "end": "2026-11-02T18:34:12.000Z"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-02T18:34:12.000Z",
+            "end": "2026-11-02T18:35:29.000Z",
+            "title": "unit"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-02T18:35:29.000Z",
+            "end": "2026-11-02T18:41:19.000Z",
+            "title": "file"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-02T18:41:19.000Z",
+            "end": "2026-11-02T18:42:50.000Z",
+            "title": "unit"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-02T18:42:50.000Z",
+            "end": "2026-11-02T18:42:57.000Z",
+            "title": "entitlements, unit"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-02T18:42:57.000Z",
+            "end": "2026-11-02T18:49:21.000Z",
+            "title": "indexer-queue"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-02T18:49:21.000Z",
+            "end": "2026-11-02T18:53:22.000Z",
+            "title": "entitlements, unit"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-02T18:53:22.000Z",
+            "end": "2026-11-02T18:54:38.000Z",
+            "title": "file"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-02T18:54:38.000Z",
+            "end": "2026-11-02T18:58:55.000Z",
+            "title": "file × search"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-02T18:58:55.000Z",
+            "end": "2026-11-02T19:20:29.000Z",
+            "title": "search"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-02T19:20:29.000Z",
+            "end": "2026-11-02T19:26:46.000Z",
+            "title": "crs-catalog"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-02T19:26:46.000Z",
+            "end": "2026-11-02T19:57:08.000Z"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-02T19:57:08.000Z",
+            "end": "2026-11-02T19:57:16.000Z",
+            "title": "crs-catalog"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-02T19:57:16.000Z",
+            "end": "2026-11-02T20:35:41.000Z",
+            "title": "search"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-02T20:35:41.000Z",
+            "end": "2026-11-02T20:52:40.000Z",
+            "title": "crs-conversion × file × indexer × indexer-queue × legal × partition × schema × search × storage × unit × workflow"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-02T20:52:40.000Z",
+            "end": "2026-11-02T21:25:56.000Z",
+            "title": "search"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-02T21:25:56.000Z",
+            "end": "2026-11-02T21:27:41.000Z",
+            "title": "crs-catalog, unit"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-02T21:27:41.000Z",
+            "end": "2026-11-02T21:27:54.000Z",
+            "title": "crs-catalog"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-02T21:27:54.000Z",
+            "end": "2026-11-02T21:33:01.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-02T21:33:01.000Z",
+            "end": "2026-11-02T21:35:58.000Z",
+            "title": "crs-conversion"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-02T21:35:58.000Z",
+            "end": "2026-11-02T21:45:00.000Z",
+            "title": "crs-catalog"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-02T21:45:00.000Z",
+            "end": "2026-11-02T21:47:33.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-02T21:47:33.000Z",
+            "end": "2026-11-02T21:50:17.000Z",
+            "title": "crs-conversion"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-02T21:50:17.000Z",
+            "end": "2026-11-02T22:13:30.000Z",
+            "title": "crs-conversion × file × indexer × indexer-queue × legal × workflow"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-02T22:13:30.000Z",
+            "end": "2026-11-02T22:25:38.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-02T22:25:38.000Z",
+            "end": "2026-11-02T22:45:52.000Z"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-02T22:45:52.000Z",
+            "end": "2026-11-02T22:51:42.000Z",
+            "title": "unit"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-02T22:51:42.000Z",
+            "end": "2026-11-02T22:54:16.000Z",
+            "title": "unit"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-02T22:54:16.000Z",
+            "end": "2026-11-02T23:13:21.000Z"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-02T23:13:21.000Z",
+            "end": "2026-11-02T23:24:02.000Z",
+            "title": "unit"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-02T23:24:02.000Z",
+            "end": "2026-11-02T23:29:09.000Z"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-02T23:29:09.000Z",
+            "end": "2026-11-02T23:40:21.000Z",
+            "title": "unit"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-02T23:40:21.000Z",
+            "end": "2026-11-02T23:43:51.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-02T23:43:51.000Z",
+            "end": "2026-11-02T23:50:46.000Z",
+            "title": "legal"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-02T23:50:46.000Z",
+            "end": "2026-11-02T23:52:46.000Z",
+            "title": "unit"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-02T23:52:46.000Z",
+            "end": "2026-11-02T23:56:11.000Z",
+            "title": "crs-conversion"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-02T23:56:11.000Z",
+            "end": "2026-11-02T23:58:16.000Z",
+            "title": "crs-catalog, unit"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-02T23:58:16.000Z",
+            "end": "2026-11-03T00:04:11.000Z",
+            "title": "crs-catalog"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-03T00:04:11.000Z",
+            "end": "2026-11-03T00:09:03.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T00:09:03.000Z",
+            "end": "2026-11-03T00:10:07.000Z",
+            "title": "partition"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-03T00:10:07.000Z",
+            "end": "2026-11-03T00:31:13.000Z",
+            "title": "file × indexer × legal × partition × search × storage × workflow"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T00:31:13.000Z",
+            "end": "2026-11-03T00:34:51.000Z",
+            "title": "file"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-03T00:34:51.000Z",
+            "end": "2026-11-03T00:39:34.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T00:39:34.000Z",
+            "end": "2026-11-03T00:43:49.000Z",
+            "title": "indexer-queue"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-03T00:43:49.000Z",
+            "end": "2026-11-03T00:43:52.000Z",
+            "title": "indexer-queue × partition"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T00:43:52.000Z",
+            "end": "2026-11-03T00:48:00.000Z",
+            "title": "partition"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-03T00:48:00.000Z",
+            "end": "2026-11-03T01:15:57.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T01:15:57.000Z",
+            "end": "2026-11-03T01:48:11.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-03T01:48:11.000Z",
+            "end": "2026-11-03T01:49:36.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T01:49:36.000Z",
+            "end": "2026-11-03T02:19:19.000Z",
+            "title": "search"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-03T02:19:19.000Z",
+            "end": "2026-11-03T02:20:01.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T02:20:01.000Z",
+            "end": "2026-11-03T02:20:03.000Z",
+            "title": "legal"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-03T02:20:03.000Z",
+            "end": "2026-11-03T02:31:29.000Z",
+            "title": "file × legal × workflow"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T02:31:29.000Z",
+            "end": "2026-11-03T02:34:36.000Z",
+            "title": "workflow"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-03T02:34:36.000Z",
+            "end": "2026-11-03T02:35:54.000Z"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-03T02:35:54.000Z",
+            "end": "2026-11-03T02:46:35.000Z",
+            "title": "storage"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-03T02:46:35.000Z",
+            "end": "2026-11-03T02:46:44.000Z"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-03T02:46:44.000Z",
+            "end": "2026-11-03T02:50:21.000Z",
+            "title": "storage"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T02:50:21.000Z",
+            "end": "2026-11-03T02:53:38.000Z",
+            "title": "file"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-03T02:53:38.000Z",
+            "end": "2026-11-03T02:55:03.000Z",
+            "title": "file × search"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T02:55:03.000Z",
+            "end": "2026-11-03T03:53:35.000Z",
+            "title": "search"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-03T03:53:35.000Z",
+            "end": "2026-11-03T04:06:59.000Z"
+          },
+          {
+            "kind": "maintenance",
+            "start": "2026-11-03T04:06:59.000Z",
+            "end": "2026-11-03T13:45:56.000Z"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-03T13:45:56.000Z",
+            "end": "2026-11-03T13:48:26.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T13:48:26.000Z",
+            "end": "2026-11-03T13:51:26.000Z",
+            "title": "search"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-03T13:51:26.000Z",
+            "end": "2026-11-03T14:00:34.000Z",
+            "title": "entitlements × file × legal × partition × search"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T14:00:34.000Z",
+            "end": "2026-11-03T14:06:34.000Z",
+            "title": "search"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-03T14:06:34.000Z",
+            "end": "2026-11-03T14:16:14.000Z",
+            "title": "crs-conversion × indexer-queue × partition × search"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T14:16:14.000Z",
+            "end": "2026-11-03T14:17:53.000Z",
+            "title": "search"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-03T14:17:53.000Z",
+            "end": "2026-11-03T14:27:12.000Z",
+            "title": "file × legal × search × workflow"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T14:27:12.000Z",
+            "end": "2026-11-03T14:29:27.000Z",
+            "title": "workflow"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-03T14:29:27.000Z",
+            "end": "2026-11-03T14:29:42.000Z",
+            "title": "entitlements, unit"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-03T14:29:42.000Z",
+            "end": "2026-11-03T14:31:25.000Z",
+            "title": "entitlements"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-03T14:31:25.000Z",
+            "end": "2026-11-03T17:25:20.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T17:25:20.000Z",
+            "end": "2026-11-03T17:32:05.000Z",
+            "title": "indexer-queue"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-03T17:32:05.000Z",
+            "end": "2026-11-03T17:50:16.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T17:50:16.000Z",
+            "end": "2026-11-03T17:57:29.000Z",
+            "title": "indexer-queue"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-03T17:57:29.000Z",
+            "end": "2026-11-03T18:10:10.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T18:10:10.000Z",
+            "end": "2026-11-03T18:14:21.000Z",
+            "title": "search"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-03T18:14:21.000Z",
+            "end": "2026-11-03T18:19:06.000Z",
+            "title": "indexer-queue × search"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T18:19:06.000Z",
+            "end": "2026-11-03T18:39:06.000Z",
+            "title": "search"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-03T18:39:06.000Z",
+            "end": "2026-11-03T18:47:06.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T18:47:06.000Z",
+            "end": "2026-11-03T19:11:24.000Z",
+            "title": "search"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-03T19:11:24.000Z",
+            "end": "2026-11-03T19:50:02.000Z"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-03T19:50:02.000Z",
+            "end": "2026-11-03T20:00:43.000Z",
+            "title": "schema"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-03T20:00:43.000Z",
+            "end": "2026-11-03T20:07:33.000Z"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-03T20:07:33.000Z",
+            "end": "2026-11-03T20:10:50.000Z",
+            "title": "storage"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T20:10:50.000Z",
+            "end": "2026-11-03T20:17:51.000Z",
+            "title": "search"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-03T20:17:51.000Z",
+            "end": "2026-11-03T20:50:51.000Z",
+            "title": "indexer × search"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T20:50:51.000Z",
+            "end": "2026-11-03T21:12:53.000Z",
+            "title": "search"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-03T21:12:53.000Z",
+            "end": "2026-11-03T22:14:12.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T22:14:12.000Z",
+            "end": "2026-11-03T22:35:11.000Z",
+            "title": "search"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-03T22:35:11.000Z",
+            "end": "2026-11-03T22:41:28.000Z",
+            "title": "search × storage"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-03T22:41:28.000Z",
+            "end": "2026-11-03T22:45:51.000Z",
+            "title": "storage"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-03T22:45:51.000Z",
+            "end": "2026-11-04T01:00:18.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-04T01:00:18.000Z",
+            "end": "2026-11-04T01:29:00.000Z",
+            "title": "search"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-04T01:29:00.000Z",
+            "end": "2026-11-04T03:12:57.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-04T03:12:57.000Z",
+            "end": "2026-11-04T03:15:19.000Z",
+            "title": "file"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-04T03:15:19.000Z",
+            "end": "2026-11-04T03:18:02.000Z",
+            "title": "file × search"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-04T03:18:02.000Z",
+            "end": "2026-11-04T03:23:57.000Z",
+            "title": "file"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-04T03:23:57.000Z",
+            "end": "2026-11-04T03:37:11.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-04T03:37:11.000Z",
+            "end": "2026-11-04T03:51:44.000Z",
+            "title": "file"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-04T03:51:44.000Z",
+            "end": "2026-11-04T04:06:59.000Z"
+          },
+          {
+            "kind": "maintenance",
+            "start": "2026-11-04T04:06:59.000Z",
+            "end": "2026-11-04T06:37:50.000Z"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-04T06:37:50.000Z",
+            "end": "2026-11-04T08:11:06.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-04T08:11:06.000Z",
+            "end": "2026-11-04T08:15:46.000Z",
+            "title": "partition"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-04T08:15:46.000Z",
+            "end": "2026-11-04T08:18:19.000Z"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-04T08:18:19.000Z",
+            "end": "2026-11-04T08:18:55.000Z",
+            "title": "storage"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-04T08:18:55.000Z",
+            "end": "2026-11-04T08:19:00.000Z",
+            "title": "indexer-queue"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-04T08:19:00.000Z",
+            "end": "2026-11-04T08:20:05.000Z",
+            "title": "indexer × indexer-queue"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-04T08:20:05.000Z",
+            "end": "2026-11-04T08:21:04.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-04T08:21:04.000Z",
+            "end": "2026-11-04T08:51:53.000Z",
+            "title": "crs-conversion × file × indexer × search"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-04T08:51:53.000Z",
+            "end": "2026-11-04T08:53:55.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-04T08:53:55.000Z",
+            "end": "2026-11-04T13:13:56.000Z"
+          },
+          {
+            "kind": "maintenance",
+            "start": "2026-11-04T13:13:56.000Z",
+            "end": "2026-11-04T13:29:04.000Z"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-04T13:29:04.000Z",
+            "end": "2026-11-04T15:22:49.000Z"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-04T15:22:49.000Z",
+            "end": "2026-11-04T15:23:49.000Z",
+            "title": "crs-catalog"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-04T15:23:49.000Z",
+            "end": "2026-11-04T15:24:28.000Z",
+            "title": "unit"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-04T15:24:28.000Z",
+            "end": "2026-11-04T16:17:07.000Z",
+            "title": "crs-conversion × file × indexer × indexer-queue × legal × partition × search × unit × workflow"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-04T16:17:07.000Z",
+            "end": "2026-11-04T16:23:34.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-04T16:23:34.000Z",
+            "end": "2026-11-04T16:25:30.000Z"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-04T16:25:30.000Z",
+            "end": "2026-11-04T16:36:11.000Z",
+            "title": "unit"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-04T16:36:11.000Z",
+            "end": "2026-11-04T17:06:34.000Z"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-04T17:06:34.000Z",
+            "end": "2026-11-04T17:06:56.000Z",
+            "title": "unit"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-04T17:06:56.000Z",
+            "end": "2026-11-04T17:11:44.000Z",
+            "title": "crs-conversion"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-04T17:11:44.000Z",
+            "end": "2026-11-04T17:11:46.000Z",
+            "title": "unit"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-04T17:11:46.000Z",
+            "end": "2026-11-04T17:41:53.000Z",
+            "title": "workflow"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-04T17:41:53.000Z",
+            "end": "2026-11-04T17:42:06.000Z",
+            "title": "partition × workflow"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-04T17:42:06.000Z",
+            "end": "2026-11-04T17:44:20.000Z",
+            "title": "partition"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-04T17:44:20.000Z",
+            "end": "2026-11-04T17:50:43.000Z",
+            "title": "legal × partition"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-04T17:50:43.000Z",
+            "end": "2026-11-04T17:52:48.000Z",
+            "title": "partition"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-04T17:52:48.000Z",
+            "end": "2026-11-04T17:56:16.000Z",
+            "title": "crs-catalog, entitlements"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-04T17:56:16.000Z",
+            "end": "2026-11-04T18:00:29.000Z",
+            "title": "file"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-04T18:00:29.000Z",
+            "end": "2026-11-04T18:01:51.000Z",
+            "title": "crs-catalog"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-04T18:01:51.000Z",
+            "end": "2026-11-04T18:16:57.000Z"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-04T18:16:57.000Z",
+            "end": "2026-11-04T18:27:38.000Z",
+            "title": "schema"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-04T18:27:38.000Z",
+            "end": "2026-11-04T18:33:30.000Z"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-04T18:33:30.000Z",
+            "end": "2026-11-04T18:44:11.000Z",
+            "title": "storage"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-04T18:44:11.000Z",
+            "end": "2026-11-04T19:08:02.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-04T19:08:02.000Z",
+            "end": "2026-11-04T19:13:38.000Z",
+            "title": "indexer-queue"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-04T19:13:38.000Z",
+            "end": "2026-11-04T19:26:47.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-04T19:26:47.000Z",
+            "end": "2026-11-04T19:57:23.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-04T19:57:23.000Z",
+            "end": "2026-11-04T20:11:15.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-04T20:11:15.000Z",
+            "end": "2026-11-04T20:40:33.000Z",
+            "title": "search"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-04T20:40:33.000Z",
+            "end": "2026-11-04T20:49:52.000Z",
+            "title": "unit"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-04T20:49:52.000Z",
+            "end": "2026-11-04T21:27:17.000Z"
+          },
+          {
+            "kind": "maintenance",
+            "start": "2026-11-04T21:27:17.000Z",
+            "end": "2026-11-04T21:49:32.000Z"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-04T21:49:32.000Z",
+            "end": "2026-11-04T23:36:36.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-04T23:36:36.000Z",
+            "end": "2026-11-04T23:36:42.000Z",
+            "title": "partition"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-04T23:36:42.000Z",
+            "end": "2026-11-04T23:43:24.000Z",
+            "title": "file × legal × partition"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-04T23:43:24.000Z",
+            "end": "2026-11-04T23:45:24.000Z",
+            "title": "file"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-04T23:45:24.000Z",
+            "end": "2026-11-04T23:53:44.000Z",
+            "title": "schema"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-04T23:53:44.000Z",
+            "end": "2026-11-05T00:02:21.000Z"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-05T00:02:21.000Z",
+            "end": "2026-11-05T00:13:02.000Z",
+            "title": "entitlements"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-05T00:13:02.000Z",
+            "end": "2026-11-05T04:07:02.000Z"
+          },
+          {
+            "kind": "maintenance",
+            "start": "2026-11-05T04:07:02.000Z",
+            "end": "2026-11-05T04:09:38.000Z"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-05T04:09:38.000Z",
+            "end": "2026-11-05T08:10:06.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-05T08:10:06.000Z",
+            "end": "2026-11-05T08:14:29.000Z",
+            "title": "partition"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-05T08:14:29.000Z",
+            "end": "2026-11-05T08:17:43.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-05T08:17:43.000Z",
+            "end": "2026-11-05T08:19:04.000Z",
+            "title": "legal"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-05T08:19:04.000Z",
+            "end": "2026-11-05T08:30:33.000Z",
+            "title": "crs-conversion × file × indexer × indexer-queue × legal"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-05T08:30:33.000Z",
+            "end": "2026-11-05T08:31:04.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-05T08:31:04.000Z",
+            "end": "2026-11-05T08:50:13.000Z",
+            "title": "indexer × search × workflow"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-05T08:50:13.000Z",
+            "end": "2026-11-05T08:56:51.000Z",
+            "title": "search"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-05T08:56:51.000Z",
+            "end": "2026-11-05T14:07:55.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-05T14:07:55.000Z",
+            "end": "2026-11-05T14:09:36.000Z",
+            "title": "storage"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-05T14:09:36.000Z",
+            "end": "2026-11-05T14:22:00.000Z",
+            "title": "file × legal × schema × storage"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-05T14:22:00.000Z",
+            "end": "2026-11-05T14:44:20.000Z",
+            "title": "storage"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-05T14:44:20.000Z",
+            "end": "2026-11-05T14:59:24.000Z",
+            "title": "indexer × indexer-queue × partition × storage × workflow"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-05T14:59:24.000Z",
+            "end": "2026-11-05T15:03:11.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-05T15:03:11.000Z",
+            "end": "2026-11-05T15:05:47.000Z",
+            "title": "indexer × unit"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-05T15:05:47.000Z",
+            "end": "2026-11-05T15:10:33.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "overlap",
+            "start": "2026-11-05T15:10:33.000Z",
+            "end": "2026-11-05T15:14:40.000Z",
+            "title": "crs-conversion × indexer"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-05T15:14:40.000Z",
+            "end": "2026-11-05T15:18:34.000Z",
+            "title": "indexer"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-05T15:18:34.000Z",
+            "end": "2026-11-05T15:34:37.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-05T15:34:37.000Z",
+            "end": "2026-11-05T16:03:58.000Z",
+            "title": "search"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-05T16:03:58.000Z",
+            "end": "2026-11-05T16:07:31.000Z",
+            "title": "crs-catalog"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-05T16:07:31.000Z",
+            "end": "2026-11-05T16:10:54.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-05T16:10:54.000Z",
+            "end": "2026-11-05T16:13:57.000Z",
+            "title": "crs-catalog"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-05T16:13:57.000Z",
+            "end": "2026-11-05T18:15:07.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-05T18:15:07.000Z",
+            "end": "2026-11-05T18:47:17.000Z",
+            "title": "entitlements"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-05T18:47:17.000Z",
+            "end": "2026-11-05T19:55:19.000Z"
+          },
+          {
+            "kind": "estimated",
+            "start": "2026-11-05T19:55:19.000Z",
+            "end": "2026-11-05T20:06:00.000Z",
+            "title": "entitlements"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-05T20:06:00.000Z",
+            "end": "2026-11-05T21:15:34.000Z"
+          },
+          {
+            "kind": "borrowed",
+            "start": "2026-11-05T21:15:34.000Z",
+            "end": "2026-11-05T21:21:38.000Z",
+            "title": "entitlements"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-05T21:21:38.000Z",
+            "end": "2026-11-06T04:07:05.000Z"
+          },
+          {
+            "kind": "maintenance",
+            "start": "2026-11-06T04:07:05.000Z",
+            "end": "2026-11-06T04:20:16.000Z"
+          },
+          {
+            "kind": "idle",
+            "start": "2026-11-06T04:20:16.000Z",
+            "end": "2026-11-06T14:02:00.133Z"
+          }
+        ]
+      }
     },
     "repositories": {
       "headline": "Security alerts have not been read yet.",

@@ -93,11 +93,11 @@ export function span(ms: number): string | undefined {
 }
 
 /** When the event ran, without its length. */
-export function eventSpan(e: EnvEvent, now: Date): string {
+export function eventSpan(e: Pick<EnvEvent, "start" | "end">, now: Date): string {
   return `${stamp(e.start, now)} to ${e.end ? stamp(e.end, now) : "now"}`;
 }
 
-export function eventWhen(e: EnvEvent, now: Date): string {
+export function eventWhen(e: Pick<EnvEvent, "start" | "end">, now: Date): string {
   const took = span((e.end ? Date.parse(e.end) : now.getTime()) - Date.parse(e.start));
   return `${eventSpan(e, now)}${took ? ` \u00b7 ${took}` : ""}`;
 }

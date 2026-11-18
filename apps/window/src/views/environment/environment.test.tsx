@@ -398,6 +398,7 @@ it("omits absent snapshot parts and leaves unidentifiable lines as text, not fak
     const bare = structuredClone(body);
     bare.briefing.environment.facts = [];
     bare.briefing.environment.lanes = [];
+    delete bare.briefing.environment.activity;
     delete bare.briefing.environment.forksNote;
     bare.briefing.environment.borrows = [];
     bare.briefing.repositories.rows = bare.briefing.repositories.rows.filter(
@@ -465,7 +466,7 @@ it("draws the last 24 hours open between status and the items, an open hold apar
     expect(day.querySelector("h3")?.textContent).toBe("Last 24 hours");
     expect(status.compareDocumentPosition(day)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(day.compareDocumentPosition(groups)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-    const holds = [...day.querySelectorAll<HTMLElement>('[data-lane="holds"] [data-event]')];
+    const holds = [...day.querySelectorAll<HTMLElement>('[data-event^="holds:"]')];
     expect(holds.map((bar) => [bar.dataset.event, bar.classList.contains("open")])).toEqual([
       [`holds:${open.id}`, true],
       [`holds:${ended.id}`, false],
@@ -522,8 +523,9 @@ it.each([
     );
     expect(runs.querySelector("[aria-label='Upstream syncs']")).not.toBeNull();
     expect(runs.querySelector("[data-lane], .place-tile, [data-pointer*='/facts/']")).toBeNull();
+    const env = view.body.briefing.environment;
     expect(view.page.querySelectorAll(".env-day [data-lane]")).toHaveLength(
-      view.body.briefing.environment.lanes.length,
+      env.lanes.filter(({ id }) => id !== "holds" || !env.activity).length,
     );
   } finally {
     await view.done();
@@ -552,8 +554,12 @@ function formerFields(body: ReturnType<typeof mixedSnapshot>): FormerField[] {
       {
         field: `lane ${lane.id}`,
         find: (page: HTMLElement) =>
-          page.querySelector(`[data-lane='${lane.id}'] .env-lane-label`) ?? undefined,
-        text: lane.label,
+          page.querySelector(
+            lane.id === "holds" && env.activity
+              ? ".env-activity .env-lane-label"
+              : `[data-lane='${lane.id}'] .env-lane-label`,
+          ) ?? undefined,
+        text: lane.id === "holds" && env.activity ? env.activity.label : lane.label,
       },
       ...(lane.events.every(({ end }) => end && Date.parse(end) < now.getTime() - 86_400_000)
         ? [
@@ -569,9 +575,7 @@ function formerFields(body: ReturnType<typeof mixedSnapshot>): FormerField[] {
             .map((event) => ({
               field: `lane ${lane.id} event ${event.id}`,
               find: (page: HTMLElement) =>
-                all(page, `[data-lane='${lane.id}'] [data-event]`).find((element) =>
-                  element.getAttribute("aria-label")?.includes(eventWhen(event, now)),
-                ),
+                page.querySelector(`[data-event='${lane.id}:${event.id}']`) ?? undefined,
               text: event.label,
             }))),
     ]),
@@ -674,5 +678,117 @@ it("draws a Reset row only when core sends the Reset lane", async () => {
     expect(withReset.page.querySelector('[data-lane="reset"]')).not.toBeNull();
   } finally {
     await withReset.done();
+  }
+});
+
+it("summarizes the visible activity and restores focus to its hold and overlap anchors", async () => {
+  const body = mixedSnapshot(recorded);
+  const env = body.briefing.environment;
+  const activity = env.activity;
+  if (!activity) throw new Error("Recorded app activity required");
+  const to = Date.parse(env.to);
+  const at = (hours: number) => new Date(to + hours * 3_600_000).toISOString();
+  activity.segments = [
+    { start: at(-25), end: at(-23), kind: "maintenance" },
+    { start: at(-23), end: at(-19), kind: "idle" },
+    { start: at(-19), end: at(-18), kind: "borrowed", title: "search" },
+    { start: at(-18), end: at(-17.5), kind: "overlap", title: "indexer × search" },
+    { start: at(-17.5), end: at(-17), kind: "borrowed", title: "search" },
+    { start: at(-17), end: at(-14), kind: "idle" },
+    { start: at(-14), end: at(-13), kind: "maintenance" },
+    { start: at(-13), end: at(0), kind: "idle" },
+  ];
+  const estimate = {
+    id: "3",
+    fork: "legal",
+    start: at(-18),
+    end: at(-17.5),
+    result: "unknown" as const,
+    estimated: true as const,
+    links: [],
+  };
+  env.borrows = [
+    { id: "1", fork: "search", start: at(-19), end: at(-17), result: "green", links: [] },
+    { id: "2", fork: "indexer", start: at(-18), end: at(-17.5), result: "failed", links: [] },
+    estimate,
+  ];
+  const hold = (id: string, start: number, end: number) => ({
+    id,
+    start: at(start),
+    end: at(end),
+    state: "held" as const,
+    label: `${end - start} h`,
+    detail: "",
+  });
+  env.lanes = [
+    { id: "holds", label: "Held", events: [hold("past", -25, -23), hold("short", -14, -13)] },
+  ];
+
+  const shown = await renderRecorded(body);
+  const summary = (page: Element) =>
+    page.querySelector(".env-activity-summary")?.textContent?.replaceAll("\u00a0", " ");
+  const legend = (page: Element) =>
+    [...page.querySelectorAll("[data-legend]")].map((mark) => mark.textContent);
+  const anchor = (selector: string) => {
+    const element = shown.page.querySelector<HTMLButtonElement>(selector);
+    if (!element) throw new Error(`Missing activity button ${selector}`);
+    return element;
+  };
+  try {
+    expect(summary(shown.page)).toBe(
+      "3 borrows · ≈2 h borrowed · 2 h maintenance · 20 h idle · 30 min fork overlap",
+    );
+    expect(legend(shown.page)).toEqual([
+      "green",
+      "failed",
+      "borrowed",
+      "end estimated",
+      "maintenance",
+      "fork overlap",
+    ]);
+    expect(
+      [...shown.page.querySelectorAll(".env-idle-label")].map((label) =>
+        label.textContent?.replaceAll("\u00a0", " "),
+      ),
+    ).toEqual(["idle 4 h", "idle 13 h"]);
+    const past = anchor('[data-event="holds:past"]');
+    expect(past.textContent).toBe("‹ 2 h");
+    await act(async () => past.click());
+    expect(shown.page.querySelector(".popover h3")?.textContent).toBe("In maintenance · 2 h");
+    const close = anchor('.popover button[aria-label="Close"]');
+    await act(async () => close.click());
+    expect(document.activeElement).toBe(past);
+    const overlap = anchor('button[data-mark="overlap"]');
+    await act(async () => overlap.click());
+    expect(shown.page.querySelector(".popover h3")?.textContent).toBe("indexer × search");
+    await act(async () =>
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+    );
+    expect(document.activeElement).toBe(overlap);
+  } finally {
+    await shown.done();
+  }
+
+  estimate.start = at(-25);
+  estimate.end = at(-24);
+  const measured = await renderRecorded(body);
+  try {
+    expect(summary(measured.page)).toBe(
+      "2 borrows · 2 h borrowed · 2 h maintenance · 20 h idle · 30 min fork overlap",
+    );
+    expect(legend(measured.page)).not.toContain("end estimated");
+  } finally {
+    await measured.done();
+  }
+
+  env.lanes = [];
+  env.borrows = [];
+  activity.segments = [{ start: at(-24), end: at(0), kind: "idle" }];
+  const idle = await renderRecorded(body);
+  try {
+    expect(summary(idle.page)).toBe("24 h idle");
+    expect(legend(idle.page)).toEqual([]);
+  } finally {
+    await idle.done();
   }
 });

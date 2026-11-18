@@ -19,7 +19,7 @@ import {
 import { envelopesFor } from "../../store/evidence.js";
 import { plainTitle } from "../../text.js";
 import { borrowWhen, dayFrom } from "./borrows.js";
-import { eventKey, eventSpan } from "./timeline.js";
+import { eventKey, eventSpan, eventWhen } from "./timeline.js";
 
 const ENVIRONMENT = { kind: "environment" } as const;
 const STACK = "osdu-spi-stack";
@@ -163,8 +163,9 @@ function eventOpening(snapshot: ViewSnapshot, key: string): EnvironmentOpening |
   if (!found) return undefined;
   const { lane, e } = found;
   const env = snapshot.briefing.environment;
+  const holdWords = lane.id === "holds" ? env.activity?.words : undefined;
   const place: BodyPlace = {
-    label: `Environment › Last 24 hours › ${lane.label}`,
+    label: `Environment › Last 24 hours › ${holdWords ? env.activity?.label : lane.label}`,
     destination: ENVIRONMENT,
     selection: { kind: "event", id: key },
   };
@@ -190,6 +191,18 @@ function eventOpening(snapshot: ViewSnapshot, key: string): EnvironmentOpening |
               })),
           )
       : [];
+  if (holdWords) {
+    return {
+      content: {
+        title: `${holdWords.held} · ${e.label}`,
+        place,
+        subject: null,
+        cause: `From ${eventSpan(e, new Date(to))}`,
+        ...(e.likely ? { effect: e.likely } : {}),
+      },
+      during,
+    };
+  }
   const member = memberOf(snapshot, e.inspect);
   if (member) {
     const content = todayContent({
@@ -285,6 +298,25 @@ export function environmentOpening(
   switch (open.kind) {
     case "event":
       return eventOpening(snapshot, open.id);
+    case "activity": {
+      const { activity, to } = snapshot.briefing.environment;
+      const segment = activity?.segments.find(({ start }) => start === open.id);
+      if (!activity || !segment?.title) return undefined;
+      return {
+        content: {
+          title: segment.title,
+          place: {
+            label: `Environment › ${activity.label}`,
+            destination: ENVIRONMENT,
+            selection: open,
+          },
+          subject: null,
+          cause: eventWhen(segment, new Date(to)),
+          ...(segment.kind === "estimated" ? { effect: activity.words.estimatedNote } : {}),
+        },
+        during: [],
+      };
+    }
     case "borrow": {
       const { borrows, to } = snapshot.briefing.environment;
       const borrow = borrows?.find(({ id }) => id === open.id);

@@ -21,6 +21,7 @@ import { repositoryLinePointer } from "../../panels/selection-rows.js";
 import { watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
 import { TimedText } from "../../time.js";
+import { ActivityLegend, ActivityRow, ActivitySummary, activityView } from "./activity.js";
 import { BorrowRows, dayFrom } from "./borrows.js";
 import { FlowContext } from "./flow-context.js";
 import { environmentOpening } from "./opening.js";
@@ -123,16 +124,23 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
   const reading = body?.readings.find(({ anchor }) => anchor.kind === "environment") ?? NO_READING;
   const to = env ? Date.parse(env.to) : 0;
   const from = dayFrom(to);
+  const activity = env && activityView(env, from, to);
   const lanes =
-    env?.lanes.map((lane, index) => ({
-      lane,
-      pointer: `/briefing/environment/lanes/${index}`,
-      placed: place(
-        lane.events.filter(({ end }) => !end || Date.parse(end) >= from),
-        from,
-        to,
-      ),
-    })) ?? [];
+    env?.lanes.flatMap((lane, index) =>
+      activity && lane.id === "holds"
+        ? []
+        : [
+            {
+              lane,
+              pointer: `/briefing/environment/lanes/${index}`,
+              placed: place(
+                lane.events.filter(({ end }) => !end || Date.parse(end) >= from),
+                from,
+                to,
+              ),
+            },
+          ],
+    ) ?? [];
   const repositories = body?.briefing.repositories.rows ?? [];
   const repositoryIndex = repositories.findIndex((row) => row.name === "osdu-spi-stack");
   const repository = repositories[repositoryIndex];
@@ -171,11 +179,12 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
   // Keep duration text deterministic for the snapshot rather than ticking on the renderer clock.
   const now = new Date(to);
   const ticks = hourTicks(from, to);
-  const timeline = (env.lanes.length > 0 || env.forksNote || env.borrows?.length) && (
+  const timeline = (activity || env.lanes.length > 0 || env.forksNote || env.borrows?.length) && (
     <section className="env-day" aria-labelledby={dayHeading}>
       <h3 className="env-section-label" id={dayHeading}>
         Last 24 hours
       </h3>
+      {activity && <ActivitySummary view={activity} />}
       <SectionEvidence evidence={body} prefixes={["/briefing/environment/lanes"]} />
       <div className="env-scroll">
         <div className="env-timeline" style={{ minWidth: TRACK_MIN_PX }}>
@@ -207,6 +216,7 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
                 ))}
             </div>
           </div>
+          {activity && <ActivityRow view={activity} from={from} to={to} opener={opener} />}
           {lanes.map(({ lane, pointer, placed }) => {
             const tiers = Math.max(1, ...placed.map((p) => p.tier + 1));
             return (
@@ -286,6 +296,7 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
           <BorrowRows env={env} to={to} opener={(id) => opener({ kind: "borrow", id })} />
         </div>
       </div>
+      {activity && <ActivityLegend view={activity} />}
     </section>
   );
   const { status } = env;

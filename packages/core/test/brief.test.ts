@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, test } from "vitest";
-import { lastRun } from "../src/brief/environment";
+import { environmentUsage, holdAttribution, lastRun } from "../src/brief/environment";
 import { type BriefFact, buildBriefing, type DoctorView, readItem } from "../src/brief/index";
 import { ago, deployableWords, streakText } from "../src/brief/words";
 import { createContext, defaultContext } from "../src/context";
@@ -1215,6 +1215,70 @@ describe("Environment borrow status in the app context", () => {
     expect(overlap()).toBe("Overlapped 4 forks for 40\u00a0min");
   });
 
+  test("partitions activity, with maintenance first and only distinct measured forks overlapping", () => {
+    const model = modelFor([
+      history("search", [
+        deployment("1", -100, "SUCCESS", -30),
+        deployment("2", -95, "SUCCESS", -70),
+      ]),
+      history("file", [deployment("3", -80, "SUCCESS", -60)]),
+      history("legal", [deployment("4", -60, "SUCCESS", -40)]),
+      history("indexer", [deployment("5", -98, "INACTIVE")]),
+    ]);
+    const lane = {
+      id: "holds" as const,
+      label: "Held",
+      events: [
+        {
+          id: "past",
+          start: at(-130),
+          end: at(-105),
+          state: "held" as const,
+          label: "",
+          detail: "",
+        },
+        {
+          id: "overlap",
+          start: at(-50),
+          end: at(-45),
+          state: "held" as const,
+          label: "",
+          detail: "",
+        },
+      ],
+    };
+    const segments = environmentUsage(model, [lane], Date.parse(at(-120)), now, app).activity
+      .segments;
+    expect(segments).toEqual([
+      { start: at(-120), end: at(-105), kind: "maintenance" },
+      { start: at(-105), end: at(-100), kind: "idle" },
+      { start: at(-100), end: at(-80), kind: "borrowed", title: "search" },
+      { start: at(-80), end: at(-50), kind: "overlap", title: "file × legal × search" },
+      { start: at(-50), end: at(-45), kind: "maintenance" },
+      { start: at(-45), end: at(-40), kind: "overlap", title: "legal × search" },
+      { start: at(-40), end: at(-30), kind: "borrowed", title: "search" },
+      { start: at(-30), end: at(0), kind: "idle" },
+    ]);
+    expect(
+      segments.reduce((sum, { start, end }) => sum + Date.parse(end) - Date.parse(start), 0),
+    ).toBe(120 * 60_000);
+  });
+
+  test("counts only time with a known or estimated end, including a live borrow up to the sweep", () => {
+    const model = modelFor([
+      history("file", [deployment("1", -90, "SUCCESS", -70), deployment("2", -60, "INACTIVE")]),
+      history("legal", [deployment("3", -50, "FAILURE"), deployment("4", -20, "IN_PROGRESS")]),
+    ]);
+    const segments = environmentUsage(model, [], Date.parse(at(-75)), now, app).activity.segments;
+    expect(segments).toEqual([
+      { start: at(-75), end: at(-70), kind: "borrowed", title: "file" },
+      { start: at(-70), end: at(-60), kind: "idle" },
+      { start: at(-60), end: at(-40), kind: "estimated", title: "file" },
+      { start: at(-40), end: at(-20), kind: "idle" },
+      { start: at(-20), end: at(0), kind: "borrowed", title: "legal" },
+    ]);
+  });
+
   test("keeps the smoke failure visible while the next smoke is running", () => {
     const model = modelFor([history("indexer", [])]);
     const smoke = {
@@ -1295,6 +1359,46 @@ describe("Stack lanes in the app context", () => {
     buildBriefing(model, CLEAR, now, context).environment.lanes;
   const lane = (model: Model, kind: string, context = app) =>
     lanes(model, context).find((item) => item.id === kind);
+
+  test("attributes a hold only to runs with matching set and clear times", () => {
+    const step = (name: string, time: number) => ({
+      name,
+      number: 1,
+      status: "completed",
+      conclusion: "success",
+      startedAt: at(time),
+      completedAt: at(time),
+    });
+    const jobs = (name: string, time: number) => [
+      {
+        id: 7,
+        name: "refresh",
+        status: "completed",
+        conclusion: "success",
+        url: "",
+        steps: [step(name, time)],
+      },
+    ];
+    const refresh = run("refresh", -72, {
+      target: "v1.2.3",
+      jobs: jobs("Set maintenance", -71.75),
+    });
+    const reset = run("reset", -2, { jobs: jobs("Clear maintenance", -1.75) });
+    const other = run("upgrade", -3);
+    const model = modelWith({ refresh: [refresh], reset: [reset], upgrade: [other] });
+    expect(lane(model, "holds")?.events[0]?.likely).toBe(
+      "Likely set by Refresh v1.2.3. Likely cleared by Reset.",
+    );
+    expect(
+      holdAttribution([refresh, reset, other], Date.parse(at(-71.5)), Date.parse(at(-1.5))),
+    ).toBeUndefined();
+    expect(holdAttribution([refresh, other], Date.parse(at(-71.75)))).toBe(
+      "Likely set by Refresh v1.2.3.",
+    );
+    expect(
+      holdAttribution([refresh, reset, other], Date.parse(at(-71.5)), Date.parse(at(-1.75))),
+    ).toBe("Likely cleared by Reset.");
+  });
 
   test("each lane says its cadence in the app's zone, and none while the workflows are unread", () => {
     const model = modelWith({});

@@ -15,6 +15,7 @@ import {
 } from "@spi-code/contracts";
 import type { BrowserWindow, IpcMainEvent } from "electron";
 import {
+  ENVIRONMENT_ACTIVITY,
   ENVIRONMENT_BORROW,
   ENVIRONMENT_LINK,
   ENVIRONMENT_LIVE,
@@ -1103,6 +1104,7 @@ export async function assertRenderedContrast(
     await js('location.hash = "#environment"');
     await rendered(window, liveBorrow);
     await everyShade("environment", ".environment .env-status");
+    await everyShade("environment-activity", ENVIRONMENT_ACTIVITY);
     await everyShade("environment-stack", ENVIRONMENT_STACK);
     await js(`${liveBorrow}.click()`);
     await rendered(window, `document.querySelector(${JSON.stringify(ENVIRONMENT_LINK)})`);

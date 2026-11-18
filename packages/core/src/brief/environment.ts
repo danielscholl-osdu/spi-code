@@ -5,11 +5,11 @@ import { timeUnit } from "@spi-code/contracts";
 import { when } from "@spi-code/contracts";
 import { HISTORY_DAYS, type LifecycleKind } from "../config.js";
 import type { CoreContext } from "../context.js";
-import type { DeploymentFact } from "../facts.js";
+import type { DeploymentFact, LifecycleRun } from "../facts.js";
 import { MISSED_AFTER_MS, median } from "../model/history.js";
 import type { ForkDeployments, Model } from "../model/index.js";
 import { cadence, firesBetween, wallClock } from "../model/schedule.js";
-import { type RunView, runResult, semverCmp, viewRun } from "../model/stack.js";
+import { replayHolds, type RunView, runResult, semverCmp, viewRun } from "../model/stack.js";
 import { span, stamp } from "../util.js";
 import type { EnvLane, Link } from "./index.js";
 import { deployableWords } from "./words.js";
@@ -236,6 +236,94 @@ function factsLine(model: Model, now: Date, context: CoreContext): string | unde
   return words.length ? words.join(" · ") : undefined;
 }
 
+const ACTIVITY_WORDS = Object.freeze({
+  borrow: "borrow",
+  borrows: "borrows",
+  borrowed: "borrowed",
+  maintenance: "maintenance",
+  idle: "idle",
+  overlap: "fork overlap",
+  held: "In maintenance",
+  estimated: "end estimated",
+  estimatedNote: "End estimated.",
+  unknown: "end unknown",
+  missed: "missed nightly",
+  byHand: "by hand",
+});
+
+type EnvActivitySegment = {
+  kind: "maintenance" | "borrowed" | "estimated" | "overlap" | "idle";
+  start: string;
+  end: string;
+  title?: string;
+};
+
+export type EnvActivity = {
+  label: string;
+  words: typeof ACTIVITY_WORDS;
+  segments: EnvActivitySegment[];
+};
+
+function activityOf(borrows: readonly EnvBorrow[], lanes: readonly EnvLane[], from: number, to: number): EnvActivity {
+  const windows = borrows.flatMap((borrow) => {
+    const start = Date.parse(borrow.start);
+    const end = borrow.result === "running" ? to : Date.parse(borrow.end ?? "");
+    return end > from && start < to && end > start ? [{ borrow, start, end }] : [];
+  });
+  const holds = lanes.find(({ id }) => id === "holds")?.events.map(({ start, end }) => ({
+    start: Date.parse(start),
+    end: end === undefined ? to : Date.parse(end),
+  })) ?? [];
+  const edges = new Set([from, to]);
+  for (const { start, end } of [...holds, ...windows]) {
+    if (end <= from || start >= to || end <= start) continue;
+    edges.add(Math.max(from, start));
+    edges.add(Math.min(to, end));
+  }
+  const cuts = [...edges].sort((a, b) => a - b);
+  const parts: (Interval & { kind: EnvActivitySegment["kind"]; forks: string[] })[] = [];
+  let previous = from;
+  for (const end of cuts.slice(1)) {
+    const start = previous;
+    previous = end;
+    const held = holds.some((hold) => hold.start <= start && hold.end > start);
+    const active = held ? [] : windows.filter((win) => win.start <= start && win.end > start);
+    const measuredForks = distinct(active.filter(({ borrow }) => !borrow.estimated).map(({ borrow }) => borrow.fork));
+    const kind = held ? "maintenance" : measuredForks.length > 1 ? "overlap"
+      : measuredForks.length ? "borrowed" : active.length ? "estimated" : "idle";
+    const forks = (measuredForks.length ? measuredForks : distinct(active.map(({ borrow }) => borrow.fork))).sort();
+    const last = parts.at(-1);
+    if (last?.kind === kind && (kind === "overlap" || last.forks.join() === forks.join())) {
+      last.end = end;
+      if (kind === "overlap") last.forks = distinct([...last.forks, ...forks]).sort();
+    } else parts.push({ start, end, kind, forks });
+  }
+  const segments = parts.map(({ start, end, kind, forks }) => ({
+    start: new Date(start).toISOString(),
+    end: new Date(end).toISOString(),
+    kind,
+    ...(forks.length ? { title: forks.join(kind === "overlap" ? " × " : ", ") } : {}),
+  }));
+  return { label: "Activity", words: ACTIVITY_WORDS, segments };
+}
+
+export function holdAttribution(runs: readonly LifecycleRun[], start: number, end?: number): string | undefined {
+  const set = runs.filter((run) => replayHolds([run]).holds.some((hold) => hold.from === start));
+  const clear = end === undefined ? [] : runs.filter((run) =>
+    viewRun(run).stages.some((stage) =>
+      stage.label === "clear" && stage.state === "ok" &&
+      Date.parse(stage.completedAt ?? run.updatedAt) === end,
+    ),
+  );
+  const name = ({ kind, target }: LifecycleRun) =>
+    [kind.charAt(0).toUpperCase() + kind.slice(1), target].filter(Boolean).join(" ");
+  const words = [
+    set.length === 1 && set[0] ? `Likely set by ${name(set[0])}.` : undefined,
+    clear.length === 1 && clear[0] ? `Likely cleared by ${name(clear[0])}.` : undefined,
+  ].filter(Boolean);
+  return words.length ? words.join(" ") : undefined;
+}
+
 export function environmentUsage(
   model: Model, lanes: readonly EnvLane[], from: number, now: Date, context: CoreContext,
 ) {
@@ -250,7 +338,8 @@ export function environmentUsage(
     return overlap ? { ...borrow, overlap } : borrow;
   });
   const line = status.state === "maintenance" ? undefined : factsLine(model, now, context);
-  return { status, borrows, ...(forksNote ? { forksNote } : {}), ...(line ? { line } : {}) };
+  const activity = activityOf(borrows, lanes, from, to);
+  return { status, borrows, activity, ...(forksNote ? { forksNote } : {}), ...(line ? { line } : {}) };
 }
 
 const UNSCHEDULED: Readonly<Partial<Record<LifecycleKind, string>>> = Object.freeze({

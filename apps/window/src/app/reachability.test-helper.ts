@@ -5,6 +5,7 @@ import type { TodayFleet, ViewSnapshot } from "@spi-code/contracts";
 import { restatesHeadline } from "../components/opened-body/content.js";
 import { plainTitle } from "../text.js";
 import { instantsIn, timedText, when } from "../time.js";
+import { activityView } from "../views/environment/activity.js";
 import { borrowInDay, borrowWhen, dayFrom } from "../views/environment/borrows.js";
 import { runName } from "../views/environment/opening.js";
 import { eventSpan, eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
@@ -67,6 +68,8 @@ type Leaves = Pick<ViewSnapshot, "briefing" | "releases" | "services">;
 type Lane = ViewSnapshot["briefing"]["environment"]["lanes"][number];
 type Event = Lane["events"][number];
 type Repo = ViewSnapshot["briefing"]["repositories"]["rows"][number];
+const activityOf = (env: Leaves["briefing"]["environment"]) =>
+  activityView(env, dayFrom(Date.parse(env.to)), Date.parse(env.to));
 
 const at = (pointer: string) => `[data-pointer="${pointer}"]`;
 const quote = (value: string) => JSON.stringify(value);
@@ -412,6 +415,46 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
     add(`${base}/line`, subText(environment.line), environmentHome, ".env-line");
   if (environment.forksNote)
     add(`${base}/forksNote`, environment.forksNote, environmentHome, ".env-forks-note");
+  const activity = activityOf(environment);
+  if (activity && environment.activity) {
+    const pointer = `${base}/activity`;
+    add(`${pointer}/label`, activity.label, environmentHome, ".env-activity .env-lane-label");
+    activity.summary.forEach(({ part }) => {
+      add(
+        `${pointer}/words/${part}`,
+        activity.words[part],
+        environmentHome,
+        `.env-activity-summary [data-part=${quote(part)}]`,
+        { contains: true },
+      );
+    });
+    activity.legend.forEach(([mark, label]) => {
+      if (!(mark in activity.words)) return;
+      add(`${pointer}/words/${mark}`, label, environmentHome, `[data-legend=${quote(mark)}]`);
+    });
+    environment.activity.segments.forEach((segment, index) => {
+      if (!segment.title || !activity.segments.some((visible) => visible.segment === segment))
+        return;
+      const part = `${pointer}/segments/${index}`;
+      const bar = `[data-opens=${quote(`activity~${segment.start}`)}]`;
+      const where = {
+        ...home(`Environment · activity ${segment.start}`, STARTS.environment, bar),
+        clock: to,
+      };
+      const popover = ".popover .opened-body";
+      add(`${part}/kind`, segment.kind, environmentHome, bar, { attribute: "data-mark" });
+      add(`${part}/title`, segment.title, where, `${popover} h3`);
+      add(`${part}/start`, eventWhen(segment, now), where, `${popover} > p`);
+      add(`${part}/end`, eventWhen(segment, now), where, `${popover} > p`);
+      if (segment.kind === "estimated")
+        add(
+          `${pointer}/words/estimatedNote`,
+          activity.words.estimatedNote,
+          where,
+          `${popover} .opened-body-effect`,
+        );
+    });
+  }
   environment.borrows?.forEach((borrow, index) => {
     if (!borrowInDay(borrow, to)) return;
     const pointer = `${base}/borrows/${index}`;
@@ -439,9 +482,11 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
   environment.lanes.forEach((lane, laneIndex) => {
     const pointer = `/briefing/environment/lanes/${laneIndex}`;
     const row = `.env-row[data-lane=${quote(lane.id)}]`;
-    add(`${pointer}/label`, lane.label, environmentHome, `${row} .env-lane-label`, {
-      contains: true,
-    });
+    const activityHold = activity && lane.id === "holds" ? activity : undefined;
+    if (!activityHold)
+      add(`${pointer}/label`, lane.label, environmentHome, `${row} .env-lane-label`, {
+        contains: true,
+      });
     if (lane.cadence)
       add(`${pointer}/cadence`, lane.cadence, environmentHome, `${row} .env-cadence`);
     if (lane.last) {
@@ -463,14 +508,25 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
     });
     lane.events.forEach((e, index) => {
       if (e.end && Date.parse(e.end) < dayFrom(to)) return;
+      if (activityHold && !activityHold.holds.includes(e)) return;
       const event = `${pointer}/events/${index}`;
-      const bar = `button.env-event[data-event=${quote(`${lane.id}:${e.id}`)}]`;
+      const bar = `button[data-event=${quote(`${lane.id}:${e.id}`)}]`;
       if (e.byHand)
         add(`${event}/byHand`, "true", environmentHome, bar, { attribute: "data-by-hand" });
-      add(`${event}/label`, eventText(e), environmentHome, `${bar} .env-event-label`);
+      add(
+        `${event}/label`,
+        eventText(e),
+        environmentHome,
+        `${bar} ${activityHold ? ".env-hold-label" : ".env-event-label"}`,
+        { contains: !!activityHold },
+      );
       add(`${event}/state`, eventWord[e.state], environmentHome, bar, {
-        attribute: "aria-label",
-        contains: true,
+        ...(activityHold
+          ? {
+              read: (element: Element) =>
+                element.getAttribute("data-mark") === "maintenance" ? "held" : "",
+            }
+          : { attribute: "aria-label", contains: true }),
       });
       add(`${event}/start`, eventWhen(e, now), environmentHome, bar, {
         attribute: "aria-label",
@@ -486,14 +542,22 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
         clock: now.getTime(),
       };
       const popover = ".popover .opened-body";
-      const title = runName(lane, e);
+      const title = activityHold ? `${activityHold.words.held} · ${e.label}` : runName(lane, e);
       add(`${event}/label`, title, where, `${popover} h3`, {
         canon: (value) => (value === title || value === eventText(e) ? e.label : value),
       });
-      if (e.detail) add(`${event}/detail`, e.detail, where, `${popover} > p`, { contains: true });
+      if (e.detail && !activityHold)
+        add(`${event}/detail`, e.detail, where, `${popover} > p`, { contains: true });
+      if (e.likely) add(`${event}/likely`, e.likely, where, `${popover} .opened-body-effect`);
+      if (activityHold)
+        add(`${base}/activity/words/held`, activityHold.words.held, where, `${popover} h3`, {
+          contains: true,
+        });
       // The popover says when the event ran without its length, which the bar's name carries.
       const ran = (element: Element) =>
-        (element.textContent ?? "").split(" \u00b7 ").slice(1).join(" \u00b7 ");
+        activityHold
+          ? (element.textContent ?? "").replace(/^From /, "")
+          : (element.textContent ?? "").split(" \u00b7 ").slice(1).join(" \u00b7 ");
       const length = { read: ran, canon: (value: string) => value.split(" \u00b7 ")[0] ?? value };
       add(`${event}/start`, eventSpan(e, now), where, `${popover} > p`, length);
       if (e.end) add(`${event}/end`, eventSpan(e, now), where, `${popover} > p`, length);
@@ -1559,7 +1623,7 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
     reason: "spicode-8q6.5 draws the seven-day range",
   },
   "environment-older-runs": {
-    patterns: ["label", "state", "start", "end", "detail", "byHand"].map(
+    patterns: ["label", "state", "start", "end", "detail", "byHand", "likely"].map(
       (field) => `/briefing/environment/lanes/#/events/#/${field}`,
     ),
     reason: "spicode-8q6.5 draws events outside the 24-hour range",
@@ -1567,8 +1631,67 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
     when: (_value, { pointer, snapshot }) => {
       const [, lane, event] = /lanes\/(\d+)\/events\/(\d+)/.exec(pointer) ?? [];
       const env = snapshot.briefing.environment;
-      const end = env.lanes[Number(lane)]?.events[Number(event)]?.end;
-      return !!end && Date.parse(end) < dayFrom(Date.parse(env.to));
+      const row = env.lanes[Number(lane)];
+      const end = row?.events[Number(event)]?.end;
+      const from = dayFrom(Date.parse(env.to));
+      return (
+        !!end &&
+        (Date.parse(end) < from ||
+          (!!env.activity && row?.id === "holds" && Date.parse(end) === from))
+      );
+    },
+  },
+  "environment-activity-words": {
+    patterns: ["borrow", "unknown", "missed", "byHand"].map(
+      (field) => `/briefing/environment/activity/words/${field}`,
+    ),
+    reason:
+      "The recorded day has several borrows, no unknown ends, missed nightlies, or manual runs.",
+    when: (_value, { pointer, snapshot }) => {
+      const activity = activityOf(snapshot.briefing.environment);
+      const word = pointer.split("/").at(-1);
+      return (
+        !activity?.summary.some(({ part }) => part === word) &&
+        !activity?.legend.some(([mark]) => mark === word)
+      );
+    },
+  },
+  "environment-activity-partition": {
+    patterns: ["kind", "start", "end"].map(
+      (field) => `/briefing/environment/activity/segments/#/${field}`,
+    ),
+    reason:
+      "The partition measures maintenance and idle time in the summary. The row labels the whole hold and long idle gaps.",
+    when: (_value, { pointer, snapshot }) => {
+      const index = Number(/segments\/(\d+)/.exec(pointer)?.[1]);
+      const kind = snapshot.briefing.environment.activity?.segments[index]?.kind;
+      return kind === "maintenance" || kind === "idle";
+    },
+  },
+  "environment-older-activity": {
+    patterns: ["kind", "start", "end", "title"].map(
+      (field) => `/briefing/environment/activity/segments/#/${field}`,
+    ),
+    reason: "spicode-8q6.5 draws activity outside the 24-hour range",
+    pending: true,
+    when: (_value, { pointer, snapshot }) => {
+      const env = snapshot.briefing.environment;
+      const index = Number(/segments\/(\d+)/.exec(pointer)?.[1]);
+      const segment = env.activity?.segments[index];
+      return !!segment && Date.parse(segment.end) <= dayFrom(Date.parse(env.to));
+    },
+  },
+  "environment-held-lane": {
+    patterns: [
+      "/briefing/environment/lanes/#/label",
+      "/briefing/environment/lanes/#/events/#/detail",
+    ],
+    reason:
+      "The Held lane feeds Detail and legacy snapshots. The Activity row opens holds on the place.",
+    when: (_value, { pointer, snapshot }) => {
+      const env = snapshot.briefing.environment;
+      const index = Number(/lanes\/(\d+)/.exec(pointer)?.[1]);
+      return !!env.activity && env.lanes[index]?.id === "holds";
     },
   },
   "environment-older-missed": {

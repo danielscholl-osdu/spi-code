@@ -6,12 +6,18 @@ import type { ViewSnapshot } from "@spi-code/contracts";
 export const ENVIRONMENT_LIVE = '.environment .env-status[data-state="in-use"] button';
 export const ENVIRONMENT_BORROW = '.environment .popover[data-selection^="borrow~"]';
 export const ENVIRONMENT_LINK = `${ENVIRONMENT_BORROW} [data-kind="deploy"]`;
+export const ENVIRONMENT_ACTIVITY = ".environment .env-activity";
+export const ENVIRONMENT_OVERLAP = `${ENVIRONMENT_ACTIVITY} button[data-mark="overlap"]`;
+export const ENVIRONMENT_HOLD = `${ENVIRONMENT_ACTIVITY} button[data-mark="maintenance"]`;
 
 export function smokeEnvironment(source: ViewSnapshot): ViewSnapshot {
   const body = structuredClone(source);
   const env = body.briefing.environment;
   const id = "indexer:smoke";
-  const start = new Date(Date.parse(env.to) - 81 * 60_000).toISOString();
+  const at = (minutesAgo: number) =>
+    new Date(Date.parse(env.to) - minutesAgo * 60_000).toISOString();
+  const start = at(81);
+  const search = { start: at(105), end: at(45) };
   env.status = {
     state: "in-use",
     label: "In use",
@@ -34,8 +40,20 @@ export function smokeEnvironment(source: ViewSnapshot): ViewSnapshot {
         },
       ],
     },
+    { id: "search:smoke", fork: "search", ...search, result: "green", links: [] },
     ...(env.borrows ?? []),
   ];
+  // The recorded range ends in idle time. Put the synthetic borrows into that gap.
+  const segments = env.activity?.segments;
+  const last = segments?.at(-1);
+  if (!segments || last?.kind !== "idle" || Date.parse(last.start) >= Date.parse(search.start))
+    throw new Error("The Environment smoke scene needs an idle gap for the live borrows");
+  last.end = search.start;
+  segments.push(
+    { kind: "borrowed", start: search.start, end: start, title: "search" },
+    { kind: "overlap", start, end: search.end, title: "indexer × search" },
+    { kind: "borrowed", start: search.end, end: env.to, title: "indexer" },
+  );
   stackLanes(env);
   return body;
 }

@@ -17,8 +17,10 @@ import {
 import { type BrowserWindow, ipcMain, nativeImage } from "electron";
 import {
   ENVIRONMENT_BORROW,
+  ENVIRONMENT_HOLD,
   ENVIRONMENT_LINK,
   ENVIRONMENT_LIVE,
+  ENVIRONMENT_OVERLAP,
   smokeEnvironment,
 } from "./smoke-environment.js";
 import { captureForks } from "./smoke-forks.js";
@@ -1504,6 +1506,24 @@ export async function captureSmokeViews(
               `${borrow}.querySelector('[aria-label="Close"]').click()`,
             );
             await rendered(window, `!${borrow}`);
+            for (const [mark, selector] of [
+              ["hold", ENVIRONMENT_HOLD],
+              ["overlap", ENVIRONMENT_OVERLAP],
+            ]) {
+              const anchor = `[...document.querySelectorAll(${JSON.stringify(selector)})].at(-1)`;
+              const popover = 'document.querySelector(".environment .popover")';
+              await rendered(window, anchor);
+              await window.webContents.executeJavaScript(`${anchor}.click()`);
+              await captureSettled(
+                window,
+                popover,
+                join(output, `environment-${mark}-${viewportWidth}-${appearance}.png`),
+              );
+              await window.webContents.executeJavaScript(
+                `${popover}.querySelector('[aria-label="Close"]').click()`,
+              );
+              await rendered(window, `!${popover}`);
+            }
           }
           if (surface.id === "service-calm" || surface.id === "environment")
             fixture(window, "view.snapshot", { ...snapshot, cursor: scheduledCursor++ });

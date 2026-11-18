@@ -46,7 +46,7 @@ import {
 } from "../model/stack.js";
 import { age, clip, firstAndMore, fitHeadline, plural, short, span, stamp, timeClause, whose } from "../util.js";
 import {
-  type EnvBorrow, type EnvStatus, environmentUsage, environmentFrom, laneRhythm, runEnd,
+  type EnvActivity, type EnvBorrow, type EnvStatus, environmentUsage, environmentFrom, holdAttribution, laneRhythm, runEnd,
 } from "./environment.js";
 import { type Horizon, type Origin, itemOrigin, upstreamHorizon } from "./horizon.js";
 import { type Repositories, repositoriesOf } from "./repos.js";
@@ -157,6 +157,7 @@ export interface EnvEvent {
   detail: string;
   inspect?: string;
   byHand?: true;
+  likely?: string;
 }
 
 export interface EnvLane {
@@ -180,6 +181,7 @@ export interface Environment {
   line?: string;
   borrows?: EnvBorrow[];
   forksNote?: string;
+  activity?: EnvActivity;
 }
 
 export interface Briefing {
@@ -1323,6 +1325,7 @@ function envLanes(model: Model, from: number, now: Date, context?: CoreContext):
       .filter((h) => inside(h.from, h.to ?? to))
       .map((h) => {
         const held = span((h.to ?? to) - h.from) ?? "?";
+        const likely = app ? holdAttribution(runs, h.from, h.to) : undefined;
         return {
           id: String(h.from),
           start: new Date(h.from).toISOString(),
@@ -1332,6 +1335,7 @@ function envLanes(model: Model, from: number, now: Date, context?: CoreContext):
           detail:
             h.to === undefined ? `in maintenance for ${held} so far` : `in maintenance for ${held}`,
           ...(h.to === undefined && open ? { inspect: open } : {}),
+          ...(likely ? { likely } : {}),
         };
       }),
   });
@@ -1495,6 +1499,8 @@ export function buildBriefing(model: Model, doctor: DoctorView, now: Date | unde
   const next = clock(nextIso, context);
   const base = { sweptAt: model.sweptAt, nextSyncAt: nextIso, doctor };
   if (!model.measured) {
+    const { activity: _activity, ...usage } =
+      context.words === "app" ? environmentUsage(model, [], environmentFrom(now, context), now, context) : {};
     const headline =
       doctor.state === "dark"
         ? sentence(problemText(doctor) || "GitHub cannot be read")
@@ -1515,7 +1521,7 @@ export function buildBriefing(model: Model, doctor: DoctorView, now: Date | unde
         lanes: [],
         from: new Date(environmentFrom(now, context)).toISOString(),
         to: now.toISOString(),
-        ...(context.words === "app" ? environmentUsage(model, [], environmentFrom(now, context), now, context) : {}),
+        ...usage,
       },
       repositories: { headline, facts: [], rows: [] },
     };

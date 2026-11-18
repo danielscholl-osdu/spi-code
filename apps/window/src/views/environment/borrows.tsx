@@ -18,7 +18,13 @@ export function borrowWhen(borrow: EnvBorrow, now: number): string {
 }
 
 export function borrowInDay(borrow: EnvBorrow, to: number): boolean {
-  return (borrow.result === "running" ? to : Date.parse(borrow.end ?? borrow.start)) >= dayFrom(to);
+  return borrowInRange(borrow, dayFrom(to), to);
+}
+
+export function borrowInRange(borrow: EnvBorrow, from: number, to: number): boolean {
+  const start = Date.parse(borrow.start);
+  const end = borrow.result === "running" ? to : Date.parse(borrow.end ?? borrow.start);
+  return start <= to && (end > from || (end === start && start === from));
 }
 
 export function BorrowRows({
