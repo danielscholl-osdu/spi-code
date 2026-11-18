@@ -199,4 +199,4 @@ fork reads a check: every read fork has a Waiting row, and the calm capture is c
 partly not read. Contrast reaches the stopped station on entitlements, the clock station on storage
 and the waiting station on partition, each with Main's green.
 
-Keys the window must receive from the OS are proven with `webContents.sendInputEvent`, which reaches the hidden smoke window's `keydown` as trusted events; a synthetic `dispatchEvent` proves nothing about delivery. The app sets no application menu, and Electron's default menu binds none of ⌘[, ⌘], Alt+← or Alt+→, so those reach the renderer.
+The history keys are sent with Electron's `webContents.sendInputEvent`, which reaches the hidden smoke window's `keydown` as trusted events through Chromium's input path. It is not a keystroke from the OS: it does not pass through the macOS menu or the Windows message loop, so the smoke proves the renderer acts on the keys, not that the OS delivers them. A synthetic `dispatchEvent` proves less still. The app sets no application menu, and Electron's default menu binds none of ⌘[, ⌘], Alt+← or Alt+→.

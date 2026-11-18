@@ -452,12 +452,16 @@ describe("back and forward", () => {
     expect(shown()).toBe("#today");
     await go({ kind: "service", id: "indexer" });
     await go({ kind: "service", id: "indexer", tab: "runs" });
+    await dispatch({ ...back, repeat: true });
+    expect(shown()).toBe("#service/indexer/runs");
     await dispatch(back);
     await dispatch(back);
     expect(shown()).toBe("#today");
     await dispatch(back);
     expect(shown()).toBe("#today");
     await dispatch(forward);
+    expect(shown()).toBe("#service/indexer");
+    await dispatch({ ...forward, repeat: true });
     expect(shown()).toBe("#service/indexer");
     await dispatch(forward);
     await dispatch(forward);
@@ -468,6 +472,64 @@ describe("back and forward", () => {
     expect(shown()).toBe("#security");
     await dispatch(back);
     expect(shown()).toBe("#service/indexer");
+  });
+
+  it("takes one step for presses made before the last step lands, before and after a reload", async () => {
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Macintosh");
+    const { history } = window;
+    const steps: (() => void)[] = [];
+    const realBack = history.back.bind(history);
+    const realForward = history.forward.bind(history);
+    vi.spyOn(history, "back").mockImplementation(() => void steps.push(realBack));
+    vi.spyOn(history, "forward").mockImplementation(() => void steps.push(realForward));
+    const land = () =>
+      act(async () => {
+        for (const step of steps.splice(0)) step();
+      });
+    const back = { key: "[", metaKey: true };
+    const forward = { key: "]", metaKey: true };
+
+    window.location.hash = "#today";
+    await mount({ views: every, fallback: { kind: "today" } });
+    await go({ kind: "security" });
+    await go({ kind: "releases" });
+    await dispatch(back);
+    await dispatch(back);
+    expect(steps).toHaveLength(1);
+    await land();
+    expect(shown()).toBe("#security");
+    await dispatch(back);
+    await land();
+    expect(shown()).toBe("#today");
+    await dispatch(forward);
+    await dispatch(forward);
+    expect(steps).toHaveLength(1);
+    await land();
+    expect(shown()).toBe("#security");
+    await dispatch(forward);
+    await land();
+    expect(shown()).toBe("#releases");
+    await go({ kind: "upstream" });
+    await dispatch(back);
+    await land();
+    expect(shown()).toBe("#releases");
+
+    await unmount();
+    relaunch();
+    await mount({ views: every, fallback: { kind: "today" } });
+    expect(shown()).toBe("#releases");
+    await go({ kind: "environment" });
+    await dispatch(back);
+    await dispatch(back);
+    await land();
+    expect(shown()).toBe("#releases");
+    await dispatch(back);
+    expect(steps).toHaveLength(0);
+    await dispatch(forward);
+    await land();
+    expect(shown()).toBe("#environment");
+    await dispatch(forward);
+    expect(steps).toHaveLength(0);
   });
 
   it("changes nothing while typing in a field, or while Find or Settings is open", async () => {

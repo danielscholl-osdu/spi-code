@@ -208,25 +208,35 @@ it.each(WATCH_SNAPSHOTS)(
   },
 );
 
-it("lists no Today group from a briefing with no lines or causes, and still finds places and services", async () => {
-  const { lines: _lines, ...briefing } = body.briefing;
-  const older = {
-    ...body,
-    cursor: body.cursor + 1,
-    briefing: {
-      ...briefing,
-      ...(briefing.today ? { today: { ...briefing.today, causes: undefined } } : {}),
-    },
-  };
-  await act(async () => watchStore.setState({ snapshot: { cursor: older.cursor, body: older } }));
-  await shortcut({ ctrlKey: true });
-  expect(palettes()).toHaveLength(1);
-  expect(labels()).toEqual(["Go to", "Services"]);
-  await type("legal");
-  expect(rows("services")).toEqual(["1legal"]);
-  await type("Releases");
-  expect(rows("go-to")).toEqual(["Releasespage"]);
-});
+it.each([
+  ["no lines or causes", false],
+  ["Can wait causes and no lines", true],
+])(
+  "lists no Today group from a briefing with %s, and still finds places and services",
+  async (_, causes) => {
+    const { lines: _lines, ...briefing } = body.briefing;
+    const older = ViewSnapshotSchema.parse({
+      ...body,
+      cursor: body.cursor + 1,
+      provenance: body.provenance.filter(({ path }) => !path.startsWith("/briefing/lines/")),
+      briefing: {
+        ...briefing,
+        ...(briefing.today && !causes ? { today: { ...briefing.today, causes: undefined } } : {}),
+      },
+    });
+    expect(older.briefing.today?.causes?.rows.length ?? 0).toBe(causes ? 5 : 0);
+    await act(async () => watchStore.setState({ snapshot: { cursor: older.cursor, body: older } }));
+    await act(async () => navigate({ kind: "today" }));
+    expect(container.querySelectorAll("tr.today-row--cause")).toHaveLength(0);
+    await shortcut({ ctrlKey: true });
+    expect(palettes()).toHaveLength(1);
+    expect(labels()).toEqual(["Go to", "Services"]);
+    await type("legal");
+    expect(rows("services")).toEqual(["1legal"]);
+    await type("Releases");
+    expect(rows("go-to")).toEqual(["Releasespage"]);
+  },
+);
 
 it("marks every recorded service from its home alone, with no attention word", async () => {
   await shortcut({ ctrlKey: true });

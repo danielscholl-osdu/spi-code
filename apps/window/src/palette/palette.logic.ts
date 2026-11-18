@@ -35,6 +35,7 @@ import { pinOf } from "../store/pins.js";
 import { plainTitle } from "../text.js";
 import { TABS } from "../views/service/tabs.js";
 import { forksWord } from "../views/today/fleet.js";
+import { drawnCauses } from "../views/today/Table.js";
 import { foldSearchQuery, rankSearchGroups, scoreSearchTerms } from "./search.js";
 
 export type PaletteTarget =
@@ -173,7 +174,7 @@ function todayGroups(briefing: SnapshotBody["briefing"] | undefined): PaletteGro
         target: { kind: "line", id: line.id },
       })),
   }));
-  const causes = briefing?.today?.causes;
+  const causes = briefing && drawnCauses(briefing);
   groups.push({
     value: "can-wait",
     label: "Can wait",

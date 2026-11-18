@@ -317,8 +317,9 @@ export function navigate(destination: Destination) {
 /**
  * Where the window is among the history entries this launch stamped, and the newest of them;
  * entries from before a reload belong to another document, so back and forward stay inside these.
+ * `leaving` is the entry a back or forward has not yet left: until it lands, `at` is stale.
  */
-let entries: { launch: string; at: number; top: number } | null = null;
+let entries: { launch: string; at: number; top: number; leaving: number | null } | null = null;
 
 const HISTORY_KEY = "spiHistory";
 
@@ -349,6 +350,7 @@ function advanceHistory() {
   if (!entries) return;
   entries.at += 1;
   entries.top = entries.at;
+  entries.leaving = null;
   stamp(entries.at);
 }
 
@@ -356,11 +358,14 @@ function advanceHistory() {
 function followHistory() {
   const index = stampOf(window.history.state);
   if (index === undefined) advanceHistory();
-  else if (entries) entries.at = index;
+  else if (entries) {
+    entries.at = index;
+    if (index !== entries.leaving) entries.leaving = null;
+  }
 }
 
 function startHistory() {
-  entries = { launch: crypto.randomUUID(), at: 0, top: 0 };
+  entries = { launch: crypto.randomUUID(), at: 0, top: 0, leaving: null };
   stamp(0);
 }
 
@@ -369,14 +374,18 @@ if (typeof window !== "undefined") {
   window.addEventListener("popstate", followHistory);
 }
 
-/** Back through the window's own history; nothing at its first entry. */
+/** Back through the window's own history; nothing at its first entry or while a step is landing. */
 export function goBack() {
-  if (entries && entries.at > 0) window.history.back();
+  if (!entries || entries.leaving !== null || entries.at <= 0) return;
+  entries.leaving = entries.at;
+  window.history.back();
 }
 
-/** Forward through the window's own history; nothing at its newest entry. */
+/** Forward through the window's own history; nothing at its newest entry or while a step is landing. */
 export function goForward() {
-  if (entries && entries.at < entries.top) window.history.forward();
+  if (!entries || entries.leaving !== null || entries.at >= entries.top) return;
+  entries.leaving = entries.at;
+  window.history.forward();
 }
 
 /** The Today route last shown this launch, so Today returns to its tab and station filter. */

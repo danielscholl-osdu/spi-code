@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 import {
+  type Briefing,
+  type CanWaitCauses,
   type FocusItem,
   fleetLines,
   type Link,
@@ -225,6 +227,14 @@ function RowCells({
   );
 }
 
+/** The Can wait causes Yours draws: none under a station filter, nor beside a briefing with no lines. */
+export function drawnCauses(
+  briefing: Pick<Briefing, "lines" | "today">,
+  station?: TodayMemberStation,
+): CanWaitCauses | undefined {
+  return briefing.lines && !station ? briefing.today?.causes : undefined;
+}
+
 /**
  * Yours: Blocked and Waiting on you as core's situation lines whose rows open in place, one at a
  * time, then Can wait by cause. A station keeps only its rows and members, and hides Can wait.
@@ -274,6 +284,8 @@ export function TodayTable({
   }, [openKey]);
 
   if (!lines) return null;
+
+  const causes = drawnCauses(briefing, station);
 
   const services = new Set(snapshot.stations.map(({ service }) => service));
   const items: FocusItem[] = [...briefing.focus, ...briefing.rest];
@@ -371,9 +383,7 @@ export function TodayTable({
           </Section>
         );
       })}
-      {!station && briefing.today?.causes && (
-        <CanWait causes={briefing.today.causes} snapshot={snapshot} services={services} />
-      )}
+      {causes && <CanWait causes={causes} snapshot={snapshot} services={services} />}
     </div>
   );
 }

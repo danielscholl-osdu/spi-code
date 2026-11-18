@@ -18,6 +18,7 @@ export function useShellShortcuts(
       if (step) {
         if (dialogOpen || isTypingEvent(event)) return;
         event.preventDefault();
+        if (event.repeat) return;
         if (step === "back") goBack();
         else goForward();
         return;
