@@ -79,7 +79,7 @@ function stamp(iso: string, now: Date): string {
 }
 
 // Ported from the rib's src/util.ts; use the track's clock, not the renderer wall clock.
-function span(ms: number): string | undefined {
+export function span(ms: number): string | undefined {
   const hour = 3_600_000;
   const day = 24 * hour;
   if (!Number.isFinite(ms) || ms < 0) return undefined;

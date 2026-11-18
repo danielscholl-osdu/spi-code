@@ -39,7 +39,15 @@ describe("Today place rows (PS-03, PS-19)", () => {
       for (const row of snapshot.briefing.places ?? []) {
         const reading = readingOf(snapshot, row.place);
         expect(reading).toBeTruthy();
-        expect(row.figure.startsWith(reading?.tiles[0].value ?? "missing")).toBe(true);
+        const figure =
+          row.place === "environment"
+            ? snapshot.briefing.environment.facts[0]?.figure
+            : reading?.tiles[0].value;
+        if (row.place === "environment" && row.figure === "not read yet") {
+          expect(row.unread).toBeDefined();
+        } else {
+          expect(row.figure.startsWith(figure ?? "missing")).toBe(true);
+        }
         expect(row.fresh).toEqual({ itemIds: [] });
         expect(row.visual).toBeDefined();
         const refs = new Set(reading?.itemIds);
@@ -373,8 +381,7 @@ describe("Today place rows (PS-03, PS-19)", () => {
                 ...entry.content,
                 tiles: [
                   { ...entry.content.tiles[0], value: "0 of 13" },
-                  entry.content.tiles[1],
-                  entry.content.tiles[2],
+                  ...entry.content.tiles.slice(1),
                 ],
               },
             }
@@ -471,7 +478,7 @@ describe("Today place cards speak compactly (draft 7, Words and visuals)", () =>
       }
       const environment = rows.find(({ place }) => place === "environment");
       expect(environment?.figure).toBe(
-        `${readingOf(snapshot, "environment")?.tiles[0].value} ready`,
+        `${snapshot.briefing.environment.facts.find(({ label }) => label === "Running")?.figure} ready`,
       );
       const security = rows.find(({ place }) => place === "security");
       const high = readingOf(snapshot, "security")?.tiles[0].value ?? "missing";

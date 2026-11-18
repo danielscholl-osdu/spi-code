@@ -550,6 +550,7 @@ export const FRAGMENT_HASHES: Readonly<Record<string, readonly string[]>> = {
   Fork: [
     "c6ff93e4fe5b8003dc347330a1c884b8032431ed5fa7dd4f00bca2f1f26b86ea",
     "5fba03ee60385cd18e1e8f0a15b91a1d0a2a5833af4be7e4d93bbc0f48d55d47",
+    "ed75ab2ee4f6c4cc4760ae8a48b4c66b45d4c01178ef3f5a1a3e671d428a4e99",
   ],
   Stack: ["7e9be32536546dd43de851827f6041a4c3c6184591934481e552906e49f6068f"],
 };

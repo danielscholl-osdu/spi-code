@@ -103,6 +103,9 @@ const pastIssueFact = z.object({
 const releaseFact = z.object({ tag: z.string(), at: z.string(), url: z.string() });
 
 const deploymentFact = z.object({
+  id: z.string().optional(),
+  runUrl: z.string().optional(),
+  deploymentUrl: z.string().optional(),
   createdAt: z.string(),
   ref: z.string().optional(),
   sha: z.string().optional(),
@@ -134,6 +137,7 @@ const repoFact = z.object({
   issuesUnread: z.literal(true).optional(),
   closedIssues: z.array(issueFact.extend({ closedAt: z.string().optional() })).optional(),
   deployments: z.array(deploymentFact),
+  deploymentRead: z.enum(["unread", "complete", "capped"]).optional(),
   pastPrs: z.array(pastPrFact).optional(),
   pastIssues: z.array(pastIssueFact).optional(),
   releases: z.array(releaseFact).optional(),

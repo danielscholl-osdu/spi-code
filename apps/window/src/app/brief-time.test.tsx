@@ -69,7 +69,7 @@ it.each([
     ).toContain(`Before ${item.due?.before}`);
   }
   await act(async () => navigate({ kind: "environment" }));
-  expect(host.querySelector(".place-headline")?.textContent).toBe(
-    `v0.35.3 is ready, green since ${green}.`,
-  );
+  expect(
+    host.querySelector('[data-event="refresh:42160446124"]')?.getAttribute("aria-label"),
+  ).toContain(`to ${green}`);
 });

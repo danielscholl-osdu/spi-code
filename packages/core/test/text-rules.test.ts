@@ -29,12 +29,16 @@ const fixtures = [
 // Fields the window draws only in Detail or as read evidence.
 const DETAIL = new Set(["detail", "evidence", "envelope", "reads", "provenance"]);
 // Identifiers and enums, never drawn as copy.
+const BORROW_BRANCH = /(?:^|\/)environment\/borrows\/\d+\/branch$/;
 const KEYS = new Set(["id", "ids", "inspect", "kind", "row"]);
 
 type Leaf = { path: string; text: string; detail: boolean };
 
 function leaves(value: unknown, path: string[] = [], detail = false): Leaf[] {
-  if (typeof value === "string") return [{ path: `/${path.join("/")}`, text: value, detail }];
+  if (typeof value === "string") {
+    const pointer = `/${path.join("/")}`;
+    return [{ path: pointer, text: value, detail: detail || BORROW_BRANCH.test(pointer) }];
+  }
   if (Array.isArray(value)) return value.flatMap((v, i) => leaves(v, [...path, String(i)], detail));
   if (value && typeof value === "object")
     return Object.entries(value).flatMap(([key, v]) =>
@@ -48,6 +52,7 @@ const BRIEFING_DETAIL = [
   /^\/(focus|rest)\/\d+\/evidence\//,
   /^\/flow\/rows\/\d+\/detail\//,
   /^\/environment\/lanes\/\d+\/events\/\d+\/detail(\/|$)/,
+  BORROW_BRANCH,
 ];
 
 function drawnBriefing(briefing: unknown): Leaf[] {

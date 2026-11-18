@@ -14,6 +14,12 @@ import {
   ViewSnapshotSchema,
 } from "@spi-code/contracts";
 import type { BrowserWindow, IpcMainEvent } from "electron";
+import {
+  ENVIRONMENT_BORROW,
+  ENVIRONMENT_LINK,
+  ENVIRONMENT_LIVE,
+  smokeEnvironment,
+} from "./smoke-environment.js";
 import { RUNS_FAILURE, RUNS_ROUTE, withSmokeServiceRuns } from "./smoke-service-runs.js";
 
 /**
@@ -1090,7 +1096,31 @@ export async function assertRenderedContrast(
       await push(snapshot);
       await everyShade(`today-${morning}`, ".today");
     }
-    await push(nov6);
+    await push(smokeEnvironment(nov6));
+    const liveBorrow = `document.querySelector(${JSON.stringify(ENVIRONMENT_LIVE)})`;
+    const borrowPopover = `document.querySelector(${JSON.stringify(ENVIRONMENT_BORROW)})`;
+    await js('location.hash = "#environment"');
+    await rendered(window, liveBorrow);
+    await everyShade("environment", ".environment .env-status");
+    await js(`${liveBorrow}.click()`);
+    await rendered(window, `document.querySelector(${JSON.stringify(ENVIRONMENT_LINK)})`);
+    await everyShade("environment-borrow", ENVIRONMENT_BORROW);
+    await js(`${borrowPopover}.querySelector('[aria-label="Close"]').click()`);
+    const maintenance = structuredClone(nov6);
+    maintenance.briefing.environment.status = {
+      state: "maintenance",
+      label: "In maintenance",
+      length: "1 d 4 h",
+      reason: "Refresh v0.35.3 failed 22:08",
+    };
+    delete maintenance.briefing.environment.line;
+    maintenance.provenance = maintenance.provenance.filter(
+      ({ path }) => path !== "/briefing/environment/line",
+    );
+    fixture(window, "view.snapshot", { ...maintenance, cursor: cursor++ });
+    await rendered(window, 'document.querySelector(".env-status[data-state=maintenance]")');
+    await everyShade("environment-maintenance", ".environment .env-status");
+    fixture(window, "view.snapshot", { ...nov6, cursor: cursor++ });
     await js('location.hash = "#upstream"');
     await rendered(window, 'document.querySelector(".upstream .place-reading")');
     await everyShade("upstream", ".upstream", { rest: [TOP_PINNED], hover: [TOP_PINNED] });

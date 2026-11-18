@@ -120,7 +120,12 @@ export function fixtureInput(): WatchInput {
 export function appStyle(input: WatchInput): WatchInput {
   return {
     ...input,
-    context: Object.freeze({ ...input.context, timeStyle: "instant", words: "app" }),
+    context: Object.freeze({
+      ...input.context,
+      timeStyle: "instant",
+      words: "app",
+      timeZone: "UTC",
+    }),
   };
 }
 

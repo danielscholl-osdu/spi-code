@@ -20,7 +20,6 @@ import {
 } from "../../components/evidence/marks.test-helper.js";
 import { mixedSnapshot, testSnapshot } from "../../store/test-snapshot.js";
 import { createWatchStore } from "../../store/watch.js";
-import { dropRunning, setRunning } from "../../test-utils/environment.test-helper.js";
 import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { timedText } from "../../time.js";
 import Environment from "./index.js";
@@ -34,14 +33,14 @@ const environmentStyles = readFileSync(
   "utf8",
 );
 const environment = snapshot.briefing.environment;
-const from = Date.parse(environment.from);
+const from = Date.parse(environment.to) - 86_400_000;
 const to = Date.parse(environment.to);
 const first = environment.lanes[0]?.events[0];
 if (!first) throw new Error("Oracle must contain an event");
 
 it("places every frozen event exactly as the rib oracle", () => {
   expect({
-    from: environment.from,
+    from: new Date(from).toISOString(),
     to: environment.to,
     lanes: environment.lanes.map((lane) => ({
       id: lane.id,
@@ -179,7 +178,7 @@ it("keeps timeline affordances, and the empty lane's words clear of the sticky l
   }
 });
 
-it("renders oracle lane order, labels, facts and bars; a bar opens its popover", async () => {
+it("renders oracle lane order, labels and bars; a bar opens its popover", async () => {
   const store = createWatchStore(vi.fn());
   const receive = (body: typeof snapshot) =>
     store.getState().receive({
@@ -202,19 +201,12 @@ it("renders oracle lane order, labels, facts and bars; a bar opens its popover",
     const labels = [...consoleHtml.matchAll(/<div class="tl-lab">([^<]+)<\/div>/g)].map(
       (match) => match[1],
     );
-    expect([...container.querySelectorAll(".env-lane-label")].map((el) => el.textContent)).toEqual(
-      labels,
-    );
+    expect(
+      [...container.querySelectorAll("[data-lane] .env-lane-label")].map((el) => el.textContent),
+    ).toEqual(labels);
     expect(
       [...container.querySelectorAll("[data-lane]")].map((el) => el.getAttribute("data-lane")),
     ).toEqual(JSON.parse(placement).lanes.map((lane: { id: string }) => lane.id));
-    expect(container.querySelector(".place-tile dt")?.textContent).toBe("Maintenance");
-    for (const fact of environment.facts.slice(1)) {
-      expect(container.textContent).toContain(fact.label);
-      expect(container.textContent).toContain(fact.figure);
-      expect(container.textContent).toContain(timedText(fact.sub, { hint: false }));
-    }
-    expect(container.textContent).toContain(environment.note);
     expect(container.querySelectorAll(".env-none")).toHaveLength(2);
     for (const lane of JSON.parse(placement).lanes) {
       for (const p of lane.placed) {
@@ -255,7 +247,10 @@ it("renders oracle lane order, labels, facts and bars; a bar opens its popover",
       receive({
         ...snapshot,
         cursor: 3,
-        briefing: { ...snapshot.briefing, environment: { ...environment, lanes: [] } },
+        briefing: {
+          ...snapshot.briefing,
+          environment: { ...environment, lanes: [], borrows: [], forksNote: undefined },
+        },
       }),
     );
     expect(container.querySelector(".env-timeline")).toBeNull();
@@ -287,9 +282,8 @@ it.each([
       expectEvidenceMarks(container, body, {
         sections: [
           ["/briefing/environment/headline"],
-          ["/briefing/environment/facts"],
+          ...(body.briefing.environment.line ? [["/briefing/environment/line"]] : []),
           ["/briefing/environment/lanes"],
-          ["/briefing/environment/note"],
           [
             `/briefing/repositories/rows/${body.briefing.repositories.rows.findIndex((row) => row.name === "osdu-spi-stack")}`,
           ],
@@ -404,7 +398,8 @@ it("omits absent snapshot parts and leaves unidentifiable lines as text, not fak
     const bare = structuredClone(body);
     bare.briefing.environment.facts = [];
     bare.briefing.environment.lanes = [];
-    delete bare.briefing.environment.note;
+    delete bare.briefing.environment.forksNote;
+    bare.briefing.environment.borrows = [];
     bare.briefing.repositories.rows = bare.briefing.repositories.rows.filter(
       (row) => row.name !== "osdu-spi-stack",
     );
@@ -412,7 +407,6 @@ it("omits absent snapshot parts and leaves unidentifiable lines as text, not fak
     expect(container.querySelector(".env-part-body > .env-facts")).toBeNull();
     expect(container.querySelector(".env-day")).toBeNull();
     expect(container.querySelector("[data-part='repository']")).toBeNull();
-    expect(container.querySelector(".env-note")).toBeNull();
     expect(container.textContent).not.toContain(repo.note);
     expect(container.querySelector("[data-part='runs'] .env-lead")?.textContent).toBe(
       bare.briefing.environment.headline,
@@ -444,146 +438,13 @@ async function renderRecorded(body = mixedSnapshot(recorded)) {
   };
 }
 
-/** Each tile as label, value, counts and tone. */
-const tilesOf = (page: HTMLElement) =>
-  [...page.querySelectorAll(".place-tiles > .place-tile")].map((tile) => [
-    tile.querySelector("dt")?.textContent,
-    tile.querySelector(".place-tile-value")?.textContent,
-    tile.querySelector(".place-tile-counts")?.textContent,
-    tile.getAttribute("data-tone") ?? undefined,
-  ]);
-
-const quietOf = (page: HTMLElement) =>
-  [...page.querySelectorAll(".env-quiet > div")].map((row) => [
-    row.querySelector("dt")?.textContent,
-    row.querySelector("dd")?.textContent,
-  ]);
-
-const OPEN_HOLD = {
-  id: "1794000000000",
-  start: "2026-11-05T21:00:00.000Z",
-  state: "held" as const,
-  label: "13 h 20 min",
-  detail: "in maintenance for 13 h 20 min so far",
-};
-
-const HOLDS = [
-  "held, nothing running",
-  "held, a run in flight",
-  "held, Environment fact unread",
-  "held, no Environment fact",
-  "not held",
-] as const;
-
-/** The recorded morning, with an open hold and the top row's Environment fact as each case reads. */
-function environmentAs(change: (typeof HOLDS)[number]) {
-  const body = mixedSnapshot(recorded);
-  const holds = body.briefing.environment.lanes.find(({ id }) => id === "holds");
-  if (!holds) throw new Error("Recorded snapshot needs the Held lane");
-  if (change !== "not held") holds.events.push(OPEN_HOLD);
-  if (change === "held, nothing running")
-    setRunning(body, { sub: "held \u00b7 maintenance is set", tone: "bad" });
-  if (change === "held, a run in flight")
-    setRunning(body, { sub: "upgrade running \u00b7 at verify", tone: "warn" });
-  if (change === "held, Environment fact unread")
-    setRunning(body, { figure: "?", sub: "held \u00b7 maintenance is set", tone: "bad" });
-  if (change === "held, no Environment fact") dropRunning(body);
-  return body;
-}
-
-it.each(
-  HOLDS.map((change) => [
-    change,
-    change === "held, nothing running"
-      ? "bad"
-      : change === "held, a run in flight"
-        ? "warn"
-        : "neutral",
-  ]),
-)("leads with the environment's own state: %s", async (change, tone) => {
-  const body = environmentAs(change);
-  const [running, ...rest] = body.briefing.environment.facts;
-  if (!running) throw new Error("Recorded snapshot needs the Running fact");
-  const view = await renderRecorded(body);
-  try {
-    const tiles = tilesOf(view.page);
-    expect(tiles[0]).toEqual(
-      change === "not held"
-        ? ["Running", running.figure, timedText(running.sub, { hint: false }), running.tone]
-        : [
-            "Maintenance",
-            OPEN_HOLD.label,
-            timedText(`since ${OPEN_HOLD.start}`, { hint: false }),
-            tone,
-          ],
-    );
-    expect(tiles.slice(1)).toEqual(
-      rest.map((fact) => [
-        fact.label,
-        fact.figure,
-        timedText(fact.sub, { hint: false }),
-        fact.tone,
-      ]),
-    );
-    expect(quietOf(view.page).map(([label]) => label)).toEqual([
-      "Version",
-      "Fork deploys",
-      "Stack repository",
-    ]);
-  } finally {
-    await view.done();
-  }
-});
-
-it.each([
-  "no environment facts",
-  "no Held lane",
-  "an unread Held lane with an open hold",
-  "an unread Held lane with none open",
-])("draws the reading's own tiles and no Maintenance tile with %s", async (change) => {
-  const body = environmentAs(
-    change === "an unread Held lane with none open" ? "not held" : "held, nothing running",
-  );
-  const environment = body.briefing.environment;
-  if (change === "no environment facts") environment.facts = [];
-  else if (change === "no Held lane")
-    environment.lanes = environment.lanes.filter(({ id }) => id !== "holds");
-  else {
-    const lifecycle = body.areas.find(({ area }) => area === "lifecycle");
-    const holds = environment.lanes.findIndex(({ id }) => id === "holds");
-    const feeds = body.provenance.find(
-      ({ path }) => path === `/briefing/environment/lanes/${holds}`,
-    );
-    if (!lifecycle || !feeds?.areas.includes("lifecycle"))
-      throw new Error("Recorded snapshot needs the Held lane fed by lifecycle");
-    lifecycle.envelope = { source: "lifecycle", state: "unread" };
-  }
-  const reading = body.readings.find(({ anchor }) => anchor.kind === "environment");
-  if (!reading?.content) throw new Error("Recorded snapshot needs an environment reading");
-  const view = await renderRecorded(body);
-  try {
-    expect(tilesOf(view.page)).toEqual(
-      reading.content.tiles.map((tile) => [
-        tile.label,
-        tile.value,
-        timedText(tile.counts, { hint: false }),
-        undefined,
-      ]),
-    );
-    expect(view.page.querySelector(".env-quiet")).toBeNull();
-    expect(view.page.querySelector(".place-reading")?.textContent).not.toContain("Maintenance");
-  } finally {
-    await view.done();
-  }
-});
-
-it("draws the last 24 hours open between the tiles and the items, an open hold apart from an ended one", async () => {
+it("draws the last 24 hours open between status and the items, an open hold apart from an ended one", async () => {
   const body = mixedSnapshot(mixed);
   const environment = body.briefing.environment;
   const holds = environment.lanes.find(({ id }) => id === "holds");
   const [open] = holds?.events ?? [];
   if (!holds || !open || open.end) throw new Error("Mixed snapshot needs an open hold");
-  const from = Date.parse(environment.from);
+  const from = Date.parse(environment.to) - 86_400_000;
   const ended = {
     id: String(from + 3_600_000),
     start: new Date(from + 3_600_000).toISOString(),
@@ -596,12 +457,13 @@ it("draws the last 24 hours open between the tiles and the items, an open hold a
   const view = await renderRecorded(body);
   try {
     const day = view.page.querySelector(".place-reading .env-day");
-    const tiles = view.page.querySelector(".place-tiles");
+    const status = view.page.querySelector(".env-status");
     const groups = view.page.querySelector(".place-groups");
-    if (!day || !tiles || !groups) throw new Error("Missing the place's tiles, timeline or items");
+    if (!day || !status || !groups)
+      throw new Error("Missing the place's status, timeline or items");
     expect(day.closest("details")).toBeNull();
     expect(day.querySelector("h3")?.textContent).toBe("Last 24 hours");
-    expect(tiles.compareDocumentPosition(day)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(status.compareDocumentPosition(day)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(day.compareDocumentPosition(groups)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     const holds = [...day.querySelectorAll<HTMLElement>('[data-lane="holds"] [data-event]')];
     expect(holds.map((bar) => [bar.dataset.event, bar.classList.contains("open")])).toEqual([
@@ -627,9 +489,6 @@ it.each([
   "reads no Lane label and no Stopped about fork deploys on the %s place",
   async (_, raw) => {
     const view = await renderRecorded(mixedSnapshot(raw));
-    const reading = view.body.readings.find(({ anchor }) => anchor.kind === "environment");
-    const deploys = reading?.content?.tiles.find(({ label }) => label === "Fork deploys");
-    if (!deploys) throw new Error("Recorded reading needs its Fork deploys tile");
     try {
       const place = view.page.querySelector<HTMLElement>("section.place");
       if (!place) throw new Error("Missing the Environment place");
@@ -643,144 +502,33 @@ it.each([
       ];
       expect(labels.filter((label) => /\bLanes?\b/.test(label))).toEqual([]);
       expect(place.textContent).not.toMatch(/\bStopped\b/);
-      expect(quietOf(view.page).find(([label]) => label === "Fork deploys")?.[1]).toBe(
-        `${deploys.value} ${deploys.counts}`,
-      );
     } finally {
       await view.done();
     }
   },
 );
-
-it("draws the recorded environment reading through the place, with no placeholders", async () => {
-  const view = await renderRecorded();
-  const reading = view.body.readings.find(({ anchor }) => anchor.kind === "environment");
-  if (!reading?.content) throw new Error("Recorded snapshot needs an environment reading");
-  try {
-    const place = view.page.querySelector("section.place[aria-label='Environment']");
-    expect(place).not.toBeNull();
-    expect(view.page.firstElementChild).toBe(place);
-    expect(place?.querySelector("h1")?.textContent).toBe("Environment");
-    expect(place?.querySelector(".place-headline")?.textContent).toBe(
-      timedText("v0.35.3 is ready, green since 2026-11-06T04:20:36.000Z.", { hint: false }),
-    );
-    expect(tilesOf(view.page)).toEqual(
-      view.body.briefing.environment.facts.map((fact) => [
-        fact.label,
-        fact.figure,
-        timedText(fact.sub, { hint: false }),
-        fact.tone,
-      ]),
-    );
-    expect(quietOf(view.page)).toEqual(
-      reading.content.tiles.map((tile) => [
-        tile.label,
-        `${tile.value} ${timedText(tile.counts, { hint: false })}`,
-      ]),
-    );
-    expect(reading.content.tiles.map(({ label }) => label)).toEqual([
-      "Version",
-      "Fork deploys",
-      "Stack repository",
-    ]);
-    const order = [".place-tiles", ".env-day", ".place-groups", ".place-folded", ".env-quiet"]
-      .map((selector) => place?.querySelector(selector))
-      .filter((element) => element !== null && element !== undefined);
-    expect(order.length).toBeGreaterThanOrEqual(4);
-    order.slice(1).forEach((element, index) => {
-      expect(order[index]?.compareDocumentPosition(element) ?? 0, String(element.className)).toBe(
-        Node.DOCUMENT_POSITION_FOLLOWING,
-      );
-    });
-    expect(place?.querySelector(".place-folded")?.textContent).toBe(reading.content.folded);
-    expect(
-      view.page.querySelector("[aria-label='Threads'], [aria-label='Live cluster']"),
-    ).toBeNull();
-    expect(view.page.textContent).not.toMatch(/not available yet|Waiting for the first sweep/);
-    expect(view.page.textContent).not.toMatch(/\bThreads\b|Live cluster/);
-  } finally {
-    await view.done();
-  }
-});
 
 it.each([
   ["1106", recorded],
   ["mixed", mixed],
-] as const)(
-  "keeps %s Stack runs to the flow context, the run headline and the note",
-  async (_, raw) => {
-    const view = await renderRecorded(mixedSnapshot(raw));
-    try {
-      const runs = view.page.querySelector<HTMLDetailsElement>('[data-part="runs"]');
-      if (!runs) throw new Error("Missing Stack runs disclosure");
-      expect(runs.open).toBe(false);
-      expect(runs.querySelector(".env-lead")?.textContent).toBe(
-        timedText(view.body.briefing.environment.headline, { hint: false }),
-      );
-      expect(runs.querySelector(".env-note")?.textContent).toBe(
-        view.body.briefing.environment.note,
-      );
-      expect(runs.querySelector("[aria-label='Upstream syncs']")).not.toBeNull();
-      expect(runs.querySelector("[data-lane], .place-tile, [data-pointer*='/facts/']")).toBeNull();
-      expect(view.page.querySelectorAll(".env-day [data-lane]")).toHaveLength(
-        view.body.briefing.environment.lanes.length,
-      );
-    } finally {
-      await view.done();
-    }
-  },
-);
-
-it.each(["different version", "unread fact", "unread tile", "declared tile", "no reading"])(
-  "draws core's Running fact as it is sent with %s",
-  async (change) => {
-    const body = mixedSnapshot(recorded);
-    const fact = body.briefing.environment.facts[0];
-    const reading = body.readings.find(({ anchor }) => anchor.kind === "environment");
-    const tile = reading?.content?.tiles[0];
-    if (!fact || !reading || !tile) throw new Error("Missing recorded running sources");
-    if (change === "different version") fact.figure = "v0.35.2";
-    if (change === "unread fact") {
-      fact.figure = "?";
-      fact.sub = "readiness unread";
-      fact.tone = "neutral";
-    }
-    if (change === "unread tile") tile.value = "not read yet";
-    if (change === "declared tile") tile.counts = "declared \u00b7 running version not read yet";
-    if (change === "no reading") reading.content = null;
-    const view = await renderRecorded(body);
-    try {
-      expect(tilesOf(view.page)[0]).toEqual([
-        "Running",
-        fact.figure,
-        timedText(fact.sub, { hint: false }),
-        fact.tone,
-      ]);
-      expect(view.page.querySelector(".place-headline")?.textContent).toBe(
-        reading.content ? timedText(reading.content.headline, { hint: false }) : undefined,
-      );
-    } finally {
-      await view.done();
-    }
-  },
-);
-
-it.each(["deployable \u00b7 green at 03:20", "deployability unread"])(
-  "draws core's words without rewriting them: %s",
-  async (sub) => {
-    const body = mixedSnapshot(recorded);
-    const fact = body.briefing.environment.facts[0];
-    if (!fact) throw new Error("Missing recorded running fact");
-    fact.sub = sub;
-    const view = await renderRecorded(body);
-    try {
-      expect(tilesOf(view.page)[0]?.[2]).toBe(sub);
-      expect(view.page.textContent).not.toContain(sub.replace(/^deployab\w+/, "ready"));
-    } finally {
-      await view.done();
-    }
-  },
-);
+] as const)("keeps %s Stack runs to the flow context and the run headline", async (_, raw) => {
+  const view = await renderRecorded(mixedSnapshot(raw));
+  try {
+    const runs = view.page.querySelector<HTMLDetailsElement>('[data-part="runs"]');
+    if (!runs) throw new Error("Missing Stack runs disclosure");
+    expect(runs.open).toBe(false);
+    expect(runs.querySelector(".env-lead")?.textContent).toBe(
+      timedText(view.body.briefing.environment.headline, { hint: false }),
+    );
+    expect(runs.querySelector("[aria-label='Upstream syncs']")).not.toBeNull();
+    expect(runs.querySelector("[data-lane], .place-tile, [data-pointer*='/facts/']")).toBeNull();
+    expect(view.page.querySelectorAll(".env-day [data-lane]")).toHaveLength(
+      view.body.briefing.environment.lanes.length,
+    );
+  } finally {
+    await view.done();
+  }
+});
 
 type FormerField = {
   field: string;
@@ -792,7 +540,7 @@ function formerFields(body: ReturnType<typeof mixedSnapshot>): FormerField[] {
   const env = body.briefing.environment;
   const now = new Date(Date.parse(env.to));
   const repo = body.briefing.repositories.rows.find(({ name }) => name === "osdu-spi-stack");
-  if (!repo || !env.note) throw new Error("Recorded snapshot needs the stack row and lane note");
+  if (!repo) throw new Error("Recorded snapshot needs the stack row");
   const all = (page: HTMLElement, selector: string) => [...page.querySelectorAll(selector)];
   const holding = (selector: string, text: string) => (page: HTMLElement) =>
     all(page, selector).find((element) =>
@@ -800,16 +548,6 @@ function formerFields(body: ReturnType<typeof mixedSnapshot>): FormerField[] {
     );
   return [
     { field: "headline", find: holding(".env-lead", env.headline), text: env.headline },
-    ...env.facts.flatMap((fact, index) =>
-      (["label", "figure", "sub"] as const).map((part) => ({
-        field: `fact ${index} ${part}`,
-        find: (page: HTMLElement) =>
-          page.querySelector(
-            `.place-tile:nth-child(${index + 1}) ${{ label: "dt", figure: ".place-tile-value", sub: ".place-tile-counts" }[part]}`,
-          ) ?? undefined,
-        text: fact[part],
-      })),
-    ),
     ...env.lanes.flatMap((lane) => [
       {
         field: `lane ${lane.id}`,
@@ -817,7 +555,7 @@ function formerFields(body: ReturnType<typeof mixedSnapshot>): FormerField[] {
           page.querySelector(`[data-lane='${lane.id}'] .env-lane-label`) ?? undefined,
         text: lane.label,
       },
-      ...(lane.events.length === 0
+      ...(lane.events.every(({ end }) => end && Date.parse(end) < now.getTime() - 86_400_000)
         ? [
             {
               field: `lane ${lane.id} empty`,
@@ -826,16 +564,17 @@ function formerFields(body: ReturnType<typeof mixedSnapshot>): FormerField[] {
               text: "none in the last day",
             },
           ]
-        : lane.events.map((event) => ({
-            field: `lane ${lane.id} event ${event.id}`,
-            find: (page: HTMLElement) =>
-              all(page, `[data-lane='${lane.id}'] [data-event]`).find((element) =>
-                element.getAttribute("aria-label")?.includes(eventWhen(event, now)),
-              ),
-            text: event.label,
-          }))),
+        : lane.events
+            .filter(({ end }) => !end || Date.parse(end) >= now.getTime() - 86_400_000)
+            .map((event) => ({
+              field: `lane ${lane.id} event ${event.id}`,
+              find: (page: HTMLElement) =>
+                all(page, `[data-lane='${lane.id}'] [data-event]`).find((element) =>
+                  element.getAttribute("aria-label")?.includes(eventWhen(event, now)),
+                ),
+              text: event.label,
+            }))),
     ]),
-    { field: "lane note", find: holding(".env-note", env.note), text: env.note },
     {
       field: "repository title",
       find: holding("[data-part='repository'] p", repo.title),
@@ -866,7 +605,7 @@ it("keeps every former Environment page field within one click", async () => {
   const view = await renderRecorded();
   const fields = formerFields(view.body);
   try {
-    expect(fields.length).toBeGreaterThan(20);
+    expect(fields.length).toBeGreaterThan(15);
     for (const { field, find, text } of fields) {
       const element = find(view.page);
       expect(element, field).toBeDefined();

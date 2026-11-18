@@ -5,8 +5,7 @@ import type { TodayFleet, ViewSnapshot } from "@spi-code/contracts";
 import { restatesHeadline } from "../components/opened-body/content.js";
 import { plainTitle } from "../text.js";
 import { instantsIn, timedText, when } from "../time.js";
-import { openHold } from "../views/environment/hold.js";
-import { heldLaneRead } from "../views/environment/lead.js";
+import { borrowInDay, borrowWhen, dayFrom } from "../views/environment/borrows.js";
 import { runName } from "../views/environment/opening.js";
 import { eventSpan, eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
 import { releaseSectionCases } from "../views/releases/reachability.test-helper.js";
@@ -163,9 +162,6 @@ function overlaps(hold: Event, e: Event) {
   const end = (x: Event) => (x.end === undefined ? Number.POSITIVE_INFINITY : Date.parse(x.end));
   return Date.parse(e.start) <= end(hold) && end(e) >= Date.parse(hold.start);
 }
-
-/** While a hold is open the Maintenance tile leads; the Running fact's run is the Stack runs headline. */
-const MAINTENANCE_LEADS = "Maintenance leads in the Running fact's place while a hold is open";
 
 const popoverField = (index: number, part: "dt" | "dd") =>
   `.popover-fields > div:nth-child(${index + 1}) > ${part}`;
@@ -384,25 +380,68 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
     runs,
     at("/briefing/environment/headline"),
   );
-  if (environment.note)
-    add("/briefing/environment/note", environment.note, runs, at("/briefing/environment/note"));
   const environmentHome = home("Environment", STARTS.environment);
-  const environmentPlace = 'section.place[aria-label="Environment"]';
-  const held = heldLaneRead(snapshot) && openHold(snapshot);
-  environment.facts.forEach((fact, index) => {
-    const pointer = `/briefing/environment/facts/${index}`;
-    const tile = `${environmentPlace} .place-tile:nth-child(${index + 1})`;
-    const lead = held && index === 0 ? { exempt: MAINTENANCE_LEADS } : {};
-    add(`${pointer}/label`, fact.label, environmentHome, `${tile} dt`, lead);
-    add(`${pointer}/figure`, fact.figure, environmentHome, `${tile} .place-tile-value`, lead);
-    add(`${pointer}/sub`, subText(fact.sub), environmentHome, `${tile} .place-tile-counts`, lead);
-  });
   const now = new Date(Date.parse(environment.to));
+  const to = now.getTime();
+  const base = "/briefing/environment";
+  const status = environment.status;
+  if (status) {
+    add(`${base}/status/state`, status.state, environmentHome, ".env-status", {
+      attribute: "data-state",
+    });
+    add(`${base}/status/label`, status.label, environmentHome, ".env-status-label");
+    if (status.length)
+      add(
+        `${base}/status/length`,
+        status.length,
+        environmentHome,
+        ".env-status > span:nth-child(2)",
+      );
+    if (status.reason)
+      add(`${base}/status/reason`, subText(status.reason), environmentHome, ".env-status small");
+    status.live?.forEach(({ id, fork }, index) => {
+      add(
+        `${base}/status/live/${index}/fork`,
+        fork,
+        environmentHome,
+        `.env-status [data-opens=${quote(`borrow~${id}`)}]`,
+      );
+    });
+  }
+  if (environment.line)
+    add(`${base}/line`, subText(environment.line), environmentHome, ".env-line");
+  if (environment.forksNote)
+    add(`${base}/forksNote`, environment.forksNote, environmentHome, ".env-forks-note");
+  environment.borrows?.forEach((borrow, index) => {
+    if (!borrowInDay(borrow, to)) return;
+    const pointer = `${base}/borrows/${index}`;
+    const bar = `[data-borrow=${quote(borrow.id)}]`;
+    const where = home(`Environment · borrow ${borrow.id}`, STARTS.environment, bar);
+    const popover = ".popover .opened-body";
+    const words = { contains: true };
+    add(`${pointer}/fork`, borrow.fork, where, `${popover} h3`);
+    if (borrow.branch) add(`${pointer}/branch`, borrow.branch, where, `${popover} > p`, words);
+    add(`${pointer}/result`, borrow.result, where, `${popover} > p`, words);
+    const span = borrowWhen(borrow, to);
+    add(`${pointer}/start`, span, where, `${popover} > p`, words);
+    if (borrow.end) add(`${pointer}/end`, span, where, `${popover} > p`, words);
+    if (borrow.estimated)
+      add(`${pointer}/estimated`, "true", environmentHome, bar, { attribute: "data-estimated" });
+    if (borrow.overlap)
+      add(`${pointer}/overlap`, borrow.overlap, where, `${popover} .opened-body-effect`);
+    borrow.links.forEach(({ label, kind, url }, link) => {
+      const pill = `${popover} a[href=${quote(url)}]`;
+      add(`${pointer}/links/${link}/label`, label, where, pill, words);
+      if (kind) add(`${pointer}/links/${link}/kind`, kind, where, pill, { attribute: "data-kind" });
+      add(`${pointer}/links/${link}/url`, url, where, pill, { attribute: "href" });
+    });
+  });
   environment.lanes.forEach((lane, laneIndex) => {
     const pointer = `/briefing/environment/lanes/${laneIndex}`;
     const row = `.env-row[data-lane=${quote(lane.id)}]`;
     add(`${pointer}/label`, lane.label, environmentHome, `${row} .env-lane-label`);
     lane.events.forEach((e, index) => {
+      if (e.end && Date.parse(e.end) < dayFrom(to)) return;
       const event = `${pointer}/events/${index}`;
       const bar = `button.env-event[data-event=${quote(`${lane.id}:${e.id}`)}]`;
       add(`${event}/label`, eventText(e), environmentHome, `${bar} .env-event-label`);
@@ -442,7 +481,7 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
         .forEach((other) => {
           const otherIndex = environment.lanes.indexOf(other);
           other.events.forEach((run, runIndex) => {
-            if (!overlaps(e, run)) return;
+            if ((run.end && Date.parse(run.end) < dayFrom(to)) || !overlaps(e, run)) return;
             const runPointer = `/briefing/environment/lanes/${otherIndex}/events/${runIndex}`;
             add(
               `${runPointer}/detail`,
@@ -1421,6 +1460,7 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
       "/briefing/flow/also/#/inspect",
       "/briefing/environment/lanes/#/id",
       "/briefing/environment/lanes/#/events/#/id",
+      "/briefing/environment/borrows/#/id",
       "/briefing/repositories/first",
       "/briefing/repositories/rows/#/id",
       "/briefing/repositories/rows/#/sections/#/lines/#/id",
@@ -1488,8 +1528,62 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
     when: (value) => value === false,
   },
   axis: {
-    patterns: ["/briefing/environment/from", "/briefing/environment/to"],
-    reason: "The Stack runs timeline's axis frame, drawn as its hour ticks",
+    patterns: ["/briefing/environment/to"],
+    reason: "The 24-hour timeline's right edge and reference clock",
+  },
+  "environment-seven-days": {
+    patterns: ["/briefing/environment/from"],
+    reason: "spicode-8q6.5 draws the seven-day range",
+  },
+  "environment-older-runs": {
+    patterns: ["label", "state", "start", "end", "detail"].map(
+      (field) => `/briefing/environment/lanes/#/events/#/${field}`,
+    ),
+    reason: "spicode-8q6.5 draws events outside the 24-hour range",
+    pending: true,
+    when: (_value, { pointer, snapshot }) => {
+      const [, lane, event] = /lanes\/(\d+)\/events\/(\d+)/.exec(pointer) ?? [];
+      const env = snapshot.briefing.environment;
+      const end = env.lanes[Number(lane)]?.events[Number(event)]?.end;
+      return !!end && Date.parse(end) < dayFrom(Date.parse(env.to));
+    },
+  },
+  "environment-older-borrows": {
+    patterns: [
+      ...["fork", "result", "branch", "start", "end", "estimated", "overlap"].map(
+        (field) => `/briefing/environment/borrows/#/${field}`,
+      ),
+      ...["kind", "label", "url"].map(
+        (field) => `/briefing/environment/borrows/#/links/#/${field}`,
+      ),
+    ],
+    reason: "spicode-8q6.5 draws borrows outside the 24-hour range",
+    pending: true,
+    when: (_value, { pointer, snapshot }) => {
+      const index = Number(/borrows\/(\d+)/.exec(pointer)?.[1]);
+      const env = snapshot.briefing.environment;
+      const borrow = env.borrows?.[index];
+      return !!borrow && !borrowInDay(borrow, Date.parse(env.to));
+    },
+  },
+  "environment-live-selection": {
+    patterns: ["/briefing/environment/status/live/#/id"],
+    reason: "Transport: the deployment id opens the live borrow",
+    pending: true,
+  },
+  "environment-legacy-facts": {
+    patterns: [
+      "/briefing/environment/facts/#/label",
+      "/briefing/environment/facts/#/figure",
+      "/briefing/environment/facts/#/sub",
+    ],
+    reason:
+      "The default briefing keeps the legacy tile fields. The app draws the facts line and the sidebar uses the running version.",
+    when: (_value, { pointer, snapshot }) => {
+      const [, index, field] = /facts\/(\d+)\/(\w+)/.exec(pointer) ?? [];
+      const fact = snapshot.briefing.environment.facts[Number(index)];
+      return field !== "figure" || fact?.label !== "Running" || fact.figure === "?";
+    },
   },
   "lens-button": {
     patterns: ["/briefing/flow/plan/button"],

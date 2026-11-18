@@ -323,11 +323,7 @@ it("renders all three measures without duplicate-key warnings when their labels 
         ...reading,
         content: {
           ...content,
-          tiles: [
-            { ...content.tiles[0], label: "Count" },
-            { ...content.tiles[1], label: "Count" },
-            { ...content.tiles[2], label: "Count" },
-          ],
+          tiles: content.tiles.map((tile) => ({ ...tile, label: "Count" })) as typeof content.tiles,
         },
       },
     });

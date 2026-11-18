@@ -69,7 +69,12 @@ export function startHost(options: HostOptions) {
   const db = openStore(storePath);
   if (probe) probeStore(createRunStore(db), probe.phase, probe.rowId, probe.reportPath);
   const appData = dirname(storePath);
-  const ctx = createContext({ ...contextFromEnv(env), timeStyle: "instant", words: "app" });
+  const ctx = createContext({
+    ...contextFromEnv(env),
+    timeStyle: "instant",
+    words: "app",
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  });
   function memo<T>(load: () => Promise<T>): () => Promise<T> {
     let value: Promise<T> | undefined;
     return () => {

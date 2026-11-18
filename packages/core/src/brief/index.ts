@@ -45,6 +45,7 @@ import {
   viewRun,
 } from "../model/stack.js";
 import { age, clip, firstAndMore, fitHeadline, plural, short, span, stamp, timeClause, whose } from "../util.js";
+import { type EnvBorrow, type EnvStatus, environmentUsage, environmentFrom } from "./environment.js";
 import { type Horizon, type Origin, itemOrigin, upstreamHorizon } from "./horizon.js";
 import { type Repositories, repositoriesOf } from "./repos.js";
 import { blockerOf, type LinkKind, linkKind, subjectOf } from "./move.js";
@@ -169,7 +170,10 @@ export interface Environment {
   // The axis window.
   from: string;
   to: string;
-  note?: string;
+  status?: EnvStatus;
+  line?: string;
+  borrows?: EnvBorrow[];
+  forksNote?: string;
 }
 
 export interface Briefing {
@@ -1436,30 +1440,20 @@ function envFacts(
   return [running, deployable, proofFact(model, now)];
 }
 
-function deployNote(model: Model): string {
-  const days = model.stack.history.deploys;
-  if (!days) return "Fork lane deploys were not read.";
-  const today = days.at(-1);
-  const n = today ? today.passed + today.failed : 0;
-  const counted =
-    n === 0
-      ? "No fork lane deployed today."
-      : `Fork lanes today: ${plural(n, "deploy")}, ${today?.failed ?? 0} failed.`;
-  return `${counted} Deploys are counted per day, so the timeline leaves them out.`;
-}
-
 function environmentOf(model: Model, env: BriefFact, now: Date, context: CoreContext): Environment {
-  const from = now.getTime() - DAY_MS;
+  const day = now.getTime() - DAY_MS;
+  const from = environmentFrom(now, context);
   const lanes = envLanes(model, from, now);
   const held = heldReason(model, now, context);
+  const dayLanes = from === day ? lanes : envLanes(model, day, now);
   return {
-    headline: envHeadline(model, lanes, held, now, context),
+    headline: envHeadline(model, dayLanes, held, now, context),
     facts: envFacts(model, env, held, now, context),
     deployable: model.stack.deployable.state,
     lanes,
     from: new Date(from).toISOString(),
     to: now.toISOString(),
-    note: deployNote(model),
+    ...(context.words === "app" ? environmentUsage(model, lanes, from, now, context) : {}),
   };
 }
 
@@ -1493,8 +1487,9 @@ export function buildBriefing(model: Model, doctor: DoctorView, now: Date | unde
         facts: [],
         deployable: "unknown",
         lanes: [],
-        from: new Date(now.getTime() - DAY_MS).toISOString(),
+        from: new Date(environmentFrom(now, context)).toISOString(),
         to: now.toISOString(),
+        ...(context.words === "app" ? environmentUsage(model, [], environmentFrom(now, context), now, context) : {}),
       },
       repositories: { headline, facts: [], rows: [] },
     };
