@@ -170,6 +170,13 @@ export function CanWait({
 }) {
   const open = useOpenSelection();
   const heads = useRef(new Map<string, HTMLButtonElement | null>());
+  const openCauseId = open?.kind === "cause" ? open.id : undefined;
+  useEffect(() => {
+    const head = openCauseId && heads.current.get(openCauseId);
+    if (!head) return;
+    head.focus({ preventScroll: true });
+    head.closest("tr")?.scrollIntoView?.({ block: "nearest" });
+  }, [openCauseId]);
   const kinds = new Set(causes.rows.map(({ kind }) => kind));
   const unread = (Object.keys(causes.notRead) as CanWaitCause["kind"][]).filter(
     (kind) => causes.notRead[kind].length > 0 && !kinds.has(kind),

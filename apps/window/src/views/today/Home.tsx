@@ -52,7 +52,9 @@ export function TodayHome({
     });
   const forks = fleet ? fleet.forks.yours.length + fleet.forks.rest.forks.length : 0;
   const yours = todayMembers(briefing).length;
-  const notRead = (station && filterFigure(fleet, station)?.notRead) || [];
+  const { notRead, cascade } = station
+    ? filterFigure(fleet, station)
+    : { notRead: [], cascade: [] };
   return (
     <>
       {flow && (
@@ -99,6 +101,9 @@ export function TodayHome({
                   Show all ✕
                 </button>
               </div>
+            )}
+            {cascade.length > 0 && (
+              <p className="today-filter-note">Waiting for cascade on {cascade.join(", ")}.</p>
             )}
             {notRead.length > 0 && <NotRead forks={notRead} />}
             <TodayTable

@@ -101,3 +101,4 @@
 .today-filter { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; color: var(--text-strong); font-weight: 600; }
 .today-filter button { padding: 1px 8px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text); font: inherit; font-size: 12px; font-weight: 400; cursor: pointer; }
 .today-filter button:hover { border-color: var(--text-muted); }
+.today-filter-note { margin: -6px 0 12px; color: var(--text-muted); font-size: 12.5px; }

@@ -899,6 +899,7 @@ function fleetCases(today: Summary, add: Add) {
       forks: counted,
       notRead,
       stopped,
+      red,
       inProgress,
       waitingOnClock,
       waitingOnPerson,
@@ -907,6 +908,7 @@ function fleetCases(today: Summary, add: Add) {
       forks: counted,
       notRead,
       stopped,
+      red,
       inProgress,
       waitingOnClock,
       waitingOnPerson,
@@ -1033,6 +1035,7 @@ const FIGURE_LEAVES = ["id", "count", "forks/#", "notRead/#"];
 const STATION_LEAVES = [
   ...FIGURE_LEAVES,
   "stopped/#",
+  "red/#",
   "inProgress/#",
   "waitingOnClock/#",
   "waitingOnPerson/#",

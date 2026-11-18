@@ -64,6 +64,8 @@ export const CanWaitCausesSchema = z.strictObject({
 const StationFigure = Figure.extend({
   id: ServiceHomeStationIdSchema,
   stopped: Forks,
+  // Stopped forks whose station holds a PR: a red sync or integration PR.
+  red: Forks,
   inProgress: Forks,
   // Integration also holds merged syncs waiting for the cascade.
   waitingOnClock: Forks,

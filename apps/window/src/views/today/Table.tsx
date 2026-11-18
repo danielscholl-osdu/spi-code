@@ -26,6 +26,7 @@ import { OpenedBody } from "../../components/opened-body/OpenedBody.js";
 import { plainTitle } from "../../text.js";
 import { timedText } from "../../time.js";
 import { CanWait } from "./CanWait.js";
+import { forksWord } from "./fleet.js";
 import { ageInOneUnit, ForkName, Section } from "./parts.js";
 import "./table.css";
 
@@ -61,10 +62,16 @@ function rowsOf(line: TodayLine, index: number, whole: TodayLine = line): Row[] 
   const [one, ...others] = line.members;
   const single = one && others.length === 0 ? one : undefined;
   const lineGaps = distinct(line.members.flatMap((m) => m.evidence.notRead));
+  const kept = distinct(line.members.map((m) => m.fork));
   const head: Row = {
     key: line.id,
     selection: single ? { kind: "item", id: single.id } : { kind: "line", id: line.id },
-    fork: line.subject,
+    fork:
+      line.members.length === whole.members.length
+        ? line.subject
+        : kept.length === 1
+          ? (kept[0] ?? line.subject)
+          : forksWord(kept.length),
     headline: { text: plainTitle(line.headline), pointer: `${pointer}/headline` },
     pill: single?.primary,
     age: ageInOneUnit(line.age),

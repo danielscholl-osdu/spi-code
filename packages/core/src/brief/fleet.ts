@@ -26,6 +26,7 @@ function stationFigures(homes: readonly ForkHome[]): TodayFleet["stations"] {
       ).map(({ service }) => service);
     return {
       id, count: forks.length, forks, stopped,
+      red: readings.filter(({ station }) => station?.state === "stopped" && station.pr).map(({ service }) => service),
       inProgress: readings.filter(({ station }) => station?.state === "in-progress").map(({ service }) => service),
       waitingOnPerson: id === "integration" ? cascadeWait("waiting-on-person") : [],
       waitingOnClock: id === "integration" ? cascadeWait("waiting-on-clock") : [],

@@ -592,3 +592,38 @@ test("the Template door opens its filter while Yours holds a Template row, even 
   );
   expect(quiet.doors.find(({ id }) => id === "template")).not.toHaveProperty("target");
 });
+
+test("a station's red forks are its stopped forks holding a PR, never a stopped cascade", () => {
+  const { facts } = handBuilt();
+  const { homes, briefing, causes } = project(facts);
+  const [base] = homes.values();
+  if (!base) throw new Error("a home");
+  const withIntegration = (state: "stopped" | "ready", pr?: number) => ({
+    ...base,
+    stations: base.stations.map((station) =>
+      station.id === "integration"
+        ? {
+            id: station.id,
+            state,
+            word: "",
+            ...(pr ? { pr: { number: pr, url: `${url}/pull/${pr}` } } : {}),
+          }
+        : station,
+    ),
+  });
+  const fleet = todayFleet(
+    [
+      { service: "unit", home: withIntegration("ready", 1) },
+      { service: "search", home: withIntegration("stopped") },
+      { service: "legal", home: withIntegration("stopped", 2) },
+    ],
+    briefing.environment,
+    briefing.nextSyncAt,
+    causes,
+  );
+  expect(fleet.stations.find(({ id }) => id === "integration")).toMatchObject({
+    forks: ["unit", "legal"],
+    stopped: ["search", "legal"],
+    red: ["legal"],
+  });
+});

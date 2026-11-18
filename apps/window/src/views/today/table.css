@@ -31,14 +31,8 @@
 .today-section-count {
   color: var(--text-strong);
 }
-.today-section[data-section="blocked"] .today-section-head {
-  color: var(--error-text);
-}
 .today-section[data-section="blocked"] .today-section-dot {
   background: var(--error);
-}
-.today-section[data-section="waiting"] .today-section-head {
-  color: var(--warning-text);
 }
 .today-section[data-section="waiting"] .today-section-dot {
   background: var(--warning);
@@ -294,10 +288,16 @@
 .today-row--place:hover .today-row-fork button {
   text-decoration: underline;
 }
+.today-count:is([data-tone="bad"], [data-tone="ok"]) {
+  padding: 0 5px;
+  border-radius: 4px;
+}
 .today-count[data-tone="bad"] {
+  background: var(--error-surface);
   color: var(--error-text);
 }
 .today-count[data-tone="ok"] {
+  background: var(--success-surface);
   color: var(--success-text);
 }
 .today-count[title] {

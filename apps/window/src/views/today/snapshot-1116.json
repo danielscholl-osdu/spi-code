@@ -771,6 +771,7 @@
             "notRead": [],
             "id": "upstream",
             "stopped": ["indexer", "search", "crs-conversion"],
+            "red": [],
             "inProgress": [],
             "waitingOnClock": [],
             "waitingOnPerson": []
@@ -781,6 +782,7 @@
             "notRead": [],
             "id": "sync",
             "stopped": [],
+            "red": [],
             "inProgress": [],
             "waitingOnClock": [],
             "waitingOnPerson": []
@@ -800,6 +802,7 @@
             "notRead": [],
             "id": "integration",
             "stopped": ["entitlements", "legal", "schema", "storage", "indexer", "indexer-queue"],
+            "red": ["entitlements", "legal", "schema", "storage", "indexer", "indexer-queue"],
             "inProgress": [],
             "waitingOnClock": [],
             "waitingOnPerson": []
@@ -824,6 +827,7 @@
             "notRead": [],
             "id": "main",
             "stopped": [],
+            "red": [],
             "inProgress": [],
             "waitingOnClock": [],
             "waitingOnPerson": []
@@ -940,6 +944,7 @@
                 "notRead": [],
                 "id": "upstream",
                 "stopped": [],
+                "red": [],
                 "inProgress": [],
                 "waitingOnClock": [],
                 "waitingOnPerson": []
@@ -950,6 +955,7 @@
                 "notRead": [],
                 "id": "sync",
                 "stopped": [],
+                "red": [],
                 "inProgress": [],
                 "waitingOnClock": [],
                 "waitingOnPerson": []
@@ -960,6 +966,7 @@
                 "notRead": [],
                 "id": "integration",
                 "stopped": [],
+                "red": [],
                 "inProgress": [],
                 "waitingOnClock": [],
                 "waitingOnPerson": []
@@ -970,6 +977,7 @@
                 "notRead": [],
                 "id": "main",
                 "stopped": [],
+                "red": [],
                 "inProgress": [],
                 "waitingOnClock": [],
                 "waitingOnPerson": []

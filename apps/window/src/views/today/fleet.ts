@@ -53,9 +53,7 @@ function stationState(figure: StationFigure, held: TodayLine[]): FlowState {
   return "ready";
 }
 
-function stationWords(figure: StationFigure, forks: number, nextSyncAt: string | undefined) {
-  const cascade = figure.waitingOnClock.length + figure.waitingOnPerson.length;
-  const red = figure.stopped.length;
+function stationWords(figure: StationFigure, nextSyncAt: string | undefined) {
   switch (figure.id) {
     case "upstream":
       return {
@@ -65,24 +63,34 @@ function stationWords(figure: StationFigure, forks: number, nextSyncAt: string |
     case "main":
       return {
         word: figureWord(figure, `${figure.count} green`),
-        line: figure.count < forks ? `${forks - figure.count} not green` : undefined,
+        line: joined([
+          figure.stopped.length && `${figure.stopped.length} red`,
+          figure.inProgress.length && `${figure.inProgress.length} running`,
+        ]),
       };
     default: {
-      const open = figure.count ? `${figure.count} open` : "None open";
+      const red = figure.red.length;
+      const cascade = cascadeWaits(figure).length;
       return {
-        word: figureWord(figure, cascade ? `${open} · ${cascade} waiting for cascade` : open),
-        line:
-          figure.id === "integration" && red
-            ? red === figure.count
-              ? red === 2
-                ? "both red"
-                : "all red"
-              : `${red} red`
-            : undefined,
+        word: figureWord(figure, figure.count ? `${figure.count} open` : "None open"),
+        line: joined([
+          red &&
+            (red === figure.count && red > 1 ? (red === 2 ? "both red" : "all red") : `${red} red`),
+          figure.id === "integration" && cascade && `${cascade} waiting for cascade`,
+        ]),
       };
     }
   }
 }
+
+const joined = (parts: readonly (string | false | 0)[]) =>
+  parts.filter(Boolean).join(" · ") || undefined;
+
+/** Forks whose sync merged and whose cascade has not yet opened an integration PR. */
+export const cascadeWaits = (figure: StationFigure) => [
+  ...figure.waitingOnPerson,
+  ...figure.waitingOnClock,
+];
 
 /** Each fork list a figure holds, one line per state, for the figure's hover. */
 function forksTitle(lists: readonly [string, readonly string[] | undefined][]): string | undefined {
@@ -135,7 +143,7 @@ export function fleetFlow(
                 ? "unread"
                 : "ready"
           : stationState(figure, filter ? fleetLines(lines, filter) : []),
-      ...stationWords(figure, forks, fleet.nextSyncAt),
+      ...stationWords(figure, fleet.nextSyncAt),
       title: forksTitle([
         [COUNTED[figure.id], figure.forks],
         ["Stopped", figure.stopped],
@@ -187,14 +195,23 @@ export function fleetFlow(
   };
 }
 
-/** The figure behind a filter, whose not-read forks Yours names while it is on. */
+/**
+ * What Yours names while a filter is on: the figure's not-read forks, and on Integration the forks
+ * waiting for their cascade, which wait on no one and so have no row.
+ */
 export function filterFigure(
   fleet: TodayFleet | undefined,
   station: TodayMemberStation,
-): { notRead: readonly string[] } | undefined {
-  return station === "template"
-    ? fleet?.doors.find(({ id }) => id === "template")
-    : fleet?.stations.find(({ id }) => id === station);
+): { notRead: readonly string[]; cascade: readonly string[] } {
+  if (station === "template") {
+    const door = fleet?.doors.find(({ id }) => id === "template");
+    return { notRead: door?.notRead ?? [], cascade: [] };
+  }
+  const figure = fleet?.stations.find(({ id }) => id === station);
+  return {
+    notRead: figure?.notRead ?? [],
+    cascade: figure && station === "integration" ? cascadeWaits(figure) : [],
+  };
 }
 
 export const forksWord = (count: number) => plural(count, "fork");

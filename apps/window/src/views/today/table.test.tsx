@@ -457,6 +457,67 @@ describe("the fleet flow filters Yours", () => {
     ).toHaveLength(kept.length);
   });
 
+  it("a group filtered to one fork is named for it and opens its service; to several, counts them", async () => {
+    const id = "waiting:upgrade:os-core-common";
+    for (const kept of [1, 2]) {
+      const body = whole();
+      const group = body.briefing.lines?.find((line) => line.id === id);
+      if (!group) throw new Error("16 Nov has the os-core-common group");
+      for (const member of group.members.slice(kept)) member.station = "integration";
+      await render(body, "#today/yours/sync");
+      const head = container.querySelector(`tr.today-row[data-line-id="${id}"] .today-fork-name`);
+      if (kept === 1) {
+        expect(head?.tagName).toBe("BUTTON");
+        expect(head?.textContent).toBe(group.members[0]?.fork);
+        await unmount();
+        container.remove();
+      } else expect(head?.textContent).toBe("2 forks");
+    }
+  });
+
+  it("Integration's second line keeps the cascade wait through a partial read and names those forks", async () => {
+    const body = whole();
+    const integration = body.briefing.today?.fleet?.stations.find(({ id }) => id === "integration");
+    if (!integration) throw new Error("16 Nov has its Integration figure");
+    Object.assign(integration, {
+      count: 0,
+      forks: [],
+      stopped: [],
+      red: [],
+      notRead: ["file"],
+      waitingOnClock: ["search"],
+    });
+    await render(body, "#today/yours/integration");
+    expect(station("integration")?.querySelector(".flow-word")?.textContent).toBe("⌀ not read");
+    expect(station("integration")?.querySelector(".flow-line")?.textContent).toBe(
+      "1 waiting for cascade",
+    );
+    expect(container.querySelector(".today-filter-note")?.textContent).toBe(
+      "Waiting for cascade on search.",
+    );
+    expect(memberIds().sort()).toEqual(atStation(body, "integration").sort());
+  });
+
+  it("a station claims red only for its red PRs, and a fork not read is never not green", async () => {
+    const body = whole();
+    const stations = body.briefing.today?.fleet?.stations ?? [];
+    const integration = stations.find(({ id }) => id === "integration");
+    const main = stations.find(({ id }) => id === "main");
+    if (!integration || !main) throw new Error("16 Nov has its Integration and Main figures");
+    Object.assign(integration, { count: 1, forks: ["unit"], stopped: ["search"], red: [] });
+    Object.assign(main, { count: 11, forks: main.forks.slice(0, 11), notRead: ["file", "unit"] });
+    await render(body);
+    expect(station("integration")?.querySelector(".flow-line")).toBeNull();
+    expect(station("main")?.querySelector(".flow-word")?.textContent).toBe("11 green ⌀");
+    expect(station("main")?.querySelector(".flow-line")).toBeNull();
+    await unmount();
+    container.remove();
+
+    Object.assign(integration, { stopped: ["unit"], red: ["unit"] });
+    await render(body);
+    expect(station("integration")?.querySelector(".flow-line")?.textContent).toBe("1 red");
+  });
+
   it("pressing a station from Activity opens Yours filtered", async () => {
     await render(whole(), "#today/activity");
     await click(station("upstream"));
@@ -568,6 +629,24 @@ describe("Can wait by cause", () => {
       expect(causeRow(target.row)?.hasAttribute("data-open")).toBe(true);
     },
   );
+
+  it("a door opens its cause from Activity in view, with focus on it", async () => {
+    const scrolled: Element[] = [];
+    const scroll = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this);
+    };
+    try {
+      await render(whole(), "#today/activity");
+      await click(door("release"));
+      const head = causeRow("release")?.querySelector(".today-row-what button");
+      expect(head?.getAttribute("aria-expanded")).toBe("true");
+      expect(document.activeElement).toBe(head);
+      expect(scrolled).toContain(causeRow("release"));
+    } finally {
+      Element.prototype.scrollIntoView = scroll;
+    }
+  });
 
   it("a door with nothing behind it is not a button", async () => {
     const body = whole();
