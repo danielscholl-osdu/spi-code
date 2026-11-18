@@ -21,6 +21,7 @@ import { createWatchStore } from "../../store/watch.js";
 import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { COLLAPSE_STORAGE_KEY } from "./collapse.js";
 import { ProgramSidebar } from "./ProgramSidebar.js";
+import { serviceMark } from "./service-mark.js";
 import { SidebarProvider } from "./ui-sidebar.js";
 
 const recorded = watchFixtureText("snapshot-59d6895.json", readFixture);
@@ -83,11 +84,13 @@ const rows = (label: string) =>
     (button) => button.querySelector(".sidebar-row-label")?.textContent,
   );
 const row = (key: string) => container.querySelector<HTMLElement>(`[data-sidebar-row="${key}"]`);
-const words = () =>
+const serviceMarks = () =>
   [...container.querySelectorAll('ul[aria-label="Pinned"] [data-sidebar-row]')].flatMap(
     (element) => {
-      const word = element.querySelector(".sidebar-word");
-      return word ? [[element.getAttribute("data-sidebar-row"), word.textContent]] : [];
+      const mark = element.querySelector('.sidebar-mark[role="img"]');
+      return mark
+        ? [[element.getAttribute("data-sidebar-row"), mark.getAttribute("aria-label")]]
+        : [];
     },
   );
 const menuItem = (pinId: string, label: string) =>
@@ -187,21 +190,20 @@ it("draws a service pin only while the sweep names it, in pin order, lights the 
   expect(rows("Program")).toEqual(["Today", "Environment", "Template"]);
   expect(readPins()).toEqual(["gone"]);
 });
-it("words a pinned service only when its line is read and not fine, and never a place", async () => {
-  const body = structuredClone(recordedBody);
-  storePins(["place:environment", ...body.stations.map(({ service }) => service)]);
-  const entitlements = body.stations.find(({ service }) => service === "entitlements");
-  const legal = body.stations.find(({ service }) => service === "legal");
-  if (!entitlements || !legal) throw new Error("Recorded stations required");
-  for (const station of [...entitlements.stations, ...legal.stations]) station.state = "idle";
-  const sync = legal.stations[1];
-  sync.substate = "waiting-on-person";
-  await render(undefined, undefined, body);
-  expect(words()).toEqual([
-    ["service/entitlements", "stopped"],
-    ["service/legal", "waiting"],
-  ]);
-  expect(row("environment")?.querySelector(".sidebar-word")).toBeNull();
+it("marks each pinned service as its home's mark reads, and never a place", async () => {
+  const services = (currentBody.services ?? []).map(({ service }) => service);
+  storePins(["place:environment", ...services]);
+  await render(undefined, undefined, currentBody);
+  expect(serviceMarks()).toEqual(
+    services.map((service) => [
+      `service/${service}`,
+      serviceMark(currentBody, service)?.label ?? null,
+    ]),
+  );
+  expect(serviceMarks().map(([, label]) => label)).toEqual(
+    expect.arrayContaining(["2 blocked or waiting on you", "1 waiting on you", "Not read"]),
+  );
+  expect(row("environment")?.querySelector('.sidebar-mark[role="img"]')).toBeNull();
 });
 
 it("unpins Upstream from its menu and pins it again at the end, across a reload", async () => {
@@ -400,6 +402,7 @@ it("draws each status mark on its own row, the fixed block's and a Pinned place'
       ["line", "count", "error", "1"],
       ["environment", "check", "success", ""],
       ["engineering-system", "count", "warning", "13"],
+      ["service/entitlements", "count", "error", "2"],
       ["upstream", "clock", "sync", ""],
     ]);
     await act(async () => movePin("place:upstream", "place:releases"));
@@ -459,40 +462,16 @@ it("keeps Cmd+L on the Line row", async () => {
   expect(row("line")?.getAttribute("aria-keyshortcuts")).toMatch(/^(Meta|Control)\+L$/);
 });
 
-it("dots a collapsed Pinned header error for a stopped service, warning for a waiting one, and none for its fixed neighbours", async () => {
-  const body = structuredClone(recordedBody);
-  const entitlements = body.stations.find(({ service }) => service === "entitlements");
-  const legal = body.stations.find(({ service }) => service === "legal");
-  if (!entitlements || !legal) throw new Error("Recorded stations required");
-  for (const station of [...entitlements.stations, ...legal.stations]) {
-    station.state = "idle";
-    station.substate = "ready";
-  }
-  const stop = entitlements.stations[1];
-  if (!stop) throw new Error("Recorded station required");
-  stop.substate = "stopped";
-  storePins(["place:releases", "legal"]);
-  const { store } = await render(undefined, undefined, body, vi.fn());
+it("dots a collapsed Pinned header by its services' marks: error for Blocked, warning for Waiting, none for a check or not read", async () => {
+  storePins(["place:releases", "crs-catalog"]);
+  await render(undefined, undefined, currentBody, vi.fn());
   const dot = () => header("Pinned")?.querySelector(".sidebar-status-dot");
-  const swap = (next: typeof body) =>
-    act(async () => store.setState({ snapshot: { cursor: next.cursor, body: next } }));
-  expect(dot()).toBeNull();
   await act(async () => header("Pinned")?.click());
   expect(dot()).toBeNull();
-  const waiting = structuredClone(body);
-  const sync = waiting.stations.find(({ service }) => service === "legal")?.stations[1];
-  if (!sync) throw new Error("Recorded station required");
-  sync.substate = "waiting-on-person";
-  await swap(waiting);
+  await act(async () => pin("legal"));
   expect(dot()?.getAttribute("data-tone")).toBe("warning");
   await act(async () => pin("entitlements"));
   expect(dot()?.getAttribute("data-tone")).toBe("error");
-  const unread = structuredClone(waiting);
-  for (const row of unread.stations)
-    if (row.service === "entitlements" || row.service === "legal")
-      for (const station of row.stations) station.state = "unknown";
-  await swap(unread);
-  expect(dot()).toBeNull();
   await act(async () => header("Pinned")?.click());
   expect(dot()).toBeNull();
 });

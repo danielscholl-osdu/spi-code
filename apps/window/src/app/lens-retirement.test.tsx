@@ -170,15 +170,6 @@ it.each([
       body.briefing.flow.plan.note = "Changed plan note";
     },
   ],
-  [
-    "/briefing/flow/rows/0/tag",
-    "Service crs-catalog · Upstream sync Detail",
-    (body: ViewSnapshot) => {
-      const row = body.briefing.flow.rows[0];
-      if (!row) throw new Error("Missing Flow row");
-      row.tag = "changed";
-    },
-  ],
 ] as const)("detects a source mutation at %s", async (pointer, home, mutate) => {
   const body = fixture();
   mutate(body);
@@ -188,7 +179,16 @@ it.each([
   expect(() => assertField(row)).toThrow();
 });
 
-it.each(fixture().briefing.repositories.rows.map((repo, index) => [repo.name, index] as const))(
+const drawnRepositories = fixture()
+  .briefing.repositories.rows.map((repo, index) => [repo.name, index] as const)
+  .filter(([, index]) =>
+    table.some(
+      (row) =>
+        row.pointer === `/briefing/repositories/rows/${index}/cells/issues/text` && !row.exempt,
+    ),
+  );
+
+it.each(drawnRepositories)(
   "detects a per-repository count mutation in %s's disclosure",
   async (_name, index) => {
     const body = fixture();

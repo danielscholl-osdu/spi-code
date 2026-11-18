@@ -56,7 +56,7 @@ import { Icon, type IconName } from "../icons/Icon.js";
 import { isContextMenuKey } from "../pin/PinMenu.js";
 import { PinNotice } from "../pin/PinNotice.js";
 import { useGroupCollapse } from "./collapse.js";
-import { type PinWord, pinWord } from "./pin-word.js";
+import { ServiceMark, type ServiceMarkView, serviceMark } from "./service-mark.js";
 import {
   STATUS_DOT_LABEL,
   type StatusDot,
@@ -108,16 +108,10 @@ type Row = {
   label: string;
   icon: IconName;
   beforeSweep?: boolean;
-  word?: PinWord | undefined;
+  mark?: ServiceMarkView | undefined;
   status?: StatusRow | undefined;
   shortcut?: string;
   open(): void;
-};
-
-/** A collapsed Pinned header reads a service's word as a mark in its tone. */
-const WORD_TONE: Readonly<Record<PinWord["tone"], StatusMark["tone"]>> = {
-  bad: "error",
-  warn: "warning",
 };
 
 const MARK_ICONS: Readonly<Record<Exclude<StatusMark["kind"], "count">, IconName>> = {
@@ -167,11 +161,7 @@ function RowContent({ row }: { row: Row }) {
     <>
       <Icon name={row.icon} className="sidebar-icon" />
       <span className="sidebar-row-label">{row.label}</span>
-      {row.word && (
-        <span className="sidebar-word" data-tone={row.word.tone}>
-          {row.word.text}
-        </span>
-      )}
+      <ServiceMark mark={row.mark} />
       {row.status?.mark && <Mark mark={row.status.mark} />}
     </>
   );
@@ -441,7 +431,7 @@ export function ProgramSidebar({
         key: `service/${pin}`,
         label: pin,
         icon: "box",
-        word: pinWord(body, pin),
+        mark: serviceMark(body, pin),
         open: go(target),
       },
     ];
@@ -449,7 +439,7 @@ export function ProgramSidebar({
 
   const pinnedDot = statusDot(
     0,
-    rows.flatMap((row) => [row.status?.mark, row.word && { tone: WORD_TONE[row.word.tone] }]),
+    rows.flatMap((row) => [row.status?.mark, row.mark?.kind === "count" ? row.mark : undefined]),
   );
   const todayReachable = isReachable({ kind: "today" }, registry);
 

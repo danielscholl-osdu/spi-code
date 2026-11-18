@@ -1021,7 +1021,7 @@ it("fails undersized or truncated images", () => {
   ).toThrow("Invalid bitmap");
 });
 
-it.each(["today", "upstream", "service", "upstream-item"])(
+it.each(["today", "upstream", "upstream-item"])(
   "fails when %s lacks its envelope qualifier at capture time",
   (surface) => {
     const image = syntheticImage(24, 20000);

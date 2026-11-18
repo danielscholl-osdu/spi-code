@@ -5,18 +5,26 @@ import type { ViewSnapshot } from "@spi-code/contracts";
 import { type UIEvent, useLayoutEffect, useRef } from "react";
 import { type Route, routeHash } from "./routes.js";
 
+/** A service page keeps one position per tab, whichever row is open on it. */
+const scrollKey = (route: Route) =>
+  routeHash(
+    route.kind === "service"
+      ? { kind: "service", id: route.id, ...(route.tab ? { tab: route.tab } : {}) }
+      : route,
+  );
+
 /** Keeps the centre body's scroll position per route. */
 export function useRouteScroll(route: Route, snapshot: ViewSnapshot | undefined) {
   const middle = useRef<HTMLDivElement>(null);
   const positions = useRef(new Map<string, number>());
-  const position = useRef({ route: routeHash(route), top: 0 });
+  const position = useRef({ route: scrollKey(route), top: 0 });
   useLayoutEffect(() => {
     if (!snapshot) return;
     const frame = middle.current?.querySelector<HTMLElement>(
       ':scope > :not([role="alert"], .place-header, [role="status"], button)',
     );
     if (!frame) return;
-    const key = routeHash(route);
+    const key = scrollKey(route);
     if (position.current.route !== key)
       positions.current.set(position.current.route, position.current.top);
     const top =

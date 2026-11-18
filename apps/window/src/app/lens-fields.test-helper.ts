@@ -18,6 +18,17 @@ export type LensField = {
   exempt?: string;
 };
 
+/** The service home (spicode-mw0.6) retired the service page's Upstream sync Detail. */
+export const RETIRED_SYNC_DETAIL =
+  "spicode-mw0.6: the service page's Upstream sync Detail is retired; the fork's flow stations carry its sync, and its Upstream tab (spicode-mw0.7) what is queued";
+/** The service home (spicode-mw0.6) retired the service page's Repository part. */
+export const RETIRED_SERVICE_REPOSITORY =
+  "spicode-mw0.6: the service page's Repository part is retired; a fork's open pull requests, issues and alerts move to its tabs (spicode-mw0.7, spicode-mw0.8)";
+
+/** The service home (spicode-mw0.6) retired the service page's reading and Attention part. */
+export const RETIRED_SERVICE_READING =
+  "spicode-mw0.6: the service page's reading and Attention part are retired; the fork's Overview lists its rows from its home in Today's words, and Today keeps the item's member";
+
 /** The rendered fields, not transport ids, links, sort keys or styling metadata. */
 export function lensFields({ briefing }: ViewSnapshot): LensField[] {
   const rows: LensField[] = [];
@@ -95,10 +106,12 @@ export function lensFields({ briefing }: ViewSnapshot): LensField[] {
         value,
         home,
         `.popover-fields > div:nth-child(${fieldIndex + 1}) dd`,
-        { blank: value === "·" },
+        { blank: value === "·", exempt: RETIRED_SYNC_DETAIL },
       );
     });
-    add("Flow", `${pointer}/detail/title`, row.detail.title || row.fork, home, ".popover h3");
+    add("Flow", `${pointer}/detail/title`, row.detail.title || row.fork, home, ".popover h3", {
+      exempt: RETIRED_SYNC_DETAIL,
+    });
   });
   for (const [key, selector] of [
     ["title", "h3"],
@@ -197,12 +210,17 @@ export function lensFields({ briefing }: ViewSnapshot): LensField[] {
         : repo.name === "osdu-spi-stack"
           ? "Environment · Stack repository"
           : `Service ${repo.name} · Repository`;
+    const retired =
+      repo.name === "osdu-spi" || repo.name === "osdu-spi-stack"
+        ? {}
+        : { exempt: RETIRED_SERVICE_REPOSITORY };
     for (const [key, value] of [
       ["name", repo.name],
       ["group", repo.group === "program" ? "Program" : "Forks"],
     ] as const)
       add("Repositories", `${pointer}/${key}`, value, home, `${at(`${pointer}/cells`)} h3`, {
         contains: true,
+        ...retired,
       });
     const title =
       repo.name === "osdu-spi"
@@ -210,10 +228,14 @@ export function lensFields({ briefing }: ViewSnapshot): LensField[] {
         : repo.name === "osdu-spi-stack"
           ? at(`${pointer}/title`)
           : `[data-section="repository"] summary .service-section-count`;
-    add("Repositories", `${pointer}/title`, plainTitle(repo.title), home, title);
+    add("Repositories", `${pointer}/title`, plainTitle(repo.title), home, title, retired);
     for (const [key, cell] of Object.entries(repo.cells)) {
       const unread = ["?", "not read yet"].includes(cell.text);
-      const extra = unread ? { exempt: "Unread figure: draws nothing" } : {};
+      const extra = retired.exempt
+        ? retired
+        : unread
+          ? { exempt: "Unread figure: draws nothing" }
+          : {};
       add(
         "Repositories",
         `${pointer}/cells/${key}/text`,

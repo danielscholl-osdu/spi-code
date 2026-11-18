@@ -777,11 +777,12 @@ type Required = Partial<Record<(typeof STATES)[number], { selector: string; text
 const PINS_KEY = "spi-code.sidebar.pins.v3";
 const PINNED_STOPPED = "entitlements";
 const PINS = ["place:upstream", "place:releases", "place:security", PINNED_STOPPED];
+const BLOCKED_MARK = { selector: "sidebar-mark[data-tone=error]", text: "2" };
 const PINNED: Required = {
-  rest: [{ selector: "sidebar-word[data-tone=bad]", text: "stopped" }],
+  rest: [BLOCKED_MARK],
   hover: [
     { selector: "sidebar-row-label", text: PINNED_STOPPED },
-    { selector: "sidebar-word[data-tone=bad]", text: "stopped" },
+    BLOCKED_MARK,
     { selector: "sidebar-mark[data-tone=error]", text: "1" },
     { selector: "sidebar-mark[data-tone=warning]", text: "13" },
   ],
@@ -809,6 +810,18 @@ const LINE: Required = {
 };
 const TOP_PINNED = pinControl("Upstream", true);
 const TOP_UNPINNED = pinControl(FIND_UNPINNED, false);
+const BLOCKED_ROW = "conflict:entitlements:121";
+const SERVICE_BLOCKED = [
+  { selector: "[data-state=stopped]", text: "Integration" },
+  { selector: "[data-state=green]", text: "Main" },
+  { selector: "service-section-head", text: "Blocked" },
+];
+const SERVICE_CLOCK = "storage";
+const SERVICE_CLOCK_WORDS = [{ selector: "[data-state=waiting-on-clock]", text: "Upstream" }];
+const SERVICE_WAITING = [
+  { selector: "[data-state=waiting-on-person]", text: "Upstream" },
+  { selector: "service-section-head", text: "Waiting on you" },
+];
 
 const ROOT_STATE = `(() => {
   const root = document.documentElement;
@@ -1106,12 +1119,32 @@ export async function assertRenderedContrast(
     await everyShade("upstream-reading", ".popover");
     await js('document.querySelector(".popover .popover-close").click()');
     await rendered(window, '!document.querySelector(".popover")');
+    await js(
+      `location.hash = "#service/${PINNED_STOPPED}/overview/${encodeURIComponent(BLOCKED_ROW)}"`,
+    );
+    await rendered(
+      window,
+      `document.querySelector(".service-page[aria-label=${PINNED_STOPPED}] li[data-open] .opened-body")`,
+    );
+    await everyShade("service-blocked", ".service-page", {
+      rest: SERVICE_BLOCKED,
+      hover: SERVICE_BLOCKED,
+    });
+    await js(`location.hash = "#service/${SERVICE_CLOCK}"`);
+    await rendered(
+      window,
+      `document.querySelector(".service-page[aria-label=${SERVICE_CLOCK}] [data-state=waiting-on-clock]")`,
+    );
+    await everyShade("service-clock", ".service-page", { rest: SERVICE_CLOCK_WORDS });
     await js(`location.hash = "#service/${FIND_UNPINNED}"`);
     await rendered(
       window,
-      `document.querySelector(".place[aria-label=${FIND_UNPINNED}] .place-reading") && document.querySelector(".centre-end > .pin-control")`,
+      `document.querySelector(".service-page[aria-label=${FIND_UNPINNED}] .flow") && document.querySelector(".centre-end > .pin-control")`,
     );
-    await everyShade("service", ".place", { rest: [TOP_UNPINNED], hover: [TOP_UNPINNED] });
+    await everyShade("service", ".service-page", {
+      rest: [TOP_UNPINNED, ...SERVICE_WAITING],
+      hover: [TOP_UNPINNED],
+    });
     const noticeRequired = [
       { selector: "pin-notice-text", text: `Unpinned ${FIND_UNPINNED}` },
       { selector: "pin-notice-undo", text: "Undo" },

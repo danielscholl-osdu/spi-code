@@ -192,3 +192,9 @@ The acknowledged Nov 6 capture replays the same runs observation (14:02:14.914Z)
 acknowledgement. Its shared `seenBriefing` path intentionally keeps the 24-hour fallback: equal
 observation bounds cannot prove a last-look window; do not invent a later read to obtain a `seen` basis.
 Today no longer draws since pips (spicode-eib R2); the capture cannot visually prove this contract field.
+
+The service page draws no envelope qualifier, so its `service` and `service-calm` captures are not
+`qualified`; the sweep line in the sidebar footer carries the read state. In the 6 Nov fixture no
+fork reads a check: every read fork has a Waiting row, and the calm capture is crs-catalog, which is
+partly not read. Contrast reaches the stopped station on entitlements, the clock station on storage
+and the waiting station on partition, each with Main's green.

@@ -3,8 +3,6 @@
 
 import type { ViewSnapshot } from "@spi-code/contracts";
 import { restatesHeadline } from "../components/opened-body/content.js";
-import { inScope } from "../components/sidebar/attention.js";
-import { selectionRows } from "../panels/selection-rows.js";
 import { plainTitle } from "../text.js";
 import { instantsIn, timedText } from "../time.js";
 import { openHold } from "../views/environment/hold.js";
@@ -13,10 +11,13 @@ import { runName } from "../views/environment/opening.js";
 import { eventSpan, eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
 import { releaseSectionCases } from "../views/releases/reachability.test-helper.js";
 import { ageInOneUnit } from "../views/today/Table.js";
-import { lensFields } from "./lens-fields.test-helper.js";
+import {
+  lensFields,
+  RETIRED_SERVICE_READING,
+  RETIRED_SERVICE_REPOSITORY,
+} from "./lens-fields.test-helper.js";
 import type { Destination, Registry } from "./navigation.js";
 import { placeFreshCases } from "./place-reachability.test-helper.js";
-import { treeServices } from "./queue.js";
 
 export type Selector = string | ((root: ParentNode) => Element | null | undefined);
 
@@ -115,9 +116,8 @@ const PLACE_STARTS: Record<string, (id?: string) => Start> = {
   engineering: () => STARTS.engineering,
   releases: () => STARTS.releases,
   security: () => STARTS.security,
-  service: (id = "") => STARTS.service(id),
 };
-const SELECTABLE_PLACES = new Set(["upstream", "environment", "engineering", "service"]);
+const SELECTABLE_PLACES = new Set(["upstream", "environment", "engineering"]);
 /** A place's own heading, which differs from its start's name only for a service. */
 const placeLabel = (from: Start) => (from.route.kind === "service" ? from.route.id : from.name);
 
@@ -182,9 +182,6 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
   ) => {
     cases.push({ pointer, value: String(value), home: where, selector, ...extra });
   };
-  const services = treeServices(snapshot.tree);
-  const rows = selectionRows(snapshot);
-
   for (const row of lensFields(snapshot)) {
     const { lens: _, home: name, ...field } = row;
     cases.push({ ...field, home: lensHome(name) });
@@ -289,23 +286,6 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
         add(`${pointer}/due/before`, `Before ${item.due.before}`, where, time);
       }
       if (item.owned) add(`${pointer}/owned`, "Owned", where, `${li} .place-owned`);
-    }
-    for (const service of services) {
-      if (!inScope(item, `service:${service}`, services)) continue;
-      if (!rows.some((row) => row.kind === "queue" && row.id === item.id)) continue;
-      const where = home(
-        `Service ${service} · Attention`,
-        STARTS.service(service),
-        '[data-section="attention"] > summary',
-      );
-      const row = `[data-section="attention"] .service-row[data-selection-id=${id}]`;
-      add(`${pointer}/rung`, `P${item.rung}`, where, `${row} .service-priority`);
-      add(`${pointer}/title`, title, where, `${row} .service-row-title`, {
-        read: ownText,
-        canon: nextSync,
-      });
-      add(`${pointer}/cls`, item.cls, where, `${row} .service-class`);
-      if (item.sub) add(`${pointer}/sub`, subText(item.sub), where, `${row} .service-row-sub`);
     }
     if (item.id === "rollout") {
       const row = '[data-part="rollout"] .inbox-row';
@@ -537,13 +517,39 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
   });
 
   cases.push(...releaseSectionCases(snapshot, releasesPlace));
+
+  // A queue item the service page's reading drew, with no other home, is exempted leaf by leaf.
+  const serviceOf = new Map(
+    snapshot.readings.flatMap(({ anchor, content }) =>
+      anchor.kind === "service"
+        ? (content?.items ?? []).map(({ id }) => [id, anchor.id] as const)
+        : [],
+    ),
+  );
+  const owners = items.flatMap(([pointer, item]) => {
+    const service =
+      serviceOf.get(item.id) ??
+      (item.cls === "PORT" ? item.ids.find((id) => id.startsWith("port:"))?.slice(5) : undefined);
+    return service ? [{ pointer, service }] : [];
+  });
+  for (const leaf of coverage(snapshot, cases).uncovered) {
+    const owner = owners.find(({ pointer }) => leaf.startsWith(`${pointer}/`));
+    if (owner)
+      cases.push({
+        pointer: leaf,
+        value: "",
+        home: home(`Service ${owner.service} · Reading`, STARTS.service(owner.service)),
+        selector: "",
+        exempt: RETIRED_SERVICE_READING,
+      });
+  }
   return cases;
 }
 
 function repositoryCases(
   repo: Repo,
   pointer: string,
-  add: (
+  addCase: (
     pointer: string,
     value: unknown,
     where: Home,
@@ -551,6 +557,12 @@ function repositoryCases(
     extra?: Partial<Reach>,
   ) => void,
 ) {
+  const service = repo.name !== "osdu-spi" && repo.name !== "osdu-spi-stack";
+  const add: typeof addCase = (pointer, value, where, selector, extra = {}) =>
+    addCase(pointer, value, where, selector, {
+      ...extra,
+      ...(service ? { exempt: RETIRED_SERVICE_REPOSITORY } : {}),
+    });
   type Section = Repo["sections"][number];
   type Line = Section["lines"][number];
   const everySection = repo.name === "osdu-spi-stack";
@@ -1390,6 +1402,8 @@ export const ROUTE_EXEMPTIONS: Readonly<Record<string, string>> = {
     "Security draws its own reading; on the 6 Nov sweep it holds no Briefing item, and its tiles are not Briefing fields",
   evidence:
     "Evidence draws reads, areas and not-read lists about Briefing items, never a Briefing field as the home of one",
+  service:
+    "spicode-mw0.6: a service page draws its fork's home (services[].home), never a Briefing field",
 };
 
 /** Every registry route, the sheet and the strip, less those a case or a named exemption covers. */

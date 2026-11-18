@@ -79,7 +79,7 @@ function sidebarMarks(only: string | null) {
     .map((button) => ({
       row: button.getAttribute("data-sidebar-row") ?? "",
       group: button.closest("[data-group=pinned]") ? "pinned" : "fixed",
-      marks: [...button.querySelectorAll(".sidebar-word, .sidebar-mark, .sidebar-pip")]
+      marks: [...button.querySelectorAll(".sidebar-mark, .sidebar-pip")]
         .filter((mark) => {
           const { width, height } = mark.getBoundingClientRect();
           return (
@@ -100,7 +100,7 @@ type Measured = { row: string; group: SidebarRow["group"]; marks: SidebarMark[] 
 
 const PINS_KEY = "spi-code.sidebar.pins.v3";
 const HOVERED = "entitlements";
-/** A stopped and a waiting service, a fine one, Upstream, and Releases and Security, which draw none. */
+/** A blocked service, two waiting ones, Upstream, and Releases and Security. */
 const PINS = [
   "place:upstream",
   HOVERED,
@@ -110,7 +110,7 @@ const PINS = [
   "place:security",
 ] as const;
 /** The old hover hide, without the unpin button it once made room for. */
-const OLD_HOVER_HIDE = ".pin-item:hover :is(.sidebar-word, .sidebar-mark) { visibility: hidden; }";
+const OLD_HOVER_HIDE = ".pin-item:hover .sidebar-mark { visibility: hidden; }";
 
 /**
  * The sidebar with stored pins: the hover rule on every fixed and Pinned row, its broken-rule
@@ -191,7 +191,7 @@ export async function captureSidebarPins(
   await store(JSON.stringify(PINS));
   try {
     await rendered(
-      `${JSON.stringify(PINS.map((pin) => (pin.startsWith("place:") ? pin.slice(6) : `service/${pin}`)))}.every((row) => document.querySelector('#app-sidebar [data-group=pinned] [data-sidebar-row="' + row + '"]')) && document.querySelector('[data-sidebar-row=${hoveredRow}] .sidebar-word')`,
+      `${JSON.stringify(PINS.map((pin) => (pin.startsWith("place:") ? pin.slice(6) : `service/${pin}`)))}.every((row) => document.querySelector('#app-sidebar [data-group=pinned] [data-sidebar-row="' + row + '"]')) && document.querySelector('[data-sidebar-row=${hoveredRow}] .sidebar-mark')`,
     );
     const rows = await measure();
     assertSidebarHover(rows);
@@ -254,7 +254,7 @@ export async function captureSidebarPins(
     await rendered(`!document.querySelector('[data-pin-menu="${HOVERED}"]')`);
     writeFileSync(
       join(output, `sidebar-pins-${appearance}.html`),
-      `<!doctype html><meta charset="utf-8"><title>Sidebar pins</title><style>body{font:14px system-ui;padding:24px}figure{margin:24px 0}figcaption{margin-bottom:8px}</style><h1>Sidebar pins / ${appearance}</h1><p>Design: epic spicode-1l9 and prototype spicode-e2z (proto-pins-sidebar.png). Today, Line, Environment and Template are the fixed block; Pinned holds Upstream, entitlements (stopped), legal (waiting), schema, Releases and Security. Hovering adds only the background and the grip.</p><figure><figcaption>At rest</figcaption><img src="sidebar-pins-rest-${appearance}.png" alt="Sidebar at rest"></figure><figure><figcaption>${HOVERED} hovered</figcaption><img src="sidebar-pins-hover-${appearance}.png" alt="Sidebar with a Pinned row hovered"></figure><figure><figcaption>${HOVERED} menu open</figcaption><img src="sidebar-pins-menu-${appearance}.png" alt="Sidebar with a Pinned row's menu open"></figure>`,
+      `<!doctype html><meta charset="utf-8"><title>Sidebar pins</title><style>body{font:14px system-ui;padding:24px}figure{margin:24px 0}figcaption{margin-bottom:8px}</style><h1>Sidebar pins / ${appearance}</h1><p>Design: epic spicode-1l9 and prototype spicode-e2z (proto-pins-sidebar.png). Today, Line, Environment and Template are the fixed block; Pinned holds Upstream, entitlements (blocked, a filled count), legal and schema (waiting, an outlined count), Releases and Security. Hovering adds only the background and the grip.</p><figure><figcaption>At rest</figcaption><img src="sidebar-pins-rest-${appearance}.png" alt="Sidebar at rest"></figure><figure><figcaption>${HOVERED} hovered</figcaption><img src="sidebar-pins-hover-${appearance}.png" alt="Sidebar with a Pinned row hovered"></figure><figure><figcaption>${HOVERED} menu open</figcaption><img src="sidebar-pins-menu-${appearance}.png" alt="Sidebar with a Pinned row's menu open"></figure>`,
     );
   } finally {
     await unforce();

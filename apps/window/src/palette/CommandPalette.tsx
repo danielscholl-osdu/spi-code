@@ -27,9 +27,9 @@ import { useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { type Destination, LINE, useRegistry } from "../app/routes.js";
 import { isMacPlatform, matchesShiftShortcut, shiftShortcutLabel } from "../app/shortcuts.js";
-import { AttentionDot } from "../components/AttentionDot.js";
 import { PinControl } from "../components/pin/PinControl.js";
 import { useSidebarAttention } from "../components/sidebar/attention.js";
+import { ServiceMark, serviceMark } from "../components/sidebar/service-mark.js";
 import { isFixedPin, pin, togglePin, usePins } from "../store/pins.js";
 import type { createWatchStore } from "../store/watch.js";
 import { openTodayRow } from "../views/today/Table.js";
@@ -183,6 +183,7 @@ function PaletteContent({
               const service = route?.kind === "service" ? route : undefined;
               const mark = service ? attention.get(`service:${service.id}`) : undefined;
               const kind = service ? mark?.word : item.kind;
+              const home = service ? serviceMark(body, service.id) : undefined;
               const pinState = item.pin === undefined ? undefined : pinStateOf(item.pin, pins);
               return (
                 <Autocomplete.Item
@@ -192,12 +193,14 @@ function PaletteContent({
                   data-pin-state={pinState}
                   aria-label={
                     pinState
-                      ? [item.label, kind, PIN_STATE_NAME[pinState]].filter(Boolean).join(", ")
+                      ? [item.label, home?.label, kind, PIN_STATE_NAME[pinState]]
+                          .filter(Boolean)
+                          .join(", ")
                       : undefined
                   }
                   onClick={() => run(item)}
                 >
-                  {service && <AttentionDot dot={mark?.dot} />}
+                  <ServiceMark mark={home} />
                   {item.priority !== undefined && (
                     <span className="palette-priority" data-rung={item.priority}>
                       P{item.priority}

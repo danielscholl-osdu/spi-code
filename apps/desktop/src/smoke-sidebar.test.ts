@@ -17,7 +17,7 @@ const same = (row: string, group: SidebarRow["group"], marks: SidebarMark[]): Si
 });
 const rows: SidebarRow[] = [
   same("line", "fixed", [mark("sidebar-mark", "1", 170), mark("sidebar-mark", "13")]),
-  same("service/entitlements", "pinned", [mark("sidebar-word", "stopped")]),
+  same("service/entitlements", "pinned", [mark("sidebar-mark", "2")]),
   same("releases", "pinned", []),
 ];
 const hovered = (row: string, hover: SidebarMark[]) =>
@@ -29,7 +29,7 @@ it("accepts rows whose marks and words keep their box when hovered", () => {
 
 it("rejects the old hover hide, a mark that moves, and a mark drawn only on hover", () => {
   expect(() => assertSidebarHover(hovered("service/entitlements", []))).toThrow(
-    'Sidebar hover: service/entitlements hides sidebar-word "stopped"',
+    'Sidebar hover: service/entitlements hides sidebar-mark "2"',
   );
   expect(() =>
     assertSidebarHover(

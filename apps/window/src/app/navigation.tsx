@@ -34,8 +34,11 @@ export type PlaceRoute =
   | { kind: "engineering-system" }
   | { kind: "releases"; section?: ReleasesSection }
   | { kind: "security" }
-  | { kind: "service"; id: string }
+  | ServiceRoute
   | { kind: "release"; month: string };
+
+/** A service page, on one of its tabs (Overview when absent) with one of that tab's rows open. */
+export type ServiceRoute = { kind: "service"; id: string; tab?: string; row?: string };
 
 /** What Evidence was opened for: a Today item, or a Today line with each of its members. */
 export type EvidenceSelection = { kind: "item" | "line"; id: string };
@@ -87,6 +90,7 @@ export type Registry = {
 };
 
 const SERVICE_ID = /^[a-z0-9][a-z0-9-]*$/;
+const TAB = /^[a-z][a-z-]*$/;
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 const PLAIN = new Set<string>([
   "today",
@@ -165,6 +169,16 @@ function parseEvidence(query: string): EvidenceRoute {
   );
 }
 
+/** `service/<id>[/<tab>[/<row>]]`, each part encoded; a row needs its tab. */
+function parseService(parts: readonly string[]): Route | undefined {
+  if (parts.length > 3) return undefined;
+  const [id, tab, row] = parts.map(decode);
+  if (id === undefined || !SERVICE_ID.test(id)) return undefined;
+  if (parts.length > 1 && (tab === undefined || !TAB.test(tab))) return undefined;
+  if (parts.length > 2 && !row) return undefined;
+  return { kind: "service", id, ...(tab ? { tab } : {}), ...(row ? { row } : {}) };
+}
+
 /** Reads a location hash (`#service/legal`, `release/2026-10`); undefined when it names no route. */
 export function parseRoute(hash: string): Route | undefined {
   const path = hash.replace(/^#\/?/, "");
@@ -172,6 +186,8 @@ export function parseRoute(hash: string): Route | undefined {
     return parseEvidence(path.slice("evidence".length));
   const slash = path.indexOf("/");
   const head = slash < 0 ? path : path.slice(0, slash);
+  if (head === "service")
+    return slash < 0 ? undefined : parseService(path.slice(slash + 1).split("/"));
   const rest = slash < 0 ? undefined : decode(path.slice(slash + 1));
   if (Object.hasOwn(ALIASES, head)) return rest === undefined ? ALIASES[head] : undefined;
   if (
@@ -181,10 +197,6 @@ export function parseRoute(hash: string): Route | undefined {
     return { kind: "releases", section: rest };
   if (PLAIN.has(head)) return rest === undefined ? ({ kind: head } as Route) : undefined;
   switch (head) {
-    case "service":
-      return rest !== undefined && SERVICE_ID.test(rest)
-        ? { kind: "service", id: rest }
-        : undefined;
     case "release":
       return rest !== undefined && MONTH.test(rest) ? { kind: "release", month: rest } : undefined;
     default:
@@ -195,7 +207,7 @@ export function parseRoute(hash: string): Route | undefined {
 export function routeHash(route: Route): string {
   switch (route.kind) {
     case "service":
-      return `#service/${encodeURIComponent(route.id)}`;
+      return `#${["service", route.id, ...(route.tab ? [route.tab] : []), ...(route.tab && route.row ? [route.row] : [])].map(encodeURIComponent).join("/")}`;
     case "release":
       return `#release/${route.month}`;
     case "releases":

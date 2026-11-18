@@ -128,19 +128,6 @@ it.each(["overlay", "pinned"] as const)(
       expect(lineHeader.paddingRight).toBe("24px");
       expect(lineBody.querySelector(".line-grid")).not.toBeNull();
       expect(view.container.querySelector(".line-toolbar :is(table, fieldset)")).toBeNull();
-      for (const name of ["attention", "repository", "release", "runs"]) {
-        const header = element(
-          view.container,
-          `[data-section="${name}"] > .service-section-header`,
-        );
-        expect(getComputedStyle(header).listStyle).toBe("none");
-        const count = element(header, ".service-section-count");
-        expect(getComputedStyle(count).marginLeft).toBe("auto");
-        const chevron = element(header, ".section-header-chevron");
-        expect(getComputedStyle(chevron).transform).toBe(
-          name === "attention" ? "rotate(45deg)" : "rotate(-45deg)",
-        );
-      }
       for (const route of [
         { kind: "service", id: "indexer" },
         { kind: "security" },
@@ -178,9 +165,8 @@ it("lifts the 960 px content cap for Today only, while every place keeps it", as
       { kind: "service", id: "indexer" },
     ] satisfies Route[]) {
       await act(async () => navigate(route));
-      expect(getComputedStyle(element(view.container, "main .place-reading")).maxWidth).toBe(
-        "960px",
-      );
+      const content = route.kind === "service" ? "main .service-home" : "main .place-reading";
+      expect(getComputedStyle(element(view.container, content)).maxWidth).toBe("960px");
     }
   } finally {
     await view.cleanup();

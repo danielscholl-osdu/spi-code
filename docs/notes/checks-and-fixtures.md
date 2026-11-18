@@ -92,3 +92,6 @@ Saved seen-cursor replays rebuild both `since` and `today.history` from the same
 The 16 Nov workflow history predates the Sync Upstream jobs read. Search's
 open sync PR keeps the recorded failure Blocked with the step still unread.
 Cascade Monitor runs on UTC hour boundaries, with 15 minutes for dispatch.
+
+Station lines are core's words (`clockWord`: en-US "Nov 9", a seven-day window); the window's
+`when()` writes "9 Nov" within six calendar days. They disagree beyond a week until core moves.

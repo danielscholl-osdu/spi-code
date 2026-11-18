@@ -1,0 +1,43 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+.flow-wrap { overflow-x: auto; padding-top: 8px; }
+.flow { display: grid; grid-template-columns: minmax(0, 3fr) 44px minmax(0, 1fr); grid-template-rows: auto auto; row-gap: 16px; min-width: 470px; }
+.flow-top { grid-column: 1; grid-row: 1; display: flex; align-items: stretch; min-width: 0; }
+.flow-top > .flow-station { flex: 1 1 0; }
+.flow-station { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 9px 12px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; text-align: left; }
+.flow-station[data-place="join"] { grid-column: 3; grid-row: 1 / 3; align-self: center; }
+button.flow-station { cursor: pointer; }
+button.flow-station:hover { border-color: var(--text-muted); }
+.flow-station:focus-visible, .flow-door:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.flow-label { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.flow-glyph { width: 14px; font-family: var(--font-mono); font-weight: 700; text-align: center; }
+.flow-say { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.flow-word { color: var(--text-strong); font-size: 13.5px; font-weight: 650; overflow-wrap: anywhere; }
+.flow-line { color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; }
+.flow-station[data-state="stopped"] { border-color: var(--error); background: var(--error-surface); }
+.flow-station[data-state="stopped"] :is(.flow-label, .flow-word, .flow-line) { color: var(--error-text); }
+.flow-station[data-state="waiting-on-person"] { border-color: var(--warning); background: var(--warning-surface); }
+.flow-station[data-state="waiting-on-person"] :is(.flow-label, .flow-word, .flow-line) { color: var(--warning-text); }
+.flow-station[data-state="green"] { border-color: var(--success); background: var(--success-surface); }
+.flow-station[data-state="green"] :is(.flow-label, .flow-word, .flow-line) { color: var(--success-text); }
+.flow-station:is([data-state="in-progress"], [data-state="waiting-on-clock"]) :is(.flow-glyph, .flow-word) { color: var(--work); }
+.flow-station[data-state="ready"] .flow-glyph { color: var(--success-text); }
+.flow-station[data-state="unread"] .flow-word { color: var(--text-muted); }
+.flow-edge { flex: 0 0 22px; align-self: center; position: relative; height: 2px; background: var(--border); }
+.flow-edge::after { content: ""; position: absolute; top: -4px; right: -1px; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 6px solid var(--border); }
+.flow-edge[data-moving] { background: repeating-linear-gradient(90deg, var(--work) 0 6px, transparent 6px 10px); animation: flow-march .7s linear infinite; }
+.flow-edge[data-moving]::after { border-left-color: var(--work); }
+@keyframes flow-march { to { background-position: 10px 0; } }
+@media (prefers-reduced-motion: reduce) { .flow-edge[data-moving] { animation: none; } }
+.flow-join { grid-column: 2; grid-row: 1 / 3; width: 100%; height: 100%; }
+.flow-join path { fill: none; stroke: var(--border); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.flow-join[data-moving] path { stroke: var(--work); stroke-dasharray: 6 4; }
+.flow-direct { grid-column: 1; grid-row: 2; position: relative; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 34px; padding: 13px 14px 10px; border: 1px dashed var(--border); border-radius: 10px; background: var(--surface-raised); }
+.flow-direct-label { position: absolute; top: -8px; left: 10px; padding: 0 5px; background: var(--surface); color: var(--text-muted); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.flow-door { display: flex; align-items: baseline; gap: 8px; padding: 0; border: 0; background: transparent; color: var(--text); font: inherit; text-align: left; }
+button.flow-door { cursor: pointer; }
+button.flow-door:hover .flow-door-word { text-decoration: underline; }
+.flow-door-label { color: var(--text-muted); font-size: 12px; }
+.flow-door-word { color: var(--text-muted); font-size: 12px; }
+button.flow-door .flow-door-word { color: var(--text-strong); font-weight: 650; }

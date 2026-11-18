@@ -68,6 +68,58 @@ export function clockTime(at: string | number | Date, options: ClockOptions = {}
   return ahead > 0 && options.hint !== false ? `${text} (in ${until(ahead)})` : text;
 }
 
+const whens = new Map<string, Intl.DateTimeFormat>();
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function calendar(date: Date, timeZone: string | undefined) {
+  const key = timeZone ?? "";
+  let format = whens.get(key);
+  if (!format) {
+    format = new Intl.DateTimeFormat("en-GB", {
+      ...(timeZone ? { timeZone } : {}),
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    });
+    whens.set(key, format);
+  }
+  const part: Partial<Record<Intl.DateTimeFormatPartTypes, string>> = Object.fromEntries(
+    format.formatToParts(date).map(({ type, value }) => [type, value]),
+  );
+  const month = Number(part.month) - 1;
+  // Whole calendar days since the epoch, so a DST change never shifts the day count.
+  return {
+    part: { ...part, month: MONTHS[month] },
+    days: Date.UTC(Number(part.year), month, Number(part.day)) / 86_400_000,
+  };
+}
+
+/**
+ * When something happened or will, on the operator's clock: time alone today, weekday and time
+ * within a week either way, and a date beyond (`14:05`, `Tue 09:30`, `3 Nov`).
+ */
+export function when(at: string | number | Date, options: Omit<ClockOptions, "hint"> = {}) {
+  const date = new Date(at);
+  if (Number.isNaN(date.getTime())) return typeof at === "string" ? at : "";
+  const { part, days } = calendar(date, options.timeZone);
+  const today = calendar(new Date(options.now ?? Date.now()), options.timeZone);
+  const clock = `${part.hour}:${part.minute}`;
+  const apart = Math.abs(days - today.days);
+  if (apart === 0) return clock;
+  if (apart < 7) return `${part.weekday} ${clock}`;
+  return `${part.day} ${part.month}${part.year === today.part.year ? "" : ` ${part.year}`}`;
+}
+
+/** {@link when} in a `time` element whose `datetime` keeps the ISO value. */
+export function When({ at }: { at: string }) {
+  const now = useNow();
+  return <time dateTime={at}>{when(at, { now })}</time>;
+}
+
 const days = new Map<string, Intl.DateTimeFormat>();
 
 /** A day as a date line reads it, with no clock: `Friday 6 Nov`. */

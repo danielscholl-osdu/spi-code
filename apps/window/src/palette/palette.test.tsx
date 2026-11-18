@@ -14,6 +14,7 @@ import {
   setOpenSelection,
 } from "../app/navigation.js";
 import { Shell } from "../app/Shell.js";
+import { serviceMark } from "../components/sidebar/service-mark.js";
 import { selectionStore } from "../panels/selection.js";
 import { PINS_STORAGE_KEY, readPins } from "../store/pins.js";
 import { watchStore } from "../store/watch.js";
@@ -70,10 +71,8 @@ const serviceAttention = (id: string) => {
     (element) => element.querySelector(".palette-label")?.textContent === id,
   );
   expect(row, `palette service ${id}`).toBeTruthy();
-  const dot = row?.querySelector(".sidebar-attention-dot");
   return {
-    dot: dot?.getAttribute("data-attention") ?? null,
-    priority: dot?.getAttribute("aria-label") ?? null,
+    mark: row?.querySelector(".sidebar-mark")?.getAttribute("aria-label") ?? null,
     word: row?.querySelector(".palette-kind")?.textContent ?? null,
   };
 };
@@ -165,8 +164,8 @@ it("lists Go to, Services and Queue from the routes and the snapshot, without le
   ]);
   expect(rows("services")).toEqual([
     "partitionunread",
-    "entitlementshalt",
-    "legaltoolchain",
+    "1entitlementshalt",
+    "1legaltoolchain",
     "schemaunread",
     "fileunread",
   ]);
@@ -182,20 +181,30 @@ it("lists Go to, Services and Queue from the routes and the snapshot, without le
   ]);
 });
 
-it("marks every recorded service with its queue attention dot and word, not counts", async () => {
+it("marks every recorded service from its home, beside its queue attention word", async () => {
   await shortcut({ ctrlKey: true });
   const marks = serviceIds.map((id) => serviceAttention(id));
   expect(marks).toEqual([
-    { dot: "unread", priority: "Unread", word: "unread" },
-    { dot: "p0", priority: "P0", word: "halt" },
-    { dot: "p1", priority: "P1", word: "toolchain" },
-    { dot: "unread", priority: "Unread", word: "unread" },
-    { dot: "unread", priority: "Unread", word: "unread" },
+    { mark: "Nothing waiting on you", word: "unread" },
+    { mark: "1 blocked or waiting on you", word: "halt" },
+    { mark: "1 waiting on you", word: "toolchain" },
+    { mark: "Nothing waiting on you", word: "unread" },
+    { mark: "Nothing waiting on you", word: "unread" },
   ]);
   expect(palette()?.querySelector('[data-group="services"] .sidebar-pip')).toBeNull();
 });
 
-it("uses hollow for empty unread scopes and no dot for empty read scopes", async () => {
+it("draws each service's mark as the sidebar does, from its home", async () => {
+  const homes = ViewSnapshotSchema.parse(JSON.parse(snapshot1116));
+  await receive({ ...homes, cursor: body.cursor + 1 });
+  await shortcut({ ctrlKey: true });
+  const ids = (homes.services ?? []).map(({ service }) => service);
+  expect(ids.length).toBeGreaterThan(0);
+  for (const id of ids)
+    expect(serviceAttention(id).mark, id).toBe(serviceMark(homes, id)?.label ?? null);
+});
+
+it("words empty unread scopes and leaves empty read scopes unworded", async () => {
   const next = structuredClone(body);
   next.cursor += 1;
   next.tree = next.tree.map((node) =>
@@ -203,12 +212,8 @@ it("uses hollow for empty unread scopes and no dot for empty read scopes", async
   );
   await receive(next);
   await shortcut({ ctrlKey: true });
-  expect(serviceAttention("partition")).toEqual({
-    dot: "unread",
-    priority: "Unread",
-    word: "unread",
-  });
-  expect(serviceAttention("file")).toEqual({ dot: null, priority: null, word: null });
+  expect(serviceAttention("partition").word).toBe("unread");
+  expect(serviceAttention("file").word).toBeNull();
 });
 
 it.each([false, true])(
@@ -256,8 +261,8 @@ it.each([false, true])(
       cursor: failed.cursor + 1,
       tree: read.tree.map((node) => ({ ...node, status: "fresh" })),
     });
-    expect(serviceAttention("partition")).toEqual({ dot: null, priority: null, word: null });
-    expect(serviceAttention("entitlements")).toEqual({ dot: "p0", priority: "P0", word: "halt" });
+    expect(serviceAttention("partition").word).toBeNull();
+    expect(serviceAttention("entitlements").word).toBe("halt");
   },
 );
 
@@ -286,9 +291,9 @@ it("moves with the arrows, opens with Enter, and filters as the operator types",
 
   await type("legal");
   expect(labels()).toEqual(["Services", "Queue"]);
-  expect(rows("services")).toEqual(["legaltoolchain"]);
+  expect(rows("services")).toEqual(["1legaltoolchain"]);
   expect(rows("queue")).toEqual(["P1legal · Sync PR #31 fails Java BuildP1"]);
-  expect(highlighted()).toBe("legaltoolchain");
+  expect(highlighted()).toBe("1legaltoolchain");
   await key("Enter");
   expect(palettes()).toHaveLength(0);
   expect(window.location.hash).toBe("#service/legal");
@@ -298,7 +303,7 @@ it("opens a service result and pins it on Ctrl+Enter, and keeps it pinned when p
   localStorage.setItem(PINS_STORAGE_KEY, "[]");
   await shortcut({ ctrlKey: true });
   await type("legal");
-  expect(highlighted()).toBe("legaltoolchain");
+  expect(highlighted()).toBe("1legaltoolchain");
   expect(hint()).toContain("Ctrl+Enter open and pin");
   await key("Enter", { ctrlKey: true });
   expect(palettes()).toHaveLength(0);
@@ -393,11 +398,15 @@ it("pins and unpins a result in place from its pin control, leaving Find as it w
 
   await shortcut({ ctrlKey: true });
   await type("legal");
-  expect(option("legaltoolchain")?.getAttribute("aria-label")).toBe("legal, toolchain, pinned");
-  await act(async () => pinControl("legaltoolchain")?.click());
+  expect(option("1legaltoolchain")?.getAttribute("aria-label")).toBe(
+    "legal, 1 waiting on you, toolchain, pinned",
+  );
+  await act(async () => pinControl("1legaltoolchain")?.click());
   expect(readPins()).not.toContain("legal");
   expect(container.querySelector('[data-sidebar-row="service/legal"]')).toBeNull();
-  expect(option("legaltoolchain")?.getAttribute("aria-label")).toBe("legal, toolchain, not pinned");
+  expect(option("1legaltoolchain")?.getAttribute("aria-label")).toBe(
+    "legal, 1 waiting on you, toolchain, not pinned",
+  );
   expect(palettes()).toHaveLength(1);
   expect(window.location.hash).toBe("#releases");
 });
@@ -544,10 +553,8 @@ it("ranks the best match class first and keeps group order on ties", () => {
 });
 
 it("Escape closes only the palette above a place popover and returns focus inside it", async () => {
-  await act(async () => navigate({ kind: "service", id: "legal" }));
-  await act(async () =>
-    container.querySelector<HTMLButtonElement>('[data-station="cascade"]')?.click(),
-  );
+  await act(async () => navigate({ kind: "upstream" }));
+  await act(async () => container.querySelector<HTMLButtonElement>(".place-item-content")?.click());
   const popover = container.querySelector<HTMLElement>(".popover");
   const control = popover?.querySelector<HTMLButtonElement>("button");
   expect(control).toBeTruthy();
