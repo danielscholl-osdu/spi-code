@@ -113,14 +113,8 @@ export function readFork(fleet: TodayFleet, fork: string, home: ServiceHome | un
   return { stations, doors, unread };
 }
 
-function DoorCell({
-  reading,
-  unread,
-}: {
-  reading: ReturnType<typeof doorReading>;
-  unread: boolean;
-}) {
-  const { value, state, description } = reading;
+function DoorCell({ reading }: { reading: ReturnType<typeof doorReading> }) {
+  const { value, state, description, unread } = reading;
   if (value === undefined && unread) return null;
   return (
     <span className="forks-reading" data-state={state} title={description}>
@@ -329,7 +323,7 @@ export function Forks({
             const station = stations.get(column as ServiceHomeStation["id"]);
             return (
               <td key={column} {...props(column)}>
-                {door && <DoorCell reading={door} unread={unread} />}
+                {door && <DoorCell reading={door} />}
                 {station && <StationCell reading={station} />}
               </td>
             );

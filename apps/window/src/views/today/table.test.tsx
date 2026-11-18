@@ -272,15 +272,26 @@ it("a member's age is the age of its object, in one unit", async () => {
     [...container.querySelectorAll("table")].map((table) => table.textContent).join(" "),
   ).not.toContain("59d");
   expect(row("waiting:release-approval").querySelector(".today-row-age")?.textContent).toBe("7d");
-  expect(["33m", "23h", "24h", "1d", "1d 23h", "2d", "6d 22h"].map(ageInOneUnit)).toEqual([
-    "33m",
-    "23h",
-    "1d",
-    "1d",
-    "1d",
-    "2d",
-    "7d",
-  ]);
+  for (const [raw, shown] of [
+    ["12s", "12s"],
+    ["33m", "33m"],
+    ["23h", "23h"],
+    ["24h", "1d"],
+    ["35h", "1d"],
+    ["36h", "2d"],
+    ["1d", "1d"],
+    ["1d 11h", "1d"],
+    ["1d 12h", "2d"],
+    ["1d 23h", "2d"],
+    ["2d", "2d"],
+    ["59h", "2d"],
+    ["60h", "3d"],
+    ["83h", "3d"],
+    ["84h", "4d"],
+    ["6d 22h", "7d"],
+  ]) {
+    expect(ageInOneUnit(raw), raw).toBe(shown);
+  }
 });
 
 it("a deadline is a clock by the age carrying its reason", async () => {
@@ -737,6 +748,11 @@ describe("Forks on the 16 Nov sweep", () => {
     }
   });
 
+  it("rounds the Release PR age to the nearest day", async () => {
+    await render(loadFixture("snapshot-1106.json"), "#today/forks");
+    expect(fork("storage")?.querySelector('[data-column="release"]')?.textContent).toBe("2d");
+  });
+
   it("discloses a fork's exact Yours members and Can wait facts, and opens its service from its name", async () => {
     const body = whole();
     const name = "indexer";
@@ -798,7 +814,8 @@ describe("Forks on the 16 Nov sweep", () => {
     const main = fleet?.stations.find(({ id }) => id === "main");
     const other = home?.doors.find(({ id }) => id === "other");
     const template = home?.doors.find(({ id }) => id === "template");
-    if (!service || !home?.releasePr || !main || !other || !template)
+    const dependabot = home?.doors.find(({ id }) => id === "dependabot");
+    if (!service || !home?.releasePr || !main || !other || !template || !dependabot)
       throw new Error("Fixture needs file's readings");
 
     if (gap === "Main and the service mark") {
@@ -809,6 +826,7 @@ describe("Forks on the 16 Nov sweep", () => {
       const pr = { number: 67, url: `${home.releasePr.url}/67` };
       Object.assign(other, { count: null, prs: [pr] });
       Object.assign(template, { count: 1, prs: [pr] });
+      dependabot.count = null;
       home.mark = { kind: "count", count: 2, tone: "warning" };
     } else if (blank === "release") {
       delete home.releasePr.age;
@@ -868,16 +886,19 @@ describe("Forks on the 16 Nov sweep", () => {
     );
   });
 
-  it("keeps a fork with an unread home in the unread group when its stations were read", async () => {
+  it("keeps the dot for a read empty door and blanks an unread empty door on an unread fork", async () => {
     const body = whole();
     const home = body.services?.find(({ service }) => service === "file")?.home;
-    if (!home) throw new Error("Fixture needs file's home reading");
+    const dependabot = home?.doors.find(({ id }) => id === "dependabot");
+    if (!home || !dependabot) throw new Error("Fixture needs file's home and Dependabot door");
     home.mark = { kind: "unread" };
+    dependabot.count = null;
     await render(body, "#today/forks");
     expect(fold()).toBeNull();
-    expect(fork("file")?.closest("[data-fork-group]")?.getAttribute("data-fork-group")).toBe(
-      "unread",
-    );
+    const file = fork("file");
+    expect(file?.closest("[data-fork-group]")?.getAttribute("data-fork-group")).toBe("unread");
+    expect(file?.querySelector('[data-column="other"]')?.textContent).toBe("·");
+    expect(file?.querySelector('[data-column="dependabot"]')?.textContent).toBe("");
   });
 });
 

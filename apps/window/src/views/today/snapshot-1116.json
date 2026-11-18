@@ -12930,7 +12930,7 @@
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-entitlements/pull/148",
             "section": "can-wait",
-            "headline": "chore: release 1.2.3",
+            "headline": "Chore: release 1.2.3",
             "cause": "chore: release 1.2.3",
             "steps": [],
             "links": [
@@ -14774,7 +14774,7 @@
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-legal/pull/85",
             "section": "can-wait",
-            "headline": "chore: release 1.2.3",
+            "headline": "Chore: release 1.2.3",
             "cause": "chore: release 1.2.3",
             "steps": [],
             "links": [
@@ -16217,7 +16217,7 @@
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-schema/pull/100",
             "section": "can-wait",
-            "headline": "chore: release 1.2.2",
+            "headline": "Chore: release 1.2.2",
             "cause": "chore: release 1.2.2",
             "steps": [],
             "links": [
@@ -17785,7 +17785,7 @@
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-file/pull/111",
             "section": "can-wait",
-            "headline": "chore: release 1.2.2",
+            "headline": "Chore: release 1.2.2",
             "cause": "chore: release 1.2.2",
             "steps": [],
             "links": [
@@ -19549,7 +19549,7 @@
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-storage/pull/57",
             "section": "can-wait",
-            "headline": "chore: release 1.4.2",
+            "headline": "Chore: release 1.4.2",
             "cause": "chore: release 1.4.2",
             "steps": [],
             "links": [
@@ -19582,7 +19582,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-storage/pull/71",
             "section": "can-wait",
-            "headline": "build(deps-dev): bump com.azure:azure-storage-blob from 12.36.0 to 12.36.1 in /testing/storage-test-azure",
+            "headline": "Build(deps-dev): bump com.azure:azure-storage-blob from 12.36.0 to 12.36.1 in /testing/storage-test-azure",
             "cause": "build(deps-dev): bump com.azure:azure-storage-blob from 12.36.0 to 12.36.1 in /testing/storage-test-azure",
             "steps": [],
             "links": [
@@ -21030,7 +21030,7 @@
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-indexer/pull/33",
             "section": "can-wait",
-            "headline": "chore: release 1.4.1",
+            "headline": "Chore: release 1.4.1",
             "cause": "chore: release 1.4.1",
             "steps": [],
             "links": [
@@ -21063,7 +21063,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-indexer/pull/65",
             "section": "can-wait",
-            "headline": "build(deps): bump io.netty:netty-transport from 4.1.139.Final to 4.1.140.Final in /testing/indexer-test-azure",
+            "headline": "Build(deps): bump io.netty:netty-transport from 4.1.139.Final to 4.1.140.Final in /testing/indexer-test-azure",
             "cause": "build(deps): bump io.netty:netty-transport from 4.1.139.Final to 4.1.140.Final in /testing/indexer-test-azure",
             "steps": [],
             "links": [
@@ -21080,7 +21080,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-indexer/pull/66",
             "section": "can-wait",
-            "headline": "build(deps): bump io.netty:netty-all from 4.1.139.Final to 4.1.140.Final in /testing/indexer-test-azure",
+            "headline": "Build(deps): bump io.netty:netty-all from 4.1.139.Final to 4.1.140.Final in /testing/indexer-test-azure",
             "cause": "build(deps): bump io.netty:netty-all from 4.1.139.Final to 4.1.140.Final in /testing/indexer-test-azure",
             "steps": [],
             "links": [
@@ -21097,7 +21097,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-indexer/pull/68",
             "section": "can-wait",
-            "headline": "chore: declare component governance inputs",
+            "headline": "Chore: declare component governance inputs",
             "cause": "chore: declare component governance inputs",
             "steps": [],
             "links": [
@@ -21114,7 +21114,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-indexer/pull/71",
             "section": "can-wait",
-            "headline": "build(deps): bump com.google.guava:guava from 27.1-jre to 33.7.1-jre in /testing/indexer-test-azure",
+            "headline": "Build(deps): bump com.google.guava:guava from 27.1-jre to 33.7.1-jre in /testing/indexer-test-azure",
             "cause": "build(deps): bump com.google.guava:guava from 27.1-jre to 33.7.1-jre in /testing/indexer-test-azure",
             "steps": [],
             "links": [
@@ -22555,7 +22555,7 @@
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-search/pull/29",
             "section": "can-wait",
-            "headline": "chore: release 1.4.1",
+            "headline": "Chore: release 1.4.1",
             "cause": "chore: release 1.4.1",
             "steps": [],
             "links": [
@@ -22588,7 +22588,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-search/pull/68",
             "section": "can-wait",
-            "headline": "build(deps): bump io.netty:netty-all from 4.1.139.Final to 4.1.140.Final in /testing/search-test-azure",
+            "headline": "Build(deps): bump io.netty:netty-all from 4.1.139.Final to 4.1.140.Final in /testing/search-test-azure",
             "cause": "build(deps): bump io.netty:netty-all from 4.1.139.Final to 4.1.140.Final in /testing/search-test-azure",
             "steps": [],
             "links": [
@@ -22605,7 +22605,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-search/pull/69",
             "section": "can-wait",
-            "headline": "build(deps): bump io.netty:netty-transport from 4.1.139.Final to 4.1.140.Final in /testing/search-test-azure",
+            "headline": "Build(deps): bump io.netty:netty-transport from 4.1.139.Final to 4.1.140.Final in /testing/search-test-azure",
             "cause": "build(deps): bump io.netty:netty-transport from 4.1.139.Final to 4.1.140.Final in /testing/search-test-azure",
             "steps": [],
             "links": [
@@ -22622,7 +22622,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-search/pull/71",
             "section": "can-wait",
-            "headline": "chore: declare component governance inputs",
+            "headline": "Chore: declare component governance inputs",
             "cause": "chore: declare component governance inputs",
             "steps": [],
             "links": [
@@ -24301,7 +24301,7 @@
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-workflow/pull/38",
             "section": "can-wait",
-            "headline": "chore: release 1.3.2",
+            "headline": "Chore: release 1.3.2",
             "cause": "chore: release 1.3.2",
             "steps": [],
             "links": [
@@ -24318,7 +24318,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-workflow/pull/53",
             "section": "can-wait",
-            "headline": "build(deps-dev): bump com.fasterxml.jackson.core:jackson-databind from 2.13.5 to 2.18.11 in /testing/workflow-test-azure",
+            "headline": "Build(deps-dev): bump com.fasterxml.jackson.core:jackson-databind from 2.13.5 to 2.18.11 in /testing/workflow-test-azure",
             "cause": "build(deps-dev): bump com.fasterxml.jackson.core:jackson-databind from 2.13.5 to 2.18.11 in /testing/workflow-test-azure",
             "steps": [],
             "links": [
@@ -24335,7 +24335,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-workflow/pull/54",
             "section": "can-wait",
-            "headline": "build(deps-dev): bump com.google.guava:guava from 29.0-jre to 33.7.1-jre in /testing/workflow-test-azure",
+            "headline": "Build(deps-dev): bump com.google.guava:guava from 29.0-jre to 33.7.1-jre in /testing/workflow-test-azure",
             "cause": "build(deps-dev): bump com.google.guava:guava from 29.0-jre to 33.7.1-jre in /testing/workflow-test-azure",
             "steps": [],
             "links": [
@@ -24368,7 +24368,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-workflow/pull/58",
             "section": "can-wait",
-            "headline": "build(deps): bump io.netty:netty-all from 4.1.139.Final to 4.1.140.Final in /testing/workflow-test-azure",
+            "headline": "Build(deps): bump io.netty:netty-all from 4.1.139.Final to 4.1.140.Final in /testing/workflow-test-azure",
             "cause": "build(deps): bump io.netty:netty-all from 4.1.139.Final to 4.1.140.Final in /testing/workflow-test-azure",
             "steps": [],
             "links": [
@@ -24385,7 +24385,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-workflow/pull/59",
             "section": "can-wait",
-            "headline": "chore: declare component governance inputs",
+            "headline": "Chore: declare component governance inputs",
             "cause": "chore: declare component governance inputs",
             "steps": [],
             "links": [
@@ -26239,7 +26239,7 @@
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-indexer-queue/pull/45",
             "section": "can-wait",
-            "headline": "chore: release 1.5.0",
+            "headline": "Chore: release 1.5.0",
             "cause": "chore: release 1.5.0",
             "steps": [],
             "links": [
@@ -26272,7 +26272,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-indexer-queue/pull/71",
             "section": "can-wait",
-            "headline": "build(deps): bump com.fasterxml.jackson.core:jackson-core from 2.18.11 to 2.18.12 in /testing/indexer-queue-azure-enqueue",
+            "headline": "Build(deps): bump com.fasterxml.jackson.core:jackson-core from 2.18.11 to 2.18.12 in /testing/indexer-queue-azure-enqueue",
             "cause": "build(deps): bump com.fasterxml.jackson.core:jackson-core from 2.18.11 to 2.18.12 in /testing/indexer-queue-azure-enqueue",
             "steps": [],
             "links": [
@@ -26289,7 +26289,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-indexer-queue/pull/72",
             "section": "can-wait",
-            "headline": "build(deps): bump com.fasterxml.jackson.core:jackson-databind from 2.18.11 to 2.18.12 in /testing/indexer-queue-azure-enqueue",
+            "headline": "Build(deps): bump com.fasterxml.jackson.core:jackson-databind from 2.18.11 to 2.18.12 in /testing/indexer-queue-azure-enqueue",
             "cause": "build(deps): bump com.fasterxml.jackson.core:jackson-databind from 2.18.11 to 2.18.12 in /testing/indexer-queue-azure-enqueue",
             "steps": [],
             "links": [
@@ -26306,7 +26306,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-indexer-queue/pull/73",
             "section": "can-wait",
-            "headline": "chore: declare component governance inputs",
+            "headline": "Chore: declare component governance inputs",
             "cause": "chore: declare component governance inputs",
             "steps": [],
             "links": [
@@ -26323,7 +26323,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-indexer-queue/pull/75",
             "section": "can-wait",
-            "headline": "build(deps-dev): bump com.google.guava:guava from 27.1-jre to 33.7.1-jre in /testing/indexer-queue-azure-enqueue",
+            "headline": "Build(deps-dev): bump com.google.guava:guava from 27.1-jre to 33.7.1-jre in /testing/indexer-queue-azure-enqueue",
             "cause": "build(deps-dev): bump com.google.guava:guava from 27.1-jre to 33.7.1-jre in /testing/indexer-queue-azure-enqueue",
             "steps": [],
             "links": [
@@ -27749,7 +27749,7 @@
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-unit/pull/21",
             "section": "can-wait",
-            "headline": "chore: release 1.4.1",
+            "headline": "Chore: release 1.4.1",
             "cause": "chore: release 1.4.1",
             "steps": [],
             "links": [
@@ -27766,7 +27766,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-unit/pull/53",
             "section": "can-wait",
-            "headline": "build(deps): bump jinja2 from 2.11.2 to 3.1.6 in /testing/unit_test_azure",
+            "headline": "Build(deps): bump jinja2 from 2.11.2 to 3.1.6 in /testing/unit_test_azure",
             "cause": "build(deps): bump jinja2 from 2.11.2 to 3.1.6 in /testing/unit_test_azure",
             "steps": [],
             "links": [
@@ -27783,7 +27783,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-unit/pull/54",
             "section": "can-wait",
-            "headline": "build(deps): bump flask from 1.1.2 to 3.1.3 in /testing/unit_test_azure",
+            "headline": "Build(deps): bump flask from 1.1.2 to 3.1.3 in /testing/unit_test_azure",
             "cause": "build(deps): bump flask from 1.1.2 to 3.1.3 in /testing/unit_test_azure",
             "steps": [],
             "links": [
@@ -27800,7 +27800,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-unit/pull/55",
             "section": "can-wait",
-            "headline": "build(deps): bump idna from 2.10 to 3.15 in /testing/unit_test_azure",
+            "headline": "Build(deps): bump idna from 2.10 to 3.15 in /testing/unit_test_azure",
             "cause": "build(deps): bump idna from 2.10 to 3.15 in /testing/unit_test_azure",
             "steps": [],
             "links": [
@@ -27817,7 +27817,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-unit/pull/56",
             "section": "can-wait",
-            "headline": "build(deps): bump azure-core from 1.9.0 to 1.38.0 in /testing/unit_test_azure",
+            "headline": "Build(deps): bump azure-core from 1.9.0 to 1.38.0 in /testing/unit_test_azure",
             "cause": "build(deps): bump azure-core from 1.9.0 to 1.38.0 in /testing/unit_test_azure",
             "steps": [],
             "links": [
@@ -27850,7 +27850,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-unit/pull/64",
             "section": "can-wait",
-            "headline": "chore: declare component governance inputs",
+            "headline": "Chore: declare component governance inputs",
             "cause": "chore: declare component governance inputs",
             "steps": [],
             "links": [
@@ -27867,7 +27867,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-unit/pull/67",
             "section": "can-wait",
-            "headline": "build(deps): bump org.eclipse.jetty:jetty-bom from 12.1.14 to 12.1.15 in /provider/unit-azure/unit-aks",
+            "headline": "Build(deps): bump org.eclipse.jetty:jetty-bom from 12.1.14 to 12.1.15 in /provider/unit-azure/unit-aks",
             "cause": "build(deps): bump org.eclipse.jetty:jetty-bom from 12.1.14 to 12.1.15 in /provider/unit-azure/unit-aks",
             "steps": [],
             "links": [
@@ -29377,7 +29377,7 @@
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-crs-catalog/pull/19",
             "section": "can-wait",
-            "headline": "chore: release 1.4.1",
+            "headline": "Chore: release 1.4.1",
             "cause": "chore: release 1.4.1",
             "steps": [],
             "links": [
@@ -29394,7 +29394,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-catalog/pull/45",
             "section": "can-wait",
-            "headline": "build(deps): bump cryptography from 2.8 to 50.0.0 in /testing/catalog_test_azure",
+            "headline": "Build(deps): bump cryptography from 2.8 to 50.0.0 in /testing/catalog_test_azure",
             "cause": "build(deps): bump cryptography from 2.8 to 50.0.0 in /testing/catalog_test_azure",
             "steps": [],
             "links": [
@@ -29411,7 +29411,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-catalog/pull/46",
             "section": "can-wait",
-            "headline": "build(deps): bump urllib3 from 1.25.8 to 2.8.0 in /testing/catalog_test_azure",
+            "headline": "Build(deps): bump urllib3 from 1.25.8 to 2.8.0 in /testing/catalog_test_azure",
             "cause": "build(deps): bump urllib3 from 1.25.8 to 2.8.0 in /testing/catalog_test_azure",
             "steps": [],
             "links": [
@@ -29428,7 +29428,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-catalog/pull/47",
             "section": "can-wait",
-            "headline": "build(deps): bump pyjwt from 1.7.1 to 2.15.0 in /testing/catalog_test_azure",
+            "headline": "Build(deps): bump pyjwt from 1.7.1 to 2.15.0 in /testing/catalog_test_azure",
             "cause": "build(deps): bump pyjwt from 1.7.1 to 2.15.0 in /testing/catalog_test_azure",
             "steps": [],
             "links": [
@@ -29445,7 +29445,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-catalog/pull/48",
             "section": "can-wait",
-            "headline": "build(deps): bump certifi from 2019.11.28 to 2026.10.18 in /testing/catalog_test_azure",
+            "headline": "Build(deps): bump certifi from 2019.11.28 to 2026.10.18 in /testing/catalog_test_azure",
             "cause": "build(deps): bump certifi from 2019.11.28 to 2026.10.18 in /testing/catalog_test_azure",
             "steps": [],
             "links": [
@@ -29478,7 +29478,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-catalog/pull/53",
             "section": "can-wait",
-            "headline": "chore: declare component governance inputs",
+            "headline": "Chore: declare component governance inputs",
             "cause": "chore: declare component governance inputs",
             "steps": [],
             "links": [
@@ -29495,7 +29495,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-catalog/pull/58",
             "section": "can-wait",
-            "headline": "build(deps): bump org-eclipse-jetty.version from 12.0.40 to 12.0.41 in /provider/crs-catalog-azure/crs-catalog-aks",
+            "headline": "Build(deps): bump org-eclipse-jetty.version from 12.0.40 to 12.0.41 in /provider/crs-catalog-azure/crs-catalog-aks",
             "cause": "build(deps): bump org-eclipse-jetty.version from 12.0.40 to 12.0.41 in /provider/crs-catalog-azure/crs-catalog-aks",
             "steps": [],
             "links": [
@@ -31123,7 +31123,7 @@
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-crs-conversion/pull/17",
             "section": "can-wait",
-            "headline": "chore: release 1.4.1",
+            "headline": "Chore: release 1.4.1",
             "cause": "chore: release 1.4.1",
             "steps": [],
             "links": [
@@ -31140,7 +31140,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-conversion/pull/33",
             "section": "can-wait",
-            "headline": "build(deps): bump urllib3 from 1.25.8 to 2.8.0 in /testing/crs_converter_test_azure",
+            "headline": "Build(deps): bump urllib3 from 1.25.8 to 2.8.0 in /testing/crs_converter_test_azure",
             "cause": "build(deps): bump urllib3 from 1.25.8 to 2.8.0 in /testing/crs_converter_test_azure",
             "steps": [],
             "links": [
@@ -31157,7 +31157,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-conversion/pull/34",
             "section": "can-wait",
-            "headline": "build(deps): bump certifi from 2019.11.28 to 2026.10.18 in /testing/crs_converter_test_azure",
+            "headline": "Build(deps): bump certifi from 2019.11.28 to 2026.10.18 in /testing/crs_converter_test_azure",
             "cause": "build(deps): bump certifi from 2019.11.28 to 2026.10.18 in /testing/crs_converter_test_azure",
             "steps": [],
             "links": [
@@ -31174,7 +31174,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-conversion/pull/35",
             "section": "can-wait",
-            "headline": "build(deps): bump cryptography from 2.8 to 50.0.0 in /testing/crs_converter_test_azure",
+            "headline": "Build(deps): bump cryptography from 2.8 to 50.0.0 in /testing/crs_converter_test_azure",
             "cause": "build(deps): bump cryptography from 2.8 to 50.0.0 in /testing/crs_converter_test_azure",
             "steps": [],
             "links": [
@@ -31191,7 +31191,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-conversion/pull/36",
             "section": "can-wait",
-            "headline": "build(deps): bump pyjwt from 1.7.1 to 2.15.0 in /testing/crs_converter_test_azure",
+            "headline": "Build(deps): bump pyjwt from 1.7.1 to 2.15.0 in /testing/crs_converter_test_azure",
             "cause": "build(deps): bump pyjwt from 1.7.1 to 2.15.0 in /testing/crs_converter_test_azure",
             "steps": [],
             "links": [
@@ -31240,7 +31240,7 @@
           {
             "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-conversion/pull/40",
             "section": "can-wait",
-            "headline": "chore: declare component governance inputs",
+            "headline": "Chore: declare component governance inputs",
             "cause": "chore: declare component governance inputs",
             "steps": [],
             "links": [

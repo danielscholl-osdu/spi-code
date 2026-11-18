@@ -394,6 +394,6 @@ it("gives an Overview row the age Today gives it, with its clock time on hover",
   await mount(body, "#service/indexer");
   const age = $('li[data-row="gate1:indexer"] .service-row-age time');
   expect(age?.textContent).toBe(ageInOneUnit(member.age));
-  expect(age?.textContent).toBe("1d");
+  expect(age?.textContent).toBe("2d");
   expect(age?.getAttribute("title")).toBe(when(since, { now: Date.now() }));
 });

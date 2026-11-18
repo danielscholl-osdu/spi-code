@@ -11,7 +11,7 @@ import { runName } from "../views/environment/opening.js";
 import { eventSpan, eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
 import { releaseSectionCases } from "../views/releases/reachability.test-helper.js";
 import { readFork } from "../views/today/Forks.js";
-import { ageInOneUnit } from "../views/today/Table.js";
+import { ageInOneUnit } from "../views/today/parts.js";
 import {
   lensFields,
   RETIRED_SERVICE_READING,

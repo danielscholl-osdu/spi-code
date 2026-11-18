@@ -15,6 +15,7 @@ import type { UpFork } from "../model/upstream.js";
 import type { SweepReads } from "../sweep/index.js";
 import { plainText } from "../readings/index.js";
 import { age, plural } from "../util.js";
+import { sentenceHeadline } from "./headline.js";
 import type { FocusItem } from "./index.js";
 import type { TodayLine } from "./lines.js";
 import { linkKind } from "./move.js";
@@ -93,7 +94,7 @@ function overviewOf(input: HomeInput, line: LineModel): ServiceHomeRow[] {
         const gate = object.kind === "PR" ? gates.get(url) : undefined;
         rows.push({
           id: `can:${pile.id}:${url}`, section: "can-wait",
-          headline: words.length > 12 ? `${words.slice(0, 11).join(" ")}…` : title,
+          headline: sentenceHeadline(words.length > 12 ? `${words.slice(0, 11).join(" ")}…` : title),
           cause: title,
           steps: [],
           links: [{ label: object.number && object.kind !== "Alert" ? `${object.kind} #${object.number}` : object.kind, url, kind: linkKind(url) }],

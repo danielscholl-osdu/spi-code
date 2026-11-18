@@ -62,7 +62,7 @@ export function ageInOneUnit(age: string | undefined): string | undefined {
   const hours =
     parts[3] === undefined ? Number(parts[1]) * 24 + Number(parts[2]) : Number(parts[3]);
   if (hours < 24) return `${hours}h`;
-  return `${hours < 48 ? 1 : Math.round(hours / 24)}d`;
+  return `${Math.round(hours / 24)}d`;
 }
 
 /** A fork's name opens its service page; a subject that is no fork is only words. */

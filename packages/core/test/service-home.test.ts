@@ -487,6 +487,30 @@ test("Can wait is deduplicated and oldest first, and a door opens the earliest q
   expect(home.doors.find((door) => door.id === "dependabot")?.row).toBe(rows[0]?.id);
 });
 
+test("Overview uses Today's sentence case for Can wait PR and issue headlines", () => {
+  const { facts, github } = handBuilt();
+  const change = { ...pr(52, "human/audit"), title: "chore: audit manifests" };
+  const task = issue({ title: "review settings", labels: ["human-required"] });
+  github.prs = [change];
+  github.issues = [task];
+  github.openPrs = 1;
+  github.openIssues = 1;
+  const { home, causes } = project(facts, new Date("2026-11-17T20:00:00Z"));
+  for (const [object, headline] of [
+    [change, "Chore: audit manifests"],
+    [task, "Review settings"],
+  ] as const) {
+    const row = home.overview.find(
+      ({ section, links }) => section === "can-wait" && links.some(({ url }) => url === object.url),
+    );
+    const cause = causes.rows.find(({ forks }) =>
+      forks.some(({ objects }) => objects.some(({ url }) => url === object.url)),
+    );
+    expect(row?.headline).toBe(headline);
+    expect(cause?.headline).toBe(headline);
+  }
+});
+
 test("service work preserves the forge total and marks cut and unread listings honestly", () => {
   const { facts, github } = handBuilt();
   github.prs = Array.from({ length: 40 }, (_, index) => pr(index + 1, `test/${index}`));
