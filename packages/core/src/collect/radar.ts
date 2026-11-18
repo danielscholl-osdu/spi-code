@@ -204,13 +204,17 @@ export async function readRadar(
     let raw: RawMr[];
     try {
       raw = await glab.restAll<RawMr>(`projects/${project}/${object}`);
-      out.reads.push(record(fork.upstream, object));
+      const read = record(fork.upstream, object);
+      state.records[`list:${fork.upstream}`] = read;
+      out.reads.push(read);
     } catch (error) {
       const last = previous?.services[fork.id];
       if (last) out.services[fork.id] = last;
       const filter = previous?.filters[fork.id];
       if (filter) out.filters[fork.id] = filter;
-      out.reads.push({ ...record(fork.upstream, object), failure: errorText(error) });
+      const prior = last ? state.records[`list:${fork.upstream}`] : undefined;
+      out.reads.push({ ...record(fork.upstream, object), failure: errorText(error),
+        ...(prior ? { retainedFrom: prior.observedAt } : {}) });
       return;
     }
     const mrs = await pool(raw, 3, async (m): Promise<MrFact> => withDiff({
@@ -293,6 +297,7 @@ export function pruneRadar(state: RadarState, facts: RadarFacts | undefined, cap
   const mrs = new Set<string>();
   const commits = new Set<string>();
   const blobs = new Set<string>();
+  const projects = new Set(Object.values(facts?.services ?? {}).map((svc) => svc.project));
   for (const svc of Object.values(facts?.services ?? {})) {
     for (const m of [...svc.mrs, ...(svc.merged ?? [])]) mrs.add(mrKey(svc.project, m.iid, m.headSha));
     for (const c of svc.queued) commits.add(c.sha);
@@ -304,6 +309,10 @@ export function pruneRadar(state: RadarState, facts: RadarFacts | undefined, cap
     if (key.startsWith("repo:") ? !blobs.has(state.filters[key] ?? "") : !blobs.has(key)) delete state.filters[key];
   }
   for (const key of Object.keys(state.records)) {
+    if (key.startsWith("list:")) {
+      if (!projects.has(key.slice(5))) delete state.records[key];
+      continue;
+    }
     if (key.startsWith("filter:") ? !state.filters[`repo:${key.slice(7)}`]
       : key.startsWith("mr:") ? !state.mrDiffs[key.slice(3)] : !state.commitDiffs[key.slice(7)]) {
       delete state.records[key];

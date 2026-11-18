@@ -9,6 +9,7 @@ export * from "./messages.js";
 export * from "./panes.js";
 export * from "./reading.js";
 export * from "./service-home.js";
+export * from "./service-upstream.js";
 export type { ServiceIssue, ServicePull, ServiceWork } from "./service-work.js";
 export * from "./setup.js";
 export * from "./snapshot.js";

@@ -36,7 +36,7 @@ buttons; there is exactly one sidebar toggle and one right-panel toggle (none wh
 Detail is a sheet), the centre keeps a contiguous 48 px drag span, and at every width the
 capsule ends within 1 px of its end position: the row's 8 px gap before the right-panel
 toggle in the centre, or before the centre's end padding when the toggle is not there. Only the
-Related and 20-service probes vary the projection; hand-made rect mutations exercise
+Related and 20-service probes and storage's Security rows (`smoke-service-lists.ts`, since the Nov 6 sweep read no alerts) vary the projection; hand-made rect mutations exercise
 each failure rule in unit tests. The existing smoke artifact uploads all evidence on
 both platforms. Once per packaged run, in light, the renderer breaks four rules for
 real (a Related value squeezed to 159 px, the Detail header 4 px low at 1440, the

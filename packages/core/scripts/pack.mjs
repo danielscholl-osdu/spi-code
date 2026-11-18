@@ -54,6 +54,12 @@ try {
       typeOnly: true,
     },
     {
+      bindings: ["import type { ServiceAlertRow, ServiceUpstreamSecurity }"],
+      source: "watch/service-upstream",
+      module: "service-upstream",
+      typeOnly: true,
+    },
+    {
       bindings: [
         "import type { CanWaitCause, CanWaitCauses }",
         "import type { CanWaitCauses, TodayFleet }",

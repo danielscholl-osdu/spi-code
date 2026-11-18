@@ -126,7 +126,7 @@ export interface ReposModel {
   rows: RepoRow[];
 }
 
-interface Paths {
+export interface Paths {
   owned: string[];
   synced?: SyncedPaths;
   program: boolean;
@@ -475,6 +475,14 @@ function link(rows: readonly RepoRow[], forks: ReadonlyMap<string, ServiceDef>):
   }
 }
 
+export function forkPaths(f: ServiceDef, filters?: RadarFacts["filters"], synced?: SyncedPaths): Paths {
+  const text = filters?.[f.id]?.text;
+  const owned = text
+    ? forkOwned(parseFilter(text))
+    : [`provider/${f.prefix ?? f.id}-azure`, `testing/${f.prefix ?? f.id}-test-azure`];
+  return { owned, ...(synced ? { synced } : {}), program: false };
+}
+
 // Every open PR, issue and alert per repository, sorted by who can fix it.
 export function buildRepos(input: {
   repos: Record<string, RepoFact>;
@@ -497,21 +505,17 @@ export function buildRepos(input: {
   const rows = [
     program(TEMPLATE_REPO, TEMPLATE_REPO.split("/")[1] as string),
     program(context.stackRepo, context.stackRepo.split("/")[1] as string),
-    ...FORKS.map((f) => {
-      const text = input.filters?.[f.id]?.text;
-      const owned = text
-        ? forkOwned(parseFilter(text))
-        : [`provider/${f.prefix ?? f.id}-azure`, `testing/${f.prefix ?? f.id}-test-azure`];
-      return buildRow({
+    ...FORKS.map((f) =>
+      buildRow({
         repo: f.repo,
         name: f.id,
         group: "fork",
         fork: f,
         fact: input.repos[f.repo],
         alerts: alerts?.[f.repo],
-        paths: { owned, ...(input.synced ? { synced: input.synced } : {}), program: false },
-      });
-    }),
+        paths: forkPaths(f, input.filters, input.synced),
+      }),
+    ),
   ];
   link(rows, forkMap);
   return { ...(input.alerts.at ? { alertsAt: input.alerts.at } : {}), rows };

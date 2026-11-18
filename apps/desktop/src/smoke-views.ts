@@ -35,6 +35,7 @@ import {
 import { captureRepositories } from "./smoke-repositories.js";
 import { captureRollout } from "./smoke-rollout.js";
 import { withSmokeServiceRuns } from "./smoke-service-runs.js";
+import { withServiceLists } from "./smoke-service-lists.js";
 import { captureSidebarPins } from "./smoke-sidebar.js";
 import { smokeScheduledSweep, smokeSweepProgress } from "./smoke-sweep.js";
 import { captureMornings, loadMornings } from "./smoke-today.js";
@@ -801,8 +802,8 @@ export async function captureSmokeViews(
   morningPaths: Readonly<Record<Morning, string>>,
   section: (name: string) => void,
 ): Promise<SmokeShot[]> {
-  const snapshot = withSmokeServiceRuns(
-    ViewSnapshotSchema.parse(JSON.parse(readFileSync(fixturePath, "utf8"))),
+  const snapshot = withServiceLists(
+    withSmokeServiceRuns(ViewSnapshotSchema.parse(JSON.parse(readFileSync(fixturePath, "utf8")))),
   );
   const acknowledged = ViewSnapshotSchema.parse(
     JSON.parse(readFileSync(join(dirname(fixturePath), "generated", ACKNOWLEDGED_FIXTURE), "utf8")),
@@ -1150,6 +1151,12 @@ export async function captureSmokeViews(
               'document.querySelector("[data-sidebar-row=line]").click()',
             );
             await rendered(window, 'document.querySelector(".line-grid")');
+          }
+          if (surface.id === "service-security") {
+            await rendered(window, 'document.querySelector(".service-alert-count")');
+            await window.webContents.executeJavaScript(
+              'document.querySelector(".service-alert-count").click()',
+            );
           }
           if (surface.id === "upstream-item") {
             await window.webContents.executeJavaScript(

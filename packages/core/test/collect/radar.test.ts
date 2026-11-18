@@ -372,6 +372,39 @@ test("a failed MR list or filter is explicit and does not lose another fork's re
   );
 });
 
+test("a failed MR list keeps the last good list with the time it was read", async () => {
+  const state = emptyRadarState();
+  const first = await readRadar(
+    new Gh(recording().exec),
+    new Glab(recording().exec),
+    {},
+    state,
+    ctx,
+  );
+  const later = new Date(FIXTURE_NOW.getTime() + 40 * 60_000);
+  const context = createContext({ fleet: ctx.fleet, clock: { now: () => later } });
+  const failing = recording({ failList: true });
+  const result = await readRadar(
+    new Gh(failing.exec),
+    new Glab(failing.exec),
+    {},
+    state,
+    context,
+    [],
+    first,
+  );
+  expect(result.services.partition?.mrs).toEqual(first.services.partition?.mrs);
+  expect(result.reads).toContainEqual(
+    expect.objectContaining({
+      source: fork.upstream,
+      object: "merge_requests?state=opened&target_branch=master",
+      observedAt: later.toISOString(),
+      retainedFrom: FIXTURE_NOW.toISOString(),
+      failure: expect.any(String),
+    }),
+  );
+});
+
 test.each(["too_large", "collapsed"] as const)(
   "%s non-hunk paths still Halt and their diffs are cached",
   async (flag) => {

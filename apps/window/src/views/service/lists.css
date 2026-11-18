@@ -1,0 +1,23 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+.service-lists { display: flex; flex-direction: column; gap: 18px; }
+.service-list .service-section-box { max-height: 420px; overflow-y: auto; }
+.service-list-unread { margin: 0 0 6px; color: var(--text-muted); font-size: 13px; }
+.service-list-unread a { color: var(--text-muted); }
+.service-list-unread a:hover { color: var(--accent-text); }
+.service-list-empty { padding: 8px 12px; color: var(--text-muted); }
+.service-list-note { margin: 6px 0 0; color: var(--text-muted); font-size: 12.5px; }
+.service-list-row { display: grid; grid-template-columns: auto minmax(0, 1fr) 84px; align-items: center; gap: 10px; padding: 7px 12px; }
+.service-list-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; }
+.service-list-what { display: flex; flex-direction: column; min-width: 0; }
+.service-list-title { color: var(--text-strong); overflow-wrap: anywhere; }
+.service-list-sub { color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; }
+.service-list-mono { font-family: var(--font-mono); font-size: 12px; }
+.service-list-pills { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.service-alert-group { display: flex; justify-content: space-between; padding: 6px 12px; background: var(--surface-raised); color: var(--text-muted); font-size: 12px; font-weight: 600; }
+.service-alert-row { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 7px 12px; }
+.service-alert-severity { color: var(--text-muted); font-weight: 400; }
+.service-alert-severity[data-heavy] { color: var(--text-strong); font-weight: 650; }
+.service-alert-count { background: transparent; font: inherit; font-size: 12px; }
+.service-alert-open { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; padding: 0 12px 10px; }

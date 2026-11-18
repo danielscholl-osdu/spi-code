@@ -7,6 +7,8 @@ import { Issues, issueCount } from "./issues.js";
 import { Overview } from "./Overview.js";
 import { Pulls, pullCount } from "./pulls.js";
 import { runsTab } from "./runs.js";
+import { SECURITY_TAB } from "./security.js";
+import { UPSTREAM_TAB } from "./upstream.js";
 
 export type TabProps = {
   id: string;
@@ -32,4 +34,6 @@ export const TABS: readonly ServiceTab[] = [
   { id: "pulls", label: "Pull requests", Panel: Pulls, count: pullCount },
   { id: "issues", label: "Issues", Panel: Issues, count: issueCount },
   runsTab,
+  UPSTREAM_TAB,
+  SECURITY_TAB,
 ];

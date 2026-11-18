@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: MIT
 
 import type { ReleasesPane } from "@spi-code/contracts";
-import { type Model, releasesToday, serviceHome, serviceWork } from "@spi-code/core";
+import {
+  type Model,
+  releasesToday,
+  serviceHome,
+  serviceUpstream,
+  serviceWork,
+} from "@spi-code/core";
 import type { ProjectedBriefing } from "./briefing.js";
 import type { WatchInput } from "./project.js";
 import { releaseProvenance } from "./provenance.js";
@@ -86,10 +92,16 @@ export function projectServices(
     versions: releases.versions,
   });
   const work = serviceWork(model, input.facts, input.reads, homes);
+  const upstreamSecurity = serviceUpstream({ model, facts: input.facts, reads: input.reads, now });
   return {
     services: services.map((service) => {
       const home = homes.get(service.service);
-      return home ? { ...service, home, work: work.get(service.service) } : service;
+      const lists = upstreamSecurity.get(service.service);
+      return {
+        ...service,
+        ...(home ? { home, work: work.get(service.service) } : {}),
+        ...(lists ? { upstreamSecurity: lists } : {}),
+      };
     }),
     releases,
   };

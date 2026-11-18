@@ -27,6 +27,7 @@ export interface ProvenanceView {
     readonly runs: readonly { readonly id: string }[];
     readonly home?: ServiceHome;
     readonly work?: ServiceWork | undefined;
+    readonly upstreamSecurity?: unknown;
   }[];
   readonly runs: readonly RunHit[];
 }
@@ -75,6 +76,20 @@ export function snapshotProvenance(
               areas: AREAS.filter((area) => area !== "auth"),
             },
             { path: `/services/${i}/work/issues`, areas: ["github"] },
+          ]
+        : []),
+      ...(service.upstreamSecurity
+        ? [
+            {
+              path: `/services/${i}/upstreamSecurity/upstream`,
+              areas: ["fleet", "github", "upstream", "radar"] as const,
+              attributed: "sweep" as const,
+            },
+            {
+              path: `/services/${i}/upstreamSecurity/security`,
+              areas: ["fleet", "github", "radar", "template", "security"] as const,
+              attributed: "sweep" as const,
+            },
           ]
         : []),
       ...runProvenance(`/services/${i}/runs`, service.runs, runs, model.lines[i]?.fork.repo ?? ""),
