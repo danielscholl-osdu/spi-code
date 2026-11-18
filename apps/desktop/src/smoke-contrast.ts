@@ -18,6 +18,7 @@ import {
   ENVIRONMENT_BORROW,
   ENVIRONMENT_LINK,
   ENVIRONMENT_LIVE,
+  ENVIRONMENT_STACK,
   smokeEnvironment,
 } from "./smoke-environment.js";
 import { RUNS_FAILURE, RUNS_ROUTE, withSmokeServiceRuns } from "./smoke-service-runs.js";
@@ -1102,6 +1103,7 @@ export async function assertRenderedContrast(
     await js('location.hash = "#environment"');
     await rendered(window, liveBorrow);
     await everyShade("environment", ".environment .env-status");
+    await everyShade("environment-stack", ENVIRONMENT_STACK);
     await js(`${liveBorrow}.click()`);
     await rendered(window, `document.querySelector(${JSON.stringify(ENVIRONMENT_LINK)})`);
     await everyShade("environment-borrow", ENVIRONMENT_BORROW);
