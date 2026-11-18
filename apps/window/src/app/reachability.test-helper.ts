@@ -10,6 +10,7 @@ import { heldLaneRead } from "../views/environment/lead.js";
 import { runName } from "../views/environment/opening.js";
 import { eventSpan, eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
 import { releaseSectionCases } from "../views/releases/reachability.test-helper.js";
+import { readFork } from "../views/today/Forks.js";
 import { ageInOneUnit } from "../views/today/Table.js";
 import {
   lensFields,
@@ -1076,13 +1077,12 @@ const FLEET = "/briefing/today/fleet";
 const FOLD_FIGURES = `${FLEET}/forks/rest`;
 
 function unreadRestForks(fleet: TodayFleet, services: ViewSnapshot["services"]) {
-  const checked = new Set(
-    services?.filter(({ home }) => home?.mark.kind === "check").map(({ service }) => service),
+  return new Set(
+    fleet.forks.rest.forks.filter(
+      (fork) =>
+        readFork(fleet, fork, services?.find(({ service }) => service === fork)?.home).unread,
+    ),
   );
-  return new Set([
-    ...fleet.stations.flatMap(({ notRead }) => notRead),
-    ...fleet.forks.rest.forks.filter((fork) => !checked.has(fork)),
-  ]);
 }
 
 function forkCases(today: Summary, services: ViewSnapshot["services"], add: Add) {
@@ -1090,13 +1090,25 @@ function forkCases(today: Summary, services: ViewSnapshot["services"], add: Add)
   if (!fleet) return;
   const { yours, stopped, rest } = fleet.forks;
   const unread = unreadRestForks(fleet, services);
-  for (const [index, fork] of yours.entries())
+  const forkCase = (pointer: string, fork: string, group: string, where: Home) => {
+    const row = `[data-fork-group=${group}] tr[data-fork=${quote(fork)}]`;
     add(
-      `${FLEET}/forks/yours/${index}`,
+      pointer,
       fork,
-      FORKS,
-      `[data-fork-group=yours] tr[data-fork=${quote(fork)}] th`,
+      where,
+      `${row} th button`,
+      where === UNFOLDED
+        ? {}
+        : {
+            opens: {
+              click: `${row} button[aria-expanded]`,
+              opened: `${row} + tr[data-open-fork=${quote(fork)}]`,
+            },
+          },
     );
+  };
+  for (const [index, fork] of yours.entries())
+    forkCase(`${FLEET}/forks/yours/${index}`, fork, "yours", FORKS);
   for (const [index, fork] of stopped.entries())
     add(`${FLEET}/forks/stopped/${index}`, fork, FORKS, "[data-today-tab=forks] .today-tab-count", {
       attribute: "title",
@@ -1104,11 +1116,11 @@ function forkCases(today: Summary, services: ViewSnapshot["services"], add: Add)
     });
   for (const [index, fork] of rest.forks.entries()) {
     const isUnread = unread.has(fork);
-    add(
+    forkCase(
       `${FOLD_FIGURES}/forks/${index}`,
       fork,
+      isUnread ? "unread" : "quiet",
       isUnread ? FORKS : UNFOLDED,
-      `[data-fork-group=${isUnread ? "unread" : "quiet"}] tr[data-fork=${quote(fork)}] th`,
     );
   }
   for (const [kind, figures] of [

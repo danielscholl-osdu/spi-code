@@ -733,15 +733,19 @@ describe("Forks on the 16 Nov sweep", () => {
     }
   });
 
-  it("opens a fork's exact Yours members in place, with a separate control for the service page", async () => {
+  it("discloses a fork's exact Yours members and Can wait facts, and opens its service from its name", async () => {
     const body = whole();
     const name = "indexer";
     await render(body, "#today/forks");
-    const expander = fork(name)?.querySelector("button");
-    expect(expander).toBeDefined();
+    const expander = fork(name)?.querySelector<HTMLButtonElement>(
+      `button[aria-label="${name}: show its rows"]`,
+    );
+    const link = fork(name)?.querySelector<HTMLButtonElement>("th button");
+    expect(expander?.tabIndex).toBe(0);
+    expect(link?.tabIndex).toBe(0);
     await click(expander);
     expect(route()).toEqual({ kind: "today", tab: "forks" });
-    expect(fork(name)?.querySelector("button")?.getAttribute("aria-expanded")).toBe("true");
+    expect(expander?.getAttribute("aria-expanded")).toBe("true");
     const detail = fork(name)?.nextElementSibling;
     const members = todayMembers(body.briefing).filter(({ member }) => member.fork === name);
     expect(members.length).toBeGreaterThan(0);
@@ -751,14 +755,16 @@ describe("Forks on the 16 Nov sweep", () => {
       ),
     ).toEqual(members.map(({ member }) => member.id));
     expect(detail?.textContent).toContain("Can wait");
+    const facts = [...(detail?.querySelectorAll(".forks-can-wait li") ?? [])];
+    expect(
+      facts.find(({ textContent }) => textContent?.startsWith("Release PRs"))?.textContent,
+    ).toMatch(/^Release PRsPR #\d+/);
+    expect(
+      facts.find(({ textContent }) => textContent?.startsWith("Dependabot PRs"))?.textContent,
+    ).toBe("Dependabot PRs3");
     await click(expander);
-    expect(fork(name)?.querySelector("button")?.getAttribute("aria-expanded")).toBe("false");
-    await click(expander);
-    const open = [...(fork(name)?.nextElementSibling?.querySelectorAll("button") ?? [])].find(
-      ({ textContent }) => textContent === `Open ${name} ›`,
-    );
-    expect(open).toBeDefined();
-    await click(open);
+    expect(expander?.getAttribute("aria-expanded")).toBe("false");
+    await click(link);
     expect(route()).toEqual({ kind: "service", id: name });
   });
 
@@ -776,24 +782,80 @@ describe("Forks on the 16 Nov sweep", () => {
     expect(section("forks")?.querySelector("[data-dim]")).toBeNull();
   });
 
-  it("leaves a fork with an unread station visible and does not claim its reading is quiet", async () => {
+  it.each([
+    { gap: "Main and the service mark", blank: "main", release: "8h" },
+    { gap: "a door with a known service count", blank: "dependabot", release: "8h" },
+    { gap: "the release age", blank: "release", release: "" },
+    { gap: "the home", blank: "main", release: "" },
+  ])("keeps the fork visible with one mark when missing $gap", async ({ gap, blank, release }) => {
     const body = whole();
     const fleet = body.briefing.today?.fleet;
+    const service = body.services?.find((service) => service.service === "file");
+    const home = service?.home;
     const main = fleet?.stations.find(({ id }) => id === "main");
-    const home = body.services?.find(({ service }) => service === "file")?.home;
     const station = home?.stations.find(({ id }) => id === "main");
-    if (!main || !station || !home) throw new Error("Fixture needs file's Main reading");
-    main.notRead.push("file");
-    Object.assign(station, { state: "unread", word: "not read" });
-    home.mark = { kind: "unread" };
-    delete home.openPrTotal;
+    const other = home?.doors.find(({ id }) => id === "other");
+    const template = home?.doors.find(({ id }) => id === "template");
+    if (!service || !home?.releasePr || !main || !station || !other || !template)
+      throw new Error("Fixture needs file's readings");
+
+    if (gap === "Main and the service mark") {
+      main.notRead.push("file");
+      Object.assign(station, { state: "unread", word: "not read" });
+      home.mark = { kind: "unread" };
+      delete home.openPrTotal;
+    } else if (gap === "a door with a known service count") {
+      const pr = { number: 67, url: `${home.releasePr.url}/67` };
+      Object.assign(other, { count: null, prs: [pr] });
+      Object.assign(template, { count: 1, prs: [pr] });
+      home.mark = { kind: "count", count: 2, tone: "warning" };
+    } else if (gap === "the release age") {
+      delete home.releasePr.age;
+    } else {
+      delete service.home;
+    }
     await render(body, "#today/forks");
+    const row = fork("file");
+    const cell = (column: string) => row?.querySelector(`[data-column="${column}"]`)?.textContent;
+    expect(row?.closest('tbody[data-fork-group="unread"]')).not.toBeNull();
     expect(fold()).toBeNull();
-    expect(fork("file")?.querySelector('[data-column="main"]')?.textContent).toContain("not read");
-    expect(section("forks")?.querySelector(".today-section-count")?.textContent).toContain("⌀");
-    await click(fork("file")?.querySelector("button"));
-    expect(fork("file")?.nextElementSibling?.textContent).toContain("Not read on file");
-    expect(fork("file")?.nextElementSibling?.textContent).not.toContain("Nothing waiting on you");
+    expect(row?.textContent?.match(/⌀/g)).toHaveLength(1);
+    expect(
+      row?.querySelector('[title="Not read. Showing what the last read held."]'),
+    ).not.toBeNull();
+    expect(cell(blank)).toBe("");
+    expect(cell("release")).toBe(release);
+    expect(row?.textContent).not.toMatch(/None open|·|\b0\b/);
+    if (blank === "main") expect(row?.textContent).not.toContain("Green");
+    if (gap === "a door with a known service count") {
+      expect(row?.querySelector(".sidebar-mark")?.textContent).toBe("2");
+      expect(cell("other")).toBe("1");
+      expect(cell("template")).toBe("PR #67");
+    }
+    await click(row?.querySelector("button[aria-expanded]"));
+    expect(row?.nextElementSibling?.textContent).toContain("Not read on file");
+    expect(row?.nextElementSibling?.textContent).not.toMatch(/Nothing waiting on you|⌀/);
+  });
+
+  it("shows a dot at an empty door on a fully read fork", async () => {
+    await render(whole(), "#today/forks");
+    await click(fold());
+    const file = fork("file");
+    expect(file?.querySelector('[data-column="other"]')?.textContent).toBe("·");
+    await click(file?.querySelector("button[aria-expanded]"));
+    expect(file?.nextElementSibling?.textContent).toContain("Nothing waiting on you.");
+  });
+
+  it.each([true, false])("shows the open PR total when one is held (%s)", async (held) => {
+    const body = whole();
+    const homes = body.services?.map(({ home }) => home).filter((home) => home !== undefined) ?? [];
+    const total = homes[0]?.openPrTotal;
+    if (total === undefined) throw new Error("Fixture needs a known PR total");
+    for (const home of held ? homes.slice(1) : homes) delete home.openPrTotal;
+    await render(body, "#today/forks");
+    expect(section("forks")?.querySelector(".today-section-count")?.textContent).toBe(
+      held ? `${total} open pull requests` : "⌀ not read",
+    );
   });
 
   it("keeps a fork with an unread home in the unread group when its stations were read", async () => {
