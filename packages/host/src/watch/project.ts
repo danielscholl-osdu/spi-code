@@ -13,13 +13,12 @@ import {
   type ReadRecord,
   type ReleaseBody,
   type ReleaseReads,
-  releasesToday,
   type SweepReads,
 } from "@spi-code/core";
 import type { AttentionInput } from "./attention.js";
 import { projectBriefing, settleBriefing } from "./briefing.js";
 import { detectedCampaigns } from "./campaigns.js";
-import { areaEnvelopes, releaseProvenance } from "./provenance.js";
+import { areaEnvelopes } from "./provenance.js";
 import { placeReadings } from "./readings.js";
 import { recordedRuns } from "./recorded-runs.js";
 import { projectReleases } from "./releases.js";
@@ -66,15 +65,17 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
   );
   const runs = recordedRuns(input.facts, input.context.stackRepo);
   const stations = projectStations(model, input);
-  const services = projectServices(model, input, runs, documents, now);
   const campaigns = detectedCampaigns(model, input);
-  releases.today = releasesToday({
-    services,
+  const { services, releases: today } = projectServices(
+    model,
+    input,
+    runs,
     documents,
-    facts: input.facts,
-    context: input.context,
-    provenance: releaseProvenance(releases.lines, input.releaseRecords, now),
-  });
+    now,
+    briefing,
+    releases,
+  );
+  releases.today = today;
   const platform = platformReleased(documents, input.facts, input.context);
   const readings = placeReadings(model, input, briefing, documents, campaigns);
   const areas = areaEnvelopes(

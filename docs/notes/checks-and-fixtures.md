@@ -88,3 +88,7 @@ refuse writes. Stub `localStorage` itself and assert the stored list before Undo
 Today’s lower sections are additive `briefing.today` (core `todaySummary`); `canWaitOf` remains the legacy projection so places keep their counts. On 16 Nov Today's members and their sync engine companion issues take seven of the 15 human-required issues, leaving the eight CODEOWNERS issues.
 
 Saved seen-cursor replays rebuild both `since` and `today.history` from the same stored sweep and window. Workflow gaps use `workflowEvidence` beside `itemEvidence`; an unread result stays in `notRead`, separate from a known failure.
+
+The 16 Nov workflow history predates the Sync Upstream jobs read. Search's
+open sync PR keeps the recorded failure Blocked with the step still unread.
+Cascade Monitor runs on UTC hour boundaries, with 15 minutes for dispatch.

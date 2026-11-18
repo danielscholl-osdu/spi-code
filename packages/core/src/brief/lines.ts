@@ -133,6 +133,9 @@ function objectMove(
   const deadline = deadlineOf(model, ids, now, context);
   const steps = [...(blocker ? [blocker.next] : []), ...ordered.map((i) => i.next)].map(plain);
   const home = homeOf(model, item, context);
+  const behind = !blocker && queued?.kind === "gate2" &&
+    model.lines.find((line) => line.fork.id === fork)?.cascadePr?.pr.mergeState === "BEHIND" &&
+    item.cls === "GATE";
   const member: TodayMember = {
     id: item.id,
     ids,
@@ -141,7 +144,8 @@ function objectMove(
     ...(item.subject ? { subject: item.subject } : {}),
     ...(primary?.kind ? { primary: { ...primary, kind: primary.kind } } : {}),
     ...(since ? { since, age: age(since, now) } : {}),
-    cause: plain(first?.cause ?? blocker?.cause ?? item.cause),
+    cause: behind ? "The integration PR needs its branch updated, then approval."
+      : plain(first?.cause ?? blocker?.cause ?? item.cause),
     effect: plain(item.effect),
     steps: steps.length > 1 ? steps : [],
     ...(blocker ? { blockedBy: blocker.id } : {}),
@@ -186,7 +190,7 @@ function describe(
       ...base,
       headline:
         queued?.kind === "gate2"
-          ? "release/upstream PR red: its deploy lane failed"
+          ? "Integration PR red: its deploy lane failed"
           : "sync PR waits for its deploy lane",
       cause: plain(blocker.cause),
       effect: `${plural(n, "PR")} cannot move until the failed lanes recover.`,
@@ -213,7 +217,9 @@ function describe(
         headline: `sync halted: no filter rule for ${queued.halt?.entries.join(", ") || "an upstream entry"}`,
       };
     case "sync-run":
-      return { ...base, headline: "sync failed" };
+      return { ...base, headline: queued.text === "Sync failed" ? queued.text : "sync failed" };
+    case "cascade-missed":
+      return { ...base, headline: queued.text };
     case "gate1":
       return {
         ...base,
@@ -226,17 +232,22 @@ function describe(
           return m.item.cls === "GATE" && pr && prVerdict(pr) !== "red";
         })
       ) {
+        const behind = moves.every((m) =>
+          model.lines.find((l) => l.fork.id === m.item.scope)?.cascadePr?.pr.mergeState === "BEHIND",
+        );
         const green = moves.every((m) => {
           const pr = model.lines.find((l) => l.fork.id === m.item.scope)?.cascadePr?.pr;
           return pr && prVerdict(pr) === "green";
         });
         return {
           ...base,
-          cause: n > 1 ? "The release/upstream PRs need your approval." : base.cause,
+          cause: n > 1 ? "The Integration PRs need your approval." : base.cause,
           effect: n > 1 ? "Each PR merges upstream changes into the fork main." : base.effect,
-          headline: green
-            ? "release/upstream PR green, ready to approve"
-            : "release/upstream PR waits for approval",
+          headline: behind
+            ? "Integration PR needs its branch updated, then approval"
+            : green
+              ? "Integration PR green, ready to approve"
+              : "Integration PR waits for approval",
         };
       }
       const pr = model.lines.find((l) => l.fork.id === item.scope)?.cascadePr;
@@ -244,10 +255,10 @@ function describe(
       return {
         ...base,
         headline: check
-          ? `release/upstream PR fails ${check}`
+          ? `Integration PR fails ${check}`
           : pr && prVerdict(pr.pr) === "green"
-            ? "release/upstream PR green, ready to approve"
-            : "release/upstream PR has a failed check",
+            ? "Integration PR green, ready to approve"
+            : "Integration PR has a failed check",
       };
     }
     case "lane-deploy":

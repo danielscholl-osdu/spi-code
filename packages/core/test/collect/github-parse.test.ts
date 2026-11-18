@@ -195,6 +195,18 @@ describe("parsers", () => {
 });
 
 describe("open work", () => {
+  test("keeps the forge total when the open PR nodes were not read", () => {
+    const repo = { nameWithOwner: STACK_REPO, url: "u" };
+    expect(parseRepo({ ...repo, pullRequests: { totalCount: 41 } })).toMatchObject({
+      openPrs: 41,
+      prs: [],
+      prsUnread: true,
+    });
+    expect(parseRepo({ ...repo, pullRequests: { totalCount: 0, nodes: [] } })).not.toHaveProperty(
+      "prsUnread",
+    );
+  });
+
   test("a repository read reports authors' association, app authors and open totals", () => {
     const fact = parseRepo({
       nameWithOwner: STACK_REPO,

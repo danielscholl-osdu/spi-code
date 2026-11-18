@@ -196,11 +196,14 @@ export function nextText(
     case "lane-deploy":
       return "Open the fork's deployment history and its workflow run to diagnose the failure";
     case "sync-run": {
+      if (item.text === "Sync failed") return "Open the failed Sync Upstream run and fix what stopped it";
       const issue = item.cause.find((f) => f.label === "issue")?.value.split(" · ")[0];
       return issue
         ? `Read halt issue ${issue}, then open the failed Sync Upstream run`
         : "Open the failed Sync Upstream run; no halt issue says why it stopped";
     }
+    case "cascade-missed":
+      return "Start Cascade Integration, or check the last Cascade Monitor run";
     case "cascade":
       return "Fix what stopped the cascade, clear the tracking issue's label, then dispatch the cascade";
     case "template-run":

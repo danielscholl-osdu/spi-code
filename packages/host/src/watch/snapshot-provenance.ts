@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { ValueSource } from "@spi-code/contracts";
+import { AREAS, type ServiceHome, type ValueSource } from "@spi-code/contracts";
 import { type Model, type platformReleased, RELEASES_EVERY_MS } from "@spi-code/core";
 import type { WatchInput } from "./project.js";
 import {
@@ -22,7 +22,10 @@ export interface ProvenanceView {
     readonly today?: Parameters<typeof releasesTodayProvenance>[0];
   };
   readonly platform: ReturnType<typeof platformReleased>;
-  readonly services: readonly { readonly runs: readonly { readonly id: string }[] }[];
+  readonly services: readonly {
+    readonly runs: readonly { readonly id: string }[];
+    readonly home?: ServiceHome;
+  }[];
   readonly runs: readonly RunHit[];
 }
 
@@ -48,6 +51,15 @@ export function snapshotProvenance(
       template: platform.template?.source,
     }),
     ...services.flatMap((service, i) => [
+      ...(service.home
+        ? [
+            {
+              path: `/services/${i}/home`,
+              areas: AREAS.filter((area) => area !== "auth"),
+              attributed: "sweep" as const,
+            },
+          ]
+        : []),
       ...runProvenance(`/services/${i}/runs`, service.runs, runs, model.lines[i]?.fork.repo ?? ""),
       {
         path: `/services/${i}/releases`,

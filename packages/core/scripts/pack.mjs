@@ -38,12 +38,21 @@ try {
     filter: (path) =>
       !/^(?:src|test|fixtures|testing)$/.test(basename(path)) && !/\.test\.|\.map$/.test(path),
   });
-  const sharedContracts = { timeUnit: "time", isStoppedFork: "stopped-forks" };
-  for (const module of Object.values(sharedContracts)) {
+  const sharedContracts = [
+    { binding: "import { timeUnit }", source: "time", module: "time" },
+    { binding: "import { isStoppedFork }", source: "stopped-forks", module: "stopped-forks" },
+    {
+      binding: "import type { ServiceHome }",
+      source: "watch/service-home",
+      module: "service-home",
+      typeOnly: true,
+    },
+  ];
+  for (const { source, module, typeOnly } of sharedContracts) {
     const target = join(staging, "dist/contracts", module);
     mkdirSync(dirname(target), { recursive: true });
-    for (const extension of [".js", ".d.ts"]) {
-      cpSync(resolve(core, "../contracts/dist", `${module}${extension}`), `${target}${extension}`);
+    for (const extension of typeOnly ? [".d.ts"] : [".js", ".d.ts"]) {
+      cpSync(resolve(core, "../contracts/dist", `${source}${extension}`), `${target}${extension}`);
     }
   }
   function linkContracts(directory) {
@@ -53,13 +62,13 @@ try {
       else {
         const source = readFileSync(path, "utf8");
         let linked = source;
-        for (const [name, module] of Object.entries(sharedContracts)) {
+        for (const { binding, module } of sharedContracts) {
           const target = relative(dirname(path), join(staging, "dist/contracts", `${module}.js`))
             .split(sep)
             .join("/");
           linked = linked.replace(
-            `import { ${name} } from "@spi-code/contracts";`,
-            `import { ${name} } from "${target.startsWith(".") ? target : `./${target}`}";`,
+            `${binding} from "@spi-code/contracts";`,
+            `${binding} from "${target.startsWith(".") ? target : `./${target}`}";`,
           );
         }
         if (linked.includes("@spi-code/contracts")) {

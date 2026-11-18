@@ -702,6 +702,33 @@ test("run jobs paginate oldest-first, keep step timing, and expose an early empt
   expect(cut.cache).toEqual({});
 });
 
+test("listing a failed Sync Upstream attempt reads its jobs and steps with no log requests", async () => {
+  const sync = { ...run, attempt: 2, conclusion: "failure" };
+  const result = await replay(
+    (gh) => readRunJobs(gh, {}, STACK, sync, context(), undefined, true),
+    (path) => {
+      expect(path).toContain("/attempts/2/jobs?");
+      const job = rawJob(path.endsWith("page=2") ? 2 : 1, "Build", 2);
+      return {
+        total: 2,
+        jobs: [
+          {
+            ...job,
+            conclusion: "failure",
+            steps: [{ ...job.steps[0], name: "Resolve Maven BOMs", conclusion: "failure" }],
+          },
+        ],
+      };
+    },
+  );
+  expect(result.data?.map(({ id, failedStep }) => [id, failedStep])).toEqual([
+    [1, "Resolve Maven BOMs"],
+    [2, "Resolve Maven BOMs"],
+  ]);
+  expect(result.reads).toHaveLength(2);
+  expect(result.cache).toEqual({});
+});
+
 test("manual targets read the declaration at the commit once and persist their original evidence", async () => {
   const fixture: Fixture = (path) =>
     path.includes("/contents/")

@@ -156,7 +156,7 @@ function lifecycleVisual({ model, reads }: VisualSource): PlaceVisual {
   };
 }
 
-function rolloutVisual({ model, facts }: VisualSource): PlaceVisual | undefined {
+export function rolloutVisual({ model, facts }: Pick<VisualSource, "model" | "facts">) {
   const target = model.rollout?.target.sha ?? model.template.head?.sha;
   if (!target) return undefined;
   const slots = model.lines.map((line): Slot => {
@@ -192,7 +192,7 @@ function rolloutVisual({ model, facts }: VisualSource): PlaceVisual | undefined 
     };
     return { service: line.fork.id, state, text: `${line.fork.id}: ${words[state]} ${target}` };
   });
-  return { kind: "rollout", target, slots };
+  return { kind: "rollout" as const, target, slots };
 }
 
 function severeShipped(alert: AlertGroup): boolean {

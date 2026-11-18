@@ -19,6 +19,7 @@ import { BudgetPacer, type ReadRecord } from "../evidence/index.js";
 import type { AreaName, Facts, JobDetail } from "../facts.js";
 import { ForgeError, Gh, Glab, GraphqlBudget, THROTTLE_WAIT_ALLOWANCE_MS } from "../forge.js";
 import { failedChecks, javaBuilt } from "../model/checks.js";
+import { workflowFailure } from "../model/workflow-failure.js";
 import { errorText } from "../util.js";
 import { type CollectorCache, cacheSchema, emptyCache, pruneCache } from "./cache.js";
 import { due } from "./cadence.js";
@@ -191,19 +192,25 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
     const retained = retain(result.data, facts.runs.data, result.reads, reads.runs ?? [], (r) => r.source);
     for (const [repo, entry] of Object.entries(retained.data)) {
       if (retained.reads.some((r) => r.source === repo && r.failure)) continue;
-      const readJobs = async (run: typeof entry.main[number]) => {
+      const readJobs = async (run: typeof entry.main[number], listingOnly = false) => {
         const key = jobsKey(run);
         const known = cache.lifecycle.runJobs[key];
         if (known && settledJobReads(known.reads)) {
           result.reads.push(...known.reads);
           return known.data;
         }
-        const jobs = await readRunJobs(gh, cache.details, repo, run, ctx, known);
+        const jobs = await readRunJobs(gh, cache.details, repo, run, ctx, known, listingOnly);
         cache.details = jobs.cache;
         result.reads.push(...jobs.reads);
         if (jobs.data) cache.lifecycle.runJobs[key] = { data: jobs.data, reads: jobs.reads };
-        return jobs.data;
+        return listingOnly && !settledJobReads(jobs.reads) ? undefined : jobs.data;
       };
+      delete entry.syncRunJobs;
+      const failedSync = workflowFailure(entry.sync);
+      if (failedSync) {
+        const jobs = await readJobs(failedSync, true);
+        if (jobs) entry.syncRunJobs = { [jobsKey(failedSync)]: jobs };
+      }
       entry.mainRunJobs = {};
       for (const run of entry.main.filter((r) => r.status === "completed").slice(0, 5)) {
         const jobs = await readJobs(run);

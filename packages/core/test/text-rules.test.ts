@@ -18,7 +18,10 @@ import {
 import { parseRollout } from "../src/rollout.js";
 import { UPSTREAM_NOW, UPSTREAM_SERVICES, UPSTREAM_STATES } from "./upstream-states.js";
 
-const fixtures = watchFixtures().map(({ name, path }) => ({
+const fixtures = [
+  ...watchFixtures(),
+  { name: "snapshot-1116", path: "apps/window/src/views/today/snapshot-1116.json" },
+].map(({ name, path }) => ({
   name,
   body: JSON.parse(readFileSync(path, "utf8")) as unknown,
 }));
@@ -26,7 +29,7 @@ const fixtures = watchFixtures().map(({ name, path }) => ({
 // Fields the window draws only in Detail or as read evidence.
 const DETAIL = new Set(["detail", "evidence", "envelope", "reads", "provenance"]);
 // Identifiers and enums, never drawn as copy.
-const KEYS = new Set(["id", "ids", "inspect", "kind"]);
+const KEYS = new Set(["id", "ids", "inspect", "kind", "row"]);
 
 type Leaf = { path: string; text: string; detail: boolean };
 
@@ -62,7 +65,13 @@ function named(drawn: readonly { path: string; text: string }[]) {
 describe.each(fixtures)("the text rules on $name", ({ name, body }) => {
   // An inspect fixture is a Detail panel through and through.
   const all = leaves(body, [], name.startsWith("inspect-"));
-  const headlines = all.filter((leaf) => leaf.path.endsWith("/headline"));
+  const headlines = all.filter(
+    (leaf) =>
+      leaf.path.endsWith("/headline") &&
+      (name !== "snapshot-1116" ||
+        leaf.path.startsWith("/services/") ||
+        leaf.path.startsWith("/briefing/lines/")),
+  );
 
   it("keeps every headline to at most 12 words", () => {
     if (!name.startsWith("inspect-")) expect(headlines.length).toBeGreaterThan(0);

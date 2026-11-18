@@ -299,6 +299,7 @@ export function parseRepo(raw: RawRepo): RepoFact {
     upstreamSha: parseUpstreamSha(raw.upstreamLog?.target?.history?.nodes),
     declaration: parseDeclaration(raw.declaration?.text ?? undefined),
     prs: (raw.pullRequests?.nodes ?? []).map((p) => parsePr(repo, p)),
+    ...(!Array.isArray(raw.pullRequests?.nodes) ? { prsUnread: true } : {}),
     issues: (raw.issues?.nodes ?? []).map((i) => parseIssue(repo, i)),
     ...(raw.pullRequests?.totalCount !== undefined ? { openPrs: raw.pullRequests.totalCount } : {}),
     ...(raw.issues?.totalCount !== undefined ? { openIssues: raw.issues.totalCount } : {}),

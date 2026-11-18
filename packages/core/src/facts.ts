@@ -116,6 +116,7 @@ export interface RepoFact {
   issues: IssueFact[];
   // Open totals, which can exceed the page of PRs and issues read.
   openPrs?: number;
+  prsUnread?: true;
   openIssues?: number;
   deployments: DeploymentFact[];
   pastPrs?: PastPrFact[];
@@ -206,11 +207,15 @@ export interface ForkRuns {
   sync: RunFact[];
   template: RunFact[];
   cascade: RunFact[];
+  // A cut cascade list cannot establish that no run started.
+  cascadeReadAt?: string | null;
   main: RunFact[];
   // Jobs of the completed main runs read, newest first, by run id.
   mainRunJobs?: Record<string, JobDetail[]>;
   // Jobs of the newest cascade run, read only when it failed.
   cascadeRunJobs?: Record<string, JobDetail[]>;
+  /** Latest failed Sync Upstream attempt, keyed by run id and attempt. */
+  syncRunJobs?: Record<string, JobDetail[]>;
   // fork_integration's head, read only while the newest cascade run failed.
   integration?: { sha: string; at: string };
 }

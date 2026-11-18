@@ -64,6 +64,7 @@ export function pruneCache(facts: Facts, cache: CollectorCache, ctx: CoreContext
     for (const run of [...entry.main, ...entry.cascade]) {
       if (entry.mainRunJobs?.[run.id] || entry.cascadeRunJobs?.[run.id]) runs.add(jobsKey(run));
     }
+    for (const key of Object.keys(entry.syncRunJobs ?? {})) runs.add(key);
     for (const jobs of [...Object.values(entry.mainRunJobs ?? {}), ...Object.values(entry.cascadeRunJobs ?? {})])
       for (const job of jobs) details.add(`${repo}#${job.id}`);
   }

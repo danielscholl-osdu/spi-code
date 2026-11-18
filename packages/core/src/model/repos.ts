@@ -83,6 +83,7 @@ export interface AlertGroup {
   // The worst severity; undefined for code rules that carry none.
   severity?: Severity;
   count: number;
+  since?: string;
   counts: Partial<Record<Severity, number>>;
   // The version that closes every alert in the group; undefined when one has no fix.
   fix?: string;
@@ -260,6 +261,7 @@ function dependencyGroups(alerts: readonly DependencyAlertFact[], p: Paths): Ale
       const reach = reachOf(a.manifest, a.scope);
       if (REACH_RANK[reach] < REACH_RANK[g.reach]) g.reach = reach;
     }
+    if (a.createdAt && (!g.since || Date.parse(a.createdAt) < Date.parse(g.since))) g.since = a.createdAt;
     g.count++;
     g.counts[a.severity] = (g.counts[a.severity] ?? 0) + 1;
     if (!a.fixed) g.unfixed++;
@@ -298,6 +300,7 @@ function codeGroups(alerts: readonly CodeAlertFact[], p: Paths): AlertGroup[] {
       };
       groups.set(id, g);
     }
+    if (a.createdAt && (!g.since || Date.parse(a.createdAt) < Date.parse(g.since))) g.since = a.createdAt;
     g.count++;
     if (a.severity) g.counts[a.severity] = (g.counts[a.severity] ?? 0) + 1;
   }

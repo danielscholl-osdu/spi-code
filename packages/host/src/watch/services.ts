@@ -1,8 +1,11 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { Model } from "@spi-code/core";
+import type { ReleasesPane } from "@spi-code/contracts";
+import { type Model, releasesToday, serviceHome } from "@spi-code/core";
+import type { ProjectedBriefing } from "./briefing.js";
 import type { WatchInput } from "./project.js";
+import { releaseProvenance } from "./provenance.js";
 import type { RunHit } from "./recorded-runs.js";
 import type { projectReleases } from "./releases.js";
 import { serviceReleaseReadTimes } from "./service-release-reads.js";
@@ -25,8 +28,10 @@ export function projectServices(
   runs: readonly RunHit[],
   documents: ReturnType<typeof projectReleases>["documents"],
   now: Date,
+  briefing: ProjectedBriefing,
+  pane: ReturnType<typeof projectReleases>["pane"],
 ) {
-  return model.lines.map((line) => ({
+  const services = model.lines.map((line) => ({
     service: line.fork.id,
     runs: runs
       .filter(({ repo }) => repo === line.fork.repo)
@@ -61,4 +66,28 @@ export function projectServices(
         }),
     ),
   }));
+  const releases: NonNullable<ReleasesPane["today"]> = releasesToday({
+    services,
+    documents,
+    facts: input.facts,
+    context: input.context,
+    provenance: releaseProvenance(pane.lines, input.releaseRecords, now),
+  });
+  const homes = serviceHome({
+    model,
+    facts: input.facts,
+    reads: input.reads,
+    now,
+    lines: briefing.lines,
+    items: [...briefing.focus, ...briefing.rest],
+    canWait: briefing.today.canWait,
+    versions: releases.versions,
+  });
+  return {
+    services: services.map((service) => {
+      const home = homes.get(service.service);
+      return home ? { ...service, home } : service;
+    }),
+    releases,
+  };
 }

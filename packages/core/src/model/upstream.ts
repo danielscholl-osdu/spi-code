@@ -67,6 +67,7 @@ export interface UpFork {
   // holds: queued commits up to the upstream sha the PR names; undefined when it names none of them.
   syncPr?: { number: number; url: string; headSha: string; verdict: string; holds?: number };
   tracking?: { number: number; url: string; labels: string[] };
+  syncMerged?: { number: number; url: string; at: string };
   cascadeRun?: RunFact;
   stop?: UpStop;
   toMain?: {
@@ -224,15 +225,16 @@ function phaseOf(
 ) {
   if (f.toMain) return "review" as const;
   if (f.stop) return "stopped" as const;
-  if (f.cascadeRun && f.cascadeRun.status !== "completed") return "cascading" as const;
+  const sync = f.syncMerged;
+  if (f.cascadeRun && f.cascadeRun.status !== "completed" &&
+      (!sync || Date.parse(f.cascadeRun.createdAt) >= Date.parse(sync.at))) return "cascading" as const;
   if (f.tracking?.labels.includes("cascade-active")) return "cascading" as const;
   if (f.syncPr) return "prepared" as const;
-  const sync = lastMerged(line.past, "sync/upstream-");
   if (
     f.tracking &&
     !f.tracking.labels.includes("validated") &&
-    sync?.mergedAt &&
-    Date.parse(sync.mergedAt) >= Date.parse(line.tracking?.createdAt ?? sync.mergedAt)
+    sync &&
+    Date.parse(sync.at) >= Date.parse(line.tracking?.createdAt ?? sync.at)
   ) {
     return "merged" as const;
   }
@@ -385,6 +387,7 @@ function forkOf(
   const sync = line.syncPr?.pr;
   const holds = sync ? holdsOf(sync, line.upstream) : undefined;
   const toMain = toMainOf(line);
+  const synced = lastMerged(line.past?.filter((pr) => pr.base === "fork_upstream"), "sync/upstream-");
   const mergedPr = lastMerged(line.past, "release/upstream-");
   const merged = mergedPr?.mergedAt
     ? { number: mergedPr.number, url: mergedPr.url, at: mergedPr.mergedAt }
@@ -417,6 +420,7 @@ function forkOf(
           },
         }
       : {}),
+    ...(synced?.mergedAt ? { syncMerged: { number: synced.number, url: synced.url, at: synced.mergedAt } } : {}),
     ...(runs?.cascade[0] ? { cascadeRun: runs.cascade[0] } : {}),
     ...(toMain ? { toMain } : {}),
     ...(merged ? { merged } : {}),

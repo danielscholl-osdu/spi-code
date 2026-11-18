@@ -13,9 +13,10 @@ describe("the 16 Nov sweep", () => {
   const items = sweep1116Items();
   const byId = new Map(items.map((i) => [i.id, i]));
 
-  test("core reads the 23 items behind the mock, in its order", () => {
+  test("core reads the 24 items on the 16 Nov sweep, in order", () => {
     expect(items.map((i) => [i.id, i.verb])).toEqual([
       ["halt:crs-conversion", "Classify entry"],
+      ["sync-run:search", "Investigate"],
       ["sync-run:indexer", "Investigate"],
       ["rollout", "Dispatch"],
       ["stack:lanes", "Re-run lanes"],

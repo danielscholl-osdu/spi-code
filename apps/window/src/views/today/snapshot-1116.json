@@ -8,7 +8,7 @@
       "state": "clear",
       "problems": []
     },
-    "headline": "Unhalt crs-conversion. Restart the indexer sync. 8 more causes below.",
+    "headline": "Unhalt crs-conversion. Restart the search sync. 9 more causes below.",
     "summary": "Crs-conversion has been stopped for 6 days. 15 PRs are ready for review.",
     "lines": [
       {
@@ -29,6 +29,7 @@
             "id": "halt:crs-conversion",
             "ids": ["halt:crs-conversion"],
             "fork": "crs-conversion",
+            "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-crs-conversion/issues/44",
             "primary": {
               "label": "issue #44",
@@ -63,6 +64,40 @@
         ]
       },
       {
+        "id": "blocked:sync-run:search",
+        "section": "blocked",
+        "subject": "search",
+        "headline": "Sync failed",
+        "cause": "Sync Upstream failed. The failing step was not read.",
+        "effect": "Nothing else waits on it.",
+        "steps": [],
+        "age": "58m",
+        "members": [
+          {
+            "id": "sync-run:search",
+            "ids": ["sync-run:search"],
+            "fork": "search",
+            "home": "line",
+            "subject": "https://github.com/Azure/osdu-spi-search/actions/runs/43985013653",
+            "primary": {
+              "label": "run Sync Upstream",
+              "url": "https://github.com/Azure/osdu-spi-search/actions/runs/43985013653",
+              "kind": "run"
+            },
+            "since": "2026-11-17T00:07:18Z",
+            "age": "58m",
+            "cause": "Sync Upstream failed. The failing step was not read.",
+            "effect": "Nothing else waits on it.",
+            "steps": [],
+            "evidence": {
+              "areas": ["github", "runs"],
+              "attributed": "item",
+              "notRead": ["Failed Sync Upstream step"]
+            }
+          }
+        ]
+      },
+      {
         "id": "blocked:sync-run:indexer",
         "section": "blocked",
         "subject": "indexer",
@@ -76,6 +111,7 @@
             "id": "sync-run:indexer",
             "ids": ["sync-run:indexer"],
             "fork": "indexer",
+            "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-indexer/actions/runs/43988443150",
             "primary": {
               "label": "run Sync Upstream 2026-11-17T00:32:26.000Z",
@@ -99,7 +135,7 @@
         "id": "waiting:gate2:storage",
         "section": "waiting",
         "subject": "storage",
-        "headline": "release/upstream PR fails Validation Summary",
+        "headline": "Integration PR fails Validation Summary",
         "cause": "Release/upstream PR #83 fails Validation Summary.",
         "effect": "Nothing else waits on it.",
         "steps": [],
@@ -109,6 +145,7 @@
             "id": "gate2:storage",
             "ids": ["gate2:storage"],
             "fork": "storage",
+            "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-storage/pull/83",
             "primary": {
               "label": "PR #83",
@@ -142,6 +179,7 @@
             "id": "lane-deploy:partition",
             "ids": ["lane-deploy:partition"],
             "fork": "partition",
+            "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-partition/deployments",
             "primary": {
               "label": "deployment FAILURE",
@@ -165,7 +203,7 @@
         "id": "waiting:blocker:stack:lanes:gate2",
         "section": "waiting",
         "subject": "5 forks",
-        "headline": "release/upstream PR red: its deploy lane failed",
+        "headline": "Integration PR red: its deploy lane failed",
         "cause": "Re-run 5 checks that failed on the environment.",
         "effect": "5 PRs cannot move until the failed lanes recover.",
         "steps": [
@@ -178,6 +216,7 @@
             "id": "gate2:indexer-queue",
             "ids": ["gate2:indexer-queue", "stack:lanes"],
             "fork": "indexer-queue",
+            "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-indexer-queue/pull/67",
             "primary": {
               "label": "PR #67",
@@ -206,16 +245,14 @@
                 "security"
               ],
               "attributed": "sweep",
-              "notRead": [
-                "Whether the other lanes have drained",
-                "Whether the other lanes have drained"
-              ]
+              "notRead": ["Whether the other lanes have drained"]
             }
           },
           {
             "id": "gate2:legal",
             "ids": ["gate2:legal", "stack:lanes"],
             "fork": "legal",
+            "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-legal/pull/90",
             "primary": {
               "label": "PR #90",
@@ -244,16 +281,14 @@
                 "security"
               ],
               "attributed": "sweep",
-              "notRead": [
-                "Whether the other lanes have drained",
-                "Whether the other lanes have drained"
-              ]
+              "notRead": ["Whether the other lanes have drained"]
             }
           },
           {
             "id": "gate2:entitlements",
             "ids": ["gate2:entitlements", "stack:lanes"],
             "fork": "entitlements",
+            "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-entitlements/pull/152",
             "primary": {
               "label": "PR #152",
@@ -282,16 +317,14 @@
                 "security"
               ],
               "attributed": "sweep",
-              "notRead": [
-                "Whether the other lanes have drained",
-                "Whether the other lanes have drained"
-              ]
+              "notRead": ["Whether the other lanes have drained"]
             }
           },
           {
             "id": "gate2:schema",
             "ids": ["gate2:schema", "stack:lanes"],
             "fork": "schema",
+            "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-schema/pull/104",
             "primary": {
               "label": "PR #104",
@@ -320,16 +353,14 @@
                 "security"
               ],
               "attributed": "sweep",
-              "notRead": [
-                "Whether the other lanes have drained",
-                "Whether the other lanes have drained"
-              ]
+              "notRead": ["Whether the other lanes have drained"]
             }
           },
           {
             "id": "gate2:indexer",
             "ids": ["gate2:indexer", "stack:lanes"],
             "fork": "indexer",
+            "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-indexer/pull/73",
             "primary": {
               "label": "PR #73",
@@ -358,10 +389,7 @@
                 "security"
               ],
               "attributed": "sweep",
-              "notRead": [
-                "Whether the other lanes have drained",
-                "Whether the other lanes have drained"
-              ]
+              "notRead": ["Whether the other lanes have drained"]
             }
           }
         ]
@@ -380,6 +408,7 @@
             "id": "gate1:unit",
             "ids": ["radar:unit", "gate1:unit"],
             "fork": "unit",
+            "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-unit/pull/50",
             "primary": {
               "label": "PR #50",
@@ -414,6 +443,7 @@
             "id": "gate1:workflow",
             "ids": ["radar:workflow", "gate1:workflow"],
             "fork": "workflow",
+            "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-workflow/pull/60",
             "primary": {
               "label": "PR #60",
@@ -448,6 +478,7 @@
             "id": "gate1:crs-catalog",
             "ids": ["radar:crs-catalog", "gate1:crs-catalog"],
             "fork": "crs-catalog",
+            "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-crs-catalog/pull/54",
             "primary": {
               "label": "PR #54",
@@ -482,6 +513,7 @@
             "id": "gate1:search",
             "ids": ["radar:search", "gate1:search"],
             "fork": "search",
+            "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-search/pull/77",
             "primary": {
               "label": "PR #77",
@@ -528,6 +560,7 @@
             "id": "gate1:crs-conversion",
             "ids": ["gate1:crs-conversion"],
             "fork": "crs-conversion",
+            "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-crs-conversion/pull/41",
             "primary": {
               "label": "PR #41",
@@ -551,8 +584,8 @@
         "id": "waiting:release-approval",
         "section": "waiting",
         "subject": "2 forks",
-        "headline": "release/upstream PR waits for approval",
-        "cause": "The release/upstream PRs need your approval.",
+        "headline": "Integration PR waits for approval",
+        "cause": "The Integration PRs need your approval.",
         "effect": "Each PR merges upstream changes into the fork main.",
         "steps": [],
         "age": "6d 22h",
@@ -561,6 +594,7 @@
             "id": "gate2:search",
             "ids": ["gate2:search"],
             "fork": "search",
+            "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-search/pull/76",
             "primary": {
               "label": "PR #76",
@@ -569,7 +603,7 @@
             },
             "since": "2026-11-10T02:08:10Z",
             "age": "6d 22h",
-            "cause": "Release/upstream PR #76 waits for approval; merge with a merge commit.",
+            "cause": "The integration PR needs its branch updated, then approval.",
             "effect": "Nothing else waits on it.",
             "steps": [],
             "evidence": {
@@ -582,6 +616,7 @@
             "id": "gate2:partition",
             "ids": ["gate2:partition"],
             "fork": "partition",
+            "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-partition/pull/248",
             "primary": {
               "label": "PR #248",
@@ -619,6 +654,7 @@
             "id": "rollout",
             "ids": ["rollout"],
             "fork": "fleet",
+            "home": "engineering",
             "primary": {
               "label": "main 1a4730d",
               "url": "https://github.com/Azure/osdu-spi/commit/1a4730d327268b5c2a57257fb7289738d4357b0a",
@@ -678,6 +714,7 @@
               "port:storage"
             ],
             "fork": "12 forks",
+            "home": "upstream",
             "primary": {
               "label": "!968",
               "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
@@ -1076,6 +1113,7 @@
               "Sync Upstream outcome on legal",
               "Sync Upstream outcome on file",
               "Sync Upstream outcome on storage",
+              "Failed Sync Upstream step",
               "Sync Upstream outcome on workflow",
               "Sync Upstream outcome on indexer-queue",
               "Sync Upstream outcome on unit",
@@ -1159,6 +1197,32 @@
           "at": "2026-11-18T00:00:00.000Z",
           "before": "next sync"
         },
+        "owned": false
+      },
+      {
+        "id": "sync-run:search",
+        "ids": ["sync-run:search"],
+        "origin": "system",
+        "rung": 0,
+        "cls": "INCIDENT",
+        "scope": "search",
+        "title": "Sync failed",
+        "sub": "58m",
+        "cause": "Sync Upstream failed. The failing step was not read.",
+        "effect": "Nothing else waits on it.",
+        "next": "Open the failed Sync Upstream run and fix what stopped it.",
+        "verb": "Investigate",
+        "evidence": [
+          {
+            "label": "run Sync Upstream",
+            "url": "https://github.com/Azure/osdu-spi-search/actions/runs/43985013653",
+            "kind": "run"
+          }
+        ],
+        "age": "58m",
+        "actor": "operator",
+        "subject": "https://github.com/Azure/osdu-spi-search/actions/runs/43985013653",
+        "attention": "interrupt",
         "owned": false
       },
       {
@@ -1274,7 +1338,9 @@
         "actor": "operator",
         "attention": "surface",
         "owned": false
-      },
+      }
+    ],
+    "rest": [
       {
         "id": "gate2:storage",
         "ids": ["gate2:storage"],
@@ -1305,9 +1371,7 @@
         "subject": "https://github.com/Azure/osdu-spi-storage/pull/83",
         "attention": "surface",
         "owned": false
-      }
-    ],
-    "rest": [
+      },
       {
         "id": "lane-deploy:partition",
         "ids": ["lane-deploy:partition"],
@@ -5079,7 +5143,7 @@
       "first": "repo:indexer-queue"
     },
     "verdict": {
-      "text": "2 things need you; 7 forks are stopped. Upstream GitLab, the upstream radar and security alerts weren't read this sweep.",
+      "text": "3 things need you; 7 forks are stopped. Upstream GitLab, the upstream radar and security alerts weren't read this sweep.",
       "mark": "stopped"
     },
     "since": {
@@ -5252,6 +5316,7 @@
         ],
         "itemIds": [
           "halt:crs-conversion",
+          "sync-run:search",
           "sync-run:indexer",
           "stack:lanes",
           "gate2:storage",
@@ -5898,6 +5963,33 @@
             "group": "On the line"
           },
           {
+            "id": "sync-run:search",
+            "ids": ["sync-run:search"],
+            "origin": "system",
+            "rung": 0,
+            "cls": "INCIDENT",
+            "scope": "search",
+            "title": "Sync failed",
+            "sub": "58m",
+            "cause": "Sync Upstream failed. The failing step was not read.",
+            "effect": "Nothing else waits on it.",
+            "next": "Open the failed Sync Upstream run and fix what stopped it.",
+            "verb": "Investigate",
+            "evidence": [
+              {
+                "label": "run Sync Upstream",
+                "url": "https://github.com/Azure/osdu-spi-search/actions/runs/43985013653",
+                "kind": "run"
+              }
+            ],
+            "age": "58m",
+            "actor": "operator",
+            "subject": "https://github.com/Azure/osdu-spi-search/actions/runs/43985013653",
+            "attention": "interrupt",
+            "owned": false,
+            "group": "On the line"
+          },
+          {
             "id": "sync-run:indexer",
             "ids": ["sync-run:indexer"],
             "origin": "system",
@@ -6001,48 +6093,12 @@
             "attention": "surface",
             "owned": false,
             "group": "On the line"
-          },
-          {
-            "id": "lane-deploy:partition",
-            "ids": ["lane-deploy:partition"],
-            "origin": "system",
-            "rung": 1,
-            "cls": "UNREAD",
-            "scope": "Environment",
-            "title": "Last lane deploy failed on partition",
-            "sub": "20m",
-            "cause": "The deployment record reports a failure; its cause has not been read.",
-            "effect": "Nothing else waits on it.",
-            "next": "Open the fork's deployment history and its workflow run to diagnose the failure.",
-            "verb": "Investigate",
-            "evidence": [
-              {
-                "label": "fork partition",
-                "url": "https://github.com/Azure/osdu-spi-partition",
-                "kind": "other"
-              },
-              {
-                "label": "deployment FAILURE",
-                "url": "https://github.com/Azure/osdu-spi-partition/deployments",
-                "kind": "deploy"
-              },
-              {
-                "label": "head 9bea4ff",
-                "url": "https://github.com/Azure/osdu-spi-partition/commit/9bea4ff20266108d0f0f83dd9e01f8595d34dae5",
-                "kind": "commit"
-              }
-            ],
-            "age": "20m",
-            "actor": "operator",
-            "subject": "https://github.com/Azure/osdu-spi-partition/deployments",
-            "attention": "surface",
-            "owned": false,
-            "group": "On the line"
           }
         ],
-        "folded": "12 more items: workflow sync PR #60 waits for review, crs-conversion sync PR #41 waits for review, search sync PR #77 waits for review, unit sync PR #50 waits for review, crs-catalog sync PR #54 waits for review, indexer-queue release/upstream PR #67 is red, search release/upstream PR #76 waits for approval, legal release/upstream PR #90 is red, partition release/upstream PR #248 waits for approval, entitlements release/upstream PR #152 is red, schema release/upstream PR #104 is red, indexer release/upstream PR #73 is red.",
+        "folded": "13 more items: Environment last lane deploy failed on partition, workflow sync PR #60 waits for review, crs-conversion sync PR #41 waits for review, search sync PR #77 waits for review, unit sync PR #50 waits for review, crs-catalog sync PR #54 waits for review, indexer-queue release/upstream PR #67 is red, search release/upstream PR #76 waits for approval, legal release/upstream PR #90 is red, partition release/upstream PR #248 waits for approval, entitlements release/upstream PR #152 is red, schema release/upstream PR #104 is red, indexer release/upstream PR #73 is red.",
         "itemIds": [
           "halt:crs-conversion",
+          "sync-run:search",
           "sync-run:indexer",
           "stack:lanes",
           "gate2:storage",
@@ -7345,6 +7401,33 @@
           }
         ],
         "items": [
+          {
+            "id": "sync-run:search",
+            "ids": ["sync-run:search"],
+            "origin": "system",
+            "rung": 0,
+            "cls": "INCIDENT",
+            "scope": "search",
+            "title": "Sync failed",
+            "sub": "58m",
+            "cause": "Sync Upstream failed. The failing step was not read.",
+            "effect": "Nothing else waits on it.",
+            "next": "Open the failed Sync Upstream run and fix what stopped it.",
+            "verb": "Investigate",
+            "evidence": [
+              {
+                "label": "run Sync Upstream",
+                "url": "https://github.com/Azure/osdu-spi-search/actions/runs/43985013653",
+                "kind": "run"
+              }
+            ],
+            "age": "58m",
+            "actor": "operator",
+            "subject": "https://github.com/Azure/osdu-spi-search/actions/runs/43985013653",
+            "attention": "interrupt",
+            "owned": false,
+            "group": "Stopped"
+          },
           {
             "id": "radar:search",
             "ids": ["radar:search"],
@@ -9601,6 +9684,164 @@
   "services": [
     {
       "service": "partition",
+      "home": {
+        "repo": "Azure/osdu-spi-partition",
+        "released": "v1.3.3",
+        "template": "behind",
+        "stations": [
+          {
+            "id": "upstream",
+            "state": "ready",
+            "word": "Sync current",
+            "line": "next sync Tue 18:00",
+            "nextAt": "2026-11-18T00:00:00.000Z"
+          },
+          {
+            "id": "sync",
+            "state": "ready",
+            "word": "None open"
+          },
+          {
+            "id": "integration",
+            "state": "waiting-on-person",
+            "word": "PR #248",
+            "pr": {
+              "number": 248,
+              "url": "https://github.com/Azure/osdu-spi-partition/pull/248"
+            },
+            "row": "gate2:partition"
+          },
+          {
+            "id": "main",
+            "state": "green",
+            "word": "Green",
+            "line": "PR #247 merged 16:19",
+            "lastMerge": {
+              "number": 247,
+              "url": "https://github.com/Azure/osdu-spi-partition/pull/247",
+              "at": "2026-11-16T22:19:51Z"
+            }
+          }
+        ],
+        "doors": [
+          {
+            "id": "template",
+            "count": 0,
+            "prs": []
+          },
+          {
+            "id": "release",
+            "count": 0,
+            "prs": []
+          },
+          {
+            "id": "other",
+            "count": 0,
+            "prs": []
+          },
+          {
+            "id": "dependabot",
+            "count": 0,
+            "prs": []
+          }
+        ],
+        "openPrTotal": 1,
+        "overview": [
+          {
+            "id": "gate2:partition",
+            "section": "waiting",
+            "headline": "Integration PR waits for approval",
+            "cause": "Release/upstream PR #248 waits for approval; merge with a merge commit.",
+            "effect": "Nothing else waits on it.",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #248",
+                "url": "https://github.com/Azure/osdu-spi-partition/pull/248",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-17T00:20:25Z"
+          },
+          {
+            "id": "lane-deploy:partition",
+            "section": "waiting",
+            "headline": "lane deploy failed",
+            "cause": "The deployment record reports a failure; its cause has not been read.",
+            "effect": "Nothing else waits on it.",
+            "steps": [],
+            "links": [
+              {
+                "label": "deployment FAILURE",
+                "url": "https://github.com/Azure/osdu-spi-partition/deployments",
+                "kind": "deploy"
+              },
+              {
+                "label": "fork partition",
+                "url": "https://github.com/Azure/osdu-spi-partition",
+                "kind": "other"
+              },
+              {
+                "label": "head 9bea4ff",
+                "url": "https://github.com/Azure/osdu-spi-partition/commit/9bea4ff20266108d0f0f83dd9e01f8595d34dae5",
+                "kind": "commit"
+              }
+            ],
+            "since": "2026-11-17T00:46:00Z"
+          },
+          {
+            "id": "port:entitlements",
+            "section": "shared",
+            "headline": "23 upstream provider changes to port",
+            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+            "steps": [],
+            "links": [
+              {
+                "label": "!968",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+                "kind": "mr"
+              },
+              {
+                "label": "!967",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
+                "kind": "mr"
+              },
+              {
+                "label": "!963",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
+                "kind": "mr"
+              },
+              {
+                "label": "!956",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
+                "kind": "mr"
+              }
+            ],
+            "since": "2026-09-14T14:02:39Z"
+          },
+          {
+            "id": "can:security:https://github.com/Azure/osdu-spi-partition/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection",
+            "section": "can-wait",
+            "headline": "Disabled Spring CSRF protection",
+            "cause": "Disabled Spring CSRF protection",
+            "steps": [],
+            "links": [
+              {
+                "label": "Alert",
+                "url": "https://github.com/Azure/osdu-spi-partition/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection",
+                "kind": "other"
+              }
+            ],
+            "since": "2026-02-27T00:01:04Z"
+          }
+        ],
+        "mark": {
+          "kind": "count",
+          "count": 2,
+          "tone": "warning"
+        }
+      },
       "runs": [
         {
           "id": "run:43986896569",
@@ -9904,6 +10145,173 @@
     },
     {
       "service": "entitlements",
+      "home": {
+        "repo": "Azure/osdu-spi-entitlements",
+        "released": "v1.2.1",
+        "next": "1.2.3",
+        "bump": "patch",
+        "releasePr": {
+          "number": 148,
+          "url": "https://github.com/Azure/osdu-spi-entitlements/pull/148"
+        },
+        "template": "behind",
+        "stations": [
+          {
+            "id": "upstream",
+            "state": "ready",
+            "word": "Sync current",
+            "line": "next sync Tue 18:00",
+            "nextAt": "2026-11-18T00:00:00.000Z"
+          },
+          {
+            "id": "sync",
+            "state": "ready",
+            "word": "None open"
+          },
+          {
+            "id": "integration",
+            "state": "stopped",
+            "word": "PR #152",
+            "pr": {
+              "number": 152,
+              "url": "https://github.com/Azure/osdu-spi-entitlements/pull/152"
+            },
+            "row": "gate2:entitlements"
+          },
+          {
+            "id": "main",
+            "state": "green",
+            "word": "Green",
+            "line": "PR #149 merged 16:25",
+            "lastMerge": {
+              "number": 149,
+              "url": "https://github.com/Azure/osdu-spi-entitlements/pull/149",
+              "at": "2026-11-16T22:25:39Z"
+            }
+          }
+        ],
+        "doors": [
+          {
+            "id": "template",
+            "count": 0,
+            "prs": []
+          },
+          {
+            "id": "release",
+            "count": 1,
+            "prs": [
+              {
+                "number": 148,
+                "url": "https://github.com/Azure/osdu-spi-entitlements/pull/148"
+              }
+            ],
+            "row": "can:releases:https://github.com/Azure/osdu-spi-entitlements/pull/148"
+          },
+          {
+            "id": "other",
+            "count": 0,
+            "prs": []
+          },
+          {
+            "id": "dependabot",
+            "count": 0,
+            "prs": []
+          }
+        ],
+        "openPrTotal": 2,
+        "overview": [
+          {
+            "id": "gate2:entitlements",
+            "section": "waiting",
+            "headline": "Integration PR red: its deploy lane failed",
+            "cause": "Re-run 5 checks that failed on the environment.",
+            "effect": "Nothing else waits on it.",
+            "steps": [
+              "Re-run the failed jobs once, after the other lanes drain.",
+              "Approve the release/upstream PR and merge it with a merge commit, never a squash."
+            ],
+            "links": [
+              {
+                "label": "PR #152",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/pull/152",
+                "kind": "pr"
+              },
+              {
+                "label": "check Deploy and Test › Verify",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/43987350665/job/133722311986",
+                "kind": "job"
+              }
+            ],
+            "since": "2026-11-17T00:24:17Z"
+          },
+          {
+            "id": "port:entitlements",
+            "section": "shared",
+            "headline": "23 upstream provider changes to port",
+            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+            "steps": [],
+            "links": [
+              {
+                "label": "!968",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+                "kind": "mr"
+              },
+              {
+                "label": "!967",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
+                "kind": "mr"
+              },
+              {
+                "label": "!963",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
+                "kind": "mr"
+              },
+              {
+                "label": "!956",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
+                "kind": "mr"
+              }
+            ],
+            "since": "2026-09-14T14:02:39Z"
+          },
+          {
+            "id": "can:security:https://github.com/Azure/osdu-spi-entitlements/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection",
+            "section": "can-wait",
+            "headline": "Disabled Spring CSRF protection",
+            "cause": "Disabled Spring CSRF protection",
+            "steps": [],
+            "links": [
+              {
+                "label": "Alert",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection",
+                "kind": "other"
+              }
+            ],
+            "since": "2026-09-17T14:56:55Z"
+          },
+          {
+            "id": "can:releases:https://github.com/Azure/osdu-spi-entitlements/pull/148",
+            "section": "can-wait",
+            "headline": "chore: release 1.2.3",
+            "cause": "chore: release 1.2.3",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #148",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/pull/148",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-16T16:16:23Z"
+          }
+        ],
+        "mark": {
+          "kind": "count",
+          "count": 1,
+          "tone": "warning"
+        }
+      },
       "runs": [
         {
           "id": "run:43987012968",
@@ -10156,6 +10564,173 @@
     },
     {
       "service": "legal",
+      "home": {
+        "repo": "Azure/osdu-spi-legal",
+        "released": "v1.2.1",
+        "next": "1.2.3",
+        "bump": "patch",
+        "releasePr": {
+          "number": 85,
+          "url": "https://github.com/Azure/osdu-spi-legal/pull/85"
+        },
+        "template": "behind",
+        "stations": [
+          {
+            "id": "upstream",
+            "state": "ready",
+            "word": "Sync current",
+            "line": "next sync Tue 18:00",
+            "nextAt": "2026-11-18T00:00:00.000Z"
+          },
+          {
+            "id": "sync",
+            "state": "ready",
+            "word": "None open"
+          },
+          {
+            "id": "integration",
+            "state": "stopped",
+            "word": "PR #90",
+            "pr": {
+              "number": 90,
+              "url": "https://github.com/Azure/osdu-spi-legal/pull/90"
+            },
+            "row": "gate2:legal"
+          },
+          {
+            "id": "main",
+            "state": "green",
+            "word": "Green",
+            "line": "PR #87 merged 16:33",
+            "lastMerge": {
+              "number": 87,
+              "url": "https://github.com/Azure/osdu-spi-legal/pull/87",
+              "at": "2026-11-16T22:33:30Z"
+            }
+          }
+        ],
+        "doors": [
+          {
+            "id": "template",
+            "count": 0,
+            "prs": []
+          },
+          {
+            "id": "release",
+            "count": 1,
+            "prs": [
+              {
+                "number": 85,
+                "url": "https://github.com/Azure/osdu-spi-legal/pull/85"
+              }
+            ],
+            "row": "can:releases:https://github.com/Azure/osdu-spi-legal/pull/85"
+          },
+          {
+            "id": "other",
+            "count": 0,
+            "prs": []
+          },
+          {
+            "id": "dependabot",
+            "count": 0,
+            "prs": []
+          }
+        ],
+        "openPrTotal": 2,
+        "overview": [
+          {
+            "id": "gate2:legal",
+            "section": "waiting",
+            "headline": "Integration PR red: its deploy lane failed",
+            "cause": "Re-run 5 checks that failed on the environment.",
+            "effect": "Nothing else waits on it.",
+            "steps": [
+              "Re-run the failed jobs once, after the other lanes drain.",
+              "Approve the release/upstream PR and merge it with a merge commit, never a squash."
+            ],
+            "links": [
+              {
+                "label": "PR #90",
+                "url": "https://github.com/Azure/osdu-spi-legal/pull/90",
+                "kind": "pr"
+              },
+              {
+                "label": "check Deploy and Test › Verify",
+                "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/43985202145/job/133716436041",
+                "kind": "job"
+              }
+            ],
+            "since": "2026-11-17T00:08:35Z"
+          },
+          {
+            "id": "port:entitlements",
+            "section": "shared",
+            "headline": "23 upstream provider changes to port",
+            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+            "steps": [],
+            "links": [
+              {
+                "label": "!968",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+                "kind": "mr"
+              },
+              {
+                "label": "!967",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
+                "kind": "mr"
+              },
+              {
+                "label": "!963",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
+                "kind": "mr"
+              },
+              {
+                "label": "!956",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
+                "kind": "mr"
+              }
+            ],
+            "since": "2026-09-14T14:02:39Z"
+          },
+          {
+            "id": "can:security:https://github.com/Azure/osdu-spi-legal/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection",
+            "section": "can-wait",
+            "headline": "Disabled Spring CSRF protection",
+            "cause": "Disabled Spring CSRF protection",
+            "steps": [],
+            "links": [
+              {
+                "label": "Alert",
+                "url": "https://github.com/Azure/osdu-spi-legal/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection",
+                "kind": "other"
+              }
+            ],
+            "since": "2026-09-17T16:25:30Z"
+          },
+          {
+            "id": "can:releases:https://github.com/Azure/osdu-spi-legal/pull/85",
+            "section": "can-wait",
+            "headline": "chore: release 1.2.3",
+            "cause": "chore: release 1.2.3",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #85",
+                "url": "https://github.com/Azure/osdu-spi-legal/pull/85",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-16T16:22:17Z"
+          }
+        ],
+        "mark": {
+          "kind": "count",
+          "count": 1,
+          "tone": "warning"
+        }
+      },
       "runs": [
         {
           "id": "run:43984932049",
@@ -10408,6 +10983,173 @@
     },
     {
       "service": "schema",
+      "home": {
+        "repo": "Azure/osdu-spi-schema",
+        "released": "v1.2.0",
+        "next": "1.2.2",
+        "bump": "patch",
+        "releasePr": {
+          "number": 100,
+          "url": "https://github.com/Azure/osdu-spi-schema/pull/100"
+        },
+        "template": "behind",
+        "stations": [
+          {
+            "id": "upstream",
+            "state": "ready",
+            "word": "Sync current",
+            "line": "next sync Tue 18:00",
+            "nextAt": "2026-11-18T00:00:00.000Z"
+          },
+          {
+            "id": "sync",
+            "state": "ready",
+            "word": "None open"
+          },
+          {
+            "id": "integration",
+            "state": "stopped",
+            "word": "PR #104",
+            "pr": {
+              "number": 104,
+              "url": "https://github.com/Azure/osdu-spi-schema/pull/104"
+            },
+            "row": "gate2:schema"
+          },
+          {
+            "id": "main",
+            "state": "green",
+            "word": "Green",
+            "line": "PR #101 merged 17:21",
+            "lastMerge": {
+              "number": 101,
+              "url": "https://github.com/Azure/osdu-spi-schema/pull/101",
+              "at": "2026-11-16T23:21:18Z"
+            }
+          }
+        ],
+        "doors": [
+          {
+            "id": "template",
+            "count": 0,
+            "prs": []
+          },
+          {
+            "id": "release",
+            "count": 1,
+            "prs": [
+              {
+                "number": 100,
+                "url": "https://github.com/Azure/osdu-spi-schema/pull/100"
+              }
+            ],
+            "row": "can:releases:https://github.com/Azure/osdu-spi-schema/pull/100"
+          },
+          {
+            "id": "other",
+            "count": 0,
+            "prs": []
+          },
+          {
+            "id": "dependabot",
+            "count": 0,
+            "prs": []
+          }
+        ],
+        "openPrTotal": 2,
+        "overview": [
+          {
+            "id": "gate2:schema",
+            "section": "waiting",
+            "headline": "Integration PR red: its deploy lane failed",
+            "cause": "Re-run 5 checks that failed on the environment.",
+            "effect": "Nothing else waits on it.",
+            "steps": [
+              "Re-run the failed jobs once, after the other lanes drain.",
+              "Approve the release/upstream PR and merge it with a merge commit, never a squash."
+            ],
+            "links": [
+              {
+                "label": "PR #104",
+                "url": "https://github.com/Azure/osdu-spi-schema/pull/104",
+                "kind": "pr"
+              },
+              {
+                "label": "check Deploy and Test › Verify",
+                "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/43987916699/job/133723725848",
+                "kind": "job"
+              }
+            ],
+            "since": "2026-11-17T00:28:31Z"
+          },
+          {
+            "id": "port:entitlements",
+            "section": "shared",
+            "headline": "23 upstream provider changes to port",
+            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+            "steps": [],
+            "links": [
+              {
+                "label": "!968",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+                "kind": "mr"
+              },
+              {
+                "label": "!967",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
+                "kind": "mr"
+              },
+              {
+                "label": "!963",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
+                "kind": "mr"
+              },
+              {
+                "label": "!956",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
+                "kind": "mr"
+              }
+            ],
+            "since": "2026-09-14T14:02:39Z"
+          },
+          {
+            "id": "can:security:https://github.com/Azure/osdu-spi-schema/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection",
+            "section": "can-wait",
+            "headline": "Disabled Spring CSRF protection",
+            "cause": "Disabled Spring CSRF protection",
+            "steps": [],
+            "links": [
+              {
+                "label": "Alert",
+                "url": "https://github.com/Azure/osdu-spi-schema/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection",
+                "kind": "other"
+              }
+            ],
+            "since": "2026-09-29T14:40:41Z"
+          },
+          {
+            "id": "can:releases:https://github.com/Azure/osdu-spi-schema/pull/100",
+            "section": "can-wait",
+            "headline": "chore: release 1.2.2",
+            "cause": "chore: release 1.2.2",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #100",
+                "url": "https://github.com/Azure/osdu-spi-schema/pull/100",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-16T16:41:19Z"
+          }
+        ],
+        "mark": {
+          "kind": "count",
+          "count": 1,
+          "tone": "warning"
+        }
+      },
       "runs": [
         {
           "id": "run:43987576826",
@@ -10660,6 +11402,142 @@
     },
     {
       "service": "file",
+      "home": {
+        "repo": "Azure/osdu-spi-file",
+        "released": "v1.2.0",
+        "next": "1.2.2",
+        "bump": "patch",
+        "releasePr": {
+          "number": 111,
+          "url": "https://github.com/Azure/osdu-spi-file/pull/111"
+        },
+        "template": "current",
+        "stations": [
+          {
+            "id": "upstream",
+            "state": "ready",
+            "word": "Sync current",
+            "line": "next sync Tue 18:00",
+            "nextAt": "2026-11-18T00:00:00.000Z"
+          },
+          {
+            "id": "sync",
+            "state": "ready",
+            "word": "None open"
+          },
+          {
+            "id": "integration",
+            "state": "ready",
+            "word": "None open"
+          },
+          {
+            "id": "main",
+            "state": "green",
+            "word": "Green",
+            "line": "PR #114 merged 18:07",
+            "lastMerge": {
+              "number": 114,
+              "url": "https://github.com/Azure/osdu-spi-file/pull/114",
+              "at": "2026-11-17T00:07:26Z"
+            }
+          }
+        ],
+        "doors": [
+          {
+            "id": "template",
+            "count": 0,
+            "prs": []
+          },
+          {
+            "id": "release",
+            "count": 1,
+            "prs": [
+              {
+                "number": 111,
+                "url": "https://github.com/Azure/osdu-spi-file/pull/111"
+              }
+            ],
+            "row": "can:releases:https://github.com/Azure/osdu-spi-file/pull/111"
+          },
+          {
+            "id": "other",
+            "count": 0,
+            "prs": []
+          },
+          {
+            "id": "dependabot",
+            "count": 0,
+            "prs": []
+          }
+        ],
+        "openPrTotal": 1,
+        "overview": [
+          {
+            "id": "port:entitlements",
+            "section": "shared",
+            "headline": "23 upstream provider changes to port",
+            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+            "steps": [],
+            "links": [
+              {
+                "label": "!968",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+                "kind": "mr"
+              },
+              {
+                "label": "!967",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
+                "kind": "mr"
+              },
+              {
+                "label": "!963",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
+                "kind": "mr"
+              },
+              {
+                "label": "!956",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
+                "kind": "mr"
+              }
+            ],
+            "since": "2026-09-14T14:02:39Z"
+          },
+          {
+            "id": "can:security:https://github.com/Azure/osdu-spi-file/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection",
+            "section": "can-wait",
+            "headline": "Disabled Spring CSRF protection",
+            "cause": "Disabled Spring CSRF protection",
+            "steps": [],
+            "links": [
+              {
+                "label": "Alert",
+                "url": "https://github.com/Azure/osdu-spi-file/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection",
+                "kind": "other"
+              }
+            ],
+            "since": "2026-09-29T21:21:40Z"
+          },
+          {
+            "id": "can:releases:https://github.com/Azure/osdu-spi-file/pull/111",
+            "section": "can-wait",
+            "headline": "chore: release 1.2.2",
+            "cause": "chore: release 1.2.2",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #111",
+                "url": "https://github.com/Azure/osdu-spi-file/pull/111",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-16T16:46:27Z"
+          }
+        ],
+        "mark": {
+          "kind": "check"
+        }
+      },
       "runs": [
         {
           "id": "run:43985733033",
@@ -10912,6 +11790,221 @@
     },
     {
       "service": "storage",
+      "home": {
+        "repo": "Azure/osdu-spi-storage",
+        "released": "v1.4.0",
+        "next": "1.4.2",
+        "bump": "patch",
+        "releasePr": {
+          "number": 57,
+          "url": "https://github.com/Azure/osdu-spi-storage/pull/57"
+        },
+        "template": "behind",
+        "stations": [
+          {
+            "id": "upstream",
+            "state": "ready",
+            "word": "Sync current",
+            "line": "next sync Tue 18:00",
+            "nextAt": "2026-11-18T00:00:00.000Z"
+          },
+          {
+            "id": "sync",
+            "state": "ready",
+            "word": "None open"
+          },
+          {
+            "id": "integration",
+            "state": "stopped",
+            "word": "PR #83",
+            "pr": {
+              "number": 83,
+              "url": "https://github.com/Azure/osdu-spi-storage/pull/83"
+            },
+            "row": "gate2:storage"
+          },
+          {
+            "id": "main",
+            "state": "green",
+            "word": "Green",
+            "line": "PR #80 merged 16:35",
+            "lastMerge": {
+              "number": 80,
+              "url": "https://github.com/Azure/osdu-spi-storage/pull/80",
+              "at": "2026-11-16T22:35:22Z"
+            }
+          }
+        ],
+        "doors": [
+          {
+            "id": "template",
+            "count": 0,
+            "prs": []
+          },
+          {
+            "id": "release",
+            "count": 1,
+            "prs": [
+              {
+                "number": 57,
+                "url": "https://github.com/Azure/osdu-spi-storage/pull/57"
+              }
+            ],
+            "row": "can:releases:https://github.com/Azure/osdu-spi-storage/pull/57"
+          },
+          {
+            "id": "other",
+            "count": 0,
+            "prs": []
+          },
+          {
+            "id": "dependabot",
+            "count": 1,
+            "prs": [
+              {
+                "number": 71,
+                "url": "https://github.com/Azure/osdu-spi-storage/pull/71"
+              }
+            ],
+            "row": "can:repositories:https://github.com/Azure/osdu-spi-storage/pull/71"
+          }
+        ],
+        "openPrTotal": 3,
+        "overview": [
+          {
+            "id": "gate2:storage",
+            "section": "waiting",
+            "headline": "Integration PR fails Validation Summary",
+            "cause": "Release/upstream PR #83 fails Validation Summary.",
+            "effect": "Nothing else waits on it.",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #83",
+                "url": "https://github.com/Azure/osdu-spi-storage/pull/83",
+                "kind": "pr"
+              },
+              {
+                "label": "check Validation Summary",
+                "url": "https://github.com/Azure/osdu-spi-storage/actions/runs/43985685201/job/133718475058",
+                "kind": "job"
+              }
+            ],
+            "since": "2026-11-17T00:12:02Z"
+          },
+          {
+            "id": "port:entitlements",
+            "section": "shared",
+            "headline": "23 upstream provider changes to port",
+            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+            "steps": [],
+            "links": [
+              {
+                "label": "!968",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+                "kind": "mr"
+              },
+              {
+                "label": "!967",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
+                "kind": "mr"
+              },
+              {
+                "label": "!963",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
+                "kind": "mr"
+              },
+              {
+                "label": "!956",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
+                "kind": "mr"
+              }
+            ],
+            "since": "2026-09-14T14:02:39Z"
+          },
+          {
+            "id": "can:security:https://github.com/Azure/osdu-spi-storage/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection",
+            "section": "can-wait",
+            "headline": "Disabled Spring CSRF protection",
+            "cause": "Disabled Spring CSRF protection",
+            "steps": [],
+            "links": [
+              {
+                "label": "Alert",
+                "url": "https://github.com/Azure/osdu-spi-storage/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection",
+                "kind": "other"
+              }
+            ],
+            "since": "2026-10-13T18:26:01Z"
+          },
+          {
+            "id": "can:security:https://github.com/Azure/osdu-spi-storage/security/code-scanning/5",
+            "section": "can-wait",
+            "headline": "User-controlled data in arithmetic expression",
+            "cause": "User-controlled data in arithmetic expression",
+            "steps": [],
+            "links": [
+              {
+                "label": "Alert",
+                "url": "https://github.com/Azure/osdu-spi-storage/security/code-scanning/5",
+                "kind": "other"
+              }
+            ],
+            "since": "2026-10-13T18:26:01Z"
+          },
+          {
+            "id": "can:releases:https://github.com/Azure/osdu-spi-storage/pull/57",
+            "section": "can-wait",
+            "headline": "chore: release 1.4.2",
+            "cause": "chore: release 1.4.2",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #57",
+                "url": "https://github.com/Azure/osdu-spi-storage/pull/57",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-04T18:25:26Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-storage/issues/67",
+            "section": "can-wait",
+            "headline": "CODEOWNERS: missing or unresolvable owners",
+            "cause": "CODEOWNERS: missing or unresolvable owners",
+            "steps": [],
+            "links": [
+              {
+                "label": "Issue #67",
+                "url": "https://github.com/Azure/osdu-spi-storage/issues/67",
+                "kind": "issue"
+              }
+            ],
+            "since": "2026-11-09T04:03:59Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-storage/pull/71",
+            "section": "can-wait",
+            "headline": "build(deps-dev): bump com.azure:azure-storage-blob from 12.36.0 to 12.36.1 in /testing/storage-test-azure",
+            "cause": "build(deps-dev): bump com.azure:azure-storage-blob from 12.36.0 to 12.36.1 in /testing/storage-test-azure",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #71",
+                "url": "https://github.com/Azure/osdu-spi-storage/pull/71",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-09T09:33:32Z"
+          }
+        ],
+        "mark": {
+          "kind": "count",
+          "count": 1,
+          "tone": "warning"
+        }
+      },
       "runs": [
         {
           "id": "run:43987948284",
@@ -11155,6 +12248,290 @@
     },
     {
       "service": "indexer",
+      "home": {
+        "repo": "Azure/osdu-spi-indexer",
+        "released": "v1.4.0",
+        "next": "1.4.1",
+        "bump": "patch",
+        "releasePr": {
+          "number": 33,
+          "url": "https://github.com/Azure/osdu-spi-indexer/pull/33"
+        },
+        "template": "behind",
+        "stations": [
+          {
+            "id": "upstream",
+            "state": "ready",
+            "word": "Sync current",
+            "line": "next sync Tue 18:00",
+            "nextAt": "2026-11-18T00:00:00.000Z"
+          },
+          {
+            "id": "sync",
+            "state": "stopped",
+            "word": "Sync failed",
+            "row": "sync-run:indexer"
+          },
+          {
+            "id": "integration",
+            "state": "stopped",
+            "word": "PR #73",
+            "pr": {
+              "number": 73,
+              "url": "https://github.com/Azure/osdu-spi-indexer/pull/73"
+            },
+            "row": "gate2:indexer"
+          },
+          {
+            "id": "main",
+            "state": "green",
+            "word": "Green",
+            "line": "PR #69 merged 10:36",
+            "lastMerge": {
+              "number": 69,
+              "url": "https://github.com/Azure/osdu-spi-indexer/pull/69",
+              "at": "2026-11-16T16:36:37Z"
+            }
+          }
+        ],
+        "doors": [
+          {
+            "id": "template",
+            "count": 0,
+            "prs": []
+          },
+          {
+            "id": "release",
+            "count": 1,
+            "prs": [
+              {
+                "number": 33,
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/33"
+              }
+            ],
+            "row": "can:releases:https://github.com/Azure/osdu-spi-indexer/pull/33"
+          },
+          {
+            "id": "other",
+            "count": 1,
+            "prs": [
+              {
+                "number": 68,
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/68"
+              }
+            ],
+            "row": "can:repositories:https://github.com/Azure/osdu-spi-indexer/pull/68"
+          },
+          {
+            "id": "dependabot",
+            "count": 3,
+            "prs": [
+              {
+                "number": 71,
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/71"
+              },
+              {
+                "number": 66,
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/66"
+              },
+              {
+                "number": 65,
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/65"
+              }
+            ],
+            "row": "can:repositories:https://github.com/Azure/osdu-spi-indexer/pull/65"
+          }
+        ],
+        "openPrTotal": 6,
+        "overview": [
+          {
+            "id": "sync-run:indexer",
+            "section": "blocked",
+            "headline": "sync failed",
+            "cause": "Sync Upstream failed with halt issue #72 open.",
+            "effect": "Nothing else waits on it.",
+            "steps": [],
+            "links": [
+              {
+                "label": "run Sync Upstream 2026-11-17T00:32:26.000Z",
+                "url": "https://github.com/Azure/osdu-spi-indexer/actions/runs/43988443150",
+                "kind": "run"
+              },
+              {
+                "label": "issue #72",
+                "url": "https://github.com/Azure/osdu-spi-indexer/issues/72",
+                "kind": "issue"
+              }
+            ],
+            "since": "2026-11-17T00:32:26Z"
+          },
+          {
+            "id": "gate2:indexer",
+            "section": "waiting",
+            "headline": "Integration PR red: its deploy lane failed",
+            "cause": "Re-run 5 checks that failed on the environment.",
+            "effect": "Nothing else waits on it.",
+            "steps": [
+              "Re-run the failed jobs once, after the other lanes drain.",
+              "Approve the release/upstream PR and merge it with a merge commit, never a squash."
+            ],
+            "links": [
+              {
+                "label": "PR #73",
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/73",
+                "kind": "pr"
+              },
+              {
+                "label": "check Deploy and Test › Verify",
+                "url": "https://github.com/Azure/osdu-spi-indexer/actions/runs/43988551904/job/133727046001",
+                "kind": "job"
+              }
+            ],
+            "since": "2026-11-17T00:33:14Z"
+          },
+          {
+            "id": "port:entitlements",
+            "section": "shared",
+            "headline": "23 upstream provider changes to port",
+            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+            "steps": [],
+            "links": [
+              {
+                "label": "!968",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+                "kind": "mr"
+              },
+              {
+                "label": "!967",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
+                "kind": "mr"
+              },
+              {
+                "label": "!963",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
+                "kind": "mr"
+              },
+              {
+                "label": "!956",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
+                "kind": "mr"
+              }
+            ],
+            "since": "2026-09-14T14:02:39Z"
+          },
+          {
+            "id": "can:security:https://github.com/Azure/osdu-spi-indexer/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection",
+            "section": "can-wait",
+            "headline": "Disabled Spring CSRF protection",
+            "cause": "Disabled Spring CSRF protection",
+            "steps": [],
+            "links": [
+              {
+                "label": "Alert",
+                "url": "https://github.com/Azure/osdu-spi-indexer/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection",
+                "kind": "other"
+              }
+            ],
+            "since": "2026-10-13T18:15:26Z"
+          },
+          {
+            "id": "can:releases:https://github.com/Azure/osdu-spi-indexer/pull/33",
+            "section": "can-wait",
+            "headline": "chore: release 1.4.1",
+            "cause": "chore: release 1.4.1",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #33",
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/33",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-10-22T22:27:16Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-indexer/issues/63",
+            "section": "can-wait",
+            "headline": "CODEOWNERS: missing or unresolvable owners",
+            "cause": "CODEOWNERS: missing or unresolvable owners",
+            "steps": [],
+            "links": [
+              {
+                "label": "Issue #63",
+                "url": "https://github.com/Azure/osdu-spi-indexer/issues/63",
+                "kind": "issue"
+              }
+            ],
+            "since": "2026-11-09T04:12:54Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-indexer/pull/65",
+            "section": "can-wait",
+            "headline": "build(deps): bump io.netty:netty-transport from 4.1.139.Final to 4.1.140.Final in /testing/indexer-test-azure",
+            "cause": "build(deps): bump io.netty:netty-transport from 4.1.139.Final to 4.1.140.Final in /testing/indexer-test-azure",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #65",
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/65",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-09T09:33:27Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-indexer/pull/66",
+            "section": "can-wait",
+            "headline": "build(deps): bump io.netty:netty-all from 4.1.139.Final to 4.1.140.Final in /testing/indexer-test-azure",
+            "cause": "build(deps): bump io.netty:netty-all from 4.1.139.Final to 4.1.140.Final in /testing/indexer-test-azure",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #66",
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/66",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-09T09:33:32Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-indexer/pull/68",
+            "section": "can-wait",
+            "headline": "chore: declare component governance inputs",
+            "cause": "chore: declare component governance inputs",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #68",
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/68",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-09T18:18:31Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-indexer/pull/71",
+            "section": "can-wait",
+            "headline": "build(deps): bump com.google.guava:guava from 27.1-jre to 33.7.1-jre in /testing/indexer-test-azure",
+            "cause": "build(deps): bump com.google.guava:guava from 27.1-jre to 33.7.1-jre in /testing/indexer-test-azure",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #71",
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/71",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-16T16:37:40Z"
+          }
+        ],
+        "mark": {
+          "kind": "count",
+          "count": 2,
+          "tone": "error"
+        }
+      },
       "runs": [
         {
           "id": "run:43988443150",
@@ -11398,6 +12775,294 @@
     },
     {
       "service": "search",
+      "home": {
+        "repo": "Azure/osdu-spi-search",
+        "released": "v1.4.0",
+        "next": "1.4.1",
+        "bump": "patch",
+        "releasePr": {
+          "number": 29,
+          "url": "https://github.com/Azure/osdu-spi-search/pull/29"
+        },
+        "template": "behind",
+        "stations": [
+          {
+            "id": "upstream",
+            "state": "stopped",
+            "word": "Sync failed",
+            "line": "next sync Tue 18:00",
+            "nextAt": "2026-11-18T00:00:00.000Z",
+            "row": "sync-run:search"
+          },
+          {
+            "id": "sync",
+            "state": "waiting-on-person",
+            "word": "PR #77",
+            "line": "10 commits",
+            "pr": {
+              "number": 77,
+              "url": "https://github.com/Azure/osdu-spi-search/pull/77"
+            },
+            "row": "gate1:search"
+          },
+          {
+            "id": "integration",
+            "state": "waiting-on-person",
+            "word": "PR #76",
+            "line": "carries sync #72, not #77",
+            "pr": {
+              "number": 76,
+              "url": "https://github.com/Azure/osdu-spi-search/pull/76"
+            },
+            "row": "gate2:search"
+          },
+          {
+            "id": "main",
+            "state": "green",
+            "word": "Green",
+            "line": "PR #70 merged Mon 21:10",
+            "lastMerge": {
+              "number": 70,
+              "url": "https://github.com/Azure/osdu-spi-search/pull/70",
+              "at": "2026-11-10T03:10:02Z"
+            }
+          }
+        ],
+        "doors": [
+          {
+            "id": "template",
+            "count": 0,
+            "prs": []
+          },
+          {
+            "id": "release",
+            "count": 1,
+            "prs": [
+              {
+                "number": 29,
+                "url": "https://github.com/Azure/osdu-spi-search/pull/29"
+              }
+            ],
+            "row": "can:releases:https://github.com/Azure/osdu-spi-search/pull/29"
+          },
+          {
+            "id": "other",
+            "count": 1,
+            "prs": [
+              {
+                "number": 71,
+                "url": "https://github.com/Azure/osdu-spi-search/pull/71"
+              }
+            ],
+            "row": "can:repositories:https://github.com/Azure/osdu-spi-search/pull/71"
+          },
+          {
+            "id": "dependabot",
+            "count": 2,
+            "prs": [
+              {
+                "number": 69,
+                "url": "https://github.com/Azure/osdu-spi-search/pull/69"
+              },
+              {
+                "number": 68,
+                "url": "https://github.com/Azure/osdu-spi-search/pull/68"
+              }
+            ],
+            "row": "can:repositories:https://github.com/Azure/osdu-spi-search/pull/68"
+          }
+        ],
+        "openPrTotal": 6,
+        "overview": [
+          {
+            "id": "sync-run:search",
+            "section": "blocked",
+            "headline": "Sync failed",
+            "cause": "Sync Upstream failed. The failing step was not read.",
+            "effect": "Nothing else waits on it.",
+            "steps": [],
+            "links": [
+              {
+                "label": "run Sync Upstream",
+                "url": "https://github.com/Azure/osdu-spi-search/actions/runs/43985013653",
+                "kind": "run"
+              }
+            ],
+            "since": "2026-11-17T00:07:18Z"
+          },
+          {
+            "id": "gate2:search",
+            "section": "waiting",
+            "headline": "Integration PR waits for approval",
+            "cause": "The integration PR needs its branch updated, then approval.",
+            "effect": "Nothing else waits on it.",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #76",
+                "url": "https://github.com/Azure/osdu-spi-search/pull/76",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-10T02:08:10Z"
+          },
+          {
+            "id": "gate1:search",
+            "section": "waiting",
+            "headline": "sync PR needs os-core-common upgraded on the fork first",
+            "cause": "Queued upstream commits move the root pom to os-core-common 10.0.0 and os-core-common 10.0.1.",
+            "effect": "10 upstream commits wait on this PR.",
+            "steps": [
+              "Absorb os-core-common 10.0.0 on the fork before merging sync PR #77.",
+              "Review the sync PR on GitHub and merge it."
+            ],
+            "links": [
+              {
+                "label": "PR #77",
+                "url": "https://github.com/Azure/osdu-spi-search/pull/77",
+                "kind": "pr"
+              },
+              {
+                "label": "commit a6d57bff",
+                "url": "https://community.opengroup.org/osdu/platform/system/search-service/-/commit/a6d57bff9a6db7d4d6e81354c73619e47b403875",
+                "kind": "commit"
+              },
+              {
+                "label": "run",
+                "url": "https://community.opengroup.org/osdu/platform/system/search-service/-/commit/3e8b5376576b6e1404af0f8724a40ee437a58397",
+                "kind": "commit"
+              }
+            ],
+            "since": "2026-11-11T00:07:37Z"
+          },
+          {
+            "id": "port:entitlements",
+            "section": "shared",
+            "headline": "23 upstream provider changes to port",
+            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+            "steps": [],
+            "links": [
+              {
+                "label": "!968",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+                "kind": "mr"
+              },
+              {
+                "label": "!967",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
+                "kind": "mr"
+              },
+              {
+                "label": "!963",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
+                "kind": "mr"
+              },
+              {
+                "label": "!956",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
+                "kind": "mr"
+              }
+            ],
+            "since": "2026-09-14T14:02:39Z"
+          },
+          {
+            "id": "can:security:https://github.com/Azure/osdu-spi-search/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection",
+            "section": "can-wait",
+            "headline": "Disabled Spring CSRF protection",
+            "cause": "Disabled Spring CSRF protection",
+            "steps": [],
+            "links": [
+              {
+                "label": "Alert",
+                "url": "https://github.com/Azure/osdu-spi-search/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection",
+                "kind": "other"
+              }
+            ],
+            "since": "2026-10-13T18:15:14Z"
+          },
+          {
+            "id": "can:releases:https://github.com/Azure/osdu-spi-search/pull/29",
+            "section": "can-wait",
+            "headline": "chore: release 1.4.1",
+            "cause": "chore: release 1.4.1",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #29",
+                "url": "https://github.com/Azure/osdu-spi-search/pull/29",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-10-16T19:56:00Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-search/issues/65",
+            "section": "can-wait",
+            "headline": "CODEOWNERS: missing or unresolvable owners",
+            "cause": "CODEOWNERS: missing or unresolvable owners",
+            "steps": [],
+            "links": [
+              {
+                "label": "Issue #65",
+                "url": "https://github.com/Azure/osdu-spi-search/issues/65",
+                "kind": "issue"
+              }
+            ],
+            "since": "2026-11-09T04:10:51Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-search/pull/68",
+            "section": "can-wait",
+            "headline": "build(deps): bump io.netty:netty-all from 4.1.139.Final to 4.1.140.Final in /testing/search-test-azure",
+            "cause": "build(deps): bump io.netty:netty-all from 4.1.139.Final to 4.1.140.Final in /testing/search-test-azure",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #68",
+                "url": "https://github.com/Azure/osdu-spi-search/pull/68",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-09T09:32:40Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-search/pull/69",
+            "section": "can-wait",
+            "headline": "build(deps): bump io.netty:netty-transport from 4.1.139.Final to 4.1.140.Final in /testing/search-test-azure",
+            "cause": "build(deps): bump io.netty:netty-transport from 4.1.139.Final to 4.1.140.Final in /testing/search-test-azure",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #69",
+                "url": "https://github.com/Azure/osdu-spi-search/pull/69",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-09T09:32:43Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-search/pull/71",
+            "section": "can-wait",
+            "headline": "chore: declare component governance inputs",
+            "cause": "chore: declare component governance inputs",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #71",
+                "url": "https://github.com/Azure/osdu-spi-search/pull/71",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-09T18:18:45Z"
+          }
+        ],
+        "mark": {
+          "kind": "count",
+          "count": 3,
+          "tone": "error"
+        }
+      },
       "runs": [
         {
           "id": "run:43985013653",
@@ -11641,6 +13306,279 @@
     },
     {
       "service": "workflow",
+      "home": {
+        "repo": "Azure/osdu-spi-workflow",
+        "released": "v1.3.0",
+        "next": "1.3.2",
+        "bump": "patch",
+        "releasePr": {
+          "number": 38,
+          "url": "https://github.com/Azure/osdu-spi-workflow/pull/38"
+        },
+        "template": "behind",
+        "stations": [
+          {
+            "id": "upstream",
+            "state": "waiting-on-person",
+            "word": "18 behind",
+            "line": "next sync Tue 18:00",
+            "nextAt": "2026-11-18T00:00:00.000Z"
+          },
+          {
+            "id": "sync",
+            "state": "waiting-on-person",
+            "word": "PR #60",
+            "line": "18 commits",
+            "pr": {
+              "number": 60,
+              "url": "https://github.com/Azure/osdu-spi-workflow/pull/60"
+            },
+            "row": "gate1:workflow"
+          },
+          {
+            "id": "integration",
+            "state": "ready",
+            "word": "None open"
+          },
+          {
+            "id": "main",
+            "state": "green",
+            "word": "Green",
+            "line": "PR #63 merged Fri 10:59",
+            "lastMerge": {
+              "number": 63,
+              "url": "https://github.com/Azure/osdu-spi-workflow/pull/63",
+              "at": "2026-11-13T16:59:11Z"
+            }
+          }
+        ],
+        "doors": [
+          {
+            "id": "template",
+            "count": 0,
+            "prs": []
+          },
+          {
+            "id": "release",
+            "count": 1,
+            "prs": [
+              {
+                "number": 38,
+                "url": "https://github.com/Azure/osdu-spi-workflow/pull/38"
+              }
+            ],
+            "row": "can:releases:https://github.com/Azure/osdu-spi-workflow/pull/38"
+          },
+          {
+            "id": "other",
+            "count": 1,
+            "prs": [
+              {
+                "number": 59,
+                "url": "https://github.com/Azure/osdu-spi-workflow/pull/59"
+              }
+            ],
+            "row": "can:repositories:https://github.com/Azure/osdu-spi-workflow/pull/59"
+          },
+          {
+            "id": "dependabot",
+            "count": 3,
+            "prs": [
+              {
+                "number": 58,
+                "url": "https://github.com/Azure/osdu-spi-workflow/pull/58"
+              },
+              {
+                "number": 54,
+                "url": "https://github.com/Azure/osdu-spi-workflow/pull/54"
+              },
+              {
+                "number": 53,
+                "url": "https://github.com/Azure/osdu-spi-workflow/pull/53"
+              }
+            ],
+            "row": "can:repositories:https://github.com/Azure/osdu-spi-workflow/pull/53"
+          }
+        ],
+        "openPrTotal": 6,
+        "overview": [
+          {
+            "id": "gate1:workflow",
+            "section": "waiting",
+            "headline": "sync PR needs os-core-common upgraded on the fork first",
+            "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0, os-core-common feat-jackson-3-SNAPSHOT and os-core-common 10.0.0.",
+            "effect": "18 upstream commits wait on this PR.",
+            "steps": [
+              "Absorb os-core-common 8.5.0 on the fork before merging sync PR #60.",
+              "Review the sync PR on GitHub and merge it."
+            ],
+            "links": [
+              {
+                "label": "PR #60",
+                "url": "https://github.com/Azure/osdu-spi-workflow/pull/60",
+                "kind": "pr"
+              },
+              {
+                "label": "commit d6847cea",
+                "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/commit/d6847cea52b94f697ab67ef471f1bfeff33b6d93",
+                "kind": "commit"
+              },
+              {
+                "label": "run",
+                "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/commit/fe503b27c18a219e8c89484e9d8a492da2940ee9",
+                "kind": "commit"
+              },
+              {
+                "label": "run",
+                "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/commit/0b23804295d26b5a081dbb797a3c89988af87a52",
+                "kind": "commit"
+              }
+            ],
+            "since": "2026-11-10T00:09:11Z"
+          },
+          {
+            "id": "port:entitlements",
+            "section": "shared",
+            "headline": "23 upstream provider changes to port",
+            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+            "steps": [],
+            "links": [
+              {
+                "label": "!968",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+                "kind": "mr"
+              },
+              {
+                "label": "!967",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
+                "kind": "mr"
+              },
+              {
+                "label": "!963",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
+                "kind": "mr"
+              },
+              {
+                "label": "!956",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
+                "kind": "mr"
+              }
+            ],
+            "since": "2026-09-14T14:02:39Z"
+          },
+          {
+            "id": "can:security:https://github.com/Azure/osdu-spi-workflow/security/code-scanning/9",
+            "section": "can-wait",
+            "headline": "Insertion of sensitive information into log files",
+            "cause": "Insertion of sensitive information into log files",
+            "steps": [],
+            "links": [
+              {
+                "label": "Alert",
+                "url": "https://github.com/Azure/osdu-spi-workflow/security/code-scanning/9",
+                "kind": "other"
+              }
+            ],
+            "since": "2026-10-13T17:20:01Z"
+          },
+          {
+            "id": "can:releases:https://github.com/Azure/osdu-spi-workflow/pull/38",
+            "section": "can-wait",
+            "headline": "chore: release 1.3.2",
+            "cause": "chore: release 1.3.2",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #38",
+                "url": "https://github.com/Azure/osdu-spi-workflow/pull/38",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-10-27T18:53:26Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-workflow/pull/53",
+            "section": "can-wait",
+            "headline": "build(deps-dev): bump com.fasterxml.jackson.core:jackson-databind from 2.13.5 to 2.18.11 in /testing/workflow-test-azure",
+            "cause": "build(deps-dev): bump com.fasterxml.jackson.core:jackson-databind from 2.13.5 to 2.18.11 in /testing/workflow-test-azure",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #53",
+                "url": "https://github.com/Azure/osdu-spi-workflow/pull/53",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-06T20:10:04Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-workflow/pull/54",
+            "section": "can-wait",
+            "headline": "build(deps-dev): bump com.google.guava:guava from 29.0-jre to 33.7.1-jre in /testing/workflow-test-azure",
+            "cause": "build(deps-dev): bump com.google.guava:guava from 29.0-jre to 33.7.1-jre in /testing/workflow-test-azure",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #54",
+                "url": "https://github.com/Azure/osdu-spi-workflow/pull/54",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-06T20:10:07Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-workflow/issues/55",
+            "section": "can-wait",
+            "headline": "CODEOWNERS: missing or unresolvable owners",
+            "cause": "CODEOWNERS: missing or unresolvable owners",
+            "steps": [],
+            "links": [
+              {
+                "label": "Issue #55",
+                "url": "https://github.com/Azure/osdu-spi-workflow/issues/55",
+                "kind": "issue"
+              }
+            ],
+            "since": "2026-11-09T04:11:04Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-workflow/pull/58",
+            "section": "can-wait",
+            "headline": "build(deps): bump io.netty:netty-all from 4.1.139.Final to 4.1.140.Final in /testing/workflow-test-azure",
+            "cause": "build(deps): bump io.netty:netty-all from 4.1.139.Final to 4.1.140.Final in /testing/workflow-test-azure",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #58",
+                "url": "https://github.com/Azure/osdu-spi-workflow/pull/58",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-09T09:33:34Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-workflow/pull/59",
+            "section": "can-wait",
+            "headline": "chore: declare component governance inputs",
+            "cause": "chore: declare component governance inputs",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #59",
+                "url": "https://github.com/Azure/osdu-spi-workflow/pull/59",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-09T18:29:20Z"
+          }
+        ],
+        "mark": {
+          "kind": "count",
+          "count": 1,
+          "tone": "warning"
+        }
+      },
       "runs": [
         {
           "id": "run:43985264019",
@@ -11868,6 +13806,252 @@
     },
     {
       "service": "indexer-queue",
+      "home": {
+        "repo": "Azure/osdu-spi-indexer-queue",
+        "released": "v1.4.0",
+        "next": "1.5.0",
+        "bump": "minor",
+        "releasePr": {
+          "number": 45,
+          "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/45"
+        },
+        "template": "behind",
+        "stations": [
+          {
+            "id": "upstream",
+            "state": "ready",
+            "word": "Sync current",
+            "line": "next sync Tue 18:00",
+            "nextAt": "2026-11-18T00:00:00.000Z"
+          },
+          {
+            "id": "sync",
+            "state": "ready",
+            "word": "None open"
+          },
+          {
+            "id": "integration",
+            "state": "stopped",
+            "word": "PR #67",
+            "pr": {
+              "number": 67,
+              "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/67"
+            },
+            "row": "gate2:indexer-queue"
+          },
+          {
+            "id": "main",
+            "state": "green",
+            "word": "Green",
+            "line": "PR #74 merged Fri 11:00",
+            "lastMerge": {
+              "number": 74,
+              "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/74",
+              "at": "2026-11-13T17:00:25Z"
+            }
+          }
+        ],
+        "doors": [
+          {
+            "id": "template",
+            "count": 0,
+            "prs": []
+          },
+          {
+            "id": "release",
+            "count": 1,
+            "prs": [
+              {
+                "number": 45,
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/45"
+              }
+            ],
+            "row": "can:releases:https://github.com/Azure/osdu-spi-indexer-queue/pull/45"
+          },
+          {
+            "id": "other",
+            "count": 1,
+            "prs": [
+              {
+                "number": 73,
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/73"
+              }
+            ],
+            "row": "can:repositories:https://github.com/Azure/osdu-spi-indexer-queue/pull/73"
+          },
+          {
+            "id": "dependabot",
+            "count": 3,
+            "prs": [
+              {
+                "number": 75,
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/75"
+              },
+              {
+                "number": 72,
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/72"
+              },
+              {
+                "number": 71,
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/71"
+              }
+            ],
+            "row": "can:repositories:https://github.com/Azure/osdu-spi-indexer-queue/pull/71"
+          }
+        ],
+        "openPrTotal": 6,
+        "overview": [
+          {
+            "id": "gate2:indexer-queue",
+            "section": "waiting",
+            "headline": "Integration PR red: its deploy lane failed",
+            "cause": "Re-run 5 checks that failed on the environment.",
+            "effect": "Nothing else waits on it.",
+            "steps": [
+              "Re-run the failed jobs once, after the other lanes drain.",
+              "Approve the release/upstream PR and merge it with a merge commit, never a squash."
+            ],
+            "links": [
+              {
+                "label": "PR #67",
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/67",
+                "kind": "pr"
+              },
+              {
+                "label": "check Deploy and Test › Verify",
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/actions/runs/42333483580/job/128288168643",
+                "kind": "job"
+              }
+            ],
+            "since": "2026-11-07T03:19:32Z"
+          },
+          {
+            "id": "can:security:https://github.com/Azure/osdu-spi-indexer-queue/security/dependabot?q=is%3Aopen%20package%3Aorg.asynchttpclient%3Aasync-http-client%20manifest%3Aindexer-queue-azure-enqueue%2Fpom.xml",
+            "section": "can-wait",
+            "headline": "org.asynchttpclient:async-http-client",
+            "cause": "org.asynchttpclient:async-http-client",
+            "steps": [],
+            "links": [
+              {
+                "label": "Alert",
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/security/dependabot?q=is%3Aopen%20package%3Aorg.asynchttpclient%3Aasync-http-client%20manifest%3Aindexer-queue-azure-enqueue%2Fpom.xml",
+                "kind": "other"
+              }
+            ],
+            "since": "2026-10-13T18:10:14Z"
+          },
+          {
+            "id": "can:security:https://github.com/Azure/osdu-spi-indexer-queue/security/code-scanning/3",
+            "section": "can-wait",
+            "headline": "Disabled Spring CSRF protection",
+            "cause": "Disabled Spring CSRF protection",
+            "steps": [],
+            "links": [
+              {
+                "label": "Alert",
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/security/code-scanning/3",
+                "kind": "other"
+              }
+            ],
+            "since": "2026-10-13T18:13:41Z"
+          },
+          {
+            "id": "can:releases:https://github.com/Azure/osdu-spi-indexer-queue/pull/45",
+            "section": "can-wait",
+            "headline": "chore: release 1.5.0",
+            "cause": "chore: release 1.5.0",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #45",
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/45",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-10-22T22:27:58Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-indexer-queue/issues/68",
+            "section": "can-wait",
+            "headline": "CODEOWNERS: missing or unresolvable owners",
+            "cause": "CODEOWNERS: missing or unresolvable owners",
+            "steps": [],
+            "links": [
+              {
+                "label": "Issue #68",
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/issues/68",
+                "kind": "issue"
+              }
+            ],
+            "since": "2026-11-09T04:13:11Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-indexer-queue/pull/71",
+            "section": "can-wait",
+            "headline": "build(deps): bump com.fasterxml.jackson.core:jackson-core from 2.18.11 to 2.18.12 in /testing/indexer-queue-azure-enqueue",
+            "cause": "build(deps): bump com.fasterxml.jackson.core:jackson-core from 2.18.11 to 2.18.12 in /testing/indexer-queue-azure-enqueue",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #71",
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/71",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-09T09:34:56Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-indexer-queue/pull/72",
+            "section": "can-wait",
+            "headline": "build(deps): bump com.fasterxml.jackson.core:jackson-databind from 2.18.11 to 2.18.12 in /testing/indexer-queue-azure-enqueue",
+            "cause": "build(deps): bump com.fasterxml.jackson.core:jackson-databind from 2.18.11 to 2.18.12 in /testing/indexer-queue-azure-enqueue",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #72",
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/72",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-09T09:35:10Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-indexer-queue/pull/73",
+            "section": "can-wait",
+            "headline": "chore: declare component governance inputs",
+            "cause": "chore: declare component governance inputs",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #73",
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/73",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-09T18:18:38Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-indexer-queue/pull/75",
+            "section": "can-wait",
+            "headline": "build(deps-dev): bump com.google.guava:guava from 27.1-jre to 33.7.1-jre in /testing/indexer-queue-azure-enqueue",
+            "cause": "build(deps-dev): bump com.google.guava:guava from 27.1-jre to 33.7.1-jre in /testing/indexer-queue-azure-enqueue",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #75",
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/75",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-13T17:03:07Z"
+          }
+        ],
+        "mark": {
+          "kind": "count",
+          "count": 1,
+          "tone": "warning"
+        }
+      },
       "runs": [
         {
           "id": "run:43986661274",
@@ -12079,6 +14263,312 @@
     },
     {
       "service": "unit",
+      "home": {
+        "repo": "Azure/osdu-spi-unit",
+        "released": "v1.4.0",
+        "next": "1.4.1",
+        "bump": "patch",
+        "releasePr": {
+          "number": 21,
+          "url": "https://github.com/Azure/osdu-spi-unit/pull/21"
+        },
+        "template": "behind",
+        "stations": [
+          {
+            "id": "upstream",
+            "state": "waiting-on-clock",
+            "word": "9 behind",
+            "line": "next sync Tue 18:00",
+            "nextAt": "2026-11-18T00:00:00.000Z"
+          },
+          {
+            "id": "sync",
+            "state": "waiting-on-person",
+            "word": "PR #50",
+            "line": "9 commits",
+            "pr": {
+              "number": 50,
+              "url": "https://github.com/Azure/osdu-spi-unit/pull/50"
+            },
+            "row": "gate1:unit"
+          },
+          {
+            "id": "integration",
+            "state": "ready",
+            "word": "None open"
+          },
+          {
+            "id": "main",
+            "state": "green",
+            "word": "Green",
+            "line": "PR #65 merged Fri 11:00",
+            "lastMerge": {
+              "number": 65,
+              "url": "https://github.com/Azure/osdu-spi-unit/pull/65",
+              "at": "2026-11-13T17:00:03Z"
+            }
+          }
+        ],
+        "doors": [
+          {
+            "id": "template",
+            "count": 0,
+            "prs": []
+          },
+          {
+            "id": "release",
+            "count": 1,
+            "prs": [
+              {
+                "number": 21,
+                "url": "https://github.com/Azure/osdu-spi-unit/pull/21"
+              }
+            ],
+            "row": "can:releases:https://github.com/Azure/osdu-spi-unit/pull/21"
+          },
+          {
+            "id": "other",
+            "count": 1,
+            "prs": [
+              {
+                "number": 64,
+                "url": "https://github.com/Azure/osdu-spi-unit/pull/64"
+              }
+            ],
+            "row": "can:repositories:https://github.com/Azure/osdu-spi-unit/pull/64"
+          },
+          {
+            "id": "dependabot",
+            "count": 5,
+            "prs": [
+              {
+                "number": 67,
+                "url": "https://github.com/Azure/osdu-spi-unit/pull/67"
+              },
+              {
+                "number": 56,
+                "url": "https://github.com/Azure/osdu-spi-unit/pull/56"
+              },
+              {
+                "number": 55,
+                "url": "https://github.com/Azure/osdu-spi-unit/pull/55"
+              },
+              {
+                "number": 54,
+                "url": "https://github.com/Azure/osdu-spi-unit/pull/54"
+              },
+              {
+                "number": 53,
+                "url": "https://github.com/Azure/osdu-spi-unit/pull/53"
+              }
+            ],
+            "row": "can:repositories:https://github.com/Azure/osdu-spi-unit/pull/53"
+          }
+        ],
+        "openPrTotal": 8,
+        "overview": [
+          {
+            "id": "gate1:unit",
+            "section": "waiting",
+            "headline": "sync PR needs os-core-common upgraded on the fork first",
+            "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
+            "effect": "9 upstream commits wait on this PR.",
+            "steps": [
+              "Absorb os-core-common 8.5.0 on the fork before merging sync PR #50.",
+              "Review the sync PR on GitHub and merge it."
+            ],
+            "links": [
+              {
+                "label": "PR #50",
+                "url": "https://github.com/Azure/osdu-spi-unit/pull/50",
+                "kind": "pr"
+              },
+              {
+                "label": "commit 3a69766c",
+                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/3a69766c25b03b450d95b55ef21c013c63ef407f",
+                "kind": "commit"
+              },
+              {
+                "label": "run",
+                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/d4b65bdf42503bf50bdbed11249c06bd9c0c4fe0",
+                "kind": "commit"
+              }
+            ],
+            "since": "2026-11-07T00:23:56Z"
+          },
+          {
+            "id": "port:entitlements",
+            "section": "shared",
+            "headline": "23 upstream provider changes to port",
+            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+            "steps": [],
+            "links": [
+              {
+                "label": "!968",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+                "kind": "mr"
+              },
+              {
+                "label": "!967",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
+                "kind": "mr"
+              },
+              {
+                "label": "!963",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
+                "kind": "mr"
+              },
+              {
+                "label": "!956",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
+                "kind": "mr"
+              }
+            ],
+            "since": "2026-09-14T14:02:39Z"
+          },
+          {
+            "id": "can:security:https://github.com/Azure/osdu-spi-unit/security/dependabot?q=is%3Aopen%20package%3Aorg.asynchttpclient%3Aasync-http-client%20manifest%3Aprovider%2Funit-azure%2Funit-aks%2Fpom.xml",
+            "section": "can-wait",
+            "headline": "org.asynchttpclient:async-http-client",
+            "cause": "org.asynchttpclient:async-http-client",
+            "steps": [],
+            "links": [
+              {
+                "label": "Alert",
+                "url": "https://github.com/Azure/osdu-spi-unit/security/dependabot?q=is%3Aopen%20package%3Aorg.asynchttpclient%3Aasync-http-client%20manifest%3Aprovider%2Funit-azure%2Funit-aks%2Fpom.xml",
+                "kind": "other"
+              }
+            ],
+            "since": "2026-10-13T18:12:11Z"
+          },
+          {
+            "id": "can:releases:https://github.com/Azure/osdu-spi-unit/pull/21",
+            "section": "can-wait",
+            "headline": "chore: release 1.4.1",
+            "cause": "chore: release 1.4.1",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #21",
+                "url": "https://github.com/Azure/osdu-spi-unit/pull/21",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-10-22T22:30:19Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-unit/pull/53",
+            "section": "can-wait",
+            "headline": "build(deps): bump jinja2 from 2.11.2 to 3.1.6 in /testing/unit_test_azure",
+            "cause": "build(deps): bump jinja2 from 2.11.2 to 3.1.6 in /testing/unit_test_azure",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #53",
+                "url": "https://github.com/Azure/osdu-spi-unit/pull/53",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-07T01:32:03Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-unit/pull/54",
+            "section": "can-wait",
+            "headline": "build(deps): bump flask from 1.1.2 to 3.1.3 in /testing/unit_test_azure",
+            "cause": "build(deps): bump flask from 1.1.2 to 3.1.3 in /testing/unit_test_azure",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #54",
+                "url": "https://github.com/Azure/osdu-spi-unit/pull/54",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-07T01:32:09Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-unit/pull/55",
+            "section": "can-wait",
+            "headline": "build(deps): bump idna from 2.10 to 3.15 in /testing/unit_test_azure",
+            "cause": "build(deps): bump idna from 2.10 to 3.15 in /testing/unit_test_azure",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #55",
+                "url": "https://github.com/Azure/osdu-spi-unit/pull/55",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-07T01:32:12Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-unit/pull/56",
+            "section": "can-wait",
+            "headline": "build(deps): bump azure-core from 1.9.0 to 1.38.0 in /testing/unit_test_azure",
+            "cause": "build(deps): bump azure-core from 1.9.0 to 1.38.0 in /testing/unit_test_azure",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #56",
+                "url": "https://github.com/Azure/osdu-spi-unit/pull/56",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-07T01:32:22Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-unit/issues/57",
+            "section": "can-wait",
+            "headline": "CODEOWNERS: missing or unresolvable owners",
+            "cause": "CODEOWNERS: missing or unresolvable owners",
+            "steps": [],
+            "links": [
+              {
+                "label": "Issue #57",
+                "url": "https://github.com/Azure/osdu-spi-unit/issues/57",
+                "kind": "issue"
+              }
+            ],
+            "since": "2026-11-09T04:13:29Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-unit/pull/64",
+            "section": "can-wait",
+            "headline": "chore: declare component governance inputs",
+            "cause": "chore: declare component governance inputs",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #64",
+                "url": "https://github.com/Azure/osdu-spi-unit/pull/64",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-09T18:29:16Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-unit/pull/67",
+            "section": "can-wait",
+            "headline": "build(deps): bump org.eclipse.jetty:jetty-bom from 12.1.14 to 12.1.15 in /provider/unit-azure/unit-aks",
+            "cause": "build(deps): bump org.eclipse.jetty:jetty-bom from 12.1.14 to 12.1.15 in /provider/unit-azure/unit-aks",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #67",
+                "url": "https://github.com/Azure/osdu-spi-unit/pull/67",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-16T09:31:31Z"
+          }
+        ],
+        "mark": {
+          "kind": "count",
+          "count": 1,
+          "tone": "warning"
+        }
+      },
       "runs": [
         {
           "id": "run:43987543499",
@@ -12314,6 +14804,307 @@
     },
     {
       "service": "crs-catalog",
+      "home": {
+        "repo": "Azure/osdu-spi-crs-catalog",
+        "released": "v1.4.0",
+        "next": "1.4.1",
+        "bump": "patch",
+        "releasePr": {
+          "number": 19,
+          "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/19"
+        },
+        "template": "behind",
+        "stations": [
+          {
+            "id": "upstream",
+            "state": "waiting-on-clock",
+            "word": "9 behind",
+            "line": "next sync Tue 18:00",
+            "nextAt": "2026-11-18T00:00:00.000Z"
+          },
+          {
+            "id": "sync",
+            "state": "waiting-on-person",
+            "word": "PR #54",
+            "line": "9 commits",
+            "pr": {
+              "number": 54,
+              "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/54"
+            },
+            "row": "gate1:crs-catalog"
+          },
+          {
+            "id": "integration",
+            "state": "ready",
+            "word": "None open"
+          },
+          {
+            "id": "main",
+            "state": "green",
+            "word": "Green",
+            "line": "PR #56 merged Fri 15:58",
+            "lastMerge": {
+              "number": 56,
+              "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/56",
+              "at": "2026-11-13T21:58:15Z"
+            }
+          }
+        ],
+        "doors": [
+          {
+            "id": "template",
+            "count": 0,
+            "prs": []
+          },
+          {
+            "id": "release",
+            "count": 1,
+            "prs": [
+              {
+                "number": 19,
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/19"
+              }
+            ],
+            "row": "can:releases:https://github.com/Azure/osdu-spi-crs-catalog/pull/19"
+          },
+          {
+            "id": "other",
+            "count": 1,
+            "prs": [
+              {
+                "number": 53,
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/53"
+              }
+            ],
+            "row": "can:repositories:https://github.com/Azure/osdu-spi-crs-catalog/pull/53"
+          },
+          {
+            "id": "dependabot",
+            "count": 5,
+            "prs": [
+              {
+                "number": 58,
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/58"
+              },
+              {
+                "number": 48,
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/48"
+              },
+              {
+                "number": 47,
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/47"
+              },
+              {
+                "number": 46,
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/46"
+              },
+              {
+                "number": 45,
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/45"
+              }
+            ],
+            "row": "can:repositories:https://github.com/Azure/osdu-spi-crs-catalog/pull/45"
+          }
+        ],
+        "openPrTotal": 8,
+        "overview": [
+          {
+            "id": "gate1:crs-catalog",
+            "section": "waiting",
+            "headline": "sync PR needs os-core-common upgraded on the fork first",
+            "cause": "Queued upstream commits move the root pom to os-core-common 10.0.0.",
+            "effect": "9 upstream commits wait on this PR.",
+            "steps": [
+              "Absorb os-core-common 10.0.0 on the fork before merging sync PR #54.",
+              "Review the sync PR on GitHub and merge it."
+            ],
+            "links": [
+              {
+                "label": "PR #54",
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/54",
+                "kind": "pr"
+              },
+              {
+                "label": "commit c4f58585",
+                "url": "https://community.opengroup.org/osdu/platform/system/reference/crs-catalog-service/-/commit/c4f585855bd2183389be6ae5eb8fe4bfed82c779",
+                "kind": "commit"
+              }
+            ],
+            "since": "2026-11-10T00:33:48Z"
+          },
+          {
+            "id": "port:entitlements",
+            "section": "shared",
+            "headline": "23 upstream provider changes to port",
+            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+            "steps": [],
+            "links": [
+              {
+                "label": "!968",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+                "kind": "mr"
+              },
+              {
+                "label": "!967",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
+                "kind": "mr"
+              },
+              {
+                "label": "!963",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
+                "kind": "mr"
+              },
+              {
+                "label": "!956",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
+                "kind": "mr"
+              }
+            ],
+            "since": "2026-09-14T14:02:39Z"
+          },
+          {
+            "id": "can:security:https://github.com/Azure/osdu-spi-crs-catalog/security/code-scanning/2",
+            "section": "can-wait",
+            "headline": "Disabled Spring CSRF protection",
+            "cause": "Disabled Spring CSRF protection",
+            "steps": [],
+            "links": [
+              {
+                "label": "Alert",
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/security/code-scanning/2",
+                "kind": "other"
+              }
+            ],
+            "since": "2026-10-13T18:14:23Z"
+          },
+          {
+            "id": "can:releases:https://github.com/Azure/osdu-spi-crs-catalog/pull/19",
+            "section": "can-wait",
+            "headline": "chore: release 1.4.1",
+            "cause": "chore: release 1.4.1",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #19",
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/19",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-10-22T22:28:47Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-catalog/pull/45",
+            "section": "can-wait",
+            "headline": "build(deps): bump cryptography from 2.8 to 50.0.0 in /testing/catalog_test_azure",
+            "cause": "build(deps): bump cryptography from 2.8 to 50.0.0 in /testing/catalog_test_azure",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #45",
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/45",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-07T01:02:02Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-catalog/pull/46",
+            "section": "can-wait",
+            "headline": "build(deps): bump urllib3 from 1.25.8 to 2.8.0 in /testing/catalog_test_azure",
+            "cause": "build(deps): bump urllib3 from 1.25.8 to 2.8.0 in /testing/catalog_test_azure",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #46",
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/46",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-07T01:02:05Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-catalog/pull/47",
+            "section": "can-wait",
+            "headline": "build(deps): bump pyjwt from 1.7.1 to 2.15.0 in /testing/catalog_test_azure",
+            "cause": "build(deps): bump pyjwt from 1.7.1 to 2.15.0 in /testing/catalog_test_azure",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #47",
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/47",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-07T01:02:07Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-catalog/pull/48",
+            "section": "can-wait",
+            "headline": "build(deps): bump certifi from 2019.11.28 to 2026.10.18 in /testing/catalog_test_azure",
+            "cause": "build(deps): bump certifi from 2019.11.28 to 2026.10.18 in /testing/catalog_test_azure",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #48",
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/48",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-07T01:02:18Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-catalog/issues/50",
+            "section": "can-wait",
+            "headline": "CODEOWNERS: missing or unresolvable owners",
+            "cause": "CODEOWNERS: missing or unresolvable owners",
+            "steps": [],
+            "links": [
+              {
+                "label": "Issue #50",
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/issues/50",
+                "kind": "issue"
+              }
+            ],
+            "since": "2026-11-09T04:07:57Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-catalog/pull/53",
+            "section": "can-wait",
+            "headline": "chore: declare component governance inputs",
+            "cause": "chore: declare component governance inputs",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #53",
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/53",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-09T18:18:17Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-catalog/pull/58",
+            "section": "can-wait",
+            "headline": "build(deps): bump org-eclipse-jetty.version from 12.0.40 to 12.0.41 in /provider/crs-catalog-azure/crs-catalog-aks",
+            "cause": "build(deps): bump org-eclipse-jetty.version from 12.0.40 to 12.0.41 in /provider/crs-catalog-azure/crs-catalog-aks",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #58",
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/58",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-16T09:30:55Z"
+          }
+        ],
+        "mark": {
+          "kind": "count",
+          "count": 1,
+          "tone": "warning"
+        }
+      },
       "runs": [
         {
           "id": "run:43988218348",
@@ -12557,6 +15348,316 @@
     },
     {
       "service": "crs-conversion",
+      "home": {
+        "repo": "Azure/osdu-spi-crs-conversion",
+        "released": "v1.4.0",
+        "next": "1.4.1",
+        "bump": "patch",
+        "releasePr": {
+          "number": 17,
+          "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/17"
+        },
+        "template": "behind",
+        "stations": [
+          {
+            "id": "upstream",
+            "state": "stopped",
+            "word": "13 behind",
+            "line": "next sync Tue 18:00",
+            "nextAt": "2026-11-18T00:00:00.000Z"
+          },
+          {
+            "id": "sync",
+            "state": "stopped",
+            "word": "Sync halted",
+            "line": "7 commits",
+            "pr": {
+              "number": 41,
+              "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/41"
+            },
+            "row": "halt:crs-conversion"
+          },
+          {
+            "id": "integration",
+            "state": "ready",
+            "word": "None open"
+          },
+          {
+            "id": "main",
+            "state": "green",
+            "word": "Green",
+            "line": "PR #43 merged Fri 15:58",
+            "lastMerge": {
+              "number": 43,
+              "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/43",
+              "at": "2026-11-13T21:58:56Z"
+            }
+          }
+        ],
+        "doors": [
+          {
+            "id": "template",
+            "count": 0,
+            "prs": []
+          },
+          {
+            "id": "release",
+            "count": 1,
+            "prs": [
+              {
+                "number": 17,
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/17"
+              }
+            ],
+            "row": "can:releases:https://github.com/Azure/osdu-spi-crs-conversion/pull/17"
+          },
+          {
+            "id": "other",
+            "count": 1,
+            "prs": [
+              {
+                "number": 40,
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/40"
+              }
+            ],
+            "row": "can:repositories:https://github.com/Azure/osdu-spi-crs-conversion/pull/40"
+          },
+          {
+            "id": "dependabot",
+            "count": 4,
+            "prs": [
+              {
+                "number": 36,
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/36"
+              },
+              {
+                "number": 35,
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/35"
+              },
+              {
+                "number": 34,
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/34"
+              },
+              {
+                "number": 33,
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/33"
+              }
+            ],
+            "row": "can:repositories:https://github.com/Azure/osdu-spi-crs-conversion/pull/33"
+          }
+        ],
+        "openPrTotal": 7,
+        "overview": [
+          {
+            "id": "halt:crs-conversion",
+            "section": "blocked",
+            "headline": "sync halted: no filter rule for schemathesis-tests",
+            "cause": "Upstream adds schemathesis-tests, a top-level entry the fork's filter has no rule for, so Sync Upstream stops with an unrecognised entry.",
+            "effect": "6 daily Sync Upstream runs failed since the halt. 13 upstream commits wait behind the halt.",
+            "steps": [],
+            "links": [
+              {
+                "label": "issue #44",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/issues/44",
+                "kind": "issue"
+              },
+              {
+                "label": "run",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/actions/runs/43985138555",
+                "kind": "run"
+              }
+            ],
+            "since": "2026-11-11T00:08:55Z"
+          },
+          {
+            "id": "gate1:crs-conversion",
+            "section": "waiting",
+            "headline": "sync PR to review",
+            "cause": "Sync PR #41 waits for review.",
+            "effect": "13 upstream commits wait on this PR.",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #41",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/41",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-10T00:08:09Z"
+          },
+          {
+            "id": "port:entitlements",
+            "section": "shared",
+            "headline": "23 upstream provider changes to port",
+            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+            "steps": [],
+            "links": [
+              {
+                "label": "!968",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+                "kind": "mr"
+              },
+              {
+                "label": "!967",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
+                "kind": "mr"
+              },
+              {
+                "label": "!963",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
+                "kind": "mr"
+              },
+              {
+                "label": "!956",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
+                "kind": "mr"
+              }
+            ],
+            "since": "2026-09-14T14:02:39Z"
+          },
+          {
+            "id": "can:security:https://github.com/Azure/osdu-spi-crs-conversion/security/dependabot?q=is%3Aopen%20package%3Aorg.asynchttpclient%3Aasync-http-client%20manifest%3Aprovider%2Fcrs-converter-azure%2Fcrs-converter-aks%2Fpom.xml",
+            "section": "can-wait",
+            "headline": "org.asynchttpclient:async-http-client",
+            "cause": "org.asynchttpclient:async-http-client",
+            "steps": [],
+            "links": [
+              {
+                "label": "Alert",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/security/dependabot?q=is%3Aopen%20package%3Aorg.asynchttpclient%3Aasync-http-client%20manifest%3Aprovider%2Fcrs-converter-azure%2Fcrs-converter-aks%2Fpom.xml",
+                "kind": "other"
+              }
+            ],
+            "since": "2026-10-13T18:13:26Z"
+          },
+          {
+            "id": "can:releases:https://github.com/Azure/osdu-spi-crs-conversion/pull/17",
+            "section": "can-wait",
+            "headline": "chore: release 1.4.1",
+            "cause": "chore: release 1.4.1",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #17",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/17",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-10-22T22:29:27Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-conversion/pull/33",
+            "section": "can-wait",
+            "headline": "build(deps): bump urllib3 from 1.25.8 to 2.8.0 in /testing/crs_converter_test_azure",
+            "cause": "build(deps): bump urllib3 from 1.25.8 to 2.8.0 in /testing/crs_converter_test_azure",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #33",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/33",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-07T01:00:47Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-conversion/pull/34",
+            "section": "can-wait",
+            "headline": "build(deps): bump certifi from 2019.11.28 to 2026.10.18 in /testing/crs_converter_test_azure",
+            "cause": "build(deps): bump certifi from 2019.11.28 to 2026.10.18 in /testing/crs_converter_test_azure",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #34",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/34",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-07T01:00:51Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-conversion/pull/35",
+            "section": "can-wait",
+            "headline": "build(deps): bump cryptography from 2.8 to 50.0.0 in /testing/crs_converter_test_azure",
+            "cause": "build(deps): bump cryptography from 2.8 to 50.0.0 in /testing/crs_converter_test_azure",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #35",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/35",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-07T01:00:54Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-conversion/pull/36",
+            "section": "can-wait",
+            "headline": "build(deps): bump pyjwt from 1.7.1 to 2.15.0 in /testing/crs_converter_test_azure",
+            "cause": "build(deps): bump pyjwt from 1.7.1 to 2.15.0 in /testing/crs_converter_test_azure",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #36",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/36",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-07T01:01:10Z"
+          },
+          {
+            "id": "can:security:https://github.com/Azure/osdu-spi-crs-conversion/security/code-scanning/85",
+            "section": "can-wait",
+            "headline": "Disabled Spring CSRF protection",
+            "cause": "Disabled Spring CSRF protection",
+            "steps": [],
+            "links": [
+              {
+                "label": "Alert",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/security/code-scanning/85",
+                "kind": "other"
+              }
+            ],
+            "since": "2026-11-07T01:02:38Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-conversion/issues/37",
+            "section": "can-wait",
+            "headline": "CODEOWNERS: missing or unresolvable owners",
+            "cause": "CODEOWNERS: missing or unresolvable owners",
+            "steps": [],
+            "links": [
+              {
+                "label": "Issue #37",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/issues/37",
+                "kind": "issue"
+              }
+            ],
+            "since": "2026-11-09T04:10:28Z"
+          },
+          {
+            "id": "can:repositories:https://github.com/Azure/osdu-spi-crs-conversion/pull/40",
+            "section": "can-wait",
+            "headline": "chore: declare component governance inputs",
+            "cause": "chore: declare component governance inputs",
+            "steps": [],
+            "links": [
+              {
+                "label": "PR #40",
+                "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/40",
+                "kind": "pr"
+              }
+            ],
+            "since": "2026-11-09T18:18:24Z"
+          }
+        ],
+        "mark": {
+          "kind": "count",
+          "count": 2,
+          "tone": "error"
+        }
+      },
       "runs": [
         {
           "id": "run:43985138555",
@@ -14730,18 +17831,8 @@
     },
     {
       "path": "/briefing/focus/2",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
+      "areas": ["github", "runs"],
+      "attributed": "item"
     },
     {
       "path": "/briefing/focus/3",
@@ -14760,16 +17851,6 @@
     },
     {
       "path": "/briefing/focus/4",
-      "areas": ["github", "details"],
-      "attributed": "item"
-    },
-    {
-      "path": "/briefing/rest/0",
-      "areas": ["github", "lifecycle"],
-      "attributed": "item"
-    },
-    {
-      "path": "/briefing/rest/1",
       "areas": [
         "github",
         "runs",
@@ -14782,6 +17863,16 @@
         "security"
       ],
       "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/rest/0",
+      "areas": ["github", "details"],
+      "attributed": "item"
+    },
+    {
+      "path": "/briefing/rest/1",
+      "areas": ["github", "lifecycle"],
+      "attributed": "item"
     },
     {
       "path": "/briefing/rest/2",
@@ -14830,8 +17921,18 @@
     },
     {
       "path": "/briefing/rest/5",
-      "areas": ["github", "upstream"],
-      "attributed": "item"
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/briefing/rest/6",
@@ -14855,27 +17956,27 @@
     },
     {
       "path": "/briefing/rest/10",
-      "areas": ["github", "lifecycle", "details"],
+      "areas": ["github", "upstream"],
       "attributed": "item"
     },
     {
       "path": "/briefing/rest/11",
-      "areas": ["github"],
+      "areas": ["github", "lifecycle", "details"],
       "attributed": "item"
     },
     {
       "path": "/briefing/rest/12",
-      "areas": ["github", "lifecycle", "details"],
-      "attributed": "item"
-    },
-    {
-      "path": "/briefing/rest/13",
       "areas": ["github"],
       "attributed": "item"
     },
     {
-      "path": "/briefing/rest/14",
+      "path": "/briefing/rest/13",
       "areas": ["github", "lifecycle", "details"],
+      "attributed": "item"
+    },
+    {
+      "path": "/briefing/rest/14",
+      "areas": ["github"],
       "attributed": "item"
     },
     {
@@ -14890,6 +17991,11 @@
     },
     {
       "path": "/briefing/rest/17",
+      "areas": ["github", "lifecycle", "details"],
+      "attributed": "item"
+    },
+    {
+      "path": "/briefing/rest/18",
       "areas": [
         "github",
         "runs",
@@ -14945,113 +18051,33 @@
     },
     {
       "path": "/briefing/lines/2",
-      "areas": ["github", "details"],
+      "areas": ["github", "runs"],
       "attributed": "item"
     },
     {
       "path": "/briefing/lines/2/members/0",
-      "areas": ["github", "details"],
+      "areas": ["github", "runs"],
       "attributed": "item"
     },
     {
       "path": "/briefing/lines/3",
-      "areas": ["github", "lifecycle"],
+      "areas": ["github", "details"],
       "attributed": "item"
     },
     {
       "path": "/briefing/lines/3/members/0",
-      "areas": ["github", "lifecycle"],
+      "areas": ["github", "details"],
       "attributed": "item"
     },
     {
       "path": "/briefing/lines/4",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
+      "areas": ["github", "lifecycle"],
+      "attributed": "item"
     },
     {
       "path": "/briefing/lines/4/members/0",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
-    },
-    {
-      "path": "/briefing/lines/4/members/1",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
-    },
-    {
-      "path": "/briefing/lines/4/members/2",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
-    },
-    {
-      "path": "/briefing/lines/4/members/3",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
-    },
-    {
-      "path": "/briefing/lines/4/members/4",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
+      "areas": ["github", "lifecycle"],
+      "attributed": "item"
     },
     {
       "path": "/briefing/lines/5",
@@ -15129,59 +18155,119 @@
       "attributed": "sweep"
     },
     {
+      "path": "/briefing/lines/5/members/4",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
       "path": "/briefing/lines/6",
-      "areas": ["github", "upstream"],
-      "attributed": "item"
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/briefing/lines/6/members/0",
-      "areas": ["github", "upstream"],
-      "attributed": "item"
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/6/members/1",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/6/members/2",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/6/members/3",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/briefing/lines/7",
-      "areas": ["github"],
+      "areas": ["github", "upstream"],
       "attributed": "item"
     },
     {
       "path": "/briefing/lines/7/members/0",
-      "areas": ["github"],
-      "attributed": "item"
-    },
-    {
-      "path": "/briefing/lines/7/members/1",
-      "areas": ["github"],
+      "areas": ["github", "upstream"],
       "attributed": "item"
     },
     {
       "path": "/briefing/lines/8",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
+      "areas": ["github"],
+      "attributed": "item"
     },
     {
       "path": "/briefing/lines/8/members/0",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
+      "areas": ["github"],
+      "attributed": "item"
+    },
+    {
+      "path": "/briefing/lines/8/members/1",
+      "areas": ["github"],
+      "attributed": "item"
     },
     {
       "path": "/briefing/lines/9",
@@ -15200,6 +18286,36 @@
     },
     {
       "path": "/briefing/lines/9/members/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/10",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/10/members/0",
       "areas": [
         "github",
         "runs",
@@ -17457,6 +20573,22 @@
       }
     },
     {
+      "path": "/services/0/home",
+      "areas": [
+        "fleet",
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
       "path": "/services/0/runs/0",
       "areas": ["runs"]
     },
@@ -17568,6 +20700,22 @@
         },
         "inferred": true
       }
+    },
+    {
+      "path": "/services/1/home",
+      "areas": [
+        "fleet",
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/services/1/runs/0",
@@ -17683,6 +20831,22 @@
       }
     },
     {
+      "path": "/services/2/home",
+      "areas": [
+        "fleet",
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
       "path": "/services/2/runs/0",
       "areas": ["runs"]
     },
@@ -17794,6 +20958,22 @@
         },
         "inferred": true
       }
+    },
+    {
+      "path": "/services/3/home",
+      "areas": [
+        "fleet",
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/services/3/runs/0",
@@ -17909,6 +21089,22 @@
       }
     },
     {
+      "path": "/services/4/home",
+      "areas": [
+        "fleet",
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
       "path": "/services/4/runs/0",
       "areas": ["runs"]
     },
@@ -18020,6 +21216,22 @@
         },
         "inferred": true
       }
+    },
+    {
+      "path": "/services/5/home",
+      "areas": [
+        "fleet",
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/services/5/runs/0",
@@ -18135,6 +21347,22 @@
       }
     },
     {
+      "path": "/services/6/home",
+      "areas": [
+        "fleet",
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
       "path": "/services/6/runs/0",
       "areas": ["runs"]
     },
@@ -18246,6 +21474,22 @@
         },
         "inferred": true
       }
+    },
+    {
+      "path": "/services/7/home",
+      "areas": [
+        "fleet",
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/services/7/runs/0",
@@ -18361,6 +21605,22 @@
       }
     },
     {
+      "path": "/services/8/home",
+      "areas": [
+        "fleet",
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
       "path": "/services/8/runs/0",
       "areas": ["runs"]
     },
@@ -18466,6 +21726,22 @@
       }
     },
     {
+      "path": "/services/9/home",
+      "areas": [
+        "fleet",
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
       "path": "/services/9/runs/0",
       "areas": ["runs"]
     },
@@ -18561,6 +21837,22 @@
         },
         "inferred": true
       }
+    },
+    {
+      "path": "/services/10/home",
+      "areas": [
+        "fleet",
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/services/10/runs/0",
@@ -18670,6 +21962,22 @@
         },
         "inferred": true
       }
+    },
+    {
+      "path": "/services/11/home",
+      "areas": [
+        "fleet",
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/services/11/runs/0",
@@ -18783,6 +22091,22 @@
         },
         "inferred": true
       }
+    },
+    {
+      "path": "/services/12/home",
+      "areas": [
+        "fleet",
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
     },
     {
       "path": "/services/12/runs/0",

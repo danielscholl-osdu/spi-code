@@ -3,7 +3,7 @@
 
 import { forkOf, githubUrl, shortRepo, TEMPLATE_REPO } from "../config.js";
 import type { CoreContext } from "../context.js";
-import type { OutsidePr, PrFact, RepoFact, WaitingRun } from "../facts.js";
+import type { ForkRuns, OutsidePr, PrFact, RepoFact, WaitingRun } from "../facts.js";
 import { governing, type Judgement } from "../rollout.js";
 import { clip, plural, releaseTag, short, dailySyncTime, timeClause } from "../util.js";
 import {
@@ -13,6 +13,7 @@ import {
   prFailures,
   toolchainText,
 } from "./attribution.js";
+import { cascadeMonitor } from "./cascade-monitor.js";
 import { prReady, prVerdict } from "./checks.js";
 import { type DismissEntry, fingerprintOf, quieted } from "./dismiss.js";
 import type { LineModel, LinePr } from "./lines.js";
@@ -31,6 +32,7 @@ import {
 } from "./stack.js";
 import { predates, type TemplateModel } from "./template.js";
 import { syncSplit, type UpFork } from "./upstream.js";
+import { workflowFailure } from "./workflow-failure.js";
 
 export type Rung = 0 | 1 | 2;
 
@@ -58,6 +60,7 @@ export type ItemKind =
   | "sync-run"
   | "conflict"
   | "cascade"
+  | "cascade-missed"
   | "main"
   | "template-run"
   | "gate1"
@@ -362,7 +365,60 @@ function gateText(p: LinePr): string {
   return ` fails ${failure.check}${tool ? `: ${tool}` : failure.reason ? `: ${failure.reason}` : ""}`;
 }
 
-function lineItems(line: LineModel, stack: StackModel, now: Date, context: CoreContext): QueueItem[] {
+function syncFailureItem(line: LineModel, runs: ForkRuns | undefined): QueueItem | undefined {
+  const sync = line.syncPr?.pr;
+  const run = sync && workflowFailure(runs?.sync ?? []);
+  if (!sync || !run) return undefined;
+  const jobs = runs?.syncRunJobs?.[`${run.id}#${run.attempt}`];
+  const failed = jobs?.filter((job) => job.conclusion === "failure" || job.conclusion === "timed_out") ?? [];
+  const job = failed.find((job) => job.failedStep) ?? failed[0];
+  const step = job?.failedStep;
+  const cause = step
+    ? `Sync Upstream failed at ${job.name} › ${step}`
+    : `Sync Upstream failed${job ? ` in ${job.name}` : ""}. The failing step was not read`;
+  return {
+    id: `sync-run:${line.fork.id}`,
+    kind: "sync-run",
+    rung: 0,
+    scope: line.fork.id,
+    text: "Sync failed",
+    url: run.url,
+    since: run.createdAt,
+    effects: [],
+    cause: [
+      { label: "reason", value: cause, url: job?.url },
+      { label: "run", value: "Sync Upstream", url: run.url },
+      { label: "PR", value: `#${sync.number}` },
+    ],
+    incident: true,
+    blocks: line.upstream?.lag ?? 1,
+  };
+}
+
+function cascadeMissedItem(fork: UpFork, runs: ForkRuns | undefined, now: Date, context: CoreContext): QueueItem | undefined {
+  const monitor = cascadeMonitor(fork, runs, now);
+  if (!monitor?.overdue || !fork.tracking) return undefined;
+  const workflow = githubUrl(fork.repo, "/actions/workflows/cascade.yml");
+  return {
+    id: `cascade-missed:${fork.service}`,
+    kind: "cascade-missed",
+    rung: 1,
+    scope: fork.service,
+    text: "Cascade didn't start",
+    url: workflow,
+    since: monitor.deadline,
+    cause: [
+      { label: "reason", value: `Sync PR #${monitor.merge.number} merged${timeClause(monitor.merge.at, now, context, " at ")}. Cascade Monitor was due${timeClause(monitor.at, now, context, " at ")} and no Cascade Integration run has started` },
+      { label: "workflow", value: "Cascade Integration", url: workflow },
+      { label: "issue", value: `#${fork.tracking.number}`, url: fork.tracking.url },
+    ],
+    effects: [],
+    incident: false,
+    blocks: 1,
+  };
+}
+
+function lineItems(line: LineModel, runs: ForkRuns | undefined, stack: StackModel, now: Date, context: CoreContext): QueueItem[] {
   const items: QueueItem[] = [];
   const svc = line.fork.id;
   const deployment = line.lane.last;
@@ -476,6 +532,10 @@ function lineItems(line: LineModel, stack: StackModel, now: Date, context: CoreC
       incident: true,
       blocks: lag ?? 1,
     });
+  }
+  if (!line.halt) {
+    const failed = syncFailureItem(line, runs);
+    if (failed) items.push(failed);
   }
   for (const issue of line.conflicts) {
     items.push({
@@ -1393,6 +1453,8 @@ interface QueueInput {
   template: TemplateModel;
   rollout?: RolloutModel;
   repos: Record<string, RepoFact>;
+  runs?: Record<string, ForkRuns>;
+  runsFailed?: boolean;
   details: Parameters<typeof prFailures>[1];
   approvals: Record<string, WaitingRun[]> | undefined;
   radar?: RadarModel;
@@ -1432,7 +1494,11 @@ function queueItems(input: QueueInput, context: CoreContext): QueueItem[] {
   const { stack, lines, template, repos, details, approvals, radar, now } = input;
   const items: QueueItem[] = [];
   items.push(...stackItems(stack, lines, now, context).items);
-  for (const line of lines) items.push(...lineItems(line, stack, now, context));
+  for (const line of lines) items.push(...lineItems(line, input.runs?.[line.fork.repo], stack, now, context));
+  for (const fork of input.forks) {
+    const missed = cascadeMissedItem(fork, input.runsFailed ? undefined : input.runs?.[fork.repo], now, context);
+    if (missed) items.push(missed);
+  }
   items.push(...radarItems(lines, radar, input.forks, now, context));
   items.push(...portItems(lines, radar, now, context));
   items.push(...approvalItems(approvals));

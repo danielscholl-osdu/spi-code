@@ -23,6 +23,7 @@ export const KIND_TITLE: Readonly<Record<ItemKind, string>> = Object.freeze({
   "sync-run": "Sync Upstream failed",
   conflict: "cascade conflict",
   cascade: "cascade stopped",
+  "cascade-missed": "Cascade did not start",
   main: "main red",
   "template-run": "Sync Template failed",
   gate1: "sync PR",

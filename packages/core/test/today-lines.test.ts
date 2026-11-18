@@ -1,7 +1,10 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { readFileSync } from "node:fs";
+import { todayMembers, ViewSnapshotSchema } from "@spi-code/contracts";
 import { describe, expect, test } from "vitest";
+import { watchFixtures } from "../../../scripts/watch-generated.mjs";
 import { buildBriefing } from "../src/brief/index";
 import { todayLines } from "../src/brief/lines";
 import { emptyFacts, type Facts } from "../src/facts";
@@ -21,15 +24,87 @@ const lines = todayLines(model, items, now, context);
 const lineWith = (id: string) => lines.find((line) => line.members.some((m) => m.id === id));
 
 describe("Today's situation lines", () => {
-  test("the unchanged 16 Nov sweep has 10 lines and 18 members: 2 blocked, 16 waiting", () => {
-    expect(lines).toHaveLength(10);
-    expect(lines.flatMap((line) => line.members)).toHaveLength(18);
+  test("the 16 Nov sweep has 11 lines and 19 members: 3 blocked, 16 waiting", () => {
+    expect(lines).toHaveLength(11);
+    expect(lines.flatMap((line) => line.members)).toHaveLength(19);
     expect(
       lines.filter((line) => line.section === "blocked").flatMap((l) => l.members),
-    ).toHaveLength(2);
+    ).toHaveLength(3);
     expect(
       lines.filter((line) => line.section === "waiting").flatMap((l) => l.members),
     ).toHaveLength(16);
+  });
+
+  test("the same Today members and shared port work reach only the owing fork homes", () => {
+    const fixtures = [
+      ...watchFixtures().filter(({ name }) => name.startsWith("snapshot-")),
+      { name: "16 Nov", path: "apps/window/src/views/today/snapshot-1116.json" },
+    ];
+    expect(fixtures.map(({ name }) => name)).toEqual(
+      expect.arrayContaining([
+        "snapshot-calm.json",
+        "snapshot-busy.json",
+        "snapshot-bad.json",
+        "16 Nov",
+      ]),
+    );
+    for (const { name, path } of fixtures) {
+      const snapshot = ViewSnapshotSchema.parse(JSON.parse(readFileSync(path, "utf8")));
+      const services = (snapshot.services ?? []).map(({ service, home }) => {
+        if (!home) throw new Error(`${name}: ${service} is missing its home`);
+        return { service, home };
+      });
+      const entries = todayMembers(snapshot.briefing);
+      const rows = services.flatMap(({ service, home }) =>
+        home.overview.map((row) => ({ ...row, service })),
+      );
+      const ports = snapshot.briefing.horizon.owed?.services ?? [];
+      for (const { line, member } of entries) {
+        if (member.ids.some((id) => id.startsWith("port:"))) {
+          expect(
+            rows
+              .filter((row) => row.id === member.id)
+              .map((row) => [row.section, row.service])
+              .sort(),
+            name,
+          ).toEqual(ports.map(({ service }) => ["shared", service]).sort());
+        } else if (services.some(({ service }) => service === member.fork)) {
+          expect(
+            rows.filter((row) => row.id === member.id),
+            name,
+          ).toMatchObject([
+            { service: member.fork, section: line.section, headline: line.headline },
+          ]);
+          expect(
+            rows.filter((row) => row.id === member.id),
+            name,
+          ).toHaveLength(1);
+          if (member.primary)
+            expect(rows.find((row) => row.id === member.id)?.links[0], name).toEqual(
+              member.primary,
+            );
+        }
+      }
+      for (const { service, home } of services) {
+        const yours = home.overview.filter(
+          ({ section }) => section === "blocked" || section === "waiting",
+        );
+        expect(home.mark.kind === "count" ? home.mark.count : 0, `${name} ${service}`).toBe(
+          yours.length,
+        );
+        if (home.mark.kind === "count")
+          expect(home.mark.tone).toBe(
+            yours.some((r) => r.section === "blocked") ? "error" : "warning",
+          );
+        const known = [
+          ...home.stations.flatMap(({ pr }) => (pr ? [pr.number] : [])),
+          ...home.doors.flatMap(({ prs }) => prs.map((pr) => pr.number)),
+        ];
+        expect(new Set(known).size, `${name} ${service}`).toBe(known.length);
+        if (home.openPrTotal !== undefined && home.doors.every((door) => door.count !== null))
+          expect(known.length, `${name} ${service}`).toBe(home.openPrTotal);
+      }
+    }
   });
 
   test("five red PRs take their blocker's move and keep the lane condition before the merge", () => {
@@ -43,7 +118,7 @@ describe("Today's situation lines", () => {
     ]);
     expect(line).toMatchObject({
       subject: "5 forks",
-      headline: "release/upstream PR red: its deploy lane failed",
+      headline: "Integration PR red: its deploy lane failed",
       steps: [
         "Re-run the failed lanes once the others drain.",
         "Approve and merge each PR once it is green.",
@@ -131,7 +206,7 @@ describe("Today's situation lines", () => {
     const syncLine = result.find((line) => line.members.some((m) => m.id === sync.id));
     expect(releaseLine).not.toBe(syncLine);
     expect(releaseLine).toMatchObject({
-      headline: "release/upstream PR red: its deploy lane failed",
+      headline: "Integration PR red: its deploy lane failed",
     });
     expect(releaseLine?.members).toHaveLength(5);
     expect(syncLine).toMatchObject({ headline: "sync PR waits for its deploy lane" });
@@ -156,7 +231,7 @@ describe("Today's situation lines", () => {
   test("different failures stay separate even when both moves are Investigate", () => {
     expect(lineWith("gate2:storage")).toMatchObject({
       subject: "storage",
-      headline: "release/upstream PR fails Validation Summary",
+      headline: "Integration PR fails Validation Summary",
     });
     expect(lineWith("lane-deploy:partition")).toMatchObject({
       subject: "partition",
@@ -165,10 +240,19 @@ describe("Today's situation lines", () => {
     expect(lineWith("gate2:storage")).not.toBe(lineWith("lane-deploy:partition"));
   });
 
+  test("a behind integration PR asks for an update before approval", () => {
+    const search = items.find((item) => item.id === "gate2:search");
+    if (!search) throw new Error("Search's integration PR is missing");
+    expect(todayLines(model, [search], now, context)[0]).toMatchObject({
+      headline: "Integration PR needs its branch updated, then approval",
+      members: [{ id: "gate2:search" }],
+    });
+  });
+
   test("approval members do not claim green while a member's checks are running", () => {
     const group = lineWith("gate2:partition");
     expect(group?.members.map((m) => m.id)).toEqual(["gate2:search", "gate2:partition"]);
-    expect(group?.headline).toBe("release/upstream PR waits for approval");
+    expect(group?.headline).toBe("Integration PR waits for approval");
   });
 
   test("no line headline leaks a core verb name or error code", () => {

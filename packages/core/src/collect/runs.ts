@@ -122,6 +122,7 @@ export async function readForkRuns(
       ]);
       data[f.repo] = {
         sync: sync.data, template: template.data, cascade: cascade.data, main: main.data,
+        cascadeReadAt: cascade.completeness.kind === "complete" ? ctx.clock.now().toISOString() : null,
         history: { sync: sync.history, template: template.history },
       };
       return { ...read, completeness: combine([sync, template, cascade, main].map((r) => r.completeness)) };

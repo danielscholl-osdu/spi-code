@@ -241,6 +241,7 @@ export function jobsKey(run: Pick<RunFact, "id" | "attempt">): string {
 export async function readRunJobs(
   gh: Gh, state: unknown, repo: string, run: RunFact, ctx: CoreContext,
   previous?: LifecycleRead<JobDetail[]>,
+  listingOnly = false,
 ) {
   const { cache, reads } = details(state, ctx);
   const jobs = new Map<number, RawJob>();
@@ -262,6 +263,7 @@ export async function readRunJobs(
       break;
     }
   }
+  if (listingOnly) return { data: [...jobs.values()].map(toJob), cache, reads };
   const listing = [...reads];
   const results = await pool([...jobs.values()], 3, async (raw) => {
     const job = toJob(raw);

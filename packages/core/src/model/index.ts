@@ -1,6 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+export { workflowFailure } from "./workflow-failure.js";
+
 import { isStoppedFork } from "@spi-code/contracts";
 import { type ServiceDef, TEMPLATE_REPO } from "../config.js";
 import type { CoreContext } from "../context.js";
@@ -153,6 +155,8 @@ export function buildModel(
     template,
     rollout,
     repos,
+    runs: facts.runs.data,
+    runsFailed: !!facts.runs.error,
     details,
     approvals: facts.approvals.data,
     radar,

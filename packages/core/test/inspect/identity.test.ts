@@ -22,10 +22,11 @@ import { FIXTURE_NOW, fixtureFacts, laneFacts } from "../harness.js";
 // Digests of what the rib renders consoleHtml and its model from, recorded on main 322e474
 // before reads were attached to FILTERS rows and action reasons. The models digest was
 // re-recorded when findings that name no file took the settings reach (spicode-xzj), and when
-// the template model gained its verified fork count (spicode-t1k.289); nothing else moved.
+// the template model gained its verified fork count (spicode-t1k.289), and for service
+// home merge and alert dates (spicode-mw0.4).
 // Re-record only models with SPI_RECORD_MODEL_DIGEST=1.
 const RECORDED = {
-  models: "91eaae005392edb64bdb029c6ac34d66fe9a05845b32675fc079b7fc99b85017",
+  models: "6c5f93fdca96ac52a007a2b8116ec10facea31337ef025ec7d7f9505c1eb1d8e",
   inspections: "3777546a40cff0970a1bfbc65d5fd8b136ef0f788c30a17a6f3d4218152fddf6",
   actions: "744e914c0cb35180d704715989e9b450331b1cd93ca10a94bec0a38fce62ce05",
   filters: "a3bf2be2d43ccad1cc0367a70a25b6c9cdea8392b2c684ae8f8a8dd90b298cc4",

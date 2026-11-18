@@ -59,6 +59,11 @@ function evidenceOf(model: Model, item: QueueItem): ItemEvidence {
   } else if (line && item.kind === "sync-run") {
     areas.add("github");
     areas.add("runs");
+    if (item.cause.some((fact) => fact.label === "reason" && fact.value.includes("step was not read")))
+      notRead.push("Failed Sync Upstream step");
+  } else if (line && item.kind === "cascade-missed") {
+    areas.add("github");
+    areas.add("runs");
   } else if (line && item.kind === "template-run") {
     areas.add("runs");
   } else if (line && ["labels", "conflict", "cascade"].includes(item.kind)) {

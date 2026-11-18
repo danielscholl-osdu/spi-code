@@ -123,6 +123,7 @@ const repoFact = z.object({
   prs: z.array(prFact),
   issues: z.array(issueFact),
   openPrs: z.number().optional(),
+  prsUnread: z.literal(true).optional(),
   openIssues: z.number().optional(),
   deployments: z.array(deploymentFact),
   pastPrs: z.array(pastPrFact).optional(),
@@ -204,9 +205,11 @@ const forkRuns = z.object({
   sync: z.array(runFact),
   template: z.array(runFact),
   cascade: z.array(runFact),
+  cascadeReadAt: z.string().nullable().optional(),
   main: z.array(runFact),
   mainRunJobs: jobsByRun.optional(),
   cascadeRunJobs: jobsByRun.optional(),
+  syncRunJobs: jobsByRun.optional(),
   integration: commitAt.optional(),
 });
 

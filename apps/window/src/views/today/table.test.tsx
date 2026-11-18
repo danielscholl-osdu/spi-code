@@ -1,13 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import {
-  FocusItemSchema,
-  TodayLineSchema,
-  type TodaySummary,
-  type ViewSnapshot,
-  ViewSnapshotSchema,
-} from "@spi-code/contracts";
+import { type TodaySummary, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it } from "vitest";
@@ -18,16 +12,15 @@ import {
   setOpenSelection,
   useLineSheetRequest,
 } from "../../app/navigation.js";
-import recorded from "../../components/opened-body/sweep-1116.json?raw";
 import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
-import { clockTime } from "../../time.js";
+import { clockTime, timedText } from "../../time.js";
 import snapshot1116 from "./snapshot-1116.json?raw";
 import { ageInOneUnit, TodayTable } from "./Table.js";
 
-const sweep = JSON.parse(recorded);
-const lines = TodayLineSchema.array().parse(sweep.lines);
-const items = FocusItemSchema.array().parse(sweep.items);
-const summary1116 = ViewSnapshotSchema.parse(JSON.parse(snapshot1116)).briefing.today;
+const recorded = ViewSnapshotSchema.parse(JSON.parse(snapshot1116)).briefing;
+const lines = recorded.lines ?? [];
+const items = [...recorded.focus, ...recorded.rest];
+const summary1116 = recorded.today;
 const loadFixture = fixtureLoader(readFixture);
 
 /** The 16 Nov lines and summary over a recorded snapshot's forks; the table reads nothing else from it. */
@@ -104,13 +97,13 @@ const opened = () => [...container.querySelectorAll("tr.today-row-body")];
 const bodyAfter = (tr: Element) =>
   tr.nextElementSibling?.classList.contains("today-row-body") ? tr.nextElementSibling : null;
 
-it("draws 16 Nov as 2 Blocked and 16 Waiting on you in 10 rows, with no verb", async () => {
+it("draws 16 Nov as 3 Blocked and 16 Waiting on you in 11 rows, with no verb", async () => {
   await render();
-  expect(section("blocked")?.querySelector(".today-section-count")?.textContent).toBe("2");
+  expect(section("blocked")?.querySelector(".today-section-count")?.textContent).toBe("3");
   expect(section("waiting")?.querySelector(".today-section-count")?.textContent).toBe("16");
   expect(
     container.querySelectorAll("tr.today-row:not(.today-row--sub, .today-row--place)"),
-  ).toHaveLength(10);
+  ).toHaveLength(11);
   expect(container.querySelectorAll("tr.today-row--sub")).toHaveLength(
     lines.filter((line) => line.members.length > 1).reduce((n, l) => n + l.members.length, 0),
   );
@@ -229,7 +222,10 @@ it("a deadline is a clock by the age carrying its reason", async () => {
   await render();
   const clock = row("blocked:halt:crs-conversion").querySelector(".today-row-clock");
   expect(clock?.getAttribute("aria-label")).toBe(
-    lines.find(({ id }) => id === "blocked:halt:crs-conversion")?.deadline?.reason,
+    timedText(
+      lines.find(({ id }) => id === "blocked:halt:crs-conversion")?.deadline?.reason ?? "",
+      { hint: false },
+    ),
   );
   expect(clock?.getAttribute("tabindex")).toBe("0");
   expect(row("blocked:sync-run:indexer").querySelector(".today-row-clock")).toBeNull();

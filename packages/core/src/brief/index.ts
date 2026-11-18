@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+export { serviceHome } from "./service-home.js";
 export { todaySummary, todayHistory } from "./today-summary.js";
 export { repositoryToday, syncCompanions, type RepoToday } from "./repo-today.js";
 
