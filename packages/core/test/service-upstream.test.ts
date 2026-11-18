@@ -15,8 +15,8 @@ const MR_LIST = "merge_requests?state=opened&target_branch=master";
 const day = 24 * 60 * 60 * 1000;
 const ago = (days: number) => new Date(now.getTime() - days * day).toISOString();
 
-function project(facts: Facts, reads: SweepReads = {}) {
-  const result = serviceUpstream({ model: sweep1116Model(facts), facts, reads, now }).get(service);
+function project(facts: Facts, reads: SweepReads = {}, model = sweep1116Model(facts)) {
+  const result = serviceUpstream({ model, facts, reads, now }).get(service);
   if (!result) throw new Error("No lists for search");
   return ServiceUpstreamSecuritySchema.parse(result);
 }
@@ -159,11 +159,24 @@ test("a closed Dependabot PR sits on an alert only when its branch names the pac
     57,
     "dependabot/maven/testing/storage-test-core/org.apache.commons-commons-lang3-extra-1.0",
   );
-  const deeper = closed(59, "dependabot/maven/extra/testing/storage-test-core/org.apache.commons-commons-lang3-3.18.0");
+  const deeper = closed(
+    59,
+    "dependabot/maven/extra/testing/storage-test-core/org.apache.commons-commons-lang3-3.18.0",
+  );
   const merged = { ...match, number: 58, mergedAt: ago(8) };
   expect(closedFix(alert, [match, elsewhere, root, longer, deeper, merged])?.number).toBe(54);
   expect(closedFix(alert, [elsewhere, root, longer, deeper, merged])).toBeUndefined();
   expect(closedFix({ ...alert, manifest: "pom.xml" }, [match, elsewhere, root])?.number).toBe(56);
+  expect(
+    closedFix({ ...alert, manifest: "testing/Storage-Test-Core/pom.xml" }, [match]),
+  ).toBeUndefined();
+  const example = { package: "example", manifest: "pom.xml" };
+  expect(
+    closedFix(example, [closed(60, "dependabot/npm_and_yarn/example-3d-1.2.0")]),
+  ).toBeUndefined();
+  expect(
+    closedFix(example, [closed(61, "dependabot/npm_and_yarn/example-1.2.0-rc.1")])?.number,
+  ).toBe(61);
 
   const facts = withAlerts(
     [dep(22, alert.package, alert.manifest), dep(23, alert.package, "testing/other/pom.xml")],
@@ -175,6 +188,27 @@ test("a closed Dependabot PR sits on an alert only when its branch names the pac
     [23, undefined],
     [22, 54],
   ]);
+});
+
+test("settings and tooling paths join the tests group as tooling, whatever the dependency's scope", () => {
+  const facts = withAlerts(
+    [dep(1, "actions/checkout", ".github/workflows/pom.xml", { scope: "development" })],
+    [
+      code(2, "actions/permissions", "no file associated with this alert"),
+      code(3, "js/xss", "docs/Build Notes/page.js"),
+      code(4, "java/xss", "search-core/src/main/java/Search Page.java"),
+    ],
+  );
+  const { security } = project(facts);
+  expect(
+    security.rows.map(({ alerts, group, tooling }) => [alerts[0]?.number, group, tooling]),
+  ).toEqual([
+    [4, "upstream", undefined],
+    [1, "tests", true],
+    [2, "tests", true],
+    [3, "tests", true],
+  ]);
+  expect(security.count).toBe(1);
 });
 
 test("open upstream shows moving non-drafts newest first and counts a draft that is also idle once, as a draft", () => {
@@ -263,4 +297,44 @@ test("a list hidden from the token or a failed alert read leaves the Security co
   }).security;
   expect(failed).toMatchObject({ count: null, dependabot: { read: false, at: retained } });
   expect(failed.rows).toHaveLength(1);
+});
+
+test("a cut merged-MR read leaves To port not read, with the kept rows' read time", () => {
+  const facts = sweep1116Facts();
+  const kept = ago(3);
+  const { upstream: lists } = project(facts, {
+    radar: [
+      {
+        source: upstream,
+        object: "merged MRs",
+        observedAt: now.toISOString(),
+        completeness: {
+          kind: "cut",
+          reason: "Merged MRs page is incomplete",
+          read: 100,
+          total: 101,
+        },
+        retainedFrom: kept,
+      },
+    ],
+  });
+  expect(project(facts).upstream.toPort.read).toBe(true);
+  expect(lists.count).toBeNull();
+  expect(lists.toPort).toMatchObject({ read: false, at: kept });
+});
+
+test("an open sync PR whose holdings are unknown leaves Next sync not read, with no queue", () => {
+  const facts = sweep1116Facts();
+  const model = sweep1116Model(facts);
+  const fork = model.upstream.forks.find((entry) => entry.service === service);
+  if (!fork) throw new Error("Search fork missing");
+  expect(project(facts, {}, model).upstream.nextSync).toMatchObject({ read: true });
+  fork.syncPr = {
+    number: 99,
+    url: `https://github.com/${repo}/pull/99`,
+    headSha: "abc",
+    verdict: "green",
+  };
+  const { nextSync } = project(facts, {}, model).upstream;
+  expect(nextSync).toEqual({ read: false, at: facts.upstream.at });
 });

@@ -26,7 +26,7 @@ function MrRow({
     <li>
       <div className="service-list-row">
         <span>
-          <LinkPill link={{ label: `MR !${iid}`, url, kind: "mr" }} />
+          <LinkPill link={{ label: `MR !${iid}`, url, kind: "mr" }} filled />
         </span>
         <span className="service-list-what">
           <span className="service-list-title">{title}</span>
@@ -45,6 +45,8 @@ function NextSync({ id, nextSync }: { id: string; nextSync: ServiceUpstream["nex
   const unread = !nextSync.read && <NotRead id={id} what="Upstream's queue" at={nextSync.at} />;
   if (!queue) return <ListSection id="next-sync" label="Next sync" before={unread} />;
   const { held, next, behind, head } = queue;
+  if (behind === 0 && !nextSync.read)
+    return <ListSection id="next-sync" label="Next sync" before={unread} />;
   return (
     <ListSection id="next-sync" label="Next sync" before={unread}>
       <li>
@@ -74,7 +76,10 @@ function NextSync({ id, nextSync }: { id: string; nextSync: ServiceUpstream["nex
             )}
           </span>
           {held && (
-            <LinkPill link={{ label: `PR #${held.pr.number}`, url: held.pr.url, kind: "pr" }} />
+            <LinkPill
+              link={{ label: `PR #${held.pr.number}`, url: held.pr.url, kind: "pr" }}
+              filled
+            />
           )}
         </div>
       </li>
@@ -116,19 +121,17 @@ export function Upstream({ id, snapshot }: TabProps) {
         before={!toPort.read && <NotRead id={id} what="Provider changes to port" at={toPort.at} />}
       >
         {toPort.mrs &&
-          (toPort.mrs.length === 0 ? (
-            <li className="service-list-empty">Nothing to port.</li>
-          ) : (
-            toPort.mrs.map((mr) => (
-              <MrRow key={mr.iid} {...mr} sub={mr.trees.join(" · ")} at={mr.mergedAt} />
-            ))
-          ))}
+          (toPort.mrs.length === 0
+            ? toPort.read && <li className="service-list-empty">Nothing to port.</li>
+            : toPort.mrs.map((mr) => (
+                <MrRow key={mr.iid} {...mr} sub={mr.trees.join(" · ")} at={mr.mergedAt} />
+              )))}
       </ListSection>
       <NextSync id={id} nextSync={nextSync} />
       <ListSection
         id="open-upstream"
         label="Open upstream"
-        count={open.list?.total}
+        count={open.read ? open.list?.total : undefined}
         before={!open.read && <NotRead id={id} what="Open upstream" at={open.at} />}
         after={
           open.list &&
@@ -142,13 +145,13 @@ export function Upstream({ id, snapshot }: TabProps) {
           )
         }
       >
-        {open.list?.total === 0 ? (
-          <li className="service-list-empty">None open.</li>
-        ) : open.list?.shown.length ? (
-          open.list.shown.map((mr) => (
-            <MrRow key={mr.iid} {...mr} sub={mr.author} at={mr.updatedAt} />
-          ))
-        ) : undefined}
+        {open.list?.total === 0
+          ? open.read && <li className="service-list-empty">None open.</li>
+          : open.list?.shown.length
+            ? open.list.shown.map((mr) => (
+                <MrRow key={mr.iid} {...mr} sub={mr.author} at={mr.updatedAt} />
+              ))
+            : undefined}
       </ListSection>
     </div>
   );

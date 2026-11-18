@@ -2,7 +2,6 @@
 /* SPDX-License-Identifier: MIT */
 
 .service-lists { display: flex; flex-direction: column; gap: 18px; }
-.service-list .service-section-box { max-height: 420px; overflow-y: auto; }
 .service-list-unread { margin: 0 0 6px; color: var(--text-muted); font-size: 13px; }
 .service-list-unread a { color: var(--text-muted); }
 .service-list-unread a:hover { color: var(--accent-text); }

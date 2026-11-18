@@ -16,10 +16,8 @@ import type { LineModel } from "../model/lines.js";
 import {
   forkPaths,
   newerVersion,
-  type Owner,
   ownerOf,
   type Paths,
-  type Reach,
   reachOf,
   SEVERITY_ORDER,
 } from "../model/repos.js";
@@ -32,7 +30,13 @@ const PORT_READS =
   /^(merge_requests\?state=opened&target_branch=master|merged MRs|port PRs|pulls\/\d+\/commits|merge_requests\/\d+\/(diffs|changes)\b.*|\.github\/upstream-filter\.yml)$/;
 const GROUP_ORDER = Object.freeze({ spi: 0, upstream: 1, tests: 2 });
 
+const NO_FILE = "no file associated with this alert";
+const VERSION = /^v?\d+(\.[0-9a-z]+)+([-+][0-9a-z.]+)*$/;
+
 type Read = { read: boolean; at?: string };
+
+const missed = (record: ReadRecord) =>
+  record.failure !== undefined || (record.object === "merged MRs" && record.completeness.kind === "cut");
 
 /** Whether one source's rows were read this sweep, and when the rows held were read. */
 export function readOf(
@@ -42,7 +46,7 @@ export function readOf(
   held: boolean,
 ): Read {
   if (!held) return { read: false };
-  const failed = (records ?? []).filter((record) => match(record) && record.failure !== undefined);
+  const failed = (records ?? []).filter((record) => match(record) && missed(record));
   if (failed.length > 0) {
     const times = failed.map((record) => record.retainedFrom);
     const at = times.every((time): time is string => time !== undefined)
@@ -78,22 +82,25 @@ export function closedFix(
   past: readonly PastPrFact[],
 ): PastPrFact | undefined {
   const at = alert.manifest.lastIndexOf("/");
-  const dir = at < 0 ? "" : alert.manifest.slice(0, at);
-  const want = `${dir ? `${dir.toLowerCase()}/` : ""}${slug(alert.package)}-`;
+  const dir = at < 0 ? "" : `${alert.manifest.slice(0, at)}/`;
+  const want = `${slug(alert.package)}-`;
   let found: PastPrFact | undefined;
   for (const pr of past) {
     if (pr.mergedAt || !pr.closedAt) continue;
-    const rest = /^dependabot\/[^/]+\/(.+)$/.exec(pr.head)?.[1]?.toLowerCase();
-    if (!rest?.startsWith(want) || !/^v?\d[^/]*$/.test(rest.slice(want.length))) continue;
+    const rest = /^dependabot\/[^/]+\/(.+)$/.exec(pr.head)?.[1];
+    if (!rest?.startsWith(dir)) continue;
+    const name = rest.slice(dir.length).toLowerCase();
+    if (!name.startsWith(want) || !VERSION.test(name.slice(want.length))) continue;
     if (!found || Date.parse(pr.closedAt) > Date.parse(found.closedAt ?? "")) found = pr;
   }
   return found;
 }
 
-function groupOf(owner: Owner, reach: Reach): Pick<ServiceAlertRow, "group" | "tooling"> {
-  if (reach === "tests") return { group: "tests" };
-  if (reach === "tooling") return { group: "tests", tooling: true };
-  return { group: owner === "upstream" ? "upstream" : "spi" };
+/** Settings (no file) and tooling paths join the tests group as tooling, whatever the dependency's scope. */
+function groupOf(path: string | undefined, paths: Paths, scope?: string): Pick<ServiceAlertRow, "group" | "tooling"> {
+  if (!path || reachOf(path) === "tooling") return { group: "tests", tooling: true };
+  if (reachOf(path, scope) === "tests") return { group: "tests" };
+  return { group: ownerOf(path, paths) === "upstream" ? "upstream" : "spi" };
 }
 
 const rank = (severity: ServiceAlertRow["severity"]) =>
@@ -126,7 +133,7 @@ export function alertRows(
     const pr = closedFix(a, past);
     add(
       `dep:${a.package.toLowerCase()}`,
-      { source: "dependabot", title: a.package, ...groupOf(ownerOf(a.manifest, paths), reachOf(a.manifest, a.scope)) },
+      { source: "dependabot", title: a.package, ...groupOf(a.manifest, paths, a.scope) },
       {
         number: a.number,
         severity: a.severity,
@@ -139,10 +146,10 @@ export function alertRows(
     );
   }
   for (const a of alerts.code ?? []) {
-    const path = a.path && !/\s/.test(a.path) ? a.path : undefined;
+    const path = a.path && a.path.toLowerCase() !== NO_FILE ? a.path : undefined;
     add(
       `code:${a.tool}:${a.rule}`,
-      { source: "code", title: a.description, ...groupOf(ownerOf(path ?? "", paths), path ? reachOf(path) : "settings") },
+      { source: "code", title: a.description, ...groupOf(path, paths) },
       {
         number: a.number,
         ...(a.severity ? { severity: a.severity } : {}),
@@ -176,10 +183,12 @@ export function alertRows(
     );
 }
 
+/** What the next sync brings; null when an open sync PR's holdings are unknown, so the split is unread. */
 function nextSyncOf(line: LineModel, model: Model) {
   const fork = model.upstream.forks.find((entry) => entry.service === line.fork.id);
   const behind = line.upstream?.lag;
   if (!fork || behind === undefined) return undefined;
+  if (fork.syncPr && fork.syncPr.holds === undefined) return null;
   const split = syncSplit(fork);
   const commits = line.upstream?.commits ?? [];
   return {
@@ -212,7 +221,7 @@ export function serviceUpstream(input: {
       );
       const listRead = readOf(facts.radar, reads.radar, (r) => r.source === upstream && r.object === MR_LIST, !!radar);
       const queue = nextSyncOf(line, model);
-      const syncRead = readOf(facts.upstream, reads.upstream, (r) => r.source === upstream, !!queue);
+      const syncRead = readOf(facts.upstream, reads.upstream, (r) => r.source === upstream, queue !== undefined);
       const alerts = facts.security.data?.[repo];
       const securityRead = (list: unknown) =>
         readOf(facts.security, reads.security, (r) => r.source === repo && r.object === "security", list !== undefined);
@@ -230,7 +239,7 @@ export function serviceUpstream(input: {
           upstream: {
             count: portRead.read && mrs ? mrs.length : null,
             toPort: { ...portRead, ...(mrs ? { mrs } : {}) },
-            nextSync: { ...syncRead, ...(queue ? { queue } : {}) },
+            nextSync: queue ? { ...syncRead, queue } : { ...syncRead, read: false },
             open: { ...listRead, ...(radar ? { list: openUpstream(radar.mrs, now) } : {}) },
           },
           security: {

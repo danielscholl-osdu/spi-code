@@ -304,7 +304,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
   });
   area("radar", false, 5, GITLAB_EVERY_MS, async ({ ctx, facts, reads, cache }, gh, glab) => {
     const result = await readRadar(gh, glab, facts.upstream.data ?? {}, cache.radar, ctx,
-      reads.upstream, facts.radar.data);
+      reads.upstream, facts.radar.data, reads.radar);
     const lists = result.reads.filter((r) => r.object === "merge_requests?state=opened&target_branch=master");
     if (lists.length && lists.every((r) => r.failure))
       throw new ForgeError(lists[0]?.failure ?? "GitLab merge request lists failed", null,

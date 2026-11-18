@@ -427,7 +427,8 @@ button.kit-pr:hover,
   color: var(--accent-text);
 }
 
-.kit-link--accent:hover {
+.kit-link--accent:hover,
+.kit-link--accent[data-filled] {
   background: var(--accent-surface);
 }
 
@@ -443,7 +444,8 @@ button.kit-pr:hover,
   color: var(--upstream-text);
 }
 
-.kit-link--upstream:hover {
+.kit-link--upstream:hover,
+.kit-link--upstream[data-filled] {
   background: var(--upstream-surface);
 }
 

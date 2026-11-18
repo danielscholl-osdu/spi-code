@@ -142,6 +142,7 @@ export async function readRadar(
   ctx: CoreContext,
   upstreamReads: readonly ReadRecord[] = [],
   previous?: RadarFacts,
+  previousReads: readonly ReadRecord[] = [],
 ): Promise<RadarRead> {
   const out: RadarRead = { services: {}, filters: {}, reads: [] };
   const record = (source: string, object: string): ReadRecord => ({
@@ -212,9 +213,10 @@ export async function readRadar(
       if (last) out.services[fork.id] = last;
       const filter = previous?.filters[fork.id];
       if (filter) out.filters[fork.id] = filter;
-      const prior = last ? state.records[`list:${fork.upstream}`] : undefined;
+      const prior = last ? retainedAt(state.records[`list:${fork.upstream}`],
+        previousReads.find((r) => r.source === fork.upstream && r.object === object)) : undefined;
       out.reads.push({ ...record(fork.upstream, object), failure: errorText(error),
-        ...(prior ? { retainedFrom: prior.observedAt } : {}) });
+        ...(prior ? { retainedFrom: prior } : {}) });
       return;
     }
     const mrs = await pool(raw, 3, async (m): Promise<MrFact> => withDiff({
@@ -293,6 +295,12 @@ export async function readRadar(
 }
 
 // Active references take precedence over the cap; unreferenced entries keep insertion order.
+// A cache written before list records were kept falls back to the last sweep's record of the same list.
+function retainedAt(kept: ReadRecord | undefined, last: ReadRecord | undefined): string | undefined {
+  if (kept) return kept.observedAt;
+  return last?.failure === undefined ? last?.observedAt : last.retainedFrom;
+}
+
 export function pruneRadar(state: RadarState, facts: RadarFacts | undefined, cap = 200): void {
   const mrs = new Set<string>();
   const commits = new Set<string>();

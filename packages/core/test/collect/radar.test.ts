@@ -12,7 +12,7 @@ import {
 } from "../../src/collect/radar.js";
 import { fleetOf, GITLAB_EVERY_MS } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
-import { envelopeOf } from "../../src/evidence/index.js";
+import { envelopeOf, type ReadRecord } from "../../src/evidence/index.js";
 import type { Exec } from "../../src/exec/index.js";
 import { RecordingExec, ReplayExec } from "../../src/exec/recording.js";
 import { Gh, Glab } from "../../src/forge.js";
@@ -403,6 +403,27 @@ test("a failed MR list keeps the last good list with the time it was read", asyn
       failure: expect.any(String),
     }),
   );
+
+  const listOf = (reads: readonly ReadRecord[]) =>
+    reads.filter((r) => r.object === "merge_requests?state=opened&target_branch=master");
+  const legacy = async (previousReads: Parameters<typeof readRadar>[7]) => {
+    const old = emptyRadarState();
+    const again = recording({ failList: true });
+    const out = await readRadar(
+      new Gh(again.exec),
+      new Glab(again.exec),
+      {},
+      old,
+      context,
+      [],
+      first,
+      previousReads,
+    );
+    return listOf(out.reads)[0]?.retainedFrom;
+  };
+  expect(await legacy(first.reads)).toBe(FIXTURE_NOW.toISOString());
+  expect(await legacy(result.reads)).toBe(FIXTURE_NOW.toISOString());
+  expect(await legacy(listOf(result.reads).map(({ retainedFrom: _, ...r }) => r))).toBeUndefined();
 });
 
 test.each(["too_large", "collapsed"] as const)(
