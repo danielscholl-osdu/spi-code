@@ -289,22 +289,6 @@ function geometry(surface: string, width: number): SmokeGeometry[] {
           labelText: "partition",
           values: [rect(916, 260, 270, 18)],
         };
-      case "panes":
-        return {
-          rule,
-          viewport: rect(0, 0, width, 800),
-          scroll: { width, height: 800 },
-          panes: [232, 848, 360].map((size, index, sizes) => ({
-            rect: rect(
-              sizes.slice(0, index).reduce((a, b) => a + b, 0),
-              0,
-              size,
-              800,
-            ),
-            borderLeft: index > 1 ? 1 : 0,
-            borderRight: index === 0 ? 1 : 0,
-          })),
-        };
       case "headers":
         return {
           rule,
@@ -347,7 +331,6 @@ function geometry(surface: string, width: number): SmokeGeometry[] {
 
 const rejected: Record<string, string> = {
   "upstream-theme/1440": "Related value squeezed to 159 px",
-  "panes/1440": "Header top: 4 != 0",
   "strip-20/740": "Toggle sidebar at 76,8 28x28 lies in a drag rectangle",
 };
 
@@ -961,25 +944,6 @@ it("fails missing or broken renderer geometry in the terminal report", () => {
         ),
       ),
     ).toThrow(`Missing packaged broken-rule proof: ${proof}`);
-  expect(() =>
-    assertSmokeViews(
-      report.views.map((shot) =>
-        shot.surface === "panes" ? { ...shot, rejectedGeometry: "Header left: 4 != 0" } : shot,
-      ),
-    ),
-  ).toThrow("Missing packaged broken-rule proof: panes/1440");
-  expect(() =>
-    assertSmokeViews(
-      report.views.map((shot) => ({
-        ...shot,
-        geometry: shot.geometry.map((check) =>
-          shot.surface === "panes" && check.rule === "headers"
-            ? { ...check, panes: check.panes.slice(1, 2), headers: check.headers.slice(1, 2) }
-            : check,
-        ),
-      })),
-    ),
-  ).toThrow("Header probe requires sidebar, centre and Line");
   expect(() =>
     assertSmokeViews(
       report.views.map((shot) => ({

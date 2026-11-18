@@ -11,7 +11,6 @@ import type { MemberPlace } from "./members.js";
 import "./place.css";
 
 const pins = {
-  line: "sheet:line",
   environment: "place:environment",
   engineering: "place:engineering-system",
   upstream: "place:upstream",
@@ -30,23 +29,18 @@ export function PlaceHead({
 }) {
   const now = useNow(30_000);
   const fields = snapshot && selectStrip(snapshot);
-  const status = place === "security" ? undefined : statusRows(fields, now)[pins[place]];
+  const status =
+    place === "security" || place === "line" ? undefined : statusRows(snapshot, now)[pins[place]];
   const field =
-    place === "line"
-      ? fields?.forks
-      : place === "engineering"
-        ? fields?.template
-        : place === "environment"
-          ? fields?.environment
-          : undefined;
-  const word =
-    place === "line" && field?.classification === "stopped"
-      ? `${field.count} of ${fields?.forks.services} forks stopped`
-      : field?.text;
+    place === "engineering"
+      ? fields?.template
+      : place === "environment"
+        ? fields?.environment
+        : undefined;
   const unread = snapshot?.briefing.places?.some(
     (row) => row.place === place && (row.unread?.areas.length ?? 0) > 0,
   );
-  const statusWord = word || status?.sentence || (unread ? "not read yet" : undefined);
+  const statusWord = field?.text || status?.sentence || (unread ? "not read yet" : undefined);
   if (!snapshot) return heading ?? <h1 data-place>{name}</h1>;
   return (
     <>

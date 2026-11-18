@@ -9,7 +9,6 @@ import { BeforeFirstSweep } from "../components/sweep/BeforeFirstSweep.js";
 import { OPEN_READINESS_EVENT, openReadiness } from "../settings/readiness.js";
 import { watchStore } from "../store/watch.js";
 import Environment from "../views/environment/index.js";
-import Line from "../views/line/index.js";
 import Releases, { ReleaseMonth } from "../views/releases/index.js";
 import Security from "../views/security/index.js";
 import ServicePage from "../views/service/index.js";
@@ -67,7 +66,6 @@ export const DEFAULT_REGISTRY: Registry = {
     release: (route) => gated(route, <ReleaseMonth month={route.month} />),
     evidence: (route) => <Evidence route={route} />,
   },
-  sheet: (_origin, presentation) => <Line presentation={presentation} />,
   strip: () => <SidebarSweep />,
   fallback: { kind: "today" },
 };

@@ -57,7 +57,7 @@ it.each([
 
 const content: OpenedContent = {
   title: "legal · Main",
-  place: { label: "Line", destination: { kind: "line" } },
+  place: { label: "Forks", destination: { kind: "today", tab: "forks" } },
   subject: { kind: "item", id: "gate2:legal" },
   cause: "Nothing waits here.",
 };

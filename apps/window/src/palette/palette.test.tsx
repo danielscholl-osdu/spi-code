@@ -155,7 +155,6 @@ it("lists Go to, Services and Queue from the routes and the snapshot, without le
   expect(palette()?.textContent).not.toMatch(/Actions/);
   expect(rows("go-to")).toEqual([
     "Todaypage",
-    "Linepage",
     "Upstreampage",
     "Environmentpage",
     "Templatepage",
@@ -224,8 +223,6 @@ it("moves with the arrows, opens with Enter, and filters as the operator types",
   await shortcut({ ctrlKey: true });
   expect(highlighted()).toBe("Todaypage");
   await key("ArrowDown");
-  expect(highlighted()).toBe("Linepage");
-  await key("ArrowDown");
   await key("ArrowDown");
   await key("ArrowUp");
   expect(highlighted()).toBe("Upstreampage");
@@ -281,25 +278,29 @@ it("opens a service result and pins it on Ctrl+Enter, and keeps it pinned when p
   expect(readPins()).toEqual(["legal", "schema"]);
 });
 
-it("opens Line and each place on Ctrl+Enter, pinning only those outside the fixed block, in the order pinned", async () => {
+it("opens each place on Ctrl+Enter, pinning only those outside the fixed block, in the order pinned", async () => {
   localStorage.setItem(PINS_STORAGE_KEY, "[]");
   const pinned = () =>
     [...container.querySelectorAll('ul[aria-label="Pinned"] .sidebar-row-label')].map(
       (label) => label.textContent,
     );
-  for (const name of ["Releases", "Line", ...PLACES.map(routeLabel)]) {
+  for (const name of ["Releases", ...PLACES.map(routeLabel)]) {
     await shortcut({ ctrlKey: true });
     await type(name);
     expect(highlighted()).toBe(`${name}page`);
     await key("Enter", { ctrlKey: true });
     expect(palettes()).toHaveLength(0);
-    if (name === "Line")
-      expect(container.querySelector("#app-line-sheet h1")?.textContent).toBe("Line");
-    else expect(container.querySelector("main h1")?.textContent).toBe(name);
+    expect(container.querySelector("main h1")?.textContent).toBe(name);
   }
   expect(readPins()).toEqual(["place:releases", "place:upstream", "place:security"]);
   expect(JSON.parse(localStorage.getItem(PINS_STORAGE_KEY) ?? "null")).toEqual(readPins());
   expect(pinned()).toEqual(["Releases", "Upstream", "Security"]);
+});
+
+it("offers no Line result in Find", async () => {
+  await shortcut({ ctrlKey: true });
+  await type("Line");
+  expect(option("Linepage")).toBeUndefined();
 });
 
 const option = (text: string) =>
@@ -348,10 +349,9 @@ it("pins and unpins a result in place from its pin control, leaving Find as it w
   expect(window.location.hash).toBe("#releases");
 });
 
-it("draws no pin control on Line, Environment or Template, and none on Queue results", async () => {
+it("draws no pin control on Environment or Template, and none on Queue results", async () => {
   await shortcut({ ctrlKey: true });
   for (const [query, text, name] of [
-    ["Line", "Linepage", "Line"],
     ["Environment", "Environmentpage", "Environment"],
     ["Template", "Templatepage", "Template"],
   ] as const) {

@@ -15,6 +15,7 @@ import {
   ViewSnapshotSchema,
 } from "@spi-code/contracts";
 import { type BrowserWindow, ipcMain, nativeImage } from "electron";
+import { captureForks } from "./smoke-forks.js";
 import { assertSmokeGeometry, type SmokeGeometry } from "./smoke-geometry.js";
 import {
   DRAWN_MEMBERS,
@@ -96,6 +97,17 @@ function fixture(window: BrowserWindow, type: string, payload: unknown, id = "sm
   window.webContents.send("smoke:fixture", parsed.message);
 }
 
+function templateFigure(body: ViewSnapshot) {
+  const door = body.briefing.today?.fleet?.doors.find(({ id }) => id === "template");
+  assert(door, "Status captures need the Template door");
+  return door;
+}
+
+function clearUpstreamMark(body: ViewSnapshot) {
+  for (const line of body.briefing.lines ?? [])
+    for (const member of line.members) if (member.home === "upstream") delete member.home;
+}
+
 async function captureStatusStates(
   window: BrowserWindow,
   snapshot: ViewSnapshot,
@@ -106,8 +118,8 @@ async function captureStatusStates(
 ): Promise<void> {
   const scenes = [
     "fine",
-    "waiting",
-    "stopped",
+    "template-review",
+    "upstream-work",
     "maintenance",
     "refreshing",
     "unread",
@@ -126,30 +138,9 @@ async function captureStatusStates(
     body.briefing.environment.deployable = "yes";
     const holds = body.briefing.environment.lanes.find(({ id }) => id === "holds");
     if (holds) holds.events = [];
-    for (const row of body.stations)
-      for (const station of row.stations) {
-        station.state = "idle";
-        station.substate = "ready";
-      }
-    const visual = body.briefing.places?.find(({ place }) => place === "engineering")?.visual;
-    assert(visual?.kind === "rollout");
-    for (const slot of visual.slots) slot.state = "done";
-    if (scene === "waiting" || scene === "stopped") {
-      const pending = visual.slots[0];
-      assert(pending);
-      pending.state = "waiting";
-      if (scene === "stopped") {
-        const failed = visual.slots[1];
-        assert(failed);
-        failed.state = "broken";
-      }
-      for (const row of body.stations.slice(0, scene === "waiting" ? 2 : 4)) {
-        const station = row.stations.find(({ id }) => id === "cascade");
-        assert(station);
-        station.state = scene === "waiting" ? "waiting" : "stopped";
-        station.substate = scene === "waiting" ? "waiting-on-person" : "stopped";
-      }
-    }
+    const template = templateFigure(body);
+    if (scene !== "template-review") Object.assign(template, { count: 0, forks: [] });
+    if (scene !== "upstream-work") clearUpstreamMark(body);
     if (scene === "maintenance" || scene === "refreshing") {
       body.briefing.environment.deployable = "no";
       environment.tone = scene === "maintenance" ? "bad" : "warn";
@@ -165,24 +156,21 @@ async function captureStatusStates(
     }
     if (scene === "unread") {
       environment.figure = "?";
-      for (const slot of visual.slots) slot.state = "unknown";
-      for (const row of body.stations)
-        for (const station of row.stations) station.state = "unknown";
+      template.notRead = ["file"];
     }
     if (scene === "sync") body.briefing.nextSyncAt = new Date(now + 6_000_000).toISOString();
     fixture(window, "view.snapshot", ViewSnapshotSchema.parse(body));
     const pin = (status: string, classification: string) =>
       `document.querySelector('[data-status=${status}][data-classification=${classification}]')`;
-    const ready =
-      scene === "waiting" || scene === "stopped"
-        ? `${pin("forks", scene)}?.title.includes(${JSON.stringify(scene)})`
-        : scene === "maintenance" || scene === "refreshing"
-          ? `${pin("environment", scene)}?.title.includes(${JSON.stringify(scene === "maintenance" ? "Maintenance 2 d" : "refresh running")})`
-          : scene === "sync"
-            ? `${pin("next-sync", "soon")}?.title.startsWith("Next upstream sync")`
-            : ["environment", "template", "forks"]
-                .map((status) => `${pin(status, scene)}?.title`)
-                .join(" && ");
+    const ready = {
+      fine: `${pin("environment", "fine")} && ${pin("template", "fine")}`,
+      "template-review": `${pin("template", "pending")}?.title.includes("to review")`,
+      "upstream-work": `${pin("upstream", "pending")}?.title.includes("on Upstream")`,
+      maintenance: `${pin("environment", "maintenance")}?.title.includes("Maintenance 2 d")`,
+      refreshing: `${pin("environment", "refreshing")}?.title.includes("refresh running")`,
+      unread: `${pin("environment", "unread")} && ${pin("template", "unread")}`,
+      sync: `${pin("next-sync", "soon")}?.title.startsWith("Next upstream sync")`,
+    }[scene];
     await rendered(window, ready);
     const sidebar = await window.webContents.executeJavaScript(`(() => {
       const rect = document.querySelector('#app-sidebar[data-state=expanded]')?.getBoundingClientRect();
@@ -257,14 +245,8 @@ async function captureSweepStates(
     if (hidden) {
       for (const item of [...body.briefing.focus, ...body.briefing.rest])
         item.attention = "ambient";
-      for (const row of body.stations)
-        for (const station of row.stations) {
-          station.state = "idle";
-          station.substate = "ready";
-        }
-      for (const place of body.briefing.places ?? [])
-        if (place.visual?.kind === "rollout")
-          for (const slot of place.visual.slots) slot.state = "done";
+      clearUpstreamMark(body);
+      Object.assign(templateFigure(body), { count: 0, forks: [] });
     }
     fixture(window, "view.snapshot", ViewSnapshotSchema.parse(body));
     fixture(window, "sweep.progress", state === "sweeping" ? progress.refresh : progress.committed);
@@ -330,7 +312,7 @@ async function captureSweepStates(
 const PINS_KEY = "spi-code.sidebar.pins.v3";
 
 /**
- * Find or ask with Line, Environment and Template in the sidebar's fixed block, Upstream
+ * Find or ask with Environment and Template in the sidebar's fixed block, Upstream
  * and entitlements pinned, and the unpinned partition highlighted, so its hollow pin shows.
  */
 async function captureFindPins(
@@ -380,7 +362,7 @@ async function captureFindPins(
     writeFileSync(join(output, file), (await window.webContents.capturePage(bounds)).toPNG());
     writeFileSync(
       join(output, `find-pins-${appearance}.html`),
-      `<!doctype html><meta charset="utf-8"><title>Find or ask pins</title><style>body{font:14px system-ui;padding:24px}img{max-width:100%}</style><h1>Find or ask pins / ${appearance}</h1><p>Design: epic spicode-1l9 and its rulings. Line, Environment and Template sit in the sidebar's fixed block and draw no pin control; Upstream and entitlements are pinned (filled); partition is highlighted and unpinned (hollow).</p><img src="${file}" alt="Find or ask with pinned and unpinned results and the fixed block's places">`,
+      `<!doctype html><meta charset="utf-8"><title>Find or ask pins</title><style>body{font:14px system-ui;padding:24px}img{max-width:100%}</style><h1>Find or ask pins / ${appearance}</h1><p>Design: epic spicode-1l9 and its rulings. Environment and Template sit in the sidebar's fixed block and draw no pin control; Upstream and entitlements are pinned (filled); partition is highlighted and unpinned (hollow).</p><img src="${file}" alt="Find or ask with pinned and unpinned results and the fixed block's places">`,
     );
     await window.webContents.executeJavaScript(
       'document.querySelector("[role=dialog].palette input").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))',
@@ -536,17 +518,11 @@ async function measure(
         return { rule: "window", viewport, scroll,
           rightPanels: document.querySelectorAll("#app-right-panel").length,
           panelToggles: document.querySelectorAll("[aria-controls=app-right-panel], [aria-label='Toggle right panel'], [aria-label='Close detail']").length,
-          panes: [...document.querySelectorAll(".app-sidebar:not([inert]), .middle-frame, .line-sheet, .right-panel-frame")].map(rect) };
+          panes: [...document.querySelectorAll(".app-sidebar:not([inert]), .middle-frame, .right-panel-frame")].map(rect) };
       case "related":
         return { rule: "related", panel: rect(element(".popover")),
           label: rect(element(".popover-fields dt")), labelText: element(".popover-fields dt").textContent,
           values: [...document.querySelectorAll(".popover-fields dd")].map(rect) };
-      case "panes":
-        return { rule: "panes", viewport, scroll, panes: [".app-sidebar", ".middle-frame", ".line-sheet"].map(selector => {
-          const item = element(selector);
-          const style = getComputedStyle(item);
-          return { rect: rect(item), borderLeft: parseFloat(style.borderLeftWidth), borderRight: parseFloat(style.borderRightWidth) };
-        }) };
       case "headers": {
         const inner = item => {
           const bounds = rect(item);
@@ -556,8 +532,7 @@ async function measure(
         };
         const parts = [
           [".app-sidebar:not([data-mobile]):not([inert]):not([data-state=collapsed])", ".sidebar-top"],
-          [".middle-frame", ".centre-bar"],
-          [".line-sheet[data-presentation=pinned]", ".line-toolbar"]
+          [".middle-frame", ".centre-bar"]
         ].flatMap(([pane, header]) => {
           const item = document.querySelector(pane);
           return item && item.getBoundingClientRect().width > 0 ? [[item, item.querySelector(header)]] : [];
@@ -586,7 +561,7 @@ async function measure(
             const label = item.getAttribute("aria-label") || item.textContent.replace(/\\s+/g, " ").trim().slice(0, 40) || item.tagName.toLowerCase();
             return bounds.width > 0 && bounds.height > 0 && bounds.y < 44 ? [{ label, rect: bounds }] : [];
           });
-        return { rule: "drag", services: Number(document.querySelector("[data-sidebar-row=line]")?.dataset.services ?? 0),
+        return { rule: "drag", services: document.querySelectorAll('ul[aria-label="Pinned"] [data-sidebar-row^="service/"]').length,
           controls, clear, viewport, centre: rect(element(".centre-bar")),
           regions, targets };
       }
@@ -641,12 +616,6 @@ const BREAKS: Partial<Record<string, BrokenProof>> = {
     selector: ".popover-fields dd",
     property: "width",
     value: "159px",
-  },
-  "panes/1440": {
-    rule: "headers",
-    selector: ".line-toolbar",
-    property: "margin-top",
-    value: "4px",
   },
   "strip-20/740": {
     rule: "drag",
@@ -745,15 +714,6 @@ async function overlayDragProbe(
   assert(first);
   window.setContentSize(first[1], first[2]);
   await load();
-  await window.webContents.executeJavaScript(
-    'document.querySelector("[data-sidebar-row=line]").click()',
-  );
-  await rendered(window, 'document.querySelector(".line-sheet .line-grid")');
-  await each(".line-sheet", "", sizes);
-  await window.webContents.executeJavaScript(
-    "document.querySelector(\"[aria-label='Close Line']\").click()",
-  );
-  await rendered(window, '!document.querySelector(".line-sheet")');
   await openSettings(window);
   await each("[role=dialog].settings", ".settings-backdrop", [...sizes].reverse(), async (size) => {
     writeFileSync(
@@ -925,7 +885,6 @@ export async function captureSmokeViews(
         ghRequest = "";
         await window.webContents.executeJavaScript(`{
           localStorage.removeItem("spi-code.panes");
-          localStorage.removeItem("spi-code.line-sheet.pinned");
           localStorage.setItem("spi-code.appearance", ${JSON.stringify(appearance)});
           location.hash = "#today";
         }`);
@@ -1005,7 +964,6 @@ export async function captureSmokeViews(
           if (surface.id === "first-sweep-running") {
             await window.webContents.executeJavaScript(`{
               localStorage.removeItem("spi-code.panes");
-              localStorage.removeItem("spi-code.line-sheet.pinned");
               location.hash = "#today";
             }`);
             const loaded = once(window.webContents, "did-finish-load");
@@ -1042,7 +1000,6 @@ export async function captureSmokeViews(
                   async () => {
                     await window.webContents.executeJavaScript(`{
                       localStorage.removeItem("spi-code.panes");
-                      localStorage.removeItem("spi-code.line-sheet.pinned");
                       location.hash = "#today";
                     }`);
                     const loaded = once(window.webContents, "did-finish-load");
@@ -1146,12 +1103,6 @@ export async function captureSmokeViews(
               );
             }
           }
-          if (surface.id === "line" || surface.id === "panes") {
-            await window.webContents.executeJavaScript(
-              'document.querySelector("[data-sidebar-row=line]").click()',
-            );
-            await rendered(window, 'document.querySelector(".line-grid")');
-          }
           if (surface.id === "service-security") {
             await rendered(window, 'document.querySelector(".service-alert-count")');
             await window.webContents.executeJavaScript(
@@ -1163,45 +1114,32 @@ export async function captureSmokeViews(
               "document.querySelector(\".place-item-content[data-selection-id='campaign:toolchain:os-core-common%208.5.0']\").click()",
             );
           }
-          if (surface.id === "upstream-theme" || surface.id === "panes") {
-            if (surface.id === "panes") {
-              await window.webContents.executeJavaScript(
-                '[...document.querySelectorAll(".line-toolbar button")].find(button => button.textContent === "Dock").click()',
-              );
-              await rendered(
-                window,
-                'document.querySelector(".line-sheet:not([data-presentation=overlay])")',
-              );
-            } else {
-              await window.webContents.executeJavaScript(`{
-                localStorage.setItem("spi-code.panes", JSON.stringify({
-                  widths: { sidebar: 232, rightPanel: 280, lineSheet: 360 },
-                  open: { sidebar: true, rightPanel: false }
-                }));
-              }`);
-              const loaded = once(window.webContents, "did-finish-load");
-              window.webContents.reload();
-              await loaded;
-              await rendered(
-                window,
-                'document.querySelector(".shell [data-sidebar-row=settings]")',
-              );
-              fixture(window, "view.snapshot", snapshot);
-              fixture(window, "sweep.status", {
-                remaining: 4865,
-                floor: 100,
-                resetAt: "2026-11-06T15:36:00.000Z",
-                deferredAreas: [],
-                nextSweepAt: null,
-                schedule: sweepSchedule,
-                lastSweep: null,
-              });
-              fixture(window, "setup.state", ready);
-              await rendered(window, 'document.querySelector(".upstream .place-reading")');
-              await window.webContents.executeJavaScript(
-                'document.querySelector(".upstream-theme-head").click()',
-              );
-            }
+          if (surface.id === "upstream-theme") {
+            await window.webContents.executeJavaScript(`{
+              localStorage.setItem("spi-code.panes", JSON.stringify({
+                widths: { sidebar: 232, rightPanel: 280 },
+                open: { sidebar: true, rightPanel: false }
+              }));
+            }`);
+            const loaded = once(window.webContents, "did-finish-load");
+            window.webContents.reload();
+            await loaded;
+            await rendered(window, 'document.querySelector(".shell [data-sidebar-row=settings]")');
+            fixture(window, "view.snapshot", snapshot);
+            fixture(window, "sweep.status", {
+              remaining: 4865,
+              floor: 100,
+              resetAt: "2026-11-06T15:36:00.000Z",
+              deferredAreas: [],
+              nextSweepAt: null,
+              schedule: sweepSchedule,
+              lastSweep: null,
+            });
+            fixture(window, "setup.state", ready);
+            await rendered(window, 'document.querySelector(".upstream .place-reading")');
+            await window.webContents.executeJavaScript(
+              'document.querySelector(".upstream-theme-head").click()',
+            );
           }
           if (surface.id.startsWith("settings") && surface.id !== first.id) {
             if (!surface.id.startsWith("settings-sweep-") || surface.id === "settings-sweep-idle")
@@ -1251,15 +1189,28 @@ export async function captureSmokeViews(
             }
           }
           if (surface.id === "strip-20") {
-            const stations = [...snapshot.stations];
-            const seed = stations[0];
-            assert(seed);
-            while (stations.length < 20)
-              stations.push({ ...seed, service: `smoke-service-${stations.length + 1}` });
+            const services = snapshot.tree.filter(({ id }) => id.startsWith("service:"));
+            while (services.length < 20)
+              services.push({
+                id: `service:smoke-service-${services.length + 1}`,
+                status: "incomplete",
+              });
+            await window.webContents.executeJavaScript(`{
+              const key = "spi-code.sidebar.pins.v3";
+              localStorage.setItem(key, ${JSON.stringify(JSON.stringify(services.map(({ id }) => id.slice(8))))});
+              window.dispatchEvent(new StorageEvent("storage", { key }));
+            }`);
             fixture(
               window,
               "view.snapshot",
-              ViewSnapshotSchema.parse({ ...snapshot, cursor: snapshot.cursor + 1, stations }),
+              ViewSnapshotSchema.parse({
+                ...snapshot,
+                cursor: snapshot.cursor + 1,
+                tree: [
+                  ...snapshot.tree.filter(({ id }) => !id.startsWith("service:")),
+                  ...services,
+                ],
+              }),
             );
           }
           if (surface.id === "sidebar-hidden")
@@ -1396,10 +1347,12 @@ export async function captureSmokeViews(
             if (!scheduled || surface.id === "settings-sweep-not-ready")
               await closeSettings(window);
           }
-          if (surface.id === "line" || surface.id === "panes")
-            await window.webContents.executeJavaScript(
-              "document.querySelector(\"[aria-label='Close Line']\").click()",
-            );
+          if (surface.id === "strip-20")
+            await window.webContents.executeJavaScript(`{
+              const key = "spi-code.sidebar.pins.v3";
+              localStorage.removeItem(key);
+              window.dispatchEvent(new StorageEvent("storage", { key }));
+            }`);
           if (surface.id === "sidebar") {
             await window.webContents.executeJavaScript(
               'document.querySelector("#app-sidebar[data-mobile][data-state=expanded]") && document.querySelector(".sidebar-backdrop").click()',
@@ -1535,11 +1488,21 @@ export async function captureSmokeViews(
       )),
     );
     section("Today mornings");
+    await captureForks(
+      {
+        window,
+        output,
+        rendered: (condition) => rendered(window, condition),
+        fixture: (type, payload) => fixture(window, type, payload),
+        setupState: ready,
+      },
+      serviceSnapshot,
+    );
+    section("Today Forks");
     assertSmokeViews(shots);
     await overlayDragProbe(window, output, async () => {
       await window.webContents.executeJavaScript(`{
         localStorage.removeItem("spi-code.panes");
-        localStorage.removeItem("spi-code.line-sheet.pinned");
         location.hash = "#today";
       }`);
       const loaded = once(window.webContents, "did-finish-load");
@@ -1572,7 +1535,6 @@ export async function captureSmokeViews(
     });
     await window.webContents.executeJavaScript(`{
       localStorage.removeItem("spi-code.panes");
-      localStorage.removeItem("spi-code.line-sheet.pinned");
       location.hash = "#today";
     }`);
     window.setContentSize(originalWidth, originalHeight);
@@ -1593,7 +1555,7 @@ export async function captureSmokeViews(
 Appearance pinned in the app. Fixture clock: Nov 6, 09:04 America/Chicago, except scheduled
 Sweep surfaces: idle and not-ready at 08:04, sweeping at 08:08, saved-with-failure at 09:04.
 Setup sign-ins are intercepted fixtures, never live authentication. Related and 20-service probes vary the projection;
-the 20-service probe reads its count from the Line pin and holds the top row and its drag span at 740 px.
+the 20-service probe counts the pinned service rows and holds the top row and its drag span at 740 px.
 First-sweep surfaces inject schema-valid sweep.progress messages through the same smoke-only preload channel as
 view.snapshot and setup.state. This screenshot phase precedes host startup, so it cannot feed the real host progress path;
 the persisted-snapshot and supervision host proof runs separately, after these fixtures are removed.
@@ -1626,6 +1588,7 @@ ${VIEW_WIDTHS.map(
       .join("")}</tr></table>`,
 ).join("")}</section>`,
 ).join("\n")}
+<p><a href="forks.html">Today Forks, folded and unfolded</a></p>
 <h1>Search service tabs</h1><p>Compare the open row in each tab with the
 <a href="service-design.html">service home mock</a>.</p>
 ${["pulls", "issues"]

@@ -1,20 +1,24 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type TodaySummary, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
+import {
+  type TodaySummary,
+  todayMembers,
+  type ViewSnapshot,
+  ViewSnapshotSchema,
+} from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import {
-  closeSheet,
   navigate,
   openSelection,
   parseRoute,
   setOpenSelection,
-  useLineSheetRequest,
   useOpenSelection,
 } from "../../app/navigation.js";
+import { serviceMark } from "../../components/sidebar/service-mark.js";
 import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import { clockTime, timedText } from "../../time.js";
 import { TodayHome } from "./Home.js";
@@ -48,13 +52,6 @@ function Routed({ snapshot }: { snapshot: ViewSnapshot }) {
   return <TodayHome snapshot={snapshot} tab={route.tab} station={route.station} />;
 }
 
-/** How many times the Line sheet was asked to open. */
-function SheetRequests() {
-  return <i hidden data-sheet-requests={useLineSheetRequest().id} />;
-}
-const sheetRequests = () =>
-  Number(container.querySelector<HTMLElement>("[data-sheet-requests]")?.dataset.sheetRequests);
-
 let harness: ReturnType<typeof installSpi>;
 let container: HTMLDivElement;
 let unmount: () => Promise<void>;
@@ -66,7 +63,6 @@ afterEach(async () => {
   await unmount();
   container.remove();
   setOpenSelection(null);
-  closeSheet();
   harness.restore();
   window.location.hash = "";
 });
@@ -77,14 +73,7 @@ async function render(snapshot: ViewSnapshot = nov16(), hash = "#today") {
   container.className = "today";
   document.body.append(container);
   const root = createRoot(container);
-  await act(async () =>
-    root.render(
-      <>
-        <Routed snapshot={snapshot} />
-        <SheetRequests />
-      </>,
-    ),
-  );
+  await act(async () => root.render(<Routed snapshot={snapshot} />));
   unmount = () => act(async () => root.unmount());
 }
 
@@ -356,18 +345,17 @@ it("a calm morning says nothing is yours, then shows Can wait", async () => {
 });
 
 it.each([
-  ["moving", "lanes", "line"],
+  ["moving", "lanes", "forks"],
   ["moving", "template", "engineering-system"],
   ["moving", "sync", "upstream"],
-  ["history", "sync", "line"],
+  ["history", "sync", "forks"],
   ["history", "template", "engineering-system"],
 ])("the %s row %s opens its place, %s", async (section, id, place) => {
   await render(nov16(), "#today/activity");
   for (const target of [".today-row-what", ".today-row-fork button"]) {
     await act(async () => navigate({ kind: "today", tab: "activity" }));
-    const before = sheetRequests();
     await click(lowerRow(section, id).querySelector(target));
-    if (place === "line") expect(sheetRequests()).toBe(before + 1);
+    if (place === "forks") expect(route()).toEqual({ kind: "today", tab: "forks" });
     else expect(route()).toEqual({ kind: place });
     expect(opened()).toHaveLength(0);
   }
@@ -569,6 +557,109 @@ describe("the fleet flow filters Yours", () => {
     expect(container.querySelector(".today-table-calm")?.textContent).toBe(
       "Nothing waiting on you here.",
     );
+  });
+});
+
+describe("Forks on the 16 Nov sweep", () => {
+  const fork = (name: string) => section("forks")?.querySelector(`tr[data-fork="${name}"]`);
+  const rowNames = () =>
+    [...(section("forks")?.querySelectorAll<HTMLElement>("tr[data-fork]") ?? [])].map(
+      ({ dataset }) => dataset.fork,
+    );
+  const fold = () => section("forks")?.querySelector(".forks-fold");
+
+  it("shows exactly the forks with Yours rows in fleet order and folds the rest", async () => {
+    const body = whole();
+    const owned = new Set(todayMembers(body.briefing).map(({ member }) => member.fork));
+    const ordered = body.services?.map(({ service }) => service) ?? [];
+    const busy = ordered.filter((name) => owned.has(name));
+    const rest = ordered.filter((name) => !owned.has(name));
+    await render(body, "#today/forks");
+    expect(rowNames()).toEqual(busy);
+    expect(fold()?.textContent).toMatch(/^▸ 1 fork .*1 release PR/);
+    await click(fold());
+    expect(rowNames()).toEqual([...busy, ...rest]);
+    await click(fold());
+    expect(rowNames()).toEqual(busy);
+  });
+
+  it("takes station words from Service Home and uses the shared service mark", async () => {
+    const body = whole();
+    await render(body, "#today/forks");
+    await click(fold());
+    for (const { service, home } of body.services ?? []) {
+      const row = fork(service);
+      for (const { id, word } of home?.stations ?? [])
+        expect(row?.querySelector(`[data-column="${id}"] .forks-reading`)?.textContent).toContain(
+          word,
+        );
+      expect(row?.querySelector(".sidebar-mark")?.getAttribute("aria-label")).toBe(
+        serviceMark(body, service)?.label,
+      );
+    }
+  });
+
+  it("opens a fork's exact Yours members in place, with a separate control for the service page", async () => {
+    const body = whole();
+    const name = "indexer";
+    await render(body, "#today/forks");
+    const expander = fork(name)?.querySelector("button");
+    expect(expander).toBeDefined();
+    await click(expander);
+    expect(route()).toEqual({ kind: "today", tab: "forks" });
+    expect(fork(name)?.querySelector("button")?.getAttribute("aria-expanded")).toBe("true");
+    const detail = fork(name)?.nextElementSibling;
+    const members = todayMembers(body.briefing).filter(({ member }) => member.fork === name);
+    expect(members.length).toBeGreaterThan(0);
+    expect(
+      [...(detail?.querySelectorAll<HTMLElement>("[data-member]") ?? [])].map(
+        ({ dataset }) => dataset.member,
+      ),
+    ).toEqual(members.map(({ member }) => member.id));
+    expect(detail?.textContent).toContain("Can wait");
+    await click(expander);
+    expect(fork(name)?.querySelector("button")?.getAttribute("aria-expanded")).toBe("false");
+    await click(expander);
+    const open = [...(fork(name)?.nextElementSibling?.querySelectorAll("button") ?? [])].find(
+      ({ textContent }) => textContent === `Open ${name} ›`,
+    );
+    expect(open).toBeDefined();
+    await click(open);
+    expect(route()).toEqual({ kind: "service", id: name });
+  });
+
+  it("presses a station on Forks and dims all the other reading columns", async () => {
+    const body = whole();
+    await render(body, "#today/forks");
+    await click(station("sync"));
+    expect(route()).toEqual({ kind: "today", tab: "forks", station: "sync" });
+    expect(station("sync")?.getAttribute("aria-pressed")).toBe("true");
+    const columns = [...(section("forks")?.querySelectorAll<HTMLElement>("[data-column]") ?? [])];
+    expect(columns.length).toBeGreaterThan(8);
+    for (const column of columns)
+      expect(column.hasAttribute("data-dim")).toBe(column.dataset.column !== "sync");
+    await click(container.querySelector(".today-filter button"));
+    expect(section("forks")?.querySelector("[data-dim]")).toBeNull();
+  });
+
+  it("leaves a fork with an unread station visible and does not claim its reading is quiet", async () => {
+    const body = whole();
+    const fleet = body.briefing.today?.fleet;
+    const main = fleet?.stations.find(({ id }) => id === "main");
+    const home = body.services?.find(({ service }) => service === "file")?.home;
+    const station = home?.stations.find(({ id }) => id === "main");
+    if (!main || !station || !home) throw new Error("Fixture needs file's Main reading");
+    main.notRead.push("file");
+    Object.assign(station, { state: "unread", word: "not read" });
+    home.mark = { kind: "unread" };
+    delete home.openPrTotal;
+    await render(body, "#today/forks");
+    expect(fold()).toBeNull();
+    expect(fork("file")?.querySelector('[data-column="main"]')?.textContent).toContain("not read");
+    expect(section("forks")?.querySelector(".today-section-count")?.textContent).toContain("⌀");
+    await click(fork("file")?.querySelector("button"));
+    expect(fork("file")?.nextElementSibling?.textContent).toContain("Not read on file");
+    expect(fork("file")?.nextElementSibling?.textContent).not.toContain("Nothing waiting on you");
   });
 });
 

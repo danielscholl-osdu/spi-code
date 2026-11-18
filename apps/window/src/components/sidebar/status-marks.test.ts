@@ -1,29 +1,32 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import {
-  type Station,
-  type Tone,
-  type ViewSnapshot,
-  ViewSnapshotSchema,
-} from "@spi-code/contracts";
+import { type Tone, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { expect, it } from "vitest";
 import current from "../../../../../fixtures/watch/snapshot-1106.json?raw";
-import { selectStrip } from "../../store/strip.js";
 import { dropRunning, setRunning } from "../../test-utils/environment.test-helper.js";
 import { type StatusMark, type StatusPin, statusDot, statusRows } from "./status-marks.js";
 
 const NOW = Date.parse("2026-11-06T15:04:00.000Z");
 const HOUR = 3_600_000;
-type SlotState = "empty" | "occupied" | "done" | "waiting" | "broken" | "unknown";
-
 function base(): ViewSnapshot {
   const body = ViewSnapshotSchema.parse(JSON.parse(current));
   delete body.briefing.nextSyncAt;
-  return slots(
-    stations(body, () => ({})),
-    () => "done",
-  );
+  body.briefing.lines = [];
+  return template(body, 0, []);
+}
+
+function template(body: ViewSnapshot, count: number, forks: string[], notRead: string[] = []) {
+  const door = body.briefing.today?.fleet?.doors.find(({ id }) => id === "template");
+  if (!door) throw new Error("Fixture needs a Template door");
+  Object.assign(door, { count, forks, notRead });
+  return body;
+}
+
+function ports(body: ViewSnapshot) {
+  const original = ViewSnapshotSchema.parse(JSON.parse(current));
+  body.briefing.lines = original.briefing.lines?.filter(({ id }) => id.startsWith("waiting:port:"));
+  return body;
 }
 
 function environment(body: ViewSnapshot, fact: { tone: Tone; sub: string; figure?: string }) {
@@ -43,33 +46,6 @@ function held(body: ViewSnapshot) {
   return body;
 }
 
-function slots(body: ViewSnapshot, state: (index: number) => SlotState) {
-  for (const place of body.briefing.places ?? [])
-    if (place.visual?.kind === "rollout")
-      place.visual.slots = place.visual.slots.map((slot, index) => ({
-        ...slot,
-        state: state(index),
-      }));
-  return body;
-}
-
-function stations(
-  body: ViewSnapshot,
-  change: (service: string, id: Station["id"]) => Partial<Station>,
-) {
-  for (const row of body.stations)
-    row.stations = row.stations.map((entry) => ({
-      ...entry,
-      substate: "ready",
-      state: "idle",
-      ...change(row.service, entry.id),
-    })) as typeof row.stations;
-  return body;
-}
-
-const stopped = { substate: "stopped", state: "stopped" } as const;
-const waiting = { substate: "waiting-on-person", state: "waiting" } as const;
-const unknown = { state: "unknown" } as const;
 const sync = (ms: number) => (body: ViewSnapshot) => {
   body.briefing.nextSyncAt = new Date(NOW + ms).toISOString();
   return body;
@@ -77,103 +53,22 @@ const sync = (ms: number) => (body: ViewSnapshot) => {
 
 const cases: [string, (body: ViewSnapshot) => ViewSnapshot, StatusPin, StatusMark | undefined][] = [
   [
-    "failed templates",
-    (b) => slots(b, (i) => (i < 2 ? "broken" : i < 5 ? "waiting" : "done")),
+    "template PRs to review",
+    (b) => template(b, 2, ["legal", "storage"]),
     "place:engineering-system",
-    { kind: "count", tone: "error", count: 2 },
+    { kind: "count", tone: "warning", count: 2 },
   ],
+  ["no template PRs to review", (b) => b, "place:engineering-system", undefined],
   [
-    "pending templates",
-    (b) => slots(b, (i) => (i < 3 ? "occupied" : "done")),
-    "place:engineering-system",
-    { kind: "count", tone: "warning", count: 3 },
-  ],
-  ["current templates", (b) => b, "place:engineering-system", undefined],
-  [
-    "unknown template slots",
-    (b) => slots(b, () => "unknown"),
+    "unread template PRs",
+    (b) => template(b, 0, [], ["file"]),
     "place:engineering-system",
     undefined,
   ],
   [
-    "missing rollout",
-    (b) => {
-      b.briefing.places = b.briefing.places?.filter((p) => p.place !== "engineering");
-      return b;
-    },
-    "place:engineering-system",
-    undefined,
-  ],
-  [
-    "failed templates beside unknown slots",
-    (b) => slots(b, (i) => (i === 0 ? "broken" : i < 3 ? "unknown" : "done")),
-    "place:engineering-system",
-    { kind: "count", tone: "error", count: 1 },
-  ],
-  [
-    "pending templates beside unknown slots",
-    (b) => slots(b, (i) => (i === 0 ? "empty" : i < 3 ? "unknown" : "done")),
-    "place:engineering-system",
-    { kind: "count", tone: "warning", count: 1 },
-  ],
-  [
-    "stopped forks",
-    (b) =>
-      stations(b, (s, id) => (id === "main" && ["storage", "search"].includes(s) ? stopped : {})),
-    "sheet:line",
-    { kind: "count", tone: "error", count: 2 },
-  ],
-  [
-    "waiting forks",
-    (b) => stations(b, (s, id) => (id === "sync" && s === "legal" ? waiting : {})),
-    "sheet:line",
-    { kind: "count", tone: "warning", count: 1 },
-  ],
-  [
-    "stopped forks win over waiting",
-    (b) =>
-      stations(b, (s, id) =>
-        id === "main" && s === "storage"
-          ? stopped
-          : id === "sync" && ["legal", "schema"].includes(s)
-            ? waiting
-            : {},
-      ),
-    "sheet:line",
-    { kind: "count", tone: "error", count: 1 },
-  ],
-  ["flowing forks", (b) => b, "sheet:line", undefined],
-  [
-    "unread forks",
-    (b) => stations(b, (s, id) => (s === "file" && id === "sync" ? unknown : {})),
-    "sheet:line",
-    undefined,
-  ],
-  [
-    "empty fleet",
-    (b) => {
-      b.stations = [];
-      return b;
-    },
-    "sheet:line",
-    undefined,
-  ],
-  [
-    "stopped forks beside unread ones",
-    (b) =>
-      stations(b, (s, id) =>
-        s === "storage" && id === "main" ? stopped : s === "file" && id === "sync" ? unknown : {},
-      ),
-    "sheet:line",
-    { kind: "count", tone: "error", count: 1 },
-  ],
-  [
-    "waiting forks beside unread ones",
-    (b) =>
-      stations(b, (s, id) =>
-        s === "legal" && id === "sync" ? waiting : s === "file" && id === "sync" ? unknown : {},
-      ),
-    "sheet:line",
+    "port row before the sync clock",
+    (b) => ports(sync(HOUR)(b)),
+    "place:upstream",
     { kind: "count", tone: "warning", count: 1 },
   ],
   ["ready environment", (b) => b, "place:environment", { kind: "check", tone: "success" }],
@@ -236,22 +131,16 @@ const cases: [string, (body: ViewSnapshot) => ViewSnapshot, StatusPin, StatusMar
 ];
 
 it.each(cases)("marks %s", (_name, change, pin, mark) => {
-  expect(statusRows(selectStrip(change(base())), NOW)[pin].mark).toEqual(mark);
+  expect(statusRows(change(base()), NOW)[pin].mark).toEqual(mark);
 });
 
 it("never checks an Environment it could not read, nor marks any field it could not read", () => {
-  const unread = environment(
-    slots(
-      stations(base(), () => unknown),
-      () => "unknown",
-    ),
-    {
-      tone: "ok",
-      sub: "deployable",
-      figure: "?",
-    },
-  );
-  const rows = statusRows(selectStrip(unread), NOW);
+  const unread = environment(template(base(), 0, [], ["file"]), {
+    tone: "ok",
+    sub: "deployable",
+    figure: "?",
+  });
+  const rows = statusRows(unread, NOW);
   for (const row of Object.values(rows)) {
     expect(row.mark).toBeUndefined();
     expect(row.classification).toBe("unread");
@@ -260,33 +149,19 @@ it("never checks an Environment it could not read, nor marks any field it could 
 });
 
 it("names the unread members beside a proven count", () => {
-  const forks = statusRows(
-    selectStrip(
-      cases.find(([name]) => name === "stopped forks beside unread ones")?.[1](base()) ?? base(),
-    ),
-    NOW,
-  )["sheet:line"];
-  expect(forks.sentence).toContain("Stopped: storage.");
-  expect(forks.sentence).toContain("Not read yet: file.");
-  const templates = statusRows(
-    selectStrip(
-      cases.find(([name]) => name === "failed templates beside unknown slots")?.[1](base()) ??
-        base(),
-    ),
-    NOW,
-  )["place:engineering-system"];
-  const rollout = base().briefing.places?.find(({ place }) => place === "engineering")?.visual;
-  if (rollout?.kind !== "rollout") throw new Error("Recorded rollout required");
-  const [failed, ...unread] = rollout.slots.slice(0, 3).map(({ service }) => service);
-  expect(templates.sentence).toContain(`failed on ${failed}`);
-  expect(templates.sentence).toContain(`Not read yet on ${unread.join(", ")}.`);
+  const row = statusRows(template(base(), 2, ["legal", "storage"], ["file"]), NOW)[
+    "place:engineering-system"
+  ];
+  expect(row.mark).toEqual({ kind: "count", tone: "warning", count: 2 });
+  expect(row.sentence).toContain("legal, storage");
+  expect(row.sentence).toContain("Not read: file");
 });
 
 it("gives a fine Environment its sentence, and an unmarked next sync none", () => {
-  const rows = statusRows(selectStrip(base()), NOW);
+  const rows = statusRows(base(), NOW);
   expect(rows["place:environment"].sentence).toBe("Environment: Ready. v0.35.3 is ready.");
   expect(rows["place:upstream"].sentence).toBeUndefined();
-  expect(statusRows(selectStrip(sync(HOUR)(base())), NOW)["place:upstream"].sentence).toMatch(
+  expect(statusRows(sync(HOUR)(base()), NOW)["place:upstream"].sentence).toMatch(
     /^Next upstream sync \d\d:\d\d \(in .+\)\.$/,
   );
 });
@@ -312,17 +187,11 @@ it.each([
 });
 
 it("draws no dot when every field is unread", () => {
-  const unread = environment(
-    slots(
-      stations(base(), () => unknown),
-      () => "unknown",
-    ),
-    {
-      tone: "neutral",
-      sub: "deployability unread",
-    },
-  );
-  const rows = statusRows(selectStrip(unread), NOW);
+  const unread = environment(template(base(), 0, [], ["file"]), {
+    tone: "neutral",
+    sub: "deployability unread",
+  });
+  const rows = statusRows(unread, NOW);
   expect(
     statusDot(
       0,

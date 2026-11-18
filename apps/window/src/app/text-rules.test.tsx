@@ -77,9 +77,7 @@ it("opens the upstream plan without presenting preparation as the button's actio
   );
   expect(button?.textContent?.trim()).toBe("View upstream plan");
   await act(async () => button?.click());
-  expect(container.querySelector(".line-sheet .line-plan strong")?.textContent).toBe(
-    body.briefing.flow.plan.title,
-  );
+  expect(window.location.hash).toBe("#today/forks");
   expect(selectionStore.getState().selected).toBeNull();
 });
 

@@ -25,7 +25,7 @@ import { Autocomplete } from "@base-ui/react/autocomplete";
 import { Dialog } from "@base-ui/react/dialog";
 import { useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
-import { type Destination, LINE, useRegistry } from "../app/routes.js";
+import { type Destination, useRegistry } from "../app/routes.js";
 import { isMacPlatform, matchesShiftShortcut, shiftShortcutLabel } from "../app/shortcuts.js";
 import { PinControl } from "../components/pin/PinControl.js";
 import { ServiceMark, serviceMark } from "../components/sidebar/service-mark.js";
@@ -119,7 +119,6 @@ function PaletteContent({
   );
   const run = (item: PaletteItem) => {
     if (item.target.kind === "route") onNavigate(item.target.route);
-    else if (item.target.kind === "line") onNavigate(LINE);
     else if (item.target.kind === "settings") onSettings();
     else openTodayRow(body?.briefing.lines, item.target.id);
     onClose();

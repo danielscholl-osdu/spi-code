@@ -56,15 +56,6 @@ export const VIEW_SURFACES = [
     qualified: true,
   },
   {
-    id: "line",
-    name: "The Line sheet",
-    route: "today",
-    place: "Today",
-    selector: ".line-sheet[data-presentation=overlay] .line-grid",
-    designSection: "The window / The Line sheet",
-    qualified: true,
-  },
-  {
     id: "upstream",
     name: "Upstream",
     route: "upstream",
@@ -209,20 +200,11 @@ export const VIEW_SURFACES = [
     qualified: true,
   },
   {
-    id: "panes",
-    name: "Pinned Line beside Upstream",
-    route: "upstream",
-    place: "Upstream",
-    selector: ".line-sheet:not([data-presentation=overlay]) .line-grid",
-    designSection: "Layout / Panes and surfaces; Width budget",
-    qualified: true,
-  },
-  {
     id: "strip-20",
-    name: "Line pin / 20 services",
+    name: "Sidebar / 20 pinned services",
     route: "today",
     place: "Today",
-    selector: '[data-sidebar-row=line][data-services="20"]',
+    selector: '[data-sidebar-row="service/smoke-service-20"]',
     designSection: "Layout / Top row at 740 px; Status on the pins",
     qualified: true,
   },
@@ -338,11 +320,10 @@ export const VIEW_SURFACES = [
 
 export const BROKEN_PROOFS: Partial<Record<string, RegExp>> = {
   "upstream-theme/1440": /^Related value squeezed to 159 px$/,
-  "panes/1440": /^Header top: 4 != 0$/,
   "strip-20/740": /^Toggle sidebar at .* lies in a drag rectangle$/,
 };
 
-export function geometryRules(surface: string, width: number): SmokeGeometry["rule"][] {
+export function geometryRules(surface: string, _width: number): SmokeGeometry["rule"][] {
   if (surface.startsWith("settings-sweep-"))
     return ["window", "settings", "sweep-visible", "sweep-reads", "overlay-drag"];
   if (surface.startsWith("evidence-header-"))
@@ -351,10 +332,7 @@ export function geometryRules(surface: string, width: number): SmokeGeometry["ru
   if (surface.startsWith("first-sweep-")) return ["window", "headers"];
   if (surface.startsWith("settings")) return ["window", "settings"];
   if (surface === "upstream-theme") return ["window", "related"];
-  if (surface === "panes" && width === 1440) return ["window", "panes", "headers", "drag"];
-  if (
-    ["today", "upstream-item", "panes", "strip-20", "sidebar", "sidebar-hidden"].includes(surface)
-  )
+  if (["today", "upstream-item", "strip-20", "sidebar", "sidebar-hidden"].includes(surface))
     return ["window", "headers", "drag"];
   return ["window"];
 }
@@ -495,7 +473,7 @@ function assertSmokeQualifiers(surfaceId: string, qualifiers: unknown): void {
       /Swept 08:02.*sweeping, 4 of 12/i.test(qualifiers[0] ?? ""),
       "Missing refresh qualifier",
     );
-  if (surface.qualified && !["strip", "line"].includes(surfaceId))
+  if (surface.qualified && surfaceId !== "strip")
     assert(
       /failed|incomplete|truncated/i.test(qualifiers[1] ?? ""),
       `Missing envelope qualifier: ${surfaceId}`,
@@ -555,12 +533,6 @@ export function assertSmokeViews(value: unknown): asserts value is SmokeShot[] {
             assert.equal(geometry.overlay, "[role=dialog].settings", "Wrong Sweep overlay");
             assert(geometry.backdrop, "Missing Sweep Settings backdrop");
           }
-          if (id === "panes" && viewportWidth === 1440 && geometry.rule === "headers")
-            assert.equal(
-              geometry.headers.length,
-              3,
-              "Header probe requires sidebar, centre and Line",
-            );
           if (id === "strip-20" && geometry.rule === "drag")
             assert.equal(geometry.services, 20, "Drag probe requires 20 services");
         }

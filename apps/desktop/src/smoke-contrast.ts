@@ -784,19 +784,19 @@ const PINNED: Required = {
   hover: [
     { selector: "sidebar-row-label", text: PINNED_STOPPED },
     BLOCKED_MARK,
-    { selector: "sidebar-mark[data-tone=error]", text: "1" },
+    { selector: "sidebar-mark[data-tone=warning]", text: "3" },
     { selector: "sidebar-mark[data-tone=warning]", text: "13" },
   ],
 };
 const FIND_UNPINNED = "partition";
 const SHORTCUT = process.platform === "darwin" ? "⌘⇧P" : "Ctrl+Shift+P";
 /** The pin control, measured as a graphic by its name. */
-const pinControl = (name: string, pinned: boolean, shortcut = true) => ({
+const pinControl = (name: string, pinned: boolean) => ({
   selector: "button.pin-control",
-  text: `${pinned ? `Unpin ${name} from sidebar` : `Pin ${name} to sidebar`}${shortcut ? ` (${SHORTCUT})` : ""}`,
+  text: `${pinned ? `Unpin ${name} from sidebar` : `Pin ${name} to sidebar`} (${SHORTCUT})`,
 });
 const FIND_ROWS = [
-  { selector: "[data-pin-state=always]", text: "Line" },
+  { selector: "[data-pin-state=always]", text: "Environment" },
   { selector: "[data-pin-state=pinned]", text: "Upstream" },
   { selector: "[data-pin-state=pinned]", text: PINNED_STOPPED },
   { selector: "[data-pin-state=unpinned]", text: FIND_UNPINNED },
@@ -804,11 +804,6 @@ const FIND_ROWS = [
   pinControl(FIND_UNPINNED, false),
 ];
 const FIND: Required = { rest: FIND_ROWS, hover: FIND_ROWS };
-const LINE_PINNED = pinControl(PINNED_STOPPED, true, false);
-const LINE: Required = {
-  rest: [LINE_PINNED, { selector: "line-dock", text: "Dock" }],
-  hover: [LINE_PINNED, pinControl(FIND_UNPINNED, false, false)],
-};
 const TOP_PINNED = pinControl("Upstream", true);
 const TOP_UNPINNED = pinControl(FIND_UNPINNED, false);
 const BLOCKED_ROW = "conflict:entitlements:121";
@@ -836,7 +831,7 @@ const ROOT_STATE = `(() => {
 })()`;
 
 /**
- * Measures every visible text on Today, the sweep popover, Upstream and its popovers, the Line sheet, three
+ * Measures every visible text on Today, the sweep popover, Upstream and its popovers, three
  * Settings sections and Find or ask, in both palettes and both themes, at rest and with every :hover
  * target forced.
  * Each view is mounted once and shaded in place by writing the root attributes Settings > Appearance
@@ -1049,7 +1044,6 @@ export async function assertRenderedContrast(
     };
     await js(`{
       localStorage.removeItem("spi-code.panes");
-      localStorage.removeItem("spi-code.line-sheet.pinned");
       localStorage.setItem("spi-code.appearance", "light");
       localStorage.setItem("spi-code.palette", "warm");
       localStorage.setItem(${JSON.stringify(PINS_KEY)}, ${JSON.stringify(JSON.stringify(PINS))});
@@ -1097,10 +1091,6 @@ export async function assertRenderedContrast(
       await everyShade(`today-${morning}`, ".today");
     }
     await push(nov6);
-    await js('document.querySelector("[data-sidebar-row=line]").click()');
-    await rendered(window, 'document.querySelector(".line-sheet .line-grid")');
-    await everyShade("line", ".line-sheet", LINE);
-    await js("document.querySelector(\"[aria-label='Close Line']\").click()");
     await js('location.hash = "#upstream"');
     await rendered(window, 'document.querySelector(".upstream .place-reading")');
     await everyShade("upstream", ".upstream", { rest: [TOP_PINNED], hover: [TOP_PINNED] });
@@ -1277,7 +1267,6 @@ export async function assertRenderedContrast(
       for (const [key, value] of Object.entries(saved))
         value === null ? localStorage.removeItem(key) : localStorage.setItem(key, value);
       localStorage.removeItem("spi-code.panes");
-      localStorage.removeItem("spi-code.line-sheet.pinned");
       location.hash = "#today";
     }`);
     window.setContentSize(width ?? 1440, height ?? 800);

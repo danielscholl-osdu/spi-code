@@ -8,15 +8,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import current from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import type { Route } from "../../app/routes.js";
-import {
-  LINE_PIN,
-  movePin,
-  PINS_STORAGE_KEY,
-  pin,
-  readPins,
-  SEED_PINS,
-  unpin,
-} from "../../store/pins.js";
+import { movePin, PINS_STORAGE_KEY, pin, readPins, SEED_PINS, unpin } from "../../store/pins.js";
 import { createWatchStore } from "../../store/watch.js";
 import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { COLLAPSE_STORAGE_KEY } from "./collapse.js";
@@ -45,7 +37,7 @@ afterEach(async () => {
 
 const recordedBody = ViewSnapshotSchema.parse(JSON.parse(recorded));
 const currentBody = ViewSnapshotSchema.parse(JSON.parse(current));
-const FIXED_LABELS = ["Today", "Line", "Environment", "Template"];
+const FIXED_LABELS = ["Today", "Environment", "Template"];
 const SEED_LABELS = ["Upstream", "Releases", "Security"];
 const storePins = (pins: readonly string[]) =>
   localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(pins));
@@ -54,7 +46,6 @@ async function render(
   route: Route = { kind: "today" },
   onNavigate = vi.fn(),
   body = recordedBody,
-  onLine?: () => void,
   onSettings?: () => void,
 ) {
   const store = createWatchStore(vi.fn());
@@ -66,7 +57,6 @@ async function render(
           store={store}
           route={route}
           onNavigate={onNavigate}
-          {...(onLine ? { onLine } : {})}
           {...(onSettings ? { onSettings } : {})}
         />
       </SidebarProvider>,
@@ -120,8 +110,7 @@ const altKey = (key: string, arrow: "ArrowUp" | "ArrowDown") =>
 const focused = () => document.activeElement?.getAttribute("data-sidebar-row");
 
 it("leads with Find or ask, then a headerless fixed block, then Pinned seeded with Upstream, Releases and Security", async () => {
-  const onLine = vi.fn();
-  await render({ kind: "service", id: "legal" }, vi.fn(), recordedBody, onLine);
+  await render({ kind: "service", id: "legal" }, vi.fn(), recordedBody);
   const nav = container.querySelector('nav[aria-label="Sidebar"]');
   expect(nav?.querySelector("button")?.textContent).toContain("Find or ask");
   expect(rows("Program")).toEqual(FIXED_LABELS);
@@ -135,19 +124,17 @@ it("leads with Find or ask, then a headerless fixed block, then Pinned seeded wi
   expect(container.querySelector('[data-sidebar-row="setup"]')).toBeNull();
   expect(nav?.textContent).not.toContain("Setup");
   expect(container.querySelector('[aria-current="page"]')).toBeNull();
-  await act(async () => row("line")?.click());
-  expect(onLine).toHaveBeenCalledExactlyOnceWith();
   await render();
   expect(rows("Program")).toEqual(["Today", "Environment", "Template"]);
 });
 
 it("draws the fixed block with no grip, menu or pin control, and no row with an unpin button", async () => {
   storePins([...SEED_PINS, "entitlements"]);
-  await render(undefined, undefined, undefined, vi.fn());
+  await render(undefined, undefined, undefined);
   const fixed = container.querySelector('ul[aria-label="Program"]');
   expect(fixed?.querySelectorAll("button")).toHaveLength(FIXED_LABELS.length);
   expect(fixed?.querySelector(".pin-grip, [draggable]")).toBeNull();
-  for (const key of ["today", "line", "environment", "engineering-system"]) {
+  for (const key of ["today", "environment", "engineering-system"]) {
     await openMenu(key);
     expect(document.querySelector("[data-pin-menu]"), key).toBeNull();
   }
@@ -207,7 +194,7 @@ it("marks each pinned service as its home's mark reads, and never a place", asyn
 });
 
 it("unpins Upstream from its menu and pins it again at the end, across a reload", async () => {
-  await render(undefined, undefined, undefined, vi.fn());
+  await render(undefined, undefined, undefined);
   await unpinFromMenu("upstream", "place:upstream");
   expect(rows("Pinned")).toEqual(["Releases", "Security"]);
   expect(readPins()).not.toContain("place:upstream");
@@ -225,12 +212,7 @@ it("unpins Upstream from its menu and pins it again at the end, across a reload"
   await act(async () =>
     root.render(
       <ui.SidebarProvider>
-        <sidebar.ProgramSidebar
-          store={store}
-          route={{ kind: "today" }}
-          onNavigate={vi.fn()}
-          onLine={vi.fn()}
-        />
+        <sidebar.ProgramSidebar store={store} route={{ kind: "today" }} onNavigate={vi.fn()} />
       </ui.SidebarProvider>,
     ),
   );
@@ -239,7 +221,7 @@ it("unpins Upstream from its menu and pins it again at the end, across a reload"
 });
 it("offers Open, Move up, Move down and Unpin from sidebar on each Pinned row, and Unpin removes it", async () => {
   storePins([...SEED_PINS, "entitlements"]);
-  const { onNavigate } = await render(undefined, undefined, undefined, vi.fn());
+  const { onNavigate } = await render(undefined, undefined, undefined);
   for (const [key, pinId] of [
     ["upstream", "place:upstream"],
     ["releases", "place:releases"],
@@ -258,7 +240,7 @@ it("offers Open, Move up, Move down and Unpin from sidebar on each Pinned row, a
 
 it("moves a pin from its menu and with Alt+Up and Alt+Down, past a pin the sweep does not name, and keeps the order", async () => {
   storePins(["place:security", "gone", "place:upstream", "place:releases"]);
-  await render(undefined, undefined, undefined, vi.fn());
+  await render(undefined, undefined, undefined);
   await openMenu("security");
   expect(menuItem("place:security", "Move up")?.hasAttribute("data-disabled")).toBe(true);
   await act(async () => menuItem("place:security", "Move down")?.click());
@@ -280,7 +262,7 @@ it("moves a pin from its menu and with Alt+Up and Alt+Down, past a pin the sweep
 });
 
 it("moves focus after Unpin to the next Pinned row, else the previous, else the fixed block's last row", async () => {
-  await render(undefined, undefined, undefined, vi.fn());
+  await render(undefined, undefined, undefined);
   await unpinFromMenu("releases", "place:releases");
   expect(focused()).toBe("security");
   await unpinFromMenu("security", "place:security");
@@ -291,7 +273,7 @@ it("moves focus after Unpin to the next Pinned row, else the previous, else the 
 });
 
 it("reorders by dragging within Pinned, and a drop on the fixed block or outside the list changes nothing", async () => {
-  await render(undefined, undefined, undefined, vi.fn());
+  await render(undefined, undefined, undefined);
   const pinItem = (id: string) => container.querySelector<HTMLElement>(`li[data-pin="${id}"]`);
   const drag = (target: Element | null | undefined, type: string, clientY = 0) =>
     act(async () => {
@@ -315,7 +297,7 @@ it("reorders by dragging within Pinned, and a drop on the fixed block or outside
 });
 it("ends with a gear that opens Settings, and no sweep time", async () => {
   const onSettings = vi.fn();
-  await render(undefined, undefined, undefined, undefined, onSettings);
+  await render(undefined, undefined, undefined, onSettings);
   const footer = container.querySelector('[data-slot="sidebar-footer"]');
   const settings = footer?.querySelector<HTMLButtonElement>('[data-sidebar-row="settings"]');
   expect(settings?.getAttribute("aria-label")).toBe("Settings");
@@ -333,7 +315,7 @@ it("has no footer without a way to open Settings", async () => {
 });
 
 it("dots the gear only when Readiness needs the operator, not when ready or unchecked", async () => {
-  const { store } = await render(undefined, undefined, undefined, undefined, vi.fn());
+  const { store } = await render(undefined, undefined, undefined, vi.fn());
   const dot = () => container.querySelector('[data-sidebar-row="settings"] .sidebar-readiness-dot');
   const states = (...states: SetupState["tools"][number]["state"][]) =>
     act(async () =>
@@ -397,25 +379,23 @@ async function nov6Evening(run: () => Promise<void>) {
 it("draws each status mark on its own row, the fixed block's and a Pinned place's wherever it sits, and nowhere else", () =>
   nov6Evening(async () => {
     storePins(["place:releases", "entitlements", "place:security", "place:upstream"]);
-    await render(undefined, undefined, currentBody, vi.fn());
+    await render(undefined, undefined, currentBody);
     expect(marks()).toEqual([
-      ["line", "count", "error", "1"],
       ["environment", "check", "success", ""],
       ["engineering-system", "count", "warning", "13"],
       ["service/entitlements", "count", "error", "2"],
-      ["upstream", "clock", "sync", ""],
+      ["upstream", "count", "warning", "3"],
     ]);
     await act(async () => movePin("place:upstream", "place:releases"));
-    expect(marks()[3]).toEqual(["upstream", "clock", "sync", ""]);
+    expect(marks()[2]).toEqual(["upstream", "count", "warning", "3"]);
     expect(rows("Pinned")[0]).toBe("Upstream");
   }));
 it("draws an unpinned status pin's mark nowhere", () =>
   nov6Evening(async () => {
-    await render(undefined, undefined, currentBody, vi.fn());
-    for (const id of [LINE_PIN, "place:environment", "place:upstream", "place:engineering-system"])
+    await render(undefined, undefined, currentBody);
+    for (const id of ["place:environment", "place:upstream", "place:engineering-system"])
       await act(async () => unpin(id));
     expect(marks()).toEqual([
-      ["line", "count", "error", "1"],
       ["environment", "check", "success", ""],
       ["engineering-system", "count", "warning", "13"],
     ]);
@@ -423,48 +403,38 @@ it("draws an unpinned status pin's mark nowhere", () =>
 
 it("puts each status field's sentence in its row's hover and description, a fine Environment's included", () =>
   nov6Evening(async () => {
-    await render(undefined, undefined, currentBody, vi.fn());
+    await render(undefined, undefined, currentBody);
     const sentence = (key: string) => {
       const element = row(key);
       expect(element?.getAttribute("title")).toBe(element?.getAttribute("aria-description"));
       return element?.getAttribute("aria-description");
     };
     expect(sentence("environment")).toBe("Environment: Ready. v0.35.3 is ready.");
-    expect(sentence("line")).toBe("Forks: 1 stopped. Stopped: entitlements.");
-    expect(sentence("engineering-system")).toMatch(/^Templates: 13 pending\. /);
-    expect(sentence("upstream")).toMatch(/^Next upstream sync .+ \(in .+\)\.$/);
-    expect(row("line")?.getAttribute("data-services")).toBe(String(currentBody.stations.length));
+    expect(sentence("engineering-system")).toMatch(/^13 template sync PRs to review: /);
+    expect(sentence("upstream")).toBe("3 rows on Upstream.");
     expect(sentence("releases")).toBeNull();
   }));
 
-it("keeps the Line pin's stopped count and Today's count once the Interrupt is acknowledged", () =>
+it("keeps Today's count once the Interrupt is acknowledged", () =>
   nov6Evening(async () => {
     const unacknowledged = structuredClone(currentBody);
     const interrupt = unacknowledged.briefing.focus[0];
     if (!interrupt) throw new Error("Recorded Interrupt missing");
     unacknowledged.seen = { cursor: null, since: [interrupt.id] };
-    const { store } = await render(undefined, undefined, unacknowledged, vi.fn());
-    const line = () => marks().find(([key]) => key === "line");
+    const { store } = await render(undefined, undefined, unacknowledged);
     const pip = () => row("today")?.querySelector(".sidebar-pip")?.textContent;
-    expect(line()).toEqual(["line", "count", "error", "1"]);
     expect(pip()).toBe("15");
     const acknowledged = ViewSnapshotSchema.parse(JSON.parse(acknowledgedText));
     expect(acknowledged.seen).toMatchObject({ cursor: currentBody.cursor, since: [] });
     await act(async () =>
       store.setState({ snapshot: { cursor: acknowledged.cursor, body: acknowledged } }),
     );
-    expect(line()).toEqual(["line", "count", "error", "1"]);
     expect(pip()).toBe("15");
   }));
 
-it("keeps Cmd+L on the Line row", async () => {
-  await render(undefined, undefined, currentBody, vi.fn());
-  expect(row("line")?.getAttribute("aria-keyshortcuts")).toMatch(/^(Meta|Control)\+L$/);
-});
-
 it("dots a collapsed Pinned header by its services' marks: error for Blocked, warning for Waiting, none for a check or not read", async () => {
   storePins(["place:releases", "crs-catalog"]);
-  await render(undefined, undefined, currentBody, vi.fn());
+  await render(undefined, undefined, currentBody);
   const dot = () => header("Pinned")?.querySelector(".sidebar-status-dot");
   await act(async () => header("Pinned")?.click());
   expect(dot()).toBeNull();

@@ -10,7 +10,7 @@ import { clearPinNotice } from "../store/pin-feedback.js";
 import { PINS_STORAGE_KEY, readPins } from "../store/pins.js";
 import { watchStore } from "../store/watch.js";
 import { fixtureLoader, installSpi } from "../test-utils/harness.js";
-import { closeSheet, navigate, type Route } from "./navigation.js";
+import { navigate, type Route } from "./navigation.js";
 import { Shell } from "./Shell.js";
 
 const body = fixtureLoader(readFixture)("snapshot-59d6895.json");
@@ -21,7 +21,6 @@ let root: Root;
 
 beforeEach(async () => {
   window.location.hash = "";
-  closeSheet();
   localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(["place:upstream"]));
   harness = installSpi();
   watchStore.setState({ snapshot: { cursor: body.cursor, body } });
@@ -34,14 +33,12 @@ beforeEach(async () => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
-  closeSheet();
   selectionStore.getState().clear();
   watchStore.setState(previous);
   harness.restore();
   window.location.hash = "";
   vi.unstubAllGlobals();
   localStorage.removeItem(PINS_STORAGE_KEY);
-  localStorage.removeItem("spi-code.line-sheet.pinned");
   localStorage.removeItem("spi-code.panes");
   localStorage.removeItem("spi-code.sidebar.collapsed");
   clearPinNotice();
@@ -89,7 +86,7 @@ it("draws no control and does nothing on Today, a release month or a fixed place
   }
 });
 
-it("does nothing while Settings is open or the Line sheet overlays the centre, and acts beside a docked one", async () => {
+it("does nothing while Settings is open", async () => {
   await go({ kind: "releases" });
   await press(",", { ctrlKey: true });
   expect(document.querySelector("[role=dialog]")).not.toBeNull();
@@ -97,17 +94,6 @@ it("does nothing while Settings is open or the Line sheet overlays the centre, a
   expect(readPins()).toEqual(["place:upstream"]);
   await press("Escape", {});
   expect(document.querySelector("[role=dialog]")).toBeNull();
-
-  await press("l", { ctrlKey: true });
-  expect(container.querySelector(".line-sheet")?.getAttribute("data-presentation")).toBe("overlay");
-  await press("P");
-  expect(readPins()).toEqual(["place:upstream"]);
-  const dock = [...container.querySelectorAll<HTMLButtonElement>(".line-toolbar button")].find(
-    (button) => button.textContent === "Dock",
-  );
-  await act(async () => dock?.click());
-  await press("P");
-  expect(readPins()).toEqual(["place:upstream", "place:releases"]);
 });
 
 it("leaves the open place alone while Find takes the shortcut for its highlighted result", async () => {
@@ -137,7 +123,7 @@ async function findUpstream() {
   });
 }
 
-it.each(["sidebar menu", "top control", "Find control", "Find shortcut", "Line sheet"])(
+it.each(["sidebar menu", "top control", "Find control", "Find shortcut"])(
   "%s offers Undo and keyboard Undo at the old index, persisted each time",
   async (path) => {
     const original = ["place:releases", "place:upstream", "legal", "place:security"];
@@ -145,11 +131,10 @@ it.each(["sidebar menu", "top control", "Find control", "Find shortcut", "Line s
       localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(original));
       window.dispatchEvent(new StorageEvent("storage", { key: PINS_STORAGE_KEY }));
     });
-    const id = path === "Line sheet" ? "legal" : "place:upstream";
-    const label = path === "Line sheet" ? "legal" : "Upstream";
+    const id = "place:upstream";
+    const label = "Upstream";
     await go({ kind: "upstream" });
     if (path.startsWith("Find")) await findUpstream();
-    if (path === "Line sheet") await press("l", { ctrlKey: true });
     const remove = async () => {
       if (path === "sidebar menu") {
         const row = container.querySelector<HTMLElement>('[data-sidebar-row="upstream"]');
@@ -166,9 +151,7 @@ it.each(["sidebar menu", "top control", "Find control", "Find shortcut", "Line s
         const selector =
           path === "Find control"
             ? '[role="dialog"].palette [data-pin-state="pinned"] .pin-control'
-            : path === "Line sheet"
-              ? '[data-service="legal"] .pin-control'
-              : ".centre-end > .pin-control";
+            : ".centre-end > .pin-control";
         const button = document.querySelector<HTMLButtonElement>(selector);
         expect(button).not.toBeNull();
         await act(async () => button?.click());

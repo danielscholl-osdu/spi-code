@@ -3,7 +3,7 @@
 
 import type { PlaceRow, Reading, Tone, ViewSnapshot } from "@spi-code/contracts";
 import type { ReactNode } from "react";
-import { type Navigation, PLACES, routeLabel, useOpenSelection } from "../../app/navigation.js";
+import { PLACES, type Route, routeLabel, useOpenSelection } from "../../app/navigation.js";
 import { scopeRoute } from "../../app/queue.js";
 import { PaneTitle } from "../../app/title-row.js";
 import { plainTitle } from "../../text.js";
@@ -30,7 +30,7 @@ export type PlaceProps = {
   reading: Reading;
   snapshot?: ViewSnapshot | undefined;
   services?: readonly string[];
-  onNavigate: Navigation["navigate"];
+  onNavigate: (route: Route) => void;
   /** Without onSelect, item content stays static and scope chips still navigate. */
   onSelect?: (id: string) => void;
   selectedId?: string;

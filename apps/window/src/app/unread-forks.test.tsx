@@ -8,7 +8,6 @@ import { readFixture } from "../../../../scripts/watch-generated.mjs";
 import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
 import { fixtureLoader, installSpi, type SnapshotName } from "../test-utils/harness.js";
-import { closeSheet } from "./navigation.js";
 import { Shell } from "./Shell.js";
 
 const loadFixture = fixtureLoader(readFixture);
@@ -42,7 +41,6 @@ async function mount(name: SnapshotName, hash: string) {
 }
 
 beforeEach(() => {
-  closeSheet();
   harness = installSpi({
     openExternal: vi.fn(async () => true),
     setAppearance: vi.fn(async () => true),
@@ -53,7 +51,6 @@ beforeEach(() => {
 afterEach(async () => {
   await unmount?.();
   unmount = undefined;
-  closeSheet();
   watchStore.setState(previousWatch, true);
   harness.restore();
   window.location.hash = "";

@@ -10,7 +10,6 @@ import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { setOpenSelection } from "../../app/navigation.js";
 import { watchStore } from "../../store/watch.js";
 import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
-import Line from "../../views/line/index.js";
 import Template from "../../views/template/index.js";
 import { type MemberPlace, placeMembers } from "./members.js";
 import fixtureText from "./members-1116.json?raw";
@@ -83,30 +82,12 @@ it("claims no home without core's home field; absent lines have no Today count",
   expect(todayMembers(snapshot.briefing)).toEqual([]);
 });
 
-it("marks every open Line member on its cells and the Engineering member on its rollout rungs", async () => {
+it("marks the Engineering member on its rollout rungs", async () => {
   const previous = watchStore.getState();
   const snapshot = body();
   try {
     watchStore.setState({ snapshot: { cursor: snapshot.cursor, body: snapshot } });
-    await act(async () =>
-      root.render(
-        <>
-          <Line presentation="overlay" />
-          <Template />
-        </>,
-      ),
-    );
-    for (const { member } of placeMembers(snapshot, "line")) {
-      await act(async () => setOpenSelection({ kind: "item", id: member.id }));
-      expect(container.querySelectorAll(".rollout-rung [data-member-marked]")).toHaveLength(0);
-      const marks = container.querySelectorAll(".line-cell[data-member-marked]");
-      expect(marks.length, member.id).toBeGreaterThan(0);
-      expect(
-        [...marks].every(
-          (mark) => mark.closest("[data-service]")?.getAttribute("data-service") === member.fork,
-        ),
-      ).toBe(true);
-    }
+    await act(async () => root.render(<Template />));
     await act(async () => setOpenSelection({ kind: "item", id: "rollout" }));
     expect(
       container.querySelectorAll(".rollout-rung[data-member] button[data-member-marked]"),

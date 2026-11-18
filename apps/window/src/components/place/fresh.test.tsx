@@ -1,18 +1,16 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { PlaceRow } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
-import { closeSheet, openSelection, setOpenSelection } from "../../app/navigation.js";
+import { openSelection, setOpenSelection } from "../../app/navigation.js";
 import { placeFreshCases } from "../../app/place-reachability.test-helper.js";
 import { selectionStore } from "../../panels/selection.js";
 import { watchStore } from "../../store/watch.js";
 import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import Environment from "../../views/environment/index.js";
-import Line from "../../views/line/index.js";
 import Security from "../../views/security/index.js";
 import Template from "../../views/template/index.js";
 import * as OpenedBodyView from "../opened-body/OpenedBody.js";
@@ -26,7 +24,6 @@ let root: ReturnType<typeof createRoot>;
 let harness: ReturnType<typeof installSpi>;
 beforeEach(() => {
   root = createRoot(container);
-  closeSheet();
   setOpenSelection(null);
   localStorage.clear();
   harness = installSpi();
@@ -37,14 +34,12 @@ afterEach(async () => {
   container.remove();
   watchStore.setState(previous, true);
   selectionStore.getState().clear();
-  closeSheet();
   setOpenSelection(null);
   harness.restore();
   vi.restoreAllMocks();
 });
 
 const views = {
-  line: <Line presentation="overlay" />,
   environment: <Environment />,
   engineering: <Template />,
   security: <Security />,
@@ -54,14 +49,12 @@ const marked = () =>
     (element) => element.dataset.freshItem,
   );
 
-it.each(Object.keys(views) as PlaceRow["place"][])(
+it.each(Object.keys(views) as (keyof typeof views)[])(
   "%s marks exactly core's fresh ids, including items outside its capped reading",
   async (place) => {
     const body = loadFixture("snapshot-busy.json");
     const row = body.briefing.places?.find((row) => row.place === place);
-    const reading = body.readings.find(
-      ({ anchor }) => anchor.kind === (place === "line" ? "program" : place),
-    );
+    const reading = body.readings.find(({ anchor }) => anchor.kind === place);
     const own = reading?.content?.items[0]?.id;
     const extra = body.briefing.rest.find(({ cls }) => cls === "SECURITY");
     if (!row || !reading?.content || !extra) throw new Error("Missing recorded data");
@@ -106,9 +99,8 @@ it("registers each new chip at its place", async () => {
   const body = loadFixture("snapshot-busy.json");
   const seeded: string[] = [];
   for (const row of body.briefing.places ?? []) {
-    const reading = body.readings.find(
-      ({ anchor }) => anchor.kind === (row.place === "line" ? "program" : row.place),
-    );
+    if (row.place === "line") continue;
+    const reading = body.readings.find(({ anchor }) => anchor.kind === row.place);
     if (!reading?.content) throw new Error("Missing reading");
     const item = reading.content.items[0];
     if (item) {
@@ -117,7 +109,7 @@ it("registers each new chip at its place", async () => {
     }
   }
   // The busy sweep's Environment reading has no item: its re-run item belongs to the fork.
-  expect(seeded.sort()).toEqual(["engineering", "line", "security"]);
+  expect(seeded.sort()).toEqual(["engineering", "security"]);
   const cases = placeFreshCases(body);
   expect(cases).toHaveLength(seeded.length);
   for (const row of cases) {

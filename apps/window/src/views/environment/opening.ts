@@ -291,20 +291,3 @@ export function environmentOpening(
       return undefined;
   }
 }
-
-const FLOW_STATIONS = ["upstream", "sync", "cascade", "main"];
-
-/** The Line cell a flow row's `upstream:<fork>` names: its first station stopped or waiting on you, else Upstream. */
-export function flowCell(snapshot: ViewSnapshot, inspect: string): string | undefined {
-  const row = snapshot.briefing.flow.rows.find((row) => row.inspect === inspect);
-  const stations = snapshot.stations.find(({ service }) => service === row?.fork)?.stations;
-  if (!row || !stations) return undefined;
-  const station = FLOW_STATIONS.find((id) =>
-    stations.some(
-      (station) =>
-        station.id === id &&
-        (station.substate === "stopped" || station.substate === "waiting-on-person"),
-    ),
-  );
-  return `${row.fork}:${station ?? "upstream"}`;
-}

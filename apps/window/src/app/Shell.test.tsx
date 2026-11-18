@@ -14,14 +14,7 @@ import { testSnapshot } from "../store/test-snapshot.js";
 import { watchStore } from "../store/watch.js";
 import { installSpi } from "../test-utils/harness.js";
 import { PANES_STORAGE_KEY } from "./pane-layout.js";
-import {
-  closeSheet,
-  navigate,
-  openEvidence,
-  pinSheet,
-  type Registry,
-  type Route,
-} from "./routes.js";
+import { navigate, openEvidence, type Registry, type Route } from "./routes.js";
 import { Shell } from "./Shell.js";
 import { PaneTitle } from "./title-row.js";
 
@@ -59,7 +52,6 @@ const press = (key: string, init: KeyboardEventInit = { ctrlKey: true }) =>
 
 beforeEach(() => {
   localStorage.removeItem(PANES_STORAGE_KEY);
-  closeSheet();
   window.location.hash = "";
   viewport(1280);
   selectionStore.setState({
@@ -117,46 +109,32 @@ it.each(["failed", "cancelled"] as const)(
   },
 );
 
-it("re-decides the pane presentations and widths through all eight drawn cases", async () => {
+it("re-decides the pane presentations and widths on resize", async () => {
   const shell = await mountShell();
   const layout = shell.container.querySelector<HTMLElement>(".shell");
   if (!layout) throw new Error("Missing shell");
   try {
-    for (const [width, pinned, centre, sidebar, line, lineWidth, detail, detailWidth] of [
-      [1600, false, 1368, "inline", "closed", 0, "closed", 0],
-      [1440, true, 848, "inline", "inline", 360, "closed", 0],
-      [1280, true, 688, "inline", "inline", 360, "closed", 0],
-      [1100, false, 868, "inline", "closed", 0, "closed", 0],
-      [1100, true, 520, "inline", "inline", 348, "closed", 0],
-      [980, false, 748, "inline", "closed", 0, "closed", 0],
-      [900, true, 668, "inline", "stacked", 668, "closed", 0],
-      [740, false, 740, "off-canvas", "closed", 0, "closed", 0],
+    for (const [width, centre, sidebar] of [
+      [1600, 1368, "inline"],
+      [1100, 868, "inline"],
+      [900, 668, "inline"],
+      [740, 740, "off-canvas"],
     ] as const) {
       await act(async () => {
         viewport(width);
         window.dispatchEvent(new Event("resize"));
-        if (pinned) pinSheet();
-        else closeSheet();
       });
       expect(layout.dataset.sidebarPresentation).toBe(sidebar);
-      expect(layout.dataset.linePresentation).toBe(line);
-      expect(layout.dataset.rightPresentation).toBe(detail);
+      expect(layout.dataset.rightPresentation).toBe("closed");
       expect(
         width -
           Number.parseFloat(layout.style.getPropertyValue("--sidebar-col")) -
-          Number.parseFloat(layout.style.getPropertyValue("--sheet-col")) -
           Number.parseFloat(layout.style.getPropertyValue("--panel-col")),
       ).toBe(centre);
       expect(layout.style.getPropertyValue("--panel-col")).toBe("0px");
-      expect(layout.style.getPropertyValue("--sheet-col")).toBe(
-        `${line === "inline" ? lineWidth : 0}px`,
-      );
-      expect(layout.style.getPropertyValue("--right-panel-width")).toBe(`${detailWidth}px`);
+      expect(layout.style.getPropertyValue("--right-panel-width")).toBe(`0px`);
       expect(layout.style.getPropertyValue("--sidebar-col")).toBe(
         `${sidebar === "inline" ? 232 : 0}px`,
-      );
-      expect(shell.container.querySelector(".line-sheet")?.getAttribute("data-presentation")).toBe(
-        pinned ? (line === "stacked" ? "stacked" : "pinned") : undefined,
       );
       expect(
         shell.container.querySelector("#app-right-panel, [aria-controls=app-right-panel]"),
@@ -173,7 +151,6 @@ it("re-decides the pane presentations and widths through all eight drawn cases",
     expect(layout.style.getPropertyValue("--panel-col")).toBe("0px");
   } finally {
     await shell.cleanup();
-    closeSheet();
   }
 });
 

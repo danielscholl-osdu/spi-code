@@ -9,7 +9,7 @@ import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
 import { directoryPaths } from "../test-utils/directory-paths.test.js";
 import { fixtureLoader, installSpi } from "../test-utils/harness.js";
-import { navigate, openSheet, pinSheet, type Registry, type Route } from "./routes.js";
+import { navigate, type Registry, type Route } from "./routes.js";
 import { Shell } from "./Shell.js";
 
 const loadFixture = fixtureLoader((path) => readFileSync(path, "utf8"));
@@ -83,72 +83,51 @@ it("does not box bare section selectors anywhere in the window styles", () => {
   }
 });
 
-it.each(["overlay", "pinned"] as const)(
-  "uses flush panes with shared headers and bounded centre content beside a %s Line sheet",
-  async (presentation) => {
-    const view = await mount();
-    try {
-      await act(async () => {
-        navigate({ kind: "service", id: "indexer" });
-        openSheet();
-        if (presentation === "pinned") pinSheet();
-      });
-      const shell = element(view.container, ".shell");
-      const tokens = getComputedStyle(document.documentElement);
-      expect(tokens.getPropertyValue("--pane-header-height").trim()).toBe("44px");
-      expect(tokens.getPropertyValue("--centre-content-max-width").trim()).toBe("960px");
-      expect(tokens.getPropertyValue("--centre-content-padding-block").trim()).toBe("20px");
-      expect(tokens.getPropertyValue("--centre-content-padding-inline").trim()).toBe("24px");
-      expect(["", "0px", "normal"]).toContain(getComputedStyle(shell).columnGap);
-      for (const selector of [".middle-frame", ".line-sheet"]) {
-        const computed = getComputedStyle(element(view.container, selector));
-        expect(computed.padding, selector).toBe("0px");
-        expect(["", "0px", "0"]).toContain(computed.borderRadius);
-      }
-      for (const selector of [".centre-bar", ".line-toolbar"]) {
-        const header = element(view.container, selector);
-        expect(header.classList.contains("pane-header"), selector).toBe(true);
-        const computed = getComputedStyle(header);
-        expect(computed.height, selector).toBe("44px");
-        expect(computed.boxSizing, selector).toBe("border-box");
-        expect(computed.borderBottomWidth, selector).toBe("1px");
-        expect(computed.borderBottomColor, selector).toBe(
-          tokens.getPropertyValue("--border").trim(),
-        );
-      }
-      expect(getComputedStyle(element(view.container, ".middle-frame")).overflow).toBe("hidden");
-      expect(getComputedStyle(element(view.container, ".line-sheet")).position).toBe("relative");
-      const lineBody = element(view.container, ".line-content > .line-body");
-      expect(getComputedStyle(lineBody).padding).toBe("20px 24px");
-      expect(getComputedStyle(lineBody).overflow).toBe("auto");
-      expect(getComputedStyle(lineBody).position).toBe("relative");
-      expect(["0", "0px"]).toContain(getComputedStyle(lineBody).minHeight);
-      const lineHeader = getComputedStyle(element(view.container, ".line-toolbar"));
-      expect(lineHeader.paddingLeft).toBe("24px");
-      expect(lineHeader.paddingRight).toBe("24px");
-      expect(lineBody.querySelector(".line-grid")).not.toBeNull();
-      expect(view.container.querySelector(".line-toolbar :is(table, fieldset)")).toBeNull();
-      for (const route of [
-        { kind: "service", id: "indexer" },
-        { kind: "security" },
-        { kind: "releases" },
-      ] satisfies Route[]) {
-        await act(async () => navigate(route));
-        const page = element(view.container, ".centre-body > *");
-        const computed = getComputedStyle(page);
-        expect(computed.padding).toBe("20px 24px");
-        expect(computed.overflow).toBe("auto");
-        expect(["0", "0px"]).toContain(computed.minHeight);
-        for (const content of page.querySelectorAll(":scope > :not(.place), .place-reading")) {
-          expect(getComputedStyle(content).maxWidth).toBe("960px");
-          expect(getComputedStyle(content).marginLeft).not.toBe("auto");
-        }
-      }
-    } finally {
-      await view.cleanup();
+it("uses a flush centre with a shared header and bounded content", async () => {
+  const view = await mount();
+  try {
+    const shell = element(view.container, ".shell");
+    const tokens = getComputedStyle(document.documentElement);
+    expect(tokens.getPropertyValue("--pane-header-height").trim()).toBe("44px");
+    expect(tokens.getPropertyValue("--centre-content-max-width").trim()).toBe("960px");
+    expect(tokens.getPropertyValue("--centre-content-padding-block").trim()).toBe("20px");
+    expect(tokens.getPropertyValue("--centre-content-padding-inline").trim()).toBe("24px");
+    expect(["", "0px", "normal"]).toContain(getComputedStyle(shell).columnGap);
+    for (const selector of [".middle-frame"]) {
+      const computed = getComputedStyle(element(view.container, selector));
+      expect(computed.padding, selector).toBe("0px");
+      expect(["", "0px", "0"]).toContain(computed.borderRadius);
     }
-  },
-);
+    for (const selector of [".centre-bar"]) {
+      const header = element(view.container, selector);
+      expect(header.classList.contains("pane-header"), selector).toBe(true);
+      const computed = getComputedStyle(header);
+      expect(computed.height, selector).toBe("44px");
+      expect(computed.boxSizing, selector).toBe("border-box");
+      expect(computed.borderBottomWidth, selector).toBe("1px");
+      expect(computed.borderBottomColor, selector).toBe(tokens.getPropertyValue("--border").trim());
+    }
+    expect(getComputedStyle(element(view.container, ".middle-frame")).overflow).toBe("hidden");
+    for (const route of [
+      { kind: "service", id: "indexer" },
+      { kind: "security" },
+      { kind: "releases" },
+    ] satisfies Route[]) {
+      await act(async () => navigate(route));
+      const page = element(view.container, ".centre-body > *");
+      const computed = getComputedStyle(page);
+      expect(computed.padding).toBe("20px 24px");
+      expect(computed.overflow).toBe("auto");
+      expect(["0", "0px"]).toContain(computed.minHeight);
+      for (const content of page.querySelectorAll(":scope > :not(.place), .place-reading")) {
+        expect(getComputedStyle(content).maxWidth).toBe("960px");
+        expect(getComputedStyle(content).marginLeft).not.toBe("auto");
+      }
+    }
+  } finally {
+    await view.cleanup();
+  }
+});
 
 it("lifts the 960 px content cap for Today only, while every place keeps it", async () => {
   const view = await mount();

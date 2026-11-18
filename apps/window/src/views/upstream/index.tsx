@@ -67,10 +67,10 @@ export default function Upstream({ store = watchStore }: { store?: typeof watchS
         actions={
           <button
             type="button"
-            title="Open the Line sheet filtered to the Upstream column"
-            onClick={() => navigate({ kind: "line", column: "upstream" })}
+            title="Open Forks with Upstream highlighted"
+            onClick={() => navigate({ kind: "today", tab: "forks", station: "upstream" })}
           >
-            Line view
+            Forks ›
           </button>
         }
       />

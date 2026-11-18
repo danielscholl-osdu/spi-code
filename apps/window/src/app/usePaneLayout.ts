@@ -5,14 +5,9 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { createSidebarOpenStore } from "../components/sidebar/ui-sidebar.js";
 import { edgePanes } from "./PaneEdges.js";
 import { budgetPreferred, loadPanes, type ResizablePane, savePanes } from "./pane-layout.js";
-import type { Registry, SheetPresentation } from "./routes.js";
 import { type PaneWidths, widthBudget } from "./width-budget.js";
 
-export function usePaneLayout(
-  registry: Registry,
-  sheet: SheetPresentation,
-  rightPanelOpen: boolean,
-) {
+export function usePaneLayout(rightPanelOpen: boolean) {
   const [saved] = useState(loadPanes);
   const [sidebarStore] = useState(() => createSidebarOpenStore(saved.open.sidebar));
   const sidebarOpen = useSyncExternalStore(
@@ -32,7 +27,7 @@ export function usePaneLayout(
   const budgetInput = {
     windowWidth: budgetWidth,
     preferred: budgetPreferred({ ...widths, ...live }, budgetWidth),
-    open: { sidebar: sidebarOpen, rightPanel: rightPanelOpen, lineSheet: sheet === "pinned" },
+    open: { sidebar: sidebarOpen, rightPanel: rightPanelOpen },
   };
   const budget = widthBudget(budgetInput);
   /** Stops come from the committed widths, so a drag never squeezes the other panes. */
@@ -65,7 +60,7 @@ export function usePaneLayout(
       savePanes({ open: { sidebar: open } });
     });
   }, [sidebarStore]);
-  const edges = edgePanes(settled, sheet === "pinned" && Boolean(registry.sheet)).join();
+  const edges = edgePanes(settled).join();
   useEffect(() => {
     // A drag ends without a width when its pane folds mid-drag.
     for (const pane of Object.keys(live) as ResizablePane[]) {

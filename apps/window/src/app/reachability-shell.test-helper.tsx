@@ -9,7 +9,7 @@ import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
 import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import type { Read } from "../test-utils/watch-fixtures.test-helper.js";
-import { closeSheet, navigate, relaunch, routeHash } from "./navigation.js";
+import { navigate, relaunch, routeHash } from "./navigation.js";
 import {
   AT_PLACE,
   briefingItems,
@@ -72,7 +72,6 @@ export function shellHooks(read: Read) {
   load(read);
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ["Date"], now: Date.parse("2026-11-06T14:02:00Z") });
-    closeSheet();
     relaunch();
     localStorage.clear();
     window.location.hash = "#today";
@@ -89,7 +88,6 @@ export function shellHooks(read: Read) {
     selectionStore.getState().clear();
     watchStore.setState(previous, true);
     harness.restore();
-    closeSheet();
     relaunch();
     vi.unstubAllGlobals();
     vi.useRealTimers();
@@ -205,8 +203,6 @@ export async function assertOpens(rows: readonly Reach[], body: ViewSnapshot) {
   expect(await click(row.opens.click, where)).toBe(1);
   if ("opened" in row.opens) {
     expect(container.querySelector(row.opens.opened), where).not.toBeNull();
-  } else if (row.opens.place.kind === "line") {
-    expect(container.querySelector(".line-sheet"), where).not.toBeNull();
   } else expect(window.location.hash, where).toBe(routeHash(row.opens.place));
 }
 

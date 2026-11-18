@@ -68,20 +68,16 @@ it("dots the hidden sidebar's toggle for Today's count, then for the worst mark 
   const calm = structuredClone(nov6);
   calm.briefing.focus = [];
   calm.briefing.rest = [];
-  for (const row of calm.stations)
-    for (const station of row.stations) {
-      station.state = "idle";
-      station.substate = "ready";
-    }
+  calm.briefing.lines = [];
+  const template = calm.briefing.today?.fleet?.doors.find(({ id }) => id === "template");
+  if (!template) throw new Error("Fixture needs the Template door");
   for (const { envelope } of sweepSources(calm)) {
     envelope.state = "fresh";
     envelope.completeness = { kind: "complete" };
   }
   await show(calm);
   expect(dot()).toBe("warning");
-  for (const place of calm.briefing.places ?? [])
-    if (place.visual?.kind === "rollout")
-      for (const slot of place.visual.slots) slot.state = "done";
+  Object.assign(template, { count: 0, forks: [] });
   await show({ ...calm, cursor: calm.cursor + 1 });
   expect(dot()).toBeUndefined();
   const source = calm.areas[0];
@@ -92,12 +88,10 @@ it("dots the hidden sidebar's toggle for Today's count, then for the worst mark 
   source.envelope.state = "failed";
   await show(structuredClone(calm));
   expect(dot()).toBe("error");
-  const marked = structuredClone(calm);
-  for (const place of marked.briefing.places ?? [])
-    if (place.visual?.kind === "rollout")
-      for (const slot of place.visual.slots) slot.state = "waiting";
-  await show(marked);
+  Object.assign(template, { count: 1, forks: ["legal"] });
+  await show(structuredClone(calm));
   expect(dot()).toBe("error");
+  Object.assign(template, { count: 0, forks: [] });
   source.envelope.state = "stale";
   const interrupted = structuredClone(calm);
   interrupted.briefing.focus = nov6.briefing.focus;
@@ -110,14 +104,8 @@ it("draws no dot for unread fields and sweep, but reports a stopped first sweep"
   const unread = structuredClone(nov6);
   unread.briefing.focus = [];
   unread.briefing.rest = [];
-  for (const row of unread.stations)
-    for (const station of row.stations) {
-      station.state = "unknown";
-      station.substate = "ready";
-    }
-  for (const place of unread.briefing.places ?? [])
-    if (place.visual?.kind === "rollout")
-      for (const slot of place.visual.slots) slot.state = "unknown";
+  unread.briefing.lines = [];
+  delete unread.briefing.today?.fleet;
   dropRunning(unread);
   for (const { envelope } of sweepSources(unread)) {
     envelope.state = "unread";

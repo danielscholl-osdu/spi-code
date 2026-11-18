@@ -18,17 +18,7 @@ const related: SmokeGeometry = {
   labelText: "partition",
   values: [rect(916, 260, 270, 18), rect(916, 280, 270, 18)],
 };
-const panes: SmokeGeometry = {
-  rule: "panes",
-  viewport: rect(0, 0, 1440, 800),
-  scroll: { width: 1440, height: 800 },
-  panes: [
-    { rect: rect(0, 0, 232, 800), borderLeft: 0, borderRight: 1 },
-    { rect: rect(232, 0, 848, 800), borderLeft: 0, borderRight: 0 },
-    { rect: rect(1080, 0, 360, 800), borderLeft: 1, borderRight: 0 },
-  ],
-};
-const headerPanes = [rect(0, 0, 231, 800), rect(232, 0, 848, 800), rect(1081, 0, 359, 800)];
+const headerPanes = [rect(0, 0, 231, 800), rect(232, 0, 1208, 800)];
 const headers: SmokeGeometry = {
   rule: "headers",
   panes: headerPanes,
@@ -41,9 +31,9 @@ const window: SmokeGeometry = {
   rule: "window",
   rightPanels: 0,
   panelToggles: 0,
-  viewport: panes.viewport,
-  scroll: panes.scroll,
-  panes: panes.panes.map((pane) => pane.rect),
+  viewport: rect(0, 0, 1440, 800),
+  scroll: { width: 1440, height: 800 },
+  panes: [rect(0, 0, 232, 800), rect(232, 0, 1208, 800)],
 };
 const settings: SmokeGeometry = {
   rule: "settings",
@@ -164,7 +154,7 @@ it("puts the top row's pin control 6 px before the panel toggle, or at the part'
   expect(() => assertSmokeGeometry({ ...pinEnd, clear: 1390 })).toThrow("window controls");
 });
 
-it.each([window, related, panes, headers, settings, drag, failedReads, overlayDrag])(
+it.each([window, related, headers, settings, drag, failedReads, overlayDrag])(
   "accepts measured $rule geometry",
   (value) => {
     expect(() => assertSmokeGeometry(value)).not.toThrow();
@@ -201,26 +191,10 @@ it("checks failed-read bounds and wording in UTC with a clock shifted 400 days",
   }
 });
 
-it("rejects a mutually flush pane row inset from any window edge", () => {
-  for (const changed of [
-    panes.panes.map((pane, index) => ({
-      ...pane,
-      rect: { ...pane.rect, x: pane.rect.x + 15, width: pane.rect.width - (index === 2 ? 15 : 0) },
-    })),
-    panes.panes.map((pane, index) => ({
-      ...pane,
-      rect: { ...pane.rect, width: pane.rect.width - (index === 2 ? 15 : 0) },
-    })),
-    panes.panes.map((pane) => ({ ...pane, rect: { ...pane.rect, height: 710 } })),
-  ])
-    expect(() => assertSmokeGeometry({ ...panes, panes: changed })).toThrow(/Pane row/);
-});
-
 it.each([
   { width: 1455, height: 800 },
   { width: 1440, height: 1057 },
 ])("rejects page overflow in either axis even when all panes fit: %j", (scroll) => {
-  expect(() => assertSmokeGeometry({ ...panes, scroll })).toThrow(/Page scroll/);
   expect(() => assertSmokeGeometry({ ...window, scroll })).toThrow(/Page scroll/);
 });
 
@@ -234,33 +208,17 @@ it.each([
   expect(() => assertSmokeGeometry(value)).toThrow(/Related/);
 });
 
-it("fails pane gaps, rounded frames and dividers other than 1 px", () => {
-  for (const change of [
-    { rect: rect(801, 0, 359, 800) },
-    { rect: rect(800, 1, 360, 799) },
-    { borderLeft: 0 },
-    { borderLeft: 2 },
-  ]) {
-    expect(() =>
-      assertSmokeGeometry({
-        ...panes,
-        panes: panes.panes.map((pane, index) => (index === 2 ? { ...pane, ...change } : pane)),
-      }),
-    ).toThrow(/Pane/);
-  }
-});
-
 it("fails a header out of line with the top row, its pane or the shared rule", () => {
   const moved = (index: number, change: Partial<SmokeRect>, rule?: number) =>
     headers.headers.map((header, at) =>
       at === index ? { rect: { ...header.rect, ...change }, rule: rule ?? header.rule } : header,
     );
   for (const [changed, message] of [
-    [moved(2, { y: 4 }), "Header top: 4 != 0"],
+    [moved(1, { y: 4 }), "Header top: 4 != 0"],
     [moved(1, { height: 43 }), "Header height"],
-    [moved(2, { width: 345 }), "Header width"],
+    [moved(1, { width: 345 }), "Header width"],
     [moved(0, { x: 15 }), "Header left"],
-    [moved(2, {}, 2), "Header rule"],
+    [moved(1, {}, 2), "Header rule"],
     [
       headers.headers.map((header) => ({ ...header, rule: 0 })),
       "Header probe found no bottom rule",
@@ -280,8 +238,8 @@ it("checks the same header rules with fewer panes shown", () => {
   for (const count of [1, 2]) {
     const probe = {
       ...headers,
-      panes: headers.panes.slice(1, 1 + count),
-      headers: headers.headers.slice(1, 1 + count),
+      panes: headers.panes.slice(0, count),
+      headers: headers.headers.slice(0, count).map((header) => ({ ...header, rule: 1 })),
     };
     expect(() => assertSmokeGeometry(probe)).not.toThrow();
     expect(() => assertSmokeGeometry({ ...probe, headers: [] })).toThrow("Header probe");

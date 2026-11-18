@@ -3,7 +3,12 @@
 
 import type { PlaceRow, ViewSnapshot } from "@spi-code/contracts";
 import { useEffect, useRef } from "react";
-import { type Destination, setOpenSelection, useOpenSelection } from "../../app/navigation.js";
+import {
+  type Destination,
+  FORKS,
+  setOpenSelection,
+  useOpenSelection,
+} from "../../app/navigation.js";
 import { selectionRows } from "../../panels/selection-rows.js";
 import { plainTitle } from "../../text.js";
 import { TimedText } from "../../time.js";
@@ -68,11 +73,15 @@ export function FreshItems({
         );
         const home = member?.home ?? place;
         const destination: Destination =
-          home === "engineering" ? { kind: "engineering-system" } : { kind: home };
+          home === "line"
+            ? FORKS
+            : home === "engineering"
+              ? { kind: "engineering-system" }
+              : { kind: home };
         const bodyPlace = {
           label:
             home === "line"
-              ? "Line"
+              ? "Forks"
               : home === "engineering"
                 ? "Template"
                 : home === "environment"

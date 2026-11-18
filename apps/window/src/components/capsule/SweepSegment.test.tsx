@@ -6,14 +6,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
-import {
-  closeSheet,
-  type EvidenceRoute,
-  openSelection,
-  openSheet,
-  parseRoute,
-  setOpenSelection,
-} from "../../app/navigation.js";
+import { parseRoute, setOpenSelection } from "../../app/navigation.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { PINS_STORAGE_KEY } from "../../store/pins.js";
@@ -46,13 +39,11 @@ async function mount() {
 
 const footer = () => container.querySelector<HTMLElement>('[data-slot="sidebar-footer"]');
 const field = (name: string) => footer()?.querySelector<HTMLElement>(`[data-field="${name}"]`);
-const sheet = () => container.querySelector(".line-sheet");
 
 beforeEach(() => {
   vi.spyOn(navigator, "userAgent", "get").mockReturnValue(
     "Mozilla/5.0 (Macintosh; Mac OS X) Electron/44.10.0",
   );
-  closeSheet();
   window.location.hash = "#today";
   harness = installSpi();
   selectionStore.getState().clear();
@@ -63,7 +54,6 @@ beforeEach(() => {
 afterEach(async () => {
   await unmount?.();
   unmount = undefined;
-  closeSheet();
   setOpenSelection(null);
   watchStore.setState(previousWatch, true);
   harness.restore();
@@ -165,58 +155,13 @@ it("opens Evidence for what is open on the page, and the whole sweep from Eviden
   expect(page()?.querySelector('[data-evidence="sweep"]')).not.toBeNull();
 });
 
-const back = () =>
-  act(async () => container.querySelector<HTMLButtonElement>("[data-evidence-back]")?.click());
-
-it("opens Evidence for a restored Line cell's item, not the whole sweep", async () => {
-  window.location.hash = "#environment";
+it("returns from a saved Line Evidence link to Today on Forks", async () => {
+  window.location.hash = "#evidence?from=environment&sel=item~gate2:storage&sheet=line~sync";
   await mount();
-  const cell = { kind: "cell", id: "storage:sync" };
-  const item = { kind: "item", id: "gate1:storage" } as const;
-  await act(async () => openSheet({ column: "sync" }));
-  await act(async () => setOpenSelection(cell, item));
-  await openEvidence();
-  expect(parseRoute(window.location.hash)).toEqual({
-    kind: "evidence",
-    from: { kind: "environment" },
-    selection: item,
-    open: cell,
-    about: item,
-    sheet: { column: "sync" },
-  });
-  await act(async () =>
-    container.querySelector<HTMLButtonElement>("[data-evidence-whole]")?.click(),
-  );
-  expect((parseRoute(window.location.hash) as EvidenceRoute).selection).toBeUndefined();
-  await back();
-  expect(window.location.hash).toBe("#environment");
-  expect(sheet()).not.toBeNull();
-  expect(openSelection()).toEqual(cell);
-  await openEvidence();
-  expect((parseRoute(window.location.hash) as EvidenceRoute).selection).toEqual(item);
-  await back();
-  expect(openSelection()).toEqual(cell);
-});
-
-it("opens the whole sweep for a Line cell with no item behind it, and Back reopens the cell", async () => {
-  window.location.hash = "#environment";
-  await mount();
-  const cell = { kind: "cell", id: "legal:sync" };
-  await act(async () => openSheet({ column: "sync" }));
-  await act(async () => setOpenSelection(cell, null));
-  await openEvidence();
-  expect(parseRoute(window.location.hash)).toEqual({
-    kind: "evidence",
-    from: { kind: "environment" },
-    open: cell,
-    sheet: { column: "sync" },
-  });
-  expect(container.querySelector('.centre-body [data-evidence="sweep"]')).not.toBeNull();
-  await back();
-  expect(sheet()).not.toBeNull();
-  expect(openSelection()).toEqual(cell);
-  await openEvidence();
-  expect((parseRoute(window.location.hash) as EvidenceRoute).selection).toBeUndefined();
+  const back = container.querySelector<HTMLButtonElement>("[data-evidence-back]");
+  expect(back).not.toBeNull();
+  await act(async () => back?.click());
+  expect(window.location.hash).toBe("#today/forks");
 });
 
 it.each([
@@ -426,7 +371,7 @@ it("shows a newer sweep that stopped over the last completed list, with its reas
   expect(list()?.querySelectorAll(".sweep-row")).toHaveLength(12);
 });
 
-it("opens each place and the Line with one line before the first snapshot, its sidebar row muted", async () => {
+it("opens each place with one line before the first snapshot, its sidebar row muted", async () => {
   window.location.hash = "#upstream";
   watchStore.setState({ snapshot: null, setup: null, progress: midSweep() });
   await mount();
@@ -442,13 +387,8 @@ it("opens each place and the Line with one line before the first snapshot, its s
     window.dispatchEvent(new HashChangeEvent("hashchange"));
   });
   expect(main()?.textContent).toBe("Security opens after the first sweep. It is read 11th of 12.");
-  await act(async () => container.querySelector<HTMLElement>('[data-sidebar-row="line"]')?.click());
-  expect(sheet()?.querySelector(".line-before-sweep")?.textContent).toBe(
-    "Service rows appear after the first sweep.",
-  );
   await act(async () => show(fixture()));
   expect(container.querySelector("[data-before-sweep]")).toBeNull();
-  expect(sheet()?.querySelector(".line-before-sweep")).toBeNull();
   expect(row("upstream")?.hasAttribute("data-before-sweep")).toBe(false);
 });
 

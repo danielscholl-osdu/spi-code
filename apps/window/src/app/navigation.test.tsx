@@ -5,20 +5,11 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFixture } from "../../../../scripts/watch-generated.mjs";
-import { PINS_STORAGE_KEY, readPins, SEED_PINS } from "../store/pins.js";
+import { PINS_STORAGE_KEY, SEED_PINS } from "../store/pins.js";
 import { watchStore } from "../store/watch.js";
 import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import {
-  closeSheet,
-  DEFAULT_REGISTRY,
-  type EvidenceRoute,
-  LINE,
-  leaveEvidence,
   navigate,
-  openEvidence,
-  openSelection,
-  parseRoute,
-  pinSheet,
   type Registry,
   type Route,
   type RouteKind,
@@ -26,7 +17,6 @@ import {
   routeHash,
   routeLabel,
   setOpenSelection,
-  unpinSheet,
 } from "./routes.js";
 import { Shell } from "./Shell.js";
 
@@ -61,10 +51,6 @@ const ALL_KINDS: readonly RouteKind[] = [
   "release",
 ];
 const every = Object.fromEntries(ALL_KINDS.map((kind) => [kind, view])) as Registry["views"];
-const sheet = vi.fn((origin: Route, _presentation: string) => (
-  <p data-sheet>{routeHash(origin)}</p>
-));
-const PINNED_KEY = "spi-code.line-sheet.pinned";
 const LAST_PLACE_KEY = "spi-code.last-place";
 
 async function mount(registry: Registry) {
@@ -81,14 +67,12 @@ async function mount(registry: Registry) {
 const main = () => container.querySelector<HTMLElement>(".centre-body");
 const shown = () => main()?.querySelector("[data-view] h1")?.textContent;
 const place = () => container.querySelector("header [data-place]")?.textContent;
-const lineSheet = () =>
-  container.querySelector<HTMLElement>('section.line-sheet[aria-label="Line"]');
 const press = (key: string, init: KeyboardEventInit = { ctrlKey: true }) =>
   act(async () => {
     const target = document.activeElement ?? document.body;
     target.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, ...init }));
   });
-const go = (route: Route | typeof LINE) => act(async () => navigate(route));
+const go = (route: Route) => act(async () => navigate(route));
 const setHash = (hash: string) =>
   act(async () => {
     window.location.hash = hash;
@@ -101,10 +85,8 @@ beforeEach(() => {
   };
   (window as unknown as HappyWindow).happyDOM.setViewport({ width: 1440, height: 900 });
   window.location.hash = "";
-  localStorage.removeItem(PINNED_KEY);
   localStorage.removeItem(LAST_PLACE_KEY);
   localStorage.removeItem(PINS_STORAGE_KEY);
-  sheet.mockClear();
   harness = installSpi({
     setAppearance: vi.fn(async () => true),
   });
@@ -115,9 +97,7 @@ afterEach(async () => {
   harness.restore();
   watchStore.setState(previousWatch, true);
   window.location.hash = "";
-  closeSheet();
   setOpenSelection(null);
-  localStorage.removeItem(PINNED_KEY);
   localStorage.removeItem(LAST_PLACE_KEY);
   localStorage.removeItem(PINS_STORAGE_KEY);
   vi.restoreAllMocks();
@@ -147,91 +127,9 @@ it("renders the registered component for every route id, with its service id and
   expect(shown()).toBe("#engineering-system");
 });
 
-it("opens the Line sheet over the current place with ⌘L and returns to the same place on close", async () => {
-  await mount({ views: every, sheet, fallback: { kind: "today" } });
-  for (const [origin, close] of [
-    [{ kind: "service", id: "legal" }, () => press("Escape", {})],
-    [{ kind: "release", month: "2026-10" }, () => press("l")],
-    [{ kind: "today" }, () => go({ kind: "today" })],
-  ] as const) {
-    await go(origin);
-    const beneath = main()?.querySelector("[data-view]");
-    const draft = beneath?.querySelector("input");
-    if (!draft) throw new Error("missing view");
-    draft.value = "kept";
-    await act(async () => draft.focus());
-
-    await press("l");
-    expect(lineSheet()).not.toBeNull();
-    expect(lineSheet()?.textContent).toBe(routeHash(origin));
-    expect(sheet).toHaveBeenLastCalledWith(origin, "overlay");
-    expect(lineSheet()?.dataset.presentation).toBe("overlay");
-    expect(document.activeElement).toBe(lineSheet());
-    expect(main()?.hasAttribute("inert")).toBe(true);
-    expect(main()?.querySelector("[data-view]")).toBe(beneath);
-    expect(window.location.hash).toBe(routeHash(origin));
-    expect(place()).toBe(routeLabel(origin));
-
-    await close();
-    expect(lineSheet()).toBeNull();
-    expect(main()?.hasAttribute("inert")).toBe(false);
-    expect(window.location.hash).toBe(routeHash(origin));
-    expect(main()?.querySelector("[data-view]")).toBe(beneath);
-    expect(draft.value).toBe("kept");
-    expect(document.activeElement).toBe(draft);
-  }
-});
-
-it("pins the Line sheet beside a live centre across navigation and a reload; unpin closes it", async () => {
-  await mount({ views: every, sheet, fallback: { kind: "today" } });
-  const legal: Route = { kind: "service", id: "legal" };
-  await go(legal);
-  const beneath = main()?.querySelector("[data-view]");
-  const draft = beneath?.querySelector("input");
-  if (!draft) throw new Error("missing view");
-  await act(async () => draft.focus());
-  await press("l");
-  expect(main()?.hasAttribute("inert")).toBe(true);
-
-  await act(async () => pinSheet());
-  expect(lineSheet()?.dataset.presentation).toBe("pinned");
-  expect(sheet).toHaveBeenLastCalledWith(legal, "pinned");
-  expect(main()?.closest("[inert]")).toBeNull();
-  expect(main()?.querySelector("[data-view]")).toBe(beneath);
-  expect(window.location.hash).toBe("#service/legal");
-  expect(document.activeElement).toBe(draft);
-  draft.value = "typed beside the sheet";
-  await press("Escape", {});
-  expect(lineSheet()?.dataset.presentation).toBe("pinned");
-  expect(document.activeElement).toBe(draft);
-  expect(localStorage.getItem(PINNED_KEY)).toBe("1");
-
-  await go({ kind: "release", month: "2026-10" });
-  expect(shown()).toBe("#release/2026-10");
-  expect(lineSheet()?.dataset.presentation).toBe("pinned");
-  await setHash("#environment");
-  expect(shown()).toBe("#environment");
-  expect(lineSheet()).not.toBeNull();
-
-  await act(async () => unpinSheet());
-  expect(lineSheet()).toBeNull();
-  expect(localStorage.getItem(PINNED_KEY)).toBeNull();
-  expect(shown()).toBe("#environment");
-
-  // A reload starts from what the last session stored.
-  await unmount();
-  localStorage.setItem(PINNED_KEY, "1");
-  await mount({ views: every, sheet, fallback: { kind: "today" } });
-  expect(lineSheet()?.dataset.presentation).toBe("pinned");
-  expect(main()?.hasAttribute("inert")).toBe(false);
-  expect(shown()).toBe("#environment");
-  await press("l");
-  expect(lineSheet()).toBeNull();
-});
-
-it("draws a registered sweep in the footer on every route and beside either sheet", async () => {
+it("draws a registered sweep in the footer on every route", async () => {
   const strip = vi.fn(() => <p>line state</p>);
-  await mount({ views: every, sheet, strip, fallback: { kind: "today" } });
+  await mount({ views: every, strip, fallback: { kind: "today" } });
   const header = () => container.querySelector("header.centre-bar");
   const drawn = () => {
     expect(header()?.querySelector("[data-sweep-line]")).toBeNull();
@@ -242,69 +140,10 @@ it("draws a registered sweep in the footer on every route and beside either shee
     await go(route);
     expect(drawn()).toContain("line state");
   }
-  await go(LINE);
-  expect(lineSheet()?.dataset.presentation).toBe("overlay");
-  expect(drawn()).toContain("line state");
-  await act(async () => pinSheet());
-  expect(lineSheet()?.dataset.presentation).toBe("pinned");
-  expect(drawn()).toContain("line state");
-
   await unmount();
-  await mount({ views: every, sheet, fallback: { kind: "today" } });
+  await mount({ views: every, fallback: { kind: "today" } });
   expect(header()?.querySelector("[data-sweep-line]")).toBeNull();
   expect(container.querySelector('[data-slot="sidebar-footer"] [data-sweep-line]')).not.toBeNull();
-});
-
-it("closes the Line sheet when the operator goes somewhere else", async () => {
-  await mount({ views: every, sheet, fallback: { kind: "today" } });
-  await go({ kind: "environment" });
-  await go(LINE);
-  expect(lineSheet()?.textContent).toBe("#environment");
-  expect(window.location.hash).toBe("#environment");
-  expect(shown()).toBe("#environment");
-  await go({ kind: "service", id: "legal" });
-  expect(lineSheet()).toBeNull();
-  expect(shown()).toBe("#service/legal");
-  await go(LINE);
-  await setHash("#releases");
-  expect(lineSheet()).toBeNull();
-  await setHash("#environment");
-  expect(lineSheet()).toBeNull();
-});
-
-it("comes back from Evidence to the Line sheet over the same place, with its cell open again", async () => {
-  await mount({ views: { ...every, evidence: view }, sheet, fallback: { kind: "today" } });
-  const cell = { kind: "cell", id: "storage:sync" };
-  await go({ kind: "environment" });
-  await act(async () => navigate({ ...LINE, column: "sync" }));
-  await act(async () => setOpenSelection(cell));
-  expect(openSelection()).toEqual(cell);
-  await act(async () => openEvidence({ kind: "item", id: "gate2:storage" }));
-  expect(lineSheet()).toBeNull();
-  const route = parseRoute(window.location.hash) as EvidenceRoute;
-  expect(shown()).toBe(routeHash(route));
-  expect(route.from).toEqual({ kind: "environment" });
-  expect(route.selection).toEqual({ kind: "item", id: "gate2:storage" });
-
-  await act(async () => leaveEvidence(route));
-  expect(window.location.hash).toBe("#environment");
-  expect(lineSheet()?.dataset.presentation).toBe("overlay");
-  expect(sheet).toHaveBeenLastCalledWith({ kind: "environment" }, "overlay");
-  expect(openSelection()).toEqual(cell);
-  await press("Escape", {});
-  expect(lineSheet()).toBeNull();
-  expect(openSelection()).toBeNull();
-});
-
-it("leaves ⌘L alone when no Line sheet is registered", async () => {
-  await mount({ views: every, fallback: { kind: "today" } });
-  await go({ kind: "environment" });
-  const event = new KeyboardEvent("keydown", { key: "l", ctrlKey: true, cancelable: true });
-  await act(async () => window.dispatchEvent(event));
-  expect(event.defaultPrevented).toBe(false);
-  await go(LINE);
-  expect(lineSheet()).toBeNull();
-  expect(main()?.hasAttribute("inert")).toBe(false);
 });
 
 it("lists only registered places in the sidebar and Find, and falls back from the rest", async () => {
@@ -355,7 +194,7 @@ it("lists only registered places in the sidebar and Find, and falls back from th
 
 describe("landing", () => {
   const recordedBody = loadFixture("snapshot-59d6895.json");
-  const registry: Registry = { views: every, sheet, fallback: { kind: "today" } };
+  const registry: Registry = { views: every, fallback: { kind: "today" } };
   const arrive = (cursor: number, seen: { cursor: number; since: string[] }) =>
     act(async () => {
       const body = { ...recordedBody, cursor, seen };
@@ -450,12 +289,7 @@ describe("landing", () => {
   it("acknowledges only what Today showed in the foreground, and each cursor once", async () => {
     await launch();
     await go({ kind: "today" });
-    await go(LINE);
     await arrive(4, { cursor: 3, since: ["halt:legal"] });
-    expect(lineSheet()).not.toBeNull();
-    await act(async () => window.dispatchEvent(new FocusEvent("blur")));
-    expect(acknowledged()).toEqual([]);
-    await act(async () => closeSheet());
     await go({ kind: "environment" });
     expect(acknowledged()).toEqual([{ cursor: 4 }]);
 
@@ -565,69 +399,32 @@ describe("landing", () => {
   });
 });
 
-const menu = (service: string) =>
-  document.querySelector<HTMLElement>(`[data-pin-menu="${service}"]`);
-const keydown = (target: Element | null | undefined, init: KeyboardEventInit) =>
-  act(async () => {
-    target?.dispatchEvent(
-      new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init }),
-    );
-  });
-
-it("keeps each pip menu action on its service row in the Line sheet for the keyboard path", async () => {
+it("opens Forks on ⌘L and keeps the shortcut independent of the current place", async () => {
   vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Macintosh");
-  const body = loadFixture("snapshot-1106.json");
-  watchStore.setState({ snapshot: { cursor: body.cursor, body } });
-  await mount({
-    views: every,
-    sheet: DEFAULT_REGISTRY.sheet,
-    strip: DEFAULT_REGISTRY.strip,
-    fallback: { kind: "today" },
-  });
-  await keydown(document.body, { key: "l", metaKey: true });
-  const service = lineSheet()?.querySelector<HTMLButtonElement>(
-    '[data-service="entitlements"] th button',
-  );
-  expect(service).not.toBeNull();
-  await act(async () => service?.focus());
-  await keydown(service, { key: "F10", shiftKey: true });
-  expect(menu("entitlements")).not.toBeNull();
-  expect(menu("entitlements")?.textContent).toBe("OpenPin to sidebar");
-  await act(async () =>
-    menu("entitlements")?.querySelectorAll<HTMLElement>("[role='menuitem']")[1]?.click(),
-  );
-  expect(readPins()).toEqual([...SEED_PINS, "entitlements"]);
-  await keydown(service, { key: "ContextMenu" });
-  expect(menu("entitlements")?.textContent).toBe("OpenUnpin from sidebar");
-  await keydown(document.activeElement, { key: "Escape" });
-  expect(menu("entitlements")).toBeNull();
-  expect(lineSheet()).not.toBeNull();
+  await mount({ views: every, fallback: { kind: "today" } });
+  await go({ kind: "environment" });
+  await press("l", { metaKey: true });
+  expect(shown()).toBe("#today/forks");
+  await go({ kind: "today", tab: "forks", station: "sync" });
+  await press("l", { metaKey: true });
+  expect(shown()).toBe("#today/forks");
 });
 
-it("opens the status pins' destinations and returns from the Line to its pin with its shortcut", async () => {
-  vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Macintosh");
+it("leaves ⌘L alone when Today is unavailable", async () => {
+  await mount({ views: { environment: view }, fallback: { kind: "environment" } });
+  const event = new KeyboardEvent("keydown", { key: "l", ctrlKey: true, cancelable: true });
+  await act(async () => window.dispatchEvent(event));
+  expect(event.defaultPrevented).toBe(false);
+});
+
+it("opens the status pins' places", async () => {
   const body = loadFixture("snapshot-1106.json");
   watchStore.setState({ snapshot: { cursor: body.cursor, body } });
-  await mount({ views: every, sheet, strip: DEFAULT_REGISTRY.strip, fallback: { kind: "today" } });
-  const pin = (key: string) =>
-    container.querySelector<HTMLButtonElement>(`[data-sidebar-row="${key}"]`);
-  for (const [key, hash] of [
-    ["environment", "#environment"],
-    ["engineering-system", "#engineering-system"],
-  ] as const) {
-    await act(async () => pin(key)?.click());
-    expect(shown()).toBe(hash);
-    expect(lineSheet()).toBeNull();
+  await mount({ views: every, fallback: { kind: "today" } });
+  for (const key of ["environment", "engineering-system"]) {
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>(`[data-sidebar-row="${key}"]`)?.click(),
+    );
+    expect(shown()).toBe(`#${key}`);
   }
-  const line = pin("line");
-  await act(async () => {
-    line?.focus();
-    line?.click();
-  });
-  expect(lineSheet()).not.toBeNull();
-  await press("l", { metaKey: true });
-  expect(lineSheet()).toBeNull();
-  expect(document.activeElement).toBe(line);
-  await press("l", { metaKey: true });
-  expect(lineSheet()).not.toBeNull();
 });

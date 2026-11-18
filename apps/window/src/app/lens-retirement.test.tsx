@@ -10,7 +10,7 @@ import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
 import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import { type LensField, lensFields } from "./lens-fields.test-helper.js";
-import { closeSheet, navigate, relaunch } from "./navigation.js";
+import { navigate, relaunch } from "./navigation.js";
 import { Shell } from "./Shell.js";
 
 const loadFixture = fixtureLoader((path) => readFileSync(path, "utf8"));
@@ -24,7 +24,6 @@ let container: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
-  closeSheet();
   relaunch();
   localStorage.clear();
   window.location.hash = "#today";
@@ -41,7 +40,6 @@ afterEach(async () => {
   selectionStore.getState().clear();
   watchStore.setState(previous, true);
   harness.restore();
-  closeSheet();
   relaunch();
   vi.unstubAllGlobals();
 });

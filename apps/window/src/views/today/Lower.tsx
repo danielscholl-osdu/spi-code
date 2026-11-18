@@ -3,7 +3,7 @@
 
 import type { TodayHistory, TodaySummary } from "@spi-code/contracts";
 import type { MouseEvent, ReactNode } from "react";
-import { type Destination, LINE, navigate } from "../../app/navigation.js";
+import { type Destination, FORKS, navigate } from "../../app/navigation.js";
 import { Time } from "../../time.js";
 
 type Count = TodayHistory["rows"][number]["counts"][number];
@@ -12,7 +12,7 @@ type Moving = TodaySummary["moving"][number];
 export type LowerPlace = { label: string; destination: Destination };
 
 export const LOWER_PLACES = {
-  line: { label: "Line", destination: LINE },
+  line: { label: "Forks", destination: FORKS },
   environment: { label: "Environment", destination: { kind: "environment" } },
   engineering: { label: "Template", destination: { kind: "engineering-system" } },
   upstream: { label: "Upstream", destination: { kind: "upstream" } },

@@ -12,12 +12,10 @@ import { openFreshness } from "../components/sweep/reveal.js";
 import { CommandPalette } from "../palette/CommandPalette.js";
 import { SettingsDialog, type SettingsSection } from "../settings/SettingsDialog.js";
 import { watchStore } from "../store/watch.js";
-import { LineSheet } from "./LineSheet.js";
 import { PaneEdges } from "./PaneEdges.js";
 import { PanelShortcuts, SidebarToggle } from "./PanelControls.js";
 import {
   DEFAULT_REGISTRY,
-  LINE,
   type Registry,
   RegistryProvider,
   RouteView,
@@ -40,7 +38,7 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
   const snapshot = useStore(watchStore, (state) => state.snapshot?.body);
   const sweep = useStore(watchStore, (state) => state.sweep);
   const progress = useStore(watchStore, (state) => state.progress);
-  const { route, sheet, navigate, toggleSheet, closeSheet } = useNavigation(registry);
+  const { route, navigate } = useNavigation(registry);
   const rightPanelOpen = false;
   const {
     sidebarStore,
@@ -51,7 +49,7 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
     settled,
     resizeLive,
     commitWidth,
-  } = usePaneLayout(registry, sheet, rightPanelOpen);
+  } = usePaneLayout(rightPanelOpen);
   const openSweepLine = useCallback(() => openFreshness(watchStore.getState().snapshot), []);
   const [titles] = useState(createTitleStore);
   const [findOpen, setFindOpen] = useState(false);
@@ -66,13 +64,11 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
   }, []);
   const openReadiness = useCallback(() => openSettings("readiness"), [openSettings]);
   useSetupLanding(openReadiness);
-  useShellShortcuts(registry, toggleSheet, openSettings);
-  usePinShortcut(route, settingsOpen || findOpen || sheet === "overlay");
+  useShellShortcuts(registry, openSettings);
+  usePinShortcut(route, settingsOpen || findOpen);
   useDocumentTitle(route);
   const { middle, onScrollCapture } = useRouteScroll(route, snapshot);
   const { theme, pinTheme, error } = useHostConnection({
-    sheet,
-    closeSheet,
     openReadiness,
     setSettingsOpen,
     setFindOpen,
@@ -86,10 +82,8 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
           className="shell"
           data-right-panel={rightPanelOpen ? "open" : "closed"}
           data-window-controls={windowControls()}
-          data-line-sheet={sheet}
           data-sidebar-presentation={budget.sidebar.presentation}
           data-right-presentation={budget.rightPanel.presentation}
-          data-line-presentation={budget.lineSheet.presentation}
           style={
             {
               "--sidebar-col":
@@ -100,8 +94,6 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
                   ? `${budget.rightPanel.width}px`
                   : "0px",
               "--right-panel-width": `${budget.rightPanel.width}px`,
-              "--sheet-col":
-                budget.lineSheet.presentation === "inline" ? `${budget.lineSheet.width}px` : "0px",
             } as CSSProperties
           }
         >
@@ -126,7 +118,6 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
                 />
               )
             }
-            {...(registry.sheet ? { onLine: () => navigate(LINE) } : {})}
           />
           <SweepProgressLine />
           <CommandPalette
@@ -158,29 +149,15 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
                 </div>
               </div>
             </header>
-            <div
-              className="centre-body"
-              ref={middle}
-              inert={sheet === "overlay"}
-              onScrollCapture={onScrollCapture}
-            >
+            <div className="centre-body" ref={middle} onScrollCapture={onScrollCapture}>
               {error && <p role="alert">{error}</p>}
               <RouteView route={route} />
             </div>
           </main>
-          {sheet !== "closed" && registry.sheet && (
-            <LineSheet
-              presentation={budget.lineSheet.presentation === "stacked" ? "stacked" : sheet}
-              onClose={closeSheet}
-            >
-              {registry.sheet(route, sheet)}
-            </LineSheet>
-          )}
           <PaneEdges
             budget={budget}
             settled={settled}
             windowWidth={budgetWidth}
-            lineSheet={sheet === "pinned" && Boolean(registry.sheet)}
             onResize={resizeLive}
             onResizeEnd={commitWidth}
           />

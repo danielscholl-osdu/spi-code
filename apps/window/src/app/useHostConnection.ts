@@ -6,18 +6,13 @@ import { selectionStore } from "../panels/index.js";
 import { watchStore } from "../store/watch.js";
 import { type Appearance, createAppearance } from "./appearance.js";
 import { openDestination, parseDestination } from "./destination.js";
-import type { SheetPresentation } from "./routes.js";
 
 /** The host's messages, tray destinations and appearance, and the line a bad message leaves. */
 export function useHostConnection({
-  sheet,
-  closeSheet,
   openReadiness,
   setSettingsOpen,
   setFindOpen,
 }: {
-  sheet: SheetPresentation;
-  closeSheet: () => void;
   openReadiness: () => void;
   setSettingsOpen: (open: boolean) => void;
   setFindOpen: (open: boolean) => void;
@@ -32,7 +27,7 @@ export function useHostConnection({
     [appearance],
   );
   const [error, setError] = useState("");
-  /** Kept current so the one navigation subscription sees the live sheet. */
+  /** Kept current so the one navigation subscription sees the current Settings controls. */
   const routeDestination = useRef<(input: unknown) => void>(() => {});
   useEffect(() => {
     routeDestination.current = (input) => {
@@ -46,10 +41,9 @@ export function useHostConnection({
       }
       setSettingsOpen(false);
       setFindOpen(false);
-      if (sheet === "overlay") closeSheet();
       openDestination(destination);
     };
-  }, [sheet, closeSheet, openReadiness, setSettingsOpen, setFindOpen]);
+  }, [openReadiness, setSettingsOpen, setFindOpen]);
   useEffect(() => {
     const controller = createAppearance(undefined, undefined, undefined, (theme) => {
       void window.spi.setAppearance?.(theme);

@@ -43,7 +43,7 @@ it("reserves upstream tokens and ⇣ for upstream chips, upstream-origin waiting
   expect(files.filter((file) => leaks(file, readFileSync(`${src}/${file}`, "utf8")))).toEqual([]);
   expect(leaks("views/security/security.css", ".security { color: var(--upstream); }")).toBe(true);
   expect(leaks("views/security/index.tsx", "<span>⇣ upstream-owned</span>")).toBe(true);
-  expect(leaks("views/line/index.tsx", "<span>{INBOUND_GLYPH}</span>")).toBe(true);
+  expect(leaks("views/today/Forks.tsx", "<span>{INBOUND_GLYPH}</span>")).toBe(true);
   expect(leaks("views/today/Table.tsx", "<span>⇣ upstream-owned</span>")).toBe(true);
   expect(
     leaks("components/kit/LinkPill.tsx", '  pr: { icon: "pullRequest", tone: "upstream" },'),

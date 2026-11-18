@@ -5,7 +5,7 @@ import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
-import { closeSheet, openSelection, setOpenSelection } from "../../app/navigation.js";
+import { openSelection, setOpenSelection } from "../../app/navigation.js";
 import { selectionStore } from "../../panels/selection.js";
 import { createWatchStore } from "../../store/watch.js";
 import sweep from "../today/snapshot-1116.json?raw";
@@ -41,7 +41,6 @@ afterEach(async () => {
   await act(async () => setOpenSelection(null));
   await act(async () => root.unmount());
   container.remove();
-  closeSheet();
   vi.restoreAllMocks();
   vi.useRealTimers();
 });
@@ -222,6 +221,7 @@ it("opens every Environment selection in a popover or at its source, never in th
     "Review partition's Sync to Main PR on GitHub",
   ]);
   await act(async () => also[0]?.click());
-  expect(openSelection()).toEqual({ kind: "cell", id: "partition:main" });
+  expect(window.location.hash).toBe("#today/forks");
+  expect(openSelection()).toEqual({ kind: "fork", id: "partition" });
   expect(selectionStore.getState().selected).toBeNull();
 });

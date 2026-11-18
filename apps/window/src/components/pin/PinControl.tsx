@@ -20,7 +20,7 @@ export function PinControl({
 }: {
   pin: string;
   name: string;
-  /** 24 px in the top row, 22 px in Find and on the Line sheet. */
+  /** 24 px in the top row, 22 px in Find. */
   size?: "top" | "row";
   /** Whether ⌘⇧P acts where the control sits, and so belongs in its name. */
   shortcut?: boolean;

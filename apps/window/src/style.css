@@ -9,27 +9,24 @@
 }
 
 body { margin: 0; background: var(--surface); color: var(--text); font: 14px/1.5 var(--font-sans); }
-.shell { position: relative; display: grid; grid-template-columns: var(--sidebar-col) minmax(0, 1fr) var(--sheet-col) var(--panel-col); grid-template-rows: var(--pane-header-height) minmax(0, 1fr); height: 100dvh; --toggle-x: 12px; }
-.shell[data-line-presentation="stacked"] { grid-template-rows: var(--pane-header-height) minmax(0, 1fr) minmax(0, 1fr); }
+.shell { position: relative; display: grid; grid-template-columns: var(--sidebar-col) minmax(0, 1fr) var(--panel-col); grid-template-rows: var(--pane-header-height) minmax(0, 1fr); height: 100dvh; --toggle-x: 12px; }
 /* Each pane draws its own part of one top row; the empty space in every part drags the window. */
-:is(.centre-row, .sidebar-top, .shell[data-right-presentation="inline"] .panel-tabs, .line-sheet[data-presentation="pinned"] .line-toolbar) { -webkit-app-region: drag; }
+:is(.centre-row, .sidebar-top, .shell[data-right-presentation="inline"] .panel-tabs) { -webkit-app-region: drag; }
 /* Electron 44 inherits app-region; children reset to initial so they add no drag rectangles of their own. */
-:is(.centre-row, .sidebar-top, .panel-tabs, .line-toolbar) > * { -webkit-app-region: initial; }
+:is(.centre-row, .sidebar-top, .panel-tabs) > * { -webkit-app-region: initial; }
 /* Electron subtracts no-drag rectangles in document order, so a later drag part needs a hole where the earlier sidebar toggle sits. */
-:is(.centre-row, .sidebar-top, .panel-tabs, .line-toolbar) :is(button, select, input, textarea, a, label, summary), .toggle-room, .sidebar-toggle { -webkit-app-region: no-drag; }
+:is(.centre-row, .sidebar-top, .panel-tabs) :is(button, select, input, textarea, a, label, summary), .toggle-room, .sidebar-toggle { -webkit-app-region: no-drag; }
 /* macOS traffic lights end near x 70; Windows caption buttons fill the overlay's right edge. */
 .shell[data-window-controls="inset"] { --toggle-x: 76px; }
 .shell[data-window-controls="overlay"] { --caption-inset: calc(100vw - env(titlebar-area-width, 100vw) - env(titlebar-area-x, 0px) + 8px); }
-.shell[data-window-controls="overlay"]:not([data-right-presentation="inline"], [data-line-presentation="inline"]) .centre-end { padding-right: var(--caption-inset); }
+.shell[data-window-controls="overlay"]:not([data-right-presentation="inline"]) .centre-end { padding-right: var(--caption-inset); }
 .shell[data-window-controls="overlay"][data-right-presentation="inline"] .panel-tabs { padding-right: var(--caption-inset); }
-.shell[data-window-controls="overlay"]:not([data-right-presentation="inline"])[data-line-presentation="inline"] .line-toolbar { padding-right: var(--caption-inset); }
 .sidebar-toggle { position: absolute; top: 8px; left: var(--toggle-x); z-index: 3; }
 .toggle-room { flex: none; align-self: stretch; width: 28px; }
 .panel-toggle { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); }
 .panel-toggle:hover { background: var(--hover); color: var(--text); }
 .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .middle-frame { display: flex; flex-direction: column; grid-column: 2; grid-row: 1 / -1; padding: 0; overflow: hidden; min-width: 0; min-height: 0; background: var(--surface); }
-.shell[data-line-presentation="stacked"] .middle-frame { grid-row: 1 / 3; }
 .centre-bar { position: relative; z-index: 1; padding: 0; background: var(--surface); container-type: inline-size; }
 .centre-row { position: relative; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; height: 100%; white-space: nowrap; font-size: 13px; }
 /* The toggle's room sits in the title's padding, not in a column of its own. */
@@ -56,7 +53,7 @@ body { margin: 0; background: var(--surface); color: var(--text); font: 14px/1.5
 /* Today lifts the content cap; the places keep it. */
 .centre-body .today-frame { max-width: none; }
 .pane-header { display: flex; align-items: center; flex: none; box-sizing: border-box; height: var(--pane-header-height); border-bottom: 1px solid var(--border); }
-.right-panel-frame { grid-column: 4; grid-row: 1 / -1; display: grid; min-width: 0; min-height: 0; }
+.right-panel-frame { grid-column: 3; grid-row: 1 / -1; display: grid; min-width: 0; min-height: 0; }
 aside { padding: 16px; overflow: auto; min-width: 0; background: var(--chrome); border-left: 1px solid var(--border); }
 h1, h2 { margin: 0 0 8px; color: var(--text-strong); }
 h1 { font-size: 24px; }

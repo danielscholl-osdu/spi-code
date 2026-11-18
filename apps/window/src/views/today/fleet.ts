@@ -20,7 +20,7 @@ export const FILTER_NAMES: Readonly<Record<TodayMemberStation, string>> = {
   template: "Template",
 };
 
-const STATION_LABELS: Readonly<Record<StationFigure["id"], string>> = {
+export const STATION_LABELS: Readonly<Record<StationFigure["id"], string>> = {
   upstream: "Upstream",
   sync: "Sync PR",
   integration: "Integration",

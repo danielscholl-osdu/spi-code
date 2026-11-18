@@ -20,12 +20,6 @@ export type SmokeGeometry =
       panelToggles: number;
     }
   | { rule: "related"; panel: SmokeRect; label: SmokeRect; labelText: string; values: SmokeRect[] }
-  | {
-      rule: "panes";
-      viewport: SmokeRect;
-      scroll: { width: number; height: number };
-      panes: { rect: SmokeRect; borderLeft: number; borderRight: number }[];
-    }
   | { rule: "headers"; panes: SmokeRect[]; headers: { rect: SmokeRect; rule: number }[] }
   | { rule: "settings"; viewport: SmokeRect; dialog: SmokeRect }
   | { rule: "sweep-visible"; viewport: SmokeRect; panel: SmokeRect; elements: SmokeRect[] }
@@ -271,35 +265,6 @@ export function assertSmokeGeometry(
       assert(
         value.values[0].x >= value.label.x + value.label.width,
         "Related value must sit beside its label",
-      );
-      break;
-    }
-    case "panes": {
-      assert(
-        Array.isArray(value.panes) && value.panes.length === 3,
-        "Pane probe requires sidebar, centre and Line",
-      );
-      let previous: { rect: SmokeRect; borderRight: number } | undefined;
-      for (const pane of value.panes) {
-        record(pane);
-        rect(pane.rect);
-        aligned(pane.rect.y, 0, "Pane top");
-        assert(
-          typeof pane.borderLeft === "number" && typeof pane.borderRight === "number",
-          "Pane divider missing",
-        );
-        if (previous) {
-          aligned(pane.rect.x, previous.rect.x + previous.rect.width, "Pane gap");
-          aligned(pane.rect.y, previous.rect.y, "Pane top");
-          aligned(pane.rect.height, previous.rect.height, "Pane height");
-          aligned(previous.borderRight + pane.borderLeft, 1, "Pane divider must be 1 px");
-        }
-        previous = { rect: pane.rect, borderRight: pane.borderRight };
-      }
-      windowEdges(
-        value.viewport,
-        value.scroll,
-        value.panes.map((pane) => pane.rect),
       );
       break;
     }

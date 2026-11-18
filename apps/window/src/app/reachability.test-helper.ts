@@ -21,7 +21,7 @@ import { placeFreshCases } from "./place-reachability.test-helper.js";
 
 export type Selector = string | ((root: ParentNode) => Element | null | undefined);
 
-/** A signed-off place a field's home starts from: Today, the strip, the Line sheet, a place. */
+/** A signed-off place a field's home starts from: Today, the strip, Forks, a place. */
 export type Start = { name: string; surface: string; route: Destination };
 
 /** Where a field lives: its start, then at most one click on a visible target. */
@@ -100,7 +100,7 @@ const start = (name: string, route: Destination, surface: string = route.kind): 
 export const STARTS = {
   today: start("Today", { kind: "today" }),
   strip: start("Footer sweep", { kind: "today" }, "strip"),
-  line: start("Line sheet", { kind: "line" }, "sheet"),
+  forks: start("Today", { kind: "today", tab: "forks" }),
   upstream: start("Upstream", { kind: "upstream" }),
   environment: start("Environment", { kind: "environment" }),
   engineering: start("Template", { kind: "engineering-system" }),
@@ -128,8 +128,8 @@ function home(name: string, from: Start, step?: Selector): Home {
 const TODAY = home("Today", STARTS.today);
 const STRIP = home("Footer sweep", STARTS.strip);
 const PINS = home("Pinned", STARTS.today);
-const LINE = home("Line sheet", STARTS.line);
-const LINE_UNFOLDED = home("Line sheet, unfolded", STARTS.line, ".line-fold");
+const FORKS = home("Today, Forks", STARTS.forks);
+const UNFOLDED = home("Today, Forks unfolded", STARTS.forks, ".forks-fold");
 
 /** The lens-field homes t1k.189 ruled, opened the way lens-retirement.test.tsx opens them. */
 function lensHome(name: string): Home {
@@ -460,22 +460,6 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
     repositoryCases(repo, `/briefing/repositories/rows/${index}`, add);
   });
 
-  for (const [index, flow] of briefing.flow.rows.entries()) {
-    const stations = snapshot.stations.find(({ service }) => service === flow.fork)?.stations;
-    const station = stations?.find(({ id }) => id === "upstream");
-    if (!station || !/^\S+ behind/.test(station.text)) continue;
-    const quiet = stations?.every(
-      ({ substate }) => substate !== "stopped" && substate !== "waiting-on-person",
-    );
-    add(
-      `/briefing/flow/rows/${index}/behind`,
-      flow.behind,
-      quiet ? LINE_UNFOLDED : LINE,
-      `tr[data-service=${quote(flow.fork)}] td[data-station="upstream"] button`,
-      { read: (element) => /(\S+) behind/.exec(element.textContent ?? "")?.[1] ?? "" },
-    );
-  }
-
   const releasesPlace = home("Releases", STARTS.releases);
   const ofName = (element: Element) => (element.textContent ?? "").replace(/^SPI /, "");
   releases.lines.forEach((line, index) => {
@@ -767,7 +751,7 @@ export function tableCases(snapshot: ViewSnapshot): Reach[] {
 }
 
 const LOWER_DESTINATIONS: Readonly<Record<string, Destination>> = {
-  line: { kind: "line" },
+  line: STARTS.forks.route,
   environment: { kind: "environment" },
   engineering: { kind: "engineering-system" },
   upstream: { kind: "upstream" },
@@ -859,6 +843,7 @@ export function lowerCases(snapshot: ViewSnapshot): Reach[] {
     counts(pointer, tr, entry.counts);
   });
   fleetCases(today, add);
+  forkCases(today, add);
   causeCases(today, add);
   return cases;
 }
@@ -1029,30 +1014,64 @@ function itemAt(pointer: string, { briefing }: Leaves) {
   return list === "focus" || list === "rest" ? briefing[list][Number(index)] : undefined;
 }
 
-/** Today briefing fields the contract carries before a window bead draws them; each names its bead. */
 const FLEET = "/briefing/today/fleet";
-const FIGURE_LEAVES = ["id", "count", "forks/#", "notRead/#"];
-const STATION_LEAVES = [
-  ...FIGURE_LEAVES,
-  "stopped/#",
-  "red/#",
-  "inProgress/#",
-  "waitingOnClock/#",
-  "waitingOnPerson/#",
-];
-export const PENDING: Readonly<Record<string, Exemption>> = {
-  "today-forks": {
-    pending: true,
-    reason: "spicode-mw0.13: the Forks tab draws its groups and fold totals",
-    patterns: [
-      `${FLEET}/forks/yours/#`,
-      `${FLEET}/forks/stopped/#`,
-      `${FLEET}/forks/rest/forks/#`,
-      ...STATION_LEAVES.map((leaf) => `${FLEET}/forks/rest/stations/#/${leaf}`),
-      ...FIGURE_LEAVES.map((leaf) => `${FLEET}/forks/rest/doors/#/${leaf}`),
-    ],
-  },
-};
+const FOLD_FIGURES = `${FLEET}/forks/rest`;
+
+function forkCases(today: Summary, add: Add) {
+  const fleet = today.fleet;
+  if (!fleet) return;
+  const { yours, stopped, rest } = fleet.forks;
+  const unread = new Set(fleet.stations.flatMap(({ notRead }) => notRead));
+  for (const [index, fork] of yours.entries())
+    add(
+      `${FLEET}/forks/yours/${index}`,
+      fork,
+      FORKS,
+      `[data-fork-group=yours] tr[data-fork=${quote(fork)}] th`,
+    );
+  for (const [index, fork] of stopped.entries())
+    add(`${FLEET}/forks/stopped/${index}`, fork, FORKS, "[data-today-tab=forks] .today-tab-count", {
+      attribute: "title",
+      contains: true,
+    });
+  for (const [index, fork] of rest.forks.entries())
+    add(
+      `${FOLD_FIGURES}/forks/${index}`,
+      fork,
+      unread.has(fork) ? FORKS : UNFOLDED,
+      `tr[data-fork=${quote(fork)}] th`,
+    );
+  for (const [kind, figures] of [
+    ["stations", rest.stations],
+    ["doors", rest.doors],
+  ] as const)
+    figures.forEach(({ id, count, forks }, index) => {
+      if (!foldCount(kind, id, count, forks, unread)) return;
+      add(
+        `${FOLD_FIGURES}/${kind}/${index}/count`,
+        count,
+        FORKS,
+        `.forks-fold [data-hold=${quote(id)}]`,
+        {
+          read: (element) => (element.textContent ?? "").split(" ")[0] ?? "",
+        },
+      );
+    });
+}
+
+function foldCount(
+  kind: string,
+  id: string,
+  count: number,
+  forks: readonly string[],
+  unread: Set<string>,
+) {
+  return (
+    count > 0 &&
+    (kind === "doors" || id === "sync" || id === "integration") &&
+    !forks.some((fork) => unread.has(fork))
+  );
+}
 
 /** Item leaves Today draws at the item's place rather than on Today itself, each with its reason. */
 export const AT_PLACE: Readonly<Record<string, Exemption>> = {
@@ -1076,7 +1095,55 @@ export const AT_PLACE: Readonly<Record<string, Exemption>> = {
 
 /** Leaves the window draws nowhere by design, each with the reason or the bead that owns it. */
 export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
-  ...PENDING,
+  "legacy-line": {
+    patterns: ["/briefing/places/#/fresh/itemIds/#"],
+    reason:
+      "D5: Forks shows Service Home station words and the current Yours rows after the Line sheet retired",
+    when: (_value, { pointer, snapshot }) =>
+      snapshot.briefing.places?.[Number(pointer.split("/")[3])]?.place === "line",
+    pending: true,
+  },
+  "fold-readings": {
+    patterns: [`${FOLD_FIGURES}/doors/#/count`, `${FOLD_FIGURES}/stations/#/count`],
+    reason:
+      "The fold summarizes open PRs on hidden forks, excluding zero counts and visible unread forks",
+    when: (_value, { pointer, snapshot }) => {
+      const fleet = snapshot.briefing.today?.fleet;
+      if (!fleet) return false;
+      const parts = pointer.split("/");
+      const kind = parts.at(-3) === "doors" ? "doors" : "stations";
+      const figure = fleet.forks.rest[kind][Number(parts.at(-2))];
+      return (
+        !!figure &&
+        !foldCount(
+          kind,
+          figure.id,
+          figure.count,
+          figure.forks,
+          new Set(fleet.stations.flatMap(({ notRead }) => notRead)),
+        )
+      );
+    },
+    pending: true,
+  },
+  "fold-figure-detail": {
+    patterns: [
+      ...[
+        "id",
+        "forks/#",
+        "notRead/#",
+        "stopped/#",
+        "red/#",
+        "inProgress/#",
+        "waitingOnClock/#",
+        "waitingOnPerson/#",
+      ].map((field) => `${FOLD_FIGURES}/stations/#/${field}`),
+      ...["id", "forks/#", "notRead/#"].map((field) => `${FOLD_FIGURES}/doors/#/${field}`),
+    ],
+    reason:
+      "The fold gives PR totals. Figure keys and membership are in the fleet flow and individual Forks rows",
+    pending: true,
+  },
   "today-join": {
     patterns: ["/briefing/repositories/rows/#/sections/#/lines/#/onToday/rel"],
     reason:
@@ -1252,7 +1319,6 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
     reason:
       "spicode-djg.9: these line fields show only in a row's opened body (spicode-djg.8), or are core's join keys",
   },
-  ...PENDING,
   transport: {
     patterns: [
       "/briefing/focus/#/id",
@@ -1523,7 +1589,7 @@ export const ROUTE_EXEMPTIONS: Readonly<Record<string, string>> = {
     "spicode-mw0.6: a service page draws its fork's home (services[].home), never a Briefing field",
 };
 
-/** Every registry route, the sheet and the strip, less those a case or a named exemption covers. */
+/** Every registry route, and the strip, less those a case or a named exemption covers. */
 export function uncoveredRoutes(
   registry: Registry,
   cases: readonly Reach[],
@@ -1532,9 +1598,7 @@ export function uncoveredRoutes(
   const surfaces = new Set(
     cases.filter(({ exempt }) => !exempt).map(({ home }) => home.start.surface),
   );
-  return [
-    ...Object.keys(registry.views),
-    ...(registry.sheet ? ["sheet"] : []),
-    ...(registry.strip ? ["strip"] : []),
-  ].filter((route) => !surfaces.has(route) && !(route in exemptions));
+  return [...Object.keys(registry.views), ...(registry.strip ? ["strip"] : [])].filter(
+    (route) => !surfaces.has(route) && !(route in exemptions),
+  );
 }

@@ -5,7 +5,6 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   FIXED_PINS,
   LEGACY_PINS_STORAGE_KEY,
-  LINE_PIN,
   movePin,
   movePinBeside,
   PINS_STORAGE_KEY,
@@ -17,7 +16,8 @@ import {
   V2_PINS_STORAGE_KEY,
 } from "./pins.js";
 
-const FIXED = [LINE_PIN, "place:environment", "place:engineering-system"];
+const LINE_PIN = "sheet:line";
+const FIXED = ["place:environment", "place:engineering-system"];
 const SEED = ["place:upstream", "place:releases", "place:security"];
 
 beforeEach(() => localStorage.clear());
@@ -60,7 +60,7 @@ it("seeds Upstream, Releases and Security when nothing is stored, and writes not
   expect(localStorage.length).toBe(0);
 });
 
-it("reads a readable v3 list over v2 and the legacy key, dropping a fixed id", async () => {
+it("reads a readable v3 list over v2 and the legacy key, dropping the retired Line pin", async () => {
   localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(["legal", LINE_PIN, "place:releases"]));
   localStorage.setItem(V2_PINS_STORAGE_KEY, JSON.stringify(["schema"]));
   localStorage.setItem(LEGACY_PINS_STORAGE_KEY, JSON.stringify(["file"]));
@@ -179,7 +179,7 @@ it("holds the migrated list when storage refuses its write, and migrates again o
 it("refuses to pin or unpin Line, Environment and Template, and writes nothing", async () => {
   const storage = watchWrites();
   const tryFixed = () => {
-    for (const id of FIXED) {
+    for (const id of [LINE_PIN, ...FIXED]) {
       pin(id);
       unpin(id);
     }
@@ -214,8 +214,8 @@ it("persists an unpin, a pin again and moves across a restart", async () => {
   expect(await restart()).toEqual(["place:security", "legal", "place:releases", "place:upstream"]);
 });
 
-it("names a pin for Line, the places and services, and none for Today or a month", () => {
-  expect(pinOf({ kind: "line" })).toBe(LINE_PIN);
+it("names pins for the places and services, and none for Today tabs or a month", () => {
+  expect(pinOf({ kind: "today", tab: "forks" })).toBeUndefined();
   expect(pinOf({ kind: "releases", section: "forming-releases" })).toBe("place:releases");
   expect(pinOf({ kind: "engineering-system" })).toBe("place:engineering-system");
   expect(pinOf({ kind: "service", id: "line" })).toBe("line");

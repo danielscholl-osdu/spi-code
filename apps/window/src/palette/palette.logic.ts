@@ -31,14 +31,13 @@ import {
   type Route,
   routeLabel,
 } from "../app/routes.js";
-import { LINE_PIN, pinOf } from "../store/pins.js";
+import { pinOf } from "../store/pins.js";
 import { plainTitle } from "../text.js";
 import { TABS } from "../views/service/tabs.js";
 import { foldSearchQuery, rankSearchGroups, scoreSearchTerms } from "./search.js";
 
 export type PaletteTarget =
   | { kind: "route"; route: Route }
-  | { kind: "line" }
   | { kind: "queue"; id: string }
   | { kind: "settings" };
 
@@ -65,14 +64,6 @@ export type PaletteGroup = {
 };
 
 const TODAY: Route = { kind: "today" };
-const LINE: PaletteItem = {
-  value: "line",
-  label: "Line",
-  kind: "page",
-  keywords: [],
-  target: { kind: "line" },
-  pin: LINE_PIN,
-};
 /** Settings is a dialog, not a place: Find opens it on Readiness, where Setup now lives. */
 const SETTINGS: PaletteItem = {
   value: "settings",
@@ -140,7 +131,7 @@ function serviceChildren(body: ViewSnapshot, id: string): PaletteGroup | undefin
 
 /**
  * Go to, Services and Queue, from the registered routes and the snapshot; empty groups and
- * routes with no registered view are left out, and Line only with a registered sheet.
+ * routes with no registered view are left out.
  */
 export function buildPaletteGroups(
   body: ViewSnapshot | SnapshotBody | undefined,
@@ -171,7 +162,6 @@ export function buildPaletteGroups(
       label: "Go to",
       items: [
         ...(reachable(TODAY) ? [routeItem(TODAY, "page")] : []),
-        ...(registry.sheet ? [LINE] : []),
         ...PLACES.filter(reachable).map((route) => routeItem(route, "page")),
         SETTINGS,
       ],

@@ -13,7 +13,7 @@ import {
   routeHash,
   setOpenSelection,
 } from "../../app/navigation.js";
-import { type Home, PENDING } from "../../app/reachability.test-helper.js";
+import { EXEMPTIONS, type Home } from "../../app/reachability.test-helper.js";
 import { RouteView } from "../../app/routes.js";
 import { selectionStore } from "../../panels/selection.js";
 import { watchStore } from "../../store/watch.js";
@@ -229,6 +229,6 @@ it("registers every drawn section field in reachability and clears only the plac
       row.pointer,
     ).toBe(row.value);
   }
-  expect(PENDING).not.toHaveProperty("pending-forming");
-  expect(PENDING).not.toHaveProperty("pending-releases");
+  expect(EXEMPTIONS).not.toHaveProperty("pending-forming");
+  expect(EXEMPTIONS).not.toHaveProperty("pending-releases");
 });

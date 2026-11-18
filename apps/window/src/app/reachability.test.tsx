@@ -19,7 +19,6 @@ import {
   lowerCases,
   memberRow,
   openerCases,
-  PENDING,
   type Reach,
   STARTS,
   uncoveredRoutes,
@@ -103,7 +102,7 @@ describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
     }
   });
 
-  it("has a case or a named exemption for every route, the sheet and the strip", () => {
+  it("has a case or a named exemption for every route and the strip", () => {
     expect(uncoveredRoutes(DEFAULT_REGISTRY, cases)).toEqual([]);
   });
 
@@ -121,12 +120,6 @@ describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
         [],
       );
     expect(cases.filter(({ pointer }) => verdict.includes(pointer))).toEqual([]);
-  });
-
-  it("names the window bead for each pending Today exemption", () => {
-    expect(Object.values(PENDING).map(({ reason }) => reason.split(":")[0])).toEqual([
-      "spicode-mw0.13",
-    ]);
   });
 
   it("has shared fields to compare", () => {

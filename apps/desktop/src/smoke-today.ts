@@ -81,7 +81,10 @@ async function grab(window: BrowserWindow): Promise<Pixels> {
 }
 
 /** Today's whole frame: the window at rest with its pane stitched to full height. */
-async function fullPage(context: TodayCaptureContext, path: string) {
+export async function captureTodayFrame(
+  context: Pick<TodayCaptureContext, "window" | "rendered">,
+  path: string,
+) {
   const { window, rendered } = context;
   const page: PaneGeometry = await window.webContents.executeJavaScript(`(() => {
     const scroller = ${SCROLLER};
@@ -136,7 +139,6 @@ export async function captureMornings(
         const { snapshot, fixture: fixtureName } = mornings[surface.morning];
         await window.webContents.executeJavaScript(`{
           localStorage.removeItem("spi-code.panes");
-          localStorage.removeItem("spi-code.line-sheet.pinned");
           localStorage.setItem("spi-code.appearance", ${JSON.stringify(appearance)});
           location.hash = ${JSON.stringify(TODAY_HASHES[surface.view])};
         }`);
@@ -182,7 +184,7 @@ export async function captureMornings(
         ]`);
         const file = `${surface.id}-${viewportWidth}-${appearance}.png`;
         const path = join(output, file);
-        const page = await fullPage(context, path);
+        const page = await captureTodayFrame(context, path);
         const saved = nativeImage.createFromPath(path);
         const image = assertSmokeImage(surface.id, {
           ...saved.getSize(),

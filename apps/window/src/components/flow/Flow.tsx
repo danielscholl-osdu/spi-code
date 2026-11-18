@@ -33,7 +33,7 @@ export type FlowDoor = {
   target?: string | undefined;
 };
 
-const MARKS: Readonly<Record<FlowState, { glyph: string; say: string }>> = {
+export const STATION_MARKS: Readonly<Record<FlowState, { glyph: string; say: string }>> = {
   stopped: { glyph: "✕", say: "blocked" },
   "waiting-on-person": { glyph: "!", say: "waiting on you" },
   "in-progress": { glyph: "◐", say: "running" },
@@ -47,7 +47,7 @@ const pressedProps = (pressed: boolean | undefined) =>
   pressed === undefined ? {} : { "aria-pressed": pressed };
 
 function Station({ station, place }: { station: FlowStation; place: "top" | "join" | "beyond" }) {
-  const { glyph, say } = MARKS[station.state];
+  const { glyph, say } = STATION_MARKS[station.state];
   const inner = (
     <>
       <span className="flow-label">

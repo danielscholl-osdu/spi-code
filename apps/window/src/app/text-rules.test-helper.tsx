@@ -9,7 +9,7 @@ import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
 import { fixtureLoader, installSpi, type SnapshotName } from "../test-utils/harness.js";
 import type { Read } from "../test-utils/watch-fixtures.test-helper.js";
-import { closeSheet, navigate, type Route, relaunch } from "./navigation.js";
+import { navigate, type Route, relaunch } from "./navigation.js";
 import { Shell } from "./Shell.js";
 
 vi.hoisted(() => {
@@ -86,7 +86,6 @@ export function shellHooks() {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ["Date"], now: Date.parse("2026-11-06T14:02:00Z") });
     localStorage.clear();
-    closeSheet();
     relaunch();
     selectionStore.getState().clear();
     window.location.hash = "#today";
@@ -102,7 +101,6 @@ export function shellHooks() {
     selectionStore.getState().clear();
     watchStore.setState(previous, true);
     harness.restore();
-    closeSheet();
     relaunch();
     vi.unstubAllGlobals();
     vi.useRealTimers();
@@ -122,7 +120,7 @@ export function assertRules(label: string, scope: ParentNode = document.body) {
   expect(violations(scope), label).toEqual([]);
 }
 
-/** The text rules on every route, the Line sheet, Cmd-K and Evidence of one listed snapshot. */
+/** The text rules on every route, Forks, Cmd-K and Evidence of one listed snapshot. */
 export function textRulesOn(name: SnapshotName, read: Read) {
   shellHooks();
   const loadFixture = fixtureLoader(read);
@@ -147,11 +145,13 @@ export function textRulesOn(name: SnapshotName, read: Read) {
       },
     );
 
-    it("renders the Line sheet and command palette", async () => {
+    it("renders Forks and the command palette", async () => {
       await open(body, routes.at(-1));
-      await act(async () => navigate({ kind: "line" }));
-      expect(container.querySelector('[aria-label="Line"]')).not.toBeNull();
-      assertRules("Line sheet");
+      await act(async () => navigate({ kind: "today", tab: "forks" }));
+      expect(
+        container.querySelector('[data-today-tab="forks"][aria-selected="true"]'),
+      ).not.toBeNull();
+      assertRules("Forks");
       await act(async () => container.querySelector<HTMLButtonElement>(".find-or-ask")?.click());
       expect(document.querySelector('[role="dialog"][aria-label="Find or ask"]')).not.toBeNull();
       assertRules("Cmd-K");

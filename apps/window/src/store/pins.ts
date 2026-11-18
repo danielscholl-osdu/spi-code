@@ -6,7 +6,7 @@ import type { Destination } from "../app/navigation.js";
 
 /**
  * Pins (PS-08): the sidebar's Pinned list, in the operator's order. A pin is a place or a service by
- * its id. Line, Environment and Template sit in the sidebar's fixed block and are never in
+ * its id. Environment and Template sit in the sidebar's fixed block and are never in
  * the list. A service pin stays in storage when the snapshot stops naming that service; the sidebar
  * draws only the pins it can open.
  */
@@ -16,7 +16,7 @@ export const V2_PINS_STORAGE_KEY = "spi-code.sidebar.pins.v2";
 /** Services only, from before V2_PINS_STORAGE_KEY. */
 export const LEGACY_PINS_STORAGE_KEY = "spi-code.sidebar.pins";
 
-export const LINE_PIN = "sheet:line";
+const RETIRED_LINE_PIN = "sheet:line";
 const PLACE_KINDS = [
   "upstream",
   "environment",
@@ -33,7 +33,6 @@ export const SEED_PINS: readonly string[] = [
 ];
 /** The sidebar's fixed block below Today: never pinned, unpinned or stored. */
 export const FIXED_PINS: readonly string[] = [
-  LINE_PIN,
   placePin("environment"),
   placePin("engineering-system"),
 ];
@@ -45,8 +44,6 @@ export function isFixedPin(id: string) {
 /** The pin a destination is kept under; Today and a release month have none. */
 export function pinOf(destination: Destination): string | undefined {
   switch (destination.kind) {
-    case "line":
-      return LINE_PIN;
     case "service":
       return destination.id;
     case "today":
@@ -82,8 +79,10 @@ function parse(raw: string): string[] | undefined {
   return undefined;
 }
 
+const unavailable = (id: string) => id === RETIRED_LINE_PIN || isFixedPin(id);
+
 function withoutFixed(pins: readonly string[]): readonly string[] {
-  return pins.some(isFixedPin) ? pins.filter((id) => !isFixedPin(id)) : pins;
+  return pins.some(unavailable) ? pins.filter((id) => !unavailable(id)) : pins;
 }
 
 /** What each key held at a read; `undefined` when storage refused it, `null` when absent. */
@@ -159,7 +158,7 @@ export function isPinned(id: string, pins: readonly string[] = readPins()) {
 
 /** Appends a pin; the fixed block's ids are refused. */
 export function pin(id: string) {
-  if (isFixedPin(id)) return;
+  if (unavailable(id)) return;
   const pins = readPins();
   if (pins.includes(id)) return;
   writePins([...pins, id]);
@@ -167,7 +166,7 @@ export function pin(id: string) {
 }
 
 export function unpin(id: string) {
-  if (isFixedPin(id)) return;
+  if (unavailable(id)) return;
   const pins = readPins();
   const index = pins.indexOf(id);
   if (index < 0) return;
@@ -190,7 +189,7 @@ export function subscribePinChanges(listener: (change: PinChange) => void) {
 
 /** Restores a removed pin at its old index, bounded by the current list. */
 export function restorePin(id: string, index: number) {
-  if (isFixedPin(id) || isPinned(id)) return;
+  if (unavailable(id) || isPinned(id)) return;
   const pins = [...readPins()];
   pins.splice(Math.max(0, Math.min(index, pins.length)), 0, id);
   writePins(pins);

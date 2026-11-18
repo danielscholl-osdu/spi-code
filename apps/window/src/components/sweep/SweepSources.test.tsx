@@ -6,7 +6,6 @@ import { type SweepProgress, SweepProgressSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
-import { closeSheet } from "../../app/navigation.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { watchStore } from "../../store/watch.js";
@@ -446,12 +445,10 @@ it("drops Today's middle column in the 740 px layout, where the list is wider th
   const previousWidth = window.innerWidth;
   const harness = installSpi();
   cleanups.push(async () => {
-    closeSheet();
     watchStore.setState(previousWatch, true);
     harness.restore();
     window.innerWidth = previousWidth;
   });
-  closeSheet();
   window.location.hash = "#today";
   selectionStore.getState().clear();
   selectionStore.getState().setOpen(false);

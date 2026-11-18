@@ -35,7 +35,7 @@ const fixture = JSON.parse(recorded);
 
 const lines = TodayLineSchema.array().parse(fixture.lines);
 const items = FocusItemSchema.array().parse(fixture.items);
-const place = { label: "Line › crs-conversion › Sync PR", destination: { kind: "line" } } as const;
+const place = { label: "Forks", destination: { kind: "today", tab: "forks" } } as const;
 const line = (part: string) => {
   const found = lines.find(({ id }) => id.includes(part));
   if (!found) throw new Error(`Missing fixture line ${part}`);

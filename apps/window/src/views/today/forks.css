@@ -1,0 +1,27 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+.forks-scroll { overflow-x: auto; }
+.forks-scroll table { width: 100%; min-width: 760px; border-collapse: separate; border-spacing: 0; }
+.forks-scroll :is(th, td) { padding: 7px 6px; text-align: left; }
+.forks-scroll thead th { color: var(--text-muted); font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.forks-scroll tbody :is(th, td) { border-top: 1px solid var(--border-soft); }
+.forks-scroll th[scope="row"] { white-space: nowrap; }
+.forks-scroll td:last-child { text-align: right; }
+.forks-scroll .today-fork-name { padding: 0; border: 0; background: transparent; color: var(--accent-text); font-size: 13px; font-weight: 600; }
+.forks-scroll :is(.today-fork-name, .forks-fold):hover { text-decoration: underline; }
+.forks-reading { display: inline-flex; align-items: baseline; gap: 4px; padding: 1px 4px; border-radius: 4px; font-size: 12px; line-height: 1.4; }
+.forks-glyph { font-family: var(--font-mono); font-weight: 700; }
+.forks-reading[data-state="stopped"] { color: var(--error-text); background: var(--error-surface); }
+.forks-reading[data-state="waiting-on-person"] { color: var(--warning-text); background: var(--warning-surface); }
+.forks-reading[data-state="green"] { color: var(--success-text); background: var(--success-surface); }
+.forks-reading:is([data-state="in-progress"], [data-state="waiting-on-clock"]) { color: var(--work); background: var(--work-surface); }
+.forks-reading:is([data-state="unread"], [data-state="ready"]) { color: var(--text-muted); }
+.forks-scroll [data-dim] .forks-reading { color: var(--text-muted); background: none; }
+.forks-scroll thead [data-column]:not([data-dim]) { color: var(--text-strong); }
+.forks-fold { display: block; width: 100%; padding: 4px 0; border: 0; background: transparent; color: var(--text-muted); font-size: 12px; text-align: left; }
+.forks-open > td:last-child { padding: 10px 14px; background: var(--surface-raised); color: var(--text-muted); font-size: 12px; text-align: left; }
+.forks-open p { margin: 0 0 8px; }
+.forks-work { list-style: none; margin: 0 0 8px; padding: 0; }
+.forks-work li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; padding: 2px 0; }
+.forks-can-wait { margin: 6px 0; }

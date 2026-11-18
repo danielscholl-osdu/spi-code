@@ -7,8 +7,8 @@ import type { Route } from "./navigation.js";
 import { matchesShiftShortcut } from "./shortcuts.js";
 
 /**
- * ⌘⇧P (Ctrl+Shift+P) pins or unpins what the centre holds. `blocked` while a dialog is open or the
- * Line sheet covers the centre; Find handles the shortcut itself.
+ * ⌘⇧P (Ctrl+Shift+P) pins or unpins what the centre holds. `blocked` while a dialog is open.
+ * Find handles the shortcut itself.
  */
 export function usePinShortcut(route: Route, blocked: boolean) {
   useEffect(() => {

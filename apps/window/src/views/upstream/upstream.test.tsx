@@ -6,7 +6,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
-import { closeSheet, navigate, openSelection, setOpenSelection } from "../../app/navigation.js";
+import { navigate, openSelection, setOpenSelection } from "../../app/navigation.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { routeSelectionIds } from "../../panels/selection-rows.js";
@@ -86,7 +86,6 @@ const fields = () => Object.fromEntries(pairs());
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(Date.parse(fixture().sweptAt));
-  closeSheet();
   window.location.hash = "#upstream";
   harness = installSpi();
   setOpenSelection(null);
@@ -99,7 +98,6 @@ beforeEach(async () => {
 afterEach(async () => {
   await act(async () => setOpenSelection(null));
   for (const unmount of unmounts.splice(0)) await unmount();
-  closeSheet();
   watchStore.setState(previousWatch, true);
   harness.restore();
   vi.restoreAllMocks();
@@ -408,33 +406,15 @@ it("opens each fork a theme names from the Upstream place in one click", async (
   }
 });
 
-it("opens the Line sheet filtered to the Upstream column from its Line view link", async () => {
+it("opens Today on Forks with Upstream pressed from its Forks link", async () => {
   const body = fixture();
-  const station = body.stations
-    .find(({ service }) => service === "partition")
-    ?.stations.find(({ id }) => id === "upstream");
-  if (!station) throw new Error("Missing fixture station");
-  station.text = "";
   await act(async () => load({ ...body, cursor: body.cursor + 1 }));
-  const sheet = () => container.querySelector<HTMLElement>(".line-sheet");
-  expect(sheet()).toBeNull();
   const link = [...container.querySelectorAll<HTMLButtonElement>("main header button")].find(
-    (button) => button.textContent === "Line view",
+    (button) => button.textContent === "Forks ›",
   );
+  expect(link).toBeDefined();
   await click(link);
-  expect(sheet()?.dataset.presentation).toBe("overlay");
-  expect(window.location.hash).toBe("#upstream");
-  const chip = sheet()?.querySelector('[aria-label="Clear Upstream filter"]');
-  expect(chip?.getAttribute("aria-pressed")).toBe("true");
-  const rows = [...(sheet()?.querySelectorAll<HTMLElement>("tbody tr[data-service]") ?? [])].map(
-    (row) => row.dataset.service,
-  );
-  expect(rows).not.toContain("partition");
-  expect(rows).toEqual(
-    body.stations
-      .filter(({ stations }) => stations.some(({ id, text }) => id === "upstream" && text.trim()))
-      .map(({ service }) => service),
-  );
+  expect(window.location.hash).toBe("#today/forks/upstream");
 });
 
 it("takes no space for a missing reading or an empty horizon", async () => {

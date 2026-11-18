@@ -5,7 +5,7 @@ import type { Reading, RepoLine } from "@spi-code/contracts";
 import { useCallback, useId, useLayoutEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 import {
-  LINE,
+  FORKS,
   navigate,
   type OpenSelection,
   setOpenSelection,
@@ -22,7 +22,7 @@ import { plainTitle } from "../../text.js";
 import { TimedText } from "../../time.js";
 import { FlowContext } from "./flow-context.js";
 import { leadTiles } from "./lead.js";
-import { environmentOpening, flowCell } from "./opening.js";
+import { environmentOpening } from "./opening.js";
 import {
   eventKey,
   eventText,
@@ -274,9 +274,9 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
           <FlowContext
             flow={body.briefing.flow}
             onSelect={(id) => {
-              const cell = flowCell(body, id);
-              navigate(LINE);
-              if (cell) setOpenSelection({ kind: "cell", id: cell });
+              const fork = body.briefing.flow.rows.find(({ inspect }) => inspect === id)?.fork;
+              navigate(FORKS);
+              if (fork) setOpenSelection({ kind: "fork", id: fork });
             }}
           />
           <SectionEvidence evidence={body} prefixes={["/briefing/environment/headline"]} />

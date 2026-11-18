@@ -40,7 +40,6 @@ import { ariaShortcut, shortcutLabel } from "../../app/shortcuts.js";
 import { READINESS_DOT_LABEL, readinessDot } from "../../settings/readiness.js";
 import { observePinFeedback, useJustPinned } from "../../store/pin-feedback.js";
 import {
-  LINE_PIN,
   movePin,
   movePinBeside,
   type PinnedPlace,
@@ -103,14 +102,13 @@ const PLACE_ICONS: Readonly<Record<PinnedPlace, IconName>> = {
 
 type Row = {
   pin: string;
-  /** `line`, a place's route kind, or `service/<id>`. */
+  /** A place's route kind or `service/<id>`. */
   key: string;
   label: string;
   icon: IconName;
   beforeSweep?: boolean;
   mark?: ServiceMarkView | undefined;
   status?: StatusRow | undefined;
-  shortcut?: string;
   open(): void;
 };
 
@@ -174,10 +172,8 @@ function rowButtonProps(row: Row, ariaCurrent: "page" | "true" | undefined) {
     "data-before-sweep": row.beforeSweep ? "" : undefined,
     "data-status": row.status?.status,
     "data-classification": row.status?.classification,
-    "data-services": row.status?.services,
     title: row.status?.sentence,
     "aria-description": row.status?.sentence,
-    "aria-keyshortcuts": row.shortcut,
     "aria-current": ariaCurrent,
     onClick: row.open,
   };
@@ -319,7 +315,7 @@ function PinItem({
 }
 
 /**
- * The sidebar (PS-08): Find or ask; Today with its count, Line, Environment and Template
+ * The sidebar (PS-08): Find or ask; Today with its count, Environment and Template
  * as one fixed block; one Pinned list in the operator's order; and a footer gear that opens Settings, with a dot only when Readiness needs the operator. The
  * Settled shelf waits for threads (M3).
  */
@@ -328,7 +324,6 @@ export function ProgramSidebar({
   route,
   onNavigate,
   onFind,
-  onLine,
   onSettings,
   sweep,
 }: {
@@ -336,8 +331,6 @@ export function ProgramSidebar({
   route: Route;
   onNavigate(route: Route): void;
   onFind?(): void;
-  /** Opens the Line sheet; without it the fixed block has no Line row. */
-  onLine?(): void;
   /** Opens Settings on Readiness; without it the sidebar has no footer. */
   onSettings?(): void;
   sweep?: ReactNode;
@@ -347,7 +340,7 @@ export function ProgramSidebar({
   const { tree, briefing } = body ?? {};
   const strip = body ? selectStrip(body) : undefined;
   const now = useNow(30_000, syncDeadline(strip?.nextSync, Date.now()));
-  const status = statusRows(strip, now);
+  const status = statusRows(body, now);
   const todayCount = briefing ? todayMembers(briefing).length : 0;
   const { isMobile, setOpenMobile, visible } = useSidebar();
   const { collapsed, toggle } = useGroupCollapse();
@@ -402,22 +395,6 @@ export function ProgramSidebar({
     ];
   };
   const fixed: Row[] = [
-    ...(onLine
-      ? [
-          {
-            pin: LINE_PIN,
-            key: "line",
-            label: "Line",
-            icon: "rows" as const,
-            status: status[LINE_PIN],
-            shortcut: ariaShortcut("l"),
-            open: () => {
-              onLine();
-              closeMobile();
-            },
-          },
-        ]
-      : []),
     ...placeRow(placePin("environment")),
     ...placeRow(placePin("engineering-system")),
   ];

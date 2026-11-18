@@ -7,7 +7,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { selectionStore } from "../panels/selection.js";
 import { installSpi } from "../test-utils/harness.js";
 import { loadPanes, PANES_STORAGE_KEY, savePanes } from "./pane-layout.js";
-import { closeSheet, pinSheet } from "./routes.js";
 import { Shell } from "./Shell.js";
 
 type HappyWindow = { happyDOM: { setViewport(viewport: { width: number; height: number }): void } };
@@ -75,7 +74,6 @@ const saved = () => JSON.parse(localStorage.getItem(PANES_STORAGE_KEY) ?? "null"
 
 beforeEach(async () => {
   localStorage.removeItem(PANES_STORAGE_KEY);
-  closeSheet();
   window.location.hash = "";
   await resizeWindow(1280);
   selectionStore.setState({ selected: null, row: null, result: null, request: null, open: true });
@@ -83,13 +81,12 @@ beforeEach(async () => {
 
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0)) await cleanup();
-  closeSheet();
 });
 
 describe("saved panes", () => {
   it("falls back pane by pane to the defaults for absent, malformed or out-of-range values", () => {
     expect(loadPanes()).toEqual({
-      widths: { sidebar: 232, rightPanel: 360, lineSheet: 360 },
+      widths: { sidebar: 232, rightPanel: 360 },
       open: { sidebar: true, rightPanel: false },
     });
     localStorage.setItem(PANES_STORAGE_KEY, "{not json");
@@ -102,21 +99,20 @@ describe("saved panes", () => {
       }),
     );
     expect(loadPanes()).toEqual({
-      widths: { sidebar: 232, rightPanel: 520, lineSheet: 360 },
+      widths: { sidebar: 232, rightPanel: 520 },
       open: { sidebar: false, rightPanel: false },
     });
-    savePanes({ widths: { lineSheet: 330 } });
+    savePanes({ widths: { sidebar: 250 } });
     expect(saved()).toEqual({
-      widths: { sidebar: 232, rightPanel: 520, lineSheet: 330 },
+      widths: { sidebar: 250, rightPanel: 520 },
       open: { sidebar: false, rightPanel: false },
     });
   });
 });
 
 describe("pane separators", () => {
-  it("saves each pane's dragged width, showing it live and keeping the centre's 520 px", async () => {
+  it("saves the sidebar's dragged width, showing it live and keeping the centre's 520 px", async () => {
     await resizeWindow(1600);
-    pinSheet();
     const shell = await mountShell();
     const sidebar = shell.separator("Resize sidebar");
     if (!sidebar) throw new Error("Missing sidebar separator");
@@ -131,21 +127,6 @@ describe("pane separators", () => {
     await pointer(sidebar, "pointerup", 272);
     expect(saved().widths.sidebar).toBe(272);
 
-    const line = shell.separator("Resize Line sheet");
-    expect(line?.getAttribute("aria-controls")).toBe("app-line-sheet");
-    expect(shell.container.querySelector("#app-line-sheet")).not.toBeNull();
-    expect(line?.getAttribute("aria-valuemax")).toBe("808");
-    await drag(line, 900, 700);
-    expect(saved().widths.lineSheet).toBe(560);
-    expect(shell.column("--sheet-col")).toBe("560px");
-    expect(1600 - 272 - 560).toBe(768);
-    expect(shell.layout.dataset.rightPresentation).toBe("closed");
-    expect(shell.layout.dataset.linePresentation).toBe("inline");
-
-    await act(async () => {
-      line?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowRight" }));
-    });
-    expect(saved().widths.lineSheet).toBe(544);
     await act(async () => {
       sidebar.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
     });
@@ -166,18 +147,6 @@ describe("pane separators", () => {
     await drag(sidebar, 232, 500);
     expect(saved().widths.sidebar).toBe(280);
     expect(narrow.layout.dataset.sidebarPresentation).toBe("inline");
-  });
-
-  it("keeps the pinned Line sheet's preferred width when the stop holds its drag", async () => {
-    savePanes({ widths: { lineSheet: 440 } });
-    await resizeWindow(1120);
-    pinSheet();
-    const shell = await mountShell();
-    const shown = shell.column("--sheet-col");
-    expect(shown).toBe("368px");
-    await drag(shell.separator("Resize Line sheet"), 700, 600);
-    expect(shell.column("--sheet-col")).toBe(shown);
-    expect(saved().widths.lineSheet).toBe(440);
   });
 
   it.each([740, 900, 1440])(

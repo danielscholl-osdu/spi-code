@@ -22,13 +22,6 @@ const EDGES: ReadonlyArray<{
     edge: "right",
   },
   {
-    pane: "lineSheet",
-    slot: "line-sheet",
-    label: "Resize Line sheet",
-    controls: "app-line-sheet",
-    edge: "left",
-  },
-  {
     pane: "rightPanel",
     slot: "right-panel",
     label: "Resize right panel",
@@ -38,10 +31,8 @@ const EDGES: ReadonlyArray<{
 ];
 
 /** The panes that have a drag edge: those shown inline. */
-export function edgePanes(settled: WidthBudget, lineSheet: boolean): ResizablePane[] {
-  return EDGES.flatMap(({ pane }) =>
-    settled[pane].presentation === "inline" && (pane !== "lineSheet" || lineSheet) ? [pane] : [],
-  );
+export function edgePanes(settled: WidthBudget): ResizablePane[] {
+  return EDGES.flatMap(({ pane }) => (settled[pane].presentation === "inline" ? [pane] : []));
 }
 
 /**
@@ -52,7 +43,6 @@ export function PaneEdges({
   budget,
   settled,
   windowWidth,
-  lineSheet,
   onResize,
   onResizeEnd,
 }: {
@@ -61,14 +51,12 @@ export function PaneEdges({
   /** The displayed widths at the committed preferred widths, which set where a drag stops. */
   settled: WidthBudget;
   windowWidth: number;
-  /** Whether a pinned Line sheet is rendered. */
-  lineSheet: boolean;
   /** A live drag width, or undefined once a drag ends without one. */
   onResize: (pane: ResizablePane, width: number | undefined) => void;
   /** A width the user chose; a drag held at the displayed width is not one. */
   onResizeEnd: (pane: ResizablePane, width: number) => void;
 }) {
-  const shown = edgePanes(settled, lineSheet);
+  const shown = edgePanes(settled);
   const dragging = useRef(new Set<ResizablePane>());
   /**
    * A drag that ends where its pane already sits, because the stop or the maximum

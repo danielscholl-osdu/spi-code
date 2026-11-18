@@ -16,17 +16,16 @@ export const PANE_BOUNDS: Record<
 > = {
   sidebar: { min: 200, max: 320, defaultWidth: 232 },
   rightPanel: { min: 280, defaultWidth: 360 },
-  lineSheet: { min: 320, defaultWidth: 360 },
 };
 
-/** What a machine remembers of its panes. The pinned Line sheet's open state is the navigation's. */
+/** What a machine remembers of its panes. */
 export interface SavedPanes {
   readonly widths: PaneWidths;
   readonly open: { readonly sidebar: boolean; readonly rightPanel: boolean };
 }
 
 const DEFAULTS: SavedPanes = {
-  widths: { sidebar: 232, rightPanel: 360, lineSheet: 360 },
+  widths: { sidebar: 232, rightPanel: 360 },
   open: { sidebar: true, rightPanel: false },
 };
 
@@ -65,7 +64,6 @@ export function loadPanes(storage: PaneStorage | undefined = localStore()): Save
     widths: {
       sidebar: savedWidth(widths.sidebar, "sidebar"),
       rightPanel: savedWidth(widths.rightPanel, "rightPanel"),
-      lineSheet: savedWidth(widths.lineSheet, "lineSheet"),
     },
     open: {
       sidebar: savedFlag(open.sidebar, DEFAULTS.open.sidebar),
@@ -98,14 +96,12 @@ export function paneMaximum(pane: ResizablePane, windowWidth: number): number {
 export function budgetPreferred(widths: PaneWidths, windowWidth: number): PaneWidths {
   const hold = (pane: ResizablePane) =>
     Math.max(PANE_BOUNDS[pane].min, Math.min(widths[pane], paneMaximum(pane, windowWidth)));
-  return { sidebar: hold("sidebar"), rightPanel: hold("rightPanel"), lineSheet: hold("lineSheet") };
+  return { sidebar: hold("sidebar"), rightPanel: hold("rightPanel") };
 }
 
 /** The widest a pane may be dragged to while the centre keeps 520 px beside the other inline panes. */
 export function paneStop(pane: ResizablePane, budget: WidthBudget, windowWidth: number): number {
   const inline = (other: ResizablePane) =>
     other !== pane && budget[other].presentation === "inline" ? budget[other].width : 0;
-  return (
-    windowWidth - CENTRE_MINIMUM - inline("sidebar") - inline("rightPanel") - inline("lineSheet")
-  );
+  return windowWidth - CENTRE_MINIMUM - inline("sidebar") - inline("rightPanel");
 }

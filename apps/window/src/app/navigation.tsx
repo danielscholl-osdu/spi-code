@@ -4,15 +4,12 @@
 import {
   PROTOCOL_VERSION,
   parseMessage,
-  type Station,
-  StationIdSchema,
   type TodayMemberStation,
   TodayMemberStationSchema,
 } from "@spi-code/contracts";
 import {
   createContext,
   type ReactNode,
-  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -48,22 +45,22 @@ export type PlaceRoute =
 export type ServiceRoute = { kind: "service"; id: string; tab?: string; row?: string };
 
 /** Today's tabs after Yours, which opens when the route names none. */
-export const TODAY_TABS = ["activity"] as const;
+export const TODAY_TABS = ["forks", "activity"] as const;
 export type TodayTab = (typeof TODAY_TABS)[number];
 
-/** Today, on one of its tabs, with Yours filtered to one station's rows. */
+/** Today, on one of its tabs, with an optional station filter. */
 export type TodayRoute = { kind: "today"; tab?: TodayTab; station?: TodayMemberStation };
 
 /** What Evidence was opened for: a Today item, or a Today line with each of its members. */
 export type EvidenceSelection = { kind: "item" | "line"; id: string };
 
-/** What is open on a page or in the Line sheet: a Today row, a place's popover, a Line cell. */
+/** What is open on a page: a Today row or a place's popover. */
 export type OpenSelection = { kind: string; id: string };
 
 /**
  * Evidence for a selection, or the whole sweep with none, and the way back: the page it was
  * opened from, what was open there (the selection when absent) with the Today subject it stands
- * for when it is not one itself, and the Line sheet if it lay over that page.
+ * for when it is not one itself.
  */
 export type EvidenceRoute = {
   kind: "evidence";
@@ -71,7 +68,6 @@ export type EvidenceRoute = {
   selection?: EvidenceSelection;
   open?: OpenSelection;
   about?: EvidenceSelection;
-  sheet?: LineSheetOptions;
 };
 
 /** What the centre can hold. */
@@ -80,13 +76,8 @@ export type Route = TodayRoute | PlaceRoute | EvidenceRoute;
 export type RouteKind = Route["kind"];
 export type RouteOf<K extends RouteKind> = Extract<Route, { kind: K }>;
 
-/** The Line sheet is not a route: it opens over the centre and closes back to it. */
-export const LINE = { kind: "line" } as const;
-export type LineColumn = Exclude<Station["id"], "lane">;
-export type LineSheetOptions = { readonly column?: LineColumn };
-export type Destination = Route | (typeof LINE & LineSheetOptions);
-/** Over the centre, which is inert beneath it, or pinned beside a centre that stays live. */
-export type SheetPresentation = "closed" | "overlay" | "pinned";
+export const FORKS = { kind: "today", tab: "forks" } as const satisfies TodayRoute;
+export type Destination = Route;
 
 /**
  * The components the window can show. A route whose kind has no view is not listed in the
@@ -94,10 +85,7 @@ export type SheetPresentation = "closed" | "overlay" | "pinned";
  */
 export type Registry = {
   readonly views: { readonly [K in RouteKind]?: (route: RouteOf<K>) => ReactNode };
-  readonly sheet?:
-    | ((origin: Route, presentation: Exclude<SheetPresentation, "closed">) => ReactNode)
-    | undefined;
-  /** Drawn at the end of the sidebar footer on every route and beside either sheet. */
+  /** Drawn at the end of the sidebar footer on every route. */
   readonly strip?: (() => ReactNode) | undefined;
   /** Where an unknown or unregistered hash lands; it must be registered. */
   readonly fallback: Route;
@@ -126,11 +114,6 @@ function decode(segment: string): string | undefined {
 
 const SELECTION = /^(item|line)~(.+)$/;
 const OPEN = /^([a-z][a-z-]*)~(.+)$/;
-const SHEET = /^line(?:~(.+))?$/;
-const COLUMNS: ReadonlySet<string> = new Set(
-  StationIdSchema.options.filter((id): id is LineColumn => id !== "lane"),
-);
-
 const sameSelection = (a: OpenSelection, b: OpenSelection) => a.kind === b.kind && a.id === b.id;
 
 /** A Today row is its own Evidence subject; anything else stands for none unless it says so. */
@@ -142,7 +125,6 @@ function evidenceRoute(
   selection: EvidenceSelection | null | undefined,
   open: OpenSelection | null | undefined,
   about: EvidenceSelection | null | undefined,
-  sheet: LineSheetOptions | undefined,
 ): EvidenceRoute {
   return {
     kind: "evidence",
@@ -150,34 +132,24 @@ function evidenceRoute(
     ...(selection ? { selection } : {}),
     ...(open && !(selection && sameSelection(open, selection)) ? { open } : {}),
     ...(open && about && !ownSubject(open) ? { about } : {}),
-    ...(sheet ? { sheet } : {}),
   };
 }
 
-/**
- * `#evidence?from=today&sel=item~gate2:storage&open=cell~storage:sync&sheet=line~sync`: a `from`
- * that is not a page, and a sheet that is not the Line, are dropped.
- */
+/** Old Evidence hashes that came from the Line return to Forks. */
 function parseEvidence(query: string): EvidenceRoute {
   const params = new URLSearchParams(query);
   const selection = SELECTION.exec(params.get("sel") ?? "");
   const open = OPEN.exec(params.get("open") ?? "");
   const about = SELECTION.exec(params.get("about") ?? "");
-  const sheet = SHEET.exec(params.get("sheet") ?? "");
-  const column = sheet?.[1];
+  const fromLine = /^line(?:~.+)?$/.test(params.get("sheet") ?? "");
   return evidenceRoute(
-    parseRoute(params.get("from") ?? ""),
+    fromLine ? FORKS : parseRoute(params.get("from") ?? ""),
     selection?.[1] && selection[2]
       ? { kind: selection[1] as EvidenceSelection["kind"], id: selection[2] }
       : undefined,
-    open?.[1] && open[2] ? { kind: open[1], id: open[2] } : undefined,
+    !fromLine && open?.[1] && open[2] ? { kind: open[1], id: open[2] } : undefined,
     about?.[1] && about[2]
       ? { kind: about[1] as EvidenceSelection["kind"], id: about[2] }
-      : undefined,
-    sheet && (column === undefined || COLUMNS.has(column))
-      ? column === undefined
-        ? {}
-        : { column: column as LineColumn }
       : undefined,
   );
 }
@@ -192,14 +164,19 @@ function parseService(parts: readonly string[]): Route | undefined {
   return { kind: "service", id, ...(tab ? { tab } : {}), ...(row ? { row } : {}) };
 }
 
-/** `today[/<tab>[/<station>]]`: a station filters Yours, so its tab is `yours`. */
+/** `today[/<tab>[/<station>]]`: a station can filter Yours or highlight a Forks column. */
 function parseToday(parts: readonly string[]): Route | undefined {
   const [tab, station, ...rest] = parts;
   if (rest.length > 0) return undefined;
   if (tab === undefined) return { kind: "today" };
   if (station !== undefined)
-    return tab === "yours" && TodayMemberStationSchema.safeParse(station).success
-      ? { kind: "today", station: station as TodayMemberStation }
+    return (tab === "yours" || tab === "forks") &&
+      TodayMemberStationSchema.safeParse(station).success
+      ? {
+          kind: "today",
+          ...(tab === "forks" ? { tab } : {}),
+          station: station as TodayMemberStation,
+        }
       : undefined;
   if (tab === "yours") return { kind: "today" };
   return (TODAY_TABS as readonly string[]).includes(tab)
@@ -239,7 +216,7 @@ export function routeHash(route: Route): string {
       return `#${["service", route.id, ...(route.tab ? [route.tab] : []), ...(route.tab && route.row ? [route.row] : [])].map(encodeURIComponent).join("/")}`;
     case "today":
       return route.station
-        ? `#today/yours/${route.station}`
+        ? `#today/${route.tab ?? "yours"}/${route.station}`
         : route.tab
           ? `#today/${route.tab}`
           : "#today";
@@ -253,8 +230,6 @@ export function routeHash(route: Route): string {
       if (route.selection) params.set("sel", `${route.selection.kind}~${route.selection.id}`);
       if (route.open) params.set("open", `${route.open.kind}~${route.open.id}`);
       if (route.about) params.set("about", `${route.about.kind}~${route.about.id}`);
-      if (route.sheet)
-        params.set("sheet", route.sheet.column ? `line~${route.sheet.column}` : "line");
       const query = params.toString();
       return query ? `#evidence?${query}` : "#evidence";
     }
@@ -308,48 +283,16 @@ export function renderRoute(route: Route, registry: Registry): ReactNode {
 
 // The browser fires hashchange after the task that set the hash; the window re-renders at once.
 const listeners = new Set<() => void>();
-/** The hash beneath the open Line sheet; the sheet is open only while the hash still matches. */
-let sheetOrigin: string | null = null;
-let sheetRequest: { id: number; column: LineColumn | undefined } = {
-  id: 0,
-  column: undefined,
-};
-const PINNED_KEY = "spi-code.line-sheet.pinned";
-/** A pinned sheet survives navigation and, through local storage, a reload. */
-let pinned = false;
-
-function loadPinned() {
-  try {
-    pinned = window.localStorage.getItem(PINNED_KEY) === "1";
-  } catch {}
-}
-
-function savePinned(value: boolean) {
-  pinned = value;
-  try {
-    if (value) window.localStorage.setItem(PINNED_KEY, "1");
-    else window.localStorage.removeItem(PINNED_KEY);
-  } catch {}
-}
-
 function emit() {
   for (const listener of listeners) listener();
 }
 
-function onHashChange() {
-  if (sheetOrigin !== null && sheetOrigin !== window.location.hash) sheetOrigin = null;
-  emit();
-}
-
 function subscribe(listener: () => void) {
-  if (listeners.size === 0) {
-    loadPinned();
-    window.addEventListener("hashchange", onHashChange);
-  }
+  if (listeners.size === 0) window.addEventListener("hashchange", emit);
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
-    if (listeners.size === 0) window.removeEventListener("hashchange", onHashChange);
+    if (listeners.size === 0) window.removeEventListener("hashchange", emit);
   };
 }
 
@@ -357,64 +300,16 @@ function readHash() {
   return window.location.hash;
 }
 
-function readPresentation(): SheetPresentation {
-  if (pinned) return "pinned";
-  return sheetOrigin !== null && sheetOrigin === window.location.hash ? "overlay" : "closed";
-}
-
-function readSheetRequest() {
-  return sheetRequest;
-}
-
-/** The latest explicit opening, so a sheet already on screen can reset its filters. */
-export function useLineSheetRequest() {
-  return useSyncExternalStore(subscribe, readSheetRequest, readSheetRequest);
-}
-
-/** Opens with fresh filters over the centre; a pinned sheet stays pinned. */
-export function openSheet(options: LineSheetOptions = {}) {
-  sheetRequest = { id: sheetRequest.id + 1, column: options.column };
-  if (!pinned) sheetOrigin = window.location.hash;
-  emit();
-}
-
-/** Pins the sheet beside the centre, which becomes live again. */
-export function pinSheet() {
-  if (pinned) return;
-  sheetOrigin = null;
-  savePinned(true);
-  emit();
-}
-
-/** Unpinning closes the sheet. */
-export function unpinSheet() {
-  if (!pinned) return;
-  savePinned(false);
-  emit();
-}
-
-export function closeSheet() {
-  if (sheetOrigin === null && !pinned) return;
-  sheetOrigin = null;
-  if (pinned) savePinned(false);
-  emit();
-}
-
-/** Goes to a route, closing an overlaid Line sheet, or opens the sheet over the current route. */
 export function navigate(destination: Destination) {
-  if (destination.kind === "line") return openSheet(destination);
   const hash = routeHash(destination);
-  const wasOpen = sheetOrigin !== null;
-  sheetOrigin = null;
-  if (window.location.hash !== hash) window.location.hash = hash;
-  else if (!wasOpen) return;
+  if (window.location.hash === hash) return;
+  window.location.hash = hash;
   emit();
 }
 
-/** What is open, by the hash it is open under and whether the Line sheet lay over that page. */
+/** What is open, by the hash it is open under. */
 let opened: {
   hash: string;
-  sheet: boolean;
   selection: OpenSelection;
   subject: EvidenceSelection | null;
 } | null = null;
@@ -423,10 +318,8 @@ function readOpened() {
   return opened;
 }
 
-const overlaid = () => readPresentation() === "overlay";
-
 /**
- * Called when a row, popover or Line cell opens or closes, so the Swept capsule follows it: the
+ * Called when a row or popover opens or closes, so the Swept capsule follows it: the
  * selection is what Back reopens, the subject what the capsule opens Evidence for (a Today row's
  * own when omitted; null opens the whole sweep).
  */
@@ -434,12 +327,9 @@ export function setOpenSelection(
   selection: OpenSelection | null,
   subject: EvidenceSelection | null = ownSubject(selection),
 ) {
-  const next = selection
-    ? { hash: window.location.hash, sheet: overlaid(), selection, subject }
-    : null;
+  const next = selection ? { hash: window.location.hash, selection, subject } : null;
   if (
     opened?.hash === next?.hash &&
-    opened?.sheet === next?.sheet &&
     opened?.selection === next?.selection &&
     sameSubject(opened?.subject, next?.subject)
   )
@@ -453,62 +343,46 @@ const sameSubject = (
   b: EvidenceSelection | null | undefined,
 ) => a === b || (!!a && !!b && sameSelection(a, b));
 
-const openedAt = (hash: string, sheet: boolean) =>
-  opened !== null && opened.hash === hash && opened.sheet === sheet ? opened : null;
+const openedAt = (hash: string) => (opened?.hash === hash ? opened : null);
 
-/** What is open on the page or Line sheet showing now; null when nothing is. */
+/** What is open on the page showing now; null when nothing is. */
 export function openSelection(): OpenSelection | null {
-  return openedAt(window.location.hash, overlaid())?.selection ?? null;
+  return openedAt(window.location.hash)?.selection ?? null;
 }
 
-/** What is open on the page or Line sheet showing now, for it to reopen after Evidence closes. */
+/** What is open on the page showing now, for it to reopen after Evidence closes. */
 export function useOpenSelection(): OpenSelection | null {
   useSyncExternalStore(subscribe, readOpened, readOpened);
   const hash = useSyncExternalStore(subscribe, readHash, readHash);
-  const presentation = useSyncExternalStore(subscribe, readPresentation, readPresentation);
-  return openedAt(hash, presentation === "overlay")?.selection ?? null;
+  return openedAt(hash)?.selection ?? null;
 }
 
 /**
  * Opens Evidence for a selection, or for what is open now when it stands for one, or the whole sweep.
- * Back returns to the page, the Line sheet if it lay over it, and what was open; from Evidence
+ * Back returns to the page and what was open there. From Evidence
  * itself it keeps that way back.
  */
 export function openEvidence(selection?: EvidenceSelection | null) {
   const current = parseRoute(window.location.hash);
-  const here = openedAt(window.location.hash, overlaid());
+  const here = openedAt(window.location.hash);
   const subject = selection === undefined ? (here?.subject ?? null) : selection;
   if (current?.kind === "evidence") {
     navigate(
-      evidenceRoute(
-        current.from,
-        subject,
-        current.open ?? current.selection,
-        current.about,
-        current.sheet,
-      ),
+      evidenceRoute(current.from, subject, current.open ?? current.selection, current.about),
     );
     return;
   }
-  const sheet = overlaid()
-    ? sheetRequest.column
-      ? { column: sheetRequest.column }
-      : {}
-    : undefined;
-  navigate(evidenceRoute(current, subject, here?.selection ?? subject, here?.subject, sheet));
+  navigate(evidenceRoute(current, subject, here?.selection ?? subject, here?.subject));
 }
 
 /** The whole sweep, keeping the way back to the page and what was open on it. */
 export function showWholeSweep(route: EvidenceRoute) {
-  navigate(
-    evidenceRoute(route.from, null, route.open ?? route.selection, route.about, route.sheet),
-  );
+  navigate(evidenceRoute(route.from, null, route.open ?? route.selection, route.about));
 }
 
-/** Back to the page Evidence came from, with the Line sheet over it and what was open, open again. */
+/** Back to the page Evidence came from, with what was open there. */
 export function leaveEvidence(route: EvidenceRoute) {
   navigate(route.from ?? { kind: "today" });
-  if (route.sheet) openSheet(route.sheet);
   const open = route.open ?? route.selection;
   if (open) setOpenSelection(open, route.about);
 }
@@ -528,18 +402,6 @@ export function RegistryProvider({
 export function useRegistryOr(fallback: Registry): Registry {
   return useContext(RegistryContext) ?? fallback;
 }
-
-export type Navigation = {
-  route: Route;
-  /** `route` stays mounted under an overlay and beside a pinned sheet. */
-  sheet: SheetPresentation;
-  navigate(destination: Destination): void;
-  /** ⌘L: opens the overlay, or closes the sheet in either presentation. */
-  toggleSheet(): void;
-  pinSheet(): void;
-  unpinSheet(): void;
-  closeSheet(): void;
-};
 
 const LAST_PLACE_KEY = "spi-code.last-place";
 /** The hash the window launched on, and whether the first snapshot has decided the landing. */
@@ -621,7 +483,7 @@ function leave() {
  * snapshot it showed is acknowledged when the operator leaves Today, the window goes to the
  * background or reloads, or the app quits.
  */
-function useLanding(route: Route, sheet: SheetPresentation, registry: Registry) {
+function useLanding(route: Route, registry: Registry) {
   const snapshot = useStore(watchStore, (state) => state.snapshot);
   // The Watch gate holds Today's items while Watch is not ready, so nothing was seen.
   const watchShown = useStore(watchStore, (state) => !state.setup || state.setup.watchReady);
@@ -638,7 +500,7 @@ function useLanding(route: Route, sheet: SheetPresentation, registry: Registry) 
   }, [snapshot, registry]);
 
   useEffect(() => {
-    if (!snapshot || !watchShown || route.kind !== "today" || sheet === "overlay") return;
+    if (!snapshot || !watchShown || route.kind !== "today") return;
     const { cursor } = snapshot;
     const mark = () => {
       if (document.visibilityState !== "visible" || !document.hasFocus()) return;
@@ -652,7 +514,7 @@ function useLanding(route: Route, sheet: SheetPresentation, registry: Registry) 
       window.removeEventListener("focus", mark);
       document.removeEventListener("visibilitychange", mark);
     };
-  }, [snapshot, watchShown, route, sheet]);
+  }, [snapshot, watchShown, route]);
 
   useEffect(() => window.spi?.onLeave?.(leave), []);
 
@@ -675,17 +537,10 @@ function useLanding(route: Route, sheet: SheetPresentation, registry: Registry) 
 }
 
 /** The current route, kept in the location hash so a reload returns to the same place. */
-export function useNavigation(registry: Registry): Navigation {
+export function useNavigation(registry: Registry) {
   restoreLastPlace(registry);
   const hash = useSyncExternalStore(subscribe, readHash, readHash);
-  const presentation = useSyncExternalStore(subscribe, readPresentation, readPresentation);
   const route = useMemo(() => resolveRoute(hash, registry), [hash, registry]);
-  const sheet = registry.sheet ? presentation : "closed";
-  const toggleSheet = useCallback(() => {
-    if (!registry.sheet) return;
-    if (readPresentation() === "closed") openSheet();
-    else closeSheet();
-  }, [registry.sheet]);
-  useLanding(route, sheet, registry);
-  return { route, sheet, navigate, toggleSheet, pinSheet, unpinSheet, closeSheet };
+  useLanding(route, registry);
+  return { route, navigate };
 }

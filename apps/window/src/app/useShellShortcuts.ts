@@ -2,14 +2,10 @@
 // SPDX-License-Identifier: MIT
 
 import { useEffect } from "react";
-import type { Registry } from "./routes.js";
+import { FORKS, navigate, type Registry } from "./navigation.js";
 import { isTypingEvent, matchesShortcut } from "./shortcuts.js";
 
-export function useShellShortcuts(
-  registry: Registry,
-  toggleSheet: () => void,
-  openSettings: () => void,
-) {
+export function useShellShortcuts(registry: Registry, openSettings: () => void) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
@@ -19,11 +15,11 @@ export function useShellShortcuts(
         openSettings();
         return;
       }
-      if (!registry.sheet || !matchesShortcut(event, "l")) return;
+      if (!registry.views.today || !matchesShortcut(event, "l")) return;
       event.preventDefault();
-      toggleSheet();
+      navigate(FORKS);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [registry.sheet, toggleSheet, openSettings]);
+  }, [registry.views.today, openSettings]);
 }

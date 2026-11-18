@@ -1,7 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { StripFields, StripState } from "../../store/strip.js";
+import type { ViewSnapshot } from "@spi-code/contracts";
+import { type StripState, selectStrip } from "../../store/strip.js";
 import { clockTime } from "../../time.js";
 
 const SYNC_WINDOW_MS = 2 * 60 * 60_000;
@@ -17,41 +18,20 @@ export type StatusMark =
 
 /** A status pin's field: what the smoke selects it by, its sentence, and its mark when it has one. */
 export type StatusRow = {
-  status: "forks" | "next-sync" | "environment" | "template";
+  status: "upstream" | "next-sync" | "environment" | "template";
   classification: StripState["classification"] | "soon" | "later";
   sentence?: string;
   mark?: StatusMark;
-  services?: number;
 };
 
-export type StatusPin =
-  | "sheet:line"
-  | "place:upstream"
-  | "place:environment"
-  | "place:engineering-system";
+export type StatusPin = "place:upstream" | "place:environment" | "place:engineering-system";
 
-const count = (field: StripState, tone: "error" | "warning"): StatusMark | undefined =>
-  field.count !== undefined && field.count > 0
-    ? { kind: "count", tone, count: field.count }
-    : undefined;
-
-function countRow(
-  status: "forks" | "template",
-  field: StripState,
-  worse: StripState["classification"],
-  better: StripState["classification"],
-): StatusRow {
-  const mark =
-    field.classification === worse
-      ? count(field, "error")
-      : field.classification === better
-        ? count(field, "warning")
-        : undefined;
+function warningCount(status: "upstream" | "template", count: number, sentence: string): StatusRow {
   return {
     status,
-    classification: field.classification,
-    sentence: field.label,
-    ...(mark ? { mark } : {}),
+    classification: "pending",
+    sentence,
+    mark: { kind: "count", tone: "warning", count },
   };
 }
 
@@ -94,26 +74,45 @@ export function syncDeadline(nextSync: string | undefined, now: number): number 
   return at - SYNC_WINDOW_MS > now ? at - SYNC_WINDOW_MS : at;
 }
 
-/** Each status pin's field from the strip; without a snapshot every field is unread and unmarked. */
+/** Sidebar marks share Today's Upstream rows and Template door. */
 export function statusRows(
-  fields: StripFields | undefined,
+  snapshot: ViewSnapshot | undefined,
   now: number,
 ): Readonly<Record<StatusPin, StatusRow>> {
-  if (!fields)
-    return {
-      "sheet:line": { status: "forks", classification: "unread", services: 0 },
-      "place:upstream": { status: "next-sync", classification: "unread" },
-      "place:environment": { status: "environment", classification: "unread" },
-      "place:engineering-system": { status: "template", classification: "unread" },
-    };
+  const strip = snapshot && selectStrip(snapshot);
+  const upstream =
+    snapshot?.briefing.lines?.filter(({ members }) =>
+      members.some(({ home }) => home === "upstream"),
+    ).length ?? 0;
+  const template = snapshot?.briefing.today?.fleet?.doors.find(({ id }) => id === "template");
   return {
-    "sheet:line": {
-      ...countRow("forks", fields.forks, "stopped", "waiting"),
-      services: fields.forks.services,
-    },
-    "place:upstream": syncRow(fields.nextSync, now),
-    "place:environment": environmentRow(fields.environment),
-    "place:engineering-system": countRow("template", fields.template, "failed", "pending"),
+    "place:upstream": upstream
+      ? warningCount(
+          "upstream",
+          upstream,
+          `${upstream} ${upstream === 1 ? "row" : "rows"} on Upstream.`,
+        )
+      : syncRow(strip?.nextSync, now),
+    "place:environment": strip
+      ? environmentRow(strip.environment)
+      : { status: "environment", classification: "unread" },
+    "place:engineering-system": template?.count
+      ? warningCount(
+          "template",
+          template.count,
+          `${template.count} template sync ${template.count === 1 ? "PR" : "PRs"} to review: ${template.forks.join(", ")}` +
+            (template.notRead.length
+              ? `
+⌀ Not read: ${template.notRead.join(", ")}`
+              : ""),
+        )
+      : {
+          status: "template",
+          classification: template && !template.notRead.length ? "fine" : "unread",
+          ...(template?.notRead.length
+            ? { sentence: `⌀ Not read: ${template.notRead.join(", ")}` }
+            : {}),
+        },
   };
 }
 

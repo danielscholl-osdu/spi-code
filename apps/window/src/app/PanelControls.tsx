@@ -28,7 +28,6 @@ import { Icon } from "../components/icons/Icon.js";
 import { StatusDotMark } from "../components/sidebar/ProgramSidebar.js";
 import { statusDot, statusRows } from "../components/sidebar/status-marks.js";
 import { SidebarTrigger, useSidebar } from "../components/sidebar/ui-sidebar.js";
-import { selectStrip } from "../store/strip.js";
 import { watchStore } from "../store/watch.js";
 import { countInterrupts } from "../views/today/selectors.js";
 import { ariaShortcut, matchesShortcut, shortcutLabel } from "./shortcuts.js";
@@ -89,9 +88,7 @@ function useHiddenSidebarDot() {
   const progress = useStore(watchStore, (state) => state.progress);
   const tone = sweepSegment(body, progress, undefined, Date.now()).tone;
   const sweep = tone === "bad" ? "error" : tone === "warn" ? "warning" : undefined;
-  const marks = body
-    ? Object.values(statusRows(selectStrip(body), Date.now())).map(({ mark }) => mark)
-    : [];
+  const marks = body ? Object.values(statusRows(body, Date.now())).map(({ mark }) => mark) : [];
   return statusDot(body ? countInterrupts(body.briefing) : 0, [...marks, sweep && { tone: sweep }]);
 }
 
