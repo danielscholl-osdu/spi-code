@@ -43,6 +43,10 @@ const OverviewRowSchema = z.strictObject({
   steps: z.array(z.string()),
   links: z.array(LinkSchema),
   since: ObservedAtSchema.optional(),
+  /** Since, as the duration Today shows for the same row. */
+  age: z.string().optional(),
+  /** What a Can wait PR needs before it can merge. */
+  gate: z.string().optional(),
 });
 const MarkSchema = z.discriminatedUnion("kind", [
   z.strictObject({

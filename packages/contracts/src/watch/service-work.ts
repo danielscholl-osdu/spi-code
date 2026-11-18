@@ -3,6 +3,7 @@
 
 import { z } from "zod";
 import { ObservedAtSchema } from "./evidence.js";
+import { ReadFields } from "./service-upstream.js";
 
 const WorkLink = z.strictObject({ number: z.int().positive(), url: z.string() });
 const WorkRow = WorkLink.extend({
@@ -43,18 +44,22 @@ const Issue = WorkRow.extend({
   halt: z.string().optional(),
 });
 const count = z.int().nonnegative().nullable();
+/** Absent on a snapshot stored before the read was recorded. */
+const read = { read: ReadFields.read.optional(), at: ReadFields.at };
 
 export const ServiceWorkSchema = z.strictObject({
   pulls: z.strictObject({
     count,
     partial: z.boolean(),
     pastRead: z.boolean(),
+    ...read,
     rows: z.array(z.discriminatedUnion("state", [OpenPull, PastPull])),
   }),
   issues: z.strictObject({
     count,
     partial: z.boolean(),
     closedRead: z.boolean(),
+    ...read,
     rows: z.array(Issue),
   }),
 });

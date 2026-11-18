@@ -4,10 +4,12 @@
 import type { ServiceHomeRow } from "@spi-code/contracts";
 import { type ReactNode, useEffect, useId, useRef } from "react";
 import { navigate, routeHash } from "../../app/navigation.js";
+import { useNow } from "../../components/evidence/useNow.js";
 import { LinkPill } from "../../components/kit/LinkPill.js";
 import type { BodyPlace, OpenedContent } from "../../components/opened-body/content.js";
 import { OpenedBody } from "../../components/opened-body/OpenedBody.js";
-import { When } from "../../time.js";
+import { When, when } from "../../time.js";
+import { ageInOneUnit } from "../today/parts.js";
 import { todayRowOf } from "../today/Table.js";
 import type { TabProps } from "./tabs.js";
 
@@ -117,9 +119,12 @@ export function Overview({ id, home, snapshot, row: open, focus }: TabProps) {
                       {row.section === "shared" && (
                         <span className="service-tag">Counted on Upstream</span>
                       )}
+                      {row.gate && <span className="service-row-gate">{row.gate}</span>}
                     </span>
                     <span className="service-row-open">{pill && <LinkPill link={pill} />}</span>
-                    <span className="service-row-age">{row.since && <When at={row.since} />}</span>
+                    <span className="service-row-age">
+                      {row.since && <Age since={row.since} age={row.age} />}
+                    </span>
                   </div>
                   {opened && (
                     <div className="service-row-body">
@@ -166,5 +171,16 @@ function Section({
       </h2>
       <ul className="service-section-box">{children}</ul>
     </section>
+  );
+}
+
+/** The age Today shows for the same row, with its clock time on hover. */
+function Age({ since, age }: { since: string; age: string | undefined }) {
+  const now = useNow();
+  if (!age) return <When at={since} />;
+  return (
+    <time dateTime={since} title={when(since, { now })}>
+      {ageInOneUnit(age)}
+    </time>
   );
 }

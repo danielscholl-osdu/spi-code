@@ -9,6 +9,9 @@ import { serviceWorkOf, WorkList } from "./work-list.js";
 export const issueCount = ({ snapshot, id }: Pick<TabProps, "snapshot" | "id">) =>
   serviceWorkOf(snapshot, id)?.issues.count ?? null;
 
+export const issuesHeld = ({ snapshot, id }: Pick<TabProps, "snapshot" | "id">) =>
+  serviceWorkOf(snapshot, id)?.issues.read === false;
+
 export function Issues({ id, home, snapshot, row }: TabProps) {
   const list = serviceWorkOf(snapshot, id)?.issues;
   return (
@@ -21,6 +24,8 @@ export function Issues({ id, home, snapshot, row }: TabProps) {
       count={list?.count ?? null}
       partial={list?.partial ?? false}
       historyRead={list?.closedRead ?? false}
+      read={list?.read}
+      at={list?.at}
       row={row}
       render={(issue) => ({
         subtitle: [issue.author, issue.tracks && `tracks PR #${issue.tracks.number}`],

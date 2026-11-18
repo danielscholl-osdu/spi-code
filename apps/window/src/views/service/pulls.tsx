@@ -10,6 +10,9 @@ import { serviceWorkOf, WorkList } from "./work-list.js";
 export const pullCount = ({ snapshot, id }: Pick<TabProps, "snapshot" | "id">) =>
   serviceWorkOf(snapshot, id)?.pulls.count ?? null;
 
+export const pullsHeld = ({ snapshot, id }: Pick<TabProps, "snapshot" | "id">) =>
+  serviceWorkOf(snapshot, id)?.pulls.read === false;
+
 export function Pulls({ id, home, snapshot, row }: TabProps) {
   const list = serviceWorkOf(snapshot, id)?.pulls;
   return (
@@ -22,6 +25,8 @@ export function Pulls({ id, home, snapshot, row }: TabProps) {
       count={list?.count ?? null}
       partial={list?.partial ?? false}
       historyRead={list?.pastRead ?? false}
+      read={list?.read}
+      at={list?.at}
       row={row}
       render={(pr) => ({
         subtitle: pr.state === "open" ? [pr.author, `into ${pr.base}`, ...pr.labels] : [pr.author],

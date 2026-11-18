@@ -3,9 +3,9 @@
 
 import type { ServiceHome, ViewSnapshot } from "@spi-code/contracts";
 import type { ComponentType } from "react";
-import { Issues, issueCount } from "./issues.js";
+import { Issues, issueCount, issuesHeld } from "./issues.js";
 import { Overview } from "./Overview.js";
-import { Pulls, pullCount } from "./pulls.js";
+import { Pulls, pullCount, pullsHeld } from "./pulls.js";
 import { runsTab } from "./runs.js";
 import { SECURITY_TAB } from "./security.js";
 import { UPSTREAM_TAB } from "./upstream.js";
@@ -25,6 +25,8 @@ export type ServiceTab = {
   label: string;
   /** What is not fine on the tab; null when it was not read. */
   count?: (props: Omit<TabProps, "row" | "focus">) => number | null;
+  /** The count is what an earlier read held, as this sweep's read failed. */
+  held?: (props: Omit<TabProps, "row" | "focus">) => boolean;
   Panel: ComponentType<TabProps>;
 };
 
@@ -32,8 +34,8 @@ export type ServiceTab = {
 export const TABS: readonly ServiceTab[] = [
   { id: "overview", label: "Overview", Panel: Overview },
   UPSTREAM_TAB,
-  { id: "pulls", label: "Pull requests", Panel: Pulls, count: pullCount },
-  { id: "issues", label: "Issues", Panel: Issues, count: issueCount },
+  { id: "pulls", label: "Pull requests", Panel: Pulls, count: pullCount, held: pullsHeld },
+  { id: "issues", label: "Issues", Panel: Issues, count: issueCount, held: issuesHeld },
   runsTab,
   SECURITY_TAB,
 ];

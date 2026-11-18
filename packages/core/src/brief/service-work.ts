@@ -7,7 +7,9 @@ import type { Facts, IssueFact, PrFact } from "../facts.js";
 import type { Model } from "../model/index.js";
 import { plainText } from "../readings/index.js";
 import type { SweepReads } from "../sweep/index.js";
+import { gateOf } from "./pr-gate.js";
 import { syncCompanions } from "./repo-today.js";
+import { readOf } from "./service-upstream.js";
 import { checksOf } from "./service-work-checks.js";
 
 const time = (at?: string) => at && Number.isFinite(Date.parse(at)) ? at : undefined;
@@ -18,21 +20,6 @@ function identity(row: Pick<PrFact, "number" | "url" | "title" | "author" | "cre
   const createdAt = time(row.createdAt);
   return { number: row.number, url: row.url, title: plainText(row.title),
     ...(row.author ? { author: row.author } : {}), ...(createdAt ? { createdAt } : {}) };
-}
-
-function gateOf(pr: PrFact, integration: boolean): string | undefined {
-  if (pr.draft) return "Draft";
-  if (pr.mergeState === "DIRTY") return "Merge conflicts";
-  if (pr.mergeState === "BEHIND") return integration ? "Update branch, then approve" : "Update branch";
-  if (pr.reviewDecision === "CHANGES_REQUESTED") return "Changes requested";
-  if (pr.reviewDecision === "APPROVED") return "Approved";
-  if (pr.reviewDecision === "REVIEW_REQUIRED") {
-    const reviews = pr.reviewers;
-    return reviews && !reviews.cut && !reviews.requested.length && !reviews.latest.length
-      ? "No reviewer"
-      : "Review required";
-  }
-  return undefined;
 }
 
 function issueRow(issue: IssueFact & { closedAt?: string }, state: ServiceIssue["state"]): ServiceIssue {
@@ -51,14 +38,13 @@ export function serviceWork(
   return new Map(model.lines.map((line) => {
     const { id, repo } = line.fork;
     const github = facts.github.data?.repos[repo];
-    const failed = !!facts.github.error || reads.github?.some(
-      (read) => (read.source === repo || read.object === repo) && read.failure !== undefined,
-    );
+    const read = readOf(facts.github, reads.github,
+      (record) => record.source === repo || record.object === repo, !!github);
     const home = homes.get(id);
-    const open = !failed && github && !github.prsUnread ? line.prs : undefined;
-    const past = !failed ? line.past : undefined;
-    const issues = !failed && github && !github.issuesUnread ? github.issues : undefined;
-    const closed = !failed ? github?.closedIssues : undefined;
+    const open = github && !github.prsUnread ? line.prs : undefined;
+    const past = github ? line.past : undefined;
+    const issues = github && !github.issuesUnread ? github.issues : undefined;
+    const closed = github?.closedIssues;
     const pulls: ServicePull[] = [
       ...(open ?? []).map(({ pr }): ServicePull => {
         const station = home?.stations.find(({ pr: pull }) => pr.url === pull?.url);
@@ -93,17 +79,21 @@ export function serviceWork(
       return row;
     });
     const issuesPartial = issues !== undefined && (github?.openIssues ?? issues.length) > issues.length;
+    const prsTotal = github?.openPrs ?? open?.length ?? 0;
+    const prsPartial = !!open && prsTotal > open.length;
     return [id, {
       pulls: {
-        count: open ? (github?.openPrs ?? open.length) : null,
-        partial: !!open && (github?.openPrs ?? open.length) > open.length,
+        count: open && (read.read || !prsPartial) ? prsTotal : null,
+        partial: prsPartial,
         pastRead: past !== undefined,
+        ...read,
         rows: pulls,
       },
       issues: {
         count: issues && !issuesPartial ? issueRows.filter(({ tracks }) => !tracks).length : null,
         partial: issuesPartial,
         closedRead: closed !== undefined,
+        ...read,
         rows: [...issueRows, ...(closed ?? []).filter((issue) => !issues?.some(({ number }) => number === issue.number))
           .map((issue) => issueRow(issue, "closed"))],
       },

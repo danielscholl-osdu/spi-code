@@ -8,7 +8,7 @@ const PullSchema = z.strictObject({ number: z.int().positive(), url: z.string() 
 const SeveritySchema = z.enum(["critical", "high", "medium", "low"]);
 
 /** Read this sweep, or not; `at` is when the rows shown were read, absent when none ever were. */
-const ReadFields = { read: z.boolean(), at: ObservedAtSchema.optional() };
+export const ReadFields = { read: z.boolean(), at: ObservedAtSchema.optional() };
 
 const PortMrSchema = z.strictObject({
   iid: z.int().positive(),

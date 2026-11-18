@@ -30,8 +30,17 @@ const DOORS: Readonly<Record<ServiceHome["doors"][number]["id"], string>> = {
   dependabot: "Dependabot",
 };
 
-const doorWord = (count: number | null) =>
-  count === null ? "⌀ not read" : count === 0 ? "None open" : `${count} open`;
+const doorWord = ({ count, prs }: ServiceHome["doors"][number]) => {
+  const held = count ?? prs.length;
+  return held === 0 ? (count === null ? "⌀ not read" : "None open") : `${held} open`;
+};
+
+const DOORS_UNREAD: FlowDoor = {
+  id: "unread",
+  label: "",
+  word: "⌀",
+  title: "Open PRs were not all read. Each door shows the PRs it holds.",
+};
 
 export default function ServicePage({
   id,
@@ -137,9 +146,10 @@ function Home({
     .map((door) => ({
       id: door.id,
       label: DOORS[door.id],
-      word: doorWord(door.count),
+      word: doorWord(door),
       onOpen: openRow(door.row),
     }));
+  if (home.doors.some((door) => door.count === null)) doors.push(DOORS_UNREAD);
   if (!active) return null;
   return (
     <div className="service-home">
@@ -147,6 +157,7 @@ function Home({
       <div className="service-tabs" role="tablist" aria-label={`${id} tabs`}>
         {TABS.map((entry) => {
           const count = entry.count?.({ id, home, snapshot });
+          const unread = count === null || entry.held?.({ id, home, snapshot });
           return (
             <button
               key={entry.id}
@@ -162,9 +173,9 @@ function Home({
               }
             >
               {entry.label}
-              {count === null ? (
+              {unread ? (
                 <span className="service-tab-count" title="Not read">
-                  ⌀
+                  {count ? `${count} ⌀` : "⌀"}
                 </span>
               ) : (
                 !!count && <span className="service-tab-count">{count}</span>

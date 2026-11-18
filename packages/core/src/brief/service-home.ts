@@ -18,6 +18,7 @@ import { age, plural } from "../util.js";
 import type { FocusItem } from "./index.js";
 import type { TodayLine } from "./lines.js";
 import { linkKind } from "./move.js";
+import { gateOf } from "./pr-gate.js";
 import { rolloutVisual } from "./place-visuals.js";
 import type { TodayPile } from "./today-summary.js";
 
@@ -79,6 +80,7 @@ function overviewOf(input: HomeInput, line: LineModel): ServiceHomeRow[] {
     })) : []),
   ];
   const byUrl = new Map(objects.map((object) => [object.url, object]));
+  const gates = new Map((repo?.prs ?? []).map((pr) => [pr.url, gateOf(pr, pr.url === line.cascadePr?.pr.url)]));
   const seen = new Set<string>();
   for (const pile of canWait) {
     for (const count of pile.counts) {
@@ -88,6 +90,7 @@ function overviewOf(input: HomeInput, line: LineModel): ServiceHomeRow[] {
         seen.add(url);
         const title = plainText(object.title);
         const words = title.split(/\s+/);
+        const gate = object.kind === "PR" ? gates.get(url) : undefined;
         rows.push({
           id: `can:${pile.id}:${url}`, section: "can-wait",
           headline: words.length > 12 ? `${words.slice(0, 11).join(" ")}…` : title,
@@ -95,11 +98,16 @@ function overviewOf(input: HomeInput, line: LineModel): ServiceHomeRow[] {
           steps: [],
           links: [{ label: object.number && object.kind !== "Alert" ? `${object.kind} #${object.number}` : object.kind, url, kind: linkKind(url) }],
           ...(object.createdAt ? { since: object.createdAt } : {}),
+          ...(gate ? { gate } : {}),
         });
       }
     }
   }
-  return rows.sort((a, b) => overviewOrder[a.section] - overviewOrder[b.section] || oldest(a, b));
+  return rows.sort((a, b) => overviewOrder[a.section] - overviewOrder[b.section] || oldest(a, b))
+    .map((row) => {
+      const since = age(row.since, input.now);
+      return since ? { ...row, age: since } : row;
+    });
 }
 
 function mergeToMain(line: LineModel) {
@@ -157,11 +165,16 @@ function stationsOf(
   const upstream: ServiceHomeStation = {
     id: "upstream",
     state: blockedUpstream || syncFailure || line.halt ? "stopped" : upstreamRead ? cellState("upstream") : "unread",
-    word: syncFailure ? "Sync failed" : !upstreamRead || fork.behind === undefined
+    word: syncFailure ? "Sync failed" : line.halt ? "Sync halted" : !upstreamRead || fork.behind === undefined
       ? "Not read" : fork.behind === 0 ? "Sync current" : `${fork.behind} behind`,
     ...(!upstreamRead || !pullsRead || !runsRead ? { notRead: true } : {}),
-    ...(next ? { line: `next sync ${clockWord(next, now)}`, nextAt: next } : {}),
+    ...(next ? { nextAt: next } : {}),
   };
+  const upstreamLine = [
+    !syncFailure && line.halt && upstreamRead && fork.behind !== undefined ? `${fork.behind} behind` : undefined,
+    next ? `next sync ${clockWord(next, now)}` : undefined,
+  ].filter(Boolean).join(" · ");
+  if (upstreamLine) upstream.line = upstreamLine;
   const syncPr = line.syncPr?.pr;
   const syncMovedUpstream = syncFailure || line.halt;
   const sync: ServiceHomeStation = {

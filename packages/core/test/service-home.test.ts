@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { fleetLines } from "@spi-code/contracts";
-import { expect, test, vi } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { todayFleet } from "../src/brief/fleet";
 import { buildBriefing } from "../src/brief/index";
 import { todayLines } from "../src/brief/lines";
@@ -446,6 +446,7 @@ test("an open sync PR and an unsettled failure raise one Blocked row with the fa
       ?.home,
   ).toBe("line");
   expect(result.home.mark).toMatchObject({ kind: "count", tone: "error" });
+  expect(result.station("upstream")?.word).toBe("Sync failed");
   delete runs.syncRunJobs;
   expect(row(project(facts, now))?.cause).toContain("The failing step was not read");
 
@@ -453,7 +454,11 @@ test("an open sync PR and an unsettled failure raise one Blocked row with the fa
   expect(row(project(facts, now))).toBeUndefined();
   expect(project(facts, now).home.overview.some((entry) => entry.id === "halt:search")).toBe(true);
   const halted = project(facts, now);
-  expect(halted.station("upstream")?.state).toBe("stopped");
+  expect(halted.station("upstream")).toMatchObject({ state: "stopped", word: "Sync halted" });
+  expect(halted.station("upstream")?.line).toMatch(/^10 behind · next sync /);
+  const lag = facts.upstream.data?.[service];
+  if (lag) delete lag.lag;
+  expect(project(facts, now).station("upstream")?.line).toMatch(/^next sync /);
   expect(halted.station("sync")).toMatchObject({ word: "PR #77", pr: { number: 77 } });
   github.issues = [];
   github.prs = [];
@@ -482,31 +487,135 @@ test("Can wait is deduplicated and oldest first, and a door opens the earliest q
   expect(home.doors.find((door) => door.id === "dependabot")?.row).toBe(rows[0]?.id);
 });
 
-test("service work preserves the forge total and marks cut and failed reads honestly", () => {
+test("service work preserves the forge total and marks cut and unread listings honestly", () => {
   const { facts, github } = handBuilt();
   github.prs = Array.from({ length: 40 }, (_, index) => pr(index + 1, `test/${index}`));
   github.openPrs = 41;
-  const reads = {
+  const work = () =>
+    serviceWork(buildModel(facts, sweep, {}, context), facts, {}, new Map()).get(service);
+  expect(work()?.pulls).toMatchObject({ count: 41, partial: true, read: true });
+  expect(work()?.pulls.rows).toHaveLength(40);
+  github.prsUnread = true;
+  github.issuesUnread = true;
+  expect(work()?.pulls).toMatchObject({ count: null, read: true });
+  expect(work()?.issues).toMatchObject({ count: null, read: true });
+});
+
+describe("a failed GitHub read of a fork", () => {
+  const readAt = "2026-11-16T07:38:00.000Z";
+  const failure = (retainedFrom?: string, object = repo) => ({
     github: [
       {
         source: "github",
-        object: repo,
+        object,
         observedAt: sweep.toISOString(),
         completeness: { kind: "complete" } as const,
         failure: "GitHub unavailable",
+        ...(retainedFrom ? { retainedFrom } : {}),
       },
     ],
+  });
+  const held = () => {
+    const { facts, github } = handBuilt();
+    github.prs = [pr(73, "feature/one"), pr(75, "feature/two")];
+    github.openPrs = 2;
+    github.pastPrs = [past(70, merge)];
+    github.issues = [issue({ number: 33, labels: ["bug"], url: `${url}/issues/33` })];
+    github.openIssues = 1;
+    return { facts, github };
   };
-  const work = (evidence = {}) =>
-    serviceWork(buildModel(facts, sweep, {}, context), facts, evidence, new Map()).get(service);
-  expect(work()?.pulls).toMatchObject({ count: 41, partial: true });
-  expect(work()?.pulls.rows).toHaveLength(40);
-  expect(work(reads)?.pulls).toEqual({ count: null, partial: false, pastRead: false, rows: [] });
-  expect(work(reads)?.issues.count).toBeNull();
-  github.prsUnread = true;
-  github.issuesUnread = true;
-  expect(work()?.pulls.count).toBeNull();
-  expect(work()?.issues.count).toBeNull();
+  const work = (facts: Facts, reads: Parameters<typeof serviceWork>[2]) =>
+    serviceWork(buildModel(facts, sweep, {}, context), facts, reads, new Map()).get(service);
+
+  test("keeps the retained rows, unread, with the time they were read", () => {
+    const { facts } = held();
+    const result = work(facts, failure(readAt));
+    expect(result?.pulls).toMatchObject({ count: 2, read: false, at: readAt });
+    expect(result?.pulls.rows.map(({ number }) => number)).toEqual([73, 75, 70]);
+    expect(result?.issues).toMatchObject({ count: 1, read: false, at: readAt });
+    expect(result?.issues.rows.map(({ number }) => number)).toEqual([33]);
+  });
+
+  test("keeps retained rows with no time unread and timeless", () => {
+    const { facts } = held();
+    const result = work(facts, failure());
+    expect(result?.pulls).toMatchObject({ count: 2, read: false });
+    expect(result?.pulls.rows).toHaveLength(3);
+    expect(result?.issues.rows).toHaveLength(1);
+    expect(result?.pulls).not.toHaveProperty("at");
+    expect(result?.issues).not.toHaveProperty("at");
+  });
+
+  test("with nothing retained gives no rows and no count", () => {
+    const { facts } = held();
+    delete facts.github.data?.repos[repo];
+    const result = work(facts, failure());
+    expect(result?.pulls).toEqual({
+      count: null,
+      partial: false,
+      pastRead: false,
+      read: false,
+      rows: [],
+    });
+    expect(result?.issues).toMatchObject({ count: null, read: false, rows: [] });
+  });
+
+  test("keeps a retained capped list's count unread beside its held rows", () => {
+    const { facts, github } = held();
+    github.prs = Array.from({ length: 40 }, (_, index) => pr(index + 1, `test/${index}`));
+    github.openPrs = 41;
+    github.openIssues = 3;
+    const result = work(facts, failure(readAt));
+    expect(result?.pulls).toMatchObject({ count: null, partial: true, read: false, at: readAt });
+    expect(result?.pulls.rows.filter(({ state }) => state === "open")).toHaveLength(40);
+    expect(result?.issues).toMatchObject({ count: null, partial: true, read: false });
+    expect(result?.issues.rows).toHaveLength(1);
+  });
+
+  test("never reads true while the area failed, with or without a record for the fork", () => {
+    const { facts } = held();
+    facts.github.error = "GitHub unavailable";
+    for (const reads of [{}, failure(readAt)]) {
+      const result = work(facts, reads);
+      expect(result?.pulls.read).toBe(false);
+      expect(result?.issues.read).toBe(false);
+    }
+  });
+
+  test("of closed issues alone leaves the open lists read and the closed history unread", () => {
+    const { facts } = held();
+    const result = work(facts, failure(undefined, `${repo}@closed-issues`));
+    expect(result?.pulls).toMatchObject({ count: 2, read: true });
+    expect(result?.issues).toMatchObject({ count: 1, read: true, closedRead: false });
+  });
+});
+
+test("a Can wait PR row says what it needs in the Pull requests tab's words, and nothing it cannot read", () => {
+  const { facts, github } = handBuilt();
+  const behind = { ...pr(61, "dependabot/one"), mergeState: "BEHIND" };
+  const review = {
+    ...pr(62, "dependabot/two"),
+    mergeState: "BLOCKED",
+    reviewDecision: "REVIEW_REQUIRED",
+    reviewers: { requested: ["maintainers"], latest: [], cut: false },
+  };
+  const unread = pr(63, "dependabot/three");
+  github.prs = [behind, review, unread];
+  github.openPrs = 3;
+  const { home, model } = project(facts);
+  const gate = (pull: PrFact) => {
+    const row = home.overview.find(({ links }) => links[0]?.url === pull.url);
+    expect(row?.section).toBe("can-wait");
+    return row?.gate;
+  };
+  expect(gate(behind)).toBe("Update branch");
+  expect(gate(review)).toBe("Review required");
+  expect(gate(unread)).toBeUndefined();
+  const tab = serviceWork(model, facts, {}, new Map([[service, home]])).get(service)?.pulls.rows;
+  for (const pull of [behind, review, unread]) {
+    const row = tab?.find(({ number }) => number === pull.number);
+    expect(row && "gate" in row ? row.gate : undefined).toBe(gate(pull));
+  }
 });
 
 test("the recorded 16 Nov sweep reads open issues without claiming a closed-issues read", () => {

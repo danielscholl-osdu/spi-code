@@ -34,6 +34,7 @@ temporary directory; it never loads `dist` or `packages/host/build`. It refuses 
 writes nothing while `tsc -b --dry` would rebuild them, or when a module they import
 has no current source.
 Only `snapshot-1106.json` and `inspect-1106.json` are committed.
+`snapshot-1106.json` is past Biome's 1 MiB default, so `pnpm biome check --write` skips it with a warning and leaves the generator's expanded arrays; format it with `pnpm biome format --write --files-max-size=4194304 fixtures/watch`.
 `node scripts/watch-generated.mjs` writes the rest into the git-ignored
 `fixtures/watch/generated` with a digest of the sources it read. Tests read those files
 through `scripts/watch-generated.mjs`, which refuses them, naming the command, when the

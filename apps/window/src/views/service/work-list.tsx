@@ -6,6 +6,7 @@ import { type ReactNode, useState } from "react";
 import { navigate } from "../../app/navigation.js";
 import { LinkPill } from "../../components/kit/LinkPill.js";
 import { When } from "../../time.js";
+import { NotRead } from "./lists.js";
 import "./work-list.css";
 
 export const serviceWorkOf = (snapshot: ViewSnapshot, id: string) =>
@@ -32,6 +33,8 @@ export function WorkList<T extends Row>({
   count,
   partial,
   historyRead,
+  read,
+  at,
   row,
   render,
 }: {
@@ -42,6 +45,9 @@ export function WorkList<T extends Row>({
   count: number | null;
   partial: boolean;
   historyRead: boolean;
+  /** False when this sweep's read failed; the rows are then what an earlier read held. */
+  read?: boolean | undefined;
+  at?: string | undefined;
   row: string | undefined;
   render: (row: T) => RowContent;
 }) {
@@ -70,6 +76,9 @@ export function WorkList<T extends Row>({
       data-work={kind}
       aria-label={kind === "pr" ? "Pull requests" : "Issues"}
     >
+      {read === false && (count !== null || rows.length > 0) && (
+        <NotRead id={service} what={kind === "pr" ? "Pull requests" : "Issues"} at={at} />
+      )}
       <div className="work-filters">
         <button type="button" aria-pressed={filter === "open"} onClick={() => setFilter("open")}>
           Open {count ?? "⌀"}

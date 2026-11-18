@@ -21,9 +21,12 @@ import {
   TitleRow,
   type TitleStore,
 } from "../../app/title-row.js";
+import { buildPaletteGroups } from "../../palette/palette.logic.js";
 import { createSelectionStore } from "../../panels/selection.js";
 import { PINS_STORAGE_KEY, readPins, SEED_PINS } from "../../store/pins.js";
 import { createWatchStore } from "../../store/watch.js";
+import { when } from "../../time.js";
+import { ageInOneUnit } from "../today/parts.js";
 import nov16 from "../today/snapshot-1116.json?raw";
 import ServicePage from "./index.js";
 
@@ -247,4 +250,96 @@ it("shows a proven tracking issue only under All and keeps its companion on the 
   expect($('li[data-row="77"] a[data-kind="issue"]')?.getAttribute("href")).toBe(
     "https://github.com/Azure/osdu-spi-search/issues/78",
   );
+});
+
+const serviceOf = (body: ViewSnapshot, id: string) => {
+  const service = body.services?.find(({ service }) => service === id);
+  if (!service?.home || !service.work) throw new Error(`${id} has no home`);
+  return { home: service.home, work: service.work };
+};
+const chip = (tab: string) => $(`[data-tab="${tab}"] .service-tab-count`)?.textContent;
+
+it("draws a failed read's retained rows under the not-read line, with the mark on the chip", async () => {
+  const at = "2026-11-16T07:38:00.000Z";
+  const body = sixteenth();
+  const { work } = serviceOf(body, "search");
+  Object.assign(work.pulls, { read: false, at });
+  const count = work.pulls.count;
+  expect(count).toBeGreaterThan(0);
+  await mount(body, "#service/search/pulls");
+  const line = $("[data-work=pr] .service-list-unread");
+  expect(line?.textContent).toBe(
+    `⌀ Pull requests not read. Showing the read from ${when(at, { now: Date.now() })}. Evidence ›`,
+  );
+  const rows = [...container.querySelectorAll("[data-work=pr] li[data-row]")];
+  expect(rows.length).toBeGreaterThan(0);
+  expect(line?.compareDocumentPosition(rows[0] as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  expect(chip("pulls")).toBe(`${count} ⌀`);
+  const find = buildPaletteGroups(body)
+    .flatMap(({ items }) => items)
+    .flatMap((item) => item.children?.items ?? [])
+    .find(({ value }) => value === "on:search:pulls");
+  expect(find?.count).toBe(count);
+  await unmount();
+
+  delete work.pulls.at;
+  await mount(body, "#service/search/pulls");
+  expect($("[data-work=pr] .service-list-unread")?.textContent).toBe(
+    "⌀ Pull requests not read. Evidence ›",
+  );
+
+  Object.assign(work.pulls, { count: null, partial: true });
+  await unmount();
+  await mount(body, "#service/search/pulls");
+  expect(chip("pulls")).toBe("⌀");
+  expect($("[data-work=pr] .service-list-unread")).not.toBeNull();
+});
+
+it("reads a failed tab with nothing retained as it did before", async () => {
+  const body = sixteenth();
+  const { work } = serviceOf(body, "search");
+  Object.assign(work.issues, { read: false, count: null, partial: false, rows: [] });
+  await mount(body, "#service/search/issues");
+  expect($("[data-work=issue] .service-list-unread")).toBeNull();
+  expect($("[data-work=issue]")?.textContent).toContain("⌀ Open issues were not read.");
+  expect(chip("issues")).toBe("⌀");
+});
+
+it("counts held PRs at each door of an incomplete listing, under one mark on the group", async () => {
+  const body = sixteenth();
+  const { home } = serviceOf(body, "storage");
+  const complete = home.doors.map(({ id, count }) => [id, count]);
+  const word = (id: string) => $(`[data-door="${id}"] .flow-door-word`)?.textContent;
+  await mount(body, "#service/storage");
+  expect($('[data-door="unread"]')).toBeNull();
+  for (const [id, count] of complete)
+    if (id !== "template") expect(word(String(id))).toBe(count ? `${count} open` : "None open");
+  await unmount();
+
+  for (const door of home.doors) door.count = null;
+  await mount(body, "#service/storage");
+  const held = home.doors.filter(({ prs }) => prs.length > 0);
+  const empty = home.doors.filter(({ id, prs }) => id !== "template" && prs.length === 0);
+  expect(held.length).toBeGreaterThan(0);
+  expect(empty.length).toBeGreaterThan(0);
+  for (const door of held) expect(word(door.id)).toBe(`${door.prs.length} open`);
+  for (const door of empty) expect(word(door.id)).toBe("⌀ not read");
+  const marks = container.querySelectorAll('[data-door="unread"]');
+  expect(marks).toHaveLength(1);
+  expect(marks[0]?.textContent).toBe("⌀");
+  expect(marks[0]?.getAttribute("title")).toBeTruthy();
+});
+
+it("gives an Overview row the age Today gives it, with its clock time on hover", async () => {
+  const body = sixth();
+  const member = body.briefing.lines
+    ?.flatMap(({ members }) => members)
+    .find(({ id }) => id === "gate1:indexer");
+  const since = member?.since;
+  if (!member?.age || !since) throw new Error("gate1:indexer has no age");
+  await mount(body, "#service/indexer");
+  const age = $('li[data-row="gate1:indexer"] .service-row-age time');
+  expect(age?.textContent).toBe(ageInOneUnit(member.age));
+  expect(age?.textContent).toBe("37h");
+  expect(age?.getAttribute("title")).toBe(when(since, { now: Date.now() }));
 });
