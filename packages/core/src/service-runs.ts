@@ -31,6 +31,7 @@ export const serviceRunsFactSchema = z.object({
   }).optional(),
   read: readRecordSchema,
   jobs: z.array(readRecordSchema),
+  workflowReads: z.array(readRecordSchema).optional(),
 });
 
 export type ServiceRun = z.infer<typeof serviceRun>;

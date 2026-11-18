@@ -28,6 +28,25 @@ const run = (id: number, overrides = {}) => ({
   url: `https://github.com/${repo}/actions/runs/${id}`,
   ...overrides,
 });
+const workflowRunsPath = `repos/${repo}/actions/workflows/31/runs?per_page=10`;
+const carriedFailure = {
+  run: run(1, {
+    conclusion: "failure",
+    createdAt: "2026-10-01T03:00:00Z",
+    startedAt: "2026-10-01T03:01:00Z",
+  }),
+  job: "Build",
+  step: "Run Maven",
+};
+const previousSweep = {
+  [repo]: {
+    history: { cut: false, runs: [], failures: [carriedFailure] },
+    read: { source: "runs", object: repo, observedAt: now, completeness: { kind: "complete" } },
+    jobs: [],
+  },
+} satisfies Record<string, ServiceRunsFact>;
+const emptyPage = { total: 0, runs: [] };
+const recentPage = { total: 1, runs: [run(2, { workflowId: 32 })] };
 const job = {
   id: 91,
   name: "Build",
@@ -43,6 +62,7 @@ async function fixture(
   output: unknown,
   jobsFor: (path: string) => unknown = () => ({ total: 1, jobs: [job] }),
   previous: Record<string, ServiceRunsFact> = {},
+  workflowRuns: unknown = emptyPage,
 ) {
   const paths: string[] = [];
   const gh = new Gh(
@@ -53,7 +73,11 @@ async function fixture(
         const path = args[1] ?? "";
         paths.push(path);
         if (!path.includes("/jobs?")) expect(args[3]).toMatch(/\bpath\b/);
-        const reply = path.includes("/jobs?") ? jobsFor(path) : output;
+        const reply = path.includes("/jobs?")
+          ? jobsFor(path)
+          : path === workflowRunsPath
+            ? workflowRuns
+            : output;
         return reply instanceof Error
           ? { exit: 1, stderr: reply.message, stdout: "" }
           : { exit: 0, stderr: "", stdout: JSON.stringify(reply) };
@@ -65,7 +89,6 @@ async function fixture(
   expect(paths[0]).toBe(
     `repos/${repo}/actions/runs?per_page=60&created=%3E%3D2026-11-02T09%3A00%3A00Z`,
   );
-  expect(paths.filter((path) => !path.includes("/jobs?"))).toHaveLength(1);
   return { facts, paths, view: serviceRuns(facts[repo]) };
 }
 
@@ -218,17 +241,91 @@ test("keeps the last observed failure by workflow across later runs and an unrea
       count: 1,
       failing: [{ run: { id: failed.id, path }, step: "Run Maven" }],
     });
-    expect(next.paths).toHaveLength(1);
+    expect(next.paths.slice(1)).toEqual(
+      runs[0]?.conclusion === "success" ? [] : [workflowRunsPath],
+    );
     facts = next.facts;
   }
   const unread = await fixture(new Error("HTTP 403 Forbidden"), undefined, facts);
   expect(unread.view).toEqual({ kind: "unread", count: null });
+  expect(unread.paths).toHaveLength(1);
   const recovered = await fixture({ total: 0, runs: [] }, undefined, unread.facts);
   expect(recovered.view).toMatchObject({ count: 1, failing: [{ run: { id: failed.id } }] });
   const passed = await fixture({ total: 1, runs: [run(6, later)] }, undefined, recovered.facts);
   expect(passed.view).toMatchObject({ count: 0, failing: [] });
   const afterPass = await fixture({ total: 0, runs: [] }, undefined, passed.facts);
   expect(afterPass.view).toMatchObject({ count: 0, failing: [] });
+});
+
+test("clears a carried failure after a later pass off the page", async () => {
+  const { paths, view } = await fixture(recentPage, undefined, previousSweep, {
+    total: 1,
+    runs: [run(3)],
+  });
+  expect(view).toMatchObject({ cut: false, count: 0, failing: [] });
+  expect(paths.slice(1)).toEqual([workflowRunsPath]);
+});
+
+test("clears a carried failure when its workflow returns 404", async () => {
+  const { paths, view } = await fixture(
+    recentPage,
+    undefined,
+    previousSweep,
+    new Error("gh: Not Found (HTTP 404)"),
+  );
+  expect(view).toMatchObject({ cut: false, count: 0, failing: [] });
+  expect(paths.slice(1)).toEqual([workflowRunsPath]);
+});
+
+test("replaces a carried failure with a newer failure off the page and reads its job", async () => {
+  const { paths, view } = await fixture(recentPage, undefined, previousSweep, {
+    total: 1,
+    runs: [run(3, { conclusion: "failure", attempt: 2 })],
+  });
+  expect(view).toMatchObject({
+    count: 1,
+    failing: [{ run: { id: 3, attempt: 2 }, job: "Build", step: "Run Maven" }],
+    workflows: [{ runs: [{ id: 2 }] }],
+  });
+  expect(paths.slice(1)).toEqual([
+    workflowRunsPath,
+    `repos/${repo}/actions/runs/3/attempts/2/jobs?per_page=100&page=1`,
+  ]);
+});
+
+test("keeps a carried failure when the only later run was cancelled", async () => {
+  const { paths, view } = await fixture(recentPage, undefined, previousSweep, {
+    total: 2,
+    runs: [run(3, { conclusion: "cancelled" }), carriedFailure.run],
+  });
+  expect(view).toMatchObject({ cut: false, count: 1, failing: [carriedFailure] });
+  expect(paths.slice(1)).toEqual([workflowRunsPath]);
+});
+
+test("keeps a carried failure and marks history incomplete when the workflow read fails", async () => {
+  const { facts, paths, view } = await fixture(
+    recentPage,
+    undefined,
+    previousSweep,
+    new Error("gh: Forbidden (HTTP 403)"),
+  );
+  expect(facts[repo]?.workflowReads).toEqual([
+    expect.objectContaining({
+      object: workflowRunsPath,
+      failure: expect.stringContaining("HTTP 403"),
+    }),
+  ]);
+  expect(view).toMatchObject({ kind: "read", cut: true, count: 1, failing: [carriedFailure] });
+  expect(paths.slice(1)).toEqual([workflowRunsPath]);
+});
+
+test("uses only the page when it already shows a newer failure for the workflow", async () => {
+  const failed = run(3, { conclusion: "failure" });
+  const { paths, view } = await fixture({ total: 1, runs: [failed] }, undefined, previousSweep);
+  expect(view).toMatchObject({ count: 1, failing: [{ run: failed }] });
+  expect(paths.slice(1)).toEqual([
+    `repos/${repo}/actions/runs/3/attempts/1/jobs?per_page=100&page=1`,
+  ]);
 });
 
 test("shows the failure without claiming the job or step when that read failed", async () => {
@@ -240,7 +337,7 @@ test("shows the failure without claiming the job or step when that read failed",
   expect(facts[repo]?.jobs[0]?.failure).toContain("Forbidden");
 });
 
-test("does not infer a failure from an unobserved older attempt", async () => {
+test("makes no extra request with no carried failure, even for an unobserved older attempt", async () => {
   const { view, paths } = await fixture({
     total: 1,
     runs: [run(1, { attempt: 2, conclusion: "cancelled" })],

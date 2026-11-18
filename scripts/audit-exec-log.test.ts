@@ -298,14 +298,14 @@ const SHAPES: {
     class: "public-content",
     github: ["Azure/osdu-spi-partition"],
   },
-  ...["service run history", "service run history without path"].map((id) => ({
+  ...(
+    [
+      ["service run history", "actions/runs?per_page=60&created=%3E%3D2026-11-02T09%3A00%3A00Z"],
+      ["service workflow runs", "actions/workflows/31/runs?per_page=10"],
+    ] as const
+  ).map(([id, path]) => ({
     cmd: "gh",
-    args: [
-      "api",
-      "repos/Azure/osdu-spi-partition/actions/runs?per_page=60&created=%3E%3D2026-11-02T09%3A00%3A00Z",
-      "--jq",
-      jqOf(id),
-    ],
+    args: ["api", `repos/Azure/osdu-spi-partition/${path}`, "--jq", jqOf(id)],
     class: "public-content" as const,
     github: ["Azure/osdu-spi-partition"],
   })),
@@ -394,6 +394,26 @@ describe("call shapes", () => {
     ["git clone", "git", ["clone", "https://github.com/acme/vault"]],
     ["a jq filter of its own", "gh", ["api", "repos/acme/widgets/pulls/1", "--jq", "env"]],
     ["a dot segment", "gh", ["api", "repos/acme/../actions/runs/1", "--jq", jqOf("run")]],
+    [
+      "the service history projection without the workflow path",
+      "gh",
+      [
+        "api",
+        "repos/acme/widgets/actions/runs?per_page=60&created=%3E%3D2026-11-02T09%3A00%3A00Z",
+        "--jq",
+        jqOf("service run history").replace("name, path,", "name,"),
+      ],
+    ],
+    [
+      "a per-workflow history read with an expanded page",
+      "gh",
+      [
+        "api",
+        "repos/acme/widgets/actions/workflows/31/runs?per_page=60",
+        "--jq",
+        jqOf("service workflow runs"),
+      ],
+    ],
     [
       "a forged fragment",
       "gh",

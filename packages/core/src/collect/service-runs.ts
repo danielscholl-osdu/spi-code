@@ -4,13 +4,14 @@
 import { z } from "zod";
 import type { CoreContext } from "../context.js";
 import type { ReadRecord } from "../evidence/index.js";
-import type { Gh } from "../forge.js";
+import { ForgeError, type Gh } from "../forge.js";
 import { workflowFailure, workflowRunFailed } from "../model/workflow-failure.js";
 import { serviceRun, type ServiceRun, type ServiceRunsFact, workflowGroups } from "../service-runs.js";
 import { errorText, pool } from "../util.js";
 import { jobsKey, type LifecycleState, readRunJobs, settledJobReads } from "./lifecycle.js";
 
 const LIMIT = 60;
+const WORKFLOW_LIMIT = 10;
 const WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 const PAGE_JQ = '{total: .total_count, runs: [.workflow_runs[] | {id, workflowId: .workflow_id, name, path, attempt: .run_attempt, status, conclusion, createdAt: .created_at, startedAt: .run_started_at, url: .html_url}]}';
 const pageSchema = z.object({
@@ -81,18 +82,45 @@ export async function readServiceRuns(
     } : { kind: "complete" };
     const priorFailures = prior?.failures ?? [];
     const carriedByRun = new Map(priorFailures.map((entry) => [entry.run, entry]));
-    const idsOnPage = new Set(runs.map(({ id }) => id));
+    const workflowReads: ReadRecord[] = [];
     const failures: NonNullable<ServiceRunsFact["history"]>["failures"] = [];
     for (const group of workflowGroups([...runs, ...priorFailures.map(({ run }) => run)])) {
+      const workflowId = group.find((run) => carriedByRun.has(run))?.workflowId;
+      const pageSettles = group.some((run) => !carriedByRun.has(run) &&
+        (workflowRunFailed(run) || (run.status === "completed" && run.conclusion === "success")));
+      if (workflowId !== undefined && !pageSettles) {
+        const object = `repos/${repo}/actions/workflows/${workflowId}/runs?per_page=${WORKFLOW_LIMIT}`;
+        const workflowRead = { ...read, object };
+        try {
+          const latest = pageSchema.parse(await gh.rest<unknown>(object, PAGE_JQ));
+          if (latest.runs.length > WORKFLOW_LIMIT || latest.runs.some((run) => run.workflowId !== workflowId)) {
+            throw new Error(`Unexpected run history for workflow ${workflowId}`);
+          }
+          group.push(...latest.runs);
+          workflowReads.push(workflowRead);
+        } catch (error) {
+          const failure = errorText(error);
+          if (error instanceof ForgeError && /\bHTTP 404\b/.test(failure)) {
+            workflowReads.push(workflowRead);
+            continue;
+          }
+          workflowReads.push({ ...workflowRead, failure });
+        }
+      }
       const failed = workflowFailure(group);
       if (!failed) continue;
       const carried = carriedByRun.get(failed);
       const path = failed.path ?? group.find((run) => run.path)?.path;
       const run = path && !failed.path ? { ...failed, path } : failed;
-      failures.push(carried && !idsOnPage.has(failed.id)
-        ? { ...carried, run } : await readFailure(gh, ctx, repo, run, jobCache, jobs));
+      failures.push(carried ? { ...carried, run } : await readFailure(gh, ctx, repo, run, jobCache, jobs));
     }
-    return [repo, { history: { cut, runs, failures }, read: { ...read, completeness }, jobs }];
+    const historyCut = cut || workflowReads.some(({ failure }) => failure !== undefined);
+    return [repo, {
+      history: { cut: historyCut, runs, failures },
+      read: { ...read, completeness },
+      jobs,
+      ...(workflowReads.length ? { workflowReads } : {}),
+    }];
   });
   return Object.fromEntries(results);
 }

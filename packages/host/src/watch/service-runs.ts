@@ -23,7 +23,12 @@ export function serviceRunsProvenance(input: WatchInput, repo: string, path: str
         {
           path,
           areas: ["runs" as const],
-          envelope: readEnvelope("runs", [fact.read, ...fact.jobs], input.intervalMs, now),
+          envelope: readEnvelope(
+            "runs",
+            [fact.read, ...(fact.workflowReads ?? []), ...fact.jobs],
+            input.intervalMs,
+            now,
+          ),
         },
       ]
     : [];

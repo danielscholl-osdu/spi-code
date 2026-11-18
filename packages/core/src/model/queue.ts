@@ -1,11 +1,10 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { forkOf, githubUrl, shortRepo, SYNC_UPSTREAM_WORKFLOW, TEMPLATE_REPO } from "../config.js";
+import { forkOf, githubUrl, shortRepo, TEMPLATE_REPO } from "../config.js";
 import type { CoreContext } from "../context.js";
 import type { ForkRuns, OutsidePr, PrFact, RepoFact, WaitingRun } from "../facts.js";
 import { governing, type Judgement } from "../rollout.js";
-import { readRunHistory, type ServiceRun, type ServiceRunsFact, workflowPath } from "../service-runs.js";
 import { clip, plural, releaseTag, short, dailySyncTime, timeClause } from "../util.js";
 import {
   CLASS_LABEL,
@@ -366,26 +365,17 @@ function gateText(p: LinePr): string {
   return ` fails ${failure.check}${tool ? `: ${tool}` : failure.reason ? `: ${failure.reason}` : ""}`;
 }
 
-function syncFailureItem(line: LineModel, runs: ForkRuns | undefined, historyFact: ServiceRunsFact | undefined): QueueItem | undefined {
+function syncFailureItem(line: LineModel, runs: ForkRuns | undefined): QueueItem | undefined {
   const sync = line.syncPr?.pr;
-  if (!sync) return undefined;
-  const syncRuns = runs?.sync ?? [];
-  const history = readRunHistory(historyFact);
-  const syncIds = new Set(syncRuns.map(({ id }) => id));
-  const isSync = ({ path, id }: ServiceRun) =>
-    workflowPath(path) === `.github/workflows/${SYNC_UPSTREAM_WORKFLOW}` || syncIds.has(id);
-  const syncWorkflowId = history?.runs.find(isSync)?.workflowId;
-  const failure = history?.failures.find(({ run }) => isSync(run) || run.workflowId === syncWorkflowId);
-  const run = historyFact ? failure?.run : workflowFailure(syncRuns);
-  if (!run) return undefined;
+  const run = sync && workflowFailure(runs?.sync ?? []);
+  if (!sync || !run) return undefined;
   const jobs = runs?.syncRunJobs?.[`${run.id}#${run.attempt}`];
   const failed = jobs?.filter((job) => job.conclusion === "failure" || job.conclusion === "timed_out") ?? [];
   const job = failed.find((job) => job.failedStep) ?? failed[0];
-  const name = job?.failedStep ? job.name : failure?.job ?? job?.name;
-  const step = job?.failedStep ?? failure?.step;
-  const cause = name && step
-    ? `Sync Upstream failed at ${name} › ${step}`
-    : `Sync Upstream failed${name ? ` in ${name}` : ""}. The failing step was not read`;
+  const step = job?.failedStep;
+  const cause = step
+    ? `Sync Upstream failed at ${job.name} › ${step}`
+    : `Sync Upstream failed${job ? ` in ${job.name}` : ""}. The failing step was not read`;
   return {
     id: `sync-run:${line.fork.id}`,
     kind: "sync-run",
@@ -428,7 +418,7 @@ function cascadeMissedItem(fork: UpFork, runs: ForkRuns | undefined, now: Date, 
   };
 }
 
-function lineItems(line: LineModel, runs: ForkRuns | undefined, history: ServiceRunsFact | undefined, stack: StackModel, now: Date, context: CoreContext): QueueItem[] {
+function lineItems(line: LineModel, runs: ForkRuns | undefined, stack: StackModel, now: Date, context: CoreContext): QueueItem[] {
   const items: QueueItem[] = [];
   const svc = line.fork.id;
   const deployment = line.lane.last;
@@ -544,7 +534,7 @@ function lineItems(line: LineModel, runs: ForkRuns | undefined, history: Service
     });
   }
   if (!line.halt) {
-    const failed = syncFailureItem(line, runs, history);
+    const failed = syncFailureItem(line, runs);
     if (failed) items.push(failed);
   }
   for (const issue of line.conflicts) {
@@ -1465,7 +1455,6 @@ interface QueueInput {
   repos: Record<string, RepoFact>;
   runs?: Record<string, ForkRuns>;
   runsFailed?: boolean;
-  serviceRuns?: Record<string, ServiceRunsFact> | undefined;
   details: Parameters<typeof prFailures>[1];
   approvals: Record<string, WaitingRun[]> | undefined;
   radar?: RadarModel;
@@ -1505,10 +1494,7 @@ function queueItems(input: QueueInput, context: CoreContext): QueueItem[] {
   const { stack, lines, template, repos, details, approvals, radar, now } = input;
   const items: QueueItem[] = [];
   items.push(...stackItems(stack, lines, now, context).items);
-  for (const line of lines) {
-    const repo = line.fork.repo;
-    items.push(...lineItems(line, input.runs?.[repo], input.serviceRuns?.[repo], stack, now, context));
-  }
+  for (const line of lines) items.push(...lineItems(line, input.runs?.[line.fork.repo], stack, now, context));
   for (const fork of input.forks) {
     const missed = cascadeMissedItem(fork, input.runsFailed ? undefined : input.runs?.[fork.repo], now, context);
     if (missed) items.push(missed);

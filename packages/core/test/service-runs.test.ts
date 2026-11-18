@@ -110,7 +110,7 @@ test("puts failing workflows first and folds only known automation", () => {
   ]);
 });
 
-test("Q3 uses the same carried Sync Upstream failure until the bounded history clears it", () => {
+test("Q3 raises and clears Sync failed from the dedicated sync read", () => {
   const facts = sweep1116Facts();
   const forkRuns = facts.runs.data?.[repo];
   const github = facts.github.data?.repos[repo];
@@ -118,40 +118,22 @@ test("Q3 uses the same carried Sync Upstream failure until the bounded history c
   if (!failed || !github || !forkRuns)
     throw new Error("Expected search's failed sync and open sync PR");
   github.issues = github.issues.filter(({ labels }) => !labels.includes("sync-failed"));
-  const run = serviceRun.parse({ ...failed, workflowId: 32, path: undefined });
-  const retry = {
-    ...run,
-    id: run.id + 1,
-    path: failed.path,
-    conclusion: "cancelled",
-    createdAt: later,
-  };
-  forkRuns.sync = [{ ...failed, id: retry.id, conclusion: "cancelled", createdAt: later }];
-  const history = {
-    cut: true,
-    runs: [retry],
-    failures: [{ run, job: "Build", step: "Resolve dependencies" }],
-  };
-  const page = fact(history);
-  facts.serviceRuns = { [repo]: page };
+  forkRuns.sync = [failed];
   const q3 = () => sweep1116Model(facts).queue.items.find(({ id }) => id === "sync-run:search");
-  expect(serviceRuns(page)).toMatchObject({ count: 1, failing: [{ run: { url: failed.url } }] });
-  expect(q3()).toMatchObject({
-    text: "Sync failed",
-    url: failed.url,
-  });
-  expect(q3()?.cause.find(({ label }) => label === "reason")?.value).toBe(
-    "Sync Upstream failed at Build › Resolve dependencies",
-  );
 
-  const unread = { ...page, read: { ...page.read, failure: "unread" } };
-  facts.serviceRuns[repo] = unread;
-  expect(serviceRuns(unread)).toEqual({ kind: "unread", count: null });
-  expect(q3()).toBeUndefined();
+  const page = fact({ cut: true, runs: [], failures: [] });
+  facts.serviceRuns = { [repo]: page };
+  expect(q3()).toMatchObject({ text: "Sync failed", url: failed.url });
+  facts.serviceRuns[repo] = { ...page, read: { ...page.read, failure: "unread" } };
+  expect(q3()).toMatchObject({ text: "Sync failed", url: failed.url });
 
-  const passed = fact({ ...history, runs: [{ ...retry, conclusion: "success" }], failures: [] });
-  facts.serviceRuns[repo] = passed;
-  expect(serviceRuns(passed)).toMatchObject({ count: 0, failing: [] });
+  const run = serviceRun.parse({ ...failed, workflowId: 32 });
+  facts.serviceRuns[repo] = fact({ cut: true, runs: [], failures: [{ run }] });
+  expect(q3()).toMatchObject({ text: "Sync failed", url: failed.url });
+  forkRuns.sync = [
+    { ...failed, id: failed.id + 1, conclusion: "success", createdAt: later },
+    failed,
+  ];
   expect(q3()).toBeUndefined();
 });
 
