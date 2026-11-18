@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { AREAS, type ServiceHome, type ValueSource } from "@spi-code/contracts";
+import { AREAS, type ServiceHome, type ServiceWork, type ValueSource } from "@spi-code/contracts";
 import { type Model, type platformReleased, RELEASES_EVERY_MS } from "@spi-code/core";
 import type { WatchInput } from "./project.js";
 import {
@@ -26,6 +26,7 @@ export interface ProvenanceView {
   readonly services: readonly {
     readonly runs: readonly { readonly id: string }[];
     readonly home?: ServiceHome;
+    readonly work?: ServiceWork | undefined;
   }[];
   readonly runs: readonly RunHit[];
 }
@@ -67,6 +68,15 @@ export function snapshotProvenance(
         `/services/${i}/runHistory`,
         now,
       ),
+      ...(service.work
+        ? [
+            {
+              path: `/services/${i}/work/pulls`,
+              areas: AREAS.filter((area) => area !== "auth"),
+            },
+            { path: `/services/${i}/work/issues`, areas: ["github"] },
+          ]
+        : []),
       ...runProvenance(`/services/${i}/runs`, service.runs, runs, model.lines[i]?.fork.repo ?? ""),
       {
         path: `/services/${i}/releases`,

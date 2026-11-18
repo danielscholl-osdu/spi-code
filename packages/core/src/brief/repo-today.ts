@@ -16,8 +16,7 @@ const READY_FOR_REVIEW = /Upstream Sync Ready for Review/;
 
 /**
  * Each sync engine tracking issue by URL, mapped to the sync PR it was opened for: a fully read
- * repository with one open sync PR into fork_upstream and one open Ready for Review issue that
- * still waits on that PR's merge, opened after it.
+ * repository with one open Ready for Review issue opened during a unique sync PR's lifetime.
  */
 export function syncCompanions(model: Model): Map<string, string> {
   const companions = new Map<string, string>();
@@ -34,13 +33,18 @@ export function syncCompanions(model: Model): Map<string, string> {
           issue.labels.includes("upstream-sync") &&
           needsHuman(issue),
       );
-    const [pr] = syncs;
     const [issue] = issues;
-    if (syncs.length !== 1 || issues.length !== 1 || !pr || !issue) continue;
+    if (syncs.length > 1 || issues.length !== 1 || !issue) continue;
     const opened = Date.parse(issue.createdAt);
-    const synced = Date.parse(pr.createdAt);
-    if (!Number.isFinite(opened) || !Number.isFinite(synced) || opened < synced) continue;
-    companions.set(issue.url, pr.url);
+    if (!Number.isFinite(opened)) continue;
+    const past = model.lines.find(({ fork }) => fork.repo === row.repo)?.past ?? [];
+    const merged = past.filter((pr) =>
+      pr.base === "fork_upstream" && classifyPr(pr) === "sync" &&
+      Date.parse(pr.createdAt) <= opened && opened <= Date.parse(pr.mergedAt ?? ""),
+    );
+    const candidates = [...syncs.filter((pr) => Date.parse(pr.createdAt) <= opened), ...merged];
+    const [pr] = candidates;
+    if (candidates.length === 1 && pr) companions.set(issue.url, pr.url);
   }
   return companions;
 }

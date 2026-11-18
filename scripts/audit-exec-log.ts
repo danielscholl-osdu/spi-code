@@ -537,11 +537,17 @@ export const GRAPHQL_BLOCKS: readonly BlockTemplate[] = [
 
 /** The sha-256 of each fragment's canonical text, as packages/core/src/collect/github-read.ts
  * sends it. Any other fragment text is unrecognized. */
-export const FRAGMENT_HASHES: Readonly<Record<string, string>> = {
-  Base: "e49ae8c28e12b69f20c6dc66090abbb06bd351d64ed96c42c28cd1c3067b38c3",
-  Template: "051eb0040285b270a2419bbbeb6fb0df3a873b999d12f6cefe69e96a36070875",
-  Fork: "c6ff93e4fe5b8003dc347330a1c884b8032431ed5fa7dd4f00bca2f1f26b86ea",
-  Stack: "7e9be32536546dd43de851827f6041a4c3c6184591934481e552906e49f6068f",
+export const FRAGMENT_HASHES: Readonly<Record<string, readonly string[]>> = {
+  Base: [
+    "e49ae8c28e12b69f20c6dc66090abbb06bd351d64ed96c42c28cd1c3067b38c3",
+    "3a87e2ceb4a3fb3657ee8b58cfee4bc7e897c30201fa42cb70d67c7e319b9b33",
+  ],
+  Template: ["051eb0040285b270a2419bbbeb6fb0df3a873b999d12f6cefe69e96a36070875"],
+  Fork: [
+    "c6ff93e4fe5b8003dc347330a1c884b8032431ed5fa7dd4f00bca2f1f26b86ea",
+    "5fba03ee60385cd18e1e8f0a15b91a1d0a2a5833af4be7e4d93bbc0f48d55d47",
+  ],
+  Stack: ["7e9be32536546dd43de851827f6041a4c3c6184591934481e552906e49f6068f"],
 };
 
 const GRAPHQL_TOKEN =
@@ -686,7 +692,8 @@ function classifyGraphql(cmd: "gh" | "glab", document: string): Classified | und
   const defined = new Set(parsed.fragments.map((fragment) => fragment.name));
   if (defined.size !== parsed.fragments.length || defined.size !== spreads.size) return undefined;
   for (const { name, text } of parsed.fragments)
-    if (!spreads.has(name) || FRAGMENT_HASHES[name] !== fragmentHash(text)) return undefined;
+    if (!spreads.has(name) || !FRAGMENT_HASHES[name]?.includes(fragmentHash(text)))
+      return undefined;
   const targets = blocks.reduce((all, block) => merge(all, block.targets), noReferences());
   const operator = blocks.some((block) => block.class === "operator");
   return { shape: "graphql", class: operator ? "operator" : "public-content", targets, blocks };

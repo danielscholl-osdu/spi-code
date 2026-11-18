@@ -21,7 +21,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import type { Briefing } from "@spi-code/contracts";
+import type { Briefing, ViewSnapshot } from "@spi-code/contracts";
 import { treeServices } from "../app/queue.js";
 import {
   DEFAULT_REGISTRY,
@@ -33,6 +33,7 @@ import {
 } from "../app/routes.js";
 import { LINE_PIN, pinOf } from "../store/pins.js";
 import { plainTitle } from "../text.js";
+import { TABS } from "../views/service/tabs.js";
 import { foldSearchQuery, rankSearchGroups, scoreSearchTerms } from "./search.js";
 
 export type PaletteTarget =
@@ -48,6 +49,9 @@ export type PaletteItem = {
   kind: string;
   /** Extra words the query may match besides the label. */
   keywords: readonly string[];
+  external?: string;
+  count?: number | null;
+  children?: PaletteGroup;
   priority?: 0 | 1 | 2;
   target: PaletteTarget;
   /** What ⌘↩ pins besides opening it; Today, Settings and the queue pin nothing. */
@@ -55,7 +59,7 @@ export type PaletteItem = {
 };
 
 export type PaletteGroup = {
-  value: "go-to" | "services" | "queue";
+  value: "go-to" | "services" | "queue" | `on:${string}`;
   label: string;
   items: PaletteItem[];
 };
@@ -97,19 +101,60 @@ function routeItem(route: Route, kind: string, keywords: readonly string[] = [])
   };
 }
 
+function serviceChildren(body: ViewSnapshot, id: string): PaletteGroup | undefined {
+  const service = body.services?.find((entry) => entry.service === id);
+  if (!service?.home) return undefined;
+  const items: PaletteItem[] = [];
+  for (const [tab, label, rows] of [
+    ["pulls", "PR", service.work?.pulls.rows.filter(({ state }) => state === "open")],
+    [
+      "issues",
+      "Issue",
+      service.work?.issues.rows.filter(({ state, tracks }) => state === "open" && !tracks),
+    ],
+  ] as const) {
+    for (const row of rows ?? []) {
+      items.push({
+        value: `on:${id}:${tab}:${row.number}`,
+        label: `${label} #${row.number} · ${row.title}`,
+        kind: "",
+        keywords: [id],
+        external: row.url,
+        target: { kind: "route", route: { kind: "service", id, tab, row: String(row.number) } },
+      });
+    }
+  }
+  for (const tab of TABS) {
+    if (!tab.count) continue;
+    items.push({
+      value: `on:${id}:${tab.id}`,
+      label: tab.label,
+      kind: "",
+      keywords: [id],
+      count: tab.count({ id, home: service.home, snapshot: body }),
+      target: { kind: "route", route: { kind: "service", id, tab: tab.id } },
+    });
+  }
+  return { value: `on:${id}`, label: `On ${id}`, items };
+}
+
 /**
  * Go to, Services and Queue, from the registered routes and the snapshot; empty groups and
  * routes with no registered view are left out, and Line only with a registered sheet.
  */
 export function buildPaletteGroups(
-  body: SnapshotBody | undefined,
+  body: ViewSnapshot | SnapshotBody | undefined,
   registry: Registry = DEFAULT_REGISTRY,
 ): PaletteGroup[] {
   const reachable = (route: Route) => isReachable(route, registry);
   const services = treeServices(body?.tree)
-    .map((id): Route => ({ kind: "service", id }))
+    .map((id) => ({ kind: "service", id }) as const)
     .filter(reachable)
-    .map((route) => routeItem(route, "service"));
+    .map((route) => {
+      const item = routeItem(route, "service");
+      const children = body && "sweptAt" in body ? serviceChildren(body, route.id) : undefined;
+      return children ? { ...item, children } : item;
+    });
   const queue = [...(body?.briefing.focus ?? []), ...(body?.briefing.rest ?? [])].map(
     (item): PaletteItem => ({
       value: `queue:${item.id}`,
@@ -144,8 +189,26 @@ export function filterPaletteGroups(
 ): PaletteGroup[] {
   const normalized = foldSearchQuery(query);
   if (normalized.length === 0) return [...groups];
-  return rankSearchGroups(
+  const score = (item: PaletteItem) => {
+    if (item.external && /^#\d+$/.test(normalized) && !item.label.includes(` ${normalized} ·`))
+      return null;
+    return scoreSearchTerms(normalized, [item.label, item.kind, ...item.keywords]);
+  };
+  const ranked = rankSearchGroups(
     groups.map((group) => ({ group, items: group.items })),
-    (item) => scoreSearchTerms(normalized, [item.label, item.kind, ...item.keywords]),
-  ).map(({ group, items }) => ({ ...group, items: [...items] }));
+    score,
+  );
+  const children = (groups.find(({ value }) => value === "services")?.items ?? []).flatMap(
+    (item) => {
+      const group = item.children;
+      if (!group) return [];
+      const rows = score(item) ? group.items : group.items.filter(score);
+      return rows.length ? [{ ...group, items: rows }] : [];
+    },
+  );
+  const results = ranked.map(({ group, items }) => ({ ...group, items: [...items] }));
+  const services = results.findIndex(({ value }) => value === "services");
+  const exact = foldSearchQuery(results[0]?.items[0]?.label ?? "") === normalized;
+  results.splice(services < 0 && exact ? 1 : services + 1, 0, ...children);
+  return results;
 }

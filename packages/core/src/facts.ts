@@ -43,6 +43,7 @@ export interface PrFact {
   association?: string;
   labels: string[];
   checks: CheckFact[];
+  reviewers?: { requested: string[]; latest: { login: string; state: string }[]; cut: boolean };
 }
 
 export interface IssueFact {
@@ -73,6 +74,10 @@ export interface PastPrFact {
   mergedAt?: string;
   closedAt?: string;
   author?: string;
+}
+
+export interface ClosedIssueFact extends IssueFact {
+  closedAt?: string;
 }
 
 export interface PastIssueFact {
@@ -119,6 +124,8 @@ export interface RepoFact {
   openPrs?: number;
   prsUnread?: true;
   openIssues?: number;
+  issuesUnread?: true;
+  closedIssues?: ClosedIssueFact[];
   deployments: DeploymentFact[];
   pastPrs?: PastPrFact[];
   pastIssues?: PastIssueFact[];

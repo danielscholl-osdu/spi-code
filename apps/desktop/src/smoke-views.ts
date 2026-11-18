@@ -812,6 +812,14 @@ export async function captureSmokeViews(
     "The acknowledged fixture must push the Nov 6 sweep again",
   );
   const mornings = loadMornings(morningPaths);
+  const serviceSnapshot = ViewSnapshotSchema.parse(
+    JSON.parse(
+      readFileSync(
+        join(dirname(designPath), "../apps/window/src/views/today/snapshot-1116.json"),
+        "utf8",
+      ),
+    ),
+  );
   const progress = smokeSweepProgress();
   const [originalWidth, originalHeight] = window.getContentSize();
   assert(originalWidth && originalHeight, "Missing original smoke viewport");
@@ -1463,6 +1471,36 @@ export async function captureSmokeViews(
           await captureSidebarPins(window, output, appearance, (condition) =>
             rendered(window, condition),
           );
+          const searchWork = serviceSnapshot.services?.find(
+            ({ service }) => service === "search",
+          )?.work;
+          fixture(window, "view.snapshot", { ...serviceSnapshot, cursor: scheduledCursor + 301 });
+          await window.webContents.executeJavaScript(
+            `void (Date.now = () => ${Date.parse(serviceSnapshot.sweptAt)})`,
+          );
+          for (const [tab, kind, number] of [
+            ["pulls", "pr", searchWork?.pulls.rows.find(({ state }) => state === "open")?.number],
+            [
+              "issues",
+              "issue",
+              searchWork?.issues.rows.find(({ state, tracks }) => state === "open" && !tracks)
+                ?.number,
+            ],
+          ] as const) {
+            assert(number, `Search fixture has a row for ${tab}`);
+            await window.webContents.executeJavaScript(
+              `location.hash = "#service/search/${tab}/${number}"`,
+            );
+            await rendered(
+              window,
+              `document.querySelector('[data-work=${kind}] [data-row="${number}"][data-open]')`,
+            );
+            const png = (await window.webContents.capturePage()).toPNG();
+            writeFileSync(join(output, `service-${tab}-${appearance}.png`), png);
+          }
+          await window.webContents.executeJavaScript(
+            `void (Date.now = () => ${Date.parse(checkedAt)})`,
+          );
           section(`status, sweep, Find and sidebar captures ${viewportWidth}/${appearance}`);
         }
       }
@@ -1537,6 +1575,10 @@ export async function captureSmokeViews(
     await loaded;
   }
   writeFileSync(
+    join(output, "service-design.html"),
+    readFileSync(join(dirname(designPath), "spi-code-service-home.html")),
+  );
+  writeFileSync(
     join(output, "index.html"),
     `<!doctype html><html lang="en"><meta charset="utf-8"><title>Packaged Watch views</title>
 <style>body{font-family:system-ui;margin:24px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #888;padding:8px;vertical-align:top}img{width:100%}td{width:50%}</style>
@@ -1577,6 +1619,19 @@ ${VIEW_WIDTHS.map(
       .join("")}</tr></table>`,
 ).join("")}</section>`,
 ).join("\n")}
+<h1>Search service tabs</h1><p>Compare the open row in each tab with the
+<a href="service-design.html">service home mock</a>.</p>
+${["pulls", "issues"]
+  .map(
+    (tab) => `<table><tr><th colspan="2">${tab === "pulls" ? "Pull requests" : "Issues"}</th></tr>
+<tr><th>Light</th><th>Dark</th></tr><tr>${["light", "dark"]
+      .map((mode) => {
+        const file = `service-${tab}-${mode}.png`;
+        return `<td><a href="${file}"><img alt="${tab} in ${mode}" src="${file}"></a></td>`;
+      })
+      .join("")}</tr></table>`,
+  )
+  .join("")}
 <h1>Today on three mornings</h1><p>Each morning is a schema-valid snapshot shown through the same smoke-only
 preload channel, at the Nov 6 fixture clock: ${MORNING_SURFACES.filter(({ open }) => !open)
       .map(({ morning }) => `${morning} from ${mornings[morning].fixture}`)

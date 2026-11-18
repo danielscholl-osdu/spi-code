@@ -19,6 +19,8 @@ import { ForgeError, type Gh, type GqlError } from "../forge.js";
 const PULLS = `pullRequests(states: OPEN, first: 40, orderBy: {field: CREATED_AT, direction: DESC}) { totalCount nodes {
   number title url createdAt updatedAt isDraft headRefName baseRefName headRefOid mergeStateStatus reviewDecision
   author { __typename login } authorAssociation
+  reviewRequests(first: 5) { totalCount nodes { requestedReviewer { ... on Actor { login } ... on Team { slug } ... on EnterpriseTeam { slug } } } }
+  latestReviews(first: 5) { totalCount nodes { author { login } state } }
   headRef { target { ... on Commit { file(path: "${MARKER_PATH}") { object { ... on Blob { text } } } } } }
   labels(first: 15) { totalCount nodes { name } }
   commits(last: 1) { nodes { commit { oid committedDate statusCheckRollup { contexts(first: 80) { totalCount nodes {
@@ -34,6 +36,11 @@ const ISSUES = `issues(states: OPEN, first: 50, orderBy: {field: CREATED_AT, dir
 
 const PAST_PULLS = `pastPrs: pullRequests(states: [MERGED, CLOSED], first: ${PAST_PR_PAGE}, orderBy: {field: UPDATED_AT, direction: DESC}) { nodes {
   number title url createdAt updatedAt mergedAt closedAt headRefName baseRefName author { login }
+} }`;
+
+const CLOSED_ISSUES = `closedIssues: issues(states: CLOSED, first: 20, orderBy: {field: UPDATED_AT, direction: DESC}) { nodes {
+  number title url createdAt updatedAt closedAt author { __typename login }
+  labels(first: 15) { totalCount nodes { name } }
 } }`;
 
 const HALT_LABELS = Object.freeze(["sync-failed", "conflict", "cascade-blocked", "cascade-failed"]);
@@ -66,6 +73,7 @@ fragment Fork on Repository {
   deployments(environments: ["${LANE_ENVIRONMENT}"], first: 60, orderBy: {field: CREATED_AT, direction: DESC}) { nodes { createdAt commitOid ref { name } latestStatus { state createdAt } } }
   ${PAST_PULLS}
   ${PAST_ISSUES}
+  ${CLOSED_ISSUES}
 }
 fragment Stack on Repository {
   declaration: object(expression: "main:${DECLARATION_PATH}") { ... on Blob { text } }
@@ -204,24 +212,35 @@ export async function readGithub<T>(
     }
   }
   const reads = (await Promise.all(batches(ctx, perQuery).map((b) => read(b, false)))).flat();
-  const records = reads.flatMap((result) => result.fields.map(({ alias, repo }): ReadRecord => {
+  const data = mergeReads(reads.map((read) => read.data));
+  const records = reads.flatMap((result) => result.fields.flatMap(({ alias, repo }): ReadRecord[] => {
     const raw = result.data[alias];
     const errors = result.errors.filter(
       (error) => (!error.path?.length || error.path[0] === alias) &&
         !(objectOf(raw) && missingMarker(error)),
     );
+    const closedErrors = errors.filter((error) => error.path?.[1] === "closedIssues");
+    if (closedErrors.length && objectOf(raw)) {
+      const { closedIssues: _closed, ...rest } = raw;
+      data[alias] = rest;
+    }
+    const repoErrors = errors.filter((error) => error.path?.[1] !== "closedIssues");
     const absentPlanned = alias.startsWith("p_") && raw === null &&
-      errors.every((error) => error.type === "NOT_FOUND");
-    const failure = absentPlanned ? undefined : errors.length
-      ? errors.map((error) => error.message).join("; ")
+      repoErrors.every((error) => error.type === "NOT_FOUND");
+    const failure = absentPlanned ? undefined : repoErrors.length
+      ? repoErrors.map((error) => error.message).join("; ")
       : raw == null ? `GraphQL did not return ${repo}` : undefined;
-    return {
-      source: "github",
-      object: repo,
-      observedAt: result.observedAt,
-      completeness: cutsOf(raw)[0] ?? { kind: "complete" },
+    const closedFailure = closedErrors.map((error) => error.message).join("; ");
+    const observedAt = result.observedAt;
+    const complete = { kind: "complete" } as const;
+    return [{
+      source: "github", object: repo, observedAt,
+      completeness: cutsOf(data[alias])[0] ?? complete,
       ...(failure === undefined ? {} : { failure }),
-    };
+    }, ...(closedFailure ? [{
+      source: "github", object: `${repo}@closed-issues`, observedAt,
+      completeness: complete, failure: closedFailure,
+    }] : [])];
   }));
-  return { facts: parse(mergeReads(reads.map((r) => r.data)), ctx), records };
+  return { facts: parse(data, ctx), records };
 }

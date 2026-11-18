@@ -200,3 +200,51 @@ it("puts the pin control at the top row's end, and the template icon reads the h
   await mount(unknown, "#service/file", createTitleStore());
   expect($("[data-template]")).toBeNull();
 });
+
+it("filters Merged to merged PRs and gives only Waiting on you gates an amber tone", async () => {
+  const body = sixteenth();
+  await mount(body, "#service/search/pulls");
+  const service = body.services?.find(({ service }) => service === "search");
+  const waiting = new Set(
+    service?.home?.overview
+      .filter(({ section }) => section === "waiting")
+      .map((row) => row.links[0]?.url),
+  );
+  const visible = () => [...container.querySelectorAll<HTMLElement>("[data-work=pr] li[data-row]")];
+  const amber = visible().filter((row) => row.querySelector('[data-tone="warning"]'));
+  expect(amber.map(({ dataset }) => dataset.row)).toEqual(["77", "76"]);
+  expect(amber.every((row) => waiting.has(row.querySelector("a")?.href))).toBe(true);
+  expect($('li[data-row="71"] [data-tone="error"]')).not.toBeNull();
+
+  await act(async () =>
+    [...container.querySelectorAll("button")]
+      .find((button) => button.textContent?.startsWith("Merged "))
+      ?.click(),
+  );
+  const merged = service?.work?.pulls.rows
+    .filter(({ state }) => state === "merged")
+    .map(({ number }) => String(number));
+  expect(visible().map(({ dataset }) => dataset.row)).toEqual(merged);
+  expect($('li[data-row="81"]')).toBeNull();
+  await act(async () =>
+    [...container.querySelectorAll("button")]
+      .find((button) => button.textContent === "All")
+      ?.click(),
+  );
+  expect($('li[data-row="81"]')).not.toBeNull();
+});
+
+it("shows a proven tracking issue only under All and keeps its companion on the PR", async () => {
+  await mount(sixteenth(), "#service/search/issues");
+  expect($('li[data-row="78"]')).toBeNull();
+  await act(async () =>
+    [...container.querySelectorAll("button")]
+      .find((button) => button.textContent === "All")
+      ?.click(),
+  );
+  expect($('li[data-row="78"]')?.textContent).toContain("tracks PR #77");
+  await act(async () => navigate({ kind: "service", id: "search", tab: "pulls" }));
+  expect($('li[data-row="77"] a[data-kind="issue"]')?.getAttribute("href")).toBe(
+    "https://github.com/Azure/osdu-spi-search/issues/78",
+  );
+});

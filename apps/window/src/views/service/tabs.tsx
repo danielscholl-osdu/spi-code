@@ -3,7 +3,9 @@
 
 import type { ServiceHome, ViewSnapshot } from "@spi-code/contracts";
 import type { ComponentType } from "react";
+import { Issues, issueCount } from "./issues.js";
 import { Overview } from "./Overview.js";
+import { Pulls, pullCount } from "./pulls.js";
 import { runsTab } from "./runs.js";
 
 export type TabProps = {
@@ -27,5 +29,7 @@ export type ServiceTab = {
 /** A service page's tabs, in order; the first opens when the route names none. */
 export const TABS: readonly ServiceTab[] = [
   { id: "overview", label: "Overview", Panel: Overview },
+  { id: "pulls", label: "Pull requests", Panel: Pulls, count: pullCount },
+  { id: "issues", label: "Issues", Panel: Issues, count: issueCount },
   runsTab,
 ];

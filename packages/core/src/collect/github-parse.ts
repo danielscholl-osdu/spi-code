@@ -44,6 +44,8 @@ interface RawPr {
   reviewDecision?: string | null;
   author?: { __typename?: string; login?: string } | null;
   authorAssociation?: string;
+  reviewRequests?: { totalCount?: number; nodes?: ({ requestedReviewer?: { login?: string; slug?: string } | null } | null)[] } | null;
+  latestReviews?: { totalCount?: number; nodes?: ({ author?: { login?: string } | null; state: string } | null)[] } | null;
   headRef?: { target?: { file?: { object?: { text?: string } | null } | null } } | null;
   labels?: { nodes?: { name: string }[] };
   commits?: {
@@ -62,6 +64,7 @@ interface RawIssue {
   labels?: { nodes?: { name: string }[] };
   comments?: { totalCount?: number };
   body?: string | null;
+  closedAt?: string | null;
 }
 
 interface RawRepo {
@@ -72,6 +75,7 @@ interface RawRepo {
   latestRelease?: { tagName: string; publishedAt: string; url: string } | null;
   pullRequests?: { totalCount?: number; nodes?: RawPr[] };
   issues?: { totalCount?: number; nodes?: RawIssue[] };
+  closedIssues?: { nodes?: (RawIssue | null)[] } | null;
   marker?: { text?: string } | null;
   upstreamLog?: {
     target?: { history?: { nodes?: { oid: string; message: string; committedDate: string }[] } };
@@ -135,6 +139,25 @@ function parseChecks(nodes: RawCheck[] | undefined): CheckFact[] {
   return out;
 }
 
+function parseReviewers(p: RawPr): PrFact["reviewers"] {
+  const requests = p.reviewRequests?.nodes;
+  const reviews = p.latestReviews?.nodes;
+  if (!requests && !reviews) return undefined;
+  const requested = (requests ?? []).flatMap((node) => {
+    const user = node?.requestedReviewer;
+    return user?.login ? [user.login] : user?.slug ? [user.slug] : [];
+  });
+  const latest = (reviews ?? []).flatMap((node) =>
+    node?.author?.login ? [{ login: node.author.login, state: node.state }] : [],
+  );
+  return {
+    requested,
+    latest,
+    cut: p.reviewRequests?.totalCount !== requested.length ||
+      p.latestReviews?.totalCount !== latest.length,
+  };
+}
+
 function parsePr(repo: string, p: RawPr): PrFact {
   const last = p.commits?.nodes?.[0]?.commit;
   const headAt = last?.oid === p.headRefOid ? last.committedDate ?? undefined : undefined;
@@ -158,6 +181,7 @@ function parsePr(repo: string, p: RawPr): PrFact {
     association: p.authorAssociation ?? undefined,
     labels: (p.labels?.nodes ?? []).map((l) => l.name),
     checks: parseChecks(last?.statusCheckRollup?.contexts?.nodes),
+    reviewers: parseReviewers(p),
   };
 }
 
@@ -301,6 +325,10 @@ export function parseRepo(raw: RawRepo): RepoFact {
     prs: (raw.pullRequests?.nodes ?? []).map((p) => parsePr(repo, p)),
     ...(!Array.isArray(raw.pullRequests?.nodes) ? { prsUnread: true } : {}),
     issues: (raw.issues?.nodes ?? []).map((i) => parseIssue(repo, i)),
+    ...(!Array.isArray(raw.issues?.nodes) ? { issuesUnread: true } : {}),
+    closedIssues: raw.closedIssues?.nodes?.flatMap((issue) => issue ? [{
+      ...parseIssue(repo, issue), closedAt: issue.closedAt ?? undefined,
+    }] : []),
     ...(raw.pullRequests?.totalCount !== undefined ? { openPrs: raw.pullRequests.totalCount } : {}),
     ...(raw.issues?.totalCount !== undefined ? { openIssues: raw.issues.totalCount } : {}),
     deployments: parseDeployments(raw.deployments),

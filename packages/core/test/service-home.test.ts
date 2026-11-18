@@ -8,6 +8,7 @@ import { buildBriefing } from "../src/brief/index";
 import { todayLines } from "../src/brief/lines";
 import { rolloutVisual } from "../src/brief/place-visuals";
 import { serviceHome, versionBump } from "../src/brief/service-home";
+import { serviceWork } from "../src/brief/service-work";
 import { todaySummary } from "../src/brief/today-summary";
 import type { Facts, IssueFact, PastPrFact, PrFact, RunFact } from "../src/facts";
 import type { DismissEntry } from "../src/model/dismiss";
@@ -475,4 +476,98 @@ test("Can wait is deduplicated and oldest first, and a door opens the earliest q
   );
   expect(rows.map((row) => row.links[0]?.url)).toEqual([older.url, newer.url]);
   expect(home.doors.find((door) => door.id === "dependabot")?.row).toBe(rows[0]?.id);
+});
+
+test("service work preserves the forge total and marks cut and failed reads honestly", () => {
+  const { facts, github } = handBuilt();
+  github.prs = Array.from({ length: 40 }, (_, index) => pr(index + 1, `test/${index}`));
+  github.openPrs = 41;
+  const reads = {
+    github: [
+      {
+        source: "github",
+        object: repo,
+        observedAt: sweep.toISOString(),
+        completeness: { kind: "complete" } as const,
+        failure: "GitHub unavailable",
+      },
+    ],
+  };
+  const work = (evidence = {}) =>
+    serviceWork(buildModel(facts, sweep, {}, context), facts, evidence, new Map()).get(service);
+  expect(work()?.pulls).toMatchObject({ count: 41, partial: true });
+  expect(work()?.pulls.rows).toHaveLength(40);
+  expect(work(reads)?.pulls).toEqual({ count: null, partial: false, pastRead: false, rows: [] });
+  expect(work(reads)?.issues.count).toBeNull();
+  github.prsUnread = true;
+  github.issuesUnread = true;
+  expect(work()?.pulls.count).toBeNull();
+  expect(work()?.issues.count).toBeNull();
+});
+
+test("the recorded 16 Nov sweep reads open issues without claiming a closed-issues read", () => {
+  const facts = sweep1116Facts();
+  const model = buildModel(facts, sweep, {}, context);
+  const work = serviceWork(model, facts, {}, new Map()).get(service);
+  expect(work?.issues).toMatchObject({ count: expect.any(Number), closedRead: false });
+  expect(work?.issues.rows).toContainEqual(
+    expect.objectContaining({ number: 78, tracks: { number: 77, url: `${url}/pull/77` } }),
+  );
+  expect(work?.issues.count).toBe((work?.issues.rows.length ?? 0) - 1);
+});
+
+test("a Ready for Review issue rides on its merged sync PR only while the match is unique", () => {
+  const { facts, github } = handBuilt();
+  const merged = past(77, merge, "sync/upstream-current", "fork_upstream");
+  github.pastPrs = [merged];
+  github.issues = [issue()];
+  github.closedIssues = [{ ...issue({ number: 79, url: `${url}/issues/79` }), closedAt: merge }];
+  github.openIssues = 1;
+  const work = () =>
+    serviceWork(buildModel(facts, sweep, {}, context), facts, {}, new Map()).get(service);
+  expect(work()?.pulls.rows).toContainEqual(
+    expect.objectContaining({
+      number: 77,
+      state: "merged",
+      companion: { number: 78, url: `${url}/issues/78` },
+    }),
+  );
+  expect(work()?.issues).toMatchObject({
+    count: 0,
+    closedRead: true,
+    rows: [
+      { number: 78, state: "open", tracks: { number: 77, url: merged.url } },
+      { number: 79, state: "closed", closedAt: merge },
+    ],
+  });
+
+  github.pastPrs.push(past(76, merge, "sync/upstream-another", "fork_upstream"));
+  expect(work()?.issues.count).toBe(1);
+  expect(work()?.issues.rows[0]?.tracks).toBeUndefined();
+  github.pastPrs = [merged];
+  github.issues = [issue({ createdAt: "2026-11-17T17:00:00Z" })];
+  expect(work()?.issues.count).toBe(1);
+});
+
+test("a review requirement says No reviewer only after reading both reviewer lists", () => {
+  const { facts, github } = handBuilt();
+  const pull = { ...pr(51, "feature/change"), reviewDecision: "REVIEW_REQUIRED" };
+  github.openPrs = 1;
+  const row = (reviewers?: PrFact["reviewers"]) => {
+    github.prs = [{ ...pull, reviewers }];
+    return serviceWork(buildModel(facts, sweep, {}, context), facts, {}, new Map()).get(service)
+      ?.pulls.rows[0];
+  };
+  expect(row()).toMatchObject({ gate: "Review required" });
+  expect(row({ requested: [], latest: [], cut: true })).toMatchObject({
+    gate: "Review required",
+    reviewersCut: true,
+  });
+  expect(row({ requested: [], latest: [], cut: false })).toMatchObject({ gate: "No reviewer" });
+  expect(
+    row({ requested: ["maintainers"], latest: [{ login: "ren", state: "APPROVED" }], cut: false }),
+  ).toMatchObject({
+    gate: "Review required",
+    reviewers: ["maintainers", "ren"],
+  });
 });

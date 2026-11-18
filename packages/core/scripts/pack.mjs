@@ -48,6 +48,12 @@ try {
       typeOnly: true,
     },
     {
+      bindings: ["import type { ServiceWork }"],
+      source: "watch/service-work",
+      module: "service-work",
+      typeOnly: true,
+    },
+    {
       bindings: [
         "import type { CanWaitCause, CanWaitCauses }",
         "import type { CanWaitCauses, TodayFleet }",

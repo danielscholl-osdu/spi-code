@@ -154,8 +154,14 @@ function PaletteContent({
             highlightedItem
           ) {
             event.preventDefault();
-            if (highlightedItem.pin) pin(highlightedItem.pin);
-            run(highlightedItem);
+            if (highlightedItem.external) {
+              event.preventBaseUIHandler();
+              void window.spi?.openExternal(highlightedItem.external);
+              onClose();
+            } else {
+              if (highlightedItem.pin) pin(highlightedItem.pin);
+              run(highlightedItem);
+            }
             return;
           }
           if (matchesShiftShortcut(event, "p")) {
@@ -174,7 +180,7 @@ function PaletteContent({
             </Autocomplete.GroupLabel>
             {group.items.map((item) => {
               const route = item.target.kind === "route" ? item.target.route : undefined;
-              const service = route?.kind === "service" ? route : undefined;
+              const service = route?.kind === "service" && !route.tab ? route : undefined;
               const kind = service ? undefined : item.kind;
               const home = service ? serviceMark(body, service.id) : undefined;
               const pinState = item.pin === undefined ? undefined : pinStateOf(item.pin, pins);
@@ -201,6 +207,14 @@ function PaletteContent({
                   )}
                   <span className="palette-label">{item.label}</span>
                   {kind && <span className="palette-kind">{kind}</span>}
+                  {(item.count === null || !!item.count) && (
+                    <span
+                      className="palette-kind service-tab-count"
+                      title={item.count === null ? "Not read" : undefined}
+                    >
+                      {item.count === null ? "⌀" : item.count}
+                    </span>
+                  )}
                   {item.pin !== undefined && (
                     <PinControl pin={item.pin} name={item.label} size="row" inList />
                   )}
@@ -213,7 +227,10 @@ function PaletteContent({
       <div className="palette-hint">
         <span>↑↓ move</span>
         <span>⏎ open</span>
-        <span>{isMacPlatform() ? "⌘↩" : "Ctrl+Enter"} open and pin</span>
+        <span>
+          {isMacPlatform() ? "⌘↩" : "Ctrl+Enter"}{" "}
+          {highlightedItem?.external ? "GitHub ↗" : "open and pin"}
+        </span>
         <span>{shiftShortcutLabel("p")} pin</span>
         <span>esc close</span>
       </div>

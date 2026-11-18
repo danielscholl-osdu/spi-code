@@ -3,6 +3,7 @@
 
 export { serviceHome } from "./service-home.js";
 export { serviceRuns } from "./service-runs.js";
+export { serviceWork } from "./service-work.js";
 export { todayFleet } from "./fleet.js";
 export { todaySummary, todayHistory } from "./today-summary.js";
 export { repositoryToday, syncCompanions, type RepoToday } from "./repo-today.js";

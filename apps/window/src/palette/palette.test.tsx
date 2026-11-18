@@ -231,7 +231,7 @@ it("moves with the arrows, opens with Enter, and filters as the operator types",
   expect(highlighted()).toBe("Upstreampage");
 
   await type("legal");
-  expect(labels()).toEqual(["Services", "Queue"]);
+  expect(labels()).toEqual(["Services", "On legal", "Queue"]);
   expect(rows("services")).toEqual(["1legal"]);
   expect(rows("queue")).toEqual(["P1legal · Sync PR #31 fails Java BuildP1"]);
   expect(highlighted()).toBe("1legal");
@@ -481,11 +481,15 @@ it("ranks the best match class first and keeps group order on ties", () => {
   ]);
   expect(filterPaletteGroups(groups, "ENTITLE").map(({ value }) => value)).toEqual([
     "services",
+    "on:entitlements",
     "queue",
   ]);
   expect(
     filterPaletteGroups(groups, "flow").flatMap(({ items }) => items.map((i) => i.label)),
-  ).toEqual(["osdu-spi-stack · 1 outside PR waits for workflow approval"]);
+  ).toEqual([
+    "PR #49 · Test External Contribution flow",
+    "osdu-spi-stack · 1 outside PR waits for workflow approval",
+  ]);
   expect(filterPaletteGroups(groups, "nothing like this")).toEqual([]);
 });
 
@@ -504,4 +508,66 @@ it("Escape closes only the palette above a place popover and returns focus insid
   expect(openSelection()).toEqual(selection);
   expect(container.querySelector(".popover")).toBe(popover);
   expect(document.activeElement).toBe(control);
+});
+
+it.each([
+  ["#77", "pulls", "77"],
+  ["missing or unresolvable owners", "issues", "65"],
+])("finds service work under Search and opens the row in place: %s", async (query, tab, number) => {
+  const nov16 = ViewSnapshotSchema.parse(JSON.parse(snapshot1116));
+  await act(async () => watchStore.setState({ snapshot: { cursor: nov16.cursor, body: nov16 } }));
+  await shortcut({ ctrlKey: true });
+  await type(query);
+  const result = [
+    ...(palette()?.querySelectorAll<HTMLElement>('[data-group="on:search"] .palette-row') ?? []),
+  ].find((option) => option.textContent?.includes(`#${number}`));
+  expect(result).toBeDefined();
+  await act(async () => result?.click());
+  expect(window.location.hash).toBe(`#service/search/${tab}/${number}`);
+  expect(
+    container.querySelector(
+      `[role="tabpanel"] [data-row="${number}"] button[aria-expanded="true"]`,
+    ),
+  ).not.toBeNull();
+});
+
+it("offers the built tabs with their tab counts and keeps the companion out of Find", async () => {
+  const nov16 = ViewSnapshotSchema.parse(JSON.parse(snapshot1116));
+  await act(async () => watchStore.setState({ snapshot: { cursor: nov16.cursor, body: nov16 } }));
+  await act(async () => navigate({ kind: "service", id: "search" }));
+  await shortcut({ ctrlKey: true });
+  await type("search");
+  const group = palette()?.querySelector('[data-group="on:search"]');
+  expect(group?.textContent).toContain("PR #77");
+  expect(group?.textContent).not.toContain("Issue #78");
+  const countedTabs = ["pulls", "issues", "runs"];
+  expect(
+    [...(group?.querySelectorAll(".palette-row") ?? [])]
+      .slice(-countedTabs.length)
+      .map((row) => row.textContent),
+  ).toEqual(
+    countedTabs.map(
+      (tab) => container.querySelector(`[role="tab"][data-tab="${tab}"]`)?.textContent,
+    ),
+  );
+});
+
+it("opens the highlighted PR on GitHub with Command+Enter", async () => {
+  const nov16 = ViewSnapshotSchema.parse(JSON.parse(snapshot1116));
+  await act(async () => watchStore.setState({ snapshot: { cursor: nov16.cursor, body: nov16 } }));
+  vi.spyOn(navigator, "userAgent", "get").mockReturnValue(
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+  );
+  await shortcut({ metaKey: true });
+  await type("#77");
+  for (const _ of palette()?.querySelectorAll(".palette-row") ?? []) {
+    if (highlighted()?.includes("PR #77")) break;
+    await key("ArrowDown");
+  }
+  expect(highlighted()).toContain("PR #77");
+  await key("Enter", { metaKey: true });
+  expect(window.spi?.openExternal).toHaveBeenCalledWith(
+    "https://github.com/Azure/osdu-spi-search/pull/77",
+  );
+  expect(window.location.hash).not.toContain("/pulls/");
 });

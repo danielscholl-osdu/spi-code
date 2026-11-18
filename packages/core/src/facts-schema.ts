@@ -57,6 +57,11 @@ const prFact = z.object({
   association: z.string().optional(),
   labels: strings,
   checks: z.array(checkFact),
+  reviewers: z.object({
+    requested: strings,
+    latest: z.array(z.object({ login: z.string(), state: z.string() })),
+    cut: z.boolean(),
+  }).optional(),
 });
 
 const issueFact = z.object({
@@ -126,6 +131,8 @@ const repoFact = z.object({
   openPrs: z.number().optional(),
   prsUnread: z.literal(true).optional(),
   openIssues: z.number().optional(),
+  issuesUnread: z.literal(true).optional(),
+  closedIssues: z.array(issueFact.extend({ closedAt: z.string().optional() })).optional(),
   deployments: z.array(deploymentFact),
   pastPrs: z.array(pastPrFact).optional(),
   pastIssues: z.array(pastIssueFact).optional(),

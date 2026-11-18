@@ -1,0 +1,29 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+.service-work > p, .work-empty { margin: 0; padding: 9px 12px; color: var(--text-muted); }
+.work-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; }
+.work-filters button, .work-filters input { border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text); font: inherit; padding: 5px 9px; }
+.work-filters button { cursor: pointer; }
+.work-filters button[aria-pressed="true"] { border-color: var(--accent); font-weight: 650; }
+.work-filters input { flex: 1 1 210px; min-width: 0; }
+.work-filters input::placeholder { color: var(--text-muted); }
+.work-row { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(120px, 27%) 64px; align-items: start; gap: 10px; padding: 8px 12px; }
+.work-row > .kit-link { justify-self: start; }
+.work-subtitle, .work-status { color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; }
+.work-subtitle:empty, .work-status > span:empty { display: none; }
+.work-status { display: grid; justify-items: start; gap: 2px; }
+.work-status > span { display: flex; flex-wrap: wrap; gap: 3px 5px; }
+.work-status [data-tone] { padding: 0 4px; border-radius: 4px; }
+.work-status [data-tone="error"] { color: var(--error-text); background: var(--error-surface); }
+.work-status [data-tone="warning"] { color: var(--warning-text); background: var(--warning-surface); }
+.work-status [data-tone="success"] { color: var(--success-text); background: var(--success-surface); }
+.work-summary { padding: 6px 12px 12px; overflow-wrap: anywhere; }
+.work-summary p { margin: 0 0 6px; }
+.work-summary .kit-link + .kit-link { margin-left: 6px; }
+
+@media (max-width: 780px) {
+  .work-row { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .work-status { grid-column: 2; grid-row: 2; }
+  .work-row .service-row-age { grid-column: 3; grid-row: 1; }
+}

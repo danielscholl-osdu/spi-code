@@ -539,3 +539,98 @@ describe("a batch GitHub cuts short", () => {
     expect(records.every((r) => r.object.includes("heavy-") === !!r.failure)).toBe(true);
   });
 });
+
+it("reads only the 20 most recent closed issues alongside the untouched halt history", async () => {
+  const fork = { ...forks(0, 1).r_fork0, url: "https://github.com/example/fork0" };
+  const issue = {
+    number: 21,
+    title: "Fix rollout",
+    url: `${fork.url}/issues/21`,
+    createdAt: now,
+    updatedAt: now,
+    closedAt: now,
+    labels: { nodes: [{ name: "bug" }] },
+  };
+  const repo = {
+    ...fork,
+    issues: { totalCount: 1, nodes: [{ ...issue, number: 22 }] },
+    closedIssues: { nodes: [issue] },
+    pastIssues: { nodes: [{ ...issue, number: 13 }] },
+  };
+  const single = context(1);
+  expect(buildQueries(single)[1]).toContain("closedIssues: issues(states: CLOSED, first: 20");
+  for (const failClosed of [false, true]) {
+    const { facts, records } = await readGithub(
+      {
+        graphql: async <T>(q: string) => ({
+          data: (q.includes("r_fork0") ? { r_fork0: repo } : base) as T,
+          errors:
+            q.includes("r_fork0") && failClosed
+              ? [
+                  {
+                    message: "Closed issue field failed",
+                    path: ["r_fork0", "closedIssues", "nodes"],
+                  },
+                ]
+              : [],
+        }),
+      },
+      single,
+      parseGithub,
+    );
+    const projected = facts.repos["example/fork0"];
+    expect(projected?.openIssues).toBe(1);
+    expect(projected?.issues[0]?.number).toBe(22);
+    expect(projected?.pastIssues?.[0]?.number).toBe(13);
+    expect(records.find(({ object }) => object === "example/fork0")?.failure).toBeUndefined();
+    if (failClosed) expect(projected?.closedIssues).toBeUndefined();
+    else
+      expect(projected?.closedIssues?.[0]).toMatchObject({
+        number: 21,
+        title: "Fix rollout",
+        closedAt: now,
+      });
+  }
+});
+
+it("parses requested and latest reviewers, preserving unknown and truncated reads", () => {
+  const [repo] = Object.values(
+    parseGithub(
+      {
+        r_fork0: {
+          nameWithOwner: "example/fork0",
+          url: "https://github.com/example/fork0",
+          pullRequests: {
+            nodes: [
+              {
+                number: 7,
+                headRefOid: "sha",
+                reviewRequests: {
+                  totalCount: 1,
+                  nodes: [{ requestedReviewer: { slug: "maintainers" } }],
+                },
+                latestReviews: {
+                  totalCount: 1,
+                  nodes: [{ author: { login: "jan" }, state: "APPROVED" }],
+                },
+              },
+              {
+                number: 8,
+                headRefOid: "sha",
+                reviewRequests: { totalCount: 6, nodes: [{ requestedReviewer: { login: "ren" } }] },
+                latestReviews: { totalCount: 0, nodes: [] },
+              },
+              { number: 9, headRefOid: "sha" },
+            ],
+          },
+        },
+      },
+      context(1),
+    ).repos,
+  );
+  expect(repo?.prs.map(({ reviewers }) => reviewers)).toEqual([
+    { requested: ["maintainers"], latest: [{ login: "jan", state: "APPROVED" }], cut: false },
+    { requested: ["ren"], latest: [], cut: true },
+    undefined,
+  ]);
+});
