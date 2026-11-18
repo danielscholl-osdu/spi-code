@@ -1325,6 +1325,24 @@ describe("Stack lanes in the app context", () => {
     expect(lane(model, "smoke")?.last).toBeUndefined();
   });
 
+  test("a run whose last stage ended before the day is its last run, though updated inside it", () => {
+    const step = { number: 1, name: "spi reconcile", status: "completed", conclusion: "success" };
+    const jobs = [
+      {
+        id: 1,
+        name: "refresh",
+        status: "completed",
+        conclusion: "success",
+        url: "",
+        steps: [{ ...step, startedAt: at(-26), completedAt: at(-24 - 1 / 60) }],
+      },
+    ];
+    const model = modelWith({
+      refresh: [run("refresh", -26, { updatedAt: at(-24 + 1 / 60), jobs })],
+    });
+    expect(lane(model, "refresh")?.last).toEqual({ text: "Mon 9 Mar · green" });
+  });
+
   test.each([
     [7, { note: "7 days ago" }],
     [8, { note: "8 days ago", late: true }],
@@ -1383,6 +1401,11 @@ describe("Stack lanes in the app context", () => {
         (day) => `${day}T08:00:00.000Z`,
       ),
     );
+    model.stack.retainedFrom = { smoke: "2026-03-10T10:00:00Z" };
+    expect(missed()?.at(-1)).toBe("2026-03-08T08:00:00.000Z");
+    model.stack.retainedFrom = { smoke: null };
+    expect(missed()).toBeUndefined();
+    model.stack.retainedFrom = undefined;
     model.stack.unread = ["smoke"];
     expect(missed()).toBeUndefined();
     model.stack.unread = [];

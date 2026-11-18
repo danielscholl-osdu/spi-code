@@ -170,6 +170,8 @@ export type LifecycleData<T> = {
   sweeper: T;
   smoke?: T;
   reset?: T;
+  // Kinds a failed listing kept from an earlier one, with when that listing was read (null: unknown).
+  retainedFrom?: Partial<Record<LifecycleKind, string | null>>;
 };
 
 export const HISTORY_DAYS = 21;

@@ -46,7 +46,7 @@ import {
 } from "../model/stack.js";
 import { age, clip, firstAndMore, fitHeadline, plural, short, span, stamp, timeClause, whose } from "../util.js";
 import {
-  type EnvBorrow, type EnvStatus, environmentUsage, environmentFrom, laneRhythm,
+  type EnvBorrow, type EnvStatus, environmentUsage, environmentFrom, laneRhythm, runEnd,
 } from "./environment.js";
 import { type Horizon, type Origin, itemOrigin, upstreamHorizon } from "./horizon.js";
 import { type Repositories, repositoriesOf } from "./repos.js";
@@ -1260,8 +1260,7 @@ function attemptLine(view: RunView): string {
 function runEvent(view: RunView, inspect: string | undefined): EnvEvent {
   const run = view.run;
   const state = envState(run);
-  const ends = view.stages.flatMap((s) => (s.completedAt ? [s.completedAt] : [])).sort();
-  const end = state === "running" ? undefined : (ends.at(-1) ?? run.updatedAt);
+  const end = runEnd(view);
   const took = span(Date.parse(end ?? run.updatedAt) - Date.parse(run.createdAt));
   let detail: string;
   if (state === "ok") detail = `green in ${took ?? "?"}`;
@@ -1299,11 +1298,14 @@ function envLanes(model: Model, from: number, now: Date, context?: CoreContext):
     id,
     label,
     events: stack.lifecycle[id].runs
-      .filter((r) =>
-        inside(Date.parse(r.createdAt), r.status === "completed" ? Date.parse(r.updatedAt) : to),
-      )
-      .map((r) => {
-        const event = runEvent(viewRun(r), covered.has(r.id) ? item?.id : undefined);
+      .map(viewRun)
+      .filter((view) => {
+        const end = runEnd(view);
+        return inside(Date.parse(view.run.createdAt), end ? Date.parse(end) : to);
+      })
+      .map((view) => {
+        const r = view.run;
+        const event = runEvent(view, covered.has(r.id) ? item?.id : undefined);
         const byHand = app && id !== "reset" && id !== "upgrade" && r.event === "workflow_dispatch";
         return byHand ? { ...event, byHand: true as const } : event;
       }),

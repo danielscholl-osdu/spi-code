@@ -23,6 +23,7 @@ export function recordedRuns(facts: Facts, stackRepo: string): RunHit[] {
     }
   }
   for (const [workflow, list] of Object.entries(facts.lifecycle.data ?? {})) {
+    if (!Array.isArray(list)) continue;
     for (const run of list) {
       const repo = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/actions\/runs\//.exec(run.url)?.[1];
       add(run, repo ?? stackRepo, workflow, "lifecycle");

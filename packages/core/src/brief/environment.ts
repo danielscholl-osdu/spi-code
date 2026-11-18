@@ -9,7 +9,7 @@ import type { DeploymentFact } from "../facts.js";
 import { MISSED_AFTER_MS, median } from "../model/history.js";
 import type { ForkDeployments, Model } from "../model/index.js";
 import { cadence, firesBetween, wallClock } from "../model/schedule.js";
-import { runResult, semverCmp } from "../model/stack.js";
+import { type RunView, runResult, semverCmp, viewRun } from "../model/stack.js";
 import { span, stamp } from "../util.js";
 import type { EnvLane, Link } from "./index.js";
 import { deployableWords } from "./words.js";
@@ -258,6 +258,14 @@ const UNSCHEDULED: Readonly<Partial<Record<LifecycleKind, string>>> = Object.fre
   reset: "by hand, weekly",
 });
 const RESET_DUE_DAYS = 7;
+
+/** Where a finished run's bar ends: its last finished stage, else its last update. */
+export function runEnd(view: RunView): string | undefined {
+  if (view.run.status !== "completed") return undefined;
+  const ends = view.stages.flatMap((s) => (s.completedAt ? [s.completedAt] : [])).sort();
+  return ends.at(-1) ?? view.run.updatedAt;
+}
+
 type LastRun = { text: string; note?: string; late?: true };
 
 /**
@@ -269,8 +277,10 @@ export function lastRun(
 ): LastRun | undefined {
   const { stack } = model;
   const runs = stack.lifecycle[kind].runs;
-  const endOf = (run: (typeof runs)[number]) =>
-    run.status === "completed" ? Date.parse(run.updatedAt) : to;
+  const endOf = (run: (typeof runs)[number]) => {
+    const end = runEnd(viewRun(run));
+    return end ? Date.parse(end) : to;
+  };
   if (runs.some((run) => endOf(run) >= before && Date.parse(run.createdAt) <= to)) return undefined;
   const run = runs.filter((item) => Date.parse(item.createdAt) < before).at(-1);
   if (!run) return undefined;
@@ -298,8 +308,10 @@ export function laneRhythm(
   const rhythm = crons && (crons.length ? cadence(crons, now, context.timeZone ?? "UTC") : UNSCHEDULED[kind]);
   const last = lastRun(model, kind, to - DAY, to, true, context);
   const smoke = kind === "smoke" && !stack.unread.includes("smoke") && crons;
+  const kept = stack.retainedFrom?.smoke;
+  const listed = kept === undefined ? to : kept === null ? from : Math.min(to, Date.parse(kept));
   const missed = smoke
-    ? firesBetween(crons, from, to - MISSED_AFTER_MS).filter((slot) =>
+    ? firesBetween(crons, from, listed - MISSED_AFTER_MS).filter((slot) =>
         !stack.lifecycle.smoke.runs.some((run) => {
           const start = Date.parse(run.createdAt);
           return run.event === "schedule" && start >= slot && start - slot <= MISSED_AFTER_MS;

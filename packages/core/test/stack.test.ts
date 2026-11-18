@@ -188,6 +188,18 @@ describe("remote-mode inference", () => {
     });
   });
 
+  test("a workflow file left out of a partial read has no schedule, not an empty one", () => {
+    const repo = { repo: "stack", url: "", prs: [], issues: [], deployments: [] };
+    const stack = buildStack(
+      { ...repo, schedules: { refresh: ["0 4 * * 1-5"], smoke: [] } },
+      { refresh: [], upgrade: [], sweeper: [], reset: [] },
+      new Date("2026-10-12T21:00:00Z"),
+      undefined,
+      { reset: true },
+    );
+    expect(Object.keys(stack.schedules ?? {}).sort()).toEqual(["refresh", "smoke"]);
+  });
+
   test("stages a finished run never reached read as skipped, not waiting", () => {
     const view = viewRun(failedUpgrade("2026-10-11T22:44:00Z"));
     expect(view.stages.find((s) => s.label === "provision")?.state).toBe("failed");

@@ -64,6 +64,8 @@ describe("schedules", () => {
     ["America/Chicago", "2026-10-13T12:00:00Z", "0 4 * * 1-5", "Sun\u2013Thu 23:00"],
     ["America/Chicago", "2026-11-10T12:00:00Z", "0 4 * * 1-5", "Sun\u2013Thu 22:00"],
     ["America/Chicago", "2026-11-10T12:00:00Z", "0 8 * * *", "nightly 02:00"],
+    ["America/Chicago", "2026-10-30T12:00:00Z", "0 8 * * *", "nightly 03:00"],
+    ["America/Chicago", "2026-11-02T12:00:00Z", "0 8 * * *", "nightly 02:00"],
     ["America/Chicago", "2026-11-10T12:00:00Z", "15 20 * * 0", "Sun 14:15"],
     ["Asia/Kathmandu", "2026-11-10T12:00:00Z", "0 4 * * 1-5", "Mon\u2013Fri 09:45"],
     ["Asia/Kathmandu", "2026-11-10T12:00:00Z", "0 8 * * *", "daily 13:45"],

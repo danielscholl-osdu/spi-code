@@ -77,7 +77,7 @@ it("keeps every model-owned focus, rest and station time as an instant for the a
 
 function maintenance(ctx: CoreContext, since: string | undefined) {
   const model = buildModel(facts(), now, {}, ctx);
-  const run = Object.values(facts().lifecycle.data ?? {}).flat()[0];
+  const run = facts().lifecycle.data?.refresh[0] ?? facts().lifecycle.data?.upgrade[0];
   if (!run) throw new Error("Recorded lifecycle run required");
   model.stack.maintenance = { state: "set", since, run };
   model.stack.attempts = [];

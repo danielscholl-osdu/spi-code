@@ -1860,7 +1860,7 @@ describe("inspect.request", () => {
     const fork = Object.entries(input.facts.runs.data ?? {}).flatMap(([repo, w]) =>
       w.sync.map((run) => ({ repo, run })),
     )[0];
-    const life = Object.values(input.facts.lifecycle.data ?? {}).flat()[0];
+    const life = input.facts.lifecycle.data?.refresh[0];
     if (!fork || !life) throw new Error("Fixture runs missing");
     const port = host(routes());
     for (const run of [fork.run, life]) {

@@ -59,6 +59,7 @@ export function treeOf(input: WatchInput, now: Date): TreeStatus {
     }
   }
   for (const list of Object.values(input.facts.lifecycle.data ?? {})) {
+    if (!Array.isArray(list)) continue;
     for (const run of list) {
       const repo =
         /^https:\/\/github\.com\/([^/]+\/[^/]+)\/actions\/runs\//.exec(run.url)?.[1] ?? STACK_REPO;

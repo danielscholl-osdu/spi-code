@@ -112,8 +112,8 @@ const FORKS = ["partition", "entitlements", "legal", "schema", "file"];
 // before it: the environment reads deployable again.
 export function settled(f: Facts): Facts {
   const at = new Date(FIXTURE_NOW.getTime() - 2 * MIN).toISOString();
-  for (const runs of Object.values(f.lifecycle.data ?? {})) {
-    for (const run of runs ?? []) {
+  for (const kind of ["refresh", "upgrade", "smoke", "sweeper", "reset"] as const) {
+    for (const run of f.lifecycle.data?.[kind] ?? []) {
       if (run.status === "completed") continue;
       run.status = "completed";
       run.conclusion = "success";

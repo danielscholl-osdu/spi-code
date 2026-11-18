@@ -402,6 +402,7 @@ const schema = z.strictObject({
   lifecycle: measured(z.strictObject({
     refresh: z.array(lifecycleRun), upgrade: z.array(lifecycleRun), sweeper: z.array(lifecycleRun),
     smoke: z.array(lifecycleRun).optional(), reset: z.array(lifecycleRun).optional(),
+    retainedFrom: z.partialRecord(lifecycleKind, z.string().nullable()).optional(),
   })),
   details: measured(z.record(z.string(), jobDetail)),
   upstream: measured(z.record(z.string(), upstreamFact)),

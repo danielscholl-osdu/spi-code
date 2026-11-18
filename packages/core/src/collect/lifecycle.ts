@@ -369,7 +369,12 @@ export async function readLifecycle(gh: Gh, detailState: unknown, previous: unkn
     }
     if (failed) {
       const kept = retain(state.lifecycle?.[kind], evidence);
-      if (kept) data[kind] = kept;
+      if (kept) {
+        data[kind] = kept;
+        const from = evidence.filter((r) => r.failure).map((r) => r.retainedFrom);
+        data.retainedFrom = { ...data.retainedFrom,
+          [kind]: from.every((at) => at !== undefined) ? from.sort()[0] ?? null : null };
+      }
       else if (kind !== "smoke" && kind !== "reset") data[kind] = [];
     } else {
       const entries = await pool([...byId.values()], 3, async (run) => {

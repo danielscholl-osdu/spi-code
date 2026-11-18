@@ -164,16 +164,18 @@ function dayNames(days: readonly number[]): string {
   return set.map((d) => SHORT[d]).join(", ");
 }
 
-// "nightly 02:00", "Sun–Thu 22:00" in the zone, read from the week after `now` so a
-// daylight-time change moves the label with it. Undefined when the crons say no single time.
+// "nightly 02:00", "Sun–Thu 22:00" in the zone, from the week up to `now`. The crons are
+// fixed in UTC, so a daylight-time change in that week keeps the newest fire's local time.
+// Undefined when the crons say no single time.
 export function cadence(crons: readonly Cron[], now: Date, timeZone: string): string | undefined {
-  const fires = firesBetween(crons, now.getTime(), now.getTime() + 7 * DAY_MS).map((t) => wallClock(t, timeZone));
-  const times = new Set(fires.map(({ clock }) => clock));
-  const first = fires[0];
-  if (!first || times.size !== 1 || crons.some((c) => c.dom || c.months)) return undefined;
-  const days = new Set(fires.map(({ weekday }) => weekday));
-  if (days.size < 7) return `${dayNames([...days])} ${first.clock}`;
-  return `${first.hour >= 18 || first.hour < 6 ? "nightly" : "daily"} ${first.clock}`;
+  const at = firesBetween(crons, now.getTime() - 7 * DAY_MS, now.getTime() + 1);
+  const times = new Set(at.map((t) => t % DAY_MS));
+  const newest = at.at(-1);
+  if (newest === undefined || times.size !== 1 || crons.some((c) => c.dom || c.months)) return undefined;
+  const { clock, hour } = wallClock(newest, timeZone);
+  const days = new Set(at.map((t) => wallClock(t, timeZone).weekday));
+  if (days.size < 7) return `${dayNames([...days])} ${clock}`;
+  return `${hour >= 18 || hour < 6 ? "nightly" : "daily"} ${clock}`;
 }
 
 export function toCrons(texts: readonly string[] | undefined): Cron[] {

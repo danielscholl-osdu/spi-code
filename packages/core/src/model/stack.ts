@@ -88,10 +88,12 @@ export interface StackModel {
   lifecycle: Record<LifecycleKind, LifecycleStat>;
   // Workflows whose runs were not read; their lifecycle stats are empty, not proven idle.
   unread: LifecycleKind[];
+  // Workflows whose runs a failed listing kept, with when that listing was read (null: unknown).
+  retainedFrom?: Partial<Record<LifecycleKind, string | null>>;
   bumpPr?: PrFact;
   releasePr?: PrFact;
-  // Undefined while the workflow files are unread.
-  schedules?: Record<LifecycleKind, Cron[]>;
+  // Undefined while the workflow files are unread; a workflow whose file is unread is absent.
+  schedules?: Partial<Record<LifecycleKind, Cron[]>>;
   history: {
     days: Day[];
     runs: Record<LifecycleKind, RunDay[]>;
@@ -145,6 +147,16 @@ function steps(jobs: readonly JobDetail[] | undefined) {
 
 function stepOk(jobs: readonly JobDetail[] | undefined, re: RegExp): boolean {
   return steps(jobs).some(({ step }) => re.test(step.name) && step.conclusion === "success");
+}
+
+// A cold Reset provision writes a new deploy record with maintenance set, even when quiesce skipped the set.
+function setStep(run: LifecycleRun) {
+  return steps(run.jobs).find(
+    ({ job, step }) =>
+      step.conclusion === "success" &&
+      (SET_STEP.test(step.name) ||
+        (run.kind === "reset" && /^provision$/.test(job.name) && /^spi up$/.test(step.name))),
+  );
 }
 
 function stateOf(status: string, conclusion: string | undefined): StageState {
@@ -318,7 +330,7 @@ export function inferMaintenance(runs: readonly LifecycleRun[]): StackModel["mai
     if (!run.jobs) continue;
     if (stepOk(run.jobs, CLEAR_STEP)) {
       state = { state: "clear", since: run.updatedAt, run };
-    } else if (stepOk(run.jobs, SET_STEP) && state.state !== "set") {
+    } else if (setStep(run) && state.state !== "set") {
       state = { state: "set", since: run.createdAt, run };
     }
   }
@@ -337,7 +349,7 @@ export function replayHolds(runs: readonly LifecycleRun[]): { holds: Hold[]; unr
       continue;
     }
     const all = steps(run.jobs);
-    const set = all.find(({ step }) => SET_STEP.test(step.name) && step.conclusion === "success");
+    const set = setStep(run);
     const clear = all.find(
       ({ step }) => CLEAR_STEP.test(step.name) && step.conclusion === "success",
     );
@@ -603,13 +615,9 @@ export function buildStack(
   const prs = stackRepo?.prs ?? [];
   const running = inferRunning(both);
   const schedules = stackRepo?.schedules
-    ? {
-        refresh: toCrons(stackRepo.schedules.refresh),
-        reset: toCrons(stackRepo.schedules.reset),
-        upgrade: toCrons(stackRepo.schedules.upgrade),
-        smoke: toCrons(stackRepo.schedules.smoke),
-        sweeper: toCrons(stackRepo.schedules.sweeper),
-      }
+    ? Object.fromEntries(
+        Object.entries(stackRepo.schedules).map(([kind, texts]) => [kind, toCrons(texts)]),
+      )
     : undefined;
   const days = windowDays(now);
   const runsOf = (kind: LifecycleKind) =>
@@ -648,6 +656,7 @@ export function buildStack(
     ),
     unread: (["refresh", "reset", "upgrade", "smoke", "sweeper"] as const).filter((kind) =>
       kind === "reset" ? !reset : !lifecycle?.[kind]),
+    ...(lifecycle?.retainedFrom ? { retainedFrom: lifecycle.retainedFrom } : {}),
     schedules,
     history: {
       days,

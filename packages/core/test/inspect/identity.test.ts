@@ -26,7 +26,7 @@ import { FIXTURE_NOW, fixtureFacts, laneFacts } from "../harness.js";
 // home merge and alert dates (spicode-mw0.4).
 // Re-record only models with SPI_RECORD_MODEL_DIGEST=1.
 const RECORDED = {
-  models: "a42355141a9a47a19159e2bc362bf1d73a12110fee385629434e322fc990379e",
+  models: "38afe50ebe5b5874b5998185993dfb1bc7a092bde56007d21654ed5fbba3dc66",
   inspections: "3777546a40cff0970a1bfbc65d5fd8b136ef0f788c30a17a6f3d4218152fddf6",
   actions: "744e914c0cb35180d704715989e9b450331b1cd93ca10a94bec0a38fce62ce05",
   filters: "a3bf2be2d43ccad1cc0367a70a25b6c9cdea8392b2c684ae8f8a8dd90b298cc4",

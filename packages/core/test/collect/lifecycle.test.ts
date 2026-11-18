@@ -909,6 +909,11 @@ const RESET_JOBS = {
     resetJob(11, "quiesce-and-drain", "Set maintenance", "success"),
     resetJob(13, "verify", "Clear maintenance", "success"),
   ],
+  cold: [
+    resetJob(11, "quiesce-and-drain", "Set maintenance", "skipped"),
+    resetJob(12, "provision", "spi up", "success"),
+    resetJob(13, "verify", "Clear maintenance", "cancelled"),
+  ],
   // A fresh cluster has no deploy record, so the quiesce job skips the set.
   skipped: [resetJob(11, "quiesce-and-drain", "Set maintenance", "skipped")],
 };
@@ -954,6 +959,9 @@ test("reset runs are read with their jobs, and their steps alone decide whether 
   expect(replayHolds(completed).holds).toEqual([
     { from: Date.parse("2026-11-03T13:12:00Z"), to: Date.parse("2026-11-03T13:13:00Z") },
   ]);
+  const cold = await replayed(RESET_JOBS.cold);
+  expect(inferMaintenance(cold)).toMatchObject({ state: "set", run: { id: 9 } });
+  expect(replayHolds(cold).holds).toEqual([{ from: Date.parse("2026-11-03T13:12:00Z") }]);
   expect(inferMaintenance(await replayed(RESET_JOBS.skipped)).state).toBe("unknown");
 });
 
@@ -967,6 +975,22 @@ test("a failed reset read leaves reset out, and a read with no runs reads empty"
   expect(failed.reads.find((r) => r.failure)?.object).toContain("env-reset.yml");
   const none = await replay((gh) => readLifecycle(gh, {}, empty(), context()), resets(undefined));
   expect(none.data.reset).toEqual([]);
+});
+
+test("a failed smoke listing keeps the earlier runs and says when they were listed", async () => {
+  const listed = new Date("2026-11-05T12:00:00Z");
+  const first = await replay(
+    (gh) => readLifecycle(gh, {}, empty(), context(listed)),
+    resets(undefined),
+  );
+  expect(first.data).not.toHaveProperty("retainedFrom");
+  const failed = await replay(
+    (gh) => readLifecycle(gh, first.cache, first.state, context(new Date("2026-11-06T12:00:00Z"))),
+    (path) =>
+      path.includes("/workflows/smoke.yml/") ? new Error("HTTP 504") : resets(undefined)(path),
+  );
+  expect(failed.data.smoke).toEqual([]);
+  expect(failed.data.retainedFrom).toEqual({ smoke: listed.toISOString() });
 });
 
 test("lifecycle pages deduplicate runs and report a non-progressing page as cut", async () => {

@@ -346,7 +346,7 @@ describe("Today place micro-visuals (PS-03, PS-09)", () => {
     const input = busyInput();
     if (!input.facts.lifecycle.data) throw new Error("No lifecycle fixture");
     for (const runs of Object.values(input.facts.lifecycle.data))
-      for (const run of runs) run.createdAt = "2025-01-01T00:00:00Z";
+      for (const run of Array.isArray(runs) ? runs : []) run.createdAt = "2025-01-01T00:00:00Z";
     const lifecycle = visual(input, "environment", "lifecycle");
     expect(lifecycle.lanes.every((lane) => lane.state === "unknown" && lane.total === 0)).toBe(
       true,
