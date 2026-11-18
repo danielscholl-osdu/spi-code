@@ -22,12 +22,11 @@
 .service-section-head { display: flex; align-items: center; gap: 7px; margin: 0 0 6px; color: var(--text-muted); font-size: 12px; font-weight: 600; }
 .service-section-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
 .service-section-count { color: var(--text-strong); }
-.service-section[data-section="blocked"] .service-section-head { color: var(--error-text); }
 .service-section[data-section="blocked"] .service-section-dot { background: var(--error); }
-.service-section[data-section="waiting"] .service-section-head { color: var(--warning-text); }
 .service-section[data-section="waiting"] .service-section-dot { background: var(--warning); }
 .service-section-box { margin: 0; padding: 0; list-style: none; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; }
-.service-section[data-section="blocked"] .service-section-box { border-color: var(--error); }
+.service-section[data-section="blocked"] .service-section-box { border-color: var(--error); background: var(--error-surface); }
+.service-section[data-section="blocked"] .kit-link:not(:hover) { background: var(--surface); }
 .service-section[data-section="waiting"] .service-section-box { border-color: var(--warning); }
 .service-section-box > li + li { border-top: 1px solid var(--border-soft); }
 .service-row { display: grid; grid-template-columns: minmax(0, 1fr) auto 84px; align-items: center; gap: 10px; padding: 8px 12px; }

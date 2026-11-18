@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { ServiceHome, ServiceHomeDoor, ServiceHomeRow, ServiceHomeStation } from "@spi-code/contracts";
+import { when } from "@spi-code/contracts";
 import type { AreaName, Facts, IssueFact, PastPrFact, PrFact } from "../facts.js";
 import { groupUrl } from "../inspect/repo.js";
 import { cascadeMonitor } from "../model/cascade-monitor.js";
@@ -110,14 +111,7 @@ function mergeToMain(line: LineModel) {
   return last?.mergedAt ? { ...pull(last), at: last.mergedAt } : undefined;
 }
 
-function clockWord(at: string, now: Date): string {
-  const date = new Date(at);
-  const hm = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-  if (date.toDateString() === now.toDateString()) return hm;
-  if (Math.abs(now.getTime() - date.getTime()) < 7 * 86_400_000)
-    return `${date.toLocaleDateString("en-US", { weekday: "short" })} ${hm}`;
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
+const clockWord = (at: string, now: Date) => when(at, { now: now.getTime() });
 
 function integrationHolds(line: LineModel, fork: UpFork, issues: readonly IssueFact[]): string | undefined {
   const pr = line.cascadePr?.pr;

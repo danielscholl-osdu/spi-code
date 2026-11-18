@@ -4,7 +4,7 @@
 import { z } from "zod";
 import { PROTOCOL_VERSION, WatchMessageSchema } from "./watch/messages.js";
 
-export { timeUnit } from "./time.js";
+export { timeUnit, type WhenOptions, when } from "./time.js";
 export * from "./watch/index.js";
 
 const identifier = z.string().min(1);

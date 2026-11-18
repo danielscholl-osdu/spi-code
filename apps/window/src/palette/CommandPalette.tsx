@@ -28,7 +28,6 @@ import { useStore } from "zustand";
 import { type Destination, LINE, useRegistry } from "../app/routes.js";
 import { isMacPlatform, matchesShiftShortcut, shiftShortcutLabel } from "../app/shortcuts.js";
 import { PinControl } from "../components/pin/PinControl.js";
-import { useSidebarAttention } from "../components/sidebar/attention.js";
 import { ServiceMark, serviceMark } from "../components/sidebar/service-mark.js";
 import { isFixedPin, pin, togglePin, usePins } from "../store/pins.js";
 import type { createWatchStore } from "../store/watch.js";
@@ -71,8 +70,6 @@ export function CommandPalette({
   onSettings(): void;
 }) {
   const popupRef = useRef<HTMLDivElement>(null);
-  const body = useStore(store, (state) => state.snapshot?.body);
-  const attention = useSidebarAttention(body);
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -85,7 +82,6 @@ export function CommandPalette({
         >
           <PaletteContent
             store={store}
-            attention={attention}
             onNavigate={onNavigate}
             onSettings={onSettings}
             onClose={() => onOpenChange(false)}
@@ -98,13 +94,11 @@ export function CommandPalette({
 
 function PaletteContent({
   store,
-  attention,
   onNavigate,
   onSettings,
   onClose,
 }: {
   store: ReturnType<typeof createWatchStore>;
-  attention: ReturnType<typeof useSidebarAttention>;
   onNavigate(destination: Destination): void;
   onSettings(): void;
   onClose(): void;
@@ -181,8 +175,7 @@ function PaletteContent({
             {group.items.map((item) => {
               const route = item.target.kind === "route" ? item.target.route : undefined;
               const service = route?.kind === "service" ? route : undefined;
-              const mark = service ? attention.get(`service:${service.id}`) : undefined;
-              const kind = service ? mark?.word : item.kind;
+              const kind = service ? undefined : item.kind;
               const home = service ? serviceMark(body, service.id) : undefined;
               const pinState = item.pin === undefined ? undefined : pinStateOf(item.pin, pins);
               return (
@@ -207,11 +200,7 @@ function PaletteContent({
                     </span>
                   )}
                   <span className="palette-label">{item.label}</span>
-                  {kind && (
-                    <span className="palette-kind" title={service ? kind : undefined}>
-                      {kind}
-                    </span>
-                  )}
+                  {kind && <span className="palette-kind">{kind}</span>}
                   {item.pin !== undefined && (
                     <PinControl pin={item.pin} name={item.label} size="row" inList />
                   )}

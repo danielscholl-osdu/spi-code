@@ -116,6 +116,16 @@ it("opens a station's row and a door's row on Overview with focus on it", async 
   await click('button[data-door="dependabot"]');
   expect(openRow()).toBe(door);
   expect(document.activeElement).toBe(head(door));
+
+  const again = $<HTMLButtonElement>('button[data-door="dependabot"]');
+  again?.focus();
+  const scrolled = vi.fn();
+  const row = $(`li[data-row="${door}"]`);
+  if (row) row.scrollIntoView = scrolled;
+  await act(async () => again?.click());
+  expect(openRow()).toBe(door);
+  expect(document.activeElement).toBe(head(door));
+  expect(scrolled).toHaveBeenCalled();
 });
 
 it("draws a station or door that holds no row as no button", async () => {

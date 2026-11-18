@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { fleetLines } from "@spi-code/contracts";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { todayFleet } from "../src/brief/fleet";
 import { buildBriefing } from "../src/brief/index";
 import { todayLines } from "../src/brief/lines";
@@ -376,6 +376,35 @@ test("Main names the last merge into main, ordered by merge time across PR kinds
   });
 });
 
+test.each([
+  [
+    "seven local dates back, under 168 hours",
+    "2026-11-09T16:00:00Z",
+    "2026-11-16T15:00:00Z",
+    "9 Nov",
+  ],
+  [
+    "six local dates back across the DST change",
+    "2026-10-26T05:01:00Z",
+    "2026-11-02T05:01:00Z",
+    "Mon 00:01",
+  ],
+])("Main reads a merge %s on the window's clock", (_, mergedAt, now, expected) => {
+  const previous = process.env.TZ;
+  process.env.TZ = "America/Chicago";
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(Date.parse(now) + 400 * 86_400_000);
+  try {
+    const { facts, github } = handBuilt();
+    github.pastPrs = [past(84, mergedAt)];
+    expect(project(facts, new Date(now)).station("main")?.line).toBe(`PR #84 merged ${expected}`);
+  } finally {
+    vi.useRealTimers();
+    if (previous === undefined) delete process.env.TZ;
+    else process.env.TZ = previous;
+  }
+});
+
 test("an open sync PR and an unsettled failure raise one Blocked row with the failed step", () => {
   const { facts, github, runs } = handBuilt();
   const now = new Date("2026-11-17T20:00:00Z");
@@ -418,6 +447,9 @@ test("an open sync PR and an unsettled failure raise one Blocked row with the fa
   github.issues = [issue({ labels: ["sync-failed"], halt: "UNKNOWN_TOP_LEVEL: example.txt" })];
   expect(row(project(facts, now))).toBeUndefined();
   expect(project(facts, now).home.overview.some((entry) => entry.id === "halt:search")).toBe(true);
+  const halted = project(facts, now);
+  expect(halted.station("upstream")?.state).toBe("stopped");
+  expect(halted.station("sync")).toMatchObject({ word: "PR #77", pr: { number: 77 } });
   github.issues = [];
   github.prs = [];
   github.openPrs = 0;

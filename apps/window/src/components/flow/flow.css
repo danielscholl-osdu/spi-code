@@ -21,7 +21,8 @@ button.flow-station:hover { border-color: var(--text-muted); }
 .flow-station[data-state="waiting-on-person"] :is(.flow-label, .flow-word, .flow-line) { color: var(--warning-text); }
 .flow-station[data-state="green"] { border-color: var(--success); background: var(--success-surface); }
 .flow-station[data-state="green"] :is(.flow-label, .flow-word, .flow-line) { color: var(--success-text); }
-.flow-station:is([data-state="in-progress"], [data-state="waiting-on-clock"]) :is(.flow-glyph, .flow-word) { color: var(--work); }
+.flow-station:is([data-state="in-progress"], [data-state="waiting-on-clock"]) { border-color: var(--work); background: var(--work-surface); }
+.flow-station:is([data-state="in-progress"], [data-state="waiting-on-clock"]) :is(.flow-label, .flow-word, .flow-line) { color: var(--work); }
 .flow-station[data-state="ready"] .flow-glyph { color: var(--success-text); }
 .flow-station[data-state="unread"] .flow-word { color: var(--text-muted); }
 .flow-edge { flex: 0 0 22px; align-self: center; position: relative; height: 2px; background: var(--border); }

@@ -6,7 +6,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import { span } from "./components/evidence/words.js";
 import { about, duration } from "./components/sweep/words.js";
-import { clockTime, Time, TimedText, when } from "./time.js";
+import { clockTime, Time, TimedText } from "./time.js";
 
 // 2026-11-06 09:04 in Chicago (UTC-6), 2026-11-07 00:04 in Tokyo (UTC+9).
 const now = Date.parse("2026-11-06T15:04:00Z");
@@ -140,23 +140,4 @@ it("reads a standalone instant beside punctuation, brackets and the sentence's e
   const local = clockTime(at);
   expect(container.textContent).toBe(`since ${local}. (${local}), "${local}"; ${local}`);
   await act(async () => root.unmount());
-});
-
-// 2026-11-06 09:04 in Chicago, a Friday; Chicago left daylight time on Sunday 1 Nov.
-it.each([
-  ["earlier today", "2026-11-06T06:10:00Z", "00:10"],
-  ["later today", "2026-11-06T23:30:00Z", "17:30"],
-  ["yesterday, by the calendar and not 24 hours", "2026-11-06T05:50:00Z", "Thu 23:50"],
-  ["tomorrow", "2026-11-07T06:00:00Z", "Sat 00:00"],
-  ["six days back, across the DST change", "2026-10-31T13:00:00Z", "Sat 08:00"],
-  ["a week back", "2026-10-30T13:00:00Z", "30 Oct"],
-  ["a week ahead", "2026-11-13T15:00:00Z", "13 Nov"],
-  ["another year", "2025-12-24T18:00:00Z", "24 Dec 2025"],
-])("reads a time %s on the operator's clock", (_, at, expected) => {
-  expect(when(at, chicago)).toBe(expected);
-});
-
-it("reads the same instant by the operator's own zone", () => {
-  expect(when("2026-11-06T14:30:00Z", tokyo)).toBe("Fri 23:30");
-  expect(when("2026-11-06T15:30:00Z", tokyo)).toBe("00:30");
 });

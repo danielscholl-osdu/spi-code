@@ -37,17 +37,18 @@ function contentOf(row: ServiceHomeRow, place: BodyPlace): OpenedContent {
 }
 
 /** The fork's rows in Today's words; a row opens in place, and its typed pill is the link out. */
-export function Overview({ id, home, snapshot, row: open }: TabProps) {
+export function Overview({ id, home, snapshot, row: open, focus }: TabProps) {
   const heads = useRef(new Map<string, HTMLButtonElement | null>());
   const lines = snapshot.briefing.lines ?? [];
   const toggle = (row: string | undefined) =>
     navigate({ kind: "service", id, tab: "overview", ...(row ? { row } : {}) });
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new focus request moves focus to the same open row
   useEffect(() => {
     const head = open ? heads.current.get(open) : undefined;
     head?.focus({ preventScroll: true });
     head?.closest("li")?.scrollIntoView?.({ block: "nearest" });
-  }, [open]);
+  }, [open, focus]);
 
   const placeOf = (row: ServiceHomeRow): BodyPlace => {
     if (row.section === "shared") return { label: "Upstream", destination: { kind: "upstream" } };

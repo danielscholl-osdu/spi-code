@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { ServiceHome, ViewSnapshot } from "@spi-code/contracts";
-import { useId } from "react";
+import { useId, useState } from "react";
 import { useStore } from "zustand";
 import { navigate } from "../../app/navigation.js";
 import { PaneTitle } from "../../app/title-row.js";
@@ -113,10 +113,16 @@ function Home({
   row: string | undefined;
 }) {
   const ids = useId();
+  const [focus, setFocus] = useState(0);
   const [first] = TABS;
   const active = TABS.find((entry) => entry.id === tab) ?? first;
   const openRow = (row: string | undefined) =>
-    row ? () => navigate({ kind: "service", id, tab: "overview", row }) : undefined;
+    row
+      ? () => {
+          setFocus((count) => count + 1);
+          navigate({ kind: "service", id, tab: "overview", row });
+        }
+      : undefined;
   const stations: FlowStation[] = home.stations.map((station) => ({
     id: station.id,
     label: STATIONS[station.id],
@@ -173,6 +179,7 @@ function Home({
           home={home}
           snapshot={snapshot}
           row={tab === active.id ? row : undefined}
+          focus={focus}
         />
       </div>
     </div>

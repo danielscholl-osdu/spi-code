@@ -74,6 +74,7 @@ const serviceAttention = (id: string) => {
   return {
     mark: row?.querySelector(".sidebar-mark")?.getAttribute("aria-label") ?? null,
     word: row?.querySelector(".palette-kind")?.textContent ?? null,
+    name: row?.getAttribute("aria-label") ?? null,
   };
 };
 async function receive(body: ViewSnapshot) {
@@ -162,13 +163,7 @@ it("lists Go to, Services and Queue from the routes and the snapshot, without le
     "Securitypage",
     "SettingsReadiness",
   ]);
-  expect(rows("services")).toEqual([
-    "partitionunread",
-    "1entitlementshalt",
-    "1legaltoolchain",
-    "schemaunread",
-    "fileunread",
-  ]);
+  expect(rows("services")).toEqual(["partition", "1entitlements", "1legal", "schema", "file"]);
   expect(rows("lenses")).toEqual([]);
   expect(palette()?.querySelector('[data-group="lenses"]')).toBeNull();
   expect(rows("queue")).toEqual([
@@ -181,15 +176,23 @@ it("lists Go to, Services and Queue from the routes and the snapshot, without le
   ]);
 });
 
-it("marks every recorded service from its home, beside its queue attention word", async () => {
+it("marks every recorded service from its home alone, with no attention word", async () => {
   await shortcut({ ctrlKey: true });
   const marks = serviceIds.map((id) => serviceAttention(id));
   expect(marks).toEqual([
-    { mark: "Nothing waiting on you", word: "unread" },
-    { mark: "1 blocked or waiting on you", word: "halt" },
-    { mark: "1 waiting on you", word: "toolchain" },
-    { mark: "Nothing waiting on you", word: "unread" },
-    { mark: "Nothing waiting on you", word: "unread" },
+    {
+      mark: "Nothing waiting on you",
+      word: null,
+      name: "partition, Nothing waiting on you, pinned",
+    },
+    {
+      mark: "1 blocked or waiting on you",
+      word: null,
+      name: "entitlements, 1 blocked or waiting on you, pinned",
+    },
+    { mark: "1 waiting on you", word: null, name: "legal, 1 waiting on you, pinned" },
+    { mark: "Nothing waiting on you", word: null, name: "schema, Nothing waiting on you, pinned" },
+    { mark: "Nothing waiting on you", word: null, name: "file, Nothing waiting on you, pinned" },
   ]);
   expect(palette()?.querySelector('[data-group="services"] .sidebar-pip')).toBeNull();
 });
@@ -203,68 +206,6 @@ it("draws each service's mark as the sidebar does, from its home", async () => {
   for (const id of ids)
     expect(serviceAttention(id).mark, id).toBe(serviceMark(homes, id)?.label ?? null);
 });
-
-it("words empty unread scopes and leaves empty read scopes unworded", async () => {
-  const next = structuredClone(body);
-  next.cursor += 1;
-  next.tree = next.tree.map((node) =>
-    node.id === "service:file" ? { ...node, status: "fresh" } : node,
-  );
-  await receive(next);
-  await shortcut({ ctrlKey: true });
-  expect(serviceAttention("partition").word).toBe("unread");
-  expect(serviceAttention("file").word).toBeNull();
-});
-
-it.each([false, true])(
-  "retains service attention across failed reads while the palette is open: %s",
-  async (open) => {
-    const read = structuredClone(body);
-    read.cursor += 1;
-    read.tree = read.tree.map((node) =>
-      node.id === "service:file" ? { ...node, status: "fresh" } : node,
-    );
-    await receive(read);
-    await shortcut({ ctrlKey: true });
-    const before = serviceIds.map((id) => serviceAttention(id));
-    if (!open) await key("Escape");
-    const failed = structuredClone(read);
-    failed.cursor += 1;
-    failed.tree = failed.tree.map((node) => ({ ...node, status: "failed" }));
-    failed.areas = failed.areas.map((area) => ({
-      ...area,
-      envelope: {
-        ...area.envelope,
-        state: "failed",
-        completeness: area.envelope.completeness ?? { kind: "complete" },
-      },
-    }));
-    failed.briefing.focus = failed.briefing.focus.map((item) => ({
-      ...item,
-      scope: "Environment",
-      cls: "READY",
-    }));
-    failed.briefing.rest = failed.briefing.rest.map((item) => ({
-      ...item,
-      scope: "Environment",
-      cls: "READY",
-    }));
-    await receive(failed);
-    if (!open) await shortcut({ ctrlKey: true });
-    expect(serviceIds.map((id) => serviceAttention(id))).toEqual(before);
-    await key("Escape");
-    await shortcut({ ctrlKey: true });
-    expect(serviceIds.map((id) => serviceAttention(id))).toEqual(before);
-
-    await receive({
-      ...read,
-      cursor: failed.cursor + 1,
-      tree: read.tree.map((node) => ({ ...node, status: "fresh" })),
-    });
-    expect(serviceAttention("partition").word).toBeNull();
-    expect(serviceAttention("entitlements").word).toBe("halt");
-  },
-);
 
 it("omits unshipped Threads and Ask groups", async () => {
   await act(async () => findField()?.click());
@@ -291,9 +232,9 @@ it("moves with the arrows, opens with Enter, and filters as the operator types",
 
   await type("legal");
   expect(labels()).toEqual(["Services", "Queue"]);
-  expect(rows("services")).toEqual(["1legaltoolchain"]);
+  expect(rows("services")).toEqual(["1legal"]);
   expect(rows("queue")).toEqual(["P1legal · Sync PR #31 fails Java BuildP1"]);
-  expect(highlighted()).toBe("1legaltoolchain");
+  expect(highlighted()).toBe("1legal");
   await key("Enter");
   expect(palettes()).toHaveLength(0);
   expect(window.location.hash).toBe("#service/legal");
@@ -303,7 +244,7 @@ it("opens a service result and pins it on Ctrl+Enter, and keeps it pinned when p
   localStorage.setItem(PINS_STORAGE_KEY, "[]");
   await shortcut({ ctrlKey: true });
   await type("legal");
-  expect(highlighted()).toBe("1legaltoolchain");
+  expect(highlighted()).toBe("1legal");
   expect(hint()).toContain("Ctrl+Enter open and pin");
   await key("Enter", { ctrlKey: true });
   expect(palettes()).toHaveLength(0);
@@ -398,15 +339,11 @@ it("pins and unpins a result in place from its pin control, leaving Find as it w
 
   await shortcut({ ctrlKey: true });
   await type("legal");
-  expect(option("1legaltoolchain")?.getAttribute("aria-label")).toBe(
-    "legal, 1 waiting on you, toolchain, pinned",
-  );
-  await act(async () => pinControl("1legaltoolchain")?.click());
+  expect(option("1legal")?.getAttribute("aria-label")).toBe("legal, 1 waiting on you, pinned");
+  await act(async () => pinControl("1legal")?.click());
   expect(readPins()).not.toContain("legal");
   expect(container.querySelector('[data-sidebar-row="service/legal"]')).toBeNull();
-  expect(option("1legaltoolchain")?.getAttribute("aria-label")).toBe(
-    "legal, 1 waiting on you, toolchain, not pinned",
-  );
+  expect(option("1legal")?.getAttribute("aria-label")).toBe("legal, 1 waiting on you, not pinned");
   expect(palettes()).toHaveLength(1);
   expect(window.location.hash).toBe("#releases");
 });
