@@ -1,0 +1,209 @@
+// Copyright 2026, Daniel Scholl
+// SPDX-License-Identifier: MIT
+
+import { expect, test } from "vitest";
+import { serviceRuns } from "../../src/brief/service-runs.js";
+import { readServiceRuns } from "../../src/collect/service-runs.js";
+import { fleetOf } from "../../src/config.js";
+import { createContext } from "../../src/context.js";
+import { RecordingExec } from "../../src/exec/recording.js";
+import { Gh } from "../../src/forge.js";
+import type { ServiceRunsFact } from "../../src/service-runs.js";
+
+const repo = "test/search";
+const now = "2026-11-16T09:00:00Z";
+const ctx = createContext({
+  fleet: fleetOf([{ id: "search", repo, upstream: "test/search" }]),
+  clock: { now: () => new Date(now) },
+});
+const run = (id: number, overrides = {}) => ({
+  id,
+  workflowId: 31,
+  name: "Validation",
+  attempt: 1,
+  status: "completed",
+  conclusion: "success",
+  createdAt: "2026-11-16T03:00:00Z",
+  startedAt: "2026-11-16T03:01:00Z",
+  url: `https://github.com/${repo}/actions/runs/${id}`,
+  ...overrides,
+});
+const job = {
+  id: 91,
+  name: "Build",
+  status: "completed",
+  conclusion: "failure",
+  started_at: "2026-11-16T03:02:00Z",
+  completed_at: "2026-11-16T03:05:00Z",
+  html_url: `https://github.com/${repo}/actions/runs/1/job/91`,
+  steps: [{ number: 1, name: "Run Maven", status: "completed", conclusion: "failure" }],
+};
+
+async function fixture(
+  output: unknown,
+  jobsFor: (path: string) => unknown = () => ({ total: 1, jobs: [job] }),
+  previous: Record<string, ServiceRunsFact> = {},
+) {
+  const paths: string[] = [];
+  const gh = new Gh(
+    new RecordingExec(
+      async (command, args) => {
+        expect(command).toBe("gh");
+        expect(args[0]).toBe("api");
+        const path = args[1] ?? "";
+        paths.push(path);
+        const reply = path.includes("/jobs?") ? jobsFor(path) : output;
+        return reply instanceof Error
+          ? { exit: 1, stderr: reply.message, stdout: "" }
+          : { exit: 0, stderr: "", stdout: JSON.stringify(reply) };
+      },
+      () => {},
+    ),
+  );
+  const facts = await readServiceRuns(gh, ctx, previous);
+  expect(paths[0]).toBe(
+    `repos/${repo}/actions/runs?per_page=60&created=%3E%3D2026-11-02T09%3A00%3A00Z`,
+  );
+  expect(paths.filter((path) => !path.includes("/jobs?"))).toHaveLength(1);
+  return { facts, paths, view: serviceRuns(facts[repo]) };
+}
+
+test("parses one bounded page, groups by workflow ID and orders by start time", async () => {
+  const newer = run(2, { name: "Validate", startedAt: "2026-11-16T04:00:00Z" });
+  const older = run(1);
+  const waiting = run(3, {
+    workflowId: 32,
+    name: "Validate",
+    conclusion: null,
+    startedAt: null,
+    status: "queued",
+  });
+  const { view, paths } = await fixture({ total: 3, runs: [newer, waiting, older] });
+  expect(paths).toHaveLength(1);
+  expect(view).toMatchObject({
+    kind: "read",
+    cut: false,
+    count: 0,
+    failing: [],
+    workflows: [
+      { id: 31, name: "Validate", runs: [{ id: 1, result: "success" }, newer] },
+      { id: 32, name: "Validate", runs: [{ id: 3, result: "queued", startedAt: undefined }] },
+    ],
+  });
+});
+
+test("shows a workflow by ID when the forge supplies no name or status", async () => {
+  const { view } = await fixture({
+    total: 1,
+    runs: [run(1, { name: null, status: null, conclusion: null })],
+  });
+  expect(view).toMatchObject({
+    kind: "read",
+    count: 0,
+    workflows: [{ id: 31, name: "Workflow #31", runs: [{ result: "unknown" }] }],
+  });
+});
+
+test("reports an empty page as read with zero failures and no workflows", async () => {
+  const { view } = await fixture({ total: 0, runs: [] });
+  expect(view).toEqual({ kind: "read", cut: false, count: 0, failing: [], workflows: [] });
+});
+
+test.each([
+  ["a forge failure", new Error("HTTP 403 Forbidden")],
+  ["a malformed page", { total: 1, runs: [run(1, { workflowId: null })] }],
+  ["an invalid date", { total: 1, runs: [run(1, { startedAt: "yesterday" })] }],
+  ["a duplicate run", { total: 2, runs: [run(1), run(1)] }],
+])("reports not read for %s, even when a previous page read", async (_label, output) => {
+  const previous = (await fixture({ total: 1, runs: [run(1)] })).facts;
+  const { facts, view } = await fixture(output, undefined, previous);
+  expect(view).toEqual({ kind: "unread", count: null });
+  expect(facts[repo]?.read.failure).toBeTruthy();
+});
+
+test("marks 60 runs as cut even if the forge says there are exactly 60", async () => {
+  const runs = Array.from({ length: 60 }, (_, index) => run(index + 1));
+  const { facts, view, paths } = await fixture({ total: 60, runs });
+  expect(paths).toHaveLength(1);
+  expect(facts[repo]?.read.completeness).toMatchObject({ kind: "cut", read: 60, total: 60 });
+  expect(view).toMatchObject({ kind: "read", cut: true, count: 0 });
+  expect(view.kind === "read" && view.workflows[0]?.runs).toHaveLength(60);
+});
+
+test("leaves an out-of-window item out of the strip", async () => {
+  const outside = run(1, { createdAt: "2026-11-02T08:59:59Z" });
+  const { view } = await fixture({ total: 2, runs: [outside, run(2)] });
+  expect(view).toMatchObject({ kind: "read", cut: true, workflows: [{ runs: [{ id: 2 }] }] });
+});
+
+test("reads the latest failed attempt once per failing workflow, including pagination", async () => {
+  const earlier = run(1, { conclusion: "failure" });
+  const failed = run(2, { attempt: 2, conclusion: "failure", startedAt: "2026-11-16T04:00:00Z" });
+  const active = run(3, {
+    status: "in_progress",
+    conclusion: null,
+    startedAt: "2026-11-16T05:00:00Z",
+  });
+  const passed = run(4, { workflowId: 32 });
+  const completed = await fixture({ total: 4, runs: [active, failed, passed, earlier] }, (path) =>
+    path.endsWith("&page=1")
+      ? { total: 2, jobs: [{ ...job, id: 90, conclusion: "success", steps: [] }] }
+      : { total: 2, jobs: [job] },
+  );
+  expect(completed.paths.slice(1)).toEqual([
+    `repos/${repo}/actions/runs/2/attempts/2/jobs?per_page=100&page=1`,
+    `repos/${repo}/actions/runs/2/attempts/2/jobs?per_page=100&page=2`,
+  ]);
+  expect(completed.view).toMatchObject({
+    count: 1,
+    failing: [{ run: { id: 2, attempt: 2 }, job: "Build", step: "Run Maven" }],
+  });
+});
+
+test("a retry of the same run retains the observed failure until it passes", async () => {
+  const failed = run(1, { conclusion: "failure" });
+  const retry = run(1, { attempt: 2, startedAt: "2026-11-16T06:00:00Z" });
+  const first = await fixture({ total: 1, runs: [failed] });
+  const running = await fixture(
+    { total: 1, runs: [{ ...retry, status: "in_progress", conclusion: null }] },
+    undefined,
+    first.facts,
+  );
+  const cancelled = await fixture(
+    { total: 1, runs: [{ ...retry, conclusion: "cancelled" }] },
+    undefined,
+    running.facts,
+  );
+  for (const result of [running, cancelled]) {
+    expect(result.view).toMatchObject({
+      count: 1,
+      failing: [{ run: { id: 1, attempt: 1 }, step: "Run Maven" }],
+      workflows: [{ runs: [{ id: 1, attempt: 2 }] }],
+    });
+  }
+  const passed = await fixture(
+    { total: 1, runs: [{ ...retry, attempt: 3 }] },
+    undefined,
+    cancelled.facts,
+  );
+  expect(passed.view).toMatchObject({ count: 0, failing: [] });
+  expect(passed.paths).toHaveLength(1);
+});
+
+test("shows the failure without claiming the job or step when that read failed", async () => {
+  const { view, facts } = await fixture(
+    { total: 1, runs: [run(1, { conclusion: "failure" })] },
+    () => new Error("HTTP 403 Forbidden"),
+  );
+  expect(view).toMatchObject({ count: 1, failing: [{ job: undefined, step: undefined }] });
+  expect(facts[repo]?.jobs[0]?.failure).toContain("Forbidden");
+});
+
+test("does not infer a failure from an unobserved older attempt", async () => {
+  const { view, paths } = await fixture({
+    total: 1,
+    runs: [run(1, { attempt: 2, conclusion: "cancelled" })],
+  });
+  expect(view).toMatchObject({ count: 0, failing: [] });
+  expect(paths).toHaveLength(1);
+});

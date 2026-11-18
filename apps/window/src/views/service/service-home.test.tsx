@@ -150,7 +150,7 @@ it("opens the tab and the row a route names, and closes the row back to the tab"
     tab: "overview",
   });
 
-  await act(async () => navigate({ kind: "service", id: "search", tab: "runs", row: "x" }));
+  await act(async () => navigate({ kind: "service", id: "search", tab: "unknown", row: "x" }));
   expect($('[role="tab"][aria-selected="true"]')?.textContent).toBe("Overview");
   expect(openRow()).toBeUndefined();
 });

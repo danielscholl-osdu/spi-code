@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { LifecycleKind } from "./config.js";
+import type { ServiceRunsFact } from "./service-runs.js";
 
 // What the sweep read, before any judgment. The model module turns these into
 // lines, incidents and the queue; nothing here is derived.
@@ -419,6 +420,7 @@ export interface Facts {
   fleet: Measured<FleetFacts>;
   github: Measured<GithubFacts>;
   runs: Measured<Record<string, ForkRuns>>;
+  serviceRuns?: Record<string, ServiceRunsFact> | undefined;
   approvals: Measured<Record<string, WaitingRun[]>>;
   lifecycle: Measured<Record<LifecycleKind, LifecycleRun[]>>;
   details: Measured<Record<string, JobDetail>>;

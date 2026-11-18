@@ -1006,6 +1006,36 @@ test("snapshot replay performs no reads or writes and keeps recorded envelopes",
   expect(sweeper.reads).toEqual(frame.reads);
 });
 
+test("commits the dedicated fork history separately from the four Line feeds", async () => {
+  const h = harness();
+  const repo = "owner/partition";
+  let reads = 0;
+  let unavailable = false;
+  h.setRoute((_cmd, args) => {
+    if (!args[1]?.startsWith(`repos/${repo}/actions/runs?per_page=60&created=`)) return;
+    reads++;
+    return unavailable
+      ? { stdout: "", stderr: "HTTP 403 Forbidden", exit: 1 }
+      : { stdout: JSON.stringify({ total: 0, runs: [] }), stderr: "", exit: 0 };
+  });
+  const sweeper = createSweeper(h.options);
+  await sweeper.sweep();
+  expect(reads).toBe(1);
+  expect(sweeper.facts.serviceRuns?.[repo]?.history?.runs).toEqual([]);
+  const prior = sweeper.facts.runs.data?.[repo];
+  expect(prior?.cascade[0]?.id).toBe(5);
+
+  unavailable = true;
+  await sweeper.sweep();
+  expect(reads).toBe(2);
+  expect(sweeper.facts.serviceRuns?.[repo]?.read.failure).toContain("Forbidden");
+  expect(sweeper.facts.runs.data?.[repo]).toEqual(prior);
+  expect(sweeper.reads.runs?.every(({ failure }) => failure === undefined)).toBe(true);
+  expect(await h.options.persist.load()).toMatchObject({
+    facts: { serviceRuns: sweeper.facts.serviceRuns },
+  });
+});
+
 test("cut run-job listings are retried until the Java Build is observed", async () => {
   const h = harness();
   let complete = false;

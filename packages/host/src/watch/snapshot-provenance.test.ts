@@ -419,8 +419,34 @@ describe("area envelopes and provenance", () => {
 
   it("covers every briefing, station, service and release value with provenance at it or an ancestor", () => {
     const base = fixtureInput();
+    const repo = base.context.fleet.forks[0]?.repo;
+    if (!repo) throw new Error("Expected at least one recorded fork");
+    const observedAt = base.context.clock.now().toISOString();
+    const withRunHistory = {
+      ...base,
+      facts: {
+        ...base.facts,
+        serviceRuns: {
+          [repo]: {
+            history: { cut: false, runs: [], failures: [] },
+            read: {
+              source: "runs",
+              object: repo,
+              observedAt,
+              completeness: { kind: "complete" as const },
+            },
+            jobs: [],
+          },
+        },
+      },
+    };
+    expect(projectWatch(withRunHistory).services?.[0]?.runHistory).toMatchObject({
+      kind: "read",
+      count: 0,
+    });
     const variants = [
       base,
+      withRunHistory,
       { ...base, facts: { ...base.facts, lifecycle: {} } },
       { ...base, facts: { ...base.facts, security: {} } },
     ];

@@ -4,6 +4,7 @@
 import { z } from "zod";
 import { LIFECYCLE_WORKFLOWS, type LifecycleKind } from "./config.js";
 import type { Facts } from "./facts.js";
+import { serviceRunsFactSchema } from "./service-runs.js";
 
 // Facts in facts.ts is the source of truth. The top level is closed; nested
 // objects drop keys the type does not name, so an older snapshot still loads.
@@ -385,6 +386,7 @@ const schema = z.strictObject({
   fleet: measured(fleetFacts),
   github: measured(githubFacts),
   runs: measured(z.record(z.string(), forkRuns)),
+  serviceRuns: z.record(z.string(), serviceRunsFactSchema).optional(),
   approvals: measured(z.record(z.string(), z.array(waitingRun))),
   lifecycle: measured(z.record(lifecycleKind, z.array(lifecycleRun))),
   details: measured(z.record(z.string(), jobDetail)),

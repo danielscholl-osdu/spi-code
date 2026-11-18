@@ -34,6 +34,7 @@ import {
 } from "./smoke-report.js";
 import { captureRepositories } from "./smoke-repositories.js";
 import { captureRollout } from "./smoke-rollout.js";
+import { withSmokeServiceRuns } from "./smoke-service-runs.js";
 import { captureSidebarPins } from "./smoke-sidebar.js";
 import { smokeScheduledSweep, smokeSweepProgress } from "./smoke-sweep.js";
 import { captureMornings, loadMornings } from "./smoke-today.js";
@@ -800,7 +801,9 @@ export async function captureSmokeViews(
   morningPaths: Readonly<Record<Morning, string>>,
   section: (name: string) => void,
 ): Promise<SmokeShot[]> {
-  const snapshot = ViewSnapshotSchema.parse(JSON.parse(readFileSync(fixturePath, "utf8")));
+  const snapshot = withSmokeServiceRuns(
+    ViewSnapshotSchema.parse(JSON.parse(readFileSync(fixturePath, "utf8"))),
+  );
   const acknowledged = ViewSnapshotSchema.parse(
     JSON.parse(readFileSync(join(dirname(fixturePath), "generated", ACKNOWLEDGED_FIXTURE), "utf8")),
   );

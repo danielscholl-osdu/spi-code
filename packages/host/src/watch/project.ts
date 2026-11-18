@@ -110,7 +110,11 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
     stations,
     services,
     tree: treeOf(input, now),
-    reads: [...Object.values(input.reads).flat(), ...input.releaseRecords],
+    reads: [
+      ...Object.values(input.reads).flat(),
+      ...input.releaseRecords,
+      ...Object.values(input.facts.serviceRuns ?? {}).flatMap(({ read, jobs }) => [read, ...jobs]),
+    ],
     areas,
     provenance: snapshotProvenance(input, model, now, {
       briefing,

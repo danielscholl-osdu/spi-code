@@ -12,6 +12,7 @@ import {
   stationProvenance,
 } from "./provenance.js";
 import { type RunHit, runProvenance } from "./recorded-runs.js";
+import { serviceRunsProvenance } from "./service-runs.js";
 
 export interface ProvenanceView {
   readonly briefing: Parameters<typeof briefingProvenance>[0];
@@ -60,6 +61,12 @@ export function snapshotProvenance(
             },
           ]
         : []),
+      ...serviceRunsProvenance(
+        input,
+        model.lines[i]?.fork.repo ?? "",
+        `/services/${i}/runHistory`,
+        now,
+      ),
       ...runProvenance(`/services/${i}/runs`, service.runs, runs, model.lines[i]?.fork.repo ?? ""),
       {
         path: `/services/${i}/releases`,

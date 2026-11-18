@@ -252,6 +252,13 @@ export const REST_SHAPES: readonly RestShape[] = [
     `${REPO}actions/workflows/(?:env-refresh|env-upgrade|smoke|sweeper)\\.yml/runs\\?per_page=${N}&created=%3E%3D\\d{4}-\\d\\d-\\d\\d&page=${N}`,
     RUNS_JQ,
   ),
+  shape(
+    "service run history",
+    "gh",
+    "rest",
+    `${REPO}actions/runs\\?per_page=60&created=%3E%3D\\d{4}-\\d\\d-\\d\\dT\\d\\d%3A\\d\\d%3A\\d\\dZ`,
+    "{total: .total_count, runs: [.workflow_runs[] | {id, workflowId: .workflow_id, name, attempt: .run_attempt, status, conclusion, createdAt: .created_at, startedAt: .run_started_at, url: .html_url}]}",
+  ),
   shape("run", "gh", "rest", `${REPO}actions/runs/${N}`, RUN_FIELDS),
   shape(
     "run jobs",

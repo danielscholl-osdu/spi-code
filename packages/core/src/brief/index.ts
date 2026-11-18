@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 export { serviceHome } from "./service-home.js";
+export { serviceRuns } from "./service-runs.js";
 export { todayFleet } from "./fleet.js";
 export { todaySummary, todayHistory } from "./today-summary.js";
 export { repositoryToday, syncCompanions, type RepoToday } from "./repo-today.js";

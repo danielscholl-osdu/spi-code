@@ -28,6 +28,16 @@ describe("the projected 6 Nov recorded sweep", () => {
     expect(projectWatch(appStyle(recordedInput()))).toEqual(snapshot);
   });
 
+  it("replays the sweep before the dedicated runs read with every Runs tab unread", () => {
+    const input = appStyle(recordedInput());
+    expect(input.facts.serviceRuns).toBeUndefined();
+    const { services } = projectWatch(input);
+    expect(services?.length).toBeGreaterThan(0);
+    for (const service of services ?? []) {
+      expect(service.runHistory).toBeUndefined();
+    }
+  });
+
   it("reads legal as 17 commits incoming, a SNAPSHOT hold and release PR #48 passing", () => {
     const legal = snapshot.readings.find(
       ({ anchor }) => anchor.kind === "service" && anchor.id === "legal",

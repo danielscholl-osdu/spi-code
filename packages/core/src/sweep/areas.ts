@@ -11,6 +11,7 @@ import { readRadar } from "../collect/radar.js";
 import { ReleaseReader } from "../collect/releases.js";
 import { readApprovals, readForkRuns } from "../collect/runs.js";
 import { readSecurity } from "../collect/security.js";
+import { readServiceRuns } from "../collect/service-runs.js";
 import { readTemplate } from "../collect/template.js";
 import { readUpstream } from "../collect/upstream.js";
 import { fleetOf, GITLAB_EVERY_MS, RELEASES_EVERY_MS, SECURITY_EVERY_MS } from "../config.js";
@@ -71,6 +72,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
   const pacer = options.pacer ?? new BudgetPacer({ floor: 100, resetBudget: 5000 });
   let baseline = account.snapshot();
   let upstreamChanged = false;
+  let readRunHistory = false;
   let glabNeedsReadiness = false;
   let view: FleetView | undefined;
   const areas: SweepArea<CollectorCache>[] = [];
@@ -187,6 +189,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
     return { data: { ...result.facts, repos: retained.data }, reads: retained.reads };
   });
   area("runs", true, 0, 0, async (input, gh) => {
+    readRunHistory = true;
     const { ctx, facts, reads, cache } = input;
     const result = await readForkRuns(gh, ctx);
     const retained = retain(result.data, facts.runs.data, result.reads, reads.runs ?? [], (r) => r.source);
@@ -333,10 +336,15 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
       baseline = account.snapshot();
       account.allowThrottleWait(THROTTLE_WAIT_ALLOWANCE_MS);
       upstreamChanged = false;
+      readRunHistory = false;
       glabNeedsReadiness = false;
       cache.budget.deferred = [];
     },
     afterAreas: async ({ ctx, exec, facts, cache, force, clock, progress }) => {
+      if (readRunHistory) {
+        facts.serviceRuns = await readServiceRuns(new Gh(exec, undefined, account), ctx,
+          facts.serviceRuns, cache.lifecycle.runJobs);
+      }
       // Deferred entries belong to this sweep, including collectors without a Facts area.
       // A read that failed or was cut by failures is due again before its interval.
       const releasesDue = due(cache.releases.at, RELEASES_EVERY_MS, clock.now(), force) ||

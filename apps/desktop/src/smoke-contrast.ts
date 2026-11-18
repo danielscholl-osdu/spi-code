@@ -14,6 +14,7 @@ import {
   ViewSnapshotSchema,
 } from "@spi-code/contracts";
 import type { BrowserWindow, IpcMainEvent } from "electron";
+import { RUNS_FAILURE, RUNS_ROUTE, withSmokeServiceRuns } from "./smoke-service-runs.js";
 
 /**
  * Text the rule does not measure, and why. Every exclusion is counted per view in
@@ -852,7 +853,7 @@ export async function assertRenderedContrast(
   const js = <T>(source: string): Promise<T> => window.webContents.executeJavaScript(source);
   const read = (path: string) => ViewSnapshotSchema.parse(JSON.parse(readFileSync(path, "utf8")));
   const checkedAt = "2026-11-06T15:04:00.000Z";
-  const nov6 = read(fixturePath);
+  const nov6 = withSmokeServiceRuns(read(fixturePath));
   nov6.briefing.nextSyncAt = new Date(Date.parse(checkedAt) + 100 * 60_000).toISOString();
   const mornings = Object.entries(morningPaths).map(
     ([morning, path]) => [morning, read(path)] as const,
@@ -1136,6 +1137,16 @@ export async function assertRenderedContrast(
       `document.querySelector(".service-page[aria-label=${SERVICE_CLOCK}] [data-state=waiting-on-clock]")`,
     );
     await everyShade("service-clock", ".service-page", { rest: SERVICE_CLOCK_WORDS });
+    await js(`location.hash = "#${RUNS_ROUTE}"`);
+    await rendered(window, `document.querySelector(${JSON.stringify(RUNS_FAILURE)})`);
+    await everyShade("service-runs", ".service-runs", {
+      rest: [
+        { selector: "service-run-failure", text: "Sync Upstream" },
+        { selector: "service-run-failure", text: "Sync upstream · Update upstream branch" },
+        { selector: "service-run-latest", text: "in progress" },
+        { selector: "service-run-latest", text: "success" },
+      ],
+    });
     await js(`location.hash = "#service/${FIND_UNPINNED}"`);
     await rendered(
       window,

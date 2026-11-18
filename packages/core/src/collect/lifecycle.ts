@@ -239,7 +239,7 @@ export function jobsKey(run: Pick<RunFact, "id" | "attempt">): string {
 }
 
 export async function readRunJobs(
-  gh: Gh, state: unknown, repo: string, run: RunFact, ctx: CoreContext,
+  gh: Gh, state: unknown, repo: string, run: Pick<RunFact, "id" | "attempt">, ctx: CoreContext,
   previous?: LifecycleRead<JobDetail[]>,
   listingOnly = false,
 ) {

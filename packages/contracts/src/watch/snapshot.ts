@@ -15,6 +15,7 @@ import {
 import { FormingSchema, ReleaseLineSchema, ReleasesTodaySchema } from "./panes.js";
 import { CampaignSchema, ReadingSchema, SeenStateSchema } from "./reading.js";
 import { ServiceHomeSchema } from "./service-home.js";
+import { ServiceRunsSchema } from "./service-runs.js";
 import { ServiceReleaseSchema, ServiceRunSchema, StationsSchema } from "./stations.js";
 import { SelectionIdSchema, TreeStatusSchema } from "./tree.js";
 
@@ -45,6 +46,7 @@ export const ViewSnapshotSchema = z
         z.strictObject({
           service: IdentifierSchema,
           home: ServiceHomeSchema.optional(),
+          runHistory: ServiceRunsSchema.optional(),
           runs: z.array(ServiceRunSchema),
           releases: z.array(ServiceReleaseSchema),
           history: z

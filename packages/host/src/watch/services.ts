@@ -9,6 +9,7 @@ import { releaseProvenance } from "./provenance.js";
 import type { RunHit } from "./recorded-runs.js";
 import type { projectReleases } from "./releases.js";
 import { serviceReleaseReadTimes } from "./service-release-reads.js";
+import { projectServiceRuns } from "./service-runs.js";
 import { stationSubstate } from "./substate.js";
 
 export function projectStations(model: Model, input: WatchInput) {
@@ -33,6 +34,7 @@ export function projectServices(
 ) {
   const services = model.lines.map((line) => ({
     service: line.fork.id,
+    ...projectServiceRuns(input.facts, line.fork.repo),
     runs: runs
       .filter(({ repo }) => repo === line.fork.repo)
       .sort(

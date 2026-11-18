@@ -95,3 +95,5 @@ Cascade Monitor runs on UTC hour boundaries, with 15 minutes for dispatch.
 
 Station lines are core's words (`clockWord`: en-US "Nov 9", a seven-day window); the window's
 `when()` writes "9 Nov" within six calendar days. They disagree beyond a week until core moves.
+
+The repository-wide Actions run list reports the current attempt. The Runs tab can carry an observed failure into a retry of the same run from an earlier sweep. Replaying sweeps taken before the dedicated read leaves Runs unread.

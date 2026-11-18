@@ -11,6 +11,7 @@ import {
   MORNING_SURFACES,
   type MorningEvidence,
 } from "./smoke-mornings.js";
+import { RUNS_FAILURE, RUNS_ROUTE } from "./smoke-service-runs.js";
 import type { SupervisionReport } from "./smoke-supervision.js";
 
 export const VIEW_WIDTHS = [1440, 900, 740] as const;
@@ -115,6 +116,15 @@ export const VIEW_SURFACES = [
     place: "entitlements",
     selector: ".service-page[aria-label=entitlements] [data-section=blocked]",
     designSection: "Service home / The page",
+    qualified: false,
+  },
+  {
+    id: "service-runs",
+    name: "Service home: search, Runs",
+    route: RUNS_ROUTE,
+    place: "search",
+    selector: RUNS_FAILURE,
+    designSection: "Service home / Runs",
     qualified: false,
   },
   {
