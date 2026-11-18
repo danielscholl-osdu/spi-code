@@ -19,7 +19,11 @@ export function externalLinkHandlers(
     }
     if (
       url.protocol !== "https:" ||
-      (url.origin !== "https://github.com" && url.origin !== "https://community.opengroup.org") ||
+      (url.origin !== "https://github.com" &&
+        url.origin !== "https://community.opengroup.org" &&
+        !/^https:\/\/api\.github\.com\/repos\/[\w.-]+\/[\w.-]+\/deployments\/[1-9]\d*$/.test(
+          url.href,
+        )) ||
       url.username !== "" ||
       url.password !== ""
     ) {

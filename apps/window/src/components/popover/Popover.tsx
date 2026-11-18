@@ -11,6 +11,7 @@ import "./popover.css";
 export type PopoverProps = {
   /** What was clicked. The popover hangs under it, or above it near the window's foot, and focus returns to it on close. */
   anchor: HTMLElement;
+  within?: HTMLElement | null | undefined;
   /**
    * What is open on the place. The body registers it with `setOpenSelection(selection,
    * content.subject)`, so the Swept capsule opens Evidence for the subject and Back reopens this.
@@ -29,7 +30,7 @@ export type PopoverProps = {
 };
 
 /** The one popover every place opens on what was clicked: a Line cell, a rung, a run, a repository line. */
-export function Popover({ anchor, selection, content, onClose, children }: PopoverProps) {
+export function Popover({ anchor, selection, content, onClose, children, within }: PopoverProps) {
   const element = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
   close.current = onClose;
@@ -40,13 +41,19 @@ export function Popover({ anchor, selection, content, onClose, children }: Popov
     const place = () => {
       popover.style.maxHeight = "";
       const box = anchor.getBoundingClientRect();
+      const bounds = within?.getBoundingClientRect();
+      const left = Math.max(0, bounds?.left ?? 0);
+      const top = Math.max(0, bounds?.top ?? 0);
+      const width = Math.min(window.innerWidth, bounds?.right ?? window.innerWidth) - left;
+      const height = Math.min(window.innerHeight, bounds?.bottom ?? window.innerHeight) - top;
+      popover.style.maxWidth = width > 24 ? `${width - 24}px` : "";
       const at = placePopover(
-        box,
+        { top: box.top - top, bottom: box.bottom - top, left: box.left - left },
         { width: popover.offsetWidth, height: popover.offsetHeight },
-        { width: window.innerWidth, height: window.innerHeight },
+        { width, height },
       );
-      popover.style.top = `${at.top}px`;
-      popover.style.left = `${at.left}px`;
+      popover.style.top = `${top + at.top}px`;
+      popover.style.left = `${left + at.left}px`;
       popover.style.maxHeight = at.maxHeight === undefined ? "" : `${at.maxHeight}px`;
       popover.dataset.side = at.side;
     };

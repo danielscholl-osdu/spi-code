@@ -91,11 +91,6 @@ describe("lane deployment failures beside recovered environment checks", () => {
       })
       .map((line) => line.fork.id);
     expect(stopped).toEqual(["entitlements", "legal"]);
-    expect(reading.tiles[1]).toEqual({
-      label: "Fork deploys",
-      value: "2 failed",
-      counts: "each fork's newest deploy to the environment · failed: entitlements and legal",
-    });
     const deployments = model.queue.items.filter((i) => i.kind === "lane-deploy");
     expect(deployments.map((i) => i.cause.find((f) => f.label === "fork")?.value).sort()).toEqual(
       [...stopped].sort(),
@@ -139,13 +134,9 @@ describe("lane deployment failures beside recovered environment checks", () => {
       ref: "main",
       sha: "recovered",
     });
-    const { items, reading } = project(facts);
+    const { items } = project(facts);
     expect(items.some((i) => i.id === "lane-deploy:entitlements")).toBe(false);
     expect(items.some((i) => i.id === "lane-deploy:legal")).toBe(true);
-    expect(reading.tiles[1]).toMatchObject({
-      value: "1 failed",
-      counts: "each fork's newest deploy to the environment · failed: legal",
-    });
   });
 
   test("a deployment already explained by the same head's ENV check keeps its existing item", () => {

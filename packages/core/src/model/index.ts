@@ -4,9 +4,9 @@
 export { workflowFailure } from "./workflow-failure.js";
 
 import { isStoppedFork } from "@spi-code/contracts";
-import { type ServiceDef, TEMPLATE_REPO } from "../config.js";
+import { LANE_DEPLOYMENT_PAGE, type ServiceDef, TEMPLATE_REPO } from "../config.js";
 import type { CoreContext } from "../context.js";
-import type { Facts } from "../facts.js";
+import type { DeploymentFact, DeploymentRead, Facts } from "../facts.js";
 import { toolchainCampaigns } from "./campaigns.js";
 import type { DismissEntry } from "./dismiss.js";
 import { buildGates, type Gates } from "./gates.js";
@@ -24,12 +24,19 @@ import { buildUpstream, type UpstreamModel } from "./upstream.js";
 import { verifiedForks } from "./verified.js";
 import { buildWork, type WorkModel } from "./work.js";
 
+export interface ForkDeployments {
+  fork: string;
+  read: DeploymentRead;
+  deployments: readonly DeploymentFact[];
+}
+
 export interface Model {
   measured: boolean;
   sweptAt?: string;
   // When GitLab was last read; it is read less often than the sweep.
   upstreamAt?: string;
   stack: StackModel;
+  forkDeployments: ForkDeployments[];
   lines: LineModel[];
   stoppedForks: string[];
   planned: { service: ServiceDef; exists: boolean }[];
@@ -170,6 +177,12 @@ export function buildModel(
     sweptAt: facts.sweep?.at,
     upstreamAt: facts.upstream.at,
     stack,
+    forkDeployments: forks.map(({ id, repo }) => {
+      const deployments = repos[repo]?.deployments ?? [];
+      const legacyRead = deployments.length >= LANE_DEPLOYMENT_PAGE ? "capped"
+        : deployments.length > 0 ? "complete" : "unread";
+      return { fork: id, read: repos[repo]?.deploymentRead ?? legacyRead, deployments };
+    }),
     lines,
     stoppedForks: lines
       .filter((line) =>

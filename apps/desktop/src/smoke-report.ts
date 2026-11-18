@@ -69,7 +69,7 @@ export const VIEW_SURFACES = [
     name: "Environment",
     route: "environment",
     place: "Environment",
-    selector: ".environment .place-reading",
+    selector: '.environment .env-status[data-state="in-use"] ~ .env-day .env-borrow',
     designSection: "The window / Places",
     qualified: false,
   },

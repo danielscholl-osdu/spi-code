@@ -11,7 +11,7 @@ import {
   type ReadRecord,
 } from "@spi-code/core";
 import { describe, expect, it } from "vitest";
-import { fixtureInput, mixedFixtureInput } from "../../test/watch/snapshot-fixture.js";
+import { appStyle, fixtureInput, mixedFixtureInput } from "../../test/watch/snapshot-fixture.js";
 import { projectWatch, type WatchInput } from "./project.js";
 import { briefingProvenance, releaseProvenance, stationAreas } from "./provenance.js";
 import { runProvenance } from "./recorded-runs.js";
@@ -293,13 +293,13 @@ describe("area envelopes and provenance", () => {
   });
 
   it("names the feeding areas for every drawn value with resolving, unique paths", () => {
-    const snapshot = projectWatch(fixtureInput());
+    const snapshot = projectWatch(appStyle(fixtureInput()));
     const paths = snapshot.provenance.map(({ path }) => path);
     expect(new Set(paths).size).toBe(paths.length);
     const areas = (path: string) => snapshot.provenance.find((p) => p.path === path)?.areas;
     expect(areas("/briefing/environment/facts/1/figure")).toEqual(["lifecycle"]);
     expect(areas("/briefing/environment/lanes/3")).toEqual(["lifecycle"]);
-    expect(areas("/briefing/environment/note")).toEqual(["github"]);
+    expect(areas("/briefing/environment/status")).toEqual(["github", "lifecycle"]);
     expect(areas("/briefing/repositories/rows/0/cells/issues")).toEqual(["github"]);
     expect(areas("/briefing/repositories/rows/0/cells/vulnerabilities")).toEqual([
       "radar",

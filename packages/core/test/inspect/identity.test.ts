@@ -85,7 +85,7 @@ const entries = (["listed", "absent", "unread", "unlisted", "absent"] as const).
 test("FILTERS reads and reason sources leave the rib's model, inspector and actions unchanged", () => {
   const all = Object.values(models);
   const actual = {
-    models: digest(all),
+    models: digest(all.map(({ forkDeployments: _borrowHistory, ...legacy }) => legacy)),
     inspections: digest(
       all.flatMap((m) => m.queue.items.map((i) => inspectItem(m, i, FIXTURE_NOW, context))),
     ),

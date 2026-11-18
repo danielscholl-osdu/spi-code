@@ -72,26 +72,16 @@ describe("Environment reading on the recorded 6 Nov sweep", () => {
     const reading = environment();
     expect(reading.headline).toBe("v0.35.3 is ready, green since 11-05 22:20.");
     expect(wordCount(reading.headline)).toBeLessThanOrEqual(12);
-    expect(reading.tiles[0]).toEqual({
-      label: "Version",
-      value: "v0.35.3",
-      counts: "running · the latest release · landed 3\u00a0h 32\u00a0min after its release",
-    });
   });
 
-  it("reads the forks' newest deploys and the stack repository's open work", () => {
+  it("reads the stack repository's open work", () => {
     const reading = environment();
-    expect(reading.tiles[1]).toEqual({
-      label: "Fork deploys",
-      value: "All passed",
-      counts: "each fork's newest deploy to the environment",
-    });
     for (const text of [
       reading.headline,
       ...reading.tiles.flatMap((t) => [t.label, t.value, t.counts]),
     ])
       expect(text).not.toMatch(/deployable|Lane|Stopped/);
-    expect(reading.tiles[2]).toEqual({
+    expect(reading.tiles[0]).toEqual({
       label: "Stack repository",
       value: "2",
       counts: "open · 2 issues (1 bug) · 0 pull requests",
@@ -99,29 +89,6 @@ describe("Environment reading on the recorded 6 Nov sweep", () => {
     expect(reading.folded).toBe(
       "Open in osdu-spi-stack: [bug] spi build fails on Dockerfiles with FROM --platform: ACR dependency scan rejects it #463, and 1 more.",
     );
-  });
-
-  it("counts the forks whose newest deploy failed and names them", () => {
-    const forks = model.stack.forks;
-    if (!forks) throw new Error("no fork deploys read");
-    const failing = new Set(["legal", "partition"]);
-    const failed = {
-      ...model,
-      stack: {
-        ...model.stack,
-        forks: {
-          ...forks,
-          newest: forks.newest.map((f) => (failing.has(f.fork) ? { ...f, passed: false } : f)),
-        },
-      },
-    };
-    expect(environment({ model: failed }).tiles[1]).toEqual({
-      label: "Fork deploys",
-      value: "2 failed",
-      counts: "each fork's newest deploy to the environment · failed: partition and legal",
-    });
-    const none = { ...model, stack: { ...model.stack, forks: { ...forks, newest: [] } } };
-    expect(environment({ model: none }).tiles[1]?.value).toBe("None yet");
   });
 
   it("counts and folds a pipeline pull request on the stack repository", () => {
@@ -159,7 +126,7 @@ describe("Environment reading on the recorded 6 Nov sweep", () => {
       stackRepo,
       now,
     });
-    expect(reading.tiles[2]).toEqual({
+    expect(reading.tiles[0]).toEqual({
       label: "Stack repository",
       value: "1",
       counts: "open · 0 issues · 1 pull request",
@@ -277,9 +244,9 @@ describe("Environment reading before anything was read", () => {
     now,
   });
 
-  it("reads the version, lanes and stack repository as not read yet, never as zero", () => {
+  it("reads the stack repository as not read yet, never as zero", () => {
     expect(unread.headline).toBe(`The environment is ${NOT_READ}.`);
-    expect(unread.tiles.map((t) => t.value)).toEqual([NOT_READ, NOT_READ, NOT_READ]);
+    expect(unread.tiles.map((t) => t.value)).toEqual([NOT_READ]);
     expect(readingText(unread).join(" ")).not.toMatch(/\b0\b/);
     expect(unread.folded).toBeNull();
   });

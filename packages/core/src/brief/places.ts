@@ -168,11 +168,13 @@ export function placesOf(input: {
     const tile = reading?.tiles[0];
     const stopped = place === "line" && /^(?:At least )?[1-9]\d* of /.test(tile?.value ?? "");
     const mark = stopped ? "stopped" : (unread.length > 0 || !reading) && tier === "background" ? "in-progress" : MARK[tier];
-    const placeUnread = !reading || unread.length === areas.length || !tile || tile.value === NOT_READ;
-    const figure = placeUnread ? NOT_READ : place === "line" ? `${tile.value} stopped`
+    const placeUnread = !reading || unread.length === areas.length || (place !== "environment" && (!tile || tile.value === NOT_READ));
+    const figure = placeUnread ? NOT_READ
+      : place === "environment" ? environmentFigure(input.source.model.stack)
+      : !tile ? NOT_READ
+      : place === "line" ? `${tile.value} stopped`
       : place === "security" ? `${tile.value} high or critical`
-      : place === "engineering" ? `${tile.value} ${tile.counts}`
-      : environmentFigure(input.source.model.stack);
+      : `${tile.value} ${tile.counts}`;
     const incomplete = unread.length > 0 && tier === "background" && !stopped;
     const line = place === "security" && tier === "background" && unread.length === 0
       ? "In SPI-owned shipped code, none blocking today."

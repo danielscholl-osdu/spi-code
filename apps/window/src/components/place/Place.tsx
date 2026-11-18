@@ -37,6 +37,8 @@ export type PlaceProps = {
   actions?: ReactNode;
   /** The pin this place is kept under in the sidebar; without it the top row has no pin control. */
   pin?: string | undefined;
+  /** Lead drawn in place of the reading headline. */
+  readingLead?: ReactNode;
   /** Tiles drawn in place of the reading's own. */
   tiles?: readonly PlaceTile[] | undefined;
   /** Drawn between the tiles and the items. */
@@ -57,6 +59,7 @@ export function Place({
   actions,
   pin,
   tiles,
+  readingLead,
   belowTiles,
   belowItems,
 }: PlaceProps) {
@@ -82,7 +85,7 @@ export function Place({
   }
   return (
     <section className="place" aria-label={name}>
-      {place ? (
+      {place && readingLead === undefined ? (
         <PlaceHead
           name={name}
           place={place}
@@ -100,15 +103,16 @@ export function Place({
           {actions}
         </PaneTitle>
       )}
-      {(content || tiles || belowTiles) && (
+      {(content || tiles || readingLead || belowTiles) && (
         <section className="place-reading" aria-label={`${name} reading`}>
-          {content && (
-            <h2 className="place-headline">
-              <TimedText text={content.headline} hint={false} />
-            </h2>
-          )}
+          {readingLead ??
+            (content && (
+              <h2 className="place-headline">
+                <TimedText text={content.headline} hint={false} />
+              </h2>
+            ))}
           {content?.qualifier && <p className="place-qualifier">{content.qualifier}</p>}
-          {lead && (
+          {lead && lead.length > 0 && (
             <dl className="place-tiles">
               {lead.map((tile: PlaceTile, index) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: The three tile positions are fixed; labels may repeat.

@@ -1,12 +1,13 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { LIFECYCLE_WORKFLOWS, type LifecycleKind } from "../config.js";
+import { LANE_DEPLOYMENT_PAGE, LIFECYCLE_WORKFLOWS, type LifecycleKind } from "../config.js";
 import type { CoreContext } from "../context.js";
 import type {
   CheckFact,
   Declaration,
   DeploymentFact,
+  DeploymentRead,
   GithubFacts,
   IssueFact,
   PastIssueFact,
@@ -81,12 +82,15 @@ interface RawRepo {
     target?: { history?: { nodes?: { oid: string; message: string; committedDate: string }[] } };
   } | null;
   deployments?: {
-    nodes?: {
+    pageInfo?: { hasNextPage?: boolean };
+    nodes?: ({
+      id?: string;
+      databaseId?: number | null;
       createdAt: string;
       commitOid?: string;
       ref?: { name?: string } | null;
-      latestStatus?: { state?: string; createdAt?: string } | null;
-    }[];
+      latestStatus?: { state?: string; createdAt?: string; logUrl?: string | null } | null;
+    } | null)[];
   };
   declaration?: { text?: string } | null;
   syncTemplate?: { text?: string } | null;
@@ -238,14 +242,33 @@ export function parseUpstreamSha(
   return undefined;
 }
 
-function parseDeployments(raw: RawRepo["deployments"]): DeploymentFact[] {
-  return (raw?.nodes ?? []).map((d) => ({
-    createdAt: d.createdAt,
-    ref: d.ref?.name ?? undefined,
-    sha: d.commitOid ?? undefined,
-    state: d.latestStatus?.state ?? undefined,
-    statusAt: d.latestStatus?.createdAt ?? undefined,
-  }));
+function deploymentRead(raw: RawRepo["deployments"]): DeploymentRead {
+  if (!Array.isArray(raw?.nodes) || raw.nodes.some((node) => !node)) return "unread";
+  if (raw.pageInfo?.hasNextPage ?? raw.nodes.length >= LANE_DEPLOYMENT_PAGE) return "capped";
+  return "complete";
+}
+
+function parseDeployments(repo: string, raw: RawRepo["deployments"]): DeploymentFact[] {
+  const runs = `https://github.com/${repo}/actions/runs/`;
+  return (raw?.nodes ?? []).flatMap((d) => {
+    if (!d) return [];
+    const log = d.latestStatus?.logUrl;
+    const run = log?.toLowerCase().startsWith(runs.toLowerCase())
+      ? /^(\d+)(?:\/job\/\d+)?\/?(?:[?#].*)?$/.exec(log.slice(runs.length))?.[1]
+      : undefined;
+    return [{
+      ...(d.id ? { id: d.id } : {}),
+      ...(run ? { runUrl: runs + run } : {}),
+      ...(d.databaseId && Number.isSafeInteger(d.databaseId) && d.databaseId > 0
+        ? { deploymentUrl: `https://api.github.com/repos/${repo}/deployments/${d.databaseId}` }
+        : {}),
+      createdAt: d.createdAt,
+      ref: d.ref?.name ?? undefined,
+      sha: d.commitOid ?? undefined,
+      state: d.latestStatus?.state ?? undefined,
+      statusAt: d.latestStatus?.createdAt ?? undefined,
+    }];
+  });
 }
 
 export function parseCrons(text: string | undefined): string[] {
@@ -331,7 +354,8 @@ export function parseRepo(raw: RawRepo): RepoFact {
     }] : []),
     ...(raw.pullRequests?.totalCount !== undefined ? { openPrs: raw.pullRequests.totalCount } : {}),
     ...(raw.issues?.totalCount !== undefined ? { openIssues: raw.issues.totalCount } : {}),
-    deployments: parseDeployments(raw.deployments),
+    deployments: parseDeployments(repo, raw.deployments),
+    deploymentRead: deploymentRead(raw.deployments),
     pastPrs: parsePastPrs(raw.pastPrs),
     pastIssues: parsePastIssues(raw.pastIssues),
     releases: parseReleases(raw.releases),

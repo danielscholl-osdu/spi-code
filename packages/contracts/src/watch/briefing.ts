@@ -107,6 +107,27 @@ export const EnvLaneSchema = z.strictObject({
   label: z.string(),
   events: z.array(EnvEventSchema),
 });
+const EnvBorrowSchema = z.strictObject({
+  id: z.string(),
+  fork: z.string(),
+  branch: z.string().optional(),
+  result: z.enum(["green", "failed", "running", "unknown"]),
+  start: ObservedAtSchema,
+  end: ObservedAtSchema.optional(),
+  estimated: z.literal(true).optional(),
+  links: z.array(LinkSchema),
+  overlap: z.string().optional(),
+});
+const EnvStatusSchema = z.strictObject({
+  state: z.enum(["maintenance", "in-use", "unknown", "idle"]),
+  label: z.string(),
+  length: z.string().optional(),
+  reason: z.string().optional(),
+  live: z.array(z.strictObject({ fork: z.string(), id: z.string() })).optional(),
+});
+export type EnvBorrow = z.infer<typeof EnvBorrowSchema>;
+export type EnvStatus = z.infer<typeof EnvStatusSchema>;
+
 export const EnvironmentSchema = z.strictObject({
   headline: z.string(),
   facts: z.array(BriefFactSchema),
@@ -116,6 +137,10 @@ export const EnvironmentSchema = z.strictObject({
   from: ObservedAtSchema,
   to: ObservedAtSchema,
   note: z.string().optional(),
+  status: EnvStatusSchema.optional(),
+  line: z.string().optional(),
+  borrows: z.array(EnvBorrowSchema).optional(),
+  forksNote: z.string().optional(),
 });
 /** The strip's four marks: stopped or Interrupt, Surface, Ambient, and nothing due or Background. */
 export const MarkSchema = z.enum(["stopped", "needs-person", "in-progress", "nothing-due"]);

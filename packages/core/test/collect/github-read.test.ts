@@ -14,7 +14,10 @@ import { fleetOf, MARKER_PATH, plannedRepo, STACK_REPO, TEMPLATE_REPO } from "..
 import { createContext } from "../../src/context.js";
 import { envelopeOf } from "../../src/evidence/index.js";
 import { type Exec, RecordingExec, ReplayExec } from "../../src/exec/index.js";
+import { emptyFacts } from "../../src/facts.js";
+import { factsSchema } from "../../src/facts-schema.js";
 import { Gh, type GqlError, GraphqlBudget } from "../../src/forge.js";
+import { buildModel } from "../../src/model/index.js";
 import { sweepReadProgress } from "../../src/sweep/sweeper.js";
 
 const now = "2026-11-05T07:00:00.000Z";
@@ -395,7 +398,7 @@ it("keeps recency windows out of cut detection so a healthy fork is complete", (
   for (const window of [
     "commits(last: 1) { nodes",
     "history(first: 10) { nodes",
-    "first: 60, orderBy: {field: CREATED_AT, direction: DESC}) { nodes",
+    "first: 60, orderBy: {field: CREATED_AT, direction: DESC}) {",
     "pastPrs: pullRequests(states: [MERGED, CLOSED], first: 100, orderBy: {field: UPDATED_AT, direction: DESC}) { nodes",
     "releases(first: 10, orderBy: {field: CREATED_AT, direction: DESC}) { nodes",
     "releases(first: 40, orderBy: {field: CREATED_AT, direction: DESC}) { nodes",
@@ -634,3 +637,82 @@ it("parses requested and latest reviewers, preserving unknown and truncated read
     undefined,
   ]);
 });
+
+it.each([
+  { read: "unread", connection: undefined },
+  { read: "complete", connection: { pageInfo: { hasNextPage: false }, nodes: [] } },
+  {
+    read: "capped",
+    connection: {
+      pageInfo: { hasNextPage: true },
+      nodes: [
+        {
+          id: "DEP_7",
+          databaseId: 7,
+          createdAt: now,
+          ref: { name: "main" },
+          latestStatus: {
+            state: "IN_PROGRESS",
+            createdAt: now,
+            logUrl: "https://github.com/example/fork0/actions/runs/12/job/34#step:1:8",
+          },
+        },
+        {
+          id: "DEP_8",
+          createdAt: now,
+          latestStatus: {
+            state: "INACTIVE",
+            logUrl: "https://github.com/example/other/actions/runs/12",
+          },
+        },
+      ],
+    },
+  },
+])(
+  "replays a $read deployment history through the collector, Facts and model",
+  async ({ read, connection }) => {
+    const one = context(1);
+    const fork = {
+      nameWithOwner: "example/fork0",
+      url: "https://github.com/example/fork0",
+      deployments: connection,
+    };
+    const repos = {
+      ...base,
+      r_template: { ...base.r_template, url: `https://github.com/${TEMPLATE_REPO}` },
+      r_stack: { ...base.r_stack, url: `https://github.com/${STACK_REPO}` },
+    };
+    const query = buildQueries(one).at(-1);
+    expect(query).toContain("pageInfo { hasNextPage }");
+    expect(query).toContain(
+      "nodes { id databaseId createdAt commitOid ref { name } latestStatus { state createdAt logUrl } }",
+    );
+    await replay([response(repos, 1, 99), response({ r_fork0: fork }, 1, 98)], async (exec) => {
+      const { facts } = await readGithub(
+        new Gh(exec, undefined, new GraphqlBudget(clock)),
+        one,
+        parseGithub,
+      );
+      expect(facts.repos["example/fork0"]?.deploymentRead).toBe(read);
+      const decoded = factsSchema.parse({ ...emptyFacts(), github: { data: facts } });
+      const model = buildModel(decoded, clock.now(), {}, one);
+      expect(model.forkDeployments[0]?.read).toBe(read);
+      const deployments = model.forkDeployments[0]?.deployments;
+      if (read === "capped") {
+        expect(deployments).toMatchObject([
+          {
+            id: "DEP_7",
+            ref: "main",
+            runUrl: "https://github.com/example/fork0/actions/runs/12",
+            deploymentUrl: "https://api.github.com/repos/example/fork0/deployments/7",
+          },
+          { id: "DEP_8" },
+        ]);
+        expect(deployments?.[1]).not.toHaveProperty("runUrl");
+        expect(deployments?.[1]).not.toHaveProperty("deploymentUrl");
+      } else {
+        expect(deployments).toEqual([]);
+      }
+    });
+  },
+);

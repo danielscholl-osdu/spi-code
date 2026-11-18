@@ -90,7 +90,7 @@ describe("Watch projection", () => {
         anchor.kind === "engineering" ||
         anchor.kind === "security"
       ) {
-        expect(content?.tiles).toHaveLength(3);
+        expect(content?.tiles).toHaveLength(anchor.kind === "environment" ? 1 : 3);
         expect(content?.items.length).toBeLessThanOrEqual(5);
       } else expect(content).toBeNull();
     }
@@ -146,11 +146,13 @@ describe("Watch projection", () => {
       facts: _facts,
       more: _more,
       ready: _ready,
+      environment: { note: _note, ...frozenEnvironment },
       ...frozen
     } = settingsReach(oracle("briefing")) as {
       facts: unknown;
       more: unknown;
       ready: unknown;
+      environment: { note?: string };
       flow: { headline: string; sub: string };
       themes: { id: string; next: string }[];
     };
@@ -177,6 +179,7 @@ describe("Watch projection", () => {
     ).toEqual(["os-core-common 9.2.0", "os-core-common 8.2.0"]);
     expect(JSON.parse(JSON.stringify(ribBriefing).replaceAll("\u00a0", " "))).toEqual({
       ...frozen,
+      environment: frozenEnvironment,
       themes: frozen.themes.map((theme) =>
         theme.id === "toolchain:Java 25"
           ? { ...theme, next: "Move one fork's Java pin to 25 and repeat it for the others." }

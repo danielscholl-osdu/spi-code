@@ -8,7 +8,7 @@ import type { Facts } from "../facts.js";
 import type { Model } from "../model/index.js";
 import { runResult, stoppedAttempts } from "../model/stack.js";
 import type { WorkRow } from "../model/work.js";
-import { names, plural, span, stamp } from "../util.js";
+import { plural, span, stamp } from "../util.js";
 import {
   beforeTime,
   NOT_READ,
@@ -62,48 +62,6 @@ function headlineOf(model: Model, now: Date, context?: CoreContext): string {
   return version
     ? `No run in the window says whether ${version} is ready.`
     : `Readiness is ${NOT_READ}.`;
-}
-
-function versionTile(model: Model): ReadingTile {
-  const { running, declared, latest, landed } = model.stack;
-  if (!running) {
-    return declared
-      ? { label: "Version", value: declared, counts: `declared · running version ${NOT_READ}` }
-      : { label: "Version", value: NOT_READ, counts: "running version" };
-  }
-  const lag = span(landed?.lagMs);
-  return {
-    label: "Version",
-    value: running.version,
-    counts: [
-      "running",
-      latest === running.version ? "the latest release" : latest ? `latest release ${latest}` : undefined,
-      declared && declared !== running.version ? `declares ${declared}` : undefined,
-      lag ? `landed ${lag} after its release` : undefined,
-    ]
-      .filter(Boolean)
-      .join(" · "),
-  };
-}
-
-// A word when every fork's newest deploy passed, a count of the ones that failed otherwise.
-function deployTile(model: Model): ReadingTile {
-  const label = "Fork deploys";
-  const forks = model.stack.forks;
-  if (!forks) return { label, value: NOT_READ, counts: "fork deploys to the environment" };
-  const failed = forks.newest.filter((f) => !f.passed).map((f) => f.fork);
-  return {
-    label,
-    value:
-      forks.newest.length === 0 ? "None yet" : failed.length > 0 ? `${failed.length} failed` : "All passed",
-    counts: [
-      "each fork's newest deploy to the environment",
-      failed.length > 0 ? `failed: ${names(failed)}` : undefined,
-      forks.noLane.length > 0 ? `${forks.noLane.length} never deployed` : undefined,
-    ]
-      .filter(Boolean)
-      .join(" · "),
-  };
 }
 
 function openIssues(row: WorkRow): number {
@@ -175,11 +133,10 @@ function aboutStack(read: ReadRecord, stackRepo: string): boolean {
   );
 }
 
-// The environment place: the running version and whether it is ready, the forks' newest
-// deploys, and the stack repository's open work.
+// The environment's waiting work and the stack repository's open work.
 export function environmentReading<T extends ReadingItem>(
   input: EnvironmentReadingInput<T>,
-): PlaceReading<T> {
+): PlaceReading<T, [ReadingTile]> {
   const { model, items, lifecycle, reads, stackRepo, now } = input;
   const scopes = new Set(["Environment", shortRepo(stackRepo)]);
   const bite = (i: T): string | undefined => i.due?.at;
@@ -213,7 +170,7 @@ export function environmentReading<T extends ReadingItem>(
     membership: true,
     headline: headlineOf(model, now, input.context),
     ...(qualifier ? { qualifier } : {}),
-    tiles: [versionTile(model), deployTile(model), repoTile(row)],
+    tiles: [repoTile(row)],
     groups,
     ...(extra ? { extra } : {}),
   });

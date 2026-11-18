@@ -18,6 +18,7 @@ import {
 } from "../../components/opened-body/content.js";
 import { envelopesFor } from "../../store/evidence.js";
 import { plainTitle } from "../../text.js";
+import { borrowWhen, dayFrom } from "./borrows.js";
 import { eventKey, eventSpan } from "./timeline.js";
 
 const ENVIRONMENT = { kind: "environment" } as const;
@@ -27,6 +28,7 @@ export type EnvironmentOpening = {
   content: OpenedContent;
   /** For a hold, the runs that ran while it held, each its own `event` selection. */
   during: { key: string; text: string }[];
+  fork?: string;
 };
 
 /** A run's name said once: "Smoke", not "Smoke · smoke". */
@@ -181,7 +183,7 @@ function eventOpening(snapshot: ViewSnapshot, key: string): EnvironmentOpening |
           .filter(({ id }) => id !== "holds")
           .flatMap((other) =>
             other.events
-              .filter((r) => overlaps(span(r, to), span(e, to)))
+              .filter((r) => span(r, to)[1] >= dayFrom(to) && overlaps(span(r, to), span(e, to)))
               .map((r) => ({
                 key: eventKey(other, r),
                 text: `${runName(other, r)} · ${r.detail}`,
@@ -283,6 +285,30 @@ export function environmentOpening(
   switch (open.kind) {
     case "event":
       return eventOpening(snapshot, open.id);
+    case "borrow": {
+      const { borrows, to } = snapshot.briefing.environment;
+      const borrow = borrows?.find(({ id }) => id === open.id);
+      if (!borrow) return undefined;
+      const place: BodyPlace = {
+        label: "Environment › Forks",
+        destination: ENVIRONMENT,
+        selection: open,
+      };
+      return {
+        content: {
+          title: borrow.fork,
+          place,
+          subject: null,
+          cause: [borrow.branch, borrow.result, borrowWhen(borrow, Date.parse(to))]
+            .filter(Boolean)
+            .join(" · "),
+          ...(borrow.overlap ? { effect: borrow.overlap } : {}),
+          links: borrow.links,
+        },
+        during: [],
+        fork: borrow.fork,
+      };
+    }
     case "item":
       return itemOpening(snapshot, open.id);
     case "repository-line":

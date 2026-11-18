@@ -133,6 +133,7 @@ export const REFERENCE_FORK = "partition";
 // M28: the upstream Azure provider removal.
 export const AZURE_REMOVAL_DUE = "2026-11-13T00:00:00Z";
 export const LANE_ENVIRONMENT = "spi-stack";
+export const LANE_DEPLOYMENT_PAGE = 60;
 
 export function plannedRepo(service: ServiceDef): string {
   return `Azure/osdu-spi-${service.id}`;

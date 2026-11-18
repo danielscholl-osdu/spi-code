@@ -199,8 +199,10 @@ export function briefingProvenance(
   }
   add("/briefing/environment/deployable", LIFECYCLE);
   each(environment.lanes, "/briefing/environment/lanes", LIFECYCLE);
-  // Fork lane deploys per day come from the forks' github deployments.
-  if (environment.note !== undefined) add("/briefing/environment/note", GITHUB);
+  if (environment.status) add("/briefing/environment/status", ["github", "lifecycle"]);
+  if (environment.line) add("/briefing/environment/line", LIFECYCLE);
+  if (environment.forksNote) add("/briefing/environment/forksNote", GITHUB);
+  each(environment.borrows ?? [], "/briefing/environment/borrows", GITHUB);
 
   const { repositories } = briefing;
   // The headline names the first critical alert group SPI owns, or that alerts are unread.

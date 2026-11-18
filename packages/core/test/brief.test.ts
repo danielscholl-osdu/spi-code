@@ -4,8 +4,8 @@
 import { describe, expect, test } from "vitest";
 import { type BriefFact, buildBriefing, type DoctorView, readItem } from "../src/brief/index";
 import { ago, deployableWords, streakText } from "../src/brief/words";
-import { createContext } from "../src/context";
-import type { Facts, LifecycleRun } from "../src/facts";
+import { createContext, defaultContext } from "../src/context";
+import { type DeploymentFact, emptyFacts, type Facts, type LifecycleRun } from "../src/facts";
 import { buildModel, type Model } from "../src/model/index";
 import { buildQueue, type QueueItem } from "../src/model/queue";
 import { fixtureContext } from "./briefing-setup";
@@ -631,6 +631,38 @@ describe("the environment", () => {
     for (const id of inspected) expect(queue.has(id)).toBe(true);
   });
 
+  test("SPI Code's default context keeps the environment headline and facts", () => {
+    const { headline, facts } = buildBriefing(
+      fixtureModel(),
+      CLEAR,
+      FIXTURE_NOW,
+      defaultContext,
+    ).environment;
+    expect(headline).toBe("An upgrade to v0.28.2 is running, at verify.");
+    expect(facts).toMatchInlineSnapshot(`
+      [
+        {
+          "figure": "v0.28.0",
+          "label": "Running",
+          "sub": "upgrade running · at verify · declares v0.28.2",
+          "tone": "warn",
+        },
+        {
+          "figure": "63%",
+          "label": "Deployable · 21 days",
+          "sub": "6 holds over an hour, 7 d 14 h in all · held since 10-11 22:44",
+          "tone": "warn",
+        },
+        {
+          "figure": "26 min",
+          "label": "Last proof",
+          "sub": "smoke · fresh cluster · 12 h 52 min ago · 7 in a row",
+          "tone": "ok",
+        },
+      ]
+    `);
+  });
+
   test("every event touches the window; a fresh-cluster smoke never shares a lane", () => {
     const { env } = envOf(fixtureFacts());
     for (const l of env.lanes) {
@@ -992,5 +1024,179 @@ describe("one item as the inspector reads it", () => {
     const legal = b.focus.find((f) => f.id === "gate1:legal");
     expect(read("gate1:legal").title).toBe(legal?.title ?? "");
     expect(read("port:entitlements").title).toBe("2 upstream MRs not ported");
+  });
+});
+
+describe("Environment borrow status in the app context", () => {
+  const now = new Date("2026-03-10T12:00:00Z");
+  const app = createContext({ words: "app", timeZone: "UTC" });
+  const at = (minutes: number) => new Date(now.getTime() + minutes * 60_000).toISOString();
+  const deployment = (id: string, start: number, state: string, end?: number): DeploymentFact => ({
+    id,
+    createdAt: at(start),
+    state,
+    ...(end === undefined ? {} : { statusAt: at(end) }),
+  });
+  const history = (
+    fork: string,
+    deployments: DeploymentFact[],
+    read: Model["forkDeployments"][number]["read"] = "complete",
+  ) => ({ fork, read, deployments });
+  function modelFor(forkDeployments: Model["forkDeployments"]): Model {
+    const model = fixtureModel();
+    const stack = model.stack;
+    stack.lifecycle.refresh.runs = [];
+    stack.lifecycle.upgrade.runs = [];
+    stack.lifecycle.smoke.runs = [];
+    return { ...model, forkDeployments };
+  }
+  const brief = (model: Model, context = app) =>
+    buildBriefing(model, CLEAR, now, context).environment;
+
+  test("joins touching measured borrows across forks into the live stretch", () => {
+    const model = modelFor([
+      history("search", [deployment("1", -80, "SUCCESS", -60)]),
+      history("storage", [deployment("2", -60, "FAILURE", -45)]),
+      history("indexer", [deployment("3", -45, "IN_PROGRESS")]),
+      history("legal", [], "unread"),
+    ]);
+    expect(brief(model).status).toEqual({
+      state: "in-use",
+      label: "In use",
+      length: "1\u00a0h 20\u00a0min",
+      live: [{ fork: "indexer", id: "indexer:3" }],
+    });
+    model.forkDeployments[2] = history("indexer", [deployment("3", -45, "SUCCESS", -30)]);
+    expect(brief(model).status).toMatchObject({ state: "unknown", reason: "legal not read" });
+    model.forkDeployments[3] = history("legal", []);
+    expect(brief(model).status).toMatchObject({
+      state: "idle",
+      length: "30\u00a0min",
+      reason: "last: indexer, green 11:30",
+    });
+    model.forkDeployments.push(history("file", [deployment("4", -15, "FAILURE")]));
+    expect(brief(model).status).toEqual({
+      state: "idle",
+      label: "Idle",
+      reason: "last borrow unknown",
+    });
+  });
+
+  test("maintenance takes precedence and suppresses the facts line", () => {
+    const model = fixtureModel();
+    model.forkDeployments = [
+      history("indexer", [
+        {
+          id: "1",
+          createdAt: new Date(FIXTURE_NOW.getTime() - 45 * 60_000).toISOString(),
+          state: "IN_PROGRESS",
+        },
+      ]),
+    ];
+    const env = buildBriefing(model, CLEAR, FIXTURE_NOW, app).environment;
+    expect(env.status).toMatchObject({
+      state: "maintenance",
+      label: "In maintenance",
+      length: expect.any(String),
+    });
+    expect(env.line).toBeUndefined();
+  });
+
+  test.each([
+    {
+      states: [history("legal", []), history("file", [])],
+      state: "idle",
+      reason: "last borrow unknown",
+    },
+    {
+      states: [history("legal", [], "unread"), history("file", [], "unread")],
+      state: "unknown",
+      reason: "legal, file not read",
+    },
+    {
+      states: ["legal", "file", "search", "partition"].map((fork) => history(fork, [], "unread")),
+      state: "unknown",
+      reason: "4 forks not read",
+    },
+    {
+      states: [history("indexer", [], "capped")],
+      state: "unknown",
+      reason: "indexer history incomplete",
+    },
+  ])("reports $state for $reason without a length", ({ states, state, reason }) => {
+    const status = brief(modelFor(states)).status;
+    expect(status).toMatchObject({ state, reason });
+    expect(status?.length).toBeUndefined();
+  });
+
+  test("starts in Usage unknown before a read", () => {
+    const model = buildModel(emptyFacts(), now, {}, app);
+    expect(brief(model).status).toMatchObject({ state: "unknown" });
+  });
+
+  test("caps inactive estimates at the next deployment and leaves unmeasured ticks without an end", () => {
+    const inactive = deployment("1", -40, "INACTIVE", -20);
+    const measured = deployment("2", -30, "SUCCESS", -10);
+    const model = modelFor([history("file", [inactive, measured])]);
+    const borrow = () => brief(model).borrows?.find(({ id }) => id === "file:1");
+    expect(borrow()).toMatchObject({
+      end: measured.createdAt,
+      estimated: true,
+      result: "unknown",
+      links: [],
+    });
+    model.forkDeployments = [history("file", [inactive])];
+    expect(borrow()).toMatchObject({ start: inactive.createdAt, links: [] });
+    expect(borrow()?.end).toBeUndefined();
+    expect(borrow()?.estimated).toBeUndefined();
+  });
+
+  test("overlap is the union of measured intervals, naming distinct other forks", () => {
+    const model = modelFor([
+      history("search", [deployment("1", -50, "SUCCESS", -10)]),
+      history("file", [deployment("2", -60, "SUCCESS", -35), deployment("3", -40, "FAILURE", -30)]),
+      history("legal", [deployment("4", -35, "IN_PROGRESS")]),
+      history("storage", [deployment("5", -25, "INACTIVE", -10)]),
+      history("indexer", [deployment("6", -20, "SUCCESS", -15)]),
+    ]);
+    const overlap = () => brief(model).borrows?.find(({ id }) => id === "search:1")?.overlap;
+    expect(overlap()).toBe("Overlapped file, legal, indexer for 40\u00a0min");
+    model.forkDeployments.push(history("schema", [deployment("7", -20, "SUCCESS", -15)]));
+    expect(overlap()).toBe("Overlapped 4 forks for 40\u00a0min");
+  });
+
+  test("keeps the smoke failure visible while the next smoke is running", () => {
+    const model = modelFor([history("indexer", [])]);
+    const smoke = {
+      kind: "smoke",
+      name: "Smoke",
+      path: "smoke.yml",
+      event: "schedule",
+      sha: "",
+      title: "",
+      url: "",
+      attempt: 1,
+    } as const;
+    model.stack.lifecycle.smoke.runs = [
+      {
+        ...smoke,
+        id: 1,
+        status: "completed",
+        conclusion: "failure",
+        createdAt: at(-30),
+        updatedAt: at(-17),
+      },
+      { ...smoke, id: 2, status: "in_progress", createdAt: at(-9), updatedAt: at(-8) },
+    ];
+    expect(brief(model).line).toContain("smoke failed 11:43, rerunning");
+  });
+
+  test.each([
+    ["America/Chicago", "2026-03-04T06:00:00.000Z"],
+    ["Asia/Kathmandu", "2026-03-03T18:15:00.000Z"],
+  ])("starts six local midnights back in %s", (timeZone, expected) => {
+    const env = brief(modelFor([]), createContext({ ...app, timeZone }));
+    expect(env.from).toBe(expected);
+    expect(env.to).toBe(now.toISOString());
   });
 });

@@ -94,7 +94,12 @@ export interface ReleaseFact {
   url: string;
 }
 
+export type DeploymentRead = "unread" | "complete" | "capped";
+
 export interface DeploymentFact {
+  id?: string;
+  runUrl?: string;
+  deploymentUrl?: string;
   createdAt: string;
   ref?: string;
   sha?: string;
@@ -127,6 +132,7 @@ export interface RepoFact {
   issuesUnread?: true;
   closedIssues?: ClosedIssueFact[];
   deployments: DeploymentFact[];
+  deploymentRead?: DeploymentRead;
   pastPrs?: PastPrFact[];
   pastIssues?: PastIssueFact[];
   releases?: ReleaseFact[];

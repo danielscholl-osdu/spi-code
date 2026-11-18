@@ -225,3 +225,51 @@ it("opens every Environment selection in a popover or at its source, never in th
   expect(openSelection()).toEqual({ kind: "fork", id: "partition" });
   expect(selectionStore.getState().selected).toBeNull();
 });
+
+it.each(["Escape", "Close"])(
+  "opens a live borrow from its fork and restores focus via %s",
+  async (close) => {
+    const body = november16();
+    body.briefing.environment.borrows = [
+      {
+        id: "indexer:live",
+        fork: "indexer",
+        branch: "main",
+        result: "running",
+        start: new Date(Date.parse(body.briefing.environment.to) - 3_600_000).toISOString(),
+        links: [],
+      },
+    ];
+    body.briefing.environment.status = {
+      state: "in-use",
+      label: "In use",
+      live: [{ fork: "indexer", id: "indexer:live" }],
+    };
+    await render(body);
+    const opener = container.querySelector<HTMLButtonElement>(".env-status button");
+    if (!opener) throw new Error("Missing live borrow");
+    opener.focus();
+    await act(async () => opener.click());
+    expect(popover()?.getAttribute("aria-label")).toBe("indexer");
+    expect(read().lines[0]).toContain("main · running");
+    await act(async () => {
+      if (close === "Escape") {
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", cancelable: true }));
+      } else {
+        popover()?.querySelector<HTMLButtonElement>('[aria-label="Close"]')?.click();
+      }
+    });
+    expect(popover()).toBeNull();
+    expect(document.activeElement).toBe(opener);
+  },
+);
+
+it("keeps the read gap visible in the Forks group when there are no borrow bars", async () => {
+  const body = november16();
+  body.briefing.environment.borrows = [];
+  body.briefing.environment.forksNote = "legal, file not read";
+  await render(body);
+  const forks = container.querySelector('section[aria-label="Forks"]');
+  expect(forks?.textContent).toContain(body.briefing.environment.forksNote);
+  expect(forks?.querySelector("[data-borrow]")).toBeNull();
+});

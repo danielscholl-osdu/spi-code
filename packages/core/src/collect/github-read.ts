@@ -4,6 +4,7 @@
 import {
   DECLARATION_PATH,
   LANE_ENVIRONMENT,
+  LANE_DEPLOYMENT_PAGE,
   LIFECYCLE_WORKFLOWS,
   type LifecycleKind,
   MARKER_PATH,
@@ -70,7 +71,10 @@ fragment Fork on Repository {
   syncTemplate: object(expression: "main:.github/workflows/${SYNC_TEMPLATE_WORKFLOW}") { ... on Blob { text } }
   marker: object(expression: "main:${MARKER_PATH}") { ... on Blob { text } }
   upstreamLog: ref(qualifiedName: "refs/heads/fork_upstream") { target { ... on Commit { history(first: 10) { nodes { oid message committedDate } } } } }
-  deployments(environments: ["${LANE_ENVIRONMENT}"], first: 60, orderBy: {field: CREATED_AT, direction: DESC}) { nodes { createdAt commitOid ref { name } latestStatus { state createdAt } } }
+  deployments(environments: ["${LANE_ENVIRONMENT}"], first: ${LANE_DEPLOYMENT_PAGE}, orderBy: {field: CREATED_AT, direction: DESC}) {
+    nodes { id databaseId createdAt commitOid ref { name } latestStatus { state createdAt logUrl } }
+    pageInfo { hasNextPage }
+  }
   ${PAST_PULLS}
   ${PAST_ISSUES}
   ${CLOSED_ISSUES}

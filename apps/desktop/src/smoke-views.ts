@@ -15,6 +15,12 @@ import {
   ViewSnapshotSchema,
 } from "@spi-code/contracts";
 import { type BrowserWindow, ipcMain, nativeImage } from "electron";
+import {
+  ENVIRONMENT_BORROW,
+  ENVIRONMENT_LINK,
+  ENVIRONMENT_LIVE,
+  smokeEnvironment,
+} from "./smoke-environment.js";
 import { captureForks } from "./smoke-forks.js";
 import { assertSmokeGeometry, type SmokeGeometry } from "./smoke-geometry.js";
 import {
@@ -1177,6 +1183,11 @@ export async function captureSmokeViews(
           if (surface.id !== first.id) {
             if (surface.id === "service-calm")
               fixture(window, "view.snapshot", { ...unreadForks, cursor: scheduledCursor++ });
+            if (surface.id === "environment")
+              fixture(window, "view.snapshot", {
+                ...smokeEnvironment(snapshot),
+                cursor: scheduledCursor++,
+              });
             await window.webContents.executeJavaScript(
               `location.hash = ${JSON.stringify(`#${surface.route}`)}`,
             );
@@ -1479,7 +1490,22 @@ export async function captureSmokeViews(
             ...(rejectedGeometry ? { rejectedGeometry } : {}),
             ...shot,
           });
-          if (surface.id === "service-calm")
+          if (surface.id === "environment") {
+            const live = `document.querySelector(${JSON.stringify(ENVIRONMENT_LIVE)})`;
+            const borrow = `document.querySelector(${JSON.stringify(ENVIRONMENT_BORROW)})`;
+            await rendered(window, live);
+            await window.webContents.executeJavaScript(`${live}.click()`);
+            await captureSettled(
+              window,
+              `document.querySelector(${JSON.stringify(ENVIRONMENT_LINK)})`,
+              join(output, `environment-borrow-${viewportWidth}-${appearance}.png`),
+            );
+            await window.webContents.executeJavaScript(
+              `${borrow}.querySelector('[aria-label="Close"]').click()`,
+            );
+            await rendered(window, `!${borrow}`);
+          }
+          if (surface.id === "service-calm" || surface.id === "environment")
             fixture(window, "view.snapshot", { ...snapshot, cursor: scheduledCursor++ });
           if (seen !== undefined)
             await window.webContents.debugger.sendCommand("Emulation.setFocusEmulationEnabled", {

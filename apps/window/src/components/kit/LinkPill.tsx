@@ -47,7 +47,7 @@ export function linkPillText(link: Link): string {
     case "job":
       return "Failed job";
     case "deploy":
-      return "Deployments";
+      return link.label === "Deployment" ? link.label : "Deployments";
     default:
       return link.label;
   }

@@ -35,10 +35,13 @@ export interface ReadingItem {
   due?: { at: string; before: string } | undefined;
 }
 
-export interface PlaceReading<T extends ReadingItem> {
+type StandardTiles = [ReadingTile, ReadingTile, ReadingTile];
+type ReadingTiles = [ReadingTile] | StandardTiles;
+
+export interface PlaceReading<T extends ReadingItem, Tiles extends ReadingTiles = StandardTiles> {
   headline: string;
   qualifier?: string;
-  tiles: [ReadingTile, ReadingTile, ReadingTile];
+  tiles: Tiles;
   items: (T & { group: string })[];
   folded: string | null;
   itemIds?: string[];
@@ -49,10 +52,10 @@ export interface ReadingGroup<T extends ReadingItem> {
   items: readonly T[];
 }
 
-export interface ReadingParts<T extends ReadingItem> {
+export interface ReadingParts<T extends ReadingItem, Tiles extends ReadingTiles = StandardTiles> {
   headline: string;
   qualifier?: string;
-  tiles: [ReadingTile, ReadingTile, ReadingTile];
+  tiles: Tiles;
   groups: readonly ReadingGroup<T>[];
   // Words for the items past the cap; without it they fold as a list of titles.
   fold?: (rest: readonly T[]) => string;
@@ -74,7 +77,9 @@ function plainTile(tile: ReadingTile): ReadingTile {
 
 // One shape for every place: groups in order, at most five items, the rest folded into a line.
 // Display text loses its emoji; ids, evidence and the other item fields pass through unchanged.
-export function placeReading<T extends ReadingItem>(parts: ReadingParts<T>): PlaceReading<T> {
+export function placeReading<T extends ReadingItem>(parts: ReadingParts<T>): PlaceReading<T>;
+export function placeReading<T extends ReadingItem>(parts: ReadingParts<T, [ReadingTile]>): PlaceReading<T, [ReadingTile]>;
+export function placeReading<T extends ReadingItem>(parts: ReadingParts<T, ReadingTiles>): PlaceReading<T, ReadingTiles> {
   const seen = new Set<string>();
   const all: (T & { group: string })[] = [];
   for (const { group, items } of parts.groups) {
@@ -93,11 +98,13 @@ export function placeReading<T extends ReadingItem>(parts: ReadingParts<T>): Pla
   const rest = all.slice(READING_ITEMS);
   const fold = rest.length > 0 ? (parts.fold ?? foldItems)(rest) : undefined;
   const qualifier = parts.qualifier ? plainText(parts.qualifier) : "";
-  const [a, b, c] = parts.tiles;
+  const { tiles } = parts;
   return {
     headline: plainText(parts.headline),
     ...(qualifier ? { qualifier } : {}),
-    tiles: [plainTile(a), plainTile(b), plainTile(c)],
+    tiles: tiles.length === 1
+      ? [plainTile(tiles[0])]
+      : [plainTile(tiles[0]), plainTile(tiles[1]), plainTile(tiles[2])],
     items: all.slice(0, READING_ITEMS),
     ...(parts.membership ? { itemIds: [...new Set(all.flatMap((item) => [item.id, ...item.ids]))] } : {}),
     folded: plainText([fold, parts.extra].filter(Boolean).join(" ")) || null,
@@ -122,7 +129,7 @@ export function internalNames(text: string): string[] {
 }
 
 // Every line of text a reading shows, in reading order.
-export function readingText(reading: PlaceReading<ReadingItem>): string[] {
+export function readingText(reading: PlaceReading<ReadingItem, ReadingTiles>): string[] {
   const groups: string[] = [];
   for (const item of reading.items) if (!groups.includes(item.group)) groups.push(item.group);
   return [
@@ -139,7 +146,7 @@ export function readingText(reading: PlaceReading<ReadingItem>): string[] {
 
 export { wordCount };
 
-export function readingWords(reading: PlaceReading<ReadingItem>): number {
+export function readingWords(reading: PlaceReading<ReadingItem, ReadingTiles>): number {
   return readingText(reading).reduce((sum, line) => sum + wordCount(line), 0);
 }
 

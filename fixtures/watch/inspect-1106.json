@@ -4409,6 +4409,1339 @@
     "provenance": []
   },
   {
+    "id": "hold:1793405010000",
+    "title": "Held 23 min",
+    "class": "READY",
+    "cause": "Held 23 min",
+    "effect": "in maintenance for 23 min",
+    "next": "",
+    "why": "2026-10-31T00:03:30.000Z to 2026-10-31T00:26:32.000Z",
+    "evidence": [],
+    "related": [
+      {
+        "text": "Upgrade v0.33.3",
+        "state": "green in 24 min",
+        "inspect": "run:41147922929"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "hold:1793540408000",
+    "title": "Held 1 h 4 min",
+    "class": "READY",
+    "cause": "Held 1 h 4 min",
+    "effect": "in maintenance for 1 h 4 min",
+    "next": "",
+    "why": "2026-11-01T13:40:08.000Z to 2026-11-01T14:44:11.000Z",
+    "evidence": [],
+    "related": [
+      {
+        "text": "Upgrade v0.34.0",
+        "state": "green in 1 h 5 min",
+        "inspect": "run:41312282208"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "hold:1793592432000",
+    "title": "Held 2 min",
+    "class": "READY",
+    "cause": "Held 2 min",
+    "effect": "in maintenance for 2 min",
+    "next": "",
+    "why": "2026-11-02T04:07:12.000Z to 2026-11-02T04:08:48.000Z",
+    "evidence": [],
+    "related": [
+      {
+        "text": "Refresh v0.34.0",
+        "state": "green in 3 min",
+        "inspect": "run:41386565660"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "hold:1793625940000",
+    "title": "Held 16 min",
+    "class": "READY",
+    "cause": "Held 16 min",
+    "effect": "in maintenance for 16 min",
+    "next": "",
+    "why": "2026-11-02T13:25:40.000Z to 2026-11-02T13:41:12.000Z",
+    "evidence": [],
+    "related": [
+      {
+        "text": "Upgrade v0.35.0",
+        "state": "green in 17 min",
+        "inspect": "run:41452702809"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "hold:1793678819000",
+    "title": "Held 9 h 39 min",
+    "class": "READY",
+    "cause": "Held 9 h 39 min",
+    "effect": "in maintenance for 9 h 39 min",
+    "next": "",
+    "why": "2026-11-03T04:06:59.000Z to 2026-11-03T13:45:56.000Z",
+    "evidence": [],
+    "related": [
+      {
+        "text": "Upgrade v0.35.1",
+        "state": "green in 34 min",
+        "inspect": "run:41642201079"
+      },
+      {
+        "text": "Refresh v0.35.0",
+        "state": "failed at refresh › Refresh fork-sourced canonicals",
+        "inspect": "run:41576049363"
+      },
+      {
+        "text": "Smoke smoke",
+        "state": "green in 35 min",
+        "inspect": "run:41601889185"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "hold:1793765219000",
+    "title": "Held 2 h 31 min",
+    "class": "READY",
+    "cause": "Held 2 h 31 min",
+    "effect": "in maintenance for 2 h 31 min",
+    "next": "",
+    "why": "2026-11-04T04:06:59.000Z to 2026-11-04T06:37:50.000Z",
+    "evidence": [],
+    "related": [
+      {
+        "text": "Refresh v0.35.1",
+        "state": "green in 2 h 32 min",
+        "inspect": "run:41771097957"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "hold:1793798036000",
+    "title": "Held 15 min",
+    "class": "READY",
+    "cause": "Held 15 min",
+    "effect": "in maintenance for 15 min",
+    "next": "",
+    "why": "2026-11-04T13:13:56.000Z to 2026-11-04T13:29:04.000Z",
+    "evidence": [],
+    "related": [
+      {
+        "text": "Upgrade v0.35.2",
+        "state": "green in 17 min",
+        "inspect": "run:41836003228"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "hold:1793827637000",
+    "title": "Held 22 min",
+    "class": "READY",
+    "cause": "Held 22 min",
+    "effect": "in maintenance for 22 min",
+    "next": "",
+    "why": "2026-11-04T21:27:17.000Z to 2026-11-04T21:49:32.000Z",
+    "evidence": [],
+    "related": [
+      {
+        "text": "Upgrade v0.35.3",
+        "state": "green in 24 min",
+        "inspect": "run:41916026498"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "hold:1793851622000",
+    "title": "Held 3 min",
+    "class": "READY",
+    "cause": "Held 3 min",
+    "effect": "in maintenance for 3 min",
+    "next": "",
+    "why": "2026-11-05T04:07:02.000Z to 2026-11-05T04:09:38.000Z",
+    "evidence": [],
+    "related": [
+      {
+        "text": "Refresh v0.35.3",
+        "state": "green in 4 min",
+        "inspect": "run:41965650223"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
     "id": "hold:1793938025000",
     "title": "Held 13 min",
     "class": "READY",

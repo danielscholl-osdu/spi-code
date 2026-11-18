@@ -57,16 +57,17 @@
 }
 .environment .env-event-label {
   position: absolute; left: calc(100% + 9px); top: -3px;
-  font-size: 12px; line-height: 18px; color: var(--text); white-space: nowrap;
+  font-size: 12px; line-height: 18px; color: var(--text); background: var(--surface); white-space: nowrap;
 }
 .environment .env-event-label.flip { left: auto; right: calc(100% + 9px); }
-.environment .state-failed .env-event-label { color: var(--error-text); font-weight: 600; }
 .environment .state-held .env-event-label { color: var(--text-muted); }
-.environment .state-held.open .env-event-label { color: var(--error-text); font-weight: 600; }
+.environment :is(.state-failed, .state-held.open) .env-event-label {
+  color: var(--error-text); background: var(--error-surface); font-weight: 600;
+}
 .environment .env-event[aria-expanded="true"] .env-event-label {
   font-weight: 600; text-decoration: underline 2px var(--accent); text-underline-offset: 3px;
 }
-.environment .env-none, .environment .env-note { color: var(--text-muted); font-size: 12px; }
+.environment .env-none { color: var(--text-muted); font-size: 12px; }
 .environment .env-none { position: sticky; left: 90px; display: inline-block; margin: 7px 0 0 6px; }
 .environment .env-part { margin-top: 12px; }
 .environment .env-part > summary {
@@ -94,11 +95,44 @@
 .environment .env-part [data-tone="warn"] { color: var(--warning-text); }
 .environment .env-part [data-tone="ok"] { color: var(--success-text); }
 .environment [data-selection-id]:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.environment .env-quiet {
-  display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px;
-  margin: 14px 0 0; padding-top: 10px; border-top: 1px solid var(--border-soft);
-  font-size: 12px; color: var(--text-muted);
+
+.environment .env-status {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px;
+  margin: 0; font-size: 16px; font-weight: 600;
 }
-.environment .env-quiet > div { display: contents; }
-.environment .env-quiet dd { margin: 0; }
-.environment .env-quiet b { color: var(--text); font-weight: 600; }
+.environment .env-status-label { padding: 2px 8px; border-radius: 5px; background: var(--surface-raised); }
+.environment .env-status[data-state="in-use"] .env-status-label {
+  color: var(--warning-text); background: var(--warning-surface);
+}
+.environment .env-status[data-state="maintenance"] .env-status-label {
+  color: var(--error-text); background: var(--error-surface);
+}
+.environment .env-status small, .environment .env-status button, .environment .env-line {
+  color: var(--text-muted); font-size: 13px; font-weight: 400;
+}
+.environment .env-status button {
+  padding: 0; border: 0; background: transparent; text-decoration: underline; cursor: pointer;
+}
+.environment .env-line { margin: 4px 0 14px; }
+.environment .env-borrows h4 { margin: 0; padding-bottom: 6px; }
+.environment .env-fork-label { text-transform: none; letter-spacing: normal; }
+.environment .env-forks-note {
+  position: sticky; left: 90px; justify-self: start; margin: 7px 0 3px 6px;
+  background: var(--surface); color: var(--text-muted); font-size: 12px;
+}
+.environment .env-borrow {
+  --borrow-ink: var(--text-muted);
+  position: absolute; min-width: 8px; height: 10px; padding: 0; border: 0; border-radius: 3px;
+  background: var(--borrow-ink); cursor: pointer;
+}
+.environment .env-borrow[data-result="green"] { --borrow-ink: var(--success); }
+.environment .env-borrow[data-result="failed"] { --borrow-ink: var(--error); }
+.environment .env-borrow[data-result="running"] { --borrow-ink: var(--warning); }
+.environment :is(.env-borrow[data-estimated], .env-borrow[data-tick]) { background: transparent; }
+.environment :is(.env-borrow[data-estimated], .env-borrow[data-tick])::before {
+  content: ""; position: absolute; inset: 0 auto 0 0; border-left: 2px solid var(--borrow-ink);
+}
+.environment .env-borrow[data-estimated]::after {
+  content: ""; position: absolute; inset: 4px 0 auto 2px; border-top: 2px dashed var(--borrow-ink);
+}
+.environment .env-borrow:is(:focus-visible, [aria-expanded="true"]) { outline: 2px solid var(--accent); outline-offset: 2px; }

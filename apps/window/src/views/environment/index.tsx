@@ -8,6 +8,7 @@ import {
   FORKS,
   navigate,
   type OpenSelection,
+  routeHash,
   setOpenSelection,
   useOpenSelection,
 } from "../../app/navigation.js";
@@ -20,8 +21,8 @@ import { repositoryLinePointer } from "../../panels/selection-rows.js";
 import { watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
 import { TimedText } from "../../time.js";
+import { BorrowRows, dayFrom } from "./borrows.js";
 import { FlowContext } from "./flow-context.js";
-import { leadTiles } from "./lead.js";
 import { environmentOpening } from "./opening.js";
 import {
   eventKey,
@@ -117,13 +118,17 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
   });
   const env = body?.briefing.environment;
   const reading = body?.readings.find(({ anchor }) => anchor.kind === "environment") ?? NO_READING;
-  const from = env ? Date.parse(env.from) : 0;
   const to = env ? Date.parse(env.to) : 0;
+  const from = dayFrom(to);
   const lanes =
     env?.lanes.map((lane, index) => ({
       lane,
       pointer: `/briefing/environment/lanes/${index}`,
-      placed: place(lane.events, from, to),
+      placed: place(
+        lane.events.filter(({ end }) => !end || Date.parse(end) >= from),
+        from,
+        to,
+      ),
     })) ?? [];
   const repositories = body?.briefing.repositories.rows ?? [];
   const repositoryIndex = repositories.findIndex((row) => row.name === "osdu-spi-stack");
@@ -137,7 +142,7 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
         pointer: repositoryLinePointer(repositoryIndex, sectionIndex, lineIndex),
       })),
     })) ?? [];
-  const placeOf = (extra: Pick<PlaceProps, "tiles" | "belowTiles" | "belowItems"> = {}) => (
+  const placeOf = (extra: Pick<PlaceProps, "tiles" | "belowTiles" | "readingLead"> = {}) => (
     <Place
       {...extra}
       name="Environment"
@@ -163,14 +168,14 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
   // Keep duration text deterministic for the snapshot rather than ticking on the renderer clock.
   const now = new Date(to);
   const ticks = hourTicks(from, to);
-  const timeline = env.lanes.length > 0 && (
+  const timeline = (env.lanes.length > 0 || env.forksNote || env.borrows?.length) && (
     <section className="env-day" aria-labelledby={dayHeading}>
       <h3 className="env-section-label" id={dayHeading}>
         Last 24 hours
       </h3>
       <SectionEvidence evidence={body} prefixes={["/briefing/environment/lanes"]} />
       <div className="env-scroll">
-        <div className="env-timeline" style={{ minWidth: TRACK_MIN_PX + 84 }}>
+        <div className="env-timeline" style={{ minWidth: TRACK_MIN_PX }}>
           <div className="env-grid" aria-hidden="true">
             {ticks.map((tick) => (
               <span
@@ -237,36 +242,41 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
               </div>
             );
           })}
+          <BorrowRows env={env} to={to} opener={(id) => opener({ kind: "borrow", id })} />
         </div>
       </div>
     </section>
   );
-  const tiles = leadTiles(body);
-  const quiet = tiles && reading.content && (
-    <dl className="env-quiet">
-      {reading.content.tiles.map((tile) => (
-        <div key={tile.label}>
-          <dt>{tile.label}</dt>
-          <dd>
-            <b>{tile.value}</b> <TimedText text={tile.counts} hint={false} />
-          </dd>
-        </div>
-      ))}
-    </dl>
-  );
+  const { status } = env;
   return (
     <div className="environment" data-view-pane="environment" ref={pane}>
       {placeOf({
-        tiles,
-        belowTiles: (tiles || timeline) && (
+        tiles: [],
+        readingLead: status && (
           <>
-            {tiles && (
-              <SectionEvidence evidence={body} prefixes={["/briefing/environment/facts"]} />
+            <h2 className="env-status" data-state={status.state}>
+              <span className="env-status-label">{status.label}</span>
+              {status.length && <span>{status.length}</span>}
+              {status.reason && (
+                <small>
+                  <TimedText text={status.reason} hint={false} />
+                </small>
+              )}
+              {status.live?.map(({ id, fork }) => (
+                <button key={fork} type="button" {...opener({ kind: "borrow", id })}>
+                  {fork}
+                </button>
+              ))}
+            </h2>
+            {env.line && (
+              <p className="env-line">
+                <TimedText text={env.line} hint={false} />
+              </p>
             )}
-            {timeline}
+            <SectionEvidence evidence={body} prefixes={["/briefing/environment/line"]} />
           </>
         ),
-        belowItems: quiet,
+        belowTiles: timeline || undefined,
       })}
       <details className="env-part" data-part="runs">
         <summary id={runsHeading}>Stack runs</summary>
@@ -283,14 +293,6 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
           <p className="env-lead" data-pointer="/briefing/environment/headline">
             <TimedText text={env.headline} hint={false} />
           </p>
-          {env.note && (
-            <>
-              <SectionEvidence evidence={body} prefixes={["/briefing/environment/note"]} />
-              <p className="env-note" data-pointer="/briefing/environment/note">
-                {env.note}
-              </p>
-            </>
-          )}
         </section>
       </details>
       {repository && (
@@ -340,7 +342,23 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
         </details>
       )}
       {opening && marked && anchor?.isConnected && (
-        <Popover anchor={anchor} selection={marked} content={opening.content} onClose={close}>
+        <Popover
+          anchor={anchor}
+          selection={marked}
+          content={opening.content}
+          onClose={close}
+          within={pane.current?.closest<HTMLElement>("main")}
+        >
+          {opening.fork && (
+            <div className="popover-rows">
+              <a
+                className="kit-link kit-link--muted"
+                href={routeHash({ kind: "service", id: opening.fork })}
+              >
+                {opening.fork} home
+              </a>
+            </div>
+          )}
           {opening.during.length > 0 && (
             <div className="popover-rows">
               {opening.during.map(({ key, text }) => (

@@ -53,7 +53,10 @@ export const ReadingSchema = z.strictObject({
     .strictObject({
       headline: IdentifierSchema,
       qualifier: IdentifierSchema.optional(),
-      tiles: z.tuple([ReadingTileSchema, ReadingTileSchema, ReadingTileSchema]),
+      tiles: z.union([
+        z.tuple([ReadingTileSchema]),
+        z.tuple([ReadingTileSchema, ReadingTileSchema, ReadingTileSchema]),
+      ]),
       items: z.array(WatchItemSchema.extend({ group: IdentifierSchema })).max(5),
       folded: IdentifierSchema.nullable(),
       /** Full membership, including items folded out of the reading. */
