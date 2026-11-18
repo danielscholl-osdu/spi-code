@@ -38,6 +38,17 @@ export function matchesShortcut(event: KeyboardEvent, key: string, mac = isMacPl
   return event.key.toLowerCase() === key.toLowerCase();
 }
 
+/** ⌘[ and ⌘] on macOS, Alt+← and Alt+→ on Windows: back and forward through the window's history. */
+export function historyShortcut(
+  event: Pick<KeyboardEvent, "altKey" | "shiftKey" | "metaKey" | "ctrlKey" | "key">,
+  mac = isMacPlatform(),
+): "back" | "forward" | null {
+  if (event.shiftKey || event.ctrlKey) return null;
+  if (mac ? !event.metaKey || event.altKey : !event.altKey || event.metaKey) return null;
+  const [back, forward] = mac ? ["[", "]"] : ["ArrowLeft", "ArrowRight"];
+  return event.key === back ? "back" : event.key === forward ? "forward" : null;
+}
+
 /** ⌘⇧ and a letter on macOS, Ctrl+Shift and the same letter on Windows. */
 export function shiftShortcutLabel(key: string, mac = isMacPlatform()): string {
   return mac ? `⌘⇧${key.toUpperCase()}` : `Ctrl+Shift+${key.toUpperCase()}`;

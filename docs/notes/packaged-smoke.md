@@ -198,3 +198,5 @@ The service page draws no envelope qualifier, so its `service` and `service-calm
 fork reads a check: every read fork has a Waiting row, and the calm capture is crs-catalog, which is
 partly not read. Contrast reaches the stopped station on entitlements, the clock station on storage
 and the waiting station on partition, each with Main's green.
+
+Keys the window must receive from the OS are proven with `webContents.sendInputEvent`, which reaches the hidden smoke window's `keydown` as trusted events; a synthetic `dispatchEvent` proves nothing about delivery. The app sets no application menu, and Electron's default menu binds none of ⌘[, ⌘], Alt+← or Alt+→, so those reach the renderer.

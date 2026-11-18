@@ -9,6 +9,7 @@ import { PINS_STORAGE_KEY, SEED_PINS } from "../store/pins.js";
 import { watchStore } from "../store/watch.js";
 import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import {
+  goBack as back,
   navigate,
   type Registry,
   type Route,
@@ -427,4 +428,108 @@ it("opens the status pins' places", async () => {
     );
     expect(shown()).toBe(`#${key}`);
   }
+});
+
+describe("back and forward", () => {
+  const dispatch = (init: KeyboardEventInit) =>
+    act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, ...init }));
+    });
+
+  it.each([
+    ["macOS", "Macintosh", { key: "[", metaKey: true }, { key: "]", metaKey: true }],
+    [
+      "Windows",
+      "Windows NT",
+      { key: "ArrowLeft", altKey: true },
+      { key: "ArrowRight", altKey: true },
+    ],
+  ] as const)("moves through the window's own history on %s", async (_, agent, back, forward) => {
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue(agent);
+    window.location.hash = "#today";
+    await mount({ views: every, fallback: { kind: "upstream" } });
+    await dispatch(back);
+    expect(shown()).toBe("#today");
+    await go({ kind: "service", id: "indexer" });
+    await go({ kind: "service", id: "indexer", tab: "runs" });
+    await dispatch(back);
+    await dispatch(back);
+    expect(shown()).toBe("#today");
+    await dispatch(back);
+    expect(shown()).toBe("#today");
+    await dispatch(forward);
+    expect(shown()).toBe("#service/indexer");
+    await dispatch(forward);
+    await dispatch(forward);
+    expect(shown()).toBe("#service/indexer/runs");
+    await dispatch(back);
+    await go({ kind: "security" });
+    await dispatch(forward);
+    expect(shown()).toBe("#security");
+    await dispatch(back);
+    expect(shown()).toBe("#service/indexer");
+  });
+
+  it("changes nothing while typing in a field, or while Find or Settings is open", async () => {
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Macintosh");
+    window.location.hash = "#today";
+    await mount({ views: every, fallback: { kind: "today" } });
+    await go({ kind: "service", id: "indexer" });
+    await go({ kind: "service", id: "indexer", tab: "runs" });
+    await act(async () => back());
+
+    const draft = container.querySelector<HTMLInputElement>("input[aria-label=Draft]");
+    await act(async () => draft?.focus());
+    await press("[", { metaKey: true });
+    expect(shown()).toBe("#service/indexer");
+    await press("]", { metaKey: true });
+    expect(shown()).toBe("#service/indexer");
+    await act(async () => draft?.blur());
+
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>("button.find-or-ask")?.click(),
+    );
+    expect(document.querySelector('[role="dialog"][aria-label="Find or ask"]')).not.toBeNull();
+    await dispatch({ key: "[", metaKey: true });
+    expect(shown()).toBe("#service/indexer");
+    await dispatch({ key: "]", metaKey: true });
+    expect(shown()).toBe("#service/indexer");
+    await dispatch({ key: "k", metaKey: true });
+    expect(document.querySelector('[role="dialog"][aria-label="Find or ask"]')).toBeNull();
+
+    await dispatch({ key: ",", metaKey: true });
+    expect(document.querySelector('[role="dialog"].settings')).not.toBeNull();
+    await dispatch({ key: "[", metaKey: true });
+    expect(shown()).toBe("#service/indexer");
+    await dispatch({ key: "]", metaKey: true });
+    expect(shown()).toBe("#service/indexer");
+  });
+});
+
+describe("Today's tab", () => {
+  it.each([
+    { kind: "today", station: "sync" },
+    { kind: "today", tab: "forks" },
+  ] as const)(
+    "returns to $tab$station from the sidebar's Today row and Find's Today",
+    async (left) => {
+      await mount({ views: every, fallback: { kind: "today" } });
+      await go(left);
+      await go({ kind: "service", id: "indexer" });
+      await act(async () =>
+        container.querySelector<HTMLButtonElement>('[data-sidebar-row="today"]')?.click(),
+      );
+      expect(shown()).toBe(routeHash(left));
+
+      await go({ kind: "service", id: "indexer" });
+      await act(async () =>
+        container.querySelector<HTMLButtonElement>("button.find-or-ask")?.click(),
+      );
+      const today = [
+        ...document.querySelectorAll<HTMLElement>('[data-group="go-to"] .palette-row'),
+      ].find((row) => row.textContent === "Todaypage");
+      await act(async () => today?.click());
+      expect(shown()).toBe(routeHash(left));
+    },
+  );
 });

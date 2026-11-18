@@ -64,7 +64,7 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
   }, []);
   const openReadiness = useCallback(() => openSettings("readiness"), [openSettings]);
   useSetupLanding(openReadiness);
-  useShellShortcuts(registry, openSettings);
+  useShellShortcuts(registry, openSettings, settingsOpen || findOpen);
   usePinShortcut(route, settingsOpen || findOpen);
   useDocumentTitle(route);
   const { middle, onScrollCapture } = useRouteScroll(route, snapshot);

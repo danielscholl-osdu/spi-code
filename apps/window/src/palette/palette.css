@@ -85,23 +85,6 @@
   color: var(--text-muted);
   font-size: 11px;
 }
-.palette-priority {
-  flex: none;
-  padding: 0 5px;
-  border-radius: 4px;
-  background: var(--accent-surface);
-  color: var(--accent-text);
-  font-size: 10.5px;
-  font-weight: 700;
-}
-.palette-priority[data-rung="0"] {
-  background: var(--error-surface);
-  color: var(--error-text);
-}
-.palette-priority[data-rung="1"] {
-  background: var(--warning-surface);
-  color: var(--warning-text);
-}
 .palette-empty {
   padding: 8px 10px;
   color: var(--text-muted);

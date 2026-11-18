@@ -131,6 +131,14 @@ export function openTodayRow(lines: readonly TodayLine[] | undefined, item: stri
   setOpenSelection(todayRowOf(lines ?? [], item));
 }
 
+/** Goes to Today with a line's own row open: its one member's row or its group's; nothing when it has gone. */
+export function openTodayLine(lines: readonly TodayLine[] | undefined, id: string) {
+  const index = lines?.findIndex((line) => line.id === id) ?? -1;
+  const line = lines?.[index];
+  navigate({ kind: "today" });
+  setOpenSelection(line ? (rowsOf(line, index)[0]?.selection ?? null) : null);
+}
+
 function RowCells({
   row,
   origin,

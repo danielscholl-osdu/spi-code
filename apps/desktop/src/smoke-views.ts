@@ -396,6 +396,37 @@ async function leaveEvidence(window: BrowserWindow): Promise<void> {
   await rendered(window, '!document.querySelector("[data-evidence-page]")');
 }
 
+/**
+ * The platform's back and forward keys, sent through Chromium's input path rather than a
+ * synthetic DOM event, move the window's own history once each.
+ */
+async function historyKeys(window: BrowserWindow): Promise<void> {
+  const [back, forward] =
+    process.platform === "darwin"
+      ? (["[", "]"] as const).map((keyCode) => ({ keyCode, modifiers: ["meta" as const] }))
+      : (["Left", "Right"] as const).map((keyCode) => ({ keyCode, modifiers: ["alt" as const] }));
+  const press = (key: typeof back) => {
+    assert(key);
+    window.webContents.sendInputEvent({ type: "keyDown", ...key });
+    window.webContents.sendInputEvent({ type: "keyUp", ...key });
+  };
+  const place = (hash: string, label: string) =>
+    rendered(
+      window,
+      `location.hash === ${JSON.stringify(hash)} && document.querySelector("[data-place]")?.textContent === ${JSON.stringify(label)}`,
+    );
+  await window.webContents.executeJavaScript(
+    'document.activeElement?.blur(); location.hash = "#security"',
+  );
+  await place("#security", "Security");
+  await window.webContents.executeJavaScript('location.hash = "#releases"');
+  await place("#releases", "Releases");
+  press(back);
+  await place("#security", "Security");
+  press(forward);
+  await place("#releases", "Releases");
+}
+
 async function settingsSection(
   window: BrowserWindow,
   section: "readiness" | "appearance" | "sweep",
@@ -1507,6 +1538,8 @@ export async function captureSmokeViews(
       serviceSnapshot,
     );
     section("Today Forks");
+    await historyKeys(window);
+    section("back and forward keys");
     assertSmokeViews(shots);
     await overlayDragProbe(window, output, async () => {
       await window.webContents.executeJavaScript(`{

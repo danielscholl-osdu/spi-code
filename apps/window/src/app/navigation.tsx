@@ -288,11 +288,17 @@ function emit() {
 }
 
 function subscribe(listener: () => void) {
-  if (listeners.size === 0) window.addEventListener("hashchange", emit);
+  if (listeners.size === 0) {
+    window.addEventListener("hashchange", emit);
+    window.addEventListener("popstate", emit);
+  }
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
-    if (listeners.size === 0) window.removeEventListener("hashchange", emit);
+    if (listeners.size === 0) {
+      window.removeEventListener("hashchange", emit);
+      window.removeEventListener("popstate", emit);
+    }
   };
 }
 
@@ -304,7 +310,81 @@ export function navigate(destination: Destination) {
   const hash = routeHash(destination);
   if (window.location.hash === hash) return;
   window.location.hash = hash;
+  advanceHistory();
   emit();
+}
+
+/**
+ * Where the window is among the history entries this launch stamped, and the newest of them;
+ * entries from before a reload belong to another document, so back and forward stay inside these.
+ */
+let entries: { launch: string; at: number; top: number } | null = null;
+
+const HISTORY_KEY = "spiHistory";
+
+function stampOf(state: unknown): number | undefined {
+  const stamp =
+    state && typeof state === "object"
+      ? (state as Record<string, { launch?: unknown; index?: unknown } | undefined>)[HISTORY_KEY]
+      : undefined;
+  return entries && stamp?.launch === entries.launch && typeof stamp.index === "number"
+    ? stamp.index
+    : undefined;
+}
+
+function stamp(index: number) {
+  if (!entries) return;
+  const state = window.history.state;
+  window.history.replaceState(
+    {
+      ...(state && typeof state === "object" ? state : {}),
+      [HISTORY_KEY]: { launch: entries.launch, index },
+    },
+    "",
+  );
+}
+
+/** A new entry follows the one before and ends the history: what was ahead of it is gone. */
+function advanceHistory() {
+  if (!entries) return;
+  entries.at += 1;
+  entries.top = entries.at;
+  stamp(entries.at);
+}
+
+/** Reads where the window is: an entry it stamped keeps its index; any other is new. */
+function followHistory() {
+  const index = stampOf(window.history.state);
+  if (index === undefined) advanceHistory();
+  else if (entries) entries.at = index;
+}
+
+function startHistory() {
+  entries = { launch: crypto.randomUUID(), at: 0, top: 0 };
+  stamp(0);
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("hashchange", followHistory);
+  window.addEventListener("popstate", followHistory);
+}
+
+/** Back through the window's own history; nothing at its first entry. */
+export function goBack() {
+  if (entries && entries.at > 0) window.history.back();
+}
+
+/** Forward through the window's own history; nothing at its newest entry. */
+export function goForward() {
+  if (entries && entries.at < entries.top) window.history.forward();
+}
+
+/** The Today route last shown this launch, so Today returns to its tab and station filter. */
+let lastToday: TodayRoute | null = null;
+
+/** Where the sidebar's Today row and Find's Today go: the Today tab and filter last shown. */
+export function lastTodayRoute(): TodayRoute {
+  return lastToday ?? { kind: "today" };
 }
 
 /** What is open, by the hash it is open under. */
@@ -414,6 +494,7 @@ let shown = 0;
 /** A new launch: the next mount restores the last place and decides the landing again. */
 export function relaunch() {
   launch = null;
+  lastToday = null;
   acknowledged = 0;
   shown = 0;
 }
@@ -434,6 +515,7 @@ function restoreLastPlace(registry: Registry) {
     }
   }
   launch = { hash, decided: false };
+  startHistory();
 }
 
 function saveLastPlace(route: Route) {
@@ -488,7 +570,10 @@ function useLanding(route: Route, registry: Registry) {
   // The Watch gate holds Today's items while Watch is not ready, so nothing was seen.
   const watchShown = useStore(watchStore, (state) => !state.setup || state.setup.watchReady);
 
-  useEffect(() => saveLastPlace(route), [route]);
+  useEffect(() => {
+    saveLastPlace(route);
+    if (route.kind === "today") lastToday = route;
+  }, [route]);
 
   useEffect(() => {
     if (!snapshot || !launch || launch.decided) return;

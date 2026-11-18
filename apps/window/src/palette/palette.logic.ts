@@ -21,7 +21,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import type { Briefing, ViewSnapshot } from "@spi-code/contracts";
+import type { Briefing, CanWaitCause, CanWaitCauses, ViewSnapshot } from "@spi-code/contracts";
 import { treeServices } from "../app/queue.js";
 import {
   DEFAULT_REGISTRY,
@@ -34,11 +34,13 @@ import {
 import { pinOf } from "../store/pins.js";
 import { plainTitle } from "../text.js";
 import { TABS } from "../views/service/tabs.js";
+import { forksWord } from "../views/today/fleet.js";
 import { foldSearchQuery, rankSearchGroups, scoreSearchTerms } from "./search.js";
 
 export type PaletteTarget =
   | { kind: "route"; route: Route }
-  | { kind: "queue"; id: string }
+  | { kind: "line"; id: string }
+  | { kind: "cause"; id: string }
   | { kind: "settings" };
 
 export type PaletteItem = {
@@ -51,14 +53,13 @@ export type PaletteItem = {
   external?: string;
   count?: number | null;
   children?: PaletteGroup;
-  priority?: 0 | 1 | 2;
   target: PaletteTarget;
-  /** What ⌘↩ pins besides opening it; Today, Settings and the queue pin nothing. */
+  /** What ⌘↩ pins besides opening it; Today, Settings and Today's rows pin nothing. */
   pin?: string;
 };
 
 export type PaletteGroup = {
-  value: "go-to" | "services" | "queue" | `on:${string}`;
+  value: "go-to" | "services" | "blocked" | "waiting" | "can-wait" | `on:${string}`;
   label: string;
   items: PaletteItem[];
 };
@@ -74,7 +75,7 @@ const SETTINGS: PaletteItem = {
 };
 
 type SnapshotBody = {
-  briefing: Pick<Briefing, "focus" | "rest">;
+  briefing: Pick<Briefing, "lines" | "today">;
   tree?: readonly { id: string }[] | undefined;
 };
 
@@ -129,9 +130,67 @@ function serviceChildren(body: ViewSnapshot, id: string): PaletteGroup | undefin
   return { value: `on:${id}`, label: `On ${id}`, items };
 }
 
+const NO_GAPS: CanWaitCauses["notRead"] = {
+  release: [],
+  dependabot: [],
+  other: [],
+  issue: [],
+  alert: [],
+};
+
+/** What Today's Can wait row names in its fork column. */
+function causeSubject(cause: CanWaitCause, notRead: CanWaitCauses["notRead"]): string {
+  const forks = cause.forks.filter(({ group, notRead }) => group === "fork" && !notRead);
+  const [one] = forks;
+  if (forks.length === 1 && one) return one.fork;
+  if (cause.forks.length > 0 && cause.forks.every(({ group }) => group === "program"))
+    return cause.forks.length === 1
+      ? (cause.forks[0]?.fork ?? "")
+      : `${cause.forks.length} repositories`;
+  const gap =
+    notRead[cause.kind].length > 0 ||
+    cause.forks.some(({ group }) => group === undefined || group === "unknown");
+  return forks.length || !gap ? forksWord(forks.length) : "Not read";
+}
+
+/** Today's Blocked, Waiting on you and Can wait rows, in Today's order and words. */
+function todayGroups(briefing: SnapshotBody["briefing"] | undefined): PaletteGroup[] {
+  const lines = briefing?.lines ?? [];
+  const sections = [
+    { value: "blocked", label: "Blocked" },
+    { value: "waiting", label: "Waiting on you" },
+  ] as const;
+  const groups: PaletteGroup[] = sections.map(({ value, label }) => ({
+    value,
+    label,
+    items: lines
+      .filter(({ section }) => section === value)
+      .map((line) => ({
+        value: `line:${line.id}`,
+        label: `${line.subject} · ${plainTitle(line.headline)}`,
+        kind: "",
+        keywords: [...new Set(line.members.map(({ fork }) => fork))],
+        target: { kind: "line", id: line.id },
+      })),
+  }));
+  const causes = briefing?.today?.causes;
+  groups.push({
+    value: "can-wait",
+    label: "Can wait",
+    items: (causes?.rows ?? []).map((cause) => ({
+      value: `cause:${cause.id}`,
+      label: `${causeSubject(cause, causes?.notRead ?? NO_GAPS)} · ${plainTitle(cause.headline)}`,
+      kind: "",
+      keywords: cause.forks.map(({ fork }) => fork),
+      target: { kind: "cause", id: cause.id },
+    })),
+  });
+  return groups;
+}
+
 /**
- * Go to, Services and Queue, from the registered routes and the snapshot; empty groups and
- * routes with no registered view are left out.
+ * Go to, Services, then Today's Blocked, Waiting on you and Can wait, from the registered routes
+ * and the snapshot; empty groups and routes with no registered view are left out.
  */
 export function buildPaletteGroups(
   body: ViewSnapshot | SnapshotBody | undefined,
@@ -146,16 +205,6 @@ export function buildPaletteGroups(
       const children = body && "sweptAt" in body ? serviceChildren(body, route.id) : undefined;
       return children ? { ...item, children } : item;
     });
-  const queue = [...(body?.briefing.focus ?? []), ...(body?.briefing.rest ?? [])].map(
-    (item): PaletteItem => ({
-      value: `queue:${item.id}`,
-      label: `${item.scope} · ${plainTitle(item.title)}`,
-      kind: `P${item.rung}`,
-      keywords: [item.cls],
-      priority: item.rung,
-      target: { kind: "queue", id: item.id },
-    }),
-  );
   const groups: PaletteGroup[] = [
     {
       value: "go-to",
@@ -167,7 +216,7 @@ export function buildPaletteGroups(
       ],
     },
     { value: "services", label: "Services", items: services },
-    { value: "queue", label: "Queue", items: queue },
+    ...(reachable(TODAY) ? todayGroups(body?.briefing) : []),
   ];
   return groups.filter(({ items }) => items.length > 0);
 }

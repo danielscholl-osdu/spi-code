@@ -35,7 +35,13 @@ import {
 } from "react";
 import { useStore } from "zustand";
 import { treeServices } from "../../app/queue.js";
-import { isReachable, type Route, routeLabel, useRegistry } from "../../app/routes.js";
+import {
+  isReachable,
+  lastTodayRoute,
+  type Route,
+  routeLabel,
+  useRegistry,
+} from "../../app/routes.js";
 import { ariaShortcut, shortcutLabel } from "../../app/shortcuts.js";
 import { READINESS_DOT_LABEL, readinessDot } from "../../settings/readiness.js";
 import { observePinFeedback, useJustPinned } from "../../store/pin-feedback.js";
@@ -448,7 +454,7 @@ export function ProgramSidebar({
                 isActive={active === "today"}
                 data-sidebar-row="today"
                 aria-current={active === "today" ? "page" : undefined}
-                onClick={go({ kind: "today" })}
+                onClick={() => go(lastTodayRoute())()}
               >
                 <Icon name="sun" className="sidebar-icon" />
                 <span className="sidebar-row-label">Today</span>

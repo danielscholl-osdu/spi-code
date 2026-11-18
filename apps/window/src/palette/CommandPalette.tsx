@@ -25,13 +25,20 @@ import { Autocomplete } from "@base-ui/react/autocomplete";
 import { Dialog } from "@base-ui/react/dialog";
 import { useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
-import { type Destination, useRegistry } from "../app/routes.js";
+import {
+  type Destination,
+  lastTodayRoute,
+  sameRoute,
+  setOpenSelection,
+  useRegistry,
+} from "../app/routes.js";
 import { isMacPlatform, matchesShiftShortcut, shiftShortcutLabel } from "../app/shortcuts.js";
 import { PinControl } from "../components/pin/PinControl.js";
 import { ServiceMark, serviceMark } from "../components/sidebar/service-mark.js";
 import { isFixedPin, pin, togglePin, usePins } from "../store/pins.js";
 import type { createWatchStore } from "../store/watch.js";
-import { openTodayRow } from "../views/today/Table.js";
+import { openCause } from "../views/today/CanWait.js";
+import { openTodayLine } from "../views/today/Table.js";
 import { buildPaletteGroups, filterPaletteGroups, type PaletteItem } from "./palette.logic.js";
 import "./palette.css";
 
@@ -43,16 +50,18 @@ const PIN_STATE_NAME: Readonly<Record<PinState, string>> = {
   always: "always in the sidebar",
 };
 
+const TODAY = { kind: "today" } as const;
+
 function pinStateOf(id: string, pins: readonly string[]): PinState {
   if (isFixedPin(id)) return "always";
   return pins.includes(id) ? "pinned" : "unpinned";
 }
 
 /**
- * Find (PS-12): Go to, Services and Queue. The shell opens it from ⌘K or Ctrl+K (through
- * PanelControls' shortcuts) and from the sidebar's field. ⏎ opens a result; ⌘↩ (Ctrl+Enter) opens
- * a place or a service and pins it, leaving a pin where it is; the sidebar's fixed block opens
- * unpinned. ⌘⇧P (Ctrl+Shift+P) pins or unpins the highlighted result in place, as its pointer-only
+ * Find (PS-12): Go to, Services, and Today's Blocked, Waiting on you and Can wait rows. The shell
+ * opens it from ⌘K or Ctrl+K (through PanelControls' shortcuts) and from the sidebar's field. ⏎
+ * opens a result; ⌘↩ (Ctrl+Enter) opens a place or a service and pins it, leaving a pin where it
+ * is; the sidebar's fixed block opens unpinned. ⌘⇧P (Ctrl+Shift+P) pins or unpins the highlighted result in place, as its pointer-only
  * pin control does. Esc closes it and focus returns to the opener.
  */
 export function CommandPalette({
@@ -117,10 +126,17 @@ function PaletteContent({
     () => shown.flatMap(({ items }) => items.map(({ value }) => value)),
     [shown],
   );
-  const run = (item: PaletteItem) => {
-    if (item.target.kind === "route") onNavigate(item.target.route);
-    else if (item.target.kind === "settings") onSettings();
-    else openTodayRow(body?.briefing.lines, item.target.id);
+  const run = ({ target }: PaletteItem) => {
+    if (target.kind === "route")
+      onNavigate(sameRoute(target.route, TODAY) ? lastTodayRoute() : target.route);
+    else if (target.kind === "settings") onSettings();
+    else if (target.kind === "line") openTodayLine(body?.briefing.lines, target.id);
+    else if (body?.briefing.today?.causes?.rows.some(({ id }) => id === target.id))
+      openCause(target.id);
+    else {
+      onNavigate(TODAY);
+      setOpenSelection(null);
+    }
     onClose();
   };
   return (
@@ -138,7 +154,7 @@ function PaletteContent({
       <Autocomplete.Input
         className="palette-input"
         aria-label="Find"
-        placeholder="Find a page, service or queue item"
+        placeholder="Find a page, service or Today row"
         onKeyDown={(event) => {
           if (event.key === "Enter" && (event.nativeEvent.isComposing || event.keyCode === 229)) {
             // Confirming an IME candidate must not select a row.
@@ -199,11 +215,6 @@ function PaletteContent({
                   onClick={() => run(item)}
                 >
                   <ServiceMark mark={home} />
-                  {item.priority !== undefined && (
-                    <span className="palette-priority" data-rung={item.priority}>
-                      P{item.priority}
-                    </span>
-                  )}
                   <span className="palette-label">{item.label}</span>
                   {kind && <span className="palette-kind">{kind}</span>}
                   {(item.count === null || !!item.count) && (

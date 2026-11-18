@@ -19,7 +19,9 @@ import { selectionStore } from "../panels/selection.js";
 import { PINS_STORAGE_KEY, readPins } from "../store/pins.js";
 import { watchStore } from "../store/watch.js";
 import { fixtureLoader, installSpi } from "../test-utils/harness.js";
+import { WATCH_SNAPSHOTS } from "../test-utils/watch-fixtures.test-helper.js";
 import snapshot1116 from "../views/today/snapshot-1116.json?raw";
+import { openTodayLine } from "../views/today/Table.js";
 import { buildPaletteGroups, filterPaletteGroups } from "./palette.logic.js";
 
 const loadFixture = fixtureLoader(readFixture);
@@ -149,9 +151,9 @@ it("ignores Ctrl+K with the legacy IME keyCode 229", async () => {
   expect(palettes()).toHaveLength(1);
 });
 
-it("lists Go to, Services and Queue from the routes and the snapshot, without lenses or Actions", async () => {
+it("lists Go to, Services and Today's rows from the routes and the snapshot, without lenses or Actions", async () => {
   await act(async () => findField()?.click());
-  expect(labels()).toEqual(["Go to", "Services", "Queue"]);
+  expect(labels()).toEqual(["Go to", "Services", "Blocked", "Waiting on you", "Can wait"]);
   expect(palette()?.textContent).not.toMatch(/Actions/);
   expect(rows("go-to")).toEqual([
     "Todaypage",
@@ -165,14 +167,65 @@ it("lists Go to, Services and Queue from the routes and the snapshot, without le
   expect(rows("services")).toEqual(["partition", "1entitlements", "1legal", "schema", "file"]);
   expect(rows("lenses")).toEqual([]);
   expect(palette()?.querySelector('[data-group="lenses"]')).toBeNull();
-  expect(rows("queue")).toEqual([
-    "P0Environment · Maintenance modeP0",
-    "P0entitlements · Sync halted on schemathesis-testsP0",
-    "P1fleet · Rollout to template bb49a03P1",
-    "P1legal · Sync PR #31 fails Java BuildP1",
-    "P1osdu-spi-stack · 1 outside PR waits for workflow approvalP1",
-    "P12 forks · 3 upstream provider changes not portedP1",
+  expect(rows("blocked")).toEqual([
+    "entitlements · sync halted: no filter rule for schemathesis-tests",
   ]);
+  expect(rows("waiting")).toEqual([
+    "legal · sync PR has a failed check",
+    "osdu-spi-stack · 1 outside PR waits for workflow approval",
+    "2 forks · 3 upstream provider changes to port",
+  ]);
+  expect(rows("can-wait")).toEqual([
+    "osdu-spi · Release PRs",
+    "entitlements · Test External Contribution flow",
+    "osdu-spi-stack · feat: onboard Seismic Store V3",
+    "osdu-spi-stack · feat: add RAFS service",
+    "5 forks · Alerts in shipped code",
+  ]);
+});
+
+it.each(WATCH_SNAPSHOTS)(
+  "lists Today's rows one for one, in Today's order and words: %s",
+  async (name) => {
+    const next = loadFixture(name);
+    await act(async () => watchStore.setState({ snapshot: { cursor: next.cursor, body: next } }));
+    await act(async () => navigate({ kind: "today" }));
+    const drawn = (selector: string) =>
+      [...container.querySelectorAll(selector)].map(
+        (row) =>
+          `${row.querySelector(".today-row-fork")?.textContent} · ${row.querySelector(".today-row-what button")?.textContent}`,
+      );
+    const lines = drawn(".today-table tbody[data-line] > tr.today-row:not(.today-row--sub)");
+    const causes = drawn("tr.today-row--cause");
+    await shortcut({ ctrlKey: true });
+    const found = [...rows("blocked"), ...rows("waiting")];
+    expect(found).toEqual(lines);
+    expect(found).toHaveLength(next.briefing.lines?.length ?? 0);
+    expect(rows("can-wait")).toEqual(causes);
+    expect(rows("can-wait")).toHaveLength(next.briefing.today?.causes?.rows.length ?? 0);
+    for (const label of [...found, ...rows("can-wait")]) expect(label).not.toMatch(/\bP[0-2]\b/);
+    expect(labels()).not.toContain("Queue");
+  },
+);
+
+it("lists no Today group from a briefing with no lines or causes, and still finds places and services", async () => {
+  const { lines: _lines, ...briefing } = body.briefing;
+  const older = {
+    ...body,
+    cursor: body.cursor + 1,
+    briefing: {
+      ...briefing,
+      ...(briefing.today ? { today: { ...briefing.today, causes: undefined } } : {}),
+    },
+  };
+  await act(async () => watchStore.setState({ snapshot: { cursor: older.cursor, body: older } }));
+  await shortcut({ ctrlKey: true });
+  expect(palettes()).toHaveLength(1);
+  expect(labels()).toEqual(["Go to", "Services"]);
+  await type("legal");
+  expect(rows("services")).toEqual(["1legal"]);
+  await type("Releases");
+  expect(rows("go-to")).toEqual(["Releasespage"]);
 });
 
 it("marks every recorded service from its home alone, with no attention word", async () => {
@@ -228,9 +281,9 @@ it("moves with the arrows, opens with Enter, and filters as the operator types",
   expect(highlighted()).toBe("Upstreampage");
 
   await type("legal");
-  expect(labels()).toEqual(["Services", "On legal", "Queue"]);
+  expect(labels()).toEqual(["Services", "On legal", "Waiting on you", "Can wait"]);
   expect(rows("services")).toEqual(["1legal"]);
-  expect(rows("queue")).toEqual(["P1legal · Sync PR #31 fails Java BuildP1"]);
+  expect(rows("waiting")).toEqual(["legal · sync PR has a failed check"]);
   expect(highlighted()).toBe("1legal");
   await key("Enter");
   expect(palettes()).toHaveLength(0);
@@ -349,7 +402,7 @@ it("pins and unpins a result in place from its pin control, leaving Find as it w
   expect(window.location.hash).toBe("#releases");
 });
 
-it("draws no pin control on Environment or Template, and none on Queue results", async () => {
+it("draws no pin control on Environment or Template, and none on Today's rows", async () => {
   await shortcut({ ctrlKey: true });
   for (const [query, text, name] of [
     ["Environment", "Environmentpage", "Environment"],
@@ -362,10 +415,10 @@ it("draws no pin control on Environment or Template, and none on Queue results",
   await type("Releases");
   expect(pinControl("Releasespage")).not.toBeNull();
   await type("schemathesis");
-  const queue = palette()?.querySelector<HTMLElement>('[data-group="queue"] .palette-row');
-  expect(queue).toBeTruthy();
-  expect(queue?.querySelector(".pin-control")).toBeNull();
-  expect(queue?.hasAttribute("aria-label")).toBe(false);
+  const line = palette()?.querySelector<HTMLElement>('[data-group="blocked"] .palette-row');
+  expect(line).toBeTruthy();
+  expect(line?.querySelector(".pin-control")).toBeNull();
+  expect(line?.hasAttribute("aria-label")).toBe(false);
 });
 
 it("pins and unpins the highlighted result in place on Ctrl+Shift+P, and nothing on a fixed one", async () => {
@@ -437,27 +490,88 @@ it("lets Enter confirm an IME composition without choosing a row", async () => {
 });
 
 it.each([
-  ["schemathesis", "blocked:halt:crs-conversion", "halt:crs-conversion", false],
-  ["PR #90 is red", "waiting:blocker:stack:lanes:gate2", "gate2:legal", true],
-  ["PR #50 carries", "waiting:upgrade:os-core-common", "gate1:unit", true],
-  ["Re-run 5 checks", "waiting:blocker:stack:lanes:gate2", undefined, false],
-])("opens a Queue result's row in place on Today: %s", async (query, line, member, sub) => {
+  ["schemathesis", "blocked", "blocked:halt:crs-conversion", "halt:crs-conversion"],
+  ["Integration PR red", "waiting", "waiting:blocker:stack:lanes:gate2", undefined],
+  ["os-core-common upgraded", "waiting", "waiting:upgrade:os-core-common", undefined],
+  ["indexer-queue", "waiting", "waiting:blocker:stack:lanes:gate2", undefined],
+])("opens a line's own row in place on Today: %s", async (query, group, line, member) => {
   const nov16 = ViewSnapshotSchema.parse(JSON.parse(snapshot1116));
   await act(async () => watchStore.setState({ snapshot: { cursor: nov16.cursor, body: nov16 } }));
   await act(async () => navigate({ kind: "upstream" }));
   const scrolled = vi.spyOn(HTMLElement.prototype, "scrollIntoView").mockImplementation(() => {});
   await shortcut({ ctrlKey: true });
   await type(query);
-  await key("Enter");
+  const option = palette()?.querySelector<HTMLElement>(`[data-group="${group}"] .palette-row`);
+  expect(option).toBeTruthy();
+  await act(async () => option?.click());
   expect(palettes()).toHaveLength(0);
   expect(window.location.hash).toBe("#today");
   const open = [...container.querySelectorAll<HTMLElement>("tr.today-row[data-open]")];
   expect(open).toHaveLength(1);
   expect(open[0]?.dataset.lineId).toBe(line);
   expect(open[0]?.dataset.itemId).toBe(member);
-  expect(open[0]?.classList.contains("today-row--sub")).toBe(sub);
+  expect(open[0]?.classList.contains("today-row--sub")).toBe(false);
   expect(scrolled.mock.contexts).toContain(open[0]);
   expect(selectionStore.getState().selected).toBeNull();
+});
+
+it("opens a rollout line of one fork on its group row, as Today draws it", async () => {
+  const next = loadFixture("snapshot-1106.json");
+  const lines = (next.briefing.lines ?? []).map((line) =>
+    line.rollout ? { ...line, members: line.members.slice(0, 1) } : line,
+  );
+  const rollout = lines.find((line) => line.rollout);
+  expect(rollout?.members).toHaveLength(1);
+  const one = { ...next, briefing: { ...next.briefing, lines } };
+  await act(async () => watchStore.setState({ snapshot: { cursor: one.cursor, body: one } }));
+  await shortcut({ ctrlKey: true });
+  await type("not synced yet");
+  await key("Enter");
+  const open = [...container.querySelectorAll<HTMLElement>("tr.today-row[data-open]")];
+  expect(open).toHaveLength(1);
+  expect(open[0]?.dataset.lineId).toBe(rollout?.id);
+  expect(open[0]?.dataset.itemId).toBeUndefined();
+  expect(open[0]?.classList.contains("today-row--sub")).toBe(false);
+});
+
+it("opens a Can wait row in place on Today", async () => {
+  await act(async () => navigate({ kind: "today", tab: "forks" }));
+  await shortcut({ ctrlKey: true });
+  await type("RAFS");
+  expect(rows("can-wait")).toEqual(["osdu-spi-stack · feat: add RAFS service"]);
+  await key("Enter");
+  expect(palettes()).toHaveLength(0);
+  expect(window.location.hash).toBe("#today");
+  const open = [...container.querySelectorAll<HTMLElement>("tr.today-row[data-open]")];
+  expect(open).toHaveLength(1);
+  expect(open[0]?.dataset.row).toBe("other:feat%3A%20add%20rafs%20service");
+});
+
+it("lands on Today with nothing open when the chosen line or cause has gone", async () => {
+  await act(async () => navigate({ kind: "upstream" }));
+  await act(async () => openTodayLine(body.briefing.lines, "waiting:gone"));
+  expect(window.location.hash).toBe("#today");
+  expect(openSelection()).toBeNull();
+  expect(container.querySelector("tr.today-row[data-open]")).toBeNull();
+
+  await shortcut({ ctrlKey: true });
+  await type("RAFS");
+  const gone = {
+    ...body,
+    cursor: body.cursor + 1,
+    briefing: {
+      ...body.briefing,
+      today: body.briefing.today && {
+        ...body.briefing.today,
+        causes: body.briefing.today.causes && { ...body.briefing.today.causes, rows: [] },
+      },
+    },
+  };
+  const option = palette()?.querySelector<HTMLElement>('[data-group="can-wait"] .palette-row');
+  await act(async () => watchStore.setState({ snapshot: { cursor: gone.cursor, body: gone } }));
+  await act(async () => option?.click());
+  expect(window.location.hash).toBe("#today");
+  expect(openSelection()).toBeNull();
 });
 
 it("closes on Escape and returns focus to the control that opened it", async () => {
@@ -477,17 +591,21 @@ it("ranks the best match class first and keeps group order on ties", () => {
   expect(filterPaletteGroups(groups, "").map(({ value }) => value)).toEqual([
     "go-to",
     "services",
-    "queue",
+    "blocked",
+    "waiting",
+    "can-wait",
   ]);
   expect(filterPaletteGroups(groups, "ENTITLE").map(({ value }) => value)).toEqual([
     "services",
     "on:entitlements",
-    "queue",
+    "blocked",
+    "can-wait",
   ]);
   expect(
     filterPaletteGroups(groups, "flow").flatMap(({ items }) => items.map((i) => i.label)),
   ).toEqual([
     "PR #49 · Test External Contribution flow",
+    "entitlements · Test External Contribution flow",
     "osdu-spi-stack · 1 outside PR waits for workflow approval",
   ]);
   expect(filterPaletteGroups(groups, "nothing like this")).toEqual([]);
