@@ -3,12 +3,12 @@
 
 import { type TodayMemberStation, todayMembers, type ViewSnapshot } from "@spi-code/contracts";
 import { useId } from "react";
-import { navigate, type TodayTab } from "../../app/navigation.js";
+import { navigate, openEvidence, type TodayTab } from "../../app/navigation.js";
 import { ariaShortcut } from "../../app/shortcuts.js";
 import { Flow } from "../../components/flow/Flow.js";
 import { NotRead, openCause } from "./CanWait.js";
 import { Forks } from "./Forks.js";
-import { FILTER_NAMES, filterFigure, fleetFlow, flowNotRead } from "./fleet.js";
+import { FILTER_NAMES, filterFigure, fleetFlow, flowNotRead, forksWord } from "./fleet.js";
 import { lowerSections } from "./Lower.js";
 import { Section } from "./parts.js";
 import { TodayTable } from "./Table.js";
@@ -28,6 +28,19 @@ function Activity({ snapshot }: { snapshot: ViewSnapshot }) {
         </Section>
       ))}
     </div>
+  );
+}
+
+/** Not read under the flow: the forks by name, or by count with the names on hover past four. */
+function FlowNotRead({ forks }: { forks: readonly string[] }) {
+  if (forks.length <= 4) return <NotRead forks={forks} />;
+  return (
+    <p className="today-not-read" title={forks.join(", ")}>
+      ⌀ Not read on {forksWord(forks.length)}.{" "}
+      <button type="button" onClick={() => openEvidence(null)}>
+        Evidence ›
+      </button>
+    </p>
   );
 }
 
@@ -72,7 +85,7 @@ export function TodayHome({
           beyond={flow.environment}
         />
       )}
-      {unread.length > 0 && <NotRead forks={unread} />}
+      {unread.length > 0 && <FlowNotRead forks={unread} />}
       <div className="today-tabs" role="tablist" aria-label="Today tabs">
         {TABS.map(({ id, label }) => (
           <button

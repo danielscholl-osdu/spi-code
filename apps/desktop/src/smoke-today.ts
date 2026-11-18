@@ -72,27 +72,38 @@ const overBarScript = `(() => {
   return over;
 })()`;
 
-/** Each flow station whose label's glyph or words draw outside the station's tile. */
+/** Each flow station whose label's glyph or words draw outside the station's tile, or whose one-word label takes more than one line. */
 const labelsOutsideScript = `(() => {
   const outside = [];
   for (const station of document.querySelectorAll(".today .flow-station")) {
     const tile = station.getBoundingClientRect();
     const label = station.querySelector(".flow-label");
+    const lines = new Set();
     for (const part of label.childNodes) {
       if (part.nodeType === 1 && part.classList.contains("flow-say")) continue;
       const range = document.createRange();
       range.selectNode(part);
-      for (const rect of range.getClientRects())
-        if (rect.width && (rect.left < tile.left - 0.5 || rect.right > tile.right + 0.5))
+      for (const rect of range.getClientRects()) {
+        if (!rect.width) continue;
+        if (part.nodeType === 3) lines.add(Math.round(rect.top));
+        if (rect.left < tile.left - 0.5 || rect.right > tile.right + 0.5)
           outside.push(\`\${station.dataset.station}: \${Math.round(rect.left)}-\${Math.round(rect.right)} outside \${Math.round(tile.left)}-\${Math.round(tile.right)}\`);
+      }
     }
+    const words = [...label.childNodes].filter(part => part.nodeType === 3).map(part => part.textContent).join("").trim();
+    if (!/\\s/.test(words) && lines.size > 1)
+      outside.push(\`\${station.dataset.station}: one word on \${lines.size} lines\`);
   }
   return outside;
 })()`;
 
 async function assertLabelsInside(window: BrowserWindow, where: string) {
   const outside: string[] = await window.webContents.executeJavaScript(labelsOutsideScript);
-  assert.deepEqual(outside, [], `${where}: every flow station label must sit inside its tile`);
+  assert.deepEqual(
+    outside,
+    [],
+    `${where}: every flow station label must sit inside its tile, a one-word label on one line`,
+  );
 }
 
 async function grab(window: BrowserWindow): Promise<Pixels> {

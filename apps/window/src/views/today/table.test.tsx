@@ -608,6 +608,28 @@ describe("the fleet flow filters Yours", () => {
     },
   );
 
+  it.each([
+    [
+      ["file", "unit", "legal", "schema"],
+      "⌀ Not read on file, unit, legal, schema. Evidence ›",
+      null,
+    ],
+    [
+      ["file", "unit", "legal", "schema", "search"],
+      "⌀ Not read on 5 forks. Evidence ›",
+      "file, unit, legal, schema, search",
+    ],
+  ])("the not-read line over %j reads %j", async (forks, text, title) => {
+    const body = whole();
+    const sync = body.briefing.today?.fleet?.stations.find(({ id }) => id === "sync");
+    if (!sync) throw new Error("16 Nov has its Sync PR");
+    sync.notRead = forks;
+    await render(body);
+    const line = container.querySelector(".today-not-read");
+    expect(line?.textContent).toBe(text);
+    expect(line?.getAttribute("title")).toBe(title);
+  });
+
   it("a filter over forks not read never says its list is empty, and nothing unread draws no line", async () => {
     await render(whole());
     expect(container.querySelector(".today-not-read")).toBeNull();
