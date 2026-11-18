@@ -15,20 +15,24 @@ const FIRST_FORK = 'document.querySelector(".forks-scroll tr[data-fork]")';
 async function captureStickyForks(
   { window, output, rendered }: Pick<TodayCaptureContext, "window" | "output" | "rendered">,
   theme: string,
+  unread = false,
 ) {
+  const target = unread
+    ? 'document.querySelector(\'tbody[data-fork-group="unread"] tr[data-fork="file"]\')'
+    : FIRST_FORK;
   window.setContentSize(900, 800);
   await rendered("Math.abs(innerWidth - 900) <= 1");
   await window.webContents.executeJavaScript(`location.hash = "#today/forks/sync"`);
   await rendered(
-    `${FIRST_FORK}?.querySelector("[data-dim]") && !document.querySelector(".today-leaving")`,
+    `${target}?.querySelector("[data-dim]") && !document.querySelector(".today-leaving")`,
   );
   await window.webContents.executeJavaScript(`{
-    const row = ${FIRST_FORK};
+    const row = ${target};
     row.scrollIntoView({ block: "center" });
     row.closest(".forks-scroll").scrollLeft = row.closest(".forks-scroll").scrollWidth;
   }`);
   const geometry = `(() => {
-    const row = ${FIRST_FORK};
+    const row = ${target};
     const scroller = row.closest(".forks-scroll");
     const bounds = scroller.getBoundingClientRect();
     const right = bounds.left + scroller.clientLeft + scroller.clientWidth;
@@ -36,8 +40,9 @@ async function captureStickyForks(
     const cells = [".forks-toggle-cell", ".forks-name-cell", ".forks-mark-cell"].map(selector => {
       const cell = row.querySelector(selector);
       const { left, right: end, top, height } = cell.getBoundingClientRect();
-      const hit = document.elementFromPoint((left + end) / 2, top + height / 2);
-      return cell.contains(hit) && end <= right &&
+      const coversEdges = [left + 1, end - 1].every(x =>
+        cell.contains(document.elementFromPoint(x, top + height / 2)));
+      return coversEdges && end <= right &&
         getComputedStyle(cell).backgroundColor === rowSurface;
     });
     return {
@@ -49,16 +54,27 @@ async function captureStickyForks(
   })()`;
   const expected = { atRight: true, opaque: true, cells: [true, true, true] };
   assert.deepEqual(await window.webContents.executeJavaScript(geometry), expected, "900px Forks");
-  await window.webContents.executeJavaScript(
-    `${FIRST_FORK}.querySelector(".forks-toggle").click()`,
-  );
-  await rendered(`${FIRST_FORK}.nextElementSibling.matches(".forks-open")`);
+  if (unread) {
+    const { x, y } = await window.webContents.executeJavaScript(`(() => {
+      const mark = ${target}.querySelector(".forks-mark-cell").getBoundingClientRect();
+      return { x: Math.floor(mark.left + mark.width / 2), y: Math.floor(mark.top + mark.height / 2) };
+    })()`);
+    await window.webContents.debugger.sendCommand("Input.dispatchMouseEvent", {
+      type: "mouseMoved",
+      x,
+      y,
+    });
+    await rendered(`${target}.matches(":hover")`);
+  } else {
+    await window.webContents.executeJavaScript(`${target}.querySelector(".forks-toggle").click()`);
+    await rendered(`${target}.nextElementSibling.matches(".forks-open")`);
+  }
   assert.deepEqual(
     await window.webContents.executeJavaScript(geometry),
     expected,
-    "900px Forks with an opened row",
+    unread ? "900px Forks with a hovered unread row" : "900px Forks with an opened row",
   );
-  const file = `forks-sticky-${theme}.png`;
+  const file = `forks-sticky-${unread ? "unread-hover-" : ""}${theme}.png`;
   const image = await window.webContents.capturePage();
   const png = image.toPNG();
   assertSmokeImage(file, { ...image.getSize(), bitmap: image.toBitmap(), bytes: png.length });
@@ -69,6 +85,7 @@ async function captureStickyForks(
 export async function captureForks(
   context: Omit<TodayCaptureContext, "measure" | "sweepStatus">,
   snapshot: ViewSnapshot,
+  unreadSnapshot: ViewSnapshot,
 ) {
   const { window, output, rendered, fixture, setupState } = context;
   const fleet = snapshot.briefing.today?.fleet;
@@ -128,6 +145,14 @@ export async function captureForks(
     const sticky = await captureStickyForks(context, theme);
     figures.push(
       `<figure><figcaption>900px, scrolled right, ${theme}</figcaption><a href="${sticky}"><img src="${sticky}" alt="Today Forks scrolled right, ${theme}"></a></figure>`,
+    );
+    await window.webContents.executeJavaScript(
+      `void (Date.now = () => ${Date.parse(unreadSnapshot.sweptAt)})`,
+    );
+    fixture("view.snapshot", { ...unreadSnapshot, cursor: snapshot.cursor + 1 });
+    const hover = await captureStickyForks(context, theme, true);
+    figures.push(
+      `<figure><figcaption>900px, scrolled right, hovered unread row, ${theme}</figcaption><a href="${hover}"><img src="${hover}" alt="Today Forks with a hovered unread row, ${theme}"></a></figure>`,
     );
   }
   writeFileSync(

@@ -49,8 +49,12 @@ const sweepSchedule = {
   releasesMs: 3_600_000,
 };
 
-/** The brief's markup without disabled flags, which a running sweep sets and which move nothing. */
-const BRIEF_HTML = `document.querySelector(".today").outerHTML.replaceAll(' disabled=""', "")`;
+const BRIEF_HTML = `(() => {
+  const today = document.querySelector(".today").cloneNode(true);
+  [...today.querySelectorAll(".today-caveat-actions button")]
+    .find(button => button.textContent.trim() === "Read again")?.removeAttribute("disabled");
+  return today.outerHTML;
+})()`;
 
 /** Written by scripts/watch-snapshot.mjs beside the Nov 6 fixture: that sweep after its acknowledgement. */
 export const ACKNOWLEDGED_FIXTURE = "snapshot-1106-acknowledged.json";
@@ -400,7 +404,7 @@ async function leaveEvidence(window: BrowserWindow): Promise<void> {
  * The platform's back and forward keys, sent through Chromium's input path rather than a
  * synthetic DOM event, move the window's own history once each.
  */
-async function historyKeys(window: BrowserWindow): Promise<void> {
+async function historyKeys(window: BrowserWindow, restore: () => void): Promise<void> {
   const [back, forward] =
     process.platform === "darwin"
       ? (["[", "]"] as const).map((keyCode) => ({ keyCode, modifiers: ["meta" as const] }))
@@ -425,6 +429,107 @@ async function historyKeys(window: BrowserWindow): Promise<void> {
   await place("#security", "Security");
   press(forward);
   await place("#releases", "Releases");
+  press(back);
+  await place("#security", "Security");
+  const loaded = once(window.webContents, "did-finish-load");
+  window.webContents.reload();
+  await loaded;
+  await rendered(window, 'document.querySelector(".shell [data-sidebar-row=settings]")');
+  restore();
+  await place("#security", "Security");
+  const history = window.webContents.navigationHistory;
+  assert(history.canGoForward(), "Reload must leave the old forward entry in Chromium");
+  const index = history.getActiveIndex();
+  press(forward);
+  await delay(250);
+  assert.equal(history.getActiveIndex(), index, "Forward must stay inside the current launch");
+  await place("#security", "Security");
+}
+
+async function captureSettled(window: BrowserWindow, condition: string, path: string) {
+  await rendered(window, condition);
+  await rendered(window, condition);
+  const frame = await window.webContents.capturePage();
+  assert(await window.webContents.executeJavaScript(`Boolean(${condition})`), path);
+  writeFileSync(path, frame.toPNG());
+}
+
+async function captureFindToday(window: BrowserWindow, path: string) {
+  const list = 'document.querySelector(".palette-results")';
+  const blocked = `${list}?.querySelector('[data-group="blocked"] .palette-group')`;
+  await shortcut(window, "k");
+  await rendered(window, blocked);
+  await window.webContents.executeJavaScript(`{
+    const list = ${list};
+    list.scrollTop += ${blocked}.getBoundingClientRect().top - list.getBoundingClientRect().top - 6;
+  }`);
+  const visibleGroups = `(() => {
+    const list = ${list};
+    if (!list) return false;
+    const bounds = list.getBoundingClientRect();
+    return ["blocked", "waiting", "can-wait"].every(id => {
+      const group = list.querySelector('[data-group="' + id + '"]');
+      const head = group?.querySelector(".palette-group").getBoundingClientRect();
+      const row = group?.querySelector(".palette-row").getBoundingClientRect();
+      return head?.top >= bounds.top && row?.bottom <= bounds.bottom;
+    });
+  })()`;
+  await captureSettled(window, visibleGroups, path);
+  await shortcut(window, "k");
+  await rendered(window, `!${list}`);
+}
+
+async function captureSweepRulings(
+  window: BrowserWindow,
+  retained: ViewSnapshot,
+  recorded: ViewSnapshot,
+  output: string,
+  appearance: string,
+  cursor: number,
+) {
+  const show = async (snapshot: ViewSnapshot, cursor: number, hash: string) => {
+    fixture(window, "view.snapshot", { ...snapshot, cursor });
+    await window.webContents.executeJavaScript(`{
+      Date.now = () => ${Date.parse(snapshot.sweptAt)};
+      location.hash = ${JSON.stringify(hash)};
+    }`);
+  };
+  await show(retained, cursor, "#service/search/pulls");
+  const search = '.service-page[aria-label="search"]';
+  await captureSettled(
+    window,
+    `document.querySelector('${search} [data-work="pr"] .service-list-unread') &&
+      document.querySelector('${search} [data-work="pr"] [data-row="507"]') &&
+      document.querySelector('${search} [data-tab="pulls"] .service-tab-count')?.textContent === "2 ⌀"`,
+    join(output, `service-pulls-retained-${appearance}.png`),
+  );
+  await window.webContents.executeJavaScript('location.hash = "#service/search"');
+  await captureSettled(
+    window,
+    `document.querySelector('${search} [data-tab="overview"][aria-selected="true"]') &&
+      document.querySelector('${search} [data-door="unread"]')`,
+    join(output, `service-doors-incomplete-${appearance}.png`),
+  );
+  await show(recorded, cursor + 1, "#service/entitlements");
+  await captureSettled(
+    window,
+    `document.querySelector('.service-page[aria-label="entitlements"] [data-station="upstream"][data-state="stopped"] .flow-word')?.textContent === "Sync halted"`,
+    join(output, `service-sync-halted-${appearance}.png`),
+  );
+  await window.webContents.executeJavaScript('location.hash = "#today"');
+  const port = "document.querySelector('.today [data-line-id=\"waiting:port:entitlements\"]')";
+  await rendered(window, port);
+  await window.webContents.executeJavaScript(`${port}.scrollIntoView({ block: "center" })`);
+  await captureSettled(
+    window,
+    `(() => {
+      const row = ${port};
+      const rect = row?.getBoundingClientRect();
+      return rect && rect.top >= 0 && rect.bottom <= innerHeight;
+    })()`,
+    join(output, `today-port-${appearance}.png`),
+  );
+  await captureFindToday(window, join(output, `find-today-${appearance}.png`));
 }
 
 async function settingsSection(
@@ -812,6 +917,11 @@ export async function captureSmokeViews(
     "The acknowledged fixture must push the Nov 6 sweep again",
   );
   const mornings = loadMornings(morningPaths);
+  const recorded = ViewSnapshotSchema.parse(
+    JSON.parse(
+      readFileSync(join(dirname(fixturePath), "generated", "snapshot-59d6895.json"), "utf8"),
+    ),
+  );
   const serviceSnapshot = ViewSnapshotSchema.parse(
     JSON.parse(
       readFileSync(
@@ -1490,13 +1600,21 @@ export async function captureSmokeViews(
             await window.webContents.executeJavaScript(
               `location.hash = "#service/search/${tab}/${number}"`,
             );
-            await rendered(
+            await captureSettled(
               window,
-              `document.querySelector('[data-work=${kind}] [data-row="${number}"][data-open]')`,
+              `location.hash === "#service/search/${tab}/${number}" &&
+                document.querySelector('.service-page[aria-label="search"] [data-work=${kind}] [data-row="${number}"][data-open]')`,
+              join(output, `service-${tab}-${appearance}.png`),
             );
-            const png = (await window.webContents.capturePage()).toPNG();
-            writeFileSync(join(output, `service-${tab}-${appearance}.png`), png);
           }
+          await captureSweepRulings(
+            window,
+            mornings.bad.snapshot,
+            recorded,
+            output,
+            appearance,
+            scheduledCursor + 302,
+          );
           await window.webContents.executeJavaScript(
             `void (Date.now = () => ${Date.parse(checkedAt)})`,
           );
@@ -1536,9 +1654,13 @@ export async function captureSmokeViews(
         setupState: ready,
       },
       serviceSnapshot,
+      mornings.bad.snapshot,
     );
     section("Today Forks");
-    await historyKeys(window);
+    await historyKeys(window, () => {
+      fixture(window, "view.snapshot", snapshot);
+      fixture(window, "setup.state", ready);
+    });
     section("back and forward keys");
     assertSmokeViews(shots);
     await overlayDragProbe(window, output, async () => {
@@ -1629,7 +1751,21 @@ ${VIEW_WIDTHS.map(
       .join("")}</tr></table>`,
 ).join("")}</section>`,
 ).join("\n")}
-<p><a href="forks.html">Today Forks, folded and unfolded</a></p>
+<p><a href="forks.html">Today Forks, folded, unfolded and scrolled</a></p>
+<ul>${[
+      ["service-pulls-retained", "Retained Pull requests"],
+      ["service-doors-incomplete", "Incomplete service doors"],
+      ["service-sync-halted", "Sync halted"],
+      ["today-port", "Today's port row"],
+      ["find-today", "Today's three groups in Find"],
+    ]
+      .map(
+        ([file, label]) =>
+          `<li>${label} ${["light", "dark"]
+            .map((mode) => `<a href="${file}-${mode}.png">${mode}</a>`)
+            .join(" · ")}</li>`,
+      )
+      .join("")}</ul>
 <h1>Search service tabs</h1><p>Compare the open row in each tab with the
 <a href="service-design.html">service home mock</a>.</p>
 ${["pulls", "issues"]

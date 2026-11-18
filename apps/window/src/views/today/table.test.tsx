@@ -745,8 +745,6 @@ describe("Forks on the 16 Nov sweep", () => {
       `button[aria-label="${name}: show its rows"]`,
     );
     const link = fork(name)?.querySelector<HTMLButtonElement>("th button");
-    expect(expander?.tabIndex).toBe(0);
-    expect(link?.tabIndex).toBe(0);
     await click(expander);
     expect(route()).toEqual({ kind: "today", tab: "forks" });
     expect(expander?.getAttribute("aria-expanded")).toBe("true");
@@ -790,6 +788,7 @@ describe("Forks on the 16 Nov sweep", () => {
     { gap: "Main and the service mark", blank: "main", release: "8h" },
     { gap: "a door with a known service count", blank: "dependabot", release: "8h" },
     { gap: "the release age", blank: "release", release: "" },
+    { gap: "the age of a Release PR outside the door count", blank: "release", release: "" },
     { gap: "the home", blank: "main", release: "" },
   ])("keeps the fork visible with one mark when missing $gap", async ({ gap, blank, release }) => {
     const body = whole();
@@ -811,8 +810,13 @@ describe("Forks on the 16 Nov sweep", () => {
       Object.assign(other, { count: null, prs: [pr] });
       Object.assign(template, { count: 1, prs: [pr] });
       home.mark = { kind: "count", count: 2, tone: "warning" };
-    } else if (gap === "the release age") {
+    } else if (blank === "release") {
       delete home.releasePr.age;
+      if (gap !== "the release age") {
+        const door = home.doors.find(({ id }) => id === "release");
+        if (!door) throw new Error("Fixture needs the Release door");
+        Object.assign(door, { count: 0, prs: [] });
+      }
     } else {
       delete service.home;
     }

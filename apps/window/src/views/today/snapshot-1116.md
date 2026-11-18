@@ -35,5 +35,8 @@ const snapshot = projectWatch({
 });
 writeFileSync("apps/window/src/views/today/snapshot-1116.json", JSON.stringify(snapshot, null, 2) + "\n");
 JS
-pnpm biome check --write apps/window/src/views/today/snapshot-1116.json
+pnpm biome format --write --files-max-size=4194304 apps/window/src/views/today/snapshot-1116.json
 ```
+
+The snapshot exceeds Biome's default 1 MiB limit. The explicit limit lets
+Biome format the generated arrays before committing the snapshot.

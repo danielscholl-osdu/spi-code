@@ -191,7 +191,14 @@ it("never reflows the brief while a later sweep runs, fails or commits", async (
   await receive("sweep.progress", finished(midSweep()));
   await receive("view.snapshot", fixture);
   await act(async () => vi.advanceTimersByTime(200));
-  const html = () => container.querySelector(".today")?.outerHTML.replaceAll(' disabled=""', "");
+  const html = () => {
+    const today = container.querySelector(".today")?.cloneNode(true) as HTMLElement | undefined;
+    const readAgain = [...(today?.querySelectorAll(".today-caveat-actions button") ?? [])].find(
+      (button) => button.textContent?.trim() === "Read again",
+    );
+    readAgain?.removeAttribute("disabled");
+    return today?.outerHTML;
+  };
   const brief = html();
   const later = midSweep({ first: false, sweep: "sweep-2" });
   await receive("sweep.progress", later);

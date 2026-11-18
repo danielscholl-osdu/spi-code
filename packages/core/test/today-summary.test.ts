@@ -31,7 +31,7 @@ const summary = () => todaySummary({ model, facts, items, lines, since, now, con
 const objectsIn = (row: ReturnType<typeof summary>["causes"]["rows"][number]) =>
   row.forks.flatMap(({ objects }) => objects);
 
-test("Release and Dependabot reconcile by PR URL on every complete fork in the watch mornings", () => {
+test("Release, Dependabot and Other reconcile by PR URL on every complete fork in the watch mornings", () => {
   const recorded = new URL(
     "../../../apps/window/src/views/today/snapshot-1116.json",
     import.meta.url,
@@ -90,6 +90,18 @@ test("Release and Dependabot reconcile by PR URL on every complete fork in the w
       if (cause?.forks.some(({ group }) => group !== "program"))
         expect(cause.count, name).toBe(counted);
       expect(cause?.remainder ?? { blocked: 0, waiting: 0 }, name).toEqual(held);
+    }
+    for (const { service, home } of services) {
+      const door = home?.doors.find(({ id }) => id === "other");
+      if (!door || door.count === null) continue;
+      const remaining = causes.rows
+        .filter(({ kind }) => kind === "other")
+        .flatMap(({ forks }) =>
+          forks.filter(({ fork, group }) => fork === service && group === "fork"),
+        )
+        .flatMap(({ objects }) => objects.map(({ url }) => url));
+      const expected = door.prs.map(({ url }) => url).filter((url) => !sources.has(url));
+      expect(remaining.sort(), `${name} ${service} Other`).toEqual(expected.sort());
     }
   }
 });

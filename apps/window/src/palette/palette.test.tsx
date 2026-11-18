@@ -22,6 +22,7 @@ import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import { WATCH_SNAPSHOTS } from "../test-utils/watch-fixtures.test-helper.js";
 import snapshot1116 from "../views/today/snapshot-1116.json?raw";
 import { openTodayLine } from "../views/today/Table.js";
+import * as paletteLogic from "./palette.logic.js";
 import { buildPaletteGroups, filterPaletteGroups } from "./palette.logic.js";
 
 const loadFixture = fixtureLoader(readFixture);
@@ -195,11 +196,15 @@ it.each(WATCH_SNAPSHOTS)(
         (row) =>
           `${row.querySelector(".today-row-fork")?.textContent} · ${row.querySelector(".today-row-what button")?.textContent}`,
       );
-    const lines = drawn(".today-table tbody[data-line] > tr.today-row:not(.today-row--sub)");
+    const lines = (section: string) =>
+      drawn(`[data-section=${section}] tbody[data-line] > tr.today-row:not(.today-row--sub)`);
     const causes = drawn("tr.today-row--cause");
     await shortcut({ ctrlKey: true });
-    const found = [...rows("blocked"), ...rows("waiting")];
-    expect(found).toEqual(lines);
+    const blocked = rows("blocked");
+    const waiting = rows("waiting");
+    expect(blocked).toEqual(lines("blocked"));
+    expect(waiting).toEqual(lines("waiting"));
+    const found = [...blocked, ...waiting];
     expect(found).toHaveLength(next.briefing.lines?.length ?? 0);
     expect(rows("can-wait")).toEqual(causes);
     expect(rows("can-wait")).toHaveLength(next.briefing.today?.causes?.rows.length ?? 0);
@@ -557,13 +562,16 @@ it("opens a Can wait row in place on Today", async () => {
   expect(open[0]?.dataset.row).toBe("other:feat%3A%20add%20rafs%20service");
 });
 
-it("lands on Today with nothing open when the chosen line or cause has gone", async () => {
+it("lands on Today with nothing open when the chosen line has gone", async () => {
   await act(async () => navigate({ kind: "upstream" }));
   await act(async () => openTodayLine(body.briefing.lines, "waiting:gone"));
   expect(window.location.hash).toBe("#today");
   expect(openSelection()).toBeNull();
   expect(container.querySelector("tr.today-row[data-open]")).toBeNull();
+});
 
+it("lands on Today with nothing open when activating a stale Can wait result", async () => {
+  await act(async () => navigate({ kind: "upstream" }));
   await shortcut({ ctrlKey: true });
   await type("RAFS");
   const gone = {
@@ -577,11 +585,15 @@ it("lands on Today with nothing open when the chosen line or cause has gone", as
       },
     },
   };
-  const option = palette()?.querySelector<HTMLElement>('[data-group="can-wait"] .palette-row');
+  vi.spyOn(paletteLogic, "buildPaletteGroups").mockReturnValue(buildPaletteGroups(body));
   await act(async () => watchStore.setState({ snapshot: { cursor: gone.cursor, body: gone } }));
+  expect(window.location.hash).toBe("#upstream");
+  const option = palette()?.querySelector<HTMLElement>('[data-group="can-wait"] .palette-row');
+  expect(option?.isConnected).toBe(true);
   await act(async () => option?.click());
   expect(window.location.hash).toBe("#today");
   expect(openSelection()).toBeNull();
+  expect(container.querySelector("tr.today-row[data-open]")).toBeNull();
 });
 
 it("closes on Escape and returns focus to the control that opened it", async () => {

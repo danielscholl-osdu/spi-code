@@ -58,7 +58,7 @@ function snapshotAt(path: string) {
 }
 
 describe("Today's situation lines", () => {
-  test("the 16 Nov sweep has 11 lines and 19 members: 3 blocked, 16 waiting", () => {
+  test("16 Nov has 11 lines and 19 members, and all mornings put the same members in fork homes", () => {
     expect(lines).toHaveLength(11);
     expect(lines.flatMap((line) => line.members)).toHaveLength(19);
     expect(
@@ -72,9 +72,6 @@ describe("Today's situation lines", () => {
         .flatMap(({ members }) => members)
         .filter(({ ids }) => ids.some((id) => id.startsWith("port:"))),
     ).toHaveLength(1);
-  });
-
-  test("the same Today members and shared port work reach only the owing fork homes", () => {
     const fixtures = recordedMornings();
     expect(fixtures.map(({ name }) => name)).toEqual(
       expect.arrayContaining([
