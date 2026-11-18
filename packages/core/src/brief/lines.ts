@@ -352,7 +352,7 @@ function rolloutMembers(
 ) {
   const rollout = model.rollout;
   const line = lines.find(({ members }) => members.some(({ id }) => id === "rollout"));
-  if (!rollout || !line) return;
+  if (!rollout || line?.section !== "waiting") return;
   const held = todaySources(model, items, lines.filter((other) => other !== line));
   const behind = rollout.forks.filter(({ onTarget, unread }) => !onTarget && !unread);
   const members = behind.flatMap(({ service, pr }): TodayMember[] => {
@@ -371,7 +371,6 @@ function rolloutMembers(
     }];
   });
   if (!members.length) return;
-  line.section = "waiting";
   line.subject = plural(members.length, "fork");
   line.rollout = {
     withoutPr: behind.filter(({ repo, pr }) => !pr && pulls && pullsComplete(repo, pulls.facts, pulls.reads))

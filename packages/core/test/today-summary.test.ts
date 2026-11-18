@@ -10,6 +10,7 @@ import { releasesToday } from "../src/brief/releases-today";
 import { serviceHome } from "../src/brief/service-home";
 import { sinceOf } from "../src/brief/since";
 import { todayHistory, todaySummary } from "../src/brief/today-summary";
+import { STACK_REPO, TEMPLATE_REPO } from "../src/config";
 import type { PrFact, RepoAlerts } from "../src/facts";
 import { workflowEvidence } from "../src/inspect/item-evidence";
 import { groupUrl } from "../src/inspect/repo";
@@ -82,7 +83,12 @@ test("Release and Dependabot reconcile by PR URL on every complete fork in the w
         counted += remaining.length;
       }
       expect(cause?.forkCount ?? 0, name).toBe(chips.length);
-      expect(cause?.count ?? 0, name).toBe(counted);
+      expect(
+        chips.reduce((sum, { count }) => sum + count, 0),
+        name,
+      ).toBe(counted);
+      if (cause?.forks.some(({ group }) => group !== "program"))
+        expect(cause.count, name).toBe(counted);
       expect(cause?.remainder ?? { blocked: 0, waiting: 0 }, name).toEqual(held);
     }
   }
@@ -221,6 +227,55 @@ test("classifies a second release and a labeled station PR, and exposes pulls he
       .map(({ url }) => url),
   ).toContain(second.url);
   expect(projected.causes.rows.flatMap(objectsIn).map(({ url }) => url)).not.toContain(station.url);
+});
+
+test("program-only Can wait causes count their PRs without adding forks or door work", () => {
+  const input = sweep1116Facts();
+  const repos = input.github.data?.repos;
+  if (!repos) throw new Error("Recorded repository facts are missing");
+  const template = repos[TEMPLATE_REPO];
+  const stack = repos[STACK_REPO];
+  if (!template || !stack) throw new Error("Recorded program repositories are missing");
+  for (const repo of Object.values(repos)) Object.assign(repo, { prs: [], openPrs: 0 });
+  const pull = (repo: string, number: number, head: string, title: string): PrFact => ({
+    repo,
+    number,
+    head,
+    title,
+    base: "main",
+    labels: [],
+    checks: [],
+    draft: false,
+    headSha: "abc",
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+    url: `https://github.com/${repo}/pull/${number}`,
+  });
+  const release = pull(TEMPLATE_REPO, 501, "release-please--branches--main", "Release 2.0.0");
+  const templateChore = pull(TEMPLATE_REPO, 502, "human/template", "Chore: audit manifests");
+  const stackChore = pull(STACK_REPO, 501, "human/stack", templateChore.title);
+  Object.assign(template, { prs: [release, templateChore], openPrs: 2 });
+  Object.assign(stack, { prs: [stackChore], openPrs: 1 });
+  const model = sweep1116Model(input);
+  const projection = { model, facts: input, items: [], lines: [], now };
+  const { causes, canWait } = todaySummary({ ...projection, since, context });
+  expect(causes.rows.find(({ kind }) => kind === "release")).toMatchObject({
+    count: 1,
+    forkCount: 0,
+    remainder: { blocked: 0, waiting: 0 },
+    forks: [{ fork: "osdu-spi", group: "program", count: 1, objects: [{ url: release.url }] }],
+  });
+  expect(causes.rows.find(({ kind }) => kind === "other")).toMatchObject({
+    count: 2,
+    forkCount: 0,
+    forks: [
+      { fork: "osdu-spi", group: "program", count: 1, objects: [{ url: templateChore.url }] },
+      { fork: "osdu-spi-stack", group: "program", count: 1, objects: [{ url: stackChore.url }] },
+    ],
+  });
+  const homes = serviceHome({ ...projection, canWait, reads: {}, versions: [] });
+  expect(homes.size).toBeGreaterThan(0);
+  expect([...homes.values()].flatMap(({ doors }) => doors.flatMap(({ prs }) => prs))).toEqual([]);
 });
 
 describe("Today's lower sections on the unchanged 16 Nov sweep", () => {

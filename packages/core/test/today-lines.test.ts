@@ -515,7 +515,7 @@ describe("Today's situation lines", () => {
     });
   });
 
-  test("rollout counts only behind, read forks with an open PR of their own", () => {
+  test("rollout counts only behind, read forks with open PRs and keeps a stopped rollout Blocked", () => {
     const facts = { ...emptyFacts(), ...(structuredClone(sweep1106) as unknown as Partial<Facts>) };
     const repo = facts.github.data?.repos["Azure/osdu-spi-partition"];
     const red = repo?.prs.find(({ head }) => head.startsWith("template-sync/"));
@@ -568,6 +568,30 @@ describe("Today's situation lines", () => {
       ),
     ).toBe(false);
     expect(lineWith("rollout")?.members.map(({ id }) => id)).toEqual(["rollout"]);
+
+    const fixture = watchFixtures().find(({ name }) => name === "snapshot-1106-unverified.json");
+    if (!fixture) throw new Error("Missing the unverified watch fixture");
+    const { briefing, services } = snapshotAt(fixture.path);
+    const yours = todayMembers(briefing);
+    expect(yours).toHaveLength(16);
+    const blocked = yours.filter(({ line }) => line.section === "blocked");
+    expect(blocked).toHaveLength(3);
+    const stop = briefing.focus.find(({ id }) => id === "rollout");
+    if (!stop) throw new Error("The unverified snapshot has a stopped rollout");
+    const entry = blocked.find(({ line }) => line.id === "blocked:rollout");
+    expect(entry?.line.members).toHaveLength(1);
+    expect(entry?.member).toMatchObject({
+      id: "rollout",
+      fork: "fleet",
+      cause: stop.cause,
+      primary: stop.evidence[0],
+    });
+    expect(yours.some(({ member }) => member.id.startsWith("rollout:"))).toBe(false);
+    expect(
+      services
+        ?.flatMap(({ home }) => home?.overview ?? [])
+        .some(({ id }) => id.startsWith("rollout:")),
+    ).toBe(false);
   });
 
   test("adding situation lines leaves the default core briefing byte-identical", () => {

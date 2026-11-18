@@ -984,7 +984,7 @@ function causeCases(today: Summary, add: Add) {
     add(`${pointer}/id`, cause.id, TODAY, tr, { attribute: "data-row" });
     add(`${pointer}/kind`, cause.kind, TODAY, tr, { attribute: "data-cause" });
     add(`${pointer}/headline`, plainTitle(cause.headline), TODAY, `${tr} .today-row-what button`, {
-      opens: { click: `${tr} .today-row-what button`, opened: `${body} .today-cause-forks` },
+      opens: { click: `${tr} .today-row-what button`, opened: `${body} .today-cause-pills` },
     });
     const groupUnread = cause.forks.some(({ group }) => group === undefined || group === "unknown");
     const legacy = cause.forks.some(({ group }) => group === undefined);
@@ -1000,9 +1000,11 @@ function causeCases(today: Summary, add: Add) {
       add(`${pointer}/place`, cause.place, TODAY, `${tr} .today-row-place`, {
         attribute: "data-place",
       });
+    const programOnly = cause.forks.every(({ group }) => group === "program");
     cause.forks.forEach(({ fork, group, notRead }, at) => {
-      const shelf =
-        group !== "fork"
+      const shelf = programOnly
+        ? ".today-cause-repositories"
+        : group !== "fork"
           ? ".today-cause-outside"
           : notRead
             ? ".today-cause-unread"

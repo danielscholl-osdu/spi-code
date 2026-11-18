@@ -841,6 +841,40 @@ describe("Can wait by cause", () => {
     expect(opened()).toHaveLength(0);
   });
 
+  it.each([
+    { repositories: ["osdu-spi"], subject: "osdu-spi", prs: 2 },
+    { repositories: ["osdu-spi", "osdu-spi-stack"], subject: "2 repositories", prs: 3 },
+  ])(
+    "counts and opens program-only Can wait work for $subject",
+    async ({ repositories, subject, prs }) => {
+      const snapshot = current();
+      const release = snapshot.briefing.today?.causes?.rows.find(({ kind }) => kind === "release");
+      const program = release?.forks.find(({ group }) => group === "program");
+      const pull = program?.objects[0];
+      if (!release || !program || !pull) throw new Error("6 Nov has a program release PR");
+      release.forks = repositories.map((fork, index) => {
+        const objects = [{ ...pull, id: fork }];
+        if (index === 0) objects.push({ ...pull, id: `${fork}:second` });
+        return { ...program, fork, count: objects.length, objects };
+      });
+      release.forkCount = 0;
+      release.count = prs;
+      await render(snapshot);
+      const row = causeRow("release");
+      expect(row?.querySelector(".today-row-fork")?.textContent).toBe(subject);
+      expect(row?.querySelector(".today-row-age")?.textContent).toContain(`${prs} PRs`);
+      expect(row?.dataset.forkCount).toBe("0");
+      await click(row?.querySelector(".today-row-what button"));
+      const body = row?.nextElementSibling;
+      expect(body?.textContent).not.toContain("Outside the forks");
+      expect(
+        [...(body?.querySelectorAll("[data-cause-entry]") ?? [])].map(
+          (entry) => entry.textContent?.split(" ")[0],
+        ),
+      ).toEqual(repositories);
+    },
+  );
+
   it("a fork pill opens its service page with the row holding its object, else the cause's place", async () => {
     await render(current());
     await click(causeRow("release")?.querySelector(".today-row-what button"));

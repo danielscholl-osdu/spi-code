@@ -87,8 +87,9 @@ export function canWaitCauses(
   const make = (kind: CauseKind, id: string, title: string, entries: readonly CauseObject[]): CanWaitCause => {
     const groups = [...grouped(entries, (entry) => entry.repo).values()];
     const counted = entries.filter(({ group, notRead }) => group === "fork" && !notRead);
+    const programOnly = entries.every(({ group }) => group === "program");
     return {
-      id, kind, headline: headline(title), count: countOf(counted),
+      id, kind, headline: headline(title), count: countOf(programOnly ? entries : counted),
       forkCount: new Set(counted.map(({ repo }) => repo)).size,
       forks: groups.map((members) => ({
         fork: members[0].fork, group: members[0].group, count: countOf(members),

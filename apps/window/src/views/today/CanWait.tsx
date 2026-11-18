@@ -99,11 +99,13 @@ function ForkPill({
 function CauseBody({
   cause,
   notRead,
+  programOnly,
   snapshot,
   onClose,
 }: {
   cause: CanWaitCause;
   notRead: readonly string[];
+  programOnly: boolean;
   snapshot: ViewSnapshot;
   onClose(): void;
 }) {
@@ -153,10 +155,12 @@ function CauseBody({
         </p>
       )}
       <nav
-        className="today-cause-pills today-cause-forks"
-        aria-label={`${plainTitle(cause.headline)} by fork`}
+        className={`today-cause-pills ${programOnly ? "today-cause-repositories" : "today-cause-forks"}`}
+        aria-label={programOnly ? "Program repositories" : `${plainTitle(cause.headline)} by fork`}
       >
-        {forks.filter(({ fork }) => !fork.notRead).map(({ pill }) => pill)}
+        {(programOnly ? outside : forks.filter(({ fork }) => !fork.notRead)).map(
+          ({ pill }) => pill,
+        )}
       </nav>
       {(notRead.length > 0 || partial.length > 0) && (
         <div className="today-cause-unread">
@@ -168,7 +172,7 @@ function CauseBody({
           )}
         </div>
       )}
-      {outside.length > 0 && (
+      {outside.length > 0 && !programOnly && (
         <div className="today-cause-outside">
           <p>Outside the forks</p>
           <nav className="today-cause-pills" aria-label="Outside the forks">
@@ -233,7 +237,12 @@ export function CanWait({
             ({ group }) => group === undefined || group === "unknown",
           );
           const gap = notRead.length > 0 || unknown;
-          const count = forks.length ? cause.count : 0;
+          const programOnly =
+            cause.forks.length > 0 && cause.forks.every(({ group }) => group === "program");
+          const [repository] = cause.forks;
+          const programSubject =
+            cause.forks.length === 1 ? repository?.fork : `${cause.forks.length} repositories`;
+          const count = forks.length || programOnly ? cause.count : 0;
           const forkCount = forks.length;
           const [singular, plural] = UNITS[cause.kind];
           const close = () => {
@@ -254,7 +263,11 @@ export function CanWait({
                     <ForkName fork={one.fork} services={services} />
                   ) : (
                     <span className="today-fork-name">
-                      {forkCount || !gap ? forksWord(forkCount) : "Not read"}
+                      {programOnly
+                        ? programSubject
+                        : forkCount || !gap
+                          ? forksWord(forkCount)
+                          : "Not read"}
                     </span>
                   )}
                 </td>
@@ -303,6 +316,7 @@ export function CanWait({
                     <CauseBody
                       cause={cause}
                       notRead={notRead}
+                      programOnly={programOnly}
                       snapshot={snapshot}
                       onClose={close}
                     />
