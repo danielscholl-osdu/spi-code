@@ -13,6 +13,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import november6 from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
+import { midSweep } from "../../components/sweep/test-helper.js";
 import { createSelectionStore } from "../../panels/selection.js";
 import { createWatchStore } from "../../store/watch.js";
 import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
@@ -36,7 +37,8 @@ const cleanups: (() => Promise<void>)[] = [];
 
 async function mount(body: ViewSnapshot, completed: SweepProgress | null = null) {
   const port = { postMessage: vi.fn() };
-  const store = createWatchStore(vi.fn(), createSelectionStore(port));
+  const send = vi.fn();
+  const store = createWatchStore(send, createSelectionStore(port));
   store.setState({ snapshot: { cursor: body.cursor, body }, completed });
   const container = document.createElement("div");
   document.body.append(container);
@@ -52,7 +54,7 @@ async function mount(body: ViewSnapshot, completed: SweepProgress | null = null)
     await act(async () => root.unmount());
     container.remove();
   });
-  return { container, onOpenSettings, onOpenEvidence };
+  return { container, onOpenSettings, onOpenEvidence, store, send };
 }
 
 afterEach(async () => {
@@ -73,11 +75,19 @@ describe.each(NAMES)("on the %s morning", (name) => {
     expect(date?.textContent).toMatch(/^[A-Z][a-z]+day \d{1,2} [A-Z][a-z]{2}$/);
     const frame = container.querySelector(".today .place-reading.today-frame");
     expect(frame).not.toBeNull();
+    const fleet = body.briefing.today?.fleet;
+    const unread =
+      fleet && [...fleet.stations, ...fleet.doors].some(({ notRead }) => notRead.length);
     expect(
       [...(frame?.children ?? [])]
         .map((child) => child.className || child.getAttribute("role"))
         .filter((name) => name !== "today-caveat"),
-    ).toEqual([...(body.briefing.today?.fleet ? ["flow-wrap"] : []), "today-tabs", "tabpanel"]);
+    ).toEqual([
+      ...(fleet ? ["flow-wrap"] : []),
+      ...(unread ? ["today-not-read"] : []),
+      "today-tabs",
+      "tabpanel",
+    ]);
     const order = ["blocked", "waiting", "can-wait"];
     const sections = [...(frame?.querySelectorAll<HTMLElement>(".today-section") ?? [])].map(
       ({ dataset }) => dataset.section ?? "",
@@ -191,14 +201,44 @@ describe("the caveat band", () => {
       });
       const { container, onOpenSettings } = await mount(body, completed);
       const actions = texts(container, ".today-caveat-actions button");
-      expect(actions).toEqual(code === "signin" ? ["Open Settings ›"] : []);
+      expect(actions).toEqual(
+        code === "signin" ? ["Read again", "Open Settings ›"] : ["Read again"],
+      );
       if (code !== "signin") return;
       await act(async () =>
-        container.querySelector<HTMLButtonElement>(".today-caveat-actions button")?.click(),
+        container.querySelectorAll<HTMLButtonElement>(".today-caveat-actions button")[1]?.click(),
       );
       expect(onOpenSettings).toHaveBeenCalledOnce();
     },
   );
+});
+
+describe("Read again on the caveat band", () => {
+  const readAgain = (container: Element) =>
+    [...container.querySelectorAll<HTMLButtonElement>(".today-caveat-actions button")].find(
+      ({ textContent }) => textContent === "Read again",
+    );
+
+  it("sends one sweep request without now, and sends nothing more while it is pending", async () => {
+    const { container, send } = await mount(morning("bad"));
+    await act(async () => readAgain(container)?.click());
+    expect(send).toHaveBeenCalledOnce();
+    expect(send.mock.calls[0]?.[0]).toMatchObject({ type: "sweep.request", payload: {} });
+    expect(send.mock.calls[0]?.[0].payload).not.toHaveProperty("now");
+    expect(readAgain(container)?.disabled).toBe(true);
+    await act(async () => readAgain(container)?.click());
+    expect(send).toHaveBeenCalledOnce();
+  });
+
+  it("is disabled while a sweep runs, and live again once it ends", async () => {
+    const { container, store, send } = await mount(morning("bad"));
+    await act(async () => store.setState({ progress: midSweep() }));
+    expect(readAgain(container)?.disabled).toBe(true);
+    await act(async () => readAgain(container)?.click());
+    expect(send).not.toHaveBeenCalled();
+    await act(async () => store.setState({ progress: midSweep({ outcome: "committed" }) }));
+    expect(readAgain(container)?.disabled).toBe(false);
+  });
 });
 
 it.each(NAMES)(

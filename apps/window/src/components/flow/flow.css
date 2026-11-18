@@ -15,7 +15,7 @@
 button.flow-station { cursor: pointer; }
 button.flow-station:hover { border-color: var(--text-muted); }
 .flow-station:focus-visible, .flow-door:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.flow-label { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.flow-label { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; overflow-wrap: anywhere; }
 .flow-glyph { width: 14px; font-family: var(--font-mono); font-weight: 700; text-align: center; }
 .flow-say { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .flow-word { color: var(--text-strong); font-size: 13.5px; font-weight: 650; overflow-wrap: anywhere; }

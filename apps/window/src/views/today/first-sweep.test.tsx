@@ -191,14 +191,15 @@ it("never reflows the brief while a later sweep runs, fails or commits", async (
   await receive("sweep.progress", finished(midSweep()));
   await receive("view.snapshot", fixture);
   await act(async () => vi.advanceTimersByTime(200));
-  const brief = container.querySelector(".today")?.outerHTML;
+  const html = () => container.querySelector(".today")?.outerHTML.replaceAll(' disabled=""', "");
+  const brief = html();
   const later = midSweep({ first: false, sweep: "sweep-2" });
   await receive("sweep.progress", later);
-  expect(container.querySelector(".today")?.outerHTML).toBe(brief);
+  expect(html()).toBe(brief);
   await receive("sweep.progress", stopped({ first: false, sweep: "sweep-2" }));
-  expect(container.querySelector(".today")?.outerHTML).toBe(brief);
+  expect(html()).toBe(brief);
   await receive("sweep.progress", finished(later));
-  expect(container.querySelector(".today")?.outerHTML).toBe(brief);
+  expect(html()).toBe(brief);
   expect(container.querySelector(".sweep-row, .today-first, .today-leaving")).toBeNull();
 });
 

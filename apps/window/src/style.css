@@ -50,8 +50,8 @@ body { margin: 0; background: var(--surface); color: var(--text); font: 14px/1.5
 .centre-body > * > .place { display: contents; }
 .centre-body .place-reading,
 .centre-body > * > :not(.place) { max-width: var(--centre-content-max-width); }
-/* Today lifts the content cap; the places keep it. */
-.centre-body .today-frame { max-width: none; }
+/* Today's Forks sheet lifts the content cap; Yours, Activity and the places keep it. */
+.centre-body .today[data-tab="forks"] .today-frame { max-width: none; }
 .pane-header { display: flex; align-items: center; flex: none; box-sizing: border-box; height: var(--pane-header-height); border-bottom: 1px solid var(--border); }
 .right-panel-frame { grid-column: 3; grid-row: 1 / -1; display: grid; min-width: 0; min-height: 0; }
 aside { padding: 16px; overflow: auto; min-width: 0; background: var(--chrome); border-left: 1px solid var(--border); }

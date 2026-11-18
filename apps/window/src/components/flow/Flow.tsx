@@ -20,6 +20,8 @@ export type FlowStation = {
   pressed?: boolean | undefined;
   /** Names what the figure counts, on hover. */
   title?: string | undefined;
+  /** The figure counts what was read and some forks were not. */
+  partlyRead?: boolean | undefined;
 };
 
 export type FlowDoor = {
@@ -47,7 +49,12 @@ const pressedProps = (pressed: boolean | undefined) =>
   pressed === undefined ? {} : { "aria-pressed": pressed };
 
 function Station({ station, place }: { station: FlowStation; place: "top" | "join" | "beyond" }) {
-  const { glyph, say } = STATION_MARKS[station.state];
+  const { glyph, say: mark } = STATION_MARKS[station.state];
+  const say = !station.partlyRead
+    ? mark
+    : station.state === "ready"
+      ? "some forks not read"
+      : `${mark}, some forks not read`;
   const inner = (
     <>
       <span className="flow-label">

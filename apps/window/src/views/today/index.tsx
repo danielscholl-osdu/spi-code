@@ -102,6 +102,10 @@ export default function Today({
   const completed = useStore(store, (state) => state.completed);
   const nextSweepAt = useStore(store, (state) => state.sweep?.nextSweepAt);
   const requestSweep = useStore(store, (state) => state.requestSweep);
+  const sweeping = useStore(
+    store,
+    (state) => state.sweepRequest !== null || state.progress?.outcome === "running",
+  );
   const [leaving, settle] = useHandOver(Boolean(snapshot), progress);
   if (!snapshot) {
     return (
@@ -115,8 +119,13 @@ export default function Today({
   }
   const body = snapshot.body;
   const openEvidence = onOpenEvidence ?? (() => openFreshness(body));
+  const readAgain = async () => store.getState().requestReadAgain();
   return (
-    <section className={leaving ? "today today-handover" : "today"} aria-label="Today">
+    <section
+      className={leaving ? "today today-handover" : "today"}
+      aria-label="Today"
+      data-tab={tab ?? "yours"}
+    >
       <TodayFrame
         sweptAt={body.sweptAt}
         caveat={
@@ -125,6 +134,8 @@ export default function Today({
             completed={completed}
             onOpenEvidence={openEvidence}
             onOpenSettings={onOpenSettings}
+            onReadAgain={() => void readAgain().catch(() => undefined)}
+            sweeping={sweeping}
           />
         }
       >

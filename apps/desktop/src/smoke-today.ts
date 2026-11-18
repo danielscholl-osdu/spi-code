@@ -72,6 +72,29 @@ const overBarScript = `(() => {
   return over;
 })()`;
 
+/** Each flow station whose label's glyph or words draw outside the station's tile. */
+const labelsOutsideScript = `(() => {
+  const outside = [];
+  for (const station of document.querySelectorAll(".today .flow-station")) {
+    const tile = station.getBoundingClientRect();
+    const label = station.querySelector(".flow-label");
+    for (const part of label.childNodes) {
+      if (part.nodeType === 1 && part.classList.contains("flow-say")) continue;
+      const range = document.createRange();
+      range.selectNode(part);
+      for (const rect of range.getClientRects())
+        if (rect.width && (rect.left < tile.left - 0.5 || rect.right > tile.right + 0.5))
+          outside.push(\`\${station.dataset.station}: \${Math.round(rect.left)}-\${Math.round(rect.right)} outside \${Math.round(tile.left)}-\${Math.round(tile.right)}\`);
+    }
+  }
+  return outside;
+})()`;
+
+async function assertLabelsInside(window: BrowserWindow, where: string) {
+  const outside: string[] = await window.webContents.executeJavaScript(labelsOutsideScript);
+  assert.deepEqual(outside, [], `${where}: every flow station label must sit inside its tile`);
+}
+
 async function grab(window: BrowserWindow): Promise<Pixels> {
   const image = nativeImage.createFromBuffer((await window.webContents.capturePage()).toPNG());
   const { width, height } = image.getSize();
@@ -119,6 +142,31 @@ export async function captureTodayFrame(
   return { ...page, pageHeight, blocks };
 }
 
+async function showToday(
+  context: TodayCaptureContext,
+  snapshot: ViewSnapshot,
+  hash: string,
+  appearance: "light" | "dark",
+  viewportWidth: number,
+) {
+  const { window, rendered, fixture } = context;
+  await window.webContents.executeJavaScript(`{
+    localStorage.removeItem("spi-code.panes");
+    localStorage.setItem("spi-code.appearance", ${JSON.stringify(appearance)});
+    location.hash = ${JSON.stringify(hash)};
+  }`);
+  const loaded = once(window.webContents, "did-finish-load");
+  window.webContents.reload();
+  await loaded;
+  await rendered('document.querySelector(".shell [data-sidebar-row=settings]")');
+  fixture("view.snapshot", snapshot);
+  fixture("sweep.status", context.sweepStatus);
+  fixture("setup.state", context.setupState);
+  await rendered(
+    `document.querySelector(".today .today-frame") && !document.querySelector(".today-leaving") && document.documentElement.dataset.theme === ${JSON.stringify(appearance)} && Math.abs(innerWidth - ${viewportWidth}) <= 1`,
+  );
+}
+
 /**
  * Today on the calm, busy and bad mornings at each width and appearance, with its first row opened
  * in place, and busy with Sync PR pressed and on Activity, each captured as the whole frame so blocks
@@ -128,8 +176,13 @@ export async function captureMornings(
   context: TodayCaptureContext,
   mornings: Record<Morning, { snapshot: ViewSnapshot; fixture: string }>,
 ): Promise<SmokeShot[]> {
-  const { window, output, rendered, fixture } = context;
+  const { window, output, rendered } = context;
   const shots: SmokeShot[] = [];
+  window.setContentSize(900, 800);
+  for (const morning of ["busy", "bad"] as const) {
+    await showToday(context, mornings[morning].snapshot, TODAY_HASHES.yours, "light", 900);
+    await assertLabelsInside(window, `Today ${morning} at 900`);
+  }
   const widths = [...new Set(MORNING_SURFACES.flatMap(({ widths }) => widths))];
   for (const viewportWidth of widths) {
     window.setContentSize(viewportWidth, 800);
@@ -137,21 +190,7 @@ export async function captureMornings(
       for (const surface of MORNING_SURFACES) {
         if (!(surface.widths as readonly number[]).includes(viewportWidth)) continue;
         const { snapshot, fixture: fixtureName } = mornings[surface.morning];
-        await window.webContents.executeJavaScript(`{
-          localStorage.removeItem("spi-code.panes");
-          localStorage.setItem("spi-code.appearance", ${JSON.stringify(appearance)});
-          location.hash = ${JSON.stringify(TODAY_HASHES[surface.view])};
-        }`);
-        const loaded = once(window.webContents, "did-finish-load");
-        window.webContents.reload();
-        await loaded;
-        await rendered('document.querySelector(".shell [data-sidebar-row=settings]")');
-        fixture("view.snapshot", snapshot);
-        fixture("sweep.status", context.sweepStatus);
-        fixture("setup.state", context.setupState);
-        await rendered(
-          `document.querySelector(".today .today-frame") && !document.querySelector(".today-leaving") && document.documentElement.dataset.theme === ${JSON.stringify(appearance)} && Math.abs(innerWidth - ${viewportWidth}) <= 1`,
-        );
+        await showToday(context, snapshot, TODAY_HASHES[surface.view], appearance, viewportWidth);
         let opened: string | undefined;
         if (surface.open) {
           await window.webContents.executeJavaScript(
@@ -165,6 +204,7 @@ export async function captureMornings(
               return button.getAttribute("aria-label") ?? button.textContent.trim(); })()`,
           );
         }
+        await assertLabelsInside(window, `Today ${surface.id} at ${viewportWidth}`);
         const geometry = [await context.measure("window")];
         const [headline, members, tab, pressed, todayCount, ...qualifiers]: [
           string,

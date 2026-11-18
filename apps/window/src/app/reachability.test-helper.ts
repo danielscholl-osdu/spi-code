@@ -4,7 +4,7 @@
 import type { TodayFleet, ViewSnapshot } from "@spi-code/contracts";
 import { restatesHeadline } from "../components/opened-body/content.js";
 import { plainTitle } from "../text.js";
-import { clockTime, instantsIn, timedText } from "../time.js";
+import { instantsIn, timedText, when } from "../time.js";
 import { openHold } from "../views/environment/hold.js";
 import { heldLaneRead } from "../views/environment/lead.js";
 import { runName } from "../views/environment/opening.js";
@@ -879,7 +879,14 @@ function fleetCases(today: Summary, add: Add) {
     const pointer = `${base}/stations/${index}`;
     const station = `[data-station=${quote(figure.id)}]`;
     add(`${pointer}/id`, figure.id, TODAY, station, { attribute: "data-station" });
-    add(`${pointer}/count`, figure.count, TODAY, `${station} .flow-word`, { read: figureCount });
+    if (figure.id === "main")
+      add(`${pointer}/count`, figure.count, TODAY, station, {
+        read: (element) =>
+          (element.textContent ?? "").match(/(\d+) green/)?.[1] ??
+          figureCount(element.querySelector(".flow-word") ?? element),
+      });
+    else
+      add(`${pointer}/count`, figure.count, TODAY, `${station} .flow-word`, { read: figureCount });
     const {
       forks: counted,
       notRead,
@@ -924,7 +931,7 @@ function fleetCases(today: Summary, add: Add) {
   if (fleet.nextSyncAt)
     add(
       `${base}/nextSyncAt`,
-      `next sync ${clockTime(fleet.nextSyncAt, { hint: false })}`,
+      `next sync ${when(fleet.nextSyncAt)}`,
       TODAY,
       '[data-station="upstream"] .flow-line',
     );

@@ -9,7 +9,7 @@ import {
 } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import {
   navigate,
@@ -321,6 +321,22 @@ it("counts Yours by the shared member count, and Activity holds Moving without y
   expect(route()).toEqual({ kind: "today" });
 });
 
+it("names what the Forks chip counts, and draws none when no fork is stopped", async () => {
+  const body = whole();
+  const fleet = body.briefing.today?.fleet;
+  if (!fleet) throw new Error("16 Nov has its fleet");
+  await render(body);
+  const chip = tab("forks")?.querySelector(".today-tab-count");
+  expect(chip?.textContent).toBe(`${fleet.forks.stopped.length} stopped`);
+  expect(chip?.getAttribute("title")).toBe(fleet.forks.stopped.join(", "));
+  await unmount();
+  container.remove();
+
+  fleet.forks.stopped = [];
+  await render(body);
+  expect(tab("forks")?.querySelector(".today-tab-count")).toBeNull();
+});
+
 const sections = () =>
   [...container.querySelectorAll<HTMLElement>(".today-section")].map(
     ({ dataset }) => dataset.section,
@@ -486,24 +502,64 @@ describe("the fleet flow filters Yours", () => {
     expect(memberIds().sort()).toEqual(atStation(body, "integration").sort());
   });
 
-  it("a station claims red only for its red PRs, and a fork not read is never not green", async () => {
+  it("a station claims red only for its red PRs, and Main counts only the forks proved green", async () => {
     const body = whole();
     const stations = body.briefing.today?.fleet?.stations ?? [];
     const integration = stations.find(({ id }) => id === "integration");
     const main = stations.find(({ id }) => id === "main");
     if (!integration || !main) throw new Error("16 Nov has its Integration and Main figures");
     Object.assign(integration, { count: 1, forks: ["unit"], stopped: ["search"], red: [] });
-    Object.assign(main, { count: 11, forks: main.forks.slice(0, 11), notRead: ["file", "unit"] });
+    Object.assign(main, {
+      count: 11,
+      forks: main.forks.slice(0, 11),
+      notRead: ["file", "unit"],
+      inProgress: ["legal"],
+    });
     await render(body);
+    const words = () => [
+      station("main")?.querySelector(".flow-word")?.textContent,
+      station("main")?.querySelector(".flow-line")?.textContent,
+    ];
     expect(station("integration")?.querySelector(".flow-line")).toBeNull();
-    expect(station("main")?.querySelector(".flow-word")?.textContent).toBe("11 green ⌀");
-    expect(station("main")?.querySelector(".flow-line")).toBeNull();
+    expect(words()).toEqual(["11 green", "1 running"]);
+    expect(station("main")?.textContent).not.toMatch(/13|⌀|fine/);
+    expect(station("main")?.querySelector(".flow-say")?.textContent).toBe(", some forks not read");
     await unmount();
     container.remove();
 
     Object.assign(integration, { stopped: ["unit"], red: ["unit"] });
+    Object.assign(main, { stopped: ["search"] });
     await render(body);
     expect(station("integration")?.querySelector(".flow-line")?.textContent).toBe("1 red");
+    expect(words()).toEqual(["1 red", "11 green · 1 running"]);
+    expect(station("main")?.dataset.state).toBe("stopped");
+    await unmount();
+    container.remove();
+
+    Object.assign(main, { count: 0, forks: [], inProgress: [] });
+    await render(body);
+    expect(words()).toEqual(["1 red", "⌀ not read"]);
+    expect(station("main")?.querySelector(".flow-say")?.textContent).toBe(
+      ", blocked, some forks not read",
+    );
+  });
+
+  it.each([
+    ["later today", 18, "next sync 18:00"],
+    ["on another day this week", 19, "next sync Thu 18:00"],
+  ] as const)("Upstream names a next sync %s by the shared time words", async (_, day, line) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date(2026, 10, 18, 9, 0));
+      const body = whole();
+      const fleet = body.briefing.today?.fleet;
+      if (!fleet) throw new Error("16 Nov has its fleet");
+      fleet.nextSyncAt = new Date(2026, 10, day, 18, 0).toISOString();
+      await render(body);
+      expect(station("upstream")?.querySelector(".flow-line")?.textContent).toBe(line);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("pressing a station from Activity opens Yours filtered", async () => {
@@ -521,17 +577,40 @@ describe("the fleet flow filters Yours", () => {
     expect(route()).toEqual({ kind: "environment" });
   });
 
-  it("a filter whose figure was not fully read shows its known rows and the not-read line", async () => {
-    const body = whole();
-    const sync = body.briefing.today?.fleet?.stations.find(({ id }) => id === "sync");
-    if (!sync) throw new Error("16 Nov has its Sync PR figure");
-    sync.notRead = ["file"];
-    await render(body, "#today/yours/sync");
-    expect(station("sync")?.querySelector(".flow-word")?.textContent).toBe(`${sync.count} open ⌀`);
-    expect(container.querySelector(".today-not-read")?.textContent).toMatch(
-      /^⌀ Not read on file\./,
-    );
-    expect(memberIds().sort()).toEqual(atStation(body, "sync").sort());
+  it.each(["#today", "#today/yours/sync", "#today/activity"])(
+    "at %s says not read once, under the flow, naming every figure's unread forks",
+    async (hash) => {
+      const body = whole();
+      const fleet = body.briefing.today?.fleet;
+      const sync = fleet?.stations.find(({ id }) => id === "sync");
+      const main = fleet?.stations.find(({ id }) => id === "main");
+      const template = fleet?.doors.find(({ id }) => id === "template");
+      if (!sync || !main || !template) throw new Error("16 Nov has its Sync PR, Main and Template");
+      sync.notRead = ["file"];
+      Object.assign(main, { count: 12, forks: main.forks.slice(0, 12), notRead: ["unit"] });
+      template.notRead = ["unit", "file"];
+      await render(body, hash);
+      const lines = container.querySelectorAll(".today-not-read");
+      expect(lines).toHaveLength(1);
+      expect(lines[0]?.previousElementSibling?.className).toBe("flow-wrap");
+      expect(lines[0]?.textContent).toBe("⌀ Not read on file, unit. Evidence ›");
+      const figures = [
+        ...container.querySelectorAll(
+          ".flow-station:not([data-station=environment]) .flow-word, .flow-door-word",
+        ),
+      ].map(({ textContent }) => textContent);
+      expect(figures.filter((word) => word?.includes("⌀"))).toEqual(["⌀ not read"]);
+      expect(door("template")?.querySelector(".flow-door-word")?.textContent).toBe("⌀ not read");
+      expect(station("sync")?.querySelector(".flow-word")?.textContent).toBe(`${sync.count} open`);
+      for (const id of ["sync", "main"])
+        expect(station(id)?.querySelector(".flow-say")?.textContent).not.toMatch(/fine/);
+      if (hash.includes("sync")) expect(memberIds().sort()).toEqual(atStation(body, "sync").sort());
+    },
+  );
+
+  it("a filter over forks not read never says its list is empty, and nothing unread draws no line", async () => {
+    await render(whole());
+    expect(container.querySelector(".today-not-read")).toBeNull();
     await unmount();
     container.remove();
 
@@ -544,8 +623,15 @@ describe("the fleet flow filters Yours", () => {
     );
     await render(empty, "#today/yours/upstream");
     expect(station("upstream")?.querySelector(".flow-word")?.textContent).toBe("⌀ not read");
-    expect(container.querySelector(".today-not-read")?.textContent).toMatch(/indexer/);
+    expect(station("upstream")?.querySelector(".flow-say")?.textContent).toBe(", not read");
+    expect(container.querySelectorAll(".today-not-read")).toHaveLength(1);
+    expect(container.querySelector(".today-not-read")?.textContent).toMatch(
+      /^⌀ Not read on indexer\./,
+    );
     expect(container.querySelector(".today-table-calm")).toBeNull();
+    expect(container.querySelector("[role=tabpanel]")?.textContent).not.toMatch(
+      /\bNone\b|Nothing|fine|\b0\b/,
+    );
     expect(memberIds()).toEqual([]);
   });
 

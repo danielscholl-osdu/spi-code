@@ -49,6 +49,9 @@ const sweepSchedule = {
   releasesMs: 3_600_000,
 };
 
+/** The brief's markup without disabled flags, which a running sweep sets and which move nothing. */
+const BRIEF_HTML = `document.querySelector(".today").outerHTML.replaceAll(' disabled=""', "")`;
+
 /** Written by scripts/watch-snapshot.mjs beside the Nov 6 fixture: that sweep after its acknowledgement. */
 export const ACKNOWLEDGED_FIXTURE = "snapshot-1106-acknowledged.json";
 
@@ -1078,18 +1081,14 @@ export async function captureSmokeViews(
                 retained.every((row: { outcome: string }) => !/waiting|reading/.test(row.outcome)),
               );
             } else if (surface.id === "first-sweep-refresh") {
-              const brief = await window.webContents.executeJavaScript(
-                'document.querySelector(".today").outerHTML',
-              );
+              const brief = await window.webContents.executeJavaScript(BRIEF_HTML);
               fixture(window, "sweep.progress", progress.refresh);
               await rendered(
                 window,
                 'document.querySelector("[data-sweep-line][data-tone=run]") && document.querySelector("[data-sweep-progress]")',
               );
               assert.equal(
-                await window.webContents.executeJavaScript(
-                  'document.querySelector(".today").outerHTML',
-                ),
+                await window.webContents.executeJavaScript(BRIEF_HTML),
                 brief,
                 "A later sweep must not reflow the older brief",
               );

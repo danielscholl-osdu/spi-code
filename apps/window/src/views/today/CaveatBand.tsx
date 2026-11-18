@@ -19,11 +19,16 @@ export function CaveatBand({
   completed,
   onOpenEvidence,
   onOpenSettings,
+  onReadAgain,
+  sweeping,
 }: {
   snapshot: Pick<ViewSnapshot, "areas" | "sweptAt">;
   completed: SweepProgress | null;
   onOpenEvidence: () => void;
   onOpenSettings: () => void;
+  onReadAgain: () => void;
+  /** A sweep is requested or running, so reading again would send nothing new. */
+  sweeping: boolean;
 }) {
   const affected = caveatAreas(snapshot);
   if (affected.length === 0) return null;
@@ -49,13 +54,16 @@ export function CaveatBand({
           </li>
         ))}
       </ul>
-      {fixable && (
-        <span className="today-caveat-actions">
+      <span className="today-caveat-actions">
+        <button type="button" disabled={sweeping} onClick={onReadAgain}>
+          Read again
+        </button>
+        {fixable && (
           <button type="button" onClick={onOpenSettings}>
             Open Settings ›
           </button>
-        </span>
-      )}
+        )}
+      </span>
     </div>
   );
 }

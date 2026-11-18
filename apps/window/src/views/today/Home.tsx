@@ -8,7 +8,7 @@ import { ariaShortcut } from "../../app/shortcuts.js";
 import { Flow } from "../../components/flow/Flow.js";
 import { NotRead, openCause } from "./CanWait.js";
 import { Forks } from "./Forks.js";
-import { FILTER_NAMES, filterFigure, fleetFlow } from "./fleet.js";
+import { FILTER_NAMES, filterFigure, fleetFlow, flowNotRead } from "./fleet.js";
 import { lowerSections } from "./Lower.js";
 import { Section } from "./parts.js";
 import { TodayTable } from "./Table.js";
@@ -56,7 +56,8 @@ export function TodayHome({
       environment: () => navigate({ kind: "environment" }),
     });
   const forks = fleet ? fleet.forks.yours.length + fleet.forks.rest.forks.length : 0;
-  const stopped = fleet?.forks.stopped;
+  const stopped = fleet?.forks.stopped ?? [];
+  const unread = fleet ? flowNotRead(fleet) : [];
   const yours = todayMembers(briefing).length;
   const { notRead, cascade } = station
     ? filterFigure(fleet, station)
@@ -71,6 +72,7 @@ export function TodayHome({
           beyond={flow.environment}
         />
       )}
+      {unread.length > 0 && <NotRead forks={unread} />}
       <div className="today-tabs" role="tablist" aria-label="Today tabs">
         {TABS.map(({ id, label }) => (
           <button
@@ -92,10 +94,9 @@ export function TodayHome({
             }
           >
             {label}
-            {id === "forks" && stopped && (
+            {id === "forks" && stopped.length > 0 && (
               <span className="today-tab-count" title={stopped.join(", ")}>
-                {stopped.length}
-                <span className="visually-hidden"> forks stopped</span>
+                {stopped.length} stopped
               </span>
             )}
             {id === "yours" && yours > 0 && (
@@ -126,7 +127,6 @@ export function TodayHome({
                 {cascade.length > 0 && (
                   <p className="today-filter-note">Waiting for cascade on {cascade.join(", ")}.</p>
                 )}
-                {notRead.length > 0 && <NotRead forks={notRead} />}
                 <TodayTable
                   snapshot={snapshot}
                   station={station}

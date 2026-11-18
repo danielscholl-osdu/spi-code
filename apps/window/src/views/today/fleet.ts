@@ -8,7 +8,7 @@ import {
   type TodayMemberStation,
 } from "@spi-code/contracts";
 import type { FlowDoor, FlowState, FlowStation } from "../../components/flow/Flow.js";
-import { clockTime } from "../../time.js";
+import { when } from "../../time.js";
 
 type StationFigure = TodayFleet["stations"][number];
 type DoorFigure = TodayFleet["doors"][number];
@@ -37,10 +37,11 @@ const DOOR_LABELS: Readonly<Record<DoorFigure["id"], string>> = {
 const plural = (count: number, one: string, many = `${one}s`) =>
   `${count} ${count === 1 ? one : many}`;
 
-/** A known count keeps showing; a missing read adds ⌀, and an empty figure with one is not read. */
+const NOT_READ = "⌀ not read";
+
+/** A known count keeps showing; an empty figure with forks not read is not read. */
 function figureWord(figure: { count: number; notRead: readonly string[] }, known: string): string {
-  if (figure.notRead.length === 0) return known;
-  return figure.count > 0 ? `${known} ⌀` : "⌀ not read";
+  return figure.notRead.length && !figure.count ? NOT_READ : known;
 }
 
 /** The worst state among a station's forks, and a waiting row of yours makes it waiting on you. */
@@ -58,16 +59,16 @@ function stationWords(figure: StationFigure, nextSyncAt: string | undefined) {
     case "upstream":
       return {
         word: figureWord(figure, figure.count ? `${figure.count} stopped` : "Sync current"),
-        line: nextSyncAt ? `next sync ${clockTime(nextSyncAt, { hint: false })}` : undefined,
+        line: nextSyncAt ? `next sync ${when(nextSyncAt)}` : undefined,
       };
-    case "main":
-      return {
-        word: figureWord(figure, `${figure.count} green`),
-        line: joined([
-          figure.stopped.length && `${figure.stopped.length} red`,
-          figure.inProgress.length && `${figure.inProgress.length} running`,
-        ]),
-      };
+    case "main": {
+      const red = figure.stopped.length;
+      const green = figureWord(figure, `${figure.count} green`);
+      const running = figure.inProgress.length && `${figure.inProgress.length} running`;
+      return red
+        ? { word: `${red} red`, line: joined([green, running]) }
+        : { word: green, line: joined([running]) };
+    }
     default: {
       const red = figure.red.length;
       const cascade = cascadeWaits(figure).length;
@@ -130,6 +131,7 @@ export function fleetFlow(
   const forks = fleet.forks.yours.length + fleet.forks.rest.forks.length;
   const stations = fleet.stations.map((figure): FlowStation => {
     const filter = figure.id === "main" ? undefined : figure.id;
+    const words = stationWords(figure, fleet.nextSyncAt);
     return {
       id: figure.id,
       label: STATION_LABELS[figure.id],
@@ -143,7 +145,8 @@ export function fleetFlow(
                 ? "unread"
                 : "ready"
           : stationState(figure, filter ? fleetLines(lines, filter) : []),
-      ...stationWords(figure, fleet.nextSyncAt),
+      ...words,
+      ...(figure.notRead.length && words.word !== NOT_READ ? { partlyRead: true } : {}),
       title: forksTitle([
         [COUNTED[figure.id], figure.forks],
         ["Stopped", figure.stopped],
@@ -193,6 +196,11 @@ export function fleetFlow(
       onOpen: on.environment,
     },
   };
+}
+
+/** Every fork a figure in the flow did not read, once each, in figure order. */
+export function flowNotRead(fleet: TodayFleet): string[] {
+  return [...new Set([...fleet.stations, ...fleet.doors].flatMap(({ notRead }) => notRead))];
 }
 
 /**
