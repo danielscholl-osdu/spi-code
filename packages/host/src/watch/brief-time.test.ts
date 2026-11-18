@@ -9,8 +9,10 @@ import { readingFor } from "./readings.js";
 
 const iso = /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})\b/g;
 const input = () => appStyle(recordedInput());
+// A lane's cadence is a recurring wall time core reads in the app's zone, not an instant.
+const withoutCadence = (key: string, value: unknown) => (key === "cadence" ? "cadence" : value);
 function noClocks(value: unknown) {
-  expect(JSON.stringify(value).replace(iso, "instant")).not.toMatch(
+  expect(JSON.stringify(value, withoutCadence).replace(iso, "instant")).not.toMatch(
     /\b\d{2}:\d{2}(?!\d)|Invalid Date|undefined|NaN|1970-01-01/,
   );
 }

@@ -101,11 +101,24 @@ export const EnvEventSchema = z.strictObject({
   label: z.string(),
   detail: z.string(),
   inspect: z.string().optional(),
+  byHand: z.literal(true).optional(),
 });
 export const EnvLaneSchema = z.strictObject({
-  id: z.enum(["upgrade", "refresh", "smoke", "holds"]),
+  id: z.enum(["upgrade", "refresh", "reset", "smoke", "holds"]),
   label: z.string(),
   events: z.array(EnvEventSchema),
+  /** When the workflow runs, from its cron in the app's zone; absent when its file was not read. */
+  cadence: z.string().optional(),
+  /** The newest run before the 24-hour range, for a lane with none in it; late puts the note in the warning tone. */
+  last: z
+    .strictObject({
+      text: z.string(),
+      note: z.string().optional(),
+      late: z.literal(true).optional(),
+    })
+    .optional(),
+  /** Scheduled slots in the range that no scheduled run answered. */
+  missed: z.array(ObservedAtSchema).optional(),
 });
 const EnvBorrowSchema = z.strictObject({
   id: z.string(),

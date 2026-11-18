@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { LifecycleKind } from "./config.js";
+import type { LifecycleData, LifecycleKind } from "./config.js";
 import type { ServiceRunsFact } from "./service-runs.js";
 
 // What the sweep read, before any judgment. The model module turns these into
@@ -435,7 +435,7 @@ export interface Facts {
   runs: Measured<Record<string, ForkRuns>>;
   serviceRuns?: Record<string, ServiceRunsFact> | undefined;
   approvals: Measured<Record<string, WaitingRun[]>>;
-  lifecycle: Measured<Record<LifecycleKind, LifecycleRun[]>>;
+  lifecycle: Measured<LifecycleData<LifecycleRun[]>>;
   details: Measured<Record<string, JobDetail>>;
   upstream: Measured<Record<string, UpstreamFact>>;
   radar: Measured<RadarFacts>;

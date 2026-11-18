@@ -113,7 +113,7 @@ const FORKS = ["partition", "entitlements", "legal", "schema", "file"];
 export function settled(f: Facts): Facts {
   const at = new Date(FIXTURE_NOW.getTime() - 2 * MIN).toISOString();
   for (const runs of Object.values(f.lifecycle.data ?? {})) {
-    for (const run of runs) {
+    for (const run of runs ?? []) {
       if (run.status === "completed") continue;
       run.status = "completed";
       run.conclusion = "success";

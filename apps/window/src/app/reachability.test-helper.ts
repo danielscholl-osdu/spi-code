@@ -439,11 +439,34 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
   environment.lanes.forEach((lane, laneIndex) => {
     const pointer = `/briefing/environment/lanes/${laneIndex}`;
     const row = `.env-row[data-lane=${quote(lane.id)}]`;
-    add(`${pointer}/label`, lane.label, environmentHome, `${row} .env-lane-label`);
+    add(`${pointer}/label`, lane.label, environmentHome, `${row} .env-lane-label`, {
+      contains: true,
+    });
+    if (lane.cadence)
+      add(`${pointer}/cadence`, lane.cadence, environmentHome, `${row} .env-cadence`);
+    if (lane.last) {
+      add(`${pointer}/last/text`, lane.last.text, environmentHome, `${row} .env-last`, {
+        contains: true,
+      });
+      if (lane.last.note)
+        add(`${pointer}/last/note`, lane.last.note, environmentHome, `${row} .env-last-note`);
+      if (lane.last.late)
+        add(`${pointer}/last/late`, "true", environmentHome, `${row} .env-last-note`, {
+          attribute: "data-late",
+        });
+    }
+    lane.missed?.forEach((slot, index) => {
+      if (Date.parse(slot) < dayFrom(to)) return;
+      add(`${pointer}/missed/${index}`, slot, environmentHome, `${row} .env-missed`, {
+        attribute: "data-missed",
+      });
+    });
     lane.events.forEach((e, index) => {
       if (e.end && Date.parse(e.end) < dayFrom(to)) return;
       const event = `${pointer}/events/${index}`;
       const bar = `button.env-event[data-event=${quote(`${lane.id}:${e.id}`)}]`;
+      if (e.byHand)
+        add(`${event}/byHand`, "true", environmentHome, bar, { attribute: "data-by-hand" });
       add(`${event}/label`, eventText(e), environmentHome, `${bar} .env-event-label`);
       add(`${event}/state`, eventWord[e.state], environmentHome, bar, {
         attribute: "aria-label",
@@ -1536,7 +1559,7 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
     reason: "spicode-8q6.5 draws the seven-day range",
   },
   "environment-older-runs": {
-    patterns: ["label", "state", "start", "end", "detail"].map(
+    patterns: ["label", "state", "start", "end", "detail", "byHand"].map(
       (field) => `/briefing/environment/lanes/#/events/#/${field}`,
     ),
     reason: "spicode-8q6.5 draws events outside the 24-hour range",
@@ -1547,6 +1570,13 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
       const end = env.lanes[Number(lane)]?.events[Number(event)]?.end;
       return !!end && Date.parse(end) < dayFrom(Date.parse(env.to));
     },
+  },
+  "environment-older-missed": {
+    patterns: ["/briefing/environment/lanes/#/missed/#"],
+    reason: "spicode-8q6.5 draws missed slots outside the 24-hour range",
+    pending: true,
+    when: (value, { snapshot }) =>
+      Date.parse(String(value)) < dayFrom(Date.parse(snapshot.briefing.environment.to)),
   },
   "environment-older-borrows": {
     patterns: [

@@ -83,6 +83,7 @@ export function buildModel(
       const repo = repos[f.repo];
       return repo ? [{ fork: f.id, deployments: repo.deployments }] : [];
     }),
+    { reset: context.words === "app" },
   );
   const templateRepo = repos[TEMPLATE_REPO];
   const predictions = predictAll(facts.radar.data, context);

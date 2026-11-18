@@ -45,7 +45,9 @@ import {
   viewRun,
 } from "../model/stack.js";
 import { age, clip, firstAndMore, fitHeadline, plural, short, span, stamp, timeClause, whose } from "../util.js";
-import { type EnvBorrow, type EnvStatus, environmentUsage, environmentFrom } from "./environment.js";
+import {
+  type EnvBorrow, type EnvStatus, environmentUsage, environmentFrom, laneRhythm,
+} from "./environment.js";
 import { type Horizon, type Origin, itemOrigin, upstreamHorizon } from "./horizon.js";
 import { type Repositories, repositoriesOf } from "./repos.js";
 import { blockerOf, type LinkKind, linkKind, subjectOf } from "./move.js";
@@ -154,12 +156,16 @@ export interface EnvEvent {
   label: string;
   detail: string;
   inspect?: string;
+  byHand?: true;
 }
 
 export interface EnvLane {
-  id: "upgrade" | "refresh" | "smoke" | "holds";
+  id: "upgrade" | "refresh" | "reset" | "smoke" | "holds";
   label: string;
   events: EnvEvent[];
+  cadence?: string;
+  last?: { text: string; note?: string; late?: true };
+  missed?: string[];
 }
 
 export interface Environment {
@@ -1226,9 +1232,16 @@ function themesOf(model: Model, now: Date, next: string | undefined): Theme[] {
     });
 }
 
-const ENV_LANES: ReadonlyArray<[EnvLane["id"] & LifecycleKind, string]> = Object.freeze([
+type RunLane = [EnvLane["id"] & LifecycleKind, string];
+const ENV_LANES: readonly RunLane[] = Object.freeze([
   ["upgrade", "Upgrade"],
   ["refresh", "Refresh"],
+  ["smoke", "Smoke"],
+]);
+const APP_LANES: readonly RunLane[] = Object.freeze([
+  ["refresh", "Refresh"],
+  ["reset", "Reset"],
+  ["upgrade", "Upgrade"],
   ["smoke", "Smoke"],
 ]);
 
@@ -1271,24 +1284,35 @@ function runEvent(view: RunView, inspect: string | undefined): EnvEvent {
   };
 }
 
-function envLanes(model: Model, from: number, now: Date): EnvLane[] {
+function envLanes(model: Model, from: number, now: Date, context?: CoreContext): EnvLane[] {
   const { stack, queue } = model;
+  const app = context?.words === "app";
   const to = now.getTime();
   const inside = (start: number, end: number) => end >= from && start <= to;
   // The stack incident covers every attempt since the last green run.
   const item = queue.items.find((i) => i.kind === "stack");
   const covered = new Set(item ? stack.attempts.map((a) => a.run.id) : []);
-  const lanes: EnvLane[] = ENV_LANES.map(([id, label]) => ({
+  const kinds = app
+    ? APP_LANES.filter(([id]) => id !== "reset" || !stack.unread.includes("reset"))
+    : ENV_LANES;
+  const lanes: EnvLane[] = kinds.map(([id, label]) => ({
     id,
     label,
     events: stack.lifecycle[id].runs
       .filter((r) =>
         inside(Date.parse(r.createdAt), r.status === "completed" ? Date.parse(r.updatedAt) : to),
       )
-      .map((r) => runEvent(viewRun(r), covered.has(r.id) ? item?.id : undefined)),
+      .map((r) => {
+        const event = runEvent(viewRun(r), covered.has(r.id) ? item?.id : undefined);
+        const byHand = app && id !== "reset" && id !== "upgrade" && r.event === "workflow_dispatch";
+        return byHand ? { ...event, byHand: true as const } : event;
+      }),
+    ...(app && context ? laneRhythm(model, id, from, now, context) : {}),
   }));
   const open = item?.id ?? queue.items.find((i) => i.kind === "maintenance")?.id;
-  const runs = [...stack.lifecycle.refresh.runs, ...stack.lifecycle.upgrade.runs];
+  const runs = [
+    ...stack.lifecycle.refresh.runs, ...stack.lifecycle.upgrade.runs, ...stack.lifecycle.reset.runs,
+  ];
   const holds = runs.length > 0 ? replayHolds(runs).holds : [];
   lanes.push({
     id: "holds",
@@ -1443,9 +1467,9 @@ function envFacts(
 function environmentOf(model: Model, env: BriefFact, now: Date, context: CoreContext): Environment {
   const day = now.getTime() - DAY_MS;
   const from = environmentFrom(now, context);
-  const lanes = envLanes(model, from, now);
+  const lanes = envLanes(model, from, now, context);
   const held = heldReason(model, now, context);
-  const dayLanes = from === day ? lanes : envLanes(model, day, now);
+  const dayLanes = from === day ? lanes : envLanes(model, day, now, context);
   return {
     headline: envHeadline(model, dayLanes, held, now, context),
     facts: envFacts(model, env, held, now, context),

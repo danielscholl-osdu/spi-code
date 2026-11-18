@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, test } from "vitest";
+import { lastRun } from "../src/brief/environment";
 import { type BriefFact, buildBriefing, type DoctorView, readItem } from "../src/brief/index";
 import { ago, deployableWords, streakText } from "../src/brief/words";
 import { createContext, defaultContext } from "../src/context";
 import { type DeploymentFact, emptyFacts, type Facts, type LifecycleRun } from "../src/facts";
 import { buildModel, type Model } from "../src/model/index";
 import { buildQueue, type QueueItem } from "../src/model/queue";
+import { toCrons } from "../src/model/schedule";
 import { fixtureContext } from "./briefing-setup";
+import { settled } from "./flow-states";
 import { FIXTURE_NOW, fixtureFacts } from "./harness";
 
 const CLEAR: DoctorView = { state: "clear", problems: [] };
@@ -814,9 +817,8 @@ describe("the environment", () => {
     const facts = withoutFailures(false);
     const lc = facts.lifecycle.data;
     const before = (r: LifecycleRun) => Date.parse(r.createdAt) < WINDOW_FROM;
-    if (lc)
-      for (const kind of ["upgrade", "refresh", "smoke"] as const)
-        lc[kind] = lc[kind]?.filter(before);
+    if (lc) for (const kind of ["upgrade", "refresh"] as const) lc[kind] = lc[kind].filter(before);
+    if (lc?.smoke) lc.smoke = lc.smoke.filter(before);
     expect(envOf(facts).env.headline).toBe(
       "Deployable on v0.28.0; no lifecycle run in the last day.",
     );
@@ -1246,5 +1248,236 @@ describe("Environment borrow status in the app context", () => {
     const env = brief(modelFor([]), createContext({ ...app, timeZone }));
     expect(env.from).toBe(expected);
     expect(env.to).toBe(now.toISOString());
+  });
+});
+
+describe("Stack lanes in the app context", () => {
+  const now = new Date("2026-03-10T12:00:00Z");
+  const app = createContext({ words: "app", timeZone: "America/Chicago" });
+  const at = (hours: number) => new Date(now.getTime() + hours * 3_600_000).toISOString();
+  let id = 0;
+  const run = (
+    kind: LifecycleRun["kind"],
+    start: number,
+    over: Partial<LifecycleRun> = {},
+  ): LifecycleRun => ({
+    id: ++id,
+    name: kind,
+    path: `${kind}.yml`,
+    event: "schedule",
+    status: "completed",
+    conclusion: "success",
+    createdAt: at(start),
+    updatedAt: at(start + 0.5),
+    sha: "abc",
+    title: kind,
+    url: "",
+    attempt: 1,
+    kind,
+    ...over,
+  });
+  function modelWith(runs: Partial<Record<LifecycleRun["kind"], LifecycleRun[]>>): Model {
+    const model = buildModel(fixtureFacts(), FIXTURE_NOW, {}, fixtureContext);
+    const stack = model.stack;
+    for (const kind of ["refresh", "reset", "upgrade", "smoke"] as const)
+      stack.lifecycle[kind].runs = runs[kind] ?? [];
+    stack.unread = [];
+    stack.schedules = {
+      refresh: toCrons(["0 4 * * 1-5"]),
+      reset: [],
+      upgrade: [],
+      smoke: toCrons(["0 8 * * *"]),
+      sweeper: [],
+    };
+    return model;
+  }
+  const lanes = (model: Model, context = app) =>
+    buildBriefing(model, CLEAR, now, context).environment.lanes;
+  const lane = (model: Model, kind: string, context = app) =>
+    lanes(model, context).find((item) => item.id === kind);
+
+  test("each lane says its cadence in the app's zone, and none while the workflows are unread", () => {
+    const model = modelWith({});
+    const cadences = (context: typeof app) =>
+      lanes(model, context).map(({ id, cadence }) => [id, cadence]);
+    expect(cadences(app)).toEqual([
+      ["refresh", "Sun–Thu 23:00"],
+      ["reset", "by hand, weekly"],
+      ["upgrade", "on version bump"],
+      ["smoke", "nightly 03:00"],
+      ["holds", undefined],
+    ]);
+    expect(cadences(createContext({ ...app, timeZone: "Asia/Kathmandu" })).slice(0, 4)).toEqual([
+      ["refresh", "Mon–Fri 09:45"],
+      ["reset", "by hand, weekly"],
+      ["upgrade", "on version bump"],
+      ["smoke", "daily 13:45"],
+    ]);
+    model.stack.schedules = undefined;
+    expect(lanes(model).every(({ cadence }) => cadence === undefined)).toBe(true);
+  });
+
+  test("an empty lane names its last run even when the day before it is empty", () => {
+    const model = modelWith({ refresh: [run("refresh", -100), run("refresh", -74)] });
+    expect(lane(model, "refresh")?.last).toEqual({ text: "Sat 7 Mar · green" });
+    model.stack.lifecycle.refresh.runs.push(run("refresh", -3, { conclusion: "failure" }));
+    expect(lane(model, "refresh")?.last).toBeUndefined();
+    expect(lane(model, "smoke")?.last).toBeUndefined();
+  });
+
+  test.each([
+    [7, { note: "7 days ago" }],
+    [8, { note: "8 days ago", late: true }],
+  ])("a reset %i days old reads its age, late only after seven", (days, expected) => {
+    const model = modelWith({
+      reset: [run("reset", -24 * days - 0.5, { event: "workflow_dispatch" })],
+    });
+    expect(lane(model, "reset")?.last).toEqual({ text: expect.any(String), ...expected });
+  });
+
+  test("Upgrade names a release not adopted at now, and a past day adds neither age nor version", () => {
+    const model = modelWith({
+      upgrade: [run("upgrade", -200, { target: "v0.35.5" })],
+      reset: [run("reset", -200)],
+    });
+    model.stack.latest = "v0.35.6";
+    model.stack.declared = "v0.35.5";
+    expect(lane(model, "upgrade")?.last).toEqual({
+      text: "v0.35.5 · Sun 1 Mar · green",
+      note: "v0.35.6 not adopted",
+    });
+    const dayStart = now.getTime() - 3 * 86_400_000;
+    for (const kind of ["upgrade", "reset"] as const)
+      expect(lastRun(model, kind, dayStart, dayStart + 86_400_000, false, app)).not.toHaveProperty(
+        "note",
+      );
+    model.stack.declared = "v0.35.6";
+    expect(lane(model, "upgrade")?.last).not.toHaveProperty("note");
+  });
+
+  test("by hand marks dispatched Refresh and Smoke runs, never Reset", () => {
+    const dispatched = { event: "workflow_dispatch" };
+    const model = modelWith({
+      refresh: [run("refresh", -5, dispatched)],
+      reset: [run("reset", -4, dispatched)],
+      smoke: [run("smoke", -3, dispatched), run("smoke", -2)],
+    });
+    const byHand = (kind: string) => lane(model, kind)?.events.map((event) => event.byHand);
+    expect(byHand("refresh")).toEqual([true]);
+    expect(byHand("reset")).toEqual([undefined]);
+    expect(byHand("smoke")).toEqual([true, undefined]);
+  });
+
+  test("a nightly slot is missed only when no scheduled run answers it inside the late window", () => {
+    // Slots fall at 08:00 UTC; now is 12:00, so today's slot is past its three-hour window.
+    const model = modelWith({
+      smoke: [
+        run("smoke", -28 + 0.5),
+        run("smoke", -52 + 0.2, { event: "workflow_dispatch" }),
+        run("smoke", -76 + 4),
+      ],
+    });
+    const missed = () => lane(model, "smoke")?.missed;
+    expect(missed()).toEqual(
+      ["2026-03-04", "2026-03-05", "2026-03-06", "2026-03-07", "2026-03-08", "2026-03-10"].map(
+        (day) => `${day}T08:00:00.000Z`,
+      ),
+    );
+    model.stack.unread = ["smoke"];
+    expect(missed()).toBeUndefined();
+    model.stack.unread = [];
+    model.stack.schedules = undefined;
+    expect(missed()).toBeUndefined();
+  });
+
+  test("Reset is drawn between Refresh and Upgrade once read, and not at all while unread", () => {
+    const model = modelWith({});
+    expect(lanes(model).map(({ id }) => id)).toEqual([
+      "refresh",
+      "reset",
+      "upgrade",
+      "smoke",
+      "holds",
+    ]);
+    expect(lane(model, "reset")?.events).toEqual([]);
+    model.stack.unread = ["reset"];
+    expect(lane(model, "reset")).toBeUndefined();
+  });
+
+  test("an interrupted reset holds the app in maintenance and leaves SPI Code's default context as it was", () => {
+    const facts = settled(fixtureFacts());
+    const plain = buildBriefing(
+      buildModel(facts, FIXTURE_NOW, {}, defaultContext),
+      CLEAR,
+      FIXTURE_NOW,
+      defaultContext,
+    ).environment;
+    const start = new Date(FIXTURE_NOW.getTime() - 60_000).toISOString();
+    const step = (name: string, conclusion: string) => ({
+      number: 1,
+      name,
+      status: "completed",
+      conclusion,
+      startedAt: start,
+      completedAt: start,
+    });
+    const job = (
+      jobId: number,
+      name: string,
+      steps: ReturnType<typeof step>[],
+      conclusion: string,
+    ) => ({
+      id: jobId,
+      name,
+      status: "completed",
+      conclusion,
+      startedAt: start,
+      completedAt: start,
+      url: "",
+      steps,
+    });
+    if (!facts.lifecycle.data) throw new Error("fixture has lifecycle runs");
+    facts.lifecycle.data.reset = [
+      {
+        ...run("reset", 0, { event: "workflow_dispatch", conclusion: "cancelled" }),
+        createdAt: start,
+        updatedAt: start,
+        jobs: [
+          job(1, "quiesce-and-drain", [step("Set maintenance", "success")], "success"),
+          job(2, "provision", [step("spi up", "cancelled")], "cancelled"),
+        ],
+      },
+    ];
+    const rib = buildBriefing(
+      buildModel(facts, FIXTURE_NOW, {}, defaultContext),
+      CLEAR,
+      FIXTURE_NOW,
+      defaultContext,
+    ).environment;
+    expect(rib.headline).toBe(plain.headline);
+    expect(rib.headline).toMatch(/^Deployable on /);
+    expect(rib.facts).toEqual(plain.facts);
+    expect(rib.lanes.map(({ id }) => id)).toEqual(["upgrade", "refresh", "smoke", "holds"]);
+    const model = buildModel(
+      facts,
+      FIXTURE_NOW,
+      {},
+      createContext({ ...app, clock: fixtureContext.clock }),
+    );
+    expect(model.stack.deployable.state).toBe("no");
+    expect(model.stack.maintenance).toMatchObject({ state: "set", run: { kind: "reset" } });
+    const env = buildBriefing(
+      model,
+      CLEAR,
+      FIXTURE_NOW,
+      createContext({ ...app, clock: fixtureContext.clock }),
+    ).environment;
+    expect(env.status).toMatchObject({
+      state: "maintenance",
+      reason: expect.stringMatching(/^Reset cancelled /),
+    });
+    const hold = env.lanes.find(({ id }) => id === "holds")?.events.at(-1);
+    expect(hold?.start).toBe(start);
+    expect(hold?.end).toBeUndefined();
   });
 });

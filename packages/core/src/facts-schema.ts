@@ -399,7 +399,10 @@ const schema = z.strictObject({
   runs: measured(z.record(z.string(), forkRuns)),
   serviceRuns: z.record(z.string(), serviceRunsFactSchema).optional(),
   approvals: measured(z.record(z.string(), z.array(waitingRun))),
-  lifecycle: measured(z.record(lifecycleKind, z.array(lifecycleRun))),
+  lifecycle: measured(z.strictObject({
+    refresh: z.array(lifecycleRun), upgrade: z.array(lifecycleRun), sweeper: z.array(lifecycleRun),
+    smoke: z.array(lifecycleRun).optional(), reset: z.array(lifecycleRun).optional(),
+  })),
   details: measured(z.record(z.string(), jobDetail)),
   upstream: measured(z.record(z.string(), upstreamFact)),
   radar: measured(radarFacts),

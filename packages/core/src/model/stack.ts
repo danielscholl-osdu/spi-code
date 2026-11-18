@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { timeUnit } from "@spi-code/contracts";
-import { HISTORY_DAYS, type LifecycleKind } from "../config.js";
+import { HISTORY_DAYS, type LifecycleData, type LifecycleKind } from "../config.js";
 import type {
   Declaration,
   DeploymentFact,
@@ -86,6 +86,8 @@ export interface StackModel {
   usual?: { min: number; max: number; n: number };
   recent: RunView[];
   lifecycle: Record<LifecycleKind, LifecycleStat>;
+  // Workflows whose runs were not read; their lifecycle stats are empty, not proven idle.
+  unread: LifecycleKind[];
   bumpPr?: PrFact;
   releasePr?: PrFact;
   // Undefined while the workflow files are unread.
@@ -227,7 +229,7 @@ function refreshStages(jobs: readonly JobDetail[]): Stage[] {
 }
 
 function stageLabel(kind: LifecycleKind, job: JobDetail, step: StepFact | undefined): string {
-  if (kind === "upgrade") {
+  if (kind === "upgrade" || kind === "reset") {
     if (step && CLEAR_STEP.test(step.name)) return "clear";
     return UPGRADE_JOBS.find(([re]) => re.test(job.name))?.[1] ?? job.name;
   }
@@ -280,7 +282,7 @@ function usualFor(view: RunView | undefined, runs: readonly LifecycleRun[]): Sta
 export function viewRun(run: LifecycleRun): RunView {
   const jobs = run.jobs ?? [];
   const built =
-    run.kind === "upgrade"
+    run.kind === "upgrade" || run.kind === "reset"
       ? upgradeStages(jobs)
       : run.kind === "refresh"
         ? refreshStages(jobs)
@@ -555,14 +557,18 @@ function landings(
 
 export function buildStack(
   stackRepo: RepoFact | undefined,
-  lifecycle: Partial<Record<LifecycleKind, LifecycleRun[]>> | undefined,
+  lifecycle: Partial<LifecycleData<LifecycleRun[]>> | undefined,
   now: Date,
   // Each fork whose repository was read, with its deploys to the lane environment.
   deploys?: readonly { fork: string; deployments: readonly DeploymentFact[] }[],
+  // The rib does not read resets, so only the app replays them into maintenance.
+  opts: { reset?: boolean } = {},
 ): StackModel {
   const refresh = lifecycle?.refresh ?? [];
   const upgrade = lifecycle?.upgrade ?? [];
+  const reset = opts.reset ? lifecycle?.reset : undefined;
   const both = [...refresh, ...upgrade];
+  const held = [...both, ...(reset ?? [])];
   const inflightRun = both
     .filter((r) => r.status !== "completed")
     .sort((a, b) => byCreated(b, a))[0];
@@ -577,7 +583,7 @@ export function buildStack(
   const failed = attempts.some(
     (a) => a.run.status === "completed" && !SETTLED.has(a.run.conclusion ?? ""),
   );
-  const maintenance = inferMaintenance(both);
+  const maintenance = inferMaintenance(held);
   const inflight = inflightRun ? viewRun(inflightRun) : undefined;
 
   let deployable: StackModel["deployable"];
@@ -599,6 +605,7 @@ export function buildStack(
   const schedules = stackRepo?.schedules
     ? {
         refresh: toCrons(stackRepo.schedules.refresh),
+        reset: toCrons(stackRepo.schedules.reset),
         upgrade: toCrons(stackRepo.schedules.upgrade),
         smoke: toCrons(stackRepo.schedules.smoke),
         sweeper: toCrons(stackRepo.schedules.sweeper),
@@ -606,12 +613,12 @@ export function buildStack(
     : undefined;
   const days = windowDays(now);
   const runsOf = (kind: LifecycleKind) =>
-    runDays(lifecycle?.[kind] ?? [], schedules?.[kind] ?? [], days, now);
+    runDays((kind === "reset" ? reset : lifecycle?.[kind]) ?? [], schedules?.[kind] ?? [], days, now);
   const releases = stackRepo?.releases;
   const landed = releases ? landings(upgrade, releases) : [];
   const cutoff = now.getTime() - HISTORY_DAYS * 86_400_000;
   const current = running ? landed.filter((l) => l.target === running.version).at(-1) : undefined;
-  const replay = both.length > 0 ? replayHolds(both) : undefined;
+  const replay = held.length > 0 ? replayHolds(held) : undefined;
   const from = days[0]?.start ?? cutoff;
   const avail = replay ? availability(replay.holds, from, now) : undefined;
   const allDeploys = deploys?.flatMap((d) => d.deployments);
@@ -630,6 +637,7 @@ export function buildStack(
     recent: completed.slice(0, 6).map(viewRun),
     lifecycle: {
       refresh: stat(refresh, now),
+      reset: stat(reset ?? [], now),
       upgrade: stat(upgrade, now),
       smoke: stat(lifecycle?.smoke ?? [], now),
       sweeper: stat(lifecycle?.sweeper ?? [], now),
@@ -638,11 +646,14 @@ export function buildStack(
     releasePr: prs.find(
       (p) => p.head.startsWith("release-please--") || p.labels.includes("autorelease: pending"),
     ),
+    unread: (["refresh", "reset", "upgrade", "smoke", "sweeper"] as const).filter((kind) =>
+      kind === "reset" ? !reset : !lifecycle?.[kind]),
     schedules,
     history: {
       days,
       runs: {
         refresh: runsOf("refresh"),
+        reset: runsOf("reset"),
         upgrade: runsOf("upgrade"),
         smoke: runsOf("smoke"),
         sweeper: runsOf("sweeper"),

@@ -8,7 +8,6 @@ import { type CoreContext, contextFromEnv, createContext, defaultContext } from 
 import { buildModel } from "../src/model/index";
 import { noiseRule, withoutNoise } from "../src/model/noise";
 import { monthFacts } from "../src/model/releases";
-import { cadence, toCrons } from "../src/model/schedule";
 import { fixtureContext } from "./briefing-setup";
 import releases from "./fixtures/rib-59d6895/releases.json";
 import { FIXTURE_NOW, fixtureFacts, releasedFacts } from "./harness";
@@ -162,7 +161,7 @@ describe("explicit core context", () => {
     expect(monthFacts(releases, "2026-10", FIXTURE_NOW, a).services.total).toBe(5);
   });
 
-  test("briefing, reading and cadence follow two context clocks, not the ambient third clock", () => {
+  test("briefing and reading follow two context clocks, not the ambient third clock", () => {
     const early = createContext({ ...fixtureContext, clock: { now: () => new Date(FIXTURE_NOW) } });
     const laterDate = new Date("2026-11-12T21:58:30Z");
     const late = createContext({ ...fixtureContext, clock: { now: () => new Date(laterDate) } });
@@ -181,10 +180,6 @@ describe("explicit core context", () => {
       if (!item) throw new Error("fixture has a queue item");
       expect(readItem(model, item, undefined, context)).toEqual(
         readItem(model, item, date, context),
-      );
-      const crons = toCrons(["0 8 * * 1-5"]);
-      expect(cadence(crons, "unscheduled", undefined, context)).toBe(
-        cadence(crons, "unscheduled", date, context),
       );
     }
   });

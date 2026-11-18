@@ -5007,14 +5007,14 @@
     "evidence": [],
     "related": [
       {
-        "text": "Upgrade v0.35.1",
-        "state": "green in 34 min",
-        "inspect": "run:41642201079"
-      },
-      {
         "text": "Refresh v0.35.0",
         "state": "failed at refresh › Refresh fork-sourced canonicals",
         "inspect": "run:41576049363"
+      },
+      {
+        "text": "Upgrade v0.35.1",
+        "state": "green in 34 min",
+        "inspect": "run:41642201079"
       },
       {
         "text": "Smoke smoke",

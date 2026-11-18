@@ -3846,6 +3846,53 @@
       "deployable": "yes",
       "lanes": [
         {
+          "id": "refresh",
+          "label": "Refresh",
+          "events": [
+            {
+              "id": "41386565660",
+              "start": "2026-11-02T04:06:05Z",
+              "end": "2026-11-02T04:08:52Z",
+              "state": "ok",
+              "label": "v0.34.0",
+              "detail": "green in 3 min"
+            },
+            {
+              "id": "41576049363",
+              "start": "2026-11-03T04:05:36Z",
+              "end": "2026-11-03T04:09:28Z",
+              "state": "failed",
+              "label": "v0.35.0",
+              "detail": "failed at refresh › Refresh fork-sourced canonicals"
+            },
+            {
+              "id": "41771097957",
+              "start": "2026-11-04T04:05:51Z",
+              "end": "2026-11-04T06:37:52Z",
+              "state": "ok",
+              "label": "v0.35.1",
+              "detail": "green in 2 h 32 min"
+            },
+            {
+              "id": "41965650223",
+              "start": "2026-11-05T04:05:55Z",
+              "end": "2026-11-05T04:09:40Z",
+              "state": "ok",
+              "label": "v0.35.3",
+              "detail": "green in 4 min"
+            },
+            {
+              "id": "42160446124",
+              "start": "2026-11-06T04:05:58Z",
+              "end": "2026-11-06T04:20:19Z",
+              "state": "ok",
+              "label": "v0.35.3",
+              "detail": "green in 14 min"
+            }
+          ],
+          "cadence": "Mon–Fri 04:00"
+        },
+        {
           "id": "upgrade",
           "label": "Upgrade",
           "events": [
@@ -3897,53 +3944,11 @@
               "label": "v0.35.3",
               "detail": "green in 24 min"
             }
-          ]
-        },
-        {
-          "id": "refresh",
-          "label": "Refresh",
-          "events": [
-            {
-              "id": "41386565660",
-              "start": "2026-11-02T04:06:05Z",
-              "end": "2026-11-02T04:08:52Z",
-              "state": "ok",
-              "label": "v0.34.0",
-              "detail": "green in 3 min"
-            },
-            {
-              "id": "41576049363",
-              "start": "2026-11-03T04:05:36Z",
-              "end": "2026-11-03T04:09:28Z",
-              "state": "failed",
-              "label": "v0.35.0",
-              "detail": "failed at refresh › Refresh fork-sourced canonicals"
-            },
-            {
-              "id": "41771097957",
-              "start": "2026-11-04T04:05:51Z",
-              "end": "2026-11-04T06:37:52Z",
-              "state": "ok",
-              "label": "v0.35.1",
-              "detail": "green in 2 h 32 min"
-            },
-            {
-              "id": "41965650223",
-              "start": "2026-11-05T04:05:55Z",
-              "end": "2026-11-05T04:09:40Z",
-              "state": "ok",
-              "label": "v0.35.3",
-              "detail": "green in 4 min"
-            },
-            {
-              "id": "42160446124",
-              "start": "2026-11-06T04:05:58Z",
-              "end": "2026-11-06T04:20:19Z",
-              "state": "ok",
-              "label": "v0.35.3",
-              "detail": "green in 14 min"
-            }
-          ]
+          ],
+          "cadence": "on version bump",
+          "last": {
+            "text": "v0.35.3 · Wed 4 Nov · green"
+          }
         },
         {
           "id": "smoke",
@@ -4005,7 +4010,8 @@
               "label": "smoke",
               "detail": "green in 27 min"
             }
-          ]
+          ],
+          "cadence": "daily 08:00"
         },
         {
           "id": "holds",

@@ -54,6 +54,9 @@ function LineReading({ line }: { line: RepoLine }) {
   );
 }
 
+// A missed nightly is drawn about as long as a smoke run takes.
+const MISSED_SLOT_MS = 30 * 60_000;
+
 const NO_READING: Reading = { anchor: { kind: "environment" }, content: null };
 
 const keyOf = ({ kind, id }: OpenSelection) => `${kind}~${id}`;
@@ -210,17 +213,34 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
               <div className="env-row" key={lane.id} data-lane={lane.id}>
                 <div className="env-lane-label" data-pointer={pointer}>
                   {lane.label}
+                  {lane.cadence && <small className="env-cadence">{lane.cadence}</small>}
                 </div>
                 <div className="env-track" style={{ height: tiers * TIER_PX + 10 }}>
+                  {lane.missed
+                    ?.filter((at) => Date.parse(at) >= from)
+                    .map((at) => {
+                      const left = pctOf(Date.parse(at), from, to);
+                      const right = pctOf(Date.parse(at) + MISSED_SLOT_MS, from, to);
+                      return (
+                        <span
+                          className="env-missed"
+                          key={at}
+                          data-missed={at}
+                          aria-hidden="true"
+                          style={{ left: `${fixed(left)}%`, width: `${fixed(right - left)}%` }}
+                        />
+                      );
+                    })}
                   {placed.map((p) => {
                     const key = eventKey(lane, p.e);
-                    const name = `${lane.label} ${p.e.label}, ${eventWord[p.e.state]}, ${eventWhen(p.e, now)}`;
+                    const name = `${lane.label} ${p.e.label}, ${eventWord[p.e.state]}${p.e.byHand ? ", by hand" : ""}, ${eventWhen(p.e, now)}`;
                     return (
                       <button
                         type="button"
                         className={`env-event state-${p.e.state}${p.e.end ? "" : " open"}`}
                         key={key}
                         data-event={key}
+                        data-by-hand={p.e.byHand}
                         data-inspect={p.e.inspect}
                         {...opener({ kind: "event", id: key })}
                         title={name}
@@ -231,13 +251,34 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
                           top: p.tier * TIER_PX + 10,
                         }}
                       >
+                        {p.e.byHand && (
+                          <span className="env-by-hand" aria-hidden="true">
+                            {"\u25c6"}
+                          </span>
+                        )}
                         <span className={`env-event-label${p.flip ? " flip" : ""}`}>
                           {eventText(p.e)}
                         </span>
                       </button>
                     );
                   })}
-                  {placed.length === 0 && <span className="env-none">none in the last day</span>}
+                  {placed.length === 0 &&
+                    (lane.last ? (
+                      <span className="env-none env-last" data-pointer={`${pointer}/last`}>
+                        <span aria-hidden="true">{"\u2039 "}</span>
+                        {lane.last.text}
+                        {lane.last.note && (
+                          <>
+                            {" \u00b7 "}
+                            <span className="env-last-note" data-late={lane.last.late}>
+                              {lane.last.note}
+                            </span>
+                          </>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="env-none">none in the last day</span>
+                    ))}
                 </div>
               </div>
             );

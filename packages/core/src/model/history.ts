@@ -10,7 +10,7 @@ import { type Cron, firesBetween } from "./schedule.js";
 const DAY_MS = 86_400_000;
 // A scheduled run that has not started this long after its slot counts as missed,
 // and a scheduled run that starts within it answers that slot.
-const MISSED_AFTER_MS = 3 * 3_600_000;
+export const MISSED_AFTER_MS = 3 * 3_600_000;
 
 // One local day of the history window; `end` stops at now for today.
 export interface Day {

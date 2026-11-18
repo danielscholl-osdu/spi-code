@@ -69,6 +69,20 @@
 }
 .environment .env-none { color: var(--text-muted); font-size: 12px; }
 .environment .env-none { position: sticky; left: 90px; display: inline-block; margin: 7px 0 0 6px; }
+.environment .env-last { padding: 0 4px; border-radius: 3px; background: var(--surface); }
+.environment .env-last-note[data-late] {
+  padding: 0 3px; border-radius: 3px; color: var(--warning-text); background: var(--warning-surface);
+}
+.environment .env-cadence {
+  display: block; font-size: 11px; font-weight: 400; letter-spacing: normal; text-transform: none;
+}
+.environment .env-by-hand {
+  position: absolute; right: 0; bottom: 100%; font-size: 8px; line-height: 9px; color: var(--text);
+}
+.environment .env-missed {
+  position: absolute; top: 10px; height: 12px; min-width: 10px; box-sizing: border-box;
+  border: 1px dashed var(--text-muted); border-radius: 6px;
+}
 .environment .env-part { margin-top: 12px; }
 .environment .env-part > summary {
   padding: 6px 0; border-bottom: 1px solid var(--border-soft);

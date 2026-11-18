@@ -11,7 +11,7 @@ import { Gh } from "../forge.js";
 import type { CollectorCache } from "./cache.js";
 import type { SweepInflight, SweepInput } from "./sweeper.js";
 
-const POLLED: readonly LifecycleKind[] = Object.freeze(["refresh", "upgrade"]);
+const POLLED: readonly LifecycleKind[] = Object.freeze(["refresh", "reset", "upgrade"]);
 
 /** What the stack strip draws from a run: its status and each job's and step's state. */
 export function progress(run: LifecycleRun): string {

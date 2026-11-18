@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, test } from "vitest";
-import { defaultContext } from "../src/context";
 import type { LifecycleRun } from "../src/facts";
 import {
   behindDays,
@@ -49,16 +48,11 @@ function run(over: Partial<LifecycleRun>): LifecycleRun {
 }
 
 describe("schedules", () => {
-  test("a weekday cron fires Monday to Friday, and says so", () => {
+  test("a weekday cron fires Monday to Friday", () => {
     const cron = parseCron("0 4 * * 1-5");
     if (!cron) throw new Error("parses");
     expect(firesOn(cron, Date.parse("2026-10-12T00:00:00Z"))).toBe(true);
     expect(firesOn(cron, Date.parse("2026-10-10T00:00:00Z"))).toBe(false);
-    expect(cadence([cron], undefined, undefined, defaultContext)).toBe("weekdays 04:00");
-    expect(cadence(toCrons(["0 8 * * *"]), undefined, undefined, defaultContext)).toBe(
-      "daily 08:00",
-    );
-    expect(cadence([], "on bump", undefined, defaultContext)).toBe("on bump");
   });
 
   test("the next run skips the weekend", () => {
@@ -66,22 +60,23 @@ describe("schedules", () => {
     expect(next).toBe(Date.parse("2026-10-12T04:00:00Z"));
   });
 
-  test("a cadence reads in local time, so a UTC weekday cron runs Sunday to Thursday evening in Chicago", () => {
-    inZone("America/Chicago", () => {
-      const now = new Date("2026-10-13T12:00:00Z");
-      expect(cadence(toCrons(["0 4 * * 1-5"]), undefined, now, defaultContext)).toBe(
-        "Sun-Thu 23:00",
-      );
-      expect(cadence(toCrons(["0 8 * * *"]), undefined, now, defaultContext)).toBe("daily 03:00");
-      expect(
-        cadence(
-          toCrons(["0 8 * * *"]),
-          undefined,
-          new Date("2026-11-10T12:00:00Z"),
-          defaultContext,
-        ),
-      ).toBe("daily 02:00");
-    });
+  test.each([
+    ["America/Chicago", "2026-10-13T12:00:00Z", "0 4 * * 1-5", "Sun\u2013Thu 23:00"],
+    ["America/Chicago", "2026-11-10T12:00:00Z", "0 4 * * 1-5", "Sun\u2013Thu 22:00"],
+    ["America/Chicago", "2026-11-10T12:00:00Z", "0 8 * * *", "nightly 02:00"],
+    ["America/Chicago", "2026-11-10T12:00:00Z", "15 20 * * 0", "Sun 14:15"],
+    ["Asia/Kathmandu", "2026-11-10T12:00:00Z", "0 4 * * 1-5", "Mon\u2013Fri 09:45"],
+    ["Asia/Kathmandu", "2026-11-10T12:00:00Z", "0 8 * * *", "daily 13:45"],
+    ["Asia/Kathmandu", "2026-11-10T12:00:00Z", "15 20 * * 0", "Mon 02:00"],
+  ])("in %s on %s, the cron %s reads %s", (zone, now, cron, text) => {
+    expect(cadence(toCrons([cron]), new Date(now), zone)).toBe(text);
+  });
+
+  test("crons with no single time or with a day of month give no cadence", () => {
+    const now = new Date("2026-11-10T12:00:00Z");
+    expect(cadence([], now, "UTC")).toBeUndefined();
+    expect(cadence(toCrons(["0 4,16 * * *"]), now, "UTC")).toBeUndefined();
+    expect(cadence(toCrons(["0 4 1 * *"]), now, "UTC")).toBeUndefined();
   });
 
   test("a malformed cron is ignored, not guessed", () => {

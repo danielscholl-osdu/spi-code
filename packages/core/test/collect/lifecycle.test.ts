@@ -20,7 +20,7 @@ import { RecordingExec, ReplayExec } from "../../src/exec/recording.js";
 import { emptyFacts, type JobDetail, type LifecycleRun } from "../../src/facts.js";
 import { factsSchema } from "../../src/facts-schema.js";
 import { Gh } from "../../src/forge.js";
-import { inferMaintenance } from "../../src/model/stack.js";
+import { inferMaintenance, replayHolds } from "../../src/model/stack.js";
 import { judgeRun } from "../../src/rollout.js";
 import { cacheSchema, emptyCache } from "../../src/sweep/cache.js";
 import { Sweeper, type SweepProgress, type SweepState } from "../../src/sweep/sweeper.js";
@@ -563,7 +563,8 @@ test("a sweep clears the live-sized job-log warning from both saved caches and t
   ]);
   requests.length = 0;
   await sweeper.sweep();
-  expect(requests).toHaveLength(4);
+  // One listing per lifecycle workflow, reset's included; settled jobs come from the cache.
+  expect(requests).toHaveLength(5);
   expect(requests.every((path) => path.includes("/workflows/"))).toBe(true);
 });
 
@@ -890,7 +891,82 @@ test("invalid lifecycle JSON is discarded with evidence and other workflows stil
   );
   expect(result.reads.filter((r) => r.failure)).toHaveLength(2);
   expect(result.reads[0]?.source).toBe("persist");
-  expect(result.reads.filter((r) => !r.failure)).toHaveLength(3);
+  expect(result.reads.filter((r) => !r.failure)).toHaveLength(4);
+});
+
+const resetJob = (id: number, name: string, step: string, conclusion: string) => ({
+  ...rawJob(id, name),
+  conclusion,
+  html_url: `https://github.com/${STACK}/actions/runs/9/job/${id}`,
+  steps: [{ ...rawJob().steps[0], name: step, conclusion }],
+});
+const RESET_JOBS = {
+  interrupted: [
+    resetJob(11, "quiesce-and-drain", "Set maintenance", "success"),
+    resetJob(12, "provision", "spi up", "cancelled"),
+  ],
+  completed: [
+    resetJob(11, "quiesce-and-drain", "Set maintenance", "success"),
+    resetJob(13, "verify", "Clear maintenance", "success"),
+  ],
+  // A fresh cluster has no deploy record, so the quiesce job skips the set.
+  skipped: [resetJob(11, "quiesce-and-drain", "Set maintenance", "skipped")],
+};
+function resets(jobs: unknown[] | Error | undefined): Fixture {
+  return (path) => {
+    if (path.includes("/workflows/env-reset.yml/runs")) {
+      if (jobs instanceof Error) return jobs;
+      return {
+        total: jobs ? 1 : 0,
+        runs: jobs
+          ? [
+              {
+                ...rawRun(),
+                id: 9,
+                name: "Environment Reset",
+                path: ".github/workflows/env-reset.yml",
+                display_title: "Environment Reset",
+                html_url: `https://github.com/${STACK}/actions/runs/9`,
+              },
+            ]
+          : [],
+      };
+    }
+    if (path.includes("/workflows/")) return { total: 0, runs: [] };
+    if (path.includes("/runs/9/") && path.includes("/jobs?") && Array.isArray(jobs))
+      return { total: jobs.length, jobs };
+    throw new Error(`Unexpected read ${path}`);
+  };
+}
+
+test("reset runs are read with their jobs, and their steps alone decide whether maintenance is held", async () => {
+  const replayed = async (jobs: unknown[]) =>
+    (await replay((gh) => readLifecycle(gh, {}, empty(), context()), resets(jobs))).data.reset ??
+    [];
+  const interrupted = await replayed(RESET_JOBS.interrupted);
+  expect(interrupted.map(({ kind, target }) => ({ kind, target }))).toEqual([
+    { kind: "reset", target: undefined },
+  ]);
+  expect(inferMaintenance(interrupted)).toMatchObject({ state: "set", run: { id: 9 } });
+  expect(replayHolds(interrupted).holds).toEqual([{ from: Date.parse("2026-11-03T13:12:00Z") }]);
+  const completed = await replayed(RESET_JOBS.completed);
+  expect(inferMaintenance(completed).state).toBe("clear");
+  expect(replayHolds(completed).holds).toEqual([
+    { from: Date.parse("2026-11-03T13:12:00Z"), to: Date.parse("2026-11-03T13:13:00Z") },
+  ]);
+  expect(inferMaintenance(await replayed(RESET_JOBS.skipped)).state).toBe("unknown");
+});
+
+test("a failed reset read leaves reset out, and a read with no runs reads empty", async () => {
+  const failed = await replay(
+    (gh) => readLifecycle(gh, {}, empty(), context()),
+    resets(new Error("denied")),
+  );
+  expect(failed.data).not.toHaveProperty("reset");
+  expect(failed.state.lifecycle).not.toHaveProperty("reset");
+  expect(failed.reads.find((r) => r.failure)?.object).toContain("env-reset.yml");
+  const none = await replay((gh) => readLifecycle(gh, {}, empty(), context()), resets(undefined));
+  expect(none.data.reset).toEqual([]);
 });
 
 test("lifecycle pages deduplicate runs and report a non-progressing page as cut", async () => {
@@ -906,7 +982,7 @@ test("lifecycle pages deduplicate runs and report a non-progressing page as cut"
       throw new Error(`Unexpected read ${path}`);
     },
   );
-  expect(result.data.smoke.map((r) => r.id)).toEqual([7, 8]);
+  expect(result.data.smoke?.map((r) => r.id)).toEqual([7, 8]);
   expect(result.reads.find((r) => r.completeness.kind === "cut")?.completeness).toMatchObject({
     kind: "cut",
     read: 2,

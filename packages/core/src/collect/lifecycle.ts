@@ -3,7 +3,8 @@
 
 import { z } from "zod";
 import {
-  DECLARATION_PATH, HISTORY_DAYS, LIFECYCLE_WORKFLOWS, type LifecycleKind,
+  DECLARATION_PATH, HISTORY_DAYS, type LifecycleData as Lifecycle, LIFECYCLE_WORKFLOWS,
+  type LifecycleKind,
 } from "../config.js";
 import type { CoreContext } from "../context.js";
 import type { ReadRecord } from "../evidence/index.js";
@@ -20,7 +21,7 @@ export interface LifecycleRead<T> {
   reads: ReadRecord[];
 }
 export type DetailCache = Record<string, LifecycleRead<JobDetail>>;
-type LifecycleData = Record<LifecycleKind, LifecycleRun[]>;
+type LifecycleData = Lifecycle<LifecycleRun[]>;
 export interface LifecycleState {
   runJobs: Record<string, LifecycleRead<JobDetail[]> & {
     run?: Pick<RunFact, "status" | "updatedAt">;
@@ -54,7 +55,7 @@ const runSchema = z.strictObject({
   id: z.int().nonnegative(), name: z.string(), path: z.string(), event: z.string(),
   status: z.string(), conclusion: z.string().optional(), createdAt: time, updatedAt: time,
   branch: z.string().optional(), sha: z.string(), title: z.string(), url: z.string(),
-  attempt: z.int().positive(), kind: z.enum(["refresh", "upgrade", "smoke", "sweeper"]),
+  attempt: z.int().positive(), kind: z.enum(["refresh", "reset", "upgrade", "smoke", "sweeper"]),
   jobs: z.array(jobSchema).optional(), target: z.string().optional(),
 });
 const saved = <T extends z.ZodType>(schema: T) =>
@@ -67,6 +68,7 @@ export const lifecycleStateSchema = z.strictObject({
   lifecycle: z.strictObject({
     refresh: saved(z.array(runSchema)).optional(), upgrade: saved(z.array(runSchema)).optional(),
     smoke: saved(z.array(runSchema)).optional(), sweeper: saved(z.array(runSchema)).optional(),
+    reset: saved(z.array(runSchema)).optional(),
   }).optional(),
 });
 
@@ -340,7 +342,7 @@ export async function readLifecycle(gh: Gh, detailState: unknown, previous: unkn
   if (!loaded.success) reads.push({
     ...record(ctx, "persist", "lifecycle-cache"), failure: "Dropped invalid lifecycle cache",
   });
-  const data: LifecycleData = { refresh: [], upgrade: [], smoke: [], sweeper: [] };
+  const data: LifecycleData = { refresh: [], upgrade: [], sweeper: [] };
   const since = new Date(ctx.clock.now().getTime() - HISTORY_DAYS * 86_400_000).toISOString().slice(0, 10);
   const kinds = Object.keys(LIFECYCLE_WORKFLOWS) as LifecycleKind[];
   const declarations: Declarations = new Map();
@@ -366,12 +368,14 @@ export async function readLifecycle(gh: Gh, detailState: unknown, previous: unkn
       }
     }
     if (failed) {
-      data[kind] = retain(state.lifecycle?.[kind], evidence) ?? [];
+      const kept = retain(state.lifecycle?.[kind], evidence);
+      if (kept) data[kind] = kept;
+      else if (kind !== "smoke" && kind !== "reset") data[kind] = [];
     } else {
       const entries = await pool([...byId.values()], 3, async (run) => {
         const runReads: ReadRecord[] = [];
         const entry: LifecycleRun = { ...run, kind };
-        if (kind !== "refresh" && kind !== "upgrade") return { entry, reads: runReads };
+        if (kind !== "refresh" && kind !== "upgrade" && kind !== "reset") return { entry, reads: runReads };
         const known = state.runJobs[jobsKey(run)];
         const settled = run.status === "completed" && known &&
           known.run?.status === "completed" && known.run.updatedAt === run.updatedAt &&
@@ -387,14 +391,15 @@ export async function readLifecycle(gh: Gh, detailState: unknown, previous: unkn
             run: settledJobReads(jobs.reads) ? { status: run.status, updatedAt: run.updatedAt } : known?.run,
           };
         }
-        entry.target = await targetOf(gh, run, state.files, declarations, runReads, ctx);
+        if (kind !== "reset") entry.target = await targetOf(gh, run, state.files, declarations, runReads, ctx);
         return { entry, reads: runReads };
       });
       data[kind] = entries.map((r) => r.entry);
       evidence.push(...entries.flatMap((r) => r.reads));
     }
     state.lifecycle ??= {};
-    state.lifecycle[kind] = { data: data[kind], reads: evidence };
+    const read = data[kind];
+    if (read) state.lifecycle[kind] = { data: read, reads: evidence };
     return evidence;
   });
   reads.push(...perKind.flat());

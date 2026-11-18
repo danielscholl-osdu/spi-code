@@ -561,7 +561,7 @@ function formerFields(body: ReturnType<typeof mixedSnapshot>): FormerField[] {
               field: `lane ${lane.id} empty`,
               find: (page: HTMLElement) =>
                 page.querySelector(`[data-lane='${lane.id}'] .env-none`) ?? undefined,
-              text: "none in the last day",
+              text: lane.last?.text ?? "none in the last day",
             },
           ]
         : lane.events
@@ -654,5 +654,25 @@ it("opens an environment reading item in a popover under it", async () => {
     expect(view.page.querySelector(".popover")).toBeNull();
   } finally {
     await view.done();
+  }
+});
+
+it("draws a Reset row only when core sends the Reset lane", async () => {
+  const unread = mixedSnapshot(recorded);
+  expect(unread.briefing.environment.lanes.some(({ id }) => id === "reset")).toBe(false);
+  const without = await renderRecorded(unread);
+  try {
+    expect(without.page.querySelector('[data-lane="reset"]')).toBeNull();
+    expect(without.page.querySelector('[data-lane="refresh"]')).not.toBeNull();
+  } finally {
+    await without.done();
+  }
+  const read = mixedSnapshot(recorded);
+  read.briefing.environment.lanes.splice(1, 0, { id: "reset", label: "Reset", events: [] });
+  const withReset = await renderRecorded(read);
+  try {
+    expect(withReset.page.querySelector('[data-lane="reset"]')).not.toBeNull();
+  } finally {
+    await withReset.done();
   }
 });

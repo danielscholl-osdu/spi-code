@@ -252,7 +252,7 @@ export const REST_SHAPES: readonly RestShape[] = [
     "lifecycle runs",
     "gh",
     "rest",
-    `${REPO}actions/workflows/(?:env-refresh|env-upgrade|smoke|sweeper)\\.yml/runs\\?per_page=${N}&created=%3E%3D\\d{4}-\\d\\d-\\d\\d&page=${N}`,
+    `${REPO}actions/workflows/(?:env-refresh|env-reset|env-upgrade|smoke|sweeper)\\.yml/runs\\?per_page=${N}&created=%3E%3D\\d{4}-\\d\\d-\\d\\d&page=${N}`,
     RUNS_JQ,
   ),
   shape("service run history", "gh", "rest", SERVICE_RUN_PAGE, SERVICE_RUN_JQ),
@@ -552,7 +552,10 @@ export const FRAGMENT_HASHES: Readonly<Record<string, readonly string[]>> = {
     "5fba03ee60385cd18e1e8f0a15b91a1d0a2a5833af4be7e4d93bbc0f48d55d47",
     "ed75ab2ee4f6c4cc4760ae8a48b4c66b45d4c01178ef3f5a1a3e671d428a4e99",
   ],
-  Stack: ["7e9be32536546dd43de851827f6041a4c3c6184591934481e552906e49f6068f"],
+  Stack: [
+    "7e9be32536546dd43de851827f6041a4c3c6184591934481e552906e49f6068f",
+    "63ac4ee097988ff3deb29c264527fc14c44a1d24e764cacc02dcbae48dce0709",
+  ],
 };
 
 const GRAPHQL_TOKEN =

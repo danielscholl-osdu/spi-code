@@ -157,11 +157,20 @@ export function gitlabUrl(project: string, path = ""): string {
 
 export const LIFECYCLE_WORKFLOWS = Object.freeze({
   refresh: "env-refresh.yml",
+  reset: "env-reset.yml",
   upgrade: "env-upgrade.yml",
   smoke: "smoke.yml",
   sweeper: "sweeper.yml",
 } as const);
 export type LifecycleKind = keyof typeof LIFECYCLE_WORKFLOWS;
+/** Smoke and reset are left out when their read failed with nothing retained: absent is not read. */
+export type LifecycleData<T> = {
+  refresh: T;
+  upgrade: T;
+  sweeper: T;
+  smoke?: T;
+  reset?: T;
+};
 
 export const HISTORY_DAYS = 21;
 /** Rows in each repo's merged-or-closed PR read, newest update first. */

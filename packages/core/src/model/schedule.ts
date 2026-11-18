@@ -1,6 +1,5 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
-import type { CoreContext } from "../context.js";
 
 // Five-field cron as GitHub Actions reads it: UTC, with day-of-month and
 // day-of-week OR'ed when both are restricted.
@@ -130,46 +129,51 @@ export function firesBetween(crons: readonly Cron[], from: number, to: number): 
   return [...new Set(out)].sort((a, b) => a - b);
 }
 
-function two(n: number): string {
-  return String(n).padStart(2, "0");
+const SHORT = Object.freeze(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
+const MONTHS = Object.freeze(["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]);
+
+/** The wall clock in an IANA zone: weekday (0 is Sunday), "Tue 3 Nov" and "22:00". */
+export function wallClock(t: number, timeZone: string) {
+  const format = new Intl.DateTimeFormat("en-GB", {
+    timeZone, year: "numeric", month: "numeric", day: "numeric",
+    hour: "numeric", minute: "numeric", hourCycle: "h23",
+  });
+  const part = Object.fromEntries(
+    format.formatToParts(t).map(({ type, value }) => [type, Number(value)]),
+  ) as Record<"year" | "month" | "day" | "hour" | "minute", number>;
+  const weekday = new Date(Date.UTC(part.year, part.month - 1, part.day)).getUTCDay();
+  return {
+    weekday,
+    hour: part.hour,
+    date: `${SHORT[weekday]} ${part.day} ${MONTHS[part.month - 1]}`,
+    clock: `${String(part.hour).padStart(2, "0")}:${String(part.minute).padStart(2, "0")}`,
+  };
 }
 
-const SHORT = Object.freeze(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
-
-// Weekdays as a reader says them: "daily", "weekdays", "Sun-Thu", "Mon,Wed".
+// Weekdays as a reader says them: "Sun–Thu", "Mon, Wed".
 function dayNames(days: readonly number[]): string {
   const set = [...new Set(days)].sort((a, b) => a - b);
-  if (set.length === 7) return "daily";
-  if (set.join(",") === "1,2,3,4,5") return "weekdays";
   for (let r = 0; r < 7 && set.length >= 3; r++) {
     const run = set.map((d) => (d - r + 7) % 7).sort((a, b) => a - b);
     if (run.every((d, i) => d === (run[0] as number) + i)) {
       const lo = ((run[0] as number) + r) % 7;
       const hi = ((run[run.length - 1] as number) + r) % 7;
-      return `${SHORT[lo]}-${SHORT[hi]}`;
+      return `${SHORT[lo]}\u2013${SHORT[hi]}`;
     }
   }
-  return set.map((d) => SHORT[d]).join(",");
+  return set.map((d) => SHORT[d]).join(", ");
 }
 
-// "daily 03:00", "Sun-Thu 23:00" in local time, read from the week after `now`
-// so a daylight-time change moves the label with it.
-export function cadence(
-  crons: readonly Cron[],
-  unscheduled = "unscheduled",
-  now: Date | undefined = undefined,
-  context: CoreContext,
-): string {
-  now ??= context.clock.now();
-  const cron = crons[0];
-  if (!cron) return unscheduled;
-  if (cron.dom || cron.months) return "scheduled";
-  const fires = firesBetween([cron], now.getTime(), now.getTime() + 7 * DAY_MS).map(
-    (t) => new Date(t),
-  );
-  const times = new Set(fires.map((d) => `${two(d.getHours())}:${two(d.getMinutes())}`));
-  const time = times.size === 1 ? [...times][0] : "several times";
-  return `${dayNames(fires.map((d) => d.getDay()))} ${time}`;
+// "nightly 02:00", "Sun–Thu 22:00" in the zone, read from the week after `now` so a
+// daylight-time change moves the label with it. Undefined when the crons say no single time.
+export function cadence(crons: readonly Cron[], now: Date, timeZone: string): string | undefined {
+  const fires = firesBetween(crons, now.getTime(), now.getTime() + 7 * DAY_MS).map((t) => wallClock(t, timeZone));
+  const times = new Set(fires.map(({ clock }) => clock));
+  const first = fires[0];
+  if (!first || times.size !== 1 || crons.some((c) => c.dom || c.months)) return undefined;
+  const days = new Set(fires.map(({ weekday }) => weekday));
+  if (days.size < 7) return `${dayNames([...days])} ${first.clock}`;
+  return `${first.hour >= 18 || first.hour < 6 ? "nightly" : "daily"} ${first.clock}`;
 }
 
 export function toCrons(texts: readonly string[] | undefined): Cron[] {

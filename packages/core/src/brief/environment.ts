@@ -3,12 +3,13 @@
 
 import { timeUnit } from "@spi-code/contracts";
 import { when } from "@spi-code/contracts";
-import { HISTORY_DAYS } from "../config.js";
+import { HISTORY_DAYS, type LifecycleKind } from "../config.js";
 import type { CoreContext } from "../context.js";
 import type { DeploymentFact } from "../facts.js";
-import { median } from "../model/history.js";
+import { MISSED_AFTER_MS, median } from "../model/history.js";
 import type { ForkDeployments, Model } from "../model/index.js";
-import { runResult } from "../model/stack.js";
+import { cadence, firesBetween, wallClock } from "../model/schedule.js";
+import { runResult, semverCmp } from "../model/stack.js";
 import { span, stamp } from "../util.js";
 import type { EnvLane, Link } from "./index.js";
 import { deployableWords } from "./words.js";
@@ -169,7 +170,7 @@ function statusOf(
   const hold = lanes.find(({ id }) => id === "holds")?.events.find(({ end }) => !end);
   if (hold) {
     const run = model.stack.maintenance.run;
-    const what = run?.kind === "upgrade" ? "Upgrade" : "Refresh";
+    const what = run?.kind === "upgrade" ? "Upgrade" : run?.kind === "reset" ? "Reset" : "Refresh";
     return {
       state: "maintenance",
       label: "In maintenance",
@@ -250,4 +251,63 @@ export function environmentUsage(
   });
   const line = status.state === "maintenance" ? undefined : factsLine(model, now, context);
   return { status, borrows, ...(forksNote ? { forksNote } : {}), ...(line ? { line } : {}) };
+}
+
+const UNSCHEDULED: Readonly<Partial<Record<LifecycleKind, string>>> = Object.freeze({
+  upgrade: "on version bump",
+  reset: "by hand, weekly",
+});
+const RESET_DUE_DAYS = 7;
+type LastRun = { text: string; note?: string; late?: true };
+
+/**
+ * A lane's newest run before `before` when none touches [before, to]. At now, Reset adds
+ * its age and Upgrade the release not yet adopted; a past day adds neither.
+ */
+export function lastRun(
+  model: Model, kind: LifecycleKind, before: number, to: number, atNow: boolean, context: CoreContext,
+): LastRun | undefined {
+  const { stack } = model;
+  const runs = stack.lifecycle[kind].runs;
+  const endOf = (run: (typeof runs)[number]) =>
+    run.status === "completed" ? Date.parse(run.updatedAt) : to;
+  if (runs.some((run) => endOf(run) >= before && Date.parse(run.createdAt) <= to)) return undefined;
+  const run = runs.filter((item) => Date.parse(item.createdAt) < before).at(-1);
+  if (!run) return undefined;
+  const date = wallClock(Date.parse(run.createdAt), context.timeZone ?? "UTC").date;
+  const last: LastRun = { text: [run.target, date, runResult(run)].filter(Boolean).join(" \u00b7 ") };
+  if (!atNow) return last;
+  const age = Math.floor((to - endOf(run)) / DAY);
+  const current = stack.declared ?? stack.running?.version;
+  if (kind === "reset") {
+    last.note = age === 0 ? "today" : `${age} ${age === 1 ? "day" : "days"} ago`;
+    if (age > RESET_DUE_DAYS) last.late = true;
+  } else if (kind === "upgrade" && stack.latest && current && semverCmp(stack.latest, current) > 0) {
+    last.note = `${stack.latest} not adopted`;
+  }
+  return last;
+}
+
+/** A lane's cadence, its last run when the 24-hour range has none, and the nightly slots missed. */
+export function laneRhythm(
+  model: Model, kind: LifecycleKind, from: number, now: Date, context: CoreContext,
+): { cadence?: string; last?: LastRun; missed?: string[] } {
+  const { stack } = model;
+  const to = now.getTime();
+  const crons = stack.schedules?.[kind];
+  const rhythm = crons && (crons.length ? cadence(crons, now, context.timeZone ?? "UTC") : UNSCHEDULED[kind]);
+  const last = lastRun(model, kind, to - DAY, to, true, context);
+  const smoke = kind === "smoke" && !stack.unread.includes("smoke") && crons;
+  const missed = smoke
+    ? firesBetween(crons, from, to - MISSED_AFTER_MS).filter((slot) =>
+        !stack.lifecycle.smoke.runs.some((run) => {
+          const start = Date.parse(run.createdAt);
+          return run.event === "schedule" && start >= slot && start - slot <= MISSED_AFTER_MS;
+        })).map((slot) => new Date(slot).toISOString())
+    : [];
+  return {
+    ...(rhythm ? { cadence: rhythm } : {}),
+    ...(last ? { last } : {}),
+    ...(missed.length ? { missed } : {}),
+  };
 }
