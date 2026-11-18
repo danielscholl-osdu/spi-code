@@ -31,9 +31,9 @@ export type ServiceTab = {
 /** A service page's tabs, in order; the first opens when the route names none. */
 export const TABS: readonly ServiceTab[] = [
   { id: "overview", label: "Overview", Panel: Overview },
+  UPSTREAM_TAB,
   { id: "pulls", label: "Pull requests", Panel: Pulls, count: pullCount },
   { id: "issues", label: "Issues", Panel: Issues, count: issueCount },
   runsTab,
-  UPSTREAM_TAB,
   SECURITY_TAB,
 ];

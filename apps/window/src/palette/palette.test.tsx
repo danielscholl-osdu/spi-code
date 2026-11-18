@@ -540,7 +540,7 @@ it("offers the built tabs with their tab counts and keeps the companion out of F
   const group = palette()?.querySelector('[data-group="on:search"]');
   expect(group?.textContent).toContain("PR #77");
   expect(group?.textContent).not.toContain("Issue #78");
-  const countedTabs = ["pulls", "issues", "runs"];
+  const countedTabs = ["upstream", "pulls", "issues", "runs", "security"];
   expect(
     [...(group?.querySelectorAll(".palette-row") ?? [])]
       .slice(-countedTabs.length)
