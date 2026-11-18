@@ -2,15 +2,23 @@
 // SPDX-License-Identifier: MIT
 
 import type { EnvActivitySegment, EnvEvent, Environment } from "@spi-code/contracts";
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import type { OpenSelection } from "../../app/navigation.js";
+import { timeUnit } from "../../time.js";
 import { borrowInRange } from "./borrows.js";
-import { eventWhen, eventWord, fixed, pctOf, span, TRACK_MIN_PX } from "./timeline.js";
+import { eventWhen, eventWord, fixed, LABEL_PX, pctOf, span, TRACK_MIN_PX } from "./timeline.js";
 
 export const IDLE_LABEL_SHARE = 1 / 8;
 const MINUTE = 60_000;
 
-export function activityView(env: Environment, from: number, to: number) {
+/** A length the summary adds up with: days and hours keep their minutes. */
+function exact(minutes: number): string | undefined {
+  if (minutes < 2 * 1440) return span(minutes * MINUTE);
+  const rest = minutes % 60;
+  return `${span(Math.floor(minutes / 60) * 60 * MINUTE)}${rest ? ` ${timeUnit(rest, "min")}` : ""}`;
+}
+
+export function activityView(env: Environment, from: number, to: number, week?: boolean) {
   const { activity } = env;
   if (!activity) return undefined;
   const { words } = activity;
@@ -47,7 +55,7 @@ export function activityView(env: Environment, from: number, to: number) {
       part === "overlap" ? Math.min(minutes(totals.overlap), rounded.borrowed) : rounded[part];
     if (length > 0) {
       const prefix = part === "borrowed" && approximate ? "≈" : "";
-      summary.push({ part, text: `${prefix}${span(length * MINUTE)} ${words[part]}` });
+      summary.push({ part, text: `${prefix}${exact(length)} ${words[part]}` });
     }
   }
   const holds =
@@ -85,8 +93,12 @@ export function activityView(env: Environment, from: number, to: number) {
       ],
       ["cancelled", eventWord.cancelled, events.some(({ state }) => state === "cancelled")],
       ["borrowed", words.borrowed, has("borrowed")],
-      ["estimated", words.estimated, approximate || has("estimated")],
-      ["unknown", words.unknown, borrows.some(({ result, end }) => !end && result !== "running")],
+      ["estimated", words.estimated, !week && (approximate || has("estimated"))],
+      [
+        "unknown",
+        words.unknown,
+        !week && borrows.some(({ result, end }) => !end && result !== "running"),
+      ],
       ["maintenance", words.maintenance, holds.length > 0],
       ["overlap", words.overlap, has("overlap")],
       [
@@ -102,11 +114,18 @@ export function activityView(env: Environment, from: number, to: number) {
 
 type ActivityView = NonNullable<ReturnType<typeof activityView>>;
 
-export function ActivitySummary({ view }: { view: ActivityView }) {
-  if (!view.summary.length) return null;
+export function ActivitySummary({
+  view,
+  children,
+}: {
+  view: ActivityView | undefined;
+  children?: ReactNode;
+}) {
+  if (!view?.summary.length && !children) return null;
   return (
     <p className="env-activity-summary">
-      {view.summary.map(({ part, text }, index) => (
+      {children}
+      {view?.summary.map(({ part, text }, index) => (
         <span key={part}>
           {index > 0 && " · "}
           <span data-part={part}>{text}</span>
@@ -135,11 +154,13 @@ export function ActivityRow({
   from,
   to,
   opener,
+  week,
 }: {
   view: ActivityView;
   from: number;
   to: number;
   opener: (selection: OpenSelection) => ComponentProps<"button">;
+  week?: boolean | undefined;
 }) {
   const pct = (at: number) => pctOf(at, from, to);
   const band = (start: number, end: number) => ({
@@ -182,9 +203,15 @@ export function ActivityRow({
           const start = Date.parse(event.start);
           const end = event.end ? Date.parse(event.end) : to;
           const label = `${start < from ? "‹ " : ""}${event.label}`;
-          const room = ((label.length * 7) / (TRACK_MIN_PX - 84)) * 100;
+          const room = ((label.length * 7) / (TRACK_MIN_PX - LABEL_PX)) * 100;
           const placement =
-            pct(end) - pct(start) >= room ? "inside" : pct(end) + room > 100 ? "before" : "after";
+            pct(end) - pct(start) >= room
+              ? "inside"
+              : week
+                ? undefined
+                : pct(end) + room > 100
+                  ? "before"
+                  : "after";
           const id = `holds:${event.id}`;
           return (
             <button
@@ -198,9 +225,11 @@ export function ActivityRow({
               aria-label={`${view.words.held} ${event.label}, ${eventWhen(event, now)}`}
               {...opener({ kind: "event", id })}
             >
-              <span className="env-hold-label" data-placement={placement}>
-                {label}
-              </span>
+              {placement && (
+                <span className="env-hold-label" data-placement={placement}>
+                  {label}
+                </span>
+              )}
             </button>
           );
         })}

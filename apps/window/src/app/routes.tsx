@@ -58,7 +58,7 @@ export const DEFAULT_REGISTRY: Registry = {
   views: {
     today: (route) => gated(route, <Today tab={route.tab} station={route.station} />),
     upstream: (route) => gated(route, <Upstream />),
-    environment: (route) => gated(route, <Environment />),
+    environment: (route) => gated(route, <Environment range={route.range} />),
     "engineering-system": (route) => gated(route, <Template />),
     releases: (route) => gated(route, <Releases section={route.section} />),
     security: (route) => gated(route, <Security />),

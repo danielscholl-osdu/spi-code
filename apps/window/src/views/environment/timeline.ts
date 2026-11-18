@@ -6,6 +6,8 @@ import { clockTime, timeUnit } from "../../time.js";
 
 // Ported from keelson-rib-spi @59d6895, src/boards/console.ts.
 export const TRACK_MIN_PX = 960;
+/** The lane label column the track sits beside. */
+export const LABEL_PX = 84;
 const CHAR_PX = 6.6;
 const BAR_MIN_PX = 10;
 const LABEL_GAP_PX = 9;
@@ -42,7 +44,7 @@ export function fixed(n: number): string {
   return String(Math.round(n * 100) / 100);
 }
 
-export function place(events: readonly EnvEvent[], from: number, to: number) {
+export function place(events: readonly EnvEvent[], from: number, to: number, labels = true) {
   const ends: number[] = [];
   const gap = (LABEL_GAP_PX / TRACK_MIN_PX) * 100;
   return [...events]
@@ -52,7 +54,7 @@ export function place(events: readonly EnvEvent[], from: number, to: number) {
       const right = pctOf(e.end ? Date.parse(e.end) : to, from, to);
       const width = Math.max(0, right - left);
       const bar = Math.max(width, (BAR_MIN_PX / TRACK_MIN_PX) * 100);
-      const label = ((eventText(e).length * CHAR_PX) / TRACK_MIN_PX) * 100;
+      const label = labels ? ((eventText(e).length * CHAR_PX) / TRACK_MIN_PX) * 100 : 0;
       const flip = left + bar + gap + label > 100;
       const start = flip ? left - gap - label : left;
       const end = flip ? left + bar : left + bar + gap + label;

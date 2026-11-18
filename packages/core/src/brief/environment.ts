@@ -36,24 +36,42 @@ export interface EnvStatus {
 
 const DAY = 86_400_000;
 
-export function environmentFrom(now: Date, context: CoreContext): number {
-  if (context.words !== "app") return now.getTime() - DAY;
-  const dateKey = new Intl.DateTimeFormat("sv-SE", {
+function dateKeyIn(context: CoreContext) {
+  return new Intl.DateTimeFormat("sv-SE", {
     timeZone: context.timeZone ?? "UTC",
     year: "numeric", month: "2-digit", day: "2-digit",
   }).format;
-  const localDay = Date.parse(dateKey(now));
-  const midnight = localDay - 6 * DAY;
-  let lo = midnight - DAY;
-  let hi = midnight + DAY;
-  // Search for the first instant of the target local date, including a midnight clock change.
-  const target = new Date(midnight).toISOString().slice(0, 10);
+}
+
+/** The first instant of a local date, including a midnight clock change. */
+function midnightOf(target: string, dateKey: (at: number) => string): number {
+  const guess = Date.parse(target);
+  let lo = guess - DAY;
+  let hi = guess + DAY;
   while (hi - lo > 1) {
     const mid = Math.floor((lo + hi) / 2);
     if (dateKey(mid) < target) lo = mid;
     else hi = mid;
   }
   return hi;
+}
+
+export function environmentFrom(now: Date, context: CoreContext): number {
+  if (context.words !== "app") return now.getTime() - DAY;
+  const dateKey = dateKeyIn(context);
+  const localDay = Date.parse(dateKey(now));
+  return midnightOf(new Date(localDay - 6 * DAY).toISOString().slice(0, 10), dateKey);
+}
+
+/** The local midnights from `from` up to `to`, `from` first. */
+function dayStarts(from: number, to: number, context: CoreContext): number[] {
+  const dateKey = dateKeyIn(context);
+  const starts = [from];
+  for (let day = Date.parse(dateKey(from)) + DAY; ; day += DAY) {
+    const start = midnightOf(new Date(day).toISOString().slice(0, 10), dateKey);
+    if (start >= to) return starts;
+    starts.push(start);
+  }
 }
 
 function result(state: DeploymentFact["state"]): EnvBorrow["result"] {
@@ -356,6 +374,7 @@ export function runEnd(view: RunView): string | undefined {
 }
 
 type LastRun = { text: string; note?: string; late?: true };
+type LaneLast = LastRun & { from: string; to: string };
 
 /**
  * A lane's newest run before `before` when none touches [before, to]. At now, Reset adds
@@ -387,15 +406,24 @@ export function lastRun(
   return last;
 }
 
-/** A lane's cadence, its last run when the 24-hour range has none, and the nightly slots missed. */
+/**
+ * A lane's cadence, its last run when the 24-hour range has none, the same for 7 days and each of
+ * its days, and the nightly slots missed.
+ */
 export function laneRhythm(
   model: Model, kind: LifecycleKind, from: number, now: Date, context: CoreContext,
-): { cadence?: string; last?: LastRun; missed?: string[] } {
+): { cadence?: string; last?: LastRun; lasts?: LaneLast[]; missed?: string[] } {
   const { stack } = model;
   const to = now.getTime();
   const crons = stack.schedules?.[kind];
   const rhythm = crons && (crons.length ? cadence(crons, now, context.timeZone ?? "UTC") : UNSCHEDULED[kind]);
   const last = lastRun(model, kind, to - DAY, to, true, context);
+  const days = dayStarts(from, to, context);
+  const ranges: [number, number][] = [[from, to], ...days.map((start, index): [number, number] => [start, days[index + 1] ?? to])];
+  const lasts = ranges.flatMap(([start, end]) => {
+    const found = lastRun(model, kind, start, end, end === to, context);
+    return found ? [{ from: new Date(start).toISOString(), to: new Date(end).toISOString(), ...found }] : [];
+  });
   const smoke = kind === "smoke" && !stack.unread.includes("smoke") && crons;
   const kept = stack.retainedFrom?.smoke;
   const listed = kept === undefined ? to : kept === null ? from : Math.min(to, Date.parse(kept));
@@ -409,6 +437,7 @@ export function laneRhythm(
   return {
     ...(rhythm ? { cadence: rhythm } : {}),
     ...(last ? { last } : {}),
+    ...(lasts.length ? { lasts } : {}),
     ...(missed.length ? { missed } : {}),
   };
 }

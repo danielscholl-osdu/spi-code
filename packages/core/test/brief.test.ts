@@ -1477,6 +1477,28 @@ describe("Stack lanes in the app context", () => {
     expect(lane(model, "upgrade")?.last).not.toHaveProperty("note");
   });
 
+  test("7 days and each of its local days name their own last run; only ranges ending now add a note", () => {
+    const model = modelWith({
+      refresh: [run("refresh", -100)],
+      reset: [run("reset", -200)],
+    });
+    const ranges = (kind: string) =>
+      lane(model, kind)?.lasts?.map(({ from, to, note }) => [from, to, note]);
+    const nowIso = now.toISOString();
+    expect(ranges("refresh")).toEqual([
+      ["2026-03-07T06:00:00.000Z", "2026-03-08T06:00:00.000Z", undefined],
+      ["2026-03-08T06:00:00.000Z", "2026-03-09T05:00:00.000Z", undefined],
+      ["2026-03-09T05:00:00.000Z", "2026-03-10T05:00:00.000Z", undefined],
+      ["2026-03-10T05:00:00.000Z", nowIso, undefined],
+    ]);
+    expect(lane(model, "refresh")?.lasts?.[0]?.text).toBe("Fri 6 Mar · green");
+    const reset = ranges("reset");
+    expect(reset?.[0]).toEqual(["2026-03-04T06:00:00.000Z", nowIso, "8 days ago"]);
+    expect(reset?.slice(1, -1).every(([, , note]) => note === undefined)).toBe(true);
+    expect(reset?.at(-1)).toEqual(["2026-03-10T05:00:00.000Z", nowIso, "8 days ago"]);
+    expect(reset).toHaveLength(8);
+  });
+
   test("by hand marks dispatched Refresh and Smoke runs, never Reset", () => {
     const dispatched = { event: "workflow_dispatch" };
     const model = modelWith({

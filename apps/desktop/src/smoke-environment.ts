@@ -9,6 +9,17 @@ export const ENVIRONMENT_LINK = `${ENVIRONMENT_BORROW} [data-kind="deploy"]`;
 export const ENVIRONMENT_ACTIVITY = ".environment .env-activity";
 export const ENVIRONMENT_OVERLAP = `${ENVIRONMENT_ACTIVITY} button[data-mark="overlap"]`;
 export const ENVIRONMENT_HOLD = `${ENVIRONMENT_ACTIVITY} button[data-mark="maintenance"]`;
+export const ENVIRONMENT_WEEK = ".environment .env-range button:last-child";
+export const ENVIRONMENT_YESTERDAY =
+  '[...document.querySelectorAll(".environment .env-day-heading")].at(-2)';
+export const ENVIRONMENT_BACK = ".environment .env-back";
+/** Every day heading and fork pill ends at or before the now line. */
+export const ENVIRONMENT_INSIDE_NOW = `(() => {
+  const now = document.querySelector(".environment .env-now")?.getBoundingClientRect().right;
+  const marks = [...document.querySelectorAll(".environment :is(.env-day-heading, .env-pill)")];
+  return now !== undefined && marks.length > 0 &&
+    marks.every((mark) => mark.getBoundingClientRect().right <= now + 0.5);
+})()`;
 
 export function smokeEnvironment(source: ViewSnapshot): ViewSnapshot {
   const body = structuredClone(source);
@@ -65,12 +76,27 @@ function stackLanes(env: ViewSnapshot["briefing"]["environment"]) {
   const to = Date.parse(env.to);
   const at = (hours: number) => new Date(to - hours * 3_600_000).toISOString();
   const refresh = env.lanes.findIndex(({ id }) => id === "refresh");
+  const text = "Tue 3 Nov \u00b7 green";
+  const late = { text, note: "15 days ago", late: true as const };
+  const iso = (time: number) => new Date(time).toISOString();
+  const days: { from: string; to: string; text: string }[] = [];
+  for (let day = new Date(env.from); day.getTime() < to; ) {
+    const next = new Date(day);
+    next.setDate(next.getDate() + 1);
+    next.setHours(0, 0, 0, 0);
+    days.push({ from: iso(day.getTime()), to: iso(Math.min(to, next.getTime())), text });
+    day = next;
+  }
   env.lanes.splice(refresh + 1, 0, {
     id: "reset",
     label: "Reset",
     events: [],
     cadence: "by hand, weekly",
-    last: { text: "Tue 3 Nov \u00b7 green", note: "15 days ago", late: true },
+    last: late,
+    lasts: [
+      { from: env.from, to: env.to, ...late },
+      ...days.map((day) => (day.to === env.to ? { ...day, ...late } : day)),
+    ],
   });
   const smoke = env.lanes.find(({ id }) => id === "smoke");
   if (!smoke) return;

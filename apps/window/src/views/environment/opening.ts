@@ -18,10 +18,12 @@ import {
 } from "../../components/opened-body/content.js";
 import { envelopesFor } from "../../store/evidence.js";
 import { plainTitle } from "../../text.js";
-import { borrowWhen, dayFrom } from "./borrows.js";
+import { borrowWhen } from "./borrows.js";
+import { type Range, rangeOf, routeOf, within } from "./range.js";
 import { eventKey, eventSpan, eventWhen } from "./timeline.js";
 
 const ENVIRONMENT = { kind: "environment" } as const;
+const NO_RANGE = { from: new Date(0).toISOString(), to: new Date(0).toISOString() };
 const STACK = "osdu-spi-stack";
 
 export type EnvironmentOpening = {
@@ -158,15 +160,19 @@ function memberOf(snapshot: ViewSnapshot, id: string | undefined) {
 
 const itemsOf = (snapshot: ViewSnapshot) => [...snapshot.briefing.focus, ...snapshot.briefing.rest];
 
-function eventOpening(snapshot: ViewSnapshot, key: string): EnvironmentOpening | undefined {
+function eventOpening(
+  snapshot: ViewSnapshot,
+  key: string,
+  range: Range,
+): EnvironmentOpening | undefined {
   const found = findEvent(snapshot, key);
   if (!found) return undefined;
   const { lane, e } = found;
   const env = snapshot.briefing.environment;
   const holdWords = lane.id === "holds" ? env.activity?.words : undefined;
   const place: BodyPlace = {
-    label: `Environment › Last 24 hours › ${holdWords ? env.activity?.label : lane.label}`,
-    destination: ENVIRONMENT,
+    label: `Environment › ${range.label} › ${holdWords ? env.activity?.label : lane.label}`,
+    destination: routeOf(range),
     selection: { kind: "event", id: key },
   };
   const repository = lane.id === "holds" ? undefined : stackRepository(snapshot);
@@ -184,7 +190,9 @@ function eventOpening(snapshot: ViewSnapshot, key: string): EnvironmentOpening |
           .filter(({ id }) => id !== "holds")
           .flatMap((other) =>
             other.events
-              .filter((r) => span(r, to)[1] >= dayFrom(to) && overlaps(span(r, to), span(e, to)))
+              .filter(
+                (r) => within(range, r.start, r.end, to) && overlaps(span(r, to), span(e, to)),
+              )
               .map((r) => ({
                 key: eventKey(other, r),
                 text: `${runName(other, r)} · ${r.detail}`,
@@ -293,11 +301,12 @@ function repositoryLineOpening(snapshot: ViewSnapshot, id: string): EnvironmentO
 export function environmentOpening(
   snapshot: ViewSnapshot | undefined,
   open: OpenSelection | null,
+  range: Range = rangeOf(snapshot?.briefing.environment ?? NO_RANGE),
 ): EnvironmentOpening | undefined {
   if (!snapshot || !open) return undefined;
   switch (open.kind) {
     case "event":
-      return eventOpening(snapshot, open.id);
+      return eventOpening(snapshot, open.id, range);
     case "activity": {
       const { activity, to } = snapshot.briefing.environment;
       const segment = activity?.segments.find(({ start }) => start === open.id);
@@ -307,7 +316,7 @@ export function environmentOpening(
           title: segment.title,
           place: {
             label: `Environment › ${activity.label}`,
-            destination: ENVIRONMENT,
+            destination: routeOf(range),
             selection: open,
           },
           subject: null,
@@ -323,7 +332,7 @@ export function environmentOpening(
       if (!borrow) return undefined;
       const place: BodyPlace = {
         label: "Environment › Forks",
-        destination: ENVIRONMENT,
+        destination: routeOf(range),
         selection: open,
       };
       return {

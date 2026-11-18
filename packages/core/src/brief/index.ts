@@ -166,6 +166,7 @@ export interface EnvLane {
   events: EnvEvent[];
   cadence?: string;
   last?: { text: string; note?: string; late?: true };
+  lasts?: { from: string; to: string; text: string; note?: string; late?: true }[];
   missed?: string[];
 }
 

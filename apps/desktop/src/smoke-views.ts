@@ -16,11 +16,15 @@ import {
 } from "@spi-code/contracts";
 import { type BrowserWindow, ipcMain, nativeImage } from "electron";
 import {
+  ENVIRONMENT_BACK,
   ENVIRONMENT_BORROW,
   ENVIRONMENT_HOLD,
+  ENVIRONMENT_INSIDE_NOW,
   ENVIRONMENT_LINK,
   ENVIRONMENT_LIVE,
   ENVIRONMENT_OVERLAP,
+  ENVIRONMENT_WEEK,
+  ENVIRONMENT_YESTERDAY,
   smokeEnvironment,
 } from "./smoke-environment.js";
 import { captureForks } from "./smoke-forks.js";
@@ -1524,6 +1528,28 @@ export async function captureSmokeViews(
               );
               await rendered(window, `!${popover}`);
             }
+            const heading = 'document.querySelector(".environment .env-day-heading")';
+            await window.webContents.executeJavaScript(
+              `document.querySelector(${JSON.stringify(ENVIRONMENT_WEEK)}).click()`,
+            );
+            await rendered(window, heading);
+            assert(
+              await window.webContents.executeJavaScript(ENVIRONMENT_INSIDE_NOW),
+              `Environment 7 days at ${viewportWidth}: a day heading or pill crosses the now line`,
+            );
+            await captureSettled(
+              window,
+              heading,
+              join(output, `environment-7d-${viewportWidth}-${appearance}.png`),
+            );
+            await window.webContents.executeJavaScript(`${ENVIRONMENT_YESTERDAY}.click()`);
+            await captureSettled(
+              window,
+              `document.activeElement === document.querySelector(${JSON.stringify(ENVIRONMENT_BACK)})`,
+              join(output, `environment-day-${viewportWidth}-${appearance}.png`),
+            );
+            await window.webContents.executeJavaScript('location.hash = "#environment"');
+            await rendered(window, `!document.querySelector(${JSON.stringify(ENVIRONMENT_BACK)})`);
           }
           if (surface.id === "service-calm" || surface.id === "environment")
             fixture(window, "view.snapshot", { ...snapshot, cursor: scheduledCursor++ });

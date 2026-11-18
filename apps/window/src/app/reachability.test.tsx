@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { readFixture } from "../../../../scripts/watch-generated.mjs";
 import { directoryPaths } from "../test-utils/directory-paths.test.js";
 import { fixtureLoader } from "../test-utils/harness.js";
+import { daysOf } from "../views/environment/range.js";
 import snapshot1116 from "../views/today/snapshot-1116.json?raw";
 import type { Route } from "./navigation.js";
 import { treeServices } from "./queue.js";
@@ -92,6 +93,7 @@ describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
       ...Object.values(STARTS).filter((entry) => typeof entry !== "function"),
       ...treeServices(body.tree).map(STARTS.service),
       ...body.releases.lines.map(({ month }) => STARTS.release(month)),
+      ...daysOf(body.briefing.environment).map(({ key }) => STARTS.environmentDay(key)),
     ];
     const byName = new Map<string, string>();
     for (const { home } of cases) {

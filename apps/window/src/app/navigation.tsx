@@ -34,12 +34,16 @@ export const PLACES = [
 
 export type PlaceRoute =
   | { kind: "upstream" }
-  | { kind: "environment" }
+  | EnvironmentRoute
   | { kind: "engineering-system" }
   | { kind: "releases"; section?: ReleasesSection }
   | { kind: "security" }
   | ServiceRoute
   | { kind: "release"; month: string };
+
+/** The Environment place, on 7 days or one local day (`2026-11-12`) of it; the last 24 hours when absent. */
+export type EnvironmentRoute = { kind: "environment"; range?: string };
+const ENVIRONMENT_RANGE = /^(7-days|\d{4}-\d{2}-\d{2})$/;
 
 /** A service page, on one of its tabs (Overview when absent) with one of that tab's rows open. */
 export type ServiceRoute = { kind: "service"; id: string; tab?: string; row?: string };
@@ -201,6 +205,8 @@ export function parseRoute(hash: string): Route | undefined {
     (rest === FORMING_RELEASES_ANCHOR || rest === SHARED_COMPONENTS_ANCHOR)
   )
     return { kind: "releases", section: rest };
+  if (head === "environment" && rest !== undefined)
+    return ENVIRONMENT_RANGE.test(rest) ? { kind: "environment", range: rest } : undefined;
   if (PLAIN.has(head)) return rest === undefined ? ({ kind: head } as Route) : undefined;
   switch (head) {
     case "release":
@@ -224,6 +230,8 @@ export function routeHash(route: Route): string {
       return `#release/${route.month}`;
     case "releases":
       return route.section ? `#releases/${route.section}` : "#releases";
+    case "environment":
+      return route.range ? `#environment/${route.range}` : "#environment";
     case "evidence": {
       const params = new URLSearchParams();
       if (route.from) params.set("from", routeHash(route.from).slice(1));
@@ -529,7 +537,8 @@ function restoreLastPlace(registry: Registry) {
 
 function saveLastPlace(route: Route) {
   try {
-    window.localStorage.setItem(LAST_PLACE_KEY, routeHash(route));
+    const place = route.kind === "environment" ? { kind: route.kind } : route;
+    window.localStorage.setItem(LAST_PLACE_KEY, routeHash(place));
   } catch {}
 }
 

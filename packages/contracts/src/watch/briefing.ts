@@ -119,6 +119,18 @@ export const EnvLaneSchema = z.strictObject({
       late: z.literal(true).optional(),
     })
     .optional(),
+  /** The same for 7 days and for each of its days, by the range it stands for; a past day has no note. */
+  lasts: z
+    .array(
+      z.strictObject({
+        from: ObservedAtSchema,
+        to: ObservedAtSchema,
+        text: z.string(),
+        note: z.string().optional(),
+        late: z.literal(true).optional(),
+      }),
+    )
+    .optional(),
   /** Scheduled slots in the range that no scheduled run answered. */
   missed: z.array(ObservedAtSchema).optional(),
 });

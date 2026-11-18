@@ -6,8 +6,9 @@ import { restatesHeadline } from "../components/opened-body/content.js";
 import { plainTitle } from "../text.js";
 import { instantsIn, timedText, when } from "../time.js";
 import { activityView } from "../views/environment/activity.js";
-import { borrowInDay, borrowWhen, dayFrom } from "../views/environment/borrows.js";
+import { borrowInRange, borrowWhen } from "../views/environment/borrows.js";
 import { runName } from "../views/environment/opening.js";
+import { daysOf, lastOf, rangeOf, WEEK, within } from "../views/environment/range.js";
 import { eventSpan, eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
 import { releaseSectionCases } from "../views/releases/reachability.test-helper.js";
 import { readFork } from "../views/today/Forks.js";
@@ -68,8 +69,11 @@ type Leaves = Pick<ViewSnapshot, "briefing" | "releases" | "services">;
 type Lane = ViewSnapshot["briefing"]["environment"]["lanes"][number];
 type Event = Lane["events"][number];
 type Repo = ViewSnapshot["briefing"]["repositories"]["rows"][number];
-const activityOf = (env: Leaves["briefing"]["environment"]) =>
-  activityView(env, dayFrom(Date.parse(env.to)), Date.parse(env.to));
+/** The Activity row as each range draws it: 24 h, 7 days, and each of its days. */
+const activitiesOf = (env: Leaves["briefing"]["environment"]) =>
+  [rangeOf(env), rangeOf(env, WEEK), ...daysOf(env).map(({ key }) => rangeOf(env, key))].map(
+    (range) => activityView(env, range.from, range.to, range.week),
+  );
 
 const at = (pointer: string) => `[data-pointer="${pointer}"]`;
 const quote = (value: string) => JSON.stringify(value);
@@ -106,6 +110,9 @@ export const STARTS = {
   forks: start("Today", { kind: "today", tab: "forks" }),
   upstream: start("Upstream", { kind: "upstream" }),
   environment: start("Environment", { kind: "environment" }),
+  environmentWeek: start("Environment, 7 days", { kind: "environment", range: WEEK }),
+  environmentDay: (day: string) =>
+    start(`Environment, ${day}`, { kind: "environment", range: day }, "environment"),
   engineering: start("Template", { kind: "engineering-system" }),
   releases: start("Releases", { kind: "releases" }),
   security: start("Security", { kind: "security" }),
@@ -415,173 +422,205 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
     add(`${base}/line`, subText(environment.line), environmentHome, ".env-line");
   if (environment.forksNote)
     add(`${base}/forksNote`, environment.forksNote, environmentHome, ".env-forks-note");
-  const activity = activityOf(environment);
-  if (activity && environment.activity) {
-    const pointer = `${base}/activity`;
-    add(`${pointer}/label`, activity.label, environmentHome, ".env-activity .env-lane-label");
-    activity.summary.forEach(({ part }) => {
-      add(
-        `${pointer}/words/${part}`,
-        activity.words[part],
-        environmentHome,
-        `.env-activity-summary [data-part=${quote(part)}]`,
-        { contains: true },
-      );
+  // Each field at the first range that draws it: 24 h, then 7 days, then the day that holds it.
+  const days = daysOf(environment);
+  const ranges = [
+    { range: rangeOf(environment), from: STARTS.environment },
+    ...(environment.activity
+      ? [
+          { range: rangeOf(environment, WEEK), from: STARTS.environmentWeek },
+          ...days.map(({ key }) => ({
+            range: rangeOf(environment, key),
+            from: STARTS.environmentDay(key),
+          })),
+        ]
+      : []),
+  ];
+  const drawn = new Set<string>();
+  const first = (key: string) => !drawn.has(key) && !!drawn.add(key);
+  const popover = ".popover .opened-body";
+  if (environment.activity && days[0])
+    add(
+      `${base}/from`,
+      environment.from,
+      home("Environment, 7 days", STARTS.environmentWeek),
+      `.env-day-heading[data-day=${quote(days[0].key)}]`,
+      { attribute: "data-from" },
+    );
+  for (const { range, from: rangeStart } of ranges) {
+    const place = home(rangeStart.name, rangeStart);
+    const opened = (what: string, step: string) => ({
+      ...home(`${rangeStart.name} · ${what}`, rangeStart, step),
+      clock: to,
     });
-    activity.legend.forEach(([mark, label]) => {
-      if (!(mark in activity.words)) return;
-      add(`${pointer}/words/${mark}`, label, environmentHome, `[data-legend=${quote(mark)}]`);
-    });
-    environment.activity.segments.forEach((segment, index) => {
-      if (!segment.title || !activity.segments.some((visible) => visible.segment === segment))
-        return;
-      const part = `${pointer}/segments/${index}`;
-      const bar = `[data-opens=${quote(`activity~${segment.start}`)}]`;
-      const where = {
-        ...home(`Environment · activity ${segment.start}`, STARTS.environment, bar),
-        clock: to,
-      };
-      const popover = ".popover .opened-body";
-      add(`${part}/kind`, segment.kind, environmentHome, bar, { attribute: "data-mark" });
-      add(`${part}/title`, segment.title, where, `${popover} h3`);
-      add(`${part}/start`, eventWhen(segment, now), where, `${popover} > p`);
-      add(`${part}/end`, eventWhen(segment, now), where, `${popover} > p`);
-      if (segment.kind === "estimated")
+    const activity = activityView(environment, range.from, range.to, range.week);
+    if (activity && environment.activity) {
+      const pointer = `${base}/activity`;
+      if (first("activity-label"))
+        add(`${pointer}/label`, activity.label, place, ".env-activity .env-lane-label");
+      activity.summary.forEach(({ part }) => {
+        if (!first(`summary:${part}`)) return;
         add(
-          `${pointer}/words/estimatedNote`,
-          activity.words.estimatedNote,
-          where,
-          `${popover} .opened-body-effect`,
+          `${pointer}/words/${part}`,
+          activity.words[part],
+          place,
+          `.env-activity-summary [data-part=${quote(part)}]`,
+          { contains: true },
         );
-    });
-  }
-  environment.borrows?.forEach((borrow, index) => {
-    if (!borrowInDay(borrow, to)) return;
-    const pointer = `${base}/borrows/${index}`;
-    const bar = `[data-borrow=${quote(borrow.id)}]`;
-    const where = home(`Environment · borrow ${borrow.id}`, STARTS.environment, bar);
-    const popover = ".popover .opened-body";
-    const words = { contains: true };
-    add(`${pointer}/fork`, borrow.fork, where, `${popover} h3`);
-    if (borrow.branch) add(`${pointer}/branch`, borrow.branch, where, `${popover} > p`, words);
-    add(`${pointer}/result`, borrow.result, where, `${popover} > p`, words);
-    const span = borrowWhen(borrow, to);
-    add(`${pointer}/start`, span, where, `${popover} > p`, words);
-    if (borrow.end) add(`${pointer}/end`, span, where, `${popover} > p`, words);
-    if (borrow.estimated)
-      add(`${pointer}/estimated`, "true", environmentHome, bar, { attribute: "data-estimated" });
-    if (borrow.overlap)
-      add(`${pointer}/overlap`, borrow.overlap, where, `${popover} .opened-body-effect`);
-    borrow.links.forEach(({ label, kind, url }, link) => {
-      const pill = `${popover} a[href=${quote(url)}]`;
-      add(`${pointer}/links/${link}/label`, label, where, pill, words);
-      if (kind) add(`${pointer}/links/${link}/kind`, kind, where, pill, { attribute: "data-kind" });
-      add(`${pointer}/links/${link}/url`, url, where, pill, { attribute: "href" });
-    });
-  });
-  environment.lanes.forEach((lane, laneIndex) => {
-    const pointer = `/briefing/environment/lanes/${laneIndex}`;
-    const row = `.env-row[data-lane=${quote(lane.id)}]`;
-    const activityHold = activity && lane.id === "holds" ? activity : undefined;
-    if (!activityHold)
-      add(`${pointer}/label`, lane.label, environmentHome, `${row} .env-lane-label`, {
-        contains: true,
       });
-    if (lane.cadence)
-      add(`${pointer}/cadence`, lane.cadence, environmentHome, `${row} .env-cadence`);
-    if (lane.last) {
-      add(`${pointer}/last/text`, lane.last.text, environmentHome, `${row} .env-last`, {
-        contains: true,
+      activity.legend.forEach(([mark, label]) => {
+        if (!(mark in activity.words) || !first(`legend:${mark}`)) return;
+        add(`${pointer}/words/${mark}`, label, place, `[data-legend=${quote(mark)}]`);
       });
-      if (lane.last.note)
-        add(`${pointer}/last/note`, lane.last.note, environmentHome, `${row} .env-last-note`);
-      if (lane.last.late)
-        add(`${pointer}/last/late`, "true", environmentHome, `${row} .env-last-note`, {
-          attribute: "data-late",
-        });
+      environment.activity.segments.forEach((segment, index) => {
+        if (!segment.title || !activity.segments.some((visible) => visible.segment === segment))
+          return;
+        if (!first(`activity:${segment.start}`)) return;
+        const part = `${pointer}/segments/${index}`;
+        const bar = `[data-opens=${quote(`activity~${segment.start}`)}]`;
+        const where = opened(`activity ${segment.start}`, bar);
+        add(`${part}/kind`, segment.kind, place, bar, { attribute: "data-mark" });
+        add(`${part}/title`, segment.title, where, `${popover} h3`);
+        add(`${part}/start`, eventWhen(segment, now), where, `${popover} > p`);
+        add(`${part}/end`, eventWhen(segment, now), where, `${popover} > p`);
+        if (segment.kind === "estimated")
+          add(
+            `${pointer}/words/estimatedNote`,
+            activity.words.estimatedNote,
+            where,
+            `${popover} .opened-body-effect`,
+          );
+      });
     }
-    lane.missed?.forEach((slot, index) => {
-      if (Date.parse(slot) < dayFrom(to)) return;
-      add(`${pointer}/missed/${index}`, slot, environmentHome, `${row} .env-missed`, {
-        attribute: "data-missed",
+    environment.borrows?.forEach((borrow, index) => {
+      if (range.week || !borrowInRange(borrow, range.from, range.to)) return;
+      if (!first(`borrow:${borrow.id}`)) return;
+      const pointer = `${base}/borrows/${index}`;
+      const bar = `[data-borrow=${quote(borrow.id)}]`;
+      const where = opened(`borrow ${borrow.id}`, bar);
+      const words = { contains: true };
+      add(`${pointer}/fork`, borrow.fork, where, `${popover} h3`);
+      if (borrow.branch) add(`${pointer}/branch`, borrow.branch, where, `${popover} > p`, words);
+      add(`${pointer}/result`, borrow.result, where, `${popover} > p`, words);
+      const span = borrowWhen(borrow, to);
+      add(`${pointer}/start`, span, where, `${popover} > p`, words);
+      if (borrow.end) add(`${pointer}/end`, span, where, `${popover} > p`, words);
+      if (borrow.estimated)
+        add(`${pointer}/estimated`, "true", place, bar, { attribute: "data-estimated" });
+      if (borrow.overlap)
+        add(`${pointer}/overlap`, borrow.overlap, where, `${popover} .opened-body-effect`);
+      borrow.links.forEach(({ label, kind, url }, link) => {
+        const pill = `${popover} a[href=${quote(url)}]`;
+        add(`${pointer}/links/${link}/label`, label, where, pill, words);
+        if (kind)
+          add(`${pointer}/links/${link}/kind`, kind, where, pill, { attribute: "data-kind" });
+        add(`${pointer}/links/${link}/url`, url, where, pill, { attribute: "href" });
       });
     });
-    lane.events.forEach((e, index) => {
-      if (e.end && Date.parse(e.end) < dayFrom(to)) return;
-      if (activityHold && !activityHold.holds.includes(e)) return;
-      const event = `${pointer}/events/${index}`;
-      const bar = `button[data-event=${quote(`${lane.id}:${e.id}`)}]`;
-      if (e.byHand)
-        add(`${event}/byHand`, "true", environmentHome, bar, { attribute: "data-by-hand" });
-      add(
-        `${event}/label`,
-        eventText(e),
-        environmentHome,
-        `${bar} ${activityHold ? ".env-hold-label" : ".env-event-label"}`,
-        { contains: !!activityHold },
-      );
-      add(`${event}/state`, eventWord[e.state], environmentHome, bar, {
-        ...(activityHold
-          ? {
-              read: (element: Element) =>
-                element.getAttribute("data-mark") === "maintenance" ? "held" : "",
-            }
-          : { attribute: "aria-label", contains: true }),
+    environment.lanes.forEach((lane, laneIndex) => {
+      const pointer = `/briefing/environment/lanes/${laneIndex}`;
+      const row = `.env-row[data-lane=${quote(lane.id)}]`;
+      const activityHold = activity && lane.id === "holds" ? activity : undefined;
+      if (!activityHold && first(`lane:${lane.id}`)) {
+        add(`${pointer}/label`, lane.label, place, `${row} .env-lane-label`, { contains: true });
+        if (lane.cadence) add(`${pointer}/cadence`, lane.cadence, place, `${row} .env-cadence`);
+      }
+      const last = lastOf(lane, range);
+      const lastPointer =
+        last && last === lane.last
+          ? `${pointer}/last`
+          : `${pointer}/lasts/${lane.lasts?.indexOf(last as NonNullable<Lane["lasts"]>[number])}`;
+      if (last && first(lastPointer)) {
+        add(`${lastPointer}/text`, last.text, place, `${row} .env-last`, { contains: true });
+        if (last.note) add(`${lastPointer}/note`, last.note, place, `${row} .env-last-note`);
+        if (last.late)
+          add(`${lastPointer}/late`, "true", place, `${row} .env-last-note`, {
+            attribute: "data-late",
+          });
+      }
+      lane.missed?.forEach((slot, index) => {
+        const when = Date.parse(slot);
+        if (when < range.from || when > range.to || !first(`missed:${pointer}:${slot}`)) return;
+        add(`${pointer}/missed/${index}`, slot, place, `${row} [data-missed=${quote(slot)}]`, {
+          attribute: "data-missed",
+        });
       });
-      add(`${event}/start`, eventWhen(e, now), environmentHome, bar, {
-        attribute: "aria-label",
-        contains: true,
-      });
-      if (e.end)
-        add(`${event}/end`, eventWhen(e, now), environmentHome, bar, {
+      lane.events.forEach((e, index) => {
+        if (!within(range, e.start, e.end, to)) return;
+        if (activityHold && !activityHold.holds.includes(e)) return;
+        if (!first(`event:${lane.id}:${e.id}`)) return;
+        const event = `${pointer}/events/${index}`;
+        const bar = `button[data-event=${quote(`${lane.id}:${e.id}`)}]`;
+        if (e.byHand) add(`${event}/byHand`, "true", place, bar, { attribute: "data-by-hand" });
+        if (range.week)
+          add(`${event}/label`, e.label, place, bar, { attribute: "aria-label", contains: true });
+        else
+          add(
+            `${event}/label`,
+            eventText(e),
+            place,
+            `${bar} ${activityHold ? ".env-hold-label" : ".env-event-label"}`,
+            { contains: !!activityHold },
+          );
+        add(`${event}/state`, eventWord[e.state], place, bar, {
+          ...(activityHold
+            ? {
+                read: (element: Element) =>
+                  element.getAttribute("data-mark") === "maintenance" ? "held" : "",
+              }
+            : { attribute: "aria-label", contains: true }),
+        });
+        add(`${event}/start`, eventWhen(e, now), place, bar, {
           attribute: "aria-label",
           contains: true,
         });
-      const where = {
-        ...home(`Environment · popover ${lane.id}:${e.id}`, STARTS.environment, bar),
-        clock: now.getTime(),
-      };
-      const popover = ".popover .opened-body";
-      const title = activityHold ? `${activityHold.words.held} · ${e.label}` : runName(lane, e);
-      add(`${event}/label`, title, where, `${popover} h3`, {
-        canon: (value) => (value === title || value === eventText(e) ? e.label : value),
-      });
-      if (e.detail && !activityHold)
-        add(`${event}/detail`, e.detail, where, `${popover} > p`, { contains: true });
-      if (e.likely) add(`${event}/likely`, e.likely, where, `${popover} .opened-body-effect`);
-      if (activityHold)
-        add(`${base}/activity/words/held`, activityHold.words.held, where, `${popover} h3`, {
-          contains: true,
-        });
-      // The popover says when the event ran without its length, which the bar's name carries.
-      const ran = (element: Element) =>
-        activityHold
-          ? (element.textContent ?? "").replace(/^From /, "")
-          : (element.textContent ?? "").split(" \u00b7 ").slice(1).join(" \u00b7 ");
-      const length = { read: ran, canon: (value: string) => value.split(" \u00b7 ")[0] ?? value };
-      add(`${event}/start`, eventSpan(e, now), where, `${popover} > p`, length);
-      if (e.end) add(`${event}/end`, eventSpan(e, now), where, `${popover} > p`, length);
-      if (lane.id !== "holds") return;
-      let offset = 0;
-      environment.lanes
-        .filter(({ id }) => id !== "holds")
-        .forEach((other) => {
-          const otherIndex = environment.lanes.indexOf(other);
-          other.events.forEach((run, runIndex) => {
-            if ((run.end && Date.parse(run.end) < dayFrom(to)) || !overlaps(e, run)) return;
-            const runPointer = `/briefing/environment/lanes/${otherIndex}/events/${runIndex}`;
-            add(
-              `${runPointer}/detail`,
-              run.detail,
-              where,
-              `.popover-rows > button:nth-child(${offset + 1})`,
-              { contains: true },
-            );
-            offset += 1;
+        if (e.end)
+          add(`${event}/end`, eventWhen(e, now), place, bar, {
+            attribute: "aria-label",
+            contains: true,
           });
+        const where = opened(`popover ${lane.id}:${e.id}`, bar);
+        const title = activityHold ? `${activityHold.words.held} · ${e.label}` : runName(lane, e);
+        add(`${event}/label`, title, where, `${popover} h3`, {
+          canon: (value) => (value === title || value === eventText(e) ? e.label : value),
         });
+        if (e.detail && !activityHold)
+          add(`${event}/detail`, e.detail, where, `${popover} > p`, { contains: true });
+        if (e.likely) add(`${event}/likely`, e.likely, where, `${popover} .opened-body-effect`);
+        if (activityHold)
+          add(`${base}/activity/words/held`, activityHold.words.held, where, `${popover} h3`, {
+            contains: true,
+          });
+        // The popover says when the event ran without its length, which the bar's name carries.
+        const ran = (element: Element) =>
+          activityHold
+            ? (element.textContent ?? "").replace(/^From /, "")
+            : (element.textContent ?? "").split(" · ").slice(1).join(" · ");
+        const length = { read: ran, canon: (value: string) => value.split(" · ")[0] ?? value };
+        add(`${event}/start`, eventSpan(e, now), where, `${popover} > p`, length);
+        if (e.end) add(`${event}/end`, eventSpan(e, now), where, `${popover} > p`, length);
+        if (lane.id !== "holds") return;
+        let offset = 0;
+        environment.lanes
+          .filter(({ id }) => id !== "holds")
+          .forEach((other) => {
+            const otherIndex = environment.lanes.indexOf(other);
+            other.events.forEach((run, runIndex) => {
+              if (!within(range, run.start, run.end, to) || !overlaps(e, run)) return;
+              const runPointer = `/briefing/environment/lanes/${otherIndex}/events/${runIndex}`;
+              add(
+                `${runPointer}/detail`,
+                run.detail,
+                where,
+                `.popover-rows > button:nth-child(${offset + 1})`,
+                { contains: true },
+              );
+              offset += 1;
+            });
+          });
+      });
     });
-  });
+  }
 
   briefing.repositories.rows.forEach((repo, index) => {
     repositoryCases(repo, `/briefing/repositories/rows/${index}`, add);
@@ -1618,41 +1657,18 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
     patterns: ["/briefing/environment/to"],
     reason: "The 24-hour timeline's right edge and reference clock",
   },
-  "environment-seven-days": {
-    patterns: ["/briefing/environment/from"],
-    reason: "spicode-8q6.5 draws the seven-day range",
-  },
-  "environment-older-runs": {
-    patterns: ["label", "state", "start", "end", "detail", "byHand", "likely"].map(
-      (field) => `/briefing/environment/lanes/#/events/#/${field}`,
-    ),
-    reason: "spicode-8q6.5 draws events outside the 24-hour range",
-    pending: true,
-    when: (_value, { pointer, snapshot }) => {
-      const [, lane, event] = /lanes\/(\d+)\/events\/(\d+)/.exec(pointer) ?? [];
-      const env = snapshot.briefing.environment;
-      const row = env.lanes[Number(lane)];
-      const end = row?.events[Number(event)]?.end;
-      const from = dayFrom(Date.parse(env.to));
-      return (
-        !!end &&
-        (Date.parse(end) < from ||
-          (!!env.activity && row?.id === "holds" && Date.parse(end) === from))
-      );
-    },
-  },
   "environment-activity-words": {
     patterns: ["borrow", "unknown", "missed", "byHand"].map(
       (field) => `/briefing/environment/activity/words/${field}`,
     ),
     reason:
-      "The recorded day has several borrows, no unknown ends, missed nightlies, or manual runs.",
+      "No range of the recorded week has a single borrow, an unknown end, a missed nightly or a manual run.",
     when: (_value, { pointer, snapshot }) => {
-      const activity = activityOf(snapshot.briefing.environment);
       const word = pointer.split("/").at(-1);
-      return (
-        !activity?.summary.some(({ part }) => part === word) &&
-        !activity?.legend.some(([mark]) => mark === word)
+      return activitiesOf(snapshot.briefing.environment).every(
+        (activity) =>
+          !activity?.summary.some(({ part }) => part === word) &&
+          !activity?.legend.some(([mark]) => mark === word),
       );
     },
   },
@@ -1668,19 +1684,6 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
       return kind === "maintenance" || kind === "idle";
     },
   },
-  "environment-older-activity": {
-    patterns: ["kind", "start", "end", "title"].map(
-      (field) => `/briefing/environment/activity/segments/#/${field}`,
-    ),
-    reason: "spicode-8q6.5 draws activity outside the 24-hour range",
-    pending: true,
-    when: (_value, { pointer, snapshot }) => {
-      const env = snapshot.briefing.environment;
-      const index = Number(/segments\/(\d+)/.exec(pointer)?.[1]);
-      const segment = env.activity?.segments[index];
-      return !!segment && Date.parse(segment.end) <= dayFrom(Date.parse(env.to));
-    },
-  },
   "environment-held-lane": {
     patterns: [
       "/briefing/environment/lanes/#/label",
@@ -1694,30 +1697,9 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
       return !!env.activity && env.lanes[index]?.id === "holds";
     },
   },
-  "environment-older-missed": {
-    patterns: ["/briefing/environment/lanes/#/missed/#"],
-    reason: "spicode-8q6.5 draws missed slots outside the 24-hour range",
-    pending: true,
-    when: (value, { snapshot }) =>
-      Date.parse(String(value)) < dayFrom(Date.parse(snapshot.briefing.environment.to)),
-  },
-  "environment-older-borrows": {
-    patterns: [
-      ...["fork", "result", "branch", "start", "end", "estimated", "overlap"].map(
-        (field) => `/briefing/environment/borrows/#/${field}`,
-      ),
-      ...["kind", "label", "url"].map(
-        (field) => `/briefing/environment/borrows/#/links/#/${field}`,
-      ),
-    ],
-    reason: "spicode-8q6.5 draws borrows outside the 24-hour range",
-    pending: true,
-    when: (_value, { pointer, snapshot }) => {
-      const index = Number(/borrows\/(\d+)/.exec(pointer)?.[1]);
-      const env = snapshot.briefing.environment;
-      const borrow = env.borrows?.[index];
-      return !!borrow && !borrowInDay(borrow, Date.parse(env.to));
-    },
+  "environment-last-range": {
+    patterns: ["from", "to"].map((field) => `/briefing/environment/lanes/#/lasts/#/${field}`),
+    reason: "Transport: the range a lane's last run stands for, matched against the drawn range",
   },
   "environment-live-selection": {
     patterns: ["/briefing/environment/status/live/#/id"],

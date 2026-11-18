@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { Reading, RepoLine } from "@spi-code/contracts";
-import { useCallback, useId, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 import {
   FORKS,
@@ -20,11 +20,12 @@ import { Popover } from "../../components/popover/Popover.js";
 import { repositoryLinePointer } from "../../panels/selection-rows.js";
 import { watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
-import { TimedText } from "../../time.js";
+import { dayLine, TimedText } from "../../time.js";
 import { ActivityLegend, ActivityRow, ActivitySummary, activityView } from "./activity.js";
-import { BorrowRows, dayFrom } from "./borrows.js";
+import { BorrowRows, DayCell, ForkDays } from "./borrows.js";
 import { FlowContext } from "./flow-context.js";
 import { environmentOpening } from "./opening.js";
+import { type Day, daysOf, lastOf, rangeOf, WEEK, within } from "./range.js";
 import {
   eventKey,
   eventText,
@@ -54,6 +55,11 @@ function LineReading({ line }: { line: RepoLine }) {
     </>
   );
 }
+
+/** What takes focus once the next range draws: the way back into 7 days, or the day's heading. */
+let pendingFocus: string | undefined;
+const HEADING_PX = 72;
+const weekday = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric" });
 
 // A missed nightly is drawn about as long as a smoke run takes.
 const MISSED_SLOT_MS = 30 * 60_000;
@@ -88,14 +94,22 @@ function anchorOf(
 }
 
 /** The Environment place: the reading, then the stack's runs and its repository, each folded. */
-export default function Environment({ store = watchStore }: { store?: typeof watchStore }) {
+export default function Environment({
+  store = watchStore,
+  range: routeRange,
+}: {
+  store?: typeof watchStore;
+  range?: string | undefined;
+}) {
   const runsHeading = useId();
   const repositoryHeading = useId();
   const dayHeading = useId();
   const snapshot = useStore(store, (state) => state.snapshot);
   const body = snapshot?.body;
+  const env = body?.briefing.environment;
+  const range = env ? rangeOf(env, routeRange) : undefined;
   const marked = useOpenSelection();
-  const opening = environmentOpening(body, marked);
+  const opening = environmentOpening(body, marked, range);
   const markedKey = marked && keyOf(marked);
   const pane = useRef<HTMLDivElement>(null);
   const clicked = useRef<{ key: string; element: HTMLElement } | null>(null);
@@ -114,17 +128,30 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
     clicked.current = { key, element };
     setOpenSelection(markedKey === key ? null : selection);
   };
+  // Keep duration text deterministic for the snapshot rather than ticking on the renderer clock.
+  const now = new Date(env ? Date.parse(env.to) : 0);
   const opener = (selection: OpenSelection) => ({
     "data-opens": keyOf(selection),
     "aria-haspopup": "dialog" as const,
     "aria-expanded": markedKey === keyOf(selection),
     onClick: (event: { currentTarget: HTMLElement }) => toggle(selection, event.currentTarget),
   });
-  const env = body?.briefing.environment;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Focus moves once the new range has drawn.
+  useEffect(() => {
+    if (pendingFocus) pane.current?.querySelector<HTMLElement>(pendingFocus)?.focus();
+    pendingFocus = undefined;
+  }, [routeRange]);
+  const openDay = (day: Day) => {
+    pendingFocus = ".env-back";
+    navigate({ kind: "environment", range: day.key });
+  };
+  const back = () => {
+    pendingFocus = `.env-day-heading[data-day="${range?.day?.key}"]`;
+    navigate({ kind: "environment", range: WEEK });
+  };
   const reading = body?.readings.find(({ anchor }) => anchor.kind === "environment") ?? NO_READING;
-  const to = env ? Date.parse(env.to) : 0;
-  const from = dayFrom(to);
-  const activity = env && activityView(env, from, to);
+  const { from, to } = range ?? { from: 0, to: 0 };
+  const activity = env && activityView(env, from, to, range?.week);
   const lanes =
     env?.lanes.flatMap((lane, index) =>
       activity && lane.id === "holds"
@@ -134,9 +161,12 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
               lane,
               pointer: `/briefing/environment/lanes/${index}`,
               placed: place(
-                lane.events.filter(({ end }) => !end || Date.parse(end) >= from),
+                lane.events.filter(
+                  ({ start, end }) => range && within(range, start, end, now.getTime()),
+                ),
                 from,
                 to,
+                !range?.week,
               ),
             },
           ],
@@ -170,55 +200,112 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
       }}
     />
   );
-  if (!body || !env)
+  if (!body || !env || !range)
     return (
       <div className="environment" data-view-pane="environment" ref={pane}>
         {placeOf()}
       </div>
     );
-  // Keep duration text deterministic for the snapshot rather than ticking on the renderer clock.
-  const now = new Date(to);
-  const ticks = hourTicks(from, to);
+  const days = daysOf(env);
+  const ticks = range.week
+    ? days.slice(1).map(({ start }) => ({ at: start, major: true, text: "" }))
+    : hourTicks(from, to).map((tick) => ({
+        ...tick,
+        major: new Date(tick.at).getHours() % 2 === 0,
+      }));
   const timeline = (activity || env.lanes.length > 0 || env.forksNote || env.borrows?.length) && (
     <section className="env-day" aria-labelledby={dayHeading}>
-      <h3 className="env-section-label" id={dayHeading}>
-        Last 24 hours
-      </h3>
-      {activity && <ActivitySummary view={activity} />}
+      <div className="env-range-head">
+        <h3 className="env-section-label" id={dayHeading}>
+          {range.label}
+        </h3>
+        <fieldset className="env-range" aria-label="Range">
+          <button
+            type="button"
+            aria-pressed={!range.week && !range.day}
+            onClick={() => navigate({ kind: "environment" })}
+          >
+            24 h
+          </button>
+          <button
+            type="button"
+            aria-pressed={!!range.week}
+            onClick={() => navigate({ kind: "environment", range: WEEK })}
+          >
+            7 days
+          </button>
+        </fieldset>
+      </div>
+      {(activity || range.day) && (
+        <ActivitySummary view={activity}>
+          {range.day && (
+            <button type="button" className="env-back" onClick={back}>
+              {"‹ 7 days"}
+            </button>
+          )}
+        </ActivitySummary>
+      )}
       <SectionEvidence evidence={body} prefixes={["/briefing/environment/lanes"]} />
       <div className="env-scroll">
         <div className="env-timeline" style={{ minWidth: TRACK_MIN_PX }}>
           <div className="env-grid" aria-hidden="true">
+            {range.to === now.getTime() && <span className="env-now" />}
             {ticks.map((tick) => (
               <span
                 key={tick.at}
-                className={`env-tick${new Date(tick.at).getHours() % 2 === 0 ? " major" : ""}`}
+                className={`env-tick${tick.major ? " major" : ""}`}
                 style={{ left: `${fixed(pctOf(tick.at, from, to))}%` }}
               />
             ))}
           </div>
-          <div className="env-row env-axis" aria-hidden="true">
+          <div className="env-row env-axis" aria-hidden={range.week ? undefined : true}>
             <div />
             <div className="env-track">
-              {ticks
-                .filter((tick) => {
-                  const left = pctOf(tick.at, from, to);
-                  return left > 2 && left < 98 && new Date(tick.at).getHours() % 2 === 0;
-                })
-                .map((tick) => (
-                  <span
-                    className="env-hour"
-                    key={tick.at}
-                    style={{ left: `${fixed(pctOf(tick.at, from, to))}%` }}
-                  >
-                    {tick.text}
-                  </span>
-                ))}
+              {range.week
+                ? days.map((day) => {
+                    const count =
+                      env.borrows?.filter(({ start }) => {
+                        const at = Date.parse(start);
+                        return at >= day.start && at < day.end;
+                      }).length ?? 0;
+                    return (
+                      <DayCell key={day.key} day={day} from={from} to={to} px={HEADING_PX}>
+                        <button
+                          type="button"
+                          className="env-day-heading"
+                          data-day={day.key}
+                          data-from={new Date(day.start).toISOString()}
+                          aria-label={dayLine(day.start)}
+                          onClick={() => openDay(day)}
+                        >
+                          {weekday.format(day.start)}
+                          {count > 0 && <small>{count}</small>}
+                        </button>
+                      </DayCell>
+                    );
+                  })
+                : ticks
+                    .filter((tick) => {
+                      const left = pctOf(tick.at, from, to);
+                      return left > 2 && left < 98 && tick.major;
+                    })
+                    .map((tick) => (
+                      <span
+                        className="env-hour"
+                        key={tick.at}
+                        style={{ left: `${fixed(pctOf(tick.at, from, to))}%` }}
+                      >
+                        {tick.text}
+                      </span>
+                    ))}
             </div>
           </div>
-          {activity && <ActivityRow view={activity} from={from} to={to} opener={opener} />}
+          {activity && (
+            <ActivityRow view={activity} from={from} to={to} opener={opener} week={range.week} />
+          )}
           {lanes.map(({ lane, pointer, placed }) => {
             const tiers = Math.max(1, ...placed.map((p) => p.tier + 1));
+            const last = lastOf(lane, range);
             return (
               <div className="env-row" key={lane.id} data-lane={lane.id}>
                 <div className="env-lane-label" data-pointer={pointer}>
@@ -227,7 +314,7 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
                 </div>
                 <div className="env-track" style={{ height: tiers * TIER_PX + 10 }}>
                   {lane.missed
-                    ?.filter((at) => Date.parse(at) >= from)
+                    ?.filter((at) => Date.parse(at) >= from && Date.parse(at) <= to)
                     .map((at) => {
                       const left = pctOf(Date.parse(at), from, to);
                       const right = pctOf(Date.parse(at) + MISSED_SLOT_MS, from, to);
@@ -263,37 +350,51 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
                       >
                         {p.e.byHand && (
                           <span className="env-by-hand" aria-hidden="true">
-                            {"\u25c6"}
+                            {"◆"}
                           </span>
                         )}
-                        <span className={`env-event-label${p.flip ? " flip" : ""}`}>
-                          {eventText(p.e)}
-                        </span>
+                        {!range.week && (
+                          <span className={`env-event-label${p.flip ? " flip" : ""}`}>
+                            {eventText(p.e)}
+                          </span>
+                        )}
                       </button>
                     );
                   })}
                   {placed.length === 0 &&
-                    (lane.last ? (
+                    (last ? (
                       <span className="env-none env-last" data-pointer={`${pointer}/last`}>
-                        <span aria-hidden="true">{"\u2039 "}</span>
-                        {lane.last.text}
-                        {lane.last.note && (
+                        <span aria-hidden="true">{"‹ "}</span>
+                        {last.text}
+                        {last.note && (
                           <>
-                            {" \u00b7 "}
-                            <span className="env-last-note" data-late={lane.last.late}>
-                              {lane.last.note}
+                            {" · "}
+                            <span className="env-last-note" data-late={last.late}>
+                              {last.note}
                             </span>
                           </>
                         )}
                       </span>
                     ) : (
-                      <span className="env-none">none in the last day</span>
+                      <span className="env-none">
+                        {range.week || range.day ? "none" : "none in the last day"}
+                      </span>
                     ))}
                 </div>
               </div>
             );
           })}
-          <BorrowRows env={env} to={to} opener={(id) => opener({ kind: "borrow", id })} />
+          {range.week ? (
+            <ForkDays env={env} days={days} from={from} to={to} onOpen={openDay} />
+          ) : (
+            <BorrowRows
+              env={env}
+              from={from}
+              to={to}
+              now={now.getTime()}
+              opener={(id) => opener({ kind: "borrow", id })}
+            />
+          )}
         </div>
       </div>
       {activity && <ActivityLegend view={activity} />}
@@ -314,11 +415,22 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
                   <TimedText text={status.reason} hint={false} />
                 </small>
               )}
-              {status.live?.map(({ id, fork }) => (
-                <button key={fork} type="button" {...opener({ kind: "borrow", id })}>
-                  {fork}
-                </button>
-              ))}
+              {status.live?.map(({ id, fork }) => {
+                const open = opener({ kind: "borrow", id });
+                return (
+                  <button
+                    key={fork}
+                    type="button"
+                    {...open}
+                    onClick={(event) => {
+                      if (range.week || range.day) navigate({ kind: "environment" });
+                      open.onClick(event);
+                    }}
+                  >
+                    {fork}
+                  </button>
+                );
+              })}
             </h2>
             {env.line && (
               <p className="env-line">

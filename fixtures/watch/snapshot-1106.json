@@ -3890,7 +3890,19 @@
               "detail": "green in 14 min"
             }
           ],
-          "cadence": "Mon–Fri 04:00"
+          "cadence": "Mon–Fri 04:00",
+          "lasts": [
+            {
+              "from": "2026-10-31T00:00:00.000Z",
+              "to": "2026-11-01T00:00:00.000Z",
+              "text": "v0.33.2 · Fri 30 Oct · green"
+            },
+            {
+              "from": "2026-11-01T00:00:00.000Z",
+              "to": "2026-11-02T00:00:00.000Z",
+              "text": "v0.33.2 · Fri 30 Oct · green"
+            }
+          ]
         },
         {
           "id": "upgrade",
@@ -3948,7 +3960,19 @@
           "cadence": "on version bump",
           "last": {
             "text": "v0.35.3 · Wed 4 Nov · green"
-          }
+          },
+          "lasts": [
+            {
+              "from": "2026-11-05T00:00:00.000Z",
+              "to": "2026-11-06T00:00:00.000Z",
+              "text": "v0.35.3 · Wed 4 Nov · green"
+            },
+            {
+              "from": "2026-11-06T00:00:00.000Z",
+              "to": "2026-11-06T14:02:00.133Z",
+              "text": "v0.35.3 · Wed 4 Nov · green"
+            }
+          ]
         },
         {
           "id": "smoke",
