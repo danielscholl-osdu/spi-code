@@ -4097,9 +4097,10 @@
       "from": "2026-10-31T00:00:00.000Z",
       "to": "2026-11-06T14:02:00.133Z",
       "status": {
-        "state": "unknown",
-        "label": "Usage unknown",
-        "reason": "5 forks history incomplete"
+        "state": "idle",
+        "label": "Idle",
+        "length": "16 h 40 min",
+        "reason": "last: entitlements, green 2026-11-05T21:21:38.000Z"
       },
       "line": "v0.35.3 · ready 89% of 21 d · smoke green 2026-11-06T08:42:09.000Z",
       "borrows": [
@@ -6570,8 +6571,7 @@
           "end": "2026-10-31T00:32:02.000Z",
           "links": []
         }
-      ],
-      "forksNote": "5 forks history incomplete"
+      ]
     },
     "repositories": {
       "headline": "Security alerts have not been read yet.",
@@ -31874,10 +31874,6 @@
     {
       "path": "/briefing/environment/line",
       "areas": ["lifecycle"]
-    },
-    {
-      "path": "/briefing/environment/forksNote",
-      "areas": ["github"]
     },
     {
       "path": "/briefing/environment/borrows/0",

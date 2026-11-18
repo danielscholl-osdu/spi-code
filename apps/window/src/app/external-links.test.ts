@@ -40,7 +40,7 @@ it.each([
   "https://github.com:443/Azure/stack/actions/runs/123?check_suite_focus=true#jobs",
   "https://community.opengroup.org:443/osdu/legal/-/merge_requests/968",
   "https://api.github.com/repos/Azure/osdu-spi-indexer/deployments/42",
-  "https://api.github.com/repos/Azure/osdu-spi-indexer/deployments",
+  "https://github.com/Azure/osdu-spi-indexer/deployments/spi-stack",
   "http://community.opengroup.org/osdu/legal",
   "https://community.opengroup.org.evil.test/osdu/legal",
   "https://user@community.opengroup.org/osdu/legal",

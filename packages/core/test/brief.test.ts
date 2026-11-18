@@ -1119,14 +1119,62 @@ describe("Environment borrow status in the app context", () => {
       reason: "4 forks not read",
     },
     {
-      states: [history("indexer", [], "capped")],
+      states: [
+        history(
+          "indexer",
+          [
+            deployment("2", -45, "SUCCESS", -30),
+            deployment("1", -7 * 24 * 60, "SUCCESS", -6 * 24 * 60),
+          ],
+          "capped",
+        ),
+      ],
+      state: "idle",
+      reason: "last: indexer, green 11:30",
+      length: "30\u00a0min",
+    },
+    {
+      states: [history("indexer", [deployment("2", -45, "SUCCESS", -30)], "capped")],
       state: "unknown",
       reason: "indexer history incomplete",
     },
-  ])("reports $state for $reason without a length", ({ states, state, reason }) => {
-    const status = brief(modelFor(states)).status;
-    expect(status).toMatchObject({ state, reason });
-    expect(status?.length).toBeUndefined();
+  ])("reports $state for $reason", ({ states, state, reason, length }) => {
+    const env = brief(modelFor(states));
+    expect(env.status).toMatchObject({ state, reason });
+    expect(env.status?.length).toBe(length);
+    expect(env.forksNote).toBe(state === "unknown" ? reason : undefined);
+  });
+
+  test("uses the last success when GitHub marks older deployments inactive seconds later", () => {
+    const sweep = new Date("2026-11-06T14:02:00.133Z");
+    const model = modelFor([
+      history("entitlements", [
+        {
+          id: "3",
+          createdAt: "2026-11-05T21:15:34Z",
+          state: "SUCCESS",
+          statusAt: "2026-11-05T21:21:38Z",
+        },
+        {
+          id: "2",
+          createdAt: "2026-11-05T19:55:19Z",
+          state: "INACTIVE",
+          statusAt: "2026-11-05T21:21:51Z",
+        },
+        {
+          id: "1",
+          createdAt: "2026-11-05T18:15:27Z",
+          state: "INACTIVE",
+          statusAt: "2026-11-05T21:21:44Z",
+        },
+      ]),
+    ]);
+    expect(buildBriefing(model, CLEAR, sweep, app).environment.status).toMatchObject({
+      state: "idle",
+      label: "Idle",
+      length: "16\u00a0h 40\u00a0min",
+      reason: "last: entitlements, green Thu 21:21",
+    });
   });
 
   test("starts in Usage unknown before a read", () => {
