@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: MIT
 
 import { readFileSync } from "node:fs";
-import { todayMembers, ViewSnapshotSchema } from "@spi-code/contracts";
+import {
+  fleetLines,
+  type TodayMemberStation,
+  todayMembers,
+  ViewSnapshotSchema,
+} from "@spi-code/contracts";
 import { describe, expect, test } from "vitest";
 import { watchFixtures } from "../../../scripts/watch-generated.mjs";
 import { buildBriefing } from "../src/brief/index";
@@ -22,6 +27,35 @@ const model = sweep1116Model();
 const items = sweep1116Items(model);
 const lines = todayLines(model, items, now, context);
 const lineWith = (id: string) => lines.find((line) => line.members.some((m) => m.id === id));
+const stations = ["upstream", "sync", "integration", "template"] as const;
+const expectedHoming: Readonly<Record<string, TodayMemberStation>> = {
+  halt: "upstream",
+  radar: "upstream",
+  "sync-run": "upstream",
+  gate1: "sync",
+  conflict: "integration",
+  cascade: "integration",
+  "cascade-missed": "integration",
+  labels: "integration",
+  gate2: "integration",
+  "lane-deploy": "integration",
+  stack: "integration",
+  rollout: "template",
+  "template-pr": "template",
+  "template-red": "template",
+  "template-set": "template",
+  "template-run": "template",
+};
+
+const SWEEP = "apps/window/src/views/today/snapshot-1116.json";
+const recordedMornings = () => [
+  ...watchFixtures().filter(({ name }) => name.startsWith("snapshot-")),
+  { name: "16 Nov", path: SWEEP },
+];
+
+function snapshotAt(path: string) {
+  return ViewSnapshotSchema.parse(JSON.parse(readFileSync(path, "utf8")));
+}
 
 describe("Today's situation lines", () => {
   test("the 16 Nov sweep has 11 lines and 19 members: 3 blocked, 16 waiting", () => {
@@ -36,10 +70,7 @@ describe("Today's situation lines", () => {
   });
 
   test("the same Today members and shared port work reach only the owing fork homes", () => {
-    const fixtures = [
-      ...watchFixtures().filter(({ name }) => name.startsWith("snapshot-")),
-      { name: "16 Nov", path: "apps/window/src/views/today/snapshot-1116.json" },
-    ];
+    const fixtures = recordedMornings();
     expect(fixtures.map(({ name }) => name)).toEqual(
       expect.arrayContaining([
         "snapshot-calm.json",
@@ -49,7 +80,7 @@ describe("Today's situation lines", () => {
       ]),
     );
     for (const { name, path } of fixtures) {
-      const snapshot = ViewSnapshotSchema.parse(JSON.parse(readFileSync(path, "utf8")));
+      const snapshot = snapshotAt(path);
       const services = (snapshot.services ?? []).map(({ service, home }) => {
         if (!home) throw new Error(`${name}: ${service} is missing its home`);
         return { service, home };
@@ -105,6 +136,160 @@ describe("Today's situation lines", () => {
           expect(known.length, `${name} ${service}`).toBe(home.openPrTotal);
       }
     }
+  });
+
+  test("every morning's fleet agrees with its service homes and filters Today by member", () => {
+    for (const { name, path } of recordedMornings()) {
+      const snapshot = snapshotAt(path);
+      const fleet = snapshot.briefing.today?.fleet;
+      if (!fleet || !snapshot.services) throw new Error(`${name} lacks fleet homes`);
+      expect(fleet.stations.map(({ id }) => id)).toEqual([
+        "upstream",
+        "sync",
+        "integration",
+        "main",
+      ]);
+      expect(fleet.doors.map(({ id }) => id)).toEqual([
+        "template",
+        "release",
+        "dependabot",
+        "other",
+      ]);
+      for (const { id, count, forks, notRead } of fleet.stations) {
+        const held = snapshot.services.flatMap(({ service, home }) => {
+          const at = home?.stations.find((station) => station.id === id);
+          return (
+            id === "upstream"
+              ? at?.state === "stopped"
+              : id === "main"
+                ? at?.state === "green"
+                : at?.pr !== undefined
+          )
+            ? [service]
+            : [];
+        });
+        expect([count, forks], `${name} ${id}`).toEqual([held.length, held]);
+        expect(notRead, `${name} ${id}`).toEqual(
+          snapshot.services.flatMap(({ service, home }) => {
+            const at = home?.stations.find((station) => station.id === id);
+            return !at || at.state === "unread" || at.notRead ? [service] : [];
+          }),
+        );
+      }
+      for (const figure of fleet.doors) {
+        const held = snapshot.services.map(({ service, home }) => ({
+          service,
+          door: home?.doors.find(({ id }) => id === figure.id),
+        }));
+        expect(figure.count, name).toBe(
+          held.reduce((total, { door }) => total + (door?.count ?? door?.prs.length ?? 0), 0),
+        );
+        expect(figure.forks, name).toEqual(
+          held.filter(({ door }) => door?.prs.length).map(({ service }) => service),
+        );
+        expect(figure.notRead, name).toEqual(
+          held.filter(({ door }) => door?.count == null).map(({ service }) => service),
+        );
+      }
+      const entries = todayMembers(snapshot.briefing);
+      for (const { member } of entries) {
+        const kind = member.id.split(":")[0] ?? "";
+        const expected =
+          kind === "stack" && member.id !== "stack:lanes" ? undefined : expectedHoming[kind];
+        expect(member.station, `${name} ${member.id}`).toBe(expected);
+      }
+      for (const station of stations) {
+        const filtered = fleetLines(snapshot.briefing.lines ?? [], station);
+        expect(
+          todayMembers({ lines: filtered }).map(({ member }) => member.id),
+          `${name} ${station}`,
+        ).toEqual(
+          entries.filter(({ member }) => member.station === station).map(({ member }) => member.id),
+        );
+      }
+      for (const { service, home } of snapshot.services) {
+        expect(fleet.forks.yours.includes(service), name).toBe(home?.mark.kind === "count");
+        expect(fleet.forks.rest.forks.includes(service), name).toBe(home?.mark.kind !== "count");
+      }
+    }
+  });
+
+  test("the 16 Nov sweep puts the recorded PRs, sync failures and healthy mains at their stations", () => {
+    const snapshot = snapshotAt(SWEEP);
+    const fleet = snapshot.briefing.today?.fleet;
+    expect(fleet?.stations.map(({ id, forks }) => [id, forks])).toEqual([
+      ["upstream", ["indexer", "search", "crs-conversion"]],
+      ["sync", ["search", "workflow", "unit", "crs-catalog", "crs-conversion"]],
+      [
+        "integration",
+        [
+          "partition",
+          "entitlements",
+          "legal",
+          "schema",
+          "storage",
+          "indexer",
+          "search",
+          "indexer-queue",
+        ],
+      ],
+      [
+        "main",
+        [
+          "partition",
+          "entitlements",
+          "legal",
+          "schema",
+          "file",
+          "storage",
+          "indexer",
+          "search",
+          "workflow",
+          "indexer-queue",
+          "unit",
+          "crs-catalog",
+          "crs-conversion",
+        ],
+      ],
+    ]);
+    expect(fleet?.stations.find(({ id }) => id === "integration")?.stopped).toEqual([
+      "entitlements",
+      "legal",
+      "schema",
+      "storage",
+      "indexer",
+      "indexer-queue",
+    ]);
+    expect(fleet?.environment).toEqual({ state: "ready", version: "v0.35.5" });
+    const causes = snapshot.briefing.today?.causes?.rows ?? [];
+    expect(
+      fleet?.doors.map(({ id, count, target }) => [
+        id,
+        count,
+        target?.kind === "cause" && target.row,
+      ]),
+    ).toEqual([
+      ["template", 0, false],
+      ["release", 12, "release"],
+      ["dependabot", 26, "dependabot"],
+      ["other", 7, causes.find(({ kind, forks }) => kind === "other" && forks.length === 7)?.id],
+    ]);
+    const run = "https://github.com/Azure/osdu-spi-indexer/actions/runs/43988443150";
+    const issue = "https://github.com/Azure/osdu-spi-indexer/issues/72";
+    expect(
+      todayMembers(snapshot.briefing).find(({ member }) => member.id === "sync-run:indexer"),
+    ).toMatchObject({
+      line: { headline: "Sync Upstream failed with halt issue #72 open" },
+      member: { station: "upstream", primary: { url: issue, kind: "issue" } },
+    });
+    const indexer = snapshot.services?.find(({ service }) => service === "indexer")?.home;
+    expect(indexer?.stations.find(({ id }) => id === "upstream")).toMatchObject({
+      row: "sync-run:indexer",
+    });
+    expect(indexer?.overview.find(({ id }) => id === "sync-run:indexer")?.links).toMatchObject([
+      { url: issue, kind: "issue" },
+      { url: run, kind: "run" },
+    ]);
   });
 
   test("five red PRs take their blocker's move and keep the lane condition before the merge", () => {

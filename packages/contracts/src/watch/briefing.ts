@@ -3,6 +3,12 @@
 
 import { z } from "zod";
 import { AreaNameSchema, IdentifierSchema, ObservedAtSchema } from "./evidence.js";
+import {
+  CanWaitCausesSchema,
+  TodayFleetSchema,
+  type TodayMemberStation,
+  TodayMemberStationSchema,
+} from "./fleet.js";
 import { ItemClassSchema } from "./inspect.js";
 import {
   BriefFactSchema,
@@ -399,6 +405,7 @@ export const TodayMemberSchema = z.strictObject({
   id: IdentifierSchema,
   ids: z.array(IdentifierSchema),
   fork: z.string(),
+  station: TodayMemberStationSchema.optional(),
   home: z.enum(["line", "environment", "engineering", "upstream", "security"]).optional(),
   subject: z.string().optional(),
   primary: LinkSchema.extend({ kind: LinkKindSchema }).optional(),
@@ -431,6 +438,14 @@ export type TodayDeadline = z.infer<typeof TodayDeadlineSchema>;
 export type TodayMember = z.infer<typeof TodayMemberSchema>;
 export type TodayLine = z.infer<typeof TodayLineSchema>;
 export type TodayEntry = { line: TodayLine; member: TodayMember };
+
+/** Keep the situation line when at least one of its members belongs to the filter. */
+export function fleetLines(lines: readonly TodayLine[], station: TodayMemberStation): TodayLine[] {
+  return lines.flatMap((line) => {
+    const members = line.members.filter((member) => member.station === station);
+    return members.length ? [{ ...line, members }] : [];
+  });
+}
 
 /**
  * Today's members on Blocked and Waiting on you, each once in line order: the one count of what is
@@ -470,6 +485,8 @@ export const TodayHistorySchema = z.strictObject({
   ),
 });
 export const TodaySummarySchema = z.strictObject({
+  fleet: TodayFleetSchema.optional(),
+  causes: CanWaitCausesSchema.optional(),
   canWait: z.array(
     z.strictObject({
       id: IdentifierSchema,

@@ -25,6 +25,7 @@
             "id": "conflict:entitlements:121",
             "ids": ["conflict:entitlements:121"],
             "fork": "entitlements",
+            "station": "integration",
             "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-entitlements/issues/121",
             "primary": {
@@ -117,6 +118,7 @@
             "id": "radar:legal",
             "ids": ["radar:legal"],
             "fork": "legal",
+            "station": "upstream",
             "home": "upstream",
             "subject": "https://github.com/Azure/osdu-spi-legal/blob/main/.github/upstream-filter.yml",
             "primary": {
@@ -153,6 +155,7 @@
             "id": "radar:file",
             "ids": ["radar:file"],
             "fork": "file",
+            "station": "upstream",
             "home": "upstream",
             "subject": "https://github.com/Azure/osdu-spi-file/blob/main/.github/upstream-filter.yml",
             "primary": {
@@ -189,6 +192,7 @@
             "id": "radar:search",
             "ids": ["radar:search"],
             "fork": "search",
+            "station": "upstream",
             "home": "upstream",
             "subject": "https://github.com/Azure/osdu-spi-search/blob/main/.github/upstream-filter.yml",
             "primary": {
@@ -225,6 +229,7 @@
             "id": "radar:schema",
             "ids": ["radar:schema"],
             "fork": "schema",
+            "station": "upstream",
             "home": "upstream",
             "subject": "https://github.com/Azure/osdu-spi-schema/blob/main/.github/upstream-filter.yml",
             "primary": {
@@ -261,6 +266,7 @@
             "id": "radar:crs-conversion",
             "ids": ["radar:crs-conversion"],
             "fork": "crs-conversion",
+            "station": "upstream",
             "home": "upstream",
             "subject": "https://github.com/Azure/osdu-spi-crs-conversion/blob/main/.github/upstream-filter.yml",
             "primary": {
@@ -297,6 +303,7 @@
             "id": "radar:unit",
             "ids": ["radar:unit"],
             "fork": "unit",
+            "station": "upstream",
             "home": "upstream",
             "subject": "https://github.com/Azure/osdu-spi-unit/blob/main/.github/upstream-filter.yml",
             "primary": {
@@ -333,6 +340,7 @@
             "id": "radar:workflow",
             "ids": ["radar:workflow"],
             "fork": "workflow",
+            "station": "upstream",
             "home": "upstream",
             "subject": "https://github.com/Azure/osdu-spi-workflow/blob/main/.github/upstream-filter.yml",
             "primary": {
@@ -385,6 +393,7 @@
             "id": "radar:partition",
             "ids": ["radar:partition"],
             "fork": "partition",
+            "station": "upstream",
             "home": "upstream",
             "subject": "https://github.com/Azure/osdu-spi-partition/blob/main/.github/upstream-filter.yml",
             "primary": {
@@ -437,6 +446,7 @@
             "id": "gate1:storage",
             "ids": ["radar:storage", "gate1:storage"],
             "fork": "storage",
+            "station": "sync",
             "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-storage/pull/58",
             "primary": {
@@ -472,6 +482,7 @@
             "id": "gate1:indexer",
             "ids": ["radar:indexer", "gate1:indexer"],
             "fork": "indexer",
+            "station": "sync",
             "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-indexer/pull/58",
             "primary": {
@@ -523,6 +534,7 @@
             "id": "gate1:indexer-queue",
             "ids": ["gate1:indexer-queue"],
             "fork": "indexer-queue",
+            "station": "sync",
             "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-indexer-queue/pull/58",
             "primary": {
@@ -557,6 +569,7 @@
             "id": "rollout",
             "ids": ["rollout"],
             "fork": "fleet",
+            "station": "template",
             "home": "engineering",
             "primary": {
               "label": "main 7d269b5",
@@ -644,6 +657,466 @@
       }
     ],
     "today": {
+      "fleet": {
+        "stations": [
+          {
+            "count": 0,
+            "forks": [],
+            "notRead": [],
+            "id": "upstream",
+            "stopped": [],
+            "inProgress": [],
+            "waitingOnClock": [],
+            "waitingOnPerson": []
+          },
+          {
+            "count": 3,
+            "forks": ["storage", "indexer", "indexer-queue"],
+            "notRead": [],
+            "id": "sync",
+            "stopped": [],
+            "inProgress": [],
+            "waitingOnClock": [],
+            "waitingOnPerson": []
+          },
+          {
+            "count": 0,
+            "forks": [],
+            "notRead": [],
+            "id": "integration",
+            "stopped": ["entitlements"],
+            "inProgress": [],
+            "waitingOnClock": [],
+            "waitingOnPerson": []
+          },
+          {
+            "count": 13,
+            "forks": [
+              "partition",
+              "entitlements",
+              "legal",
+              "schema",
+              "file",
+              "storage",
+              "indexer",
+              "search",
+              "workflow",
+              "indexer-queue",
+              "unit",
+              "crs-catalog",
+              "crs-conversion"
+            ],
+            "notRead": [],
+            "id": "main",
+            "stopped": [],
+            "inProgress": [],
+            "waitingOnClock": [],
+            "waitingOnPerson": []
+          }
+        ],
+        "doors": [
+          {
+            "count": 13,
+            "forks": [
+              "partition",
+              "entitlements",
+              "legal",
+              "schema",
+              "file",
+              "storage",
+              "indexer",
+              "search",
+              "workflow",
+              "indexer-queue",
+              "unit",
+              "crs-catalog",
+              "crs-conversion"
+            ],
+            "notRead": [],
+            "id": "template",
+            "target": {
+              "kind": "station",
+              "station": "template"
+            }
+          },
+          {
+            "count": 13,
+            "forks": [
+              "partition",
+              "entitlements",
+              "legal",
+              "schema",
+              "file",
+              "storage",
+              "indexer",
+              "search",
+              "workflow",
+              "indexer-queue",
+              "unit",
+              "crs-catalog",
+              "crs-conversion"
+            ],
+            "notRead": [],
+            "id": "release",
+            "target": {
+              "kind": "cause",
+              "row": "release"
+            }
+          },
+          {
+            "count": 0,
+            "forks": [],
+            "notRead": [],
+            "id": "dependabot"
+          },
+          {
+            "count": 1,
+            "forks": ["partition"],
+            "notRead": [],
+            "id": "other",
+            "target": {
+              "kind": "cause",
+              "row": "other:chore(notice)%3A%20refresh%20notice%20from%20component%20governance"
+            }
+          }
+        ],
+        "nextSyncAt": "2026-11-07T00:00:00.000Z",
+        "environment": {
+          "state": "ready",
+          "version": "v0.35.3"
+        },
+        "forks": {
+          "yours": [
+            "partition",
+            "entitlements",
+            "legal",
+            "schema",
+            "file",
+            "storage",
+            "indexer",
+            "search",
+            "workflow",
+            "indexer-queue",
+            "unit",
+            "crs-conversion"
+          ],
+          "stopped": ["entitlements"],
+          "rest": {
+            "forks": ["crs-catalog"],
+            "stations": [
+              {
+                "count": 0,
+                "forks": [],
+                "notRead": [],
+                "id": "upstream",
+                "stopped": [],
+                "inProgress": [],
+                "waitingOnClock": [],
+                "waitingOnPerson": []
+              },
+              {
+                "count": 0,
+                "forks": [],
+                "notRead": [],
+                "id": "sync",
+                "stopped": [],
+                "inProgress": [],
+                "waitingOnClock": [],
+                "waitingOnPerson": []
+              },
+              {
+                "count": 0,
+                "forks": [],
+                "notRead": [],
+                "id": "integration",
+                "stopped": [],
+                "inProgress": [],
+                "waitingOnClock": [],
+                "waitingOnPerson": []
+              },
+              {
+                "count": 1,
+                "forks": ["crs-catalog"],
+                "notRead": [],
+                "id": "main",
+                "stopped": [],
+                "inProgress": [],
+                "waitingOnClock": [],
+                "waitingOnPerson": []
+              }
+            ],
+            "doors": [
+              {
+                "count": 1,
+                "forks": ["crs-catalog"],
+                "notRead": [],
+                "id": "template"
+              },
+              {
+                "count": 1,
+                "forks": ["crs-catalog"],
+                "notRead": [],
+                "id": "release"
+              },
+              {
+                "count": 0,
+                "forks": [],
+                "notRead": [],
+                "id": "dependabot"
+              },
+              {
+                "count": 0,
+                "forks": [],
+                "notRead": [],
+                "id": "other"
+              }
+            ]
+          }
+        }
+      },
+      "causes": {
+        "rows": [
+          {
+            "id": "release",
+            "kind": "release",
+            "headline": "Release PRs",
+            "count": 13,
+            "forkCount": 12,
+            "place": "releases",
+            "forks": [
+              {
+                "fork": "osdu-spi",
+                "count": 1,
+                "objects": [
+                  {
+                    "id": "https://github.com/Azure/osdu-spi/pull/263",
+                    "url": "https://github.com/Azure/osdu-spi/pull/263",
+                    "label": "PR #263",
+                    "age": "16d",
+                    "count": 1
+                  }
+                ]
+              },
+              {
+                "fork": "partition",
+                "count": 1,
+                "objects": [
+                  {
+                    "id": "https://github.com/Azure/osdu-spi-partition/pull/198",
+                    "url": "https://github.com/Azure/osdu-spi-partition/pull/198",
+                    "label": "PR #198",
+                    "age": "16d",
+                    "count": 1
+                  }
+                ]
+              },
+              {
+                "fork": "legal",
+                "count": 1,
+                "objects": [
+                  {
+                    "id": "https://github.com/Azure/osdu-spi-legal/pull/48",
+                    "url": "https://github.com/Azure/osdu-spi-legal/pull/48",
+                    "label": "PR #48",
+                    "age": "15d",
+                    "count": 1
+                  }
+                ]
+              },
+              {
+                "fork": "schema",
+                "count": 1,
+                "objects": [
+                  {
+                    "id": "https://github.com/Azure/osdu-spi-schema/pull/40",
+                    "url": "https://github.com/Azure/osdu-spi-schema/pull/40",
+                    "label": "PR #40",
+                    "age": "23d",
+                    "count": 1
+                  }
+                ]
+              },
+              {
+                "fork": "file",
+                "count": 1,
+                "objects": [
+                  {
+                    "id": "https://github.com/Azure/osdu-spi-file/pull/55",
+                    "url": "https://github.com/Azure/osdu-spi-file/pull/55",
+                    "label": "PR #55",
+                    "age": "23d",
+                    "count": 1
+                  }
+                ]
+              },
+              {
+                "fork": "storage",
+                "count": 1,
+                "objects": [
+                  {
+                    "id": "https://github.com/Azure/osdu-spi-storage/pull/57",
+                    "url": "https://github.com/Azure/osdu-spi-storage/pull/57",
+                    "label": "PR #57",
+                    "age": "1d 19h",
+                    "count": 1
+                  }
+                ]
+              },
+              {
+                "fork": "indexer",
+                "count": 1,
+                "objects": [
+                  {
+                    "id": "https://github.com/Azure/osdu-spi-indexer/pull/33",
+                    "url": "https://github.com/Azure/osdu-spi-indexer/pull/33",
+                    "label": "PR #33",
+                    "age": "14d",
+                    "count": 1
+                  }
+                ]
+              },
+              {
+                "fork": "search",
+                "count": 1,
+                "objects": [
+                  {
+                    "id": "https://github.com/Azure/osdu-spi-search/pull/29",
+                    "url": "https://github.com/Azure/osdu-spi-search/pull/29",
+                    "label": "PR #29",
+                    "age": "20d",
+                    "count": 1
+                  }
+                ]
+              },
+              {
+                "fork": "workflow",
+                "count": 1,
+                "objects": [
+                  {
+                    "id": "https://github.com/Azure/osdu-spi-workflow/pull/38",
+                    "url": "https://github.com/Azure/osdu-spi-workflow/pull/38",
+                    "label": "PR #38",
+                    "age": "9d",
+                    "count": 1
+                  }
+                ]
+              },
+              {
+                "fork": "indexer-queue",
+                "count": 1,
+                "objects": [
+                  {
+                    "id": "https://github.com/Azure/osdu-spi-indexer-queue/pull/45",
+                    "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/45",
+                    "label": "PR #45",
+                    "age": "14d",
+                    "count": 1
+                  }
+                ]
+              },
+              {
+                "fork": "unit",
+                "count": 1,
+                "objects": [
+                  {
+                    "id": "https://github.com/Azure/osdu-spi-unit/pull/21",
+                    "url": "https://github.com/Azure/osdu-spi-unit/pull/21",
+                    "label": "PR #21",
+                    "age": "14d",
+                    "count": 1
+                  }
+                ]
+              },
+              {
+                "fork": "crs-catalog",
+                "count": 1,
+                "objects": [
+                  {
+                    "id": "https://github.com/Azure/osdu-spi-crs-catalog/pull/19",
+                    "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/19",
+                    "label": "PR #19",
+                    "age": "14d",
+                    "count": 1
+                  }
+                ]
+              },
+              {
+                "fork": "crs-conversion",
+                "count": 1,
+                "objects": [
+                  {
+                    "id": "https://github.com/Azure/osdu-spi-crs-conversion/pull/17",
+                    "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/17",
+                    "label": "PR #17",
+                    "age": "14d",
+                    "count": 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "other:chore(notice)%3A%20refresh%20notice%20from%20component%20governance",
+            "kind": "other",
+            "headline": "chore(notice): refresh NOTICE from Component Governance",
+            "count": 1,
+            "forkCount": 1,
+            "forks": [
+              {
+                "fork": "partition",
+                "count": 1,
+                "objects": [
+                  {
+                    "id": "https://github.com/Azure/osdu-spi-partition/pull/218",
+                    "url": "https://github.com/Azure/osdu-spi-partition/pull/218",
+                    "label": "PR #218",
+                    "age": "1d 18h",
+                    "count": 1
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "notRead": {
+          "release": [],
+          "dependabot": [],
+          "other": [],
+          "issue": [],
+          "alert": [
+            "osdu-spi: vulnerabilities",
+            "osdu-spi: code scanning",
+            "osdu-spi-stack: vulnerabilities",
+            "osdu-spi-stack: code scanning",
+            "partition: vulnerabilities",
+            "partition: code scanning",
+            "entitlements: vulnerabilities",
+            "entitlements: code scanning",
+            "legal: vulnerabilities",
+            "legal: code scanning",
+            "schema: vulnerabilities",
+            "schema: code scanning",
+            "file: vulnerabilities",
+            "file: code scanning",
+            "storage: vulnerabilities",
+            "storage: code scanning",
+            "indexer: vulnerabilities",
+            "indexer: code scanning",
+            "search: vulnerabilities",
+            "search: code scanning",
+            "workflow: vulnerabilities",
+            "workflow: code scanning",
+            "indexer-queue: vulnerabilities",
+            "indexer-queue: code scanning",
+            "unit: vulnerabilities",
+            "unit: code scanning",
+            "crs-catalog: vulnerabilities",
+            "crs-catalog: code scanning",
+            "crs-conversion: vulnerabilities",
+            "crs-conversion: code scanning"
+          ]
+        }
+      },
       "canWait": [
         {
           "id": "releases",
@@ -6952,7 +7425,8 @@
         "repo": "Azure/osdu-spi-partition",
         "releasePr": {
           "number": 198,
-          "url": "https://github.com/Azure/osdu-spi-partition/pull/198"
+          "url": "https://github.com/Azure/osdu-spi-partition/pull/198",
+          "age": "16d"
         },
         "template": "behind",
         "stations": [
@@ -7340,7 +7814,8 @@
         "repo": "Azure/osdu-spi-entitlements",
         "releasePr": {
           "number": 89,
-          "url": "https://github.com/Azure/osdu-spi-entitlements/pull/89"
+          "url": "https://github.com/Azure/osdu-spi-entitlements/pull/89",
+          "age": "16d"
         },
         "template": "behind",
         "stations": [
@@ -7713,7 +8188,8 @@
         "repo": "Azure/osdu-spi-legal",
         "releasePr": {
           "number": 48,
-          "url": "https://github.com/Azure/osdu-spi-legal/pull/48"
+          "url": "https://github.com/Azure/osdu-spi-legal/pull/48",
+          "age": "15d"
         },
         "template": "behind",
         "stations": [
@@ -8090,7 +8566,8 @@
         "repo": "Azure/osdu-spi-schema",
         "releasePr": {
           "number": 40,
-          "url": "https://github.com/Azure/osdu-spi-schema/pull/40"
+          "url": "https://github.com/Azure/osdu-spi-schema/pull/40",
+          "age": "23d"
         },
         "template": "behind",
         "stations": [
@@ -8462,7 +8939,8 @@
         "repo": "Azure/osdu-spi-file",
         "releasePr": {
           "number": 55,
-          "url": "https://github.com/Azure/osdu-spi-file/pull/55"
+          "url": "https://github.com/Azure/osdu-spi-file/pull/55",
+          "age": "23d"
         },
         "template": "behind",
         "stations": [
@@ -8829,7 +9307,8 @@
         "repo": "Azure/osdu-spi-storage",
         "releasePr": {
           "number": 57,
-          "url": "https://github.com/Azure/osdu-spi-storage/pull/57"
+          "url": "https://github.com/Azure/osdu-spi-storage/pull/57",
+          "age": "1d 19h"
         },
         "template": "behind",
         "stations": [
@@ -9209,7 +9688,8 @@
         "repo": "Azure/osdu-spi-indexer",
         "releasePr": {
           "number": 33,
-          "url": "https://github.com/Azure/osdu-spi-indexer/pull/33"
+          "url": "https://github.com/Azure/osdu-spi-indexer/pull/33",
+          "age": "14d"
         },
         "template": "behind",
         "stations": [
@@ -9594,7 +10074,8 @@
         "repo": "Azure/osdu-spi-search",
         "releasePr": {
           "number": 29,
-          "url": "https://github.com/Azure/osdu-spi-search/pull/29"
+          "url": "https://github.com/Azure/osdu-spi-search/pull/29",
+          "age": "20d"
         },
         "template": "behind",
         "stations": [
@@ -9961,7 +10442,8 @@
         "repo": "Azure/osdu-spi-workflow",
         "releasePr": {
           "number": 38,
-          "url": "https://github.com/Azure/osdu-spi-workflow/pull/38"
+          "url": "https://github.com/Azure/osdu-spi-workflow/pull/38",
+          "age": "9d"
         },
         "template": "behind",
         "stations": [
@@ -10312,7 +10794,8 @@
         "repo": "Azure/osdu-spi-indexer-queue",
         "releasePr": {
           "number": 45,
-          "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/45"
+          "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/45",
+          "age": "14d"
         },
         "template": "behind",
         "stations": [
@@ -10613,7 +11096,8 @@
         "repo": "Azure/osdu-spi-unit",
         "releasePr": {
           "number": 21,
-          "url": "https://github.com/Azure/osdu-spi-unit/pull/21"
+          "url": "https://github.com/Azure/osdu-spi-unit/pull/21",
+          "age": "14d"
         },
         "template": "behind",
         "stations": [
@@ -10977,7 +11461,8 @@
         "repo": "Azure/osdu-spi-crs-catalog",
         "releasePr": {
           "number": 19,
-          "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/19"
+          "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/19",
+          "age": "14d"
         },
         "template": "behind",
         "stations": [
@@ -11325,7 +11810,8 @@
         "repo": "Azure/osdu-spi-crs-conversion",
         "releasePr": {
           "number": 17,
-          "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/17"
+          "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/17",
+          "age": "14d"
         },
         "template": "behind",
         "stations": [

@@ -39,12 +39,22 @@ try {
       !/^(?:src|test|fixtures|testing)$/.test(basename(path)) && !/\.test\.|\.map$/.test(path),
   });
   const sharedContracts = [
-    { binding: "import { timeUnit }", source: "time", module: "time" },
-    { binding: "import { isStoppedFork }", source: "stopped-forks", module: "stopped-forks" },
+    { bindings: ["import { timeUnit }"], source: "time", module: "time" },
+    { bindings: ["import { isStoppedFork }"], source: "stopped-forks", module: "stopped-forks" },
     {
-      binding: "import type { ServiceHome }",
+      bindings: ["import type { ServiceHome }"],
       source: "watch/service-home",
       module: "service-home",
+      typeOnly: true,
+    },
+    {
+      bindings: [
+        "import type { CanWaitCause, CanWaitCauses }",
+        "import type { CanWaitCauses, TodayFleet }",
+        "import type { TodayMemberStation }",
+      ],
+      source: "watch/fleet",
+      module: "fleet",
       typeOnly: true,
     },
   ];
@@ -62,14 +72,15 @@ try {
       else {
         const source = readFileSync(path, "utf8");
         let linked = source;
-        for (const { binding, module } of sharedContracts) {
+        for (const { bindings, module } of sharedContracts) {
           const target = relative(dirname(path), join(staging, "dist/contracts", `${module}.js`))
             .split(sep)
             .join("/");
-          linked = linked.replace(
-            `${binding} from "@spi-code/contracts";`,
-            `${binding} from "${target.startsWith(".") ? target : `./${target}`}";`,
-          );
+          for (const binding of bindings)
+            linked = linked.replace(
+              `${binding} from "@spi-code/contracts";`,
+              `${binding} from "${target.startsWith(".") ? target : `./${target}`}";`,
+            );
         }
         if (linked.includes("@spi-code/contracts")) {
           throw new Error(`Cannot omit contracts dependency: ${path} references it`);

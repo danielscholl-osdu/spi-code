@@ -868,7 +868,68 @@ function itemAt(pointer: string, { briefing }: Leaves) {
 }
 
 /** Today briefing fields the contract carries before a window bead draws them; each names its bead. */
-export const PENDING: Readonly<Record<string, Exemption>> = {};
+const FLEET = "/briefing/today/fleet";
+const CAUSES = "/briefing/today/causes";
+const FIGURE_LEAVES = ["id", "count", "forks/#", "notRead/#"];
+const STATION_LEAVES = [
+  ...FIGURE_LEAVES,
+  "stopped/#",
+  "inProgress/#",
+  "waitingOnClock/#",
+  "waitingOnPerson/#",
+];
+export const PENDING: Readonly<Record<string, Exemption>> = {
+  "today-fleet": {
+    pending: true,
+    reason: "spicode-mw0.12: Today draws the fleet flow, its filters and Can wait causes",
+    patterns: [
+      "/briefing/lines/#/members/#/station",
+      `${FLEET}/nextSyncAt`,
+      `${FLEET}/environment/state`,
+      `${FLEET}/environment/version`,
+      ...STATION_LEAVES.map((leaf) => `${FLEET}/stations/#/${leaf}`),
+      ...[...FIGURE_LEAVES, "target/kind", "target/station", "target/row"].map(
+        (leaf) => `${FLEET}/doors/#/${leaf}`,
+      ),
+      ...[
+        "id",
+        "kind",
+        "headline",
+        "count",
+        "forkCount",
+        "place",
+        "forks/#/fork",
+        "forks/#/count",
+        "forks/#/objects/#/id",
+        "forks/#/objects/#/url",
+        "forks/#/objects/#/label",
+        "forks/#/objects/#/age",
+        "forks/#/objects/#/count",
+        "packages/#/ecosystem",
+        "packages/#/name",
+        "packages/#/forks/#",
+        "rules/mostAlerts/name",
+        "rules/mostAlerts/count",
+        "rules/mostForks/name",
+        "rules/mostForks/count",
+      ].map((leaf) => `${CAUSES}/rows/#/${leaf}`),
+      ...["release", "dependabot", "other", "issue", "alert"].map(
+        (kind) => `${CAUSES}/notRead/${kind}/#`,
+      ),
+    ],
+  },
+  "today-forks": {
+    pending: true,
+    reason: "spicode-mw0.13: the Forks tab draws its groups and fold totals",
+    patterns: [
+      `${FLEET}/forks/yours/#`,
+      `${FLEET}/forks/stopped/#`,
+      `${FLEET}/forks/rest/forks/#`,
+      ...STATION_LEAVES.map((leaf) => `${FLEET}/forks/rest/stations/#/${leaf}`),
+      ...FIGURE_LEAVES.map((leaf) => `${FLEET}/forks/rest/doors/#/${leaf}`),
+    ],
+  },
+};
 
 /** Item leaves Today draws at the item's place rather than on Today itself, each with its reason. */
 export const AT_PLACE: Readonly<Record<string, Exemption>> = {
@@ -892,6 +953,7 @@ export const AT_PLACE: Readonly<Record<string, Exemption>> = {
 
 /** Leaves the window draws nowhere by design, each with the reason or the bead that owns it. */
 export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
+  ...PENDING,
   "today-join": {
     patterns: ["/briefing/repositories/rows/#/sections/#/lines/#/onToday/rel"],
     reason:

@@ -112,6 +112,7 @@ describe("the 16 Nov sweep", () => {
     expect(item).toMatchObject({
       title: "Sync Upstream failed with halt issue #72 open",
       next: "Read halt issue #72, then open the failed Sync Upstream run.",
+      subject: "https://github.com/Azure/osdu-spi-indexer/issues/72",
     });
     expect(item?.evidence).toEqual([
       {
@@ -136,6 +137,7 @@ describe("the 16 Nov sweep", () => {
     expect(item).toMatchObject({
       title: "Sync Upstream failed with no halt issue open",
       next: "Open the failed Sync Upstream run; no halt issue says why it stopped.",
+      subject: "https://github.com/Azure/osdu-spi-indexer/actions/runs/43988443150",
     });
     expect(item?.evidence.map((l) => l.kind)).toEqual(["run"]);
   });

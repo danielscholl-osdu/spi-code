@@ -1,12 +1,16 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { fleetLines } from "@spi-code/contracts";
 import { expect, test } from "vitest";
+import { todayFleet } from "../src/brief/fleet";
+import { buildBriefing } from "../src/brief/index";
 import { todayLines } from "../src/brief/lines";
 import { rolloutVisual } from "../src/brief/place-visuals";
 import { serviceHome, versionBump } from "../src/brief/service-home";
 import { todaySummary } from "../src/brief/today-summary";
 import type { Facts, IssueFact, PastPrFact, PrFact, RunFact } from "../src/facts";
+import type { DismissEntry } from "../src/model/dismiss";
 import { buildModel } from "../src/model/index";
 import {
   sweep1116Context as context,
@@ -98,19 +102,34 @@ function project(
   now = sweep,
   versions: Parameters<typeof serviceHome>[0]["versions"] = [],
   reads: Parameters<typeof serviceHome>[0]["reads"] = {},
+  dismissed: readonly DismissEntry[] = [],
 ) {
-  const model = buildModel(facts, now, {}, context);
+  const model = buildModel(facts, now, { dismissed }, context);
   const items = sweep1116Items(model);
   const lines = todayLines(model, items, now, context);
-  const { canWait } = todaySummary({ model, facts, items, lines, since: undefined, now, context });
-  const home = serviceHome({ model, facts, lines, items, canWait, versions, now, reads }).get(
-    service,
-  );
+  const { canWait, causes } = todaySummary({
+    model,
+    facts,
+    items,
+    lines,
+    since: undefined,
+    now,
+    context,
+  });
+  const homes = serviceHome({ model, facts, lines, items, canWait, versions, now, reads });
+  const home = homes.get(service);
   if (!home) throw new Error("Search home missing");
+  const briefing = buildBriefing(model, { state: "clear", problems: [] }, now, context);
   return {
     home,
     model,
     lines,
+    fleet: todayFleet(
+      [...homes].map(([service, home]) => ({ service, home })),
+      briefing.environment,
+      briefing.nextSyncAt,
+      causes,
+    ),
     station: (id: (typeof home.stations)[number]["id"]) => home.stations.find((s) => s.id === id),
   };
 }
@@ -145,7 +164,7 @@ test("stations and doors partition open pull request identities", () => {
     ["other", [2, 7], 2],
     ["dependabot", [4], 1],
   ]);
-  expect(home.releasePr).toEqual({ number: release.number, url: release.url });
+  expect(home.releasePr).toEqual({ number: release.number, url: release.url, age: "0s" });
   expect(home).not.toHaveProperty("next", expect.anything());
 });
 
@@ -158,12 +177,35 @@ test("a failed or capped open-PR listing keeps counts unread, but cut checks sti
     expect(unread.station(id)).toMatchObject({ state: "unread", word: "Not read" });
   }
   delete github.prsUnread;
-  github.prs = Array.from({ length: 40 }, (_, i) => pr(i + 1, `human/${i}`));
-  github.openPrs = 41;
-  const cut = project(facts).home;
-  expect(cut.openPrTotal).toBe(41);
+  github.prs = [
+    ...Array.from({ length: 40 }, (_, i) => pr(i + 1, `human/${i}`)),
+    pr(41, "sync/upstream-new", "fork_upstream"),
+    pr(42, "template-sync/update"),
+  ];
+  github.openPrs = 43;
+  const { home: cut, fleet, model } = project(facts);
+  expect(cut.openPrTotal).toBe(43);
   expect(cut.doors.every((door) => door.count === null)).toBe(true);
   expect(cut.doors.find((door) => door.id === "other")?.prs).toHaveLength(40);
+  const sync = fleet.stations.find(({ id }) => id === "sync");
+  expect(sync?.notRead).toContain(service);
+  expect(sync?.forks).toContain(service);
+  expect(sync?.count).toBe(5);
+  const review = model.queue.items.find(({ id }) => id === `gate1:${service}`);
+  if (!review?.fingerprint) throw new Error("Search sync review is missing");
+  const quiet = project(facts, sweep, [], {}, [{ id: review.id, fingerprint: review.fingerprint }]);
+  expect(
+    fleetLines(quiet.lines, "sync")
+      .flatMap(({ members }) => members)
+      .some(({ fork }) => fork === service),
+  ).toBe(false);
+  expect(quiet.fleet.stations.find(({ id }) => id === "sync")).toEqual(sync);
+  expect(fleet.doors.find(({ id }) => id === "template")).toMatchObject({
+    count: 1,
+    forks: [service],
+    notRead: [service],
+    target: { kind: "station", station: "template" },
+  });
 
   github.prs = [pr(11, "dependabot/package")];
   github.openPrs = 1;
@@ -270,6 +312,9 @@ test.each(["Etc/UTC", "Asia/Kathmandu"])(
             : "sync #77 merged 22:26 · monitor 22:45",
       });
       expect(waiting.home.overview.some((row) => row.id === "cascade-missed:search")).toBe(false);
+      expect(
+        waiting.fleet.stations.find(({ id }) => id === "integration")?.waitingOnClock,
+      ).toContain("search");
       expect(read("17:14").station("integration")?.state).toBe("waiting-on-clock");
       expect(read("17:15").station("integration")?.state).toBe("waiting-on-person");
       runs.cascadeReadAt = "2026-11-17T17:14:00Z";
@@ -284,6 +329,14 @@ test.each(["Etc/UTC", "Asia/Kathmandu"])(
         inTransit: false,
         row: "cascade-missed:search",
       });
+      expect(
+        missed.fleet.stations.find(({ id }) => id === "integration")?.waitingOnPerson,
+      ).toContain("search");
+      expect(
+        fleetLines(missed.lines, "integration")
+          .flatMap(({ members }) => members)
+          .find(({ id }) => id === "cascade-missed:search"),
+      ).toBeDefined();
       expect(missed.home.overview.find((row) => row.id === "cascade-missed:search")).toMatchObject({
         section: "waiting",
         headline: "Cascade didn't start",

@@ -14,6 +14,7 @@ import {
   type ReleaseBody,
   type ReleaseReads,
   type SweepReads,
+  todayFleet,
 } from "@spi-code/core";
 import type { AttentionInput } from "./attention.js";
 import { projectBriefing, settleBriefing } from "./briefing.js";
@@ -74,6 +75,12 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
     now,
     briefing,
     releases,
+  );
+  briefing.today.fleet = todayFleet(
+    services,
+    briefing.environment,
+    briefing.nextSyncAt,
+    briefing.today.causes,
   );
   releases.today = today;
   const platform = platformReleased(documents, input.facts, input.context);

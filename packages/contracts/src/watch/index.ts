@@ -3,6 +3,7 @@
 
 export * from "./briefing.js";
 export * from "./evidence.js";
+export * from "./fleet.js";
 export * from "./inspect.js";
 export * from "./messages.js";
 export * from "./panes.js";

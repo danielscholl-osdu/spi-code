@@ -16,6 +16,7 @@ import {
   placesOf,
   repositoryToday,
   sinceOf,
+  type todayFleet,
   todayLines,
   todaySummary,
   type VerdictInput,
@@ -36,7 +37,7 @@ export type ProjectedBriefing = Over<
   {
     horizon: Over<Briefing["horizon"], Horizon>;
     lines: ReturnType<typeof todayLines>;
-    today: ReturnType<typeof todaySummary>;
+    today: ReturnType<typeof todaySummary> & { fleet?: ReturnType<typeof todayFleet> };
     decisions: ReturnType<typeof briefingDecisions>;
     since: ReturnType<typeof sinceOf>;
     focus: ProjectedItem[];

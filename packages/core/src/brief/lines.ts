@@ -1,13 +1,14 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import type { TodayMemberStation } from "@spi-code/contracts";
 import { dueOf } from "../attention.js";
 import { shortRepo, TEMPLATE_REPO } from "../config.js";
 import type { CoreContext } from "../context.js";
 import { itemEvidence, type ItemEvidence } from "../inspect/item-evidence.js";
 import { prVerdict } from "../model/checks.js";
 import type { Model } from "../model/index.js";
-import type { QueueItem } from "../model/queue.js";
+import type { ItemKind, QueueItem } from "../model/queue.js";
 import { age, plural, short } from "../util.js";
 import type { FocusItem, Link } from "./index.js";
 import type { LinkKind } from "./move.js";
@@ -21,6 +22,7 @@ export interface TodayMember {
   id: string;
   ids: string[];
   fork: string;
+  station?: TodayMemberStation;
   home?: "line" | "environment" | "engineering" | "upstream" | "security";
   subject?: string;
   primary?: Link & { kind: LinkKind };
@@ -104,6 +106,15 @@ function homeOf(model: Model, item: Item, context: CoreContext): TodayMember["ho
   return undefined;
 }
 
+const MEMBER_STATION: Partial<Record<ItemKind, TodayMemberStation>> = Object.freeze({
+  halt: "upstream", radar: "upstream", "sync-run": "upstream",
+  gate1: "sync",
+  conflict: "integration", cascade: "integration", "cascade-missed": "integration",
+  labels: "integration", gate2: "integration", "lane-deploy": "integration", lanes: "integration",
+  rollout: "template", "template-pr": "template", "template-red": "template",
+  "template-set": "template", "template-run": "template",
+});
+
 function objectMove(
   model: Model,
   moves: NonEmpty<Item>,
@@ -133,6 +144,7 @@ function objectMove(
   const deadline = deadlineOf(model, ids, now, context);
   const steps = [...(blocker ? [blocker.next] : []), ...ordered.map((i) => i.next)].map(plain);
   const home = homeOf(model, item, context);
+  const station = queued && MEMBER_STATION[queued.kind];
   const behind = !blocker && queued?.kind === "gate2" &&
     model.lines.find((line) => line.fork.id === fork)?.cascadePr?.pr.mergeState === "BEHIND" &&
     item.cls === "GATE";
@@ -140,6 +152,7 @@ function objectMove(
     id: item.id,
     ids,
     fork,
+    ...(station ? { station } : {}),
     ...(home ? { home } : {}),
     ...(item.subject ? { subject: item.subject } : {}),
     ...(primary?.kind ? { primary: { ...primary, kind: primary.kind } } : {}),
@@ -217,7 +230,10 @@ function describe(
         headline: `sync halted: no filter rule for ${queued.halt?.entries.join(", ") || "an upstream entry"}`,
       };
     case "sync-run":
-      return { ...base, headline: queued.text === "Sync failed" ? queued.text : "sync failed" };
+      return {
+        ...base,
+        headline: queued.text === "Sync failed" || member.primary?.kind === "issue" ? queued.text : "sync failed",
+      };
     case "cascade-missed":
       return { ...base, headline: queued.text };
     case "gate1":

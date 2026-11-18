@@ -40,7 +40,7 @@ function prAsksPerson(pr: PrFact, approvals: readonly WaitingRun[]): boolean {
   );
 }
 
-function prSubstate(
+export function prSubstate(
   pr: PrFact,
   approvals: readonly WaitingRun[],
   autoMerge = false,

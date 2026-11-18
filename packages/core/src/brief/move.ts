@@ -76,6 +76,7 @@ export function subjectOf(model: Model, item: QueueItem, heldPr: number | undefi
   if (item.kind === "access") {
     return line?.prs.find((p) => item.id === `access:${p.pr.repo}#${p.pr.number}`)?.pr.url;
   }
+  if (item.kind === "sync-run") return item.cause.find(({ label }) => label === "issue")?.url ?? item.url;
   return item.url;
 }
 

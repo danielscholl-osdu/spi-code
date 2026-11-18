@@ -5,14 +5,15 @@ import type { ServiceHome, ServiceHomeDoor, ServiceHomeRow, ServiceHomeStation }
 import type { AreaName, Facts, IssueFact, PastPrFact, PrFact } from "../facts.js";
 import { groupUrl } from "../inspect/repo.js";
 import { cascadeMonitor } from "../model/cascade-monitor.js";
+import { prVerdict } from "../model/checks.js";
 import type { Model } from "../model/index.js";
 import type { LineModel, StationId } from "../model/lines.js";
 import { compareVersions } from "../model/releases.js";
-import { stationSubstateOf } from "../model/substate.js";
+import { prSubstate, stationSubstateOf } from "../model/substate.js";
 import type { UpFork } from "../model/upstream.js";
 import type { SweepReads } from "../sweep/index.js";
 import { plainText } from "../readings/index.js";
-import { plural } from "../util.js";
+import { age, plural } from "../util.js";
 import type { FocusItem } from "./index.js";
 import type { TodayLine } from "./lines.js";
 import { linkKind } from "./move.js";
@@ -134,15 +135,9 @@ function integrationHolds(line: LineModel, fork: UpFork, issues: readonly IssueF
   return `carries sync #${merged.number}, not #${queued.number}`;
 }
 
-const ROW_STATION: Readonly<Record<string, ServiceHomeStation["id"]>> = Object.freeze({
-  radar: "upstream", halt: "sync", "sync-run": "sync", gate1: "sync",
-  conflict: "integration", cascade: "integration", "cascade-missed": "integration",
-  labels: "integration", gate2: "integration", main: "main",
-});
-
 function stationsOf(
   input: HomeInput, line: LineModel, fork: UpFork, rows: readonly ServiceHomeRow[],
-  pullsRead: boolean, runsRead: boolean,
+  pullsRead: boolean, runsRead: boolean, upstreamRead: boolean,
 ): ServiceHomeStation[] {
   const { facts, model, now } = input;
   const runs = runsRead ? facts.runs.data?.[fork.repo] : undefined;
@@ -150,12 +145,16 @@ function stationsOf(
     const cell = line.stations.find((station) => station.id === id);
     return !cell || cell.state === "unknown" ? "unread" : stationSubstateOf(cell, line, facts);
   };
-  const syncFailure = model.queue.items.find((item) => item.id === `sync-run:${fork.service}`);
-  const openSyncFailure = syncFailure?.text === "Sync failed";
+  const knownItems = [...model.queue.items, ...model.queue.dismissed.map(({ item }) => item)];
+  const syncFailure = knownItems.some((item) => item.id === `sync-run:${fork.service}`);
+  const members = new Map(input.lines.flatMap(({ members }) => members.map((member) => [member.id, member])));
   const attach = (station: ServiceHomeStation): ServiceHomeStation => {
-    const row = rows.find((row) => (openSyncFailure && row.id === syncFailure.id ? "upstream"
-      : ROW_STATION[row.id.split(":")[0] ?? ""]) === station.id ||
-      (station.pr && row.links.some(({ url }) => url === station.pr?.url)));
+    if (station.row) return station;
+    const matching = rows.filter((row) => members.get(row.id)?.station === station.id ||
+      (station.id === "main" && row.id === `main:${fork.service}`));
+    const url = station.pr?.url;
+    const row = (url ? matching.find((row) => row.links[0]?.url === url) : undefined) ?? matching[0] ??
+      rows.find((row) => !members.get(row.id)?.station && url && row.links.some((link) => link.url === url));
     return row ? { ...station, row: row.id } : station;
   };
 
@@ -163,17 +162,22 @@ function stationsOf(
   const blockedUpstream = rows.some((row) => row.id === `radar:${fork.service}` && row.section === "blocked");
   const upstream: ServiceHomeStation = {
     id: "upstream",
-    state: blockedUpstream || openSyncFailure ? "stopped" : cellState("upstream"),
-    word: openSyncFailure ? "Sync failed" : fork.behind === undefined ? "Not read" : fork.behind === 0 ? "Sync current" : `${fork.behind} behind`,
+    state: blockedUpstream || syncFailure || line.halt ? "stopped" : upstreamRead ? cellState("upstream") : "unread",
+    word: syncFailure ? "Sync failed" : !upstreamRead || fork.behind === undefined
+      ? "Not read" : fork.behind === 0 ? "Sync current" : `${fork.behind} behind`,
+    ...(!upstreamRead || !pullsRead || !runsRead ? { notRead: true } : {}),
     ...(next ? { line: `next sync ${clockWord(next, now)}`, nextAt: next } : {}),
   };
   const syncPr = line.syncPr?.pr;
-  const failedSync = syncFailure && !openSyncFailure;
+  const syncMovedUpstream = syncFailure || line.halt;
   const sync: ServiceHomeStation = {
     id: "sync",
-    state: (!pullsRead || !runsRead) && !syncPr ? (line.halt || failedSync ? "stopped" : "unread")
-      : failedSync ? "stopped" : cellState("sync"),
+    state: (!pullsRead || !runsRead) && !syncPr ? "unread"
+      : syncMovedUpstream
+        ? syncPr ? prSubstate(syncPr, facts.approvals.data?.[fork.repo] ?? []) : "ready"
+        : cellState("sync"),
     word: syncPr ? `PR #${syncPr.number}` : "None open",
+    ...(!pullsRead || !runsRead ? { notRead: true } : {}),
     ...(syncPr ? { pr: pull(syncPr) } : {}),
     ...(fork.syncPr?.holds !== undefined ? { line: plural(fork.syncPr.holds, "commit") } : {}),
   };
@@ -183,32 +187,32 @@ function stationsOf(
     sync.word = `PR #${lastSync.number} merged`;
     sync.lastMerge = lastSync;
     sync.line = `into the upstream branch ${clockWord(lastSync.at, now)}`;
-  } else if (line.halt || failedSync) {
-    sync.word = line.halt ? "Sync halted" : "Sync failed";
-    if (syncPr) sync.line ??= `PR #${syncPr.number}`;
   } else if (sync.state === "unread") sync.word = "Not read";
   else if (!syncPr && sync.state === "in-progress") sync.word = "Running";
 
   const integrationPr = line.cascadePr?.pr;
   const cascadeState = cellState("cascade");
+  const cascadeMissed = knownItems.find((item) => item.id === `cascade-missed:${fork.service}`);
   const holds = integrationHolds(line, fork, facts.github.data?.repos[fork.repo]?.issues ?? []);
   const integration: ServiceHomeStation = {
     id: "integration",
     state: cascadeState === "stopped" ? "stopped"
       : integrationPr ? cellState("main")
       : fork.phase === "cascading" ? "in-progress"
-      : cascade ? (cascade.overdue ? "waiting-on-person" : "waiting-on-clock")
+      : cascade ? (cascadeMissed ? "waiting-on-person" : "waiting-on-clock")
       : pullsRead && runsRead ? cascadeState : "unread",
     word: integrationPr ? `PR #${integrationPr.number}` : "None open",
+    ...(!pullsRead || !runsRead ? { notRead: true } : {}),
     ...(integrationPr ? { pr: pull(integrationPr) } : {}),
     ...(holds ? { line: holds } : {}),
   };
   if (!integrationPr) {
     if (cascade) {
-      integration.word = cascade.overdue ? "Cascade didn't start" : "Cascade waits";
+      integration.word = cascadeMissed ? "Cascade didn't start" : "Cascade waits";
       integration.line = `sync #${cascade.merge.number} merged ${clockWord(cascade.merge.at, now)} · monitor ${clockWord(cascade.at, now)}`;
       integration.nextAt = cascade.at;
-      integration.inTransit = !cascade.overdue;
+      integration.inTransit = !cascadeMissed;
+      if (cascadeMissed && rows.some(({ id }) => id === cascadeMissed.id)) integration.row = cascadeMissed.id;
     } else if (integration.state === "stopped") integration.word = "Stopped";
     else if (integration.state === "in-progress") integration.word = "Running";
     else if (integration.state === "waiting-on-person") integration.word = "Held";
@@ -242,7 +246,10 @@ function doorsOf(line: LineModel, rows: readonly ServiceHomeRow[], complete: boo
     seen.add(pr.number);
     const id = pr === line.templatePr?.pr ? "template" : pr === line.releasePr?.pr ? "release"
       : prClass === "dependabot" ? "dependabot" : "other";
-    doors.find((door) => door.id === id)?.prs.push(pull(pr));
+    const door = doors.find((door) => door.id === id);
+    if (!door) continue;
+    door.prs.push(pull(pr));
+    if (id === "other" && prVerdict(pr) === "red") door.red = (door.red ?? 0) + 1;
   }
   return doors.map((door) => {
     const row = rows.find((row) => row.links.some(({ url }) => door.prs.some((pr) => pr.url === url)));
@@ -266,9 +273,10 @@ export function serviceHome(input: HomeInput): Map<string, ServiceHome> {
     const pullsRead = !!github && !github.prsUnread && !facts.github.error && !failed("github", repo);
     const complete = pullsRead && (openPrTotal === undefined || openPrTotal === github.prs.length);
     const runsRead = !!facts.runs.data?.[repo] && !facts.runs.error && !failed("runs", repo);
+    const upstreamRead = !!line.upstream && !facts.upstream.error && !failed("upstream", upstream);
     const rows = overviewOf(input, line);
     const yours = rows.filter((row) => row.section === "blocked" || row.section === "waiting");
-    const unread = !complete || !runsRead || !line.upstream || !!facts.upstream.error || failed("upstream", upstream) ||
+    const unread = !complete || !runsRead || !upstreamRead ||
       !facts.radar.data?.services[id] || !!facts.radar.error || failed("radar", repo) ||
       !facts.template.data || !!facts.template.error ||
       !facts.lifecycle.data || !!facts.lifecycle.error ||
@@ -284,8 +292,8 @@ export function serviceHome(input: HomeInput): Map<string, ServiceHome> {
       repo, template,
       ...(version?.released ? { released: version.released } : {}),
       ...(bump && version?.proposed ? { next: version.proposed, bump } : {}),
-      ...(line.releasePr ? { releasePr: pull(line.releasePr.pr) } : {}),
-      stations: stationsOf(input, line, fork, rows, complete, runsRead),
+      ...(line.releasePr ? { releasePr: { ...pull(line.releasePr.pr), age: age(line.releasePr.pr.createdAt, input.now) } } : {}),
+      stations: stationsOf(input, line, fork, rows, complete, runsRead, upstreamRead),
       doors: doorsOf(line, rows, complete),
       ...(openPrTotal !== undefined ? { openPrTotal } : {}),
       overview: rows,

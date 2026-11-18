@@ -70,7 +70,8 @@ describe.each(fixtures)("the text rules on $name", ({ name, body }) => {
       leaf.path.endsWith("/headline") &&
       (name !== "snapshot-1116" ||
         leaf.path.startsWith("/services/") ||
-        leaf.path.startsWith("/briefing/lines/")),
+        leaf.path.startsWith("/briefing/lines/") ||
+        leaf.path.startsWith("/briefing/today/causes/")),
   );
 
   it("keeps every headline to at most 12 words", () => {

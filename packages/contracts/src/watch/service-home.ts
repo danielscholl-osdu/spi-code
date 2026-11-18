@@ -4,12 +4,11 @@
 import { z } from "zod";
 import { LinkSchema } from "./briefing.js";
 import { ObservedAtSchema } from "./evidence.js";
+import { ServiceHomeDoorIdSchema, ServiceHomeStationIdSchema } from "./fleet.js";
 
 const PullSchema = z.strictObject({ number: z.int().positive(), url: z.string() });
-const StationIdSchema = z.enum(["upstream", "sync", "integration", "main"]);
-const DoorIdSchema = z.enum(["template", "release", "other", "dependabot"]);
 const StationSchema = z.strictObject({
-  id: StationIdSchema,
+  id: ServiceHomeStationIdSchema,
   state: z.enum([
     "stopped",
     "waiting-on-person",
@@ -26,11 +25,13 @@ const StationSchema = z.strictObject({
   nextAt: ObservedAtSchema.optional(),
   inTransit: z.boolean().optional(),
   row: z.string().optional(),
+  notRead: z.literal(true).optional(),
 });
 const DoorSchema = z.strictObject({
-  id: DoorIdSchema,
+  id: ServiceHomeDoorIdSchema,
   count: z.int().nonnegative().nullable(),
   prs: z.array(PullSchema),
+  red: z.int().nonnegative().optional(),
   row: z.string().optional(),
 });
 const OverviewRowSchema = z.strictObject({
@@ -57,7 +58,7 @@ export const ServiceHomeSchema = z.strictObject({
   released: z.string().optional(),
   next: z.string().optional(),
   bump: z.enum(["patch", "minor", "major"]).optional(),
-  releasePr: PullSchema.optional(),
+  releasePr: PullSchema.extend({ age: z.string().optional() }).optional(),
   template: z.enum(["current", "behind", "unknown"]),
   stations: z.array(StationSchema),
   doors: z.array(DoorSchema),

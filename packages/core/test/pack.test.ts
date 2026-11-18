@@ -315,6 +315,7 @@ it("packs a pinned, source-free tarball that installs outside the workspace", as
     expect(entries).toContain("package/dist/contracts/stopped-forks.js");
     expect(entries).toContain("package/dist/contracts/stopped-forks.d.ts");
     expect(entries).toContain("package/dist/contracts/service-home.d.ts");
+    expect(entries).toContain("package/dist/contracts/fleet.d.ts");
     expect(entries).toContain("package/LICENSE");
     expect(entries).toContain("package/README.md");
     expect(entries.filter((entry) => /\/(?:src|test|fixtures)\//.test(entry))).toEqual([]);

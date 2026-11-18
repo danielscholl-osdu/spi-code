@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { CoreContext } from "../context.js";
-import type { Facts } from "../facts.js";
+import type { Facts, IssueFact, PrFact } from "../facts.js";
 import { workflowEvidence } from "../inspect/item-evidence.js";
 import { groupUrl } from "../inspect/repo.js";
 import type { Model } from "../model/index.js";
@@ -11,6 +11,7 @@ import { needsHuman } from "../model/work.js";
 import { releaseQueue } from "../readings/releases.js";
 import { stamp } from "../util.js";
 import type { FocusItem, Tone } from "./index.js";
+import { canWaitCauses } from "./can-wait-causes.js";
 import type { TodayLine } from "./lines.js";
 import { syncCompanions } from "./repo-today.js";
 import type { Since } from "./since.js";
@@ -68,9 +69,16 @@ type Input = {
   context: CoreContext;
 };
 
+function sourceObject(fork: string, object: PrFact | IssueFact, kind: "PR" | "Issue") {
+  return {
+    id: object.url, fork, title: object.title, url: object.url, since: object.createdAt,
+    label: `${kind} #${object.number}`, name: `${fork} #${object.number}`,
+  };
+}
+
 /** The supplied situation lines own membership, including folded moves, their sources and the sync engine companions of those sources. */
-function canWait(input: Input): TodayPile[] {
-  const { model, facts, context, items, lines } = input;
+function canWait(input: Input) {
+  const { model, facts, context, items, lines, now } = input;
   const members = lines.flatMap((l) => l.members);
   const ids = new Set(members.flatMap((m) => [m.id, ...m.ids, ...(m.blockedBy ? [m.blockedBy] : [])]));
   const sources = new Set([
@@ -83,21 +91,31 @@ function canWait(input: Input): TodayPile[] {
   for (const [issue, pr] of syncCompanions(model)) if (sources.has(pr)) sources.add(issue);
   const queue = releaseQueue(facts, context);
   const releases = queue.all.filter((r) => !sources.has(r.pr.url));
-  const releaseRefs = (rows: typeof releases) => rows.map((r) => ({ name: `${r.name} #${r.pr.number}`, url: r.pr.url }));
+  const releaseRefs = (rows: typeof releases) => rows.map((r) => sourceObject(r.name, r.pr, "PR"));
+  const releaseObjects = releaseRefs(releases);
   const repos = model.repositories.rows;
   const issues = repos.flatMap((r) => Object.values(r.issues).flat().filter((i) => needsHuman(i) && !sources.has(i.url))
-    .map((i) => ({ name: `${r.name} #${i.number}`, url: i.url })));
+    .map((i) => sourceObject(r.name, i, "Issue")));
   const changes = repos.flatMap((r) => r.changes.filter((p) => !sources.has(p.pr.url))
-    .map((p) => ({ name: `${r.name} #${p.pr.number}`, url: p.pr.url })));
-  const bumps = repos.flatMap((r) => r.dependabot.filter((p) => !sources.has(p.pr.url))
-    .map((p) => ({ name: `${r.name} #${p.pr.number}`, url: p.pr.url })));
-  const alerts = repos.flatMap((r) => r.alerts.filter((a) => a.owner !== "upstream" && a.reach === "shipped" &&
+    .map((p) => sourceObject(r.name, p.pr, "PR")));
+  const bumps = repos.flatMap((r) => r.dependabot.filter((p) => !sources.has(p.pr.url)).map((p) => {
+    const ecosystem = /^dependabot\/([^/]+)\//i.exec(p.pr.head)?.[1]?.toLowerCase();
+    return { ...sourceObject(r.name, p.pr, "PR"),
+      ...(ecosystem && p.package ? { package: { ecosystem, name: p.package } } : {}) };
+  }));
+  const alerts = repos.flatMap((r) => r.alerts.filter((a) => a.reach === "shipped" &&
     !ids.has(`alert:${r.repo}:${a.id}`) && !sources.has(groupUrl(r, a)))
-    .map((a) => ({ ...a, name: `${r.name}: ${a.name}`, url: groupUrl(r, a),
-      count: (a.counts.critical ?? 0) + (a.counts.high ?? 0) }))).filter((a) => a.count > 0);
-  return [
+    .map((a) => ({
+      id: `alert:${r.repo}:${a.id}`, fork: r.name, title: a.name,
+      since: a.since, label: a.source === "dependabot" ? "Dependabot" : "Code scanning",
+      rule: a.source === "code" && a.rule ? `${a.tool ?? ""}:${a.rule}` : `dependabot:${a.name}`,
+      name: `${r.name}: ${a.name}`, url: groupUrl(r, a),
+      count: (a.counts.critical ?? 0) + (a.counts.high ?? 0), owner: a.owner, source: a.source,
+    }))).filter((a) => a.count > 0);
+  const ownAlerts = alerts.filter((a) => a.owner !== "upstream");
+  const [release, repositories, security]: [TodayPile, TodayPile, TodayPile] = [
     { id: "releases", label: "Release PRs", place: "releases", counts: [
-      count("open", "open", releaseRefs(releases)),
+      count("open", "open", releaseObjects),
       count("ready", "ready to merge", releaseRefs(releases.filter((r) => r.ready)), "ok"),
       count("review", "waiting for review", releaseRefs(releases.filter((r) => !r.ready && r.pr.reviewDecision === "REVIEW_REQUIRED"))),
       count("failed", "failing", releaseRefs(releases.filter((r) => r.real.length > 0)), "bad"),
@@ -111,13 +129,23 @@ function canWait(input: Input): TodayPile[] {
       ...(r.unreadPrs ? [`${r.name}: ${r.unreadPrs} PRs`] : []),
     ]) },
     { id: "security", label: "Security", place: "security", counts: [
-      count("vulnerabilities", "critical or high", alerts.filter((a) => a.source === "dependabot")),
-      count("code-scanning", "code scanning", alerts.filter((a) => a.source === "code")),
+      count("vulnerabilities", "critical or high", ownAlerts.filter((a) => a.source === "dependabot")),
+      count("code-scanning", "code scanning", ownAlerts.filter((a) => a.source === "code")),
     ], notRead: repos.flatMap((r) => [
       ...(r.dependabotAlerts === undefined ? [`${r.name}: vulnerabilities`] : []),
       ...(r.codeAlerts === undefined ? [`${r.name}: code scanning`] : []),
     ]) },
   ];
+  return {
+    canWait: [release, repositories, security],
+    causes: canWaitCauses(
+      { release: releaseObjects, dependabot: bumps, other: changes, issue: issues, alert: alerts },
+      { release: release.notRead, dependabot: repositories.notRead, other: repositories.notRead,
+        issue: repositories.notRead, alert: security.notRead },
+      new Set(model.lines.map(({ fork }) => fork.id)),
+      now,
+    ),
+  };
 }
 
 function moving(input: Input): TodayMoving[] {
@@ -173,5 +201,5 @@ export function todayHistory(model: Model, facts: Facts, since: Since | undefine
 }
 
 export function todaySummary(input: Input) {
-  return { canWait: canWait(input), moving: moving(input), history: todayHistory(input.model, input.facts, input.since, input.now) };
+  return { ...canWait(input), moving: moving(input), history: todayHistory(input.model, input.facts, input.since, input.now) };
 }

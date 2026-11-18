@@ -123,8 +123,11 @@ describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
     expect(cases.filter(({ pointer }) => verdict.includes(pointer))).toEqual([]);
   });
 
-  it("has no pending Today exemption", () => {
-    expect(PENDING).toEqual({});
+  it("names the window bead for each pending Today exemption", () => {
+    expect(Object.values(PENDING).map(({ reason }) => reason.split(":")[0])).toEqual([
+      "spicode-mw0.12",
+      "spicode-mw0.13",
+    ]);
   });
 
   it("has shared fields to compare", () => {
