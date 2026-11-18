@@ -12,25 +12,18 @@ import { jobsKey, type LifecycleState, readRunJobs, settledJobReads } from "./li
 
 const LIMIT = 60;
 const WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
-const PAGE_JQ = '{total: .total_count, runs: [.workflow_runs[] | {id, workflowId: .workflow_id, name, attempt: .run_attempt, status, conclusion, createdAt: .created_at, startedAt: .run_started_at, url: .html_url}]}';
+const PAGE_JQ = '{total: .total_count, runs: [.workflow_runs[] | {id, workflowId: .workflow_id, name, path, attempt: .run_attempt, status, conclusion, createdAt: .created_at, startedAt: .run_started_at, url: .html_url}]}';
 const pageSchema = z.object({
   total: z.int().nonnegative(),
   runs: z.array(serviceRun.extend({
     name: z.string().trim().nullish(),
+    path: z.string().trim().nullish().transform((value) => value || undefined),
     status: serviceRun.shape.status.nullish().transform((value) => value ?? "unknown"),
     startedAt: serviceRun.shape.startedAt.unwrap().nullish().transform((value) => value ?? undefined),
     conclusion: z.string().nullish().transform((value) => value ?? undefined),
   }).transform(({ name, ...run }) => ({ ...run, name: name || `Workflow #${run.workflowId}` }))).max(LIMIT),
 }).refine(({ total, runs }) => total >= runs.length && new Set(runs.map(({ id }) => id)).size === runs.length,
   "Run counts or IDs are inconsistent");
-
-function activeFailure(runs: ServiceRun[]) {
-  return workflowFailure(runs.map((run) => ({
-    ...run,
-    createdAt: run.startedAt ?? run.createdAt,
-    original: run,
-  })))?.original;
-}
 
 async function readFailure(
   gh: Gh, ctx: CoreContext, repo: string, run: ServiceRun,
@@ -86,17 +79,18 @@ export async function readServiceRuns(
     const completeness: ReadRecord["completeness"] = cut ? {
       kind: "cut", read: runs.length, total: page.total, reason: "Recent workflow runs history limited",
     } : { kind: "complete" };
-    const priorFailures = new Map(prior?.failures.map(({ run }) => [run.id, run]));
+    const priorFailures = prior?.failures ?? [];
+    const carriedByRun = new Map(priorFailures.map((entry) => [entry.run, entry]));
+    const idsOnPage = new Set(runs.map(({ id }) => id));
     const failures: NonNullable<ServiceRunsFact["history"]>["failures"] = [];
-    for (const group of workflowGroups(runs)) {
-      const candidates = group.flatMap((run) => {
-        // GitHub lists only the current attempt. Keep the observed failure while its retry is on the page.
-        const failed = priorFailures.get(run.id);
-        return failed && failed.workflowId === run.workflowId && failed.attempt < run.attempt
-          ? [run, failed] : [run];
-      });
-      const failed = activeFailure(candidates);
-      if (failed) failures.push(await readFailure(gh, ctx, repo, failed, jobCache, jobs));
+    for (const group of workflowGroups([...runs, ...priorFailures.map(({ run }) => run)])) {
+      const failed = workflowFailure(group);
+      if (!failed) continue;
+      const carried = carriedByRun.get(failed);
+      const path = failed.path ?? group.find((run) => run.path)?.path;
+      const run = path && !failed.path ? { ...failed, path } : failed;
+      failures.push(carried && !idsOnPage.has(failed.id)
+        ? { ...carried, run } : await readFailure(gh, ctx, repo, run, jobCache, jobs));
     }
     return [repo, { history: { cut, runs, failures }, read: { ...read, completeness }, jobs }];
   });

@@ -189,6 +189,7 @@ const GITLAB_PAGE = `per_page=${N}&page=${N}`;
 const RUN_FIELDS =
   "{id, name, path, event, status, conclusion, created_at, updated_at, head_branch, head_sha, display_title, html_url, run_attempt}";
 const RUNS_JQ = `{total: .total_count, runs: [.workflow_runs[] | ${RUN_FIELDS}]}`;
+const SERVICE_RUN_PAGE = `${REPO}actions/runs\\?per_page=60&created=%3E%3D\\d{4}-\\d\\d-\\d\\dT\\d\\d%3A\\d\\d%3A\\d\\dZ`;
 const JOB_JQ =
   "{id, name, status, conclusion, started_at, completed_at, html_url, run_attempt, steps: [(.steps // [])[] | {number, name, status, conclusion, started_at, completed_at}]}";
 const COMPARE_JQ =
@@ -256,7 +257,14 @@ export const REST_SHAPES: readonly RestShape[] = [
     "service run history",
     "gh",
     "rest",
-    `${REPO}actions/runs\\?per_page=60&created=%3E%3D\\d{4}-\\d\\d-\\d\\dT\\d\\d%3A\\d\\d%3A\\d\\dZ`,
+    SERVICE_RUN_PAGE,
+    "{total: .total_count, runs: [.workflow_runs[] | {id, workflowId: .workflow_id, name, path, attempt: .run_attempt, status, conclusion, createdAt: .created_at, startedAt: .run_started_at, url: .html_url}]}",
+  ),
+  shape(
+    "service run history without path",
+    "gh",
+    "rest",
+    SERVICE_RUN_PAGE,
     "{total: .total_count, runs: [.workflow_runs[] | {id, workflowId: .workflow_id, name, attempt: .run_attempt, status, conclusion, createdAt: .created_at, startedAt: .run_started_at, url: .html_url}]}",
   ),
   shape("run", "gh", "rest", `${REPO}actions/runs/${N}`, RUN_FIELDS),

@@ -298,17 +298,17 @@ const SHAPES: {
     class: "public-content",
     github: ["Azure/osdu-spi-partition"],
   },
-  {
+  ...["service run history", "service run history without path"].map((id) => ({
     cmd: "gh",
     args: [
       "api",
       "repos/Azure/osdu-spi-partition/actions/runs?per_page=60&created=%3E%3D2026-11-02T09%3A00%3A00Z",
       "--jq",
-      jqOf("service run history"),
+      jqOf(id),
     ],
-    class: "public-content",
+    class: "public-content" as const,
     github: ["Azure/osdu-spi-partition"],
-  },
+  })),
 ];
 
 const sorted = (set: Set<string> | undefined) => [...(set ?? [])].sort();

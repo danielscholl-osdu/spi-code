@@ -39,8 +39,8 @@ export function projectServices(
   pane: ReturnType<typeof projectReleases>["pane"],
 ) {
   const services = model.lines.map((line) => ({
+    line,
     service: line.fork.id,
-    ...projectServiceRuns(input.facts, line.fork.repo),
     runs: runs
       .filter(({ repo }) => repo === line.fork.repo)
       .sort(
@@ -94,11 +94,12 @@ export function projectServices(
   const work = serviceWork(model, input.facts, input.reads, homes);
   const upstreamSecurity = serviceUpstream({ model, facts: input.facts, reads: input.reads, now });
   return {
-    services: services.map((service) => {
+    services: services.map(({ line, ...service }) => {
       const home = homes.get(service.service);
       const lists = upstreamSecurity.get(service.service);
       return {
         ...service,
+        ...projectServiceRuns(input.facts, line, home),
         ...(home ? { home, work: work.get(service.service) } : {}),
         ...(lists ? { upstreamSecurity: lists } : {}),
       };

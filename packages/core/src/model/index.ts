@@ -157,6 +157,7 @@ export function buildModel(
     repos,
     runs: facts.runs.data,
     runsFailed: !!facts.runs.error,
+    serviceRuns: facts.serviceRuns,
     details,
     approvals: facts.approvals.data,
     radar,

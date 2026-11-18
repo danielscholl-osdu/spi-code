@@ -8,6 +8,7 @@ const RunSchema = z.strictObject({
   id: z.int().positive(),
   workflowId: z.int().positive(),
   name: IdentifierSchema,
+  path: IdentifierSchema.optional(),
   attempt: z.int().positive(),
   status: IdentifierSchema,
   conclusion: z.string().optional(),
@@ -29,13 +30,22 @@ export const ServiceRunsSchema = z.discriminatedUnion("kind", [
         id: z.int().positive(),
         name: IdentifierSchema,
         runs: z.array(RunSchema).min(1),
+        automation: z.literal(true).optional(),
       }),
     ),
     failing: z.array(
       z.strictObject({
-        run: RunSchema,
+        run: RunSchema.partial({ workflowId: true }),
         job: IdentifierSchema.optional(),
         step: IdentifierSchema.optional(),
+        main: z
+          .strictObject({
+            id: RunSchema.shape.id,
+            attempt: RunSchema.shape.attempt,
+            url: RunSchema.shape.url,
+            failedAt: ObservedAtSchema,
+          })
+          .optional(),
       }),
     ),
   }),
