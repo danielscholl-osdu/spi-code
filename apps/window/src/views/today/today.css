@@ -94,7 +94,7 @@
   .today-caveat-actions { flex-wrap: wrap; }
 }
 
-.today-tabs { display: flex; gap: 2px; margin: 18px 0 14px; overflow-x: auto; border-bottom: 1px solid var(--border); }
+.today-tabs { display: flex; gap: 2px; margin: 18px 0 14px; overflow-x: auto; overflow-y: hidden; border-bottom: 1px solid var(--border); }
 .today-tab { display: inline-flex; align-items: center; gap: 6px; margin-bottom: -1px; padding: 7px 10px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--text-muted); font: inherit; white-space: nowrap; cursor: pointer; }
 .today-tab[aria-selected="true"] { border-bottom-color: var(--accent); color: var(--text-strong); font-weight: 650; }
 .today-tab-count { padding: 0 6px; border-radius: 999px; background: var(--surface-raised); color: var(--text-muted); font-size: 11px; font-weight: 400; font-variant-numeric: tabular-nums; }

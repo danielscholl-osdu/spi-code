@@ -60,6 +60,18 @@ export function loadMornings(paths: Readonly<Record<Morning, string>>) {
   ) as Record<Morning, { snapshot: ViewSnapshot; fixture: string }>;
 }
 
+/** Points across the centre bar where the pane body draws on top of it. */
+const overBarScript = `(() => {
+  const bar = document.querySelector(".centre-bar").getBoundingClientRect();
+  const over = [];
+  for (let x = bar.left + 4; x < bar.right; x += 24)
+    for (const y of [bar.top + 2, bar.top + bar.height / 2, bar.bottom - 3]) {
+      const hit = document.elementFromPoint(x, y);
+      if (hit?.closest(".centre-body")) over.push(\`\${hit.tagName.toLowerCase()}.\${hit.className} at \${Math.round(x)},\${Math.round(y)}\`);
+    }
+  return over;
+})()`;
+
 async function grab(window: BrowserWindow): Promise<Pixels> {
   const image = nativeImage.createFromBuffer((await window.webContents.capturePage()).toPNG());
   const { width, height } = image.getSize();
@@ -87,6 +99,8 @@ async function fullPage(context: TodayCaptureContext, path: string) {
     await window.webContents.executeJavaScript(`void (${SCROLLER}.scrollTop = ${target})`);
     await rendered(`Math.abs(${SCROLLER}.scrollTop - ${target}) < 1`);
     const scrolled: number = await window.webContents.executeJavaScript(`${SCROLLER}.scrollTop`);
+    const over: string[] = await window.webContents.executeJavaScript(overBarScript);
+    assert.deepEqual(over, [], `Today scrolled to ${scrolled} must not draw over the centre bar`);
     return { scrolled, strip: await grab(window) };
   });
   await window.webContents.executeJavaScript(
