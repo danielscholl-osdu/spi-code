@@ -23,7 +23,7 @@ it.each([
   "https://github.com/Azure/stack/commit/ba05b1c",
   "https://github.com/Azure/stack/compare/main...release?expand=1",
   "https://github.com/Azure/stack/actions/runs/123?check_suite_focus=true",
-  "https://github.com:443/Azure/stack/deployments",
+  "https://github.com:443/Azure/stack/deployments/spi-stack",
   "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
 ])("opens allowlisted evidence through the narrow preload call: %s", async (url) => {
   const host = harness();
@@ -44,13 +44,6 @@ it.each([
   expect(host.openExternal).toHaveBeenCalledExactlyOnceWith(new URL(url).href);
 });
 
-it("opens only the identified GitHub deployment through the API origin", async () => {
-  const host = harness();
-  const url = "https://api.github.com/repos/Azure/osdu-spi-indexer/deployments/42";
-  await expect(host.openFromRenderer(host.event, url)).resolves.toBe(true);
-  expect(host.openExternal).toHaveBeenCalledExactlyOnceWith(url);
-});
-
 it.each([
   "http://github.com/Azure/stack",
   "http://community.opengroup.org/osdu/legal",
@@ -65,10 +58,7 @@ it.each([
   "blob:https://community.opengroup.org/id",
   "blob:https://github.com/id",
   "https://api.github.com/Azure/stack",
-  "https://api.github.com/repos/Azure/osdu-spi-indexer/deployments",
-  "https://api.github.com/repos/Azure/osdu-spi-indexer/deployments/42/statuses",
-  "https://api.github.com/repos/Azure/osdu-spi-indexer/deployments/42?next=external",
-  "https://user@api.github.com/repos/Azure/osdu-spi-indexer/deployments/42",
+  "https://api.github.com/repos/Azure/osdu-spi-indexer/deployments/42",
   "https://github.com.example.com/?secret=hidden",
   "https://example.com/?secret=hidden",
   "https://user:password@github.com/Azure/stack",

@@ -107,10 +107,12 @@ const distinct = <T>(values: Iterable<T>): T[] => [...new Set(values)];
 const forksText = (forks: readonly string[]) =>
   forks.length > 3 ? `${forks.length} forks` : forks.join(", ");
 
-function incompleteNote(histories: readonly ForkDeployments[]): string | undefined {
+function incompleteNote(histories: readonly ForkDeployments[], from: number): string | undefined {
   if (histories.length === 0) return "Fork deployments not read";
   const unread = histories.filter(({ read }) => read === "unread").map(({ fork }) => fork);
-  const capped = histories.filter(({ read }) => read === "capped").map(({ fork }) => fork);
+  const capped = histories.filter(({ read, deployments }) =>
+    read === "capped" && !deployments.some(({ createdAt }) => Date.parse(createdAt) <= from),
+  ).map(({ fork }) => fork);
   const notes = [
     unread.length ? `${forksText(unread)} not read` : undefined,
     capped.length ? `${forksText(capped)} history incomplete` : undefined,
@@ -194,13 +196,19 @@ function statusOf(
   }
   if (note) return { state: "unknown", label: "Usage unknown", reason: note };
   const last = intervals[0];
-  const unresolved = last && model.forkDeployments.some(({ deployments }) =>
-    deployments.some((deploy) => {
-      if (!(Date.parse(deploy.createdAt) <= to) || borrowEnd(deploy, to) !== undefined) return false;
+  const unresolved = last && model.forkDeployments.some(({ deployments }) => {
+    const latestBeforeEnd = deployments.reduce((latest, { createdAt }) => {
+      const start = Date.parse(createdAt);
+      return start <= last.end ? Math.max(latest, start) : latest;
+    }, -Infinity);
+    return deployments.some((deploy) => {
+      const start = Date.parse(deploy.createdAt);
+      if (!(start <= to) || borrowEnd(deploy, to) !== undefined) return false;
       if (["PENDING", "QUEUED", "WAITING"].includes(deploy.state ?? "")) return false;
-      return !(deploy.state === "INACTIVE" && Date.parse(deploy.statusAt ?? "") <= last.end);
-    }),
-  );
+      return !(deploy.state === "INACTIVE" &&
+        (start < latestBeforeEnd || Date.parse(deploy.statusAt ?? "") <= last.end));
+    });
+  });
   return {
     state: "idle",
     label: "Idle",
@@ -232,7 +240,7 @@ export function environmentUsage(
 ) {
   const to = now.getTime();
   const all = borrowList(model.forkDeployments, to);
-  const forksNote = incompleteNote(model.forkDeployments);
+  const forksNote = incompleteNote(model.forkDeployments, from);
   const status = statusOf(model, lanes, all, forksNote, now, context);
   const borrows = all.filter((borrow) =>
     (borrow.result === "running" ? to : Date.parse(borrow.end ?? borrow.start)) >= from,

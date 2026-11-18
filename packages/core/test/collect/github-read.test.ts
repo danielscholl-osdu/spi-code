@@ -704,7 +704,7 @@ it.each([
             id: "DEP_7",
             ref: "main",
             runUrl: "https://github.com/example/fork0/actions/runs/12",
-            deploymentUrl: "https://api.github.com/repos/example/fork0/deployments/7",
+            deploymentUrl: "https://github.com/example/fork0/deployments/spi-stack",
           },
           { id: "DEP_8" },
         ]);

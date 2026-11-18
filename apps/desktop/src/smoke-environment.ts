@@ -30,7 +30,7 @@ export function smokeEnvironment(source: ViewSnapshot): ViewSnapshot {
         {
           kind: "deploy",
           label: "Deployment",
-          url: "https://api.github.com/repos/example/indexer/deployments/8",
+          url: "https://github.com/example/indexer/deployments/spi-stack",
         },
       ],
     },

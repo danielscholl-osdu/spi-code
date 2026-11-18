@@ -102,7 +102,7 @@
 }
 .environment .env-status-label { padding: 2px 8px; border-radius: 5px; background: var(--surface-raised); }
 .environment .env-status[data-state="in-use"] .env-status-label {
-  color: var(--warning-text); background: var(--warning-surface);
+  color: var(--work); background: var(--work-surface);
 }
 .environment .env-status[data-state="maintenance"] .env-status-label {
   color: var(--error-text); background: var(--error-surface);

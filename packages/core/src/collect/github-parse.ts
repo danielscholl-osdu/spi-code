@@ -1,7 +1,12 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { LANE_DEPLOYMENT_PAGE, LIFECYCLE_WORKFLOWS, type LifecycleKind } from "../config.js";
+import {
+  LANE_DEPLOYMENT_PAGE,
+  LANE_ENVIRONMENT,
+  LIFECYCLE_WORKFLOWS,
+  type LifecycleKind,
+} from "../config.js";
 import type { CoreContext } from "../context.js";
 import type {
   CheckFact,
@@ -260,7 +265,7 @@ function parseDeployments(repo: string, raw: RawRepo["deployments"]): Deployment
       ...(d.id ? { id: d.id } : {}),
       ...(run ? { runUrl: runs + run } : {}),
       ...(d.databaseId && Number.isSafeInteger(d.databaseId) && d.databaseId > 0
-        ? { deploymentUrl: `https://api.github.com/repos/${repo}/deployments/${d.databaseId}` }
+        ? { deploymentUrl: `https://github.com/${repo}/deployments/${LANE_ENVIRONMENT}` }
         : {}),
       createdAt: d.createdAt,
       ref: d.ref?.name ?? undefined,
