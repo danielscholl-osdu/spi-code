@@ -97,7 +97,8 @@ export function serviceWork(
         closedRead: closed !== undefined,
         ...read,
         rows: [...issueRows, ...(closed ?? []).filter((issue) => !issues?.some(({ number }) => number === issue.number))
-          .map((issue) => issueRow(issue, "closed"))],
+          .map((issue) => issueRow(issue, "closed"))
+          .sort((a, b) => (Date.parse(b.closedAt ?? "") || 0) - (Date.parse(a.closedAt ?? "") || 0))],
       },
     }];
   }));

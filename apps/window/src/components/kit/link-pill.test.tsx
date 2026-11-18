@@ -54,7 +54,7 @@ it.each([
   ],
   ["run", "run Sync Upstream", `${GH}/actions/runs/1`, "play", "--text-muted", "Sync Upstream run"],
   ["run", "run", `${GH}/actions/runs/1`, "play", "--text-muted", "Run"],
-  ["job", "check Setup Maven", `${GH}/actions/runs/1/job/2`, "play", "--text-muted", "Job"],
+  ["job", "check Setup Maven", `${GH}/actions/runs/1/job/2`, "play", "--text-muted", "Failed job"],
   ["run", "run Sync Template", `${GH}/actions/runs/2`, "play", "--text-muted", "Sync Template run"],
   ["deploy", "deployments", `${GH}/deployments`, "play", "--text-muted", "Deployments"],
 ] as const)(

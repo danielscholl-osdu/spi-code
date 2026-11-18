@@ -51,9 +51,11 @@ function checkStatus(check: CheckFact): Status {
 
 export function checksOf(facts: readonly CheckFact[]) {
   const checks = latestChecks(facts).map((check) => ({ name: check.name, status: checkStatus(check) }));
+  const state = pullRequestChecksState(checks);
   return {
-    state: pullRequestChecksState(checks),
+    state,
     passed: checks.filter(({ status }) => status === "success").length,
+    ...(state === null ? { skipped: checks.length } : {}),
     failed: [...new Set(checks.filter(({ status }) => status === "failure" || status === "cancelled").map(({ name }) => name))],
   };
 }

@@ -134,14 +134,8 @@
   color: var(--text);
 }
 .today-row-tag {
+  display: inline-block;
   margin-inline-start: 8px;
-  padding: 1px 6px;
-  border: 1px solid var(--border-soft);
-  border-radius: 4px;
-  background: var(--surface-raised);
-  color: var(--text-muted);
-  font-size: 11px;
-  white-space: nowrap;
 }
 .today-row :is(.today-row-fork, .today-row-what) button:hover,
 .today-row .today-row-place:hover,

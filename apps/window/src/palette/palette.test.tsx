@@ -168,18 +168,18 @@ it("lists Go to, Services and Today's rows from the routes and the snapshot, wit
   expect(rows("lenses")).toEqual([]);
   expect(palette()?.querySelector('[data-group="lenses"]')).toBeNull();
   expect(rows("blocked")).toEqual([
-    "entitlements · sync halted: no filter rule for schemathesis-tests",
+    "entitlements · Sync halted: no filter rule for schemathesis-tests",
   ]);
   expect(rows("waiting")).toEqual([
-    "legal · sync PR has a failed check",
+    "legal · Sync PR has a failed check",
     "osdu-spi-stack · 1 outside PR waits for workflow approval",
     "2 forks · 3 upstream provider changes to port",
   ]);
   expect(rows("can-wait")).toEqual([
     "osdu-spi · Release PRs",
     "entitlements · Test External Contribution flow",
-    "osdu-spi-stack · feat: onboard Seismic Store V3",
-    "osdu-spi-stack · feat: add RAFS service",
+    "osdu-spi-stack · Feat: onboard Seismic Store V3",
+    "osdu-spi-stack · Feat: add RAFS service",
     "5 forks · Alerts in shipped code",
   ]);
 });
@@ -293,7 +293,7 @@ it("moves with the arrows, opens with Enter, and filters as the operator types",
   await type("legal");
   expect(labels()).toEqual(["Services", "On legal", "Waiting on you", "Can wait"]);
   expect(rows("services")).toEqual(["1legal"]);
-  expect(rows("waiting")).toEqual(["legal · sync PR has a failed check"]);
+  expect(rows("waiting")).toEqual(["legal · Sync PR has a failed check"]);
   expect(highlighted()).toBe("1legal");
   await key("Enter");
   expect(palettes()).toHaveLength(0);
@@ -548,7 +548,7 @@ it("opens a Can wait row in place on Today", async () => {
   await act(async () => navigate({ kind: "today", tab: "forks" }));
   await shortcut({ ctrlKey: true });
   await type("RAFS");
-  expect(rows("can-wait")).toEqual(["osdu-spi-stack · feat: add RAFS service"]);
+  expect(rows("can-wait")).toEqual(["osdu-spi-stack · Feat: add RAFS service"]);
   await key("Enter");
   expect(palettes()).toHaveLength(0);
   expect(window.location.hash).toBe("#today");

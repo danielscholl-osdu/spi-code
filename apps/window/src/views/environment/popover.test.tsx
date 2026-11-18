@@ -189,7 +189,7 @@ it("opens a run's Today member when core folds the run into one", async () => {
   await render(body);
   await act(async () => bar(SMOKE).click());
   const shown = read();
-  expect(shown.title).toBe("crs-conversion · sync halted: no filter rule for schemathesis-tests");
+  expect(shown.title).toBe("crs-conversion · Sync halted: no filter rule for schemathesis-tests");
   expect(shown.pills).toContainEqual(["Run", RUN]);
   expect(openSelection()).toEqual({ kind: "event", id: SMOKE });
 });

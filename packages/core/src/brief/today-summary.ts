@@ -251,7 +251,8 @@ export function todayHistory(model: Model, facts: Facts, since: Since | undefine
         return { workflow, label, place,
           counts: OUTCOMES.flatMap(([outcome, text, tone]) => {
             const matches = evidence.filter((e) => (state(e) === "unknown" ? "not-read" : state(e)) === outcome);
-            return matches.length ? [count(outcome === "broken" ? "failed" : outcome, text,
+            const label = outcome === "occupied" && matches.length === 1 ? "new PR" : text;
+            return matches.length ? [count(outcome === "broken" ? "failed" : outcome, label,
               matches.map((e) => ({ name: e.line.fork.id, url: "" })), tone)] : [];
           }),
           notRead: evidence.flatMap((e) => e.evidence.notRead),

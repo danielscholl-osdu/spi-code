@@ -4,6 +4,7 @@
 import type { CanWaitCause, CanWaitCauses } from "@spi-code/contracts";
 import { plainText } from "../readings/index.js";
 import { age } from "../util.js";
+import { sentenceHeadline } from "./headline.js";
 
 type CauseKind = CanWaitCause["kind"];
 export type CauseObject = {
@@ -43,7 +44,7 @@ function grouped<T>(objects: readonly T[], keyOf: (object: T) => string): Map<st
 
 function headline(title: string): string {
   const words = plainText(title).split(/\s+/);
-  return words.length > 12 ? `${words.slice(0, 11).join(" ")}…` : words.join(" ");
+  return sentenceHeadline(words.length > 12 ? `${words.slice(0, 11).join(" ")}…` : words.join(" "));
 }
 
 function sharedPackages(

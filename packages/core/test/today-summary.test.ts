@@ -547,8 +547,8 @@ describe("Today's lower sections on the unchanged 16 Nov sweep", () => {
       }),
     );
     expect(rows.slice(4, 6)).toMatchObject([
-      { headline: "chore: audit manifests", forks: [{ fork: first }] },
-      { headline: "chore: clean tests", forks: [{ fork: first }] },
+      { headline: "Chore: audit manifests", forks: [{ fork: first }] },
+      { headline: "Chore: clean tests", forks: [{ fork: first }] },
     ]);
     expect(rows.at(-1)).toMatchObject({
       place: "security",

@@ -24,6 +24,7 @@ const OpenPull = Pull.extend({
   checks: z.strictObject({
     state: z.enum(["failing", "pending", "passing"]).nullable(),
     passed: z.int().nonnegative(),
+    skipped: z.int().nonnegative().optional(),
     failed: z.array(z.string()),
   }),
   gate: z.string().optional(),

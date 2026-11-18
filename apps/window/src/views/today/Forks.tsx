@@ -36,27 +36,20 @@ function stationReading(station: ServiceHomeStation | undefined, notRead: boolea
   const word = station?.word.trim();
   const missingWord = !word || /^not read$/i.test(word);
   const unread = notRead || station?.notRead || station?.state === "unread" || missingWord;
-  const calm = word === "None open" || word === "Sync current" || station?.state === "green";
   return {
     unread,
-    state: station?.state ?? "unread",
-    word: missingWord || (unread && calm) ? station?.pr && `PR #${station.pr.number}` : word,
+    state: unread ? ("unread" as const) : (station?.state ?? "unread"),
+    word: unread ? station?.pr && `PR #${station.pr.number}` : word,
   };
 }
 
-function StationCell({
-  reading,
-  unread,
-}: {
-  reading: ReturnType<typeof stationReading>;
-  unread: boolean;
-}) {
+function StationCell({ reading }: { reading: ReturnType<typeof stationReading> }) {
   const { state, word } = reading;
-  if (!word || (unread && word === "None open")) return null;
+  if (!word) return null;
   const { glyph, say } = STATION_MARKS[state];
   return (
     <span className="forks-reading" data-state={state}>
-      {state !== "unread" && !(unread && state === "ready") && (
+      {state !== "unread" && (
         <>
           <span className="forks-glyph" aria-hidden="true">
             {glyph}
@@ -337,7 +330,7 @@ export function Forks({
             return (
               <td key={column} {...props(column)}>
                 {door && <DoorCell reading={door} unread={unread} />}
-                {station && <StationCell reading={station} unread={unread} />}
+                {station && <StationCell reading={station} />}
               </td>
             );
           })}

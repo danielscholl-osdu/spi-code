@@ -7,7 +7,8 @@
   overflow-x: auto;
   container-type: inline-size;
 }
-.forks-scroll table { width: 100%; min-width: 900px; table-layout: fixed; border-collapse: separate; border-spacing: 0; }
+.today-section-box.forks-scroll { padding-inline: 0; }
+.forks-scroll table { width: 100%; min-width: 960px; table-layout: fixed; border-collapse: separate; border-spacing: 0; }
 .forks-scroll :is(th, td) { padding: 7px 6px; text-align: left; }
 .forks-scroll thead th { color: var(--text-muted); font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
 .forks-scroll tbody :is(th, td) { border-top: 1px solid var(--border-soft); }
@@ -15,6 +16,7 @@
 .forks-scroll tr[data-fork]:hover { --forks-row-surface: var(--hover); }
 .forks-scroll tr[data-open] { --forks-row-surface: var(--surface-raised); }
 .forks-scroll tr > :is(th, td) { background: var(--forks-row-surface); }
+.forks-scroll [data-column] { overflow: hidden; }
 .forks-scroll :is(.forks-toggle-cell, .forks-name-cell, .forks-mark-cell) { position: sticky; z-index: 1; box-sizing: border-box; }
 .forks-toggle-cell { left: 0; width: var(--forks-toggle-width); }
 .forks-name-cell { left: var(--forks-toggle-width); width: var(--forks-name-width); }

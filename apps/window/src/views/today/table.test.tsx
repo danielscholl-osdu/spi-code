@@ -20,7 +20,7 @@ import {
 } from "../../app/navigation.js";
 import { serviceMark } from "../../components/sidebar/service-mark.js";
 import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
-import { clockTime, timedText } from "../../time.js";
+import { timedText, when } from "../../time.js";
 import { TodayHome } from "./Home.js";
 import snapshot1116 from "./snapshot-1116.json?raw";
 import { ageInOneUnit, todayRowOf } from "./Table.js";
@@ -272,9 +272,13 @@ it("a member's age is the age of its object, in one unit", async () => {
     [...container.querySelectorAll("table")].map((table) => table.textContent).join(" "),
   ).not.toContain("59d");
   expect(row("waiting:release-approval").querySelector(".today-row-age")?.textContent).toBe("7d");
-  expect([ageInOneUnit("1d 2h"), ageInOneUnit("33m"), ageInOneUnit("6d 22h")]).toEqual([
-    "26h",
+  expect(["33m", "23h", "24h", "1d", "1d 23h", "2d", "6d 22h"].map(ageInOneUnit)).toEqual([
     "33m",
+    "23h",
+    "1d",
+    "1d",
+    "1d",
+    "2d",
     "7d",
   ]);
 });
@@ -429,7 +433,7 @@ it.each([
   if (asOf) history.asOf = asOf;
   else delete history.asOf;
   await render(body, "#today/activity");
-  const time = (at: string) => clockTime(at, { hint: false });
+  const time = (at: string) => when(at);
   expect(container.querySelector("[data-section=history] .today-section-head")?.textContent).toBe(
     text.replace("{from}", time(history.from)).replace("{asOf}", time(asOf ?? "")),
   );
@@ -793,15 +797,13 @@ describe("Forks on the 16 Nov sweep", () => {
     const service = body.services?.find((service) => service.service === "file");
     const home = service?.home;
     const main = fleet?.stations.find(({ id }) => id === "main");
-    const station = home?.stations.find(({ id }) => id === "main");
     const other = home?.doors.find(({ id }) => id === "other");
     const template = home?.doors.find(({ id }) => id === "template");
-    if (!service || !home?.releasePr || !main || !station || !other || !template)
+    if (!service || !home?.releasePr || !main || !other || !template)
       throw new Error("Fixture needs file's readings");
 
     if (gap === "Main and the service mark") {
       main.notRead.push("file");
-      Object.assign(station, { state: "unread", word: "not read" });
       home.mark = { kind: "unread" };
       delete home.openPrTotal;
     } else if (gap === "a door with a known service count") {
@@ -825,7 +827,11 @@ describe("Forks on the 16 Nov sweep", () => {
     ).not.toBeNull();
     expect(cell(blank)).toBe("");
     expect(cell("release")).toBe(release);
-    expect(row?.textContent).not.toMatch(/None open|·|\b0\b/);
+    expect(row?.textContent).not.toMatch(/\b0\b/);
+    if (gap !== "the home") {
+      expect(cell("upstream")).toContain("Sync current");
+      expect(cell("sync")).toContain("None open");
+    }
     if (blank === "main") expect(row?.textContent).not.toContain("Green");
     if (gap === "a door with a known service count") {
       expect(row?.querySelector(".sidebar-mark")?.textContent).toBe("2");

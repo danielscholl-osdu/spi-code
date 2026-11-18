@@ -52,9 +52,11 @@ export function WorkList<T extends Row>({
   render: (row: T) => RowContent;
 }) {
   const selected = rows.find((entry) => String(entry.number) === row);
-  const [open, setOpen] = useState(row);
+  const [localOpen, setLocalOpen] = useState<string>();
+  const open = row ?? localOpen;
   const [filter, setFilter] = useState<Filter>(selected && !actionable(selected) ? "all" : "open");
   const [query, setQuery] = useState("");
+  const [previousRow, setPreviousRow] = useState(row);
   const done = kind === "pr" ? "merged" : "closed";
   const tab = kind === "pr" ? "pulls" : "issues";
   const word = kind === "pr" ? "pull requests" : "issues";
@@ -64,9 +66,18 @@ export function WorkList<T extends Row>({
       (filter === "all" || (filter === "open" ? actionable(entry) : entry.state === done)) &&
       `#${entry.number} ${entry.title} ${entry.author ?? ""}`.toLowerCase().includes(needle),
   );
+  if (row !== previousRow) {
+    setPreviousRow(row);
+    if (selected && !shown.includes(selected)) {
+      setFilter(actionable(selected) ? "open" : "all");
+      setQuery("");
+    }
+  }
   const toggle = (id: string, expanded: boolean) => {
-    if (row) navigate({ kind: "service", id: service, tab, ...(expanded ? {} : { row: id }) });
-    else setOpen(expanded ? undefined : id);
+    if (row) {
+      setLocalOpen(undefined);
+      navigate({ kind: "service", id: service, tab, ...(expanded ? {} : { row: id }) });
+    } else setLocalOpen(expanded ? undefined : id);
   };
   const unreadOpen = filter !== "done" && count === null && !partial;
   const unreadPast = filter !== "open" && !historyRead;
@@ -84,8 +95,9 @@ export function WorkList<T extends Row>({
           Open {count ?? "⌀"}
         </button>
         <button type="button" aria-pressed={filter === "done"} onClick={() => setFilter("done")}>
-          {done === "merged" ? "Merged" : "Closed"}{" "}
-          {historyRead ? rows.filter((entry) => entry.state === done).length : "⌀"}
+          {done === "merged"
+            ? `Merged ${historyRead ? rows.filter((entry) => entry.state === done).length : "⌀"}`
+            : "Closed"}
         </button>
         <button type="button" aria-pressed={filter === "all"} onClick={() => setFilter("all")}>
           All

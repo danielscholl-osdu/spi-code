@@ -47,3 +47,13 @@ test("keeps the newest attempt and names failed checks beside the passed count",
     ]),
   ).toEqual({ state: "failing", passed: 1, failed: ["license/cla"] });
 });
+
+test("distinguishes an empty list from skipped and neutral checks", () => {
+  expect(checksOf([])).toEqual({ state: null, passed: 0, failed: [], skipped: 0 });
+  expect(
+    checksOf([
+      { id: 1, name: "Optional", status: "COMPLETED", conclusion: "SKIPPED" },
+      { id: 2, name: "Report", status: "COMPLETED", conclusion: "NEUTRAL" },
+    ]),
+  ).toEqual({ state: null, passed: 0, failed: [], skipped: 2 });
+});

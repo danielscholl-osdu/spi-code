@@ -47,6 +47,27 @@ export function openCause(row: string) {
 
 type Fork = CanWaitCause["forks"][number];
 
+export function causeReading(cause: CanWaitCause, notRead: readonly string[]) {
+  const forks = cause.forks.filter(({ group, notRead }) => group === "fork" && !notRead);
+  const one = forks.length === 1 ? forks[0] : undefined;
+  const gap =
+    notRead.length > 0 ||
+    cause.forks.some(({ group }) => group === undefined || group === "unknown");
+  const programOnly =
+    cause.forks.length > 0 && cause.forks.every(({ group }) => group === "program");
+  const [repository] = cause.forks;
+  const subject =
+    one?.fork ??
+    (programOnly
+      ? cause.forks.length === 1 && repository
+        ? repository.fork
+        : `${cause.forks.length} repositories`
+      : forks.length || !gap
+        ? forksWord(forks.length)
+        : "Not read");
+  return { subject, forks, one, gap, programOnly };
+}
+
 /** What a fork holds of a cause: its PR's age, its one object, or its count. */
 function forkDetail(kind: CanWaitCause["kind"], fork: Fork): string {
   const [only] = fork.objects;
@@ -230,18 +251,8 @@ export function CanWait({
         {causes.rows.map((cause) => {
           const opened = isCause(open, cause.id);
           const place = cause.place && PLACES[cause.place];
-          const forks = cause.forks.filter(({ group, notRead }) => group === "fork" && !notRead);
-          const [one] = forks;
           const notRead = causes.notRead[cause.kind];
-          const unknown = cause.forks.some(
-            ({ group }) => group === undefined || group === "unknown",
-          );
-          const gap = notRead.length > 0 || unknown;
-          const programOnly =
-            cause.forks.length > 0 && cause.forks.every(({ group }) => group === "program");
-          const [repository] = cause.forks;
-          const programSubject =
-            cause.forks.length === 1 ? repository?.fork : `${cause.forks.length} repositories`;
+          const { subject, forks, one, gap, programOnly } = causeReading(cause, notRead);
           const count = forks.length || programOnly ? cause.count : 0;
           const forkCount = forks.length;
           const [singular, plural] = UNITS[cause.kind];
@@ -259,16 +270,10 @@ export function CanWait({
                 {...(opened ? { "data-open": "" } : {})}
               >
                 <td className="today-row-fork">
-                  {forkCount === 1 && one ? (
+                  {one ? (
                     <ForkName fork={one.fork} services={services} />
                   ) : (
-                    <span className="today-fork-name">
-                      {programOnly
-                        ? programSubject
-                        : forkCount || !gap
-                          ? forksWord(forkCount)
-                          : "Not read"}
-                    </span>
+                    <span className="today-fork-name">{subject}</span>
                   )}
                 </td>
                 <td className="today-row-what">

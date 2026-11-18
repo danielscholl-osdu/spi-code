@@ -192,6 +192,23 @@ test("reads the latest failed attempt once per failing workflow, including pagin
     count: 1,
     failing: [{ run: { id: 2, attempt: 2 }, job: "Build", step: "Run Maven" }],
   });
+  const repeated = await fixture({ total: 1, runs: [failed] }, undefined, completed.facts);
+  expect(repeated.paths).toHaveLength(1);
+  expect(repeated.view).toMatchObject({
+    failing: [{ run: { id: 2, attempt: 2 }, job: "Build", step: "Run Maven" }],
+  });
+  const retry = { ...failed, attempt: 3 };
+  const retried = await fixture(
+    { total: 1, runs: [retry] },
+    () => ({ total: 1, jobs: [{ ...job, name: "Verify", steps: [] }] }),
+    repeated.facts,
+  );
+  expect(retried.paths.slice(1)).toEqual([
+    `repos/${repo}/actions/runs/2/attempts/3/jobs?per_page=100&page=1`,
+  ]);
+  expect(retried.view).toMatchObject({
+    failing: [{ run: { id: 2, attempt: 3 }, job: "Verify", step: undefined }],
+  });
 });
 
 test("a retry of the same run retains the observed failure until it passes", async () => {

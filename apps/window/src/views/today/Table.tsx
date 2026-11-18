@@ -191,7 +191,7 @@ function RowCells({
           </button>
         )}
         {row.member?.ids.some((id) => id.startsWith("port:")) && (
-          <span className="today-row-tag">Counted on Upstream</span>
+          <span className="service-tag today-row-tag">Counted on Upstream</span>
         )}
       </td>
       <td className="today-row-open">{row.pill && <LinkPill link={row.pill} />}</td>

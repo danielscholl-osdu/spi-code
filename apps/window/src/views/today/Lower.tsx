@@ -4,7 +4,7 @@
 import type { TodayHistory, TodaySummary } from "@spi-code/contracts";
 import type { MouseEvent, ReactNode } from "react";
 import { type Destination, FORKS, navigate } from "../../app/navigation.js";
-import { Time } from "../../time.js";
+import { When } from "../../time.js";
 
 type Count = TodayHistory["rows"][number]["counts"][number];
 type Moving = TodaySummary["moving"][number];
@@ -43,7 +43,7 @@ function CountText({ count }: { count: Count }) {
       data-tone={count.tone}
       {...(count.names.length ? { title: count.names.join(", ") } : {})}
     >
-      {count.count} {count.label}
+      {count.count} {count.kind === "occupied" && count.count === 1 ? "new PR" : count.label}
     </span>
   );
 }
@@ -108,7 +108,7 @@ function movingWords(row: Moving): string {
 }
 
 function movingRow(row: Moving) {
-  const when = row.at ? <Time at={row.at} hint={false} /> : row.time;
+  const when = row.at ? <When at={row.at} /> : row.time;
   const words = movingWords(row);
   return (
     <PlaceRow
@@ -153,19 +153,19 @@ function historyLabel(history: TodayHistory): ReactNode {
   if (history.basis === "seen")
     return (
       <>
-        Since you last looked, <Time at={history.from} hint={false} />
+        Since you last looked, <When at={history.from} />
       </>
     );
   if (history.basis === "history-short")
     return (
       <>
-        Since <Time at={history.from} hint={false} />
+        Since <When at={history.from} />
       </>
     );
   if (history.asOf)
     return (
       <>
-        24 hours to <Time at={history.asOf} hint={false} />
+        24 hours to <When at={history.asOf} />
       </>
     );
   return "Last 24 hours";

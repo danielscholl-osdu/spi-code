@@ -272,7 +272,7 @@ export function selectionRows(snapshot: ViewSnapshot): SelectionRow[] {
           { label: "Ready", value: row.ready.text },
           { label: "Plan", value: row.plan.text },
           ...row.line.map((cell, index) => ({
-            label: ["Sync PR", "Cascade", "Sync to main", "Main run"][index] ?? "Line",
+            label: ["Sync PR", "Integration", "Sync to main", "Main run"][index] ?? "Line",
             value: cell.text,
           })),
           { label: "Next", value: row.next.text },

@@ -16,7 +16,7 @@ export function Issues({ id, home, snapshot, row }: TabProps) {
   const list = serviceWorkOf(snapshot, id)?.issues;
   return (
     <WorkList
-      key={`${id}:${row ?? ""}`}
+      key={id}
       kind="issue"
       repo={home.repo}
       service={id}

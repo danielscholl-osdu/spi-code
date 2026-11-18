@@ -44,7 +44,7 @@ export function Section({
               <tr>
                 <th scope="col">Fork</th>
                 <th scope="col">What</th>
-                <th scope="col">Open</th>
+                <th scope="col">Link</th>
                 <th scope="col">Age</th>
               </tr>
             </thead>
@@ -56,12 +56,13 @@ export function Section({
   );
 }
 
-/** Ages in one unit: core's "6d 22h" reads 7d, and "1d 2h" reads 26h. */
 export function ageInOneUnit(age: string | undefined): string | undefined {
-  const parts = age?.match(/^(\d+)d (\d+)h$/);
+  const parts = age?.match(/^(\d+)d (\d+)h$|^(\d+)h$/);
   if (!parts) return age;
-  const hours = Number(parts[1]) * 24 + Number(parts[2]);
-  return hours < 48 ? `${hours}h` : `${Math.round(hours / 24)}d`;
+  const hours =
+    parts[3] === undefined ? Number(parts[1]) * 24 + Number(parts[2]) : Number(parts[3]);
+  if (hours < 24) return `${hours}h`;
+  return `${hours < 48 ? 1 : Math.round(hours / 24)}d`;
 }
 
 /** A fork's name opens its service page; a subject that is no fork is only words. */

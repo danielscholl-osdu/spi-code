@@ -144,7 +144,7 @@ it("opens Evidence for what is open on the page, and the whole sweep from Eviden
   });
   const page = () => container.querySelector(".centre-body [data-evidence-page]");
   expect(page()?.querySelector(".evidence-lede")?.textContent).toContain(
-    "partition · next sync has an entry without a filter rule",
+    "partition · Next sync has an entry without a filter rule",
   );
   await openEvidence();
   expect(parseRoute(window.location.hash)).toEqual({

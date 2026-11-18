@@ -95,6 +95,7 @@ function TopBar({ id, home }: { id: string; home: ServiceHome | undefined }) {
               type="button"
               className="service-template"
               data-template={home.template}
+              aria-label={home.template === "behind" ? "Template behind" : undefined}
               title={`Template ${home.template === "current" ? "current" : "behind"}. Open Template.`}
               onClick={() => navigate({ kind: "engineering-system" })}
             >

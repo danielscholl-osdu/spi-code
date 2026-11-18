@@ -21,7 +21,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import type { Briefing, CanWaitCause, CanWaitCauses, ViewSnapshot } from "@spi-code/contracts";
+import type { Briefing, ViewSnapshot } from "@spi-code/contracts";
 import { treeServices } from "../app/queue.js";
 import {
   DEFAULT_REGISTRY,
@@ -34,7 +34,7 @@ import {
 import { pinOf } from "../store/pins.js";
 import { plainTitle } from "../text.js";
 import { TABS } from "../views/service/tabs.js";
-import { forksWord } from "../views/today/fleet.js";
+import { causeReading } from "../views/today/CanWait.js";
 import { drawnCauses } from "../views/today/Table.js";
 import { foldSearchQuery, rankSearchGroups, scoreSearchTerms } from "./search.js";
 
@@ -131,29 +131,6 @@ function serviceChildren(body: ViewSnapshot, id: string): PaletteGroup | undefin
   return { value: `on:${id}`, label: `On ${id}`, items };
 }
 
-const NO_GAPS: CanWaitCauses["notRead"] = {
-  release: [],
-  dependabot: [],
-  other: [],
-  issue: [],
-  alert: [],
-};
-
-/** What Today's Can wait row names in its fork column. */
-function causeSubject(cause: CanWaitCause, notRead: CanWaitCauses["notRead"]): string {
-  const forks = cause.forks.filter(({ group, notRead }) => group === "fork" && !notRead);
-  const [one] = forks;
-  if (forks.length === 1 && one) return one.fork;
-  if (cause.forks.length > 0 && cause.forks.every(({ group }) => group === "program"))
-    return cause.forks.length === 1
-      ? (cause.forks[0]?.fork ?? "")
-      : `${cause.forks.length} repositories`;
-  const gap =
-    notRead[cause.kind].length > 0 ||
-    cause.forks.some(({ group }) => group === undefined || group === "unknown");
-  return forks.length || !gap ? forksWord(forks.length) : "Not read";
-}
-
 /** Today's Blocked, Waiting on you and Can wait rows, in Today's order and words. */
 function todayGroups(briefing: SnapshotBody["briefing"] | undefined): PaletteGroup[] {
   const lines = briefing?.lines ?? [];
@@ -180,7 +157,7 @@ function todayGroups(briefing: SnapshotBody["briefing"] | undefined): PaletteGro
     label: "Can wait",
     items: (causes?.rows ?? []).map((cause) => ({
       value: `cause:${cause.id}`,
-      label: `${causeSubject(cause, causes?.notRead ?? NO_GAPS)} · ${plainTitle(cause.headline)}`,
+      label: `${causeReading(cause, causes?.notRead[cause.kind] ?? []).subject} · ${plainTitle(cause.headline)}`,
       kind: "",
       keywords: cause.forks.map(({ fork }) => fork),
       target: { kind: "cause", id: cause.id },

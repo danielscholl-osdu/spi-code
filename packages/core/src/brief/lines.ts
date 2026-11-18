@@ -13,6 +13,7 @@ import type { ItemKind, QueueItem } from "../model/queue.js";
 import type { SweepReads } from "../sweep/index.js";
 import { age, plural, short } from "../util.js";
 import type { FocusItem, Link } from "./index.js";
+import { sentenceHeadline } from "./headline.js";
 import type { LinkKind } from "./move.js";
 import { pullsComplete } from "./repo-today.js";
 
@@ -443,7 +444,7 @@ export function todayLines(
       id,
       section: moves[0].section,
       ...words,
-      headline: plain(words.headline),
+      headline: sentenceHeadline(plain(words.headline)),
       ...(members[0]?.age ? { age: members[0].age } : {}),
       ...(deadlines[0] ? { deadline: deadlines[0] } : {}),
       members,

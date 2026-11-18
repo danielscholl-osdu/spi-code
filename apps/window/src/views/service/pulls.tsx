@@ -17,7 +17,7 @@ export function Pulls({ id, home, snapshot, row }: TabProps) {
   const list = serviceWorkOf(snapshot, id)?.pulls;
   return (
     <WorkList
-      key={`${id}:${row ?? ""}`}
+      key={id}
       kind="pr"
       repo={home.repo}
       service={id}
@@ -29,7 +29,7 @@ export function Pulls({ id, home, snapshot, row }: TabProps) {
       at={list?.at}
       row={row}
       render={(pr) => ({
-        subtitle: pr.state === "open" ? [pr.author, `into ${pr.base}`, ...pr.labels] : [pr.author],
+        subtitle: pr.state === "open" ? [pr.author, `into ${pr.base}`] : [pr.author],
         status: <PullStatus pr={pr} />,
         summary: <PullSummary pr={pr} />,
         companion: pr.companion,
@@ -52,14 +52,29 @@ function PullStatus({ pr }: { pr: ServicePull }) {
       </span>
     );
   }
-  const { passed, failed, state } = pr.checks;
+  const { passed, failed, skipped, state } = pr.checks;
+  const neutral =
+    skipped === undefined
+      ? "Checks not read"
+      : skipped > 0
+        ? `${skipped} skipped`
+        : "No checks reported";
   return (
     <>
+      {pr.labels.length > 0 && (
+        <span>
+          {pr.labels.map((label) => (
+            <span className="service-tag" key={label}>
+              {label}
+            </span>
+          ))}
+        </span>
+      )}
       <span>
         {passed > 0 && <span data-tone="success">{passed} passed</span>}
         {failed.length > 0 && <span data-tone="error">{failed.join(", ")} failed</span>}
         {state === "pending" && <span>Checks pending</span>}
-        {state === null && <span>No checks reported</span>}
+        {state === null && <span>{neutral}</span>}
       </span>
       {pr.gate && <span data-tone={pr.waiting ? "warning" : undefined}>{pr.gate}</span>}
     </>

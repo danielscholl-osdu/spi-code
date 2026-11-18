@@ -233,7 +233,7 @@ it("lists Before next sync items as briefing records and opens a hold in the sha
   expect(selectionStore.getState()).toMatchObject({ selected: null, open: false });
   const opened = popover()?.querySelector(".opened-body");
   expect(opened?.querySelector("h3")?.textContent).toBe(
-    "legal · upstream changes need a toolchain upgrade",
+    "legal · Upstream changes need a toolchain upgrade",
   );
   expect(opened?.querySelector(".opened-body-deadline time")?.textContent).toBe(
     "Before the next upstream sync, 18:00",

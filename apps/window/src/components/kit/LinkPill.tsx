@@ -45,7 +45,7 @@ export function linkPillText(link: Link): string {
       return workflow ? `${workflow} run` : "Run";
     }
     case "job":
-      return "Job";
+      return "Failed job";
     case "deploy":
       return "Deployments";
     default:

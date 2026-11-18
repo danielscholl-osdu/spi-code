@@ -82,6 +82,8 @@ export async function readServiceRuns(
     } : { kind: "complete" };
     const priorFailures = prior?.failures ?? [];
     const carriedByRun = new Map(priorFailures.map((entry) => [entry.run, entry]));
+    const previousJobs = new Map(priorFailures.filter(({ job }) => job)
+      .map((entry) => [jobsKey(entry.run), entry]));
     const workflowReads: ReadRecord[] = [];
     const failures: NonNullable<ServiceRunsFact["history"]>["failures"] = [];
     for (const group of workflowGroups([...runs, ...priorFailures.map(({ run }) => run)])) {
@@ -109,7 +111,7 @@ export async function readServiceRuns(
       }
       const failed = workflowFailure(group);
       if (!failed) continue;
-      const carried = carriedByRun.get(failed);
+      const carried = carriedByRun.get(failed) ?? previousJobs.get(jobsKey(failed));
       const path = failed.path ?? group.find((run) => run.path)?.path;
       const run = path && !failed.path ? { ...failed, path } : failed;
       failures.push(carried ? { ...carried, run } : await readFailure(gh, ctx, repo, run, jobCache, jobs));

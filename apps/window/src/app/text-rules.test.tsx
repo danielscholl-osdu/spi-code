@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { expect, it, vi } from "vitest";
 import { readFixture } from "../../../../scripts/watch-generated.mjs";
@@ -10,6 +11,7 @@ import { fixtureLoader } from "../test-utils/harness.js";
 import { WATCH_SNAPSHOTS } from "../test-utils/watch-fixtures.test-helper.js";
 import { plainTitle } from "../text.js";
 import { clockTime } from "../time.js";
+import snapshot1116 from "../views/today/snapshot-1116.json?raw";
 import {
   assertRules,
   container,
@@ -31,6 +33,24 @@ const loadFixture = fixtureLoader(readFixture);
 const snapshots = WATCH_SNAPSHOTS.map((name) => ({ name, body: loadFixture(name) }));
 
 shellHooks();
+
+it("starts Today headlines in sentence case on every fixture", () => {
+  const lowercase = /^\p{P}*\p{Ll}/u;
+  const identifier = /^\p{P}*(?:[a-f0-9]{7,40}\b|[`@]|[\p{Ll}\d]+(?:[./_:-][\p{L}\d]|\p{Lu}))/u;
+  const recorded = {
+    name: "snapshot-1116.json",
+    body: ViewSnapshotSchema.parse(JSON.parse(snapshot1116)),
+  };
+  for (const { name, body } of [...snapshots, recorded]) {
+    const rows = [...(body.briefing.lines ?? []), ...(body.briefing.today?.causes?.rows ?? [])];
+    expect(
+      rows
+        .map(({ headline }) => headline)
+        .filter((text) => lowercase.test(text) && !identifier.test(text)),
+      name,
+    ).toEqual([]);
+  }
+});
 
 it.each(["flight", "planning", "quiet"] as const)(
   "names the %s state and draws no empty plan or next part",

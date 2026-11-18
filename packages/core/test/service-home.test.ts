@@ -466,7 +466,7 @@ test("an open sync PR and an unsettled failure raise one Blocked row with the fa
   expect(row(project(facts, now))).toBeUndefined();
   runs.sync = [run(121, "failure")];
   expect(row(project(facts, now))).toMatchObject({
-    headline: "sync failed",
+    headline: "Sync failed",
     cause: "Sync Upstream failed with no halt issue open.",
   });
 });
@@ -587,6 +587,15 @@ describe("a failed GitHub read of a fork", () => {
     const result = work(facts, failure(undefined, `${repo}@closed-issues`));
     expect(result?.pulls).toMatchObject({ count: 2, read: true });
     expect(result?.issues).toMatchObject({ count: 1, read: true, closedRead: false });
+  });
+
+  test("orders the recent closed issues by their close date after the open rows", () => {
+    const { facts, github } = held();
+    github.closedIssues = [
+      { ...issue({ number: 79, url: `${url}/issues/79` }), closedAt: sweep.toISOString() },
+      { ...issue({ number: 80, url: `${url}/issues/80` }), closedAt: merge },
+    ];
+    expect(work(facts, {})?.issues.rows.map(({ number }) => number)).toEqual([33, 80, 79]);
   });
 
   test("of the repository and its closed issues never reads the retained closed history", () => {

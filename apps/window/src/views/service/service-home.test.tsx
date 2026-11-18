@@ -261,6 +261,29 @@ it("shows a proven tracking issue only under All and keeps its companion on the 
   );
 });
 
+it("keeps the work-list filter and query when toggling from a deep-linked PR", async () => {
+  await mount(sixteenth(), "#service/search/pulls/77");
+  const button = (name: string) =>
+    [...container.querySelectorAll(".work-filters button")].find(
+      (entry) => entry.textContent === name,
+    ) as HTMLButtonElement;
+  await act(async () => button("All").click());
+  const input = $<HTMLInputElement>(".work-filters input");
+  if (!input) throw new Error("Missing Pull requests filter");
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+      input,
+      "osdu-spi-automation",
+    );
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await act(async () => $<HTMLButtonElement>('li[data-row="76"] .service-row-head')?.click());
+  expect($('li[data-row="76"][data-open]')).not.toBeNull();
+  expect(button("All").getAttribute("aria-pressed")).toBe("true");
+  expect($<HTMLInputElement>(".work-filters input")?.value).toBe("osdu-spi-automation");
+  expect($('li[data-row="71"]')).toBeNull();
+});
+
 const serviceOf = (body: ViewSnapshot, id: string) => {
   const service = body.services?.find(({ service }) => service === id);
   if (!service?.home || !service.work) throw new Error(`${id} has no home`);
@@ -371,6 +394,6 @@ it("gives an Overview row the age Today gives it, with its clock time on hover",
   await mount(body, "#service/indexer");
   const age = $('li[data-row="gate1:indexer"] .service-row-age time');
   expect(age?.textContent).toBe(ageInOneUnit(member.age));
-  expect(age?.textContent).toBe("37h");
+  expect(age?.textContent).toBe("1d");
   expect(age?.getAttribute("title")).toBe(when(since, { now: Date.now() }));
 });

@@ -330,7 +330,7 @@ describe("Today's situation lines", () => {
     expect(line?.members.map((m) => m.fork)).toEqual(["unit", "workflow", "crs-catalog", "search"]);
     expect(line).toMatchObject({
       subject: "4 forks",
-      headline: "sync PR needs os-core-common upgraded on the fork first",
+      headline: "Sync PR needs os-core-common upgraded on the fork first",
       age: "10d",
       steps: ["Upgrade os-core-common in the fork's pom.xml.", "Review and merge the sync PR."],
     });
@@ -353,7 +353,7 @@ describe("Today's situation lines", () => {
     expect(group).toMatchObject({
       id: "waiting:toolchain:os-core-common",
       subject: "3 forks",
-      headline: "upstream changes need a toolchain upgrade",
+      headline: "Upstream changes need a toolchain upgrade",
       steps: [],
     });
     expect(group?.members.map((m) => m.id).sort()).toEqual([
@@ -399,7 +399,7 @@ describe("Today's situation lines", () => {
       headline: "Integration PR red: its deploy lane failed",
     });
     expect(releaseLine?.members).toHaveLength(5);
-    expect(syncLine).toMatchObject({ headline: "sync PR waits for its deploy lane" });
+    expect(syncLine).toMatchObject({ headline: "Sync PR waits for its deploy lane" });
     expect(syncLine?.members.map((m) => m.id)).toEqual([sync.id]);
   });
 
@@ -425,7 +425,7 @@ describe("Today's situation lines", () => {
     });
     expect(lineWith("lane-deploy:partition")).toMatchObject({
       subject: "partition",
-      headline: "lane deploy failed",
+      headline: "Lane deploy failed",
     });
     expect(lineWith("gate2:storage")).not.toBe(lineWith("lane-deploy:partition"));
   });
@@ -507,7 +507,7 @@ describe("Today's situation lines", () => {
     });
     expect(lineWith("rollout")).toMatchObject({
       subject: "7 forks",
-      headline: "template 1a4730d not synced yet",
+      headline: "Template 1a4730d not synced yet",
       deadline: {
         at: "2026-11-17T08:00:00.000Z",
         reason: expect.stringContaining("all 7 PRs at once"),

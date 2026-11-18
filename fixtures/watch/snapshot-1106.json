@@ -15,7 +15,7 @@
         "id": "blocked:conflict:entitlements:121",
         "section": "blocked",
         "subject": "entitlements",
-        "headline": "sync has a merge conflict",
+        "headline": "Sync has a merge conflict",
         "cause": "Cascade blocked: 🚨 Integration Validation Failed: Build/Test Errors - 2026-11-05.",
         "effect": "Nothing else waits on it.",
         "steps": [],
@@ -104,7 +104,7 @@
         "id": "waiting:toolchain:os-core-common",
         "section": "waiting",
         "subject": "7 forks",
-        "headline": "upstream changes need a toolchain upgrade",
+        "headline": "Upstream changes need a toolchain upgrade",
         "cause": "Queued upstream commits move the root pom to os-core-common 8.4.1-boot4-SNAPSHOT, os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT and os-core-common 8.5.0.",
         "effect": "17 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
         "steps": [],
@@ -379,7 +379,7 @@
         "id": "waiting:radar:partition",
         "section": "waiting",
         "subject": "partition",
-        "headline": "next sync has an entry without a filter rule",
+        "headline": "Next sync has an entry without a filter rule",
         "cause": "Queued upstream commits add schemathesis-tests, which the fork's filter has no rule for.",
         "effect": "8 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
         "steps": [],
@@ -432,7 +432,7 @@
         "id": "waiting:upgrade:os-core-common",
         "section": "waiting",
         "subject": "2 forks",
-        "headline": "sync PR needs os-core-common upgraded on the fork first",
+        "headline": "Sync PR needs os-core-common upgraded on the fork first",
         "cause": "The sync PRs carry upstream changes that require os-core-common on the fork.",
         "effect": "The sync PRs wait for the fork's dependency upgrade.",
         "steps": ["Upgrade os-core-common in the fork's pom.xml.", "Review and merge the sync PR."],
@@ -524,7 +524,7 @@
         "id": "waiting:sync-review",
         "section": "waiting",
         "subject": "indexer-queue",
-        "headline": "sync PR to review",
+        "headline": "Sync PR to review",
         "cause": "Sync PR #58 waits for review.",
         "effect": "3 upstream commits wait on this PR.",
         "steps": [],
@@ -559,7 +559,7 @@
         "id": "waiting:rollout",
         "section": "waiting",
         "subject": "13 forks",
-        "headline": "template 7d269b5 not synced yet",
+        "headline": "Template 7d269b5 not synced yet",
         "cause": "osdu-spi main 7d269b5 is on its way to the fleet: 0 of 13 forks merged.",
         "effect": "The change reaches actions, workflows and settings, so every PR and every merge takes a deploy lane: 13 lanes, 5 at a time still to go.",
         "steps": [],
@@ -1484,7 +1484,7 @@
           {
             "id": "other:chore(notice)%3A%20refresh%20notice%20from%20component%20governance",
             "kind": "other",
-            "headline": "chore(notice): refresh NOTICE from Component Governance",
+            "headline": "Chore(notice): refresh NOTICE from Component Governance",
             "count": 1,
             "forkCount": 1,
             "forks": [
@@ -7932,7 +7932,7 @@
           {
             "id": "radar:partition",
             "section": "waiting",
-            "headline": "next sync has an entry without a filter rule",
+            "headline": "Next sync has an entry without a filter rule",
             "cause": "Queued upstream commits add schemathesis-tests, which the fork's filter has no rule for.",
             "effect": "8 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "steps": [],
@@ -7949,7 +7949,7 @@
           {
             "id": "rollout:partition",
             "section": "waiting",
-            "headline": "template 7d269b5 not synced yet",
+            "headline": "Template 7d269b5 not synced yet",
             "cause": "Review the template sync PR.",
             "effect": "",
             "steps": [],
@@ -8060,7 +8060,7 @@
                 "passed": 15,
                 "failed": []
               },
-              "gate": "template 7d269b5 not synced yet",
+              "gate": "Template 7d269b5 not synced yet",
               "waiting": true
             },
             {
@@ -9616,7 +9616,7 @@
           {
             "id": "conflict:entitlements:121",
             "section": "blocked",
-            "headline": "sync has a merge conflict",
+            "headline": "Sync has a merge conflict",
             "cause": "Cascade blocked: 🚨 Integration Validation Failed: Build/Test Errors - 2026-11-05.",
             "effect": "Nothing else waits on it.",
             "steps": [],
@@ -9655,7 +9655,7 @@
           {
             "id": "rollout:entitlements",
             "section": "waiting",
-            "headline": "template 7d269b5 not synced yet",
+            "headline": "Template 7d269b5 not synced yet",
             "cause": "Review the template sync PR.",
             "effect": "",
             "steps": [],
@@ -9732,7 +9732,7 @@
                 "passed": 16,
                 "failed": []
               },
-              "gate": "template 7d269b5 not synced yet",
+              "gate": "Template 7d269b5 not synced yet",
               "waiting": true
             },
             {
@@ -11235,7 +11235,7 @@
           {
             "id": "radar:legal",
             "section": "waiting",
-            "headline": "upstream changes need a toolchain upgrade",
+            "headline": "Upstream changes need a toolchain upgrade",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.4.1-boot4-SNAPSHOT, os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT and os-core-common 8.5.0.",
             "effect": "17 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "steps": [],
@@ -11262,7 +11262,7 @@
           {
             "id": "rollout:legal",
             "section": "waiting",
-            "headline": "template 7d269b5 not synced yet",
+            "headline": "Template 7d269b5 not synced yet",
             "cause": "Review the template sync PR.",
             "effect": "",
             "steps": [],
@@ -11356,7 +11356,7 @@
                 "passed": 14,
                 "failed": []
               },
-              "gate": "template 7d269b5 not synced yet",
+              "gate": "Template 7d269b5 not synced yet",
               "waiting": true
             },
             {
@@ -12429,7 +12429,7 @@
           {
             "id": "radar:schema",
             "section": "waiting",
-            "headline": "upstream changes need a toolchain upgrade",
+            "headline": "Upstream changes need a toolchain upgrade",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
             "effect": "16 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "steps": [],
@@ -12451,7 +12451,7 @@
           {
             "id": "rollout:schema",
             "section": "waiting",
-            "headline": "template 7d269b5 not synced yet",
+            "headline": "Template 7d269b5 not synced yet",
             "cause": "Review the template sync PR.",
             "effect": "",
             "steps": [],
@@ -12545,7 +12545,7 @@
                 "passed": 16,
                 "failed": []
               },
-              "gate": "template 7d269b5 not synced yet",
+              "gate": "Template 7d269b5 not synced yet",
               "waiting": true
             },
             {
@@ -13701,7 +13701,7 @@
           {
             "id": "radar:file",
             "section": "waiting",
-            "headline": "upstream changes need a toolchain upgrade",
+            "headline": "Upstream changes need a toolchain upgrade",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
             "effect": "5 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "steps": [],
@@ -13718,7 +13718,7 @@
           {
             "id": "rollout:file",
             "section": "waiting",
-            "headline": "template 7d269b5 not synced yet",
+            "headline": "Template 7d269b5 not synced yet",
             "cause": "Review the template sync PR.",
             "effect": "",
             "steps": [],
@@ -13811,7 +13811,7 @@
                 "passed": 14,
                 "failed": []
               },
-              "gate": "template 7d269b5 not synced yet",
+              "gate": "Template 7d269b5 not synced yet",
               "waiting": true
             },
             {
@@ -15056,7 +15056,7 @@
           {
             "id": "gate1:storage",
             "section": "waiting",
-            "headline": "sync PR needs os-core-common upgraded on the fork first",
+            "headline": "Sync PR needs os-core-common upgraded on the fork first",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
             "effect": "11 upstream commits wait on this PR.",
             "steps": [
@@ -15081,7 +15081,7 @@
           {
             "id": "rollout:storage",
             "section": "waiting",
-            "headline": "template 7d269b5 not synced yet",
+            "headline": "Template 7d269b5 not synced yet",
             "cause": "Review the template sync PR.",
             "effect": "",
             "steps": [],
@@ -15175,7 +15175,7 @@
                 "passed": 14,
                 "failed": []
               },
-              "gate": "template 7d269b5 not synced yet",
+              "gate": "Template 7d269b5 not synced yet",
               "waiting": true
             },
             {
@@ -15198,7 +15198,7 @@
                 "passed": 7,
                 "failed": []
               },
-              "gate": "sync PR needs os-core-common upgraded on the fork first",
+              "gate": "Sync PR needs os-core-common upgraded on the fork first",
               "waiting": true,
               "carries": "11 commits"
             },
@@ -16182,7 +16182,7 @@
           {
             "id": "gate1:indexer",
             "section": "waiting",
-            "headline": "sync PR needs os-core-common upgraded on the fork first",
+            "headline": "Sync PR needs os-core-common upgraded on the fork first",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
             "effect": "25 upstream commits wait on this PR.",
             "steps": [
@@ -16212,7 +16212,7 @@
           {
             "id": "rollout:indexer",
             "section": "waiting",
-            "headline": "template 7d269b5 not synced yet",
+            "headline": "Template 7d269b5 not synced yet",
             "cause": "Review the template sync PR.",
             "effect": "",
             "steps": [],
@@ -16306,7 +16306,7 @@
                 "passed": 16,
                 "failed": []
               },
-              "gate": "template 7d269b5 not synced yet",
+              "gate": "Template 7d269b5 not synced yet",
               "waiting": true
             },
             {
@@ -16329,7 +16329,7 @@
                 "passed": 7,
                 "failed": []
               },
-              "gate": "sync PR needs os-core-common upgraded on the fork first",
+              "gate": "Sync PR needs os-core-common upgraded on the fork first",
               "waiting": true,
               "carries": "23 commits"
             },
@@ -17294,7 +17294,7 @@
           {
             "id": "radar:search",
             "section": "waiting",
-            "headline": "upstream changes need a toolchain upgrade",
+            "headline": "Upstream changes need a toolchain upgrade",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
             "effect": "6 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "steps": [],
@@ -17311,7 +17311,7 @@
           {
             "id": "rollout:search",
             "section": "waiting",
-            "headline": "template 7d269b5 not synced yet",
+            "headline": "Template 7d269b5 not synced yet",
             "cause": "Review the template sync PR.",
             "effect": "",
             "steps": [],
@@ -17405,7 +17405,7 @@
                 "passed": 16,
                 "failed": []
               },
-              "gate": "template 7d269b5 not synced yet",
+              "gate": "Template 7d269b5 not synced yet",
               "waiting": true
             },
             {
@@ -18408,7 +18408,7 @@
           {
             "id": "radar:workflow",
             "section": "waiting",
-            "headline": "upstream changes need a toolchain upgrade",
+            "headline": "Upstream changes need a toolchain upgrade",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
             "effect": "7 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "steps": [],
@@ -18425,7 +18425,7 @@
           {
             "id": "rollout:workflow",
             "section": "waiting",
-            "headline": "template 7d269b5 not synced yet",
+            "headline": "Template 7d269b5 not synced yet",
             "cause": "Review the template sync PR.",
             "effect": "",
             "steps": [],
@@ -18519,7 +18519,7 @@
                 "passed": 16,
                 "failed": []
               },
-              "gate": "template 7d269b5 not synced yet",
+              "gate": "Template 7d269b5 not synced yet",
               "waiting": true
             },
             {
@@ -19392,7 +19392,7 @@
           {
             "id": "gate1:indexer-queue",
             "section": "waiting",
-            "headline": "sync PR to review",
+            "headline": "Sync PR to review",
             "cause": "Sync PR #58 waits for review.",
             "effect": "3 upstream commits wait on this PR.",
             "steps": [],
@@ -19409,7 +19409,7 @@
           {
             "id": "rollout:indexer-queue",
             "section": "waiting",
-            "headline": "template 7d269b5 not synced yet",
+            "headline": "Template 7d269b5 not synced yet",
             "cause": "Review the template sync PR.",
             "effect": "",
             "steps": [],
@@ -19471,7 +19471,7 @@
                 "passed": 14,
                 "failed": []
               },
-              "gate": "template 7d269b5 not synced yet",
+              "gate": "Template 7d269b5 not synced yet",
               "waiting": true
             },
             {
@@ -19494,7 +19494,7 @@
                 "passed": 7,
                 "failed": []
               },
-              "gate": "sync PR to review",
+              "gate": "Sync PR to review",
               "waiting": true,
               "carries": "3 commits"
             },
@@ -20433,7 +20433,7 @@
           {
             "id": "radar:unit",
             "section": "waiting",
-            "headline": "upstream changes need a toolchain upgrade",
+            "headline": "Upstream changes need a toolchain upgrade",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
             "effect": "7 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "steps": [],
@@ -20455,7 +20455,7 @@
           {
             "id": "rollout:unit",
             "section": "waiting",
-            "headline": "template 7d269b5 not synced yet",
+            "headline": "Template 7d269b5 not synced yet",
             "cause": "Review the template sync PR.",
             "effect": "",
             "steps": [],
@@ -20549,7 +20549,7 @@
                 "passed": 16,
                 "failed": []
               },
-              "gate": "template 7d269b5 not synced yet",
+              "gate": "Template 7d269b5 not synced yet",
               "waiting": true
             },
             {
@@ -21357,7 +21357,7 @@
           {
             "id": "rollout:crs-catalog",
             "section": "waiting",
-            "headline": "template 7d269b5 not synced yet",
+            "headline": "Template 7d269b5 not synced yet",
             "cause": "Review the template sync PR.",
             "effect": "",
             "steps": [],
@@ -21451,7 +21451,7 @@
                 "passed": 16,
                 "failed": []
               },
-              "gate": "template 7d269b5 not synced yet",
+              "gate": "Template 7d269b5 not synced yet",
               "waiting": true
             },
             {
@@ -22215,7 +22215,7 @@
           {
             "id": "radar:crs-conversion",
             "section": "waiting",
-            "headline": "upstream changes need a toolchain upgrade",
+            "headline": "Upstream changes need a toolchain upgrade",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
             "effect": "5 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "steps": [],
@@ -22232,7 +22232,7 @@
           {
             "id": "rollout:crs-conversion",
             "section": "waiting",
-            "headline": "template 7d269b5 not synced yet",
+            "headline": "Template 7d269b5 not synced yet",
             "cause": "Review the template sync PR.",
             "effect": "",
             "steps": [],
@@ -22326,7 +22326,7 @@
                 "passed": 16,
                 "failed": []
               },
-              "gate": "template 7d269b5 not synced yet",
+              "gate": "Template 7d269b5 not synced yet",
               "waiting": true
             },
             {
