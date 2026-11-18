@@ -23,9 +23,7 @@
         "members": [
           {
             "id": "conflict:entitlements:121",
-            "ids": [
-              "conflict:entitlements:121"
-            ],
+            "ids": ["conflict:entitlements:121"],
             "fork": "entitlements",
             "station": "integration",
             "home": "line",
@@ -70,9 +68,7 @@
         "members": [
           {
             "id": "release-red:Azure/osdu-spi-entitlements#89",
-            "ids": [
-              "release-red:Azure/osdu-spi-entitlements#89"
-            ],
+            "ids": ["release-red:Azure/osdu-spi-entitlements#89"],
             "fork": "entitlements",
             "home": "line",
             "subject": "https://github.com/Azure/osdu-spi-entitlements/pull/89",
@@ -120,9 +116,7 @@
         "members": [
           {
             "id": "radar:legal",
-            "ids": [
-              "radar:legal"
-            ],
+            "ids": ["radar:legal"],
             "fork": "legal",
             "station": "upstream",
             "home": "upstream",
@@ -159,9 +153,7 @@
           },
           {
             "id": "radar:file",
-            "ids": [
-              "radar:file"
-            ],
+            "ids": ["radar:file"],
             "fork": "file",
             "station": "upstream",
             "home": "upstream",
@@ -198,9 +190,7 @@
           },
           {
             "id": "radar:search",
-            "ids": [
-              "radar:search"
-            ],
+            "ids": ["radar:search"],
             "fork": "search",
             "station": "upstream",
             "home": "upstream",
@@ -237,9 +227,7 @@
           },
           {
             "id": "radar:schema",
-            "ids": [
-              "radar:schema"
-            ],
+            "ids": ["radar:schema"],
             "fork": "schema",
             "station": "upstream",
             "home": "upstream",
@@ -276,9 +264,7 @@
           },
           {
             "id": "radar:crs-conversion",
-            "ids": [
-              "radar:crs-conversion"
-            ],
+            "ids": ["radar:crs-conversion"],
             "fork": "crs-conversion",
             "station": "upstream",
             "home": "upstream",
@@ -315,9 +301,7 @@
           },
           {
             "id": "radar:unit",
-            "ids": [
-              "radar:unit"
-            ],
+            "ids": ["radar:unit"],
             "fork": "unit",
             "station": "upstream",
             "home": "upstream",
@@ -354,9 +338,7 @@
           },
           {
             "id": "radar:workflow",
-            "ids": [
-              "radar:workflow"
-            ],
+            "ids": ["radar:workflow"],
             "fork": "workflow",
             "station": "upstream",
             "home": "upstream",
@@ -409,9 +391,7 @@
         "members": [
           {
             "id": "radar:partition",
-            "ids": [
-              "radar:partition"
-            ],
+            "ids": ["radar:partition"],
             "fork": "partition",
             "station": "upstream",
             "home": "upstream",
@@ -455,10 +435,7 @@
         "headline": "sync PR needs os-core-common upgraded on the fork first",
         "cause": "The sync PRs carry upstream changes that require os-core-common on the fork.",
         "effect": "The sync PRs wait for the fork's dependency upgrade.",
-        "steps": [
-          "Upgrade os-core-common in the fork's pom.xml.",
-          "Review and merge the sync PR."
-        ],
+        "steps": ["Upgrade os-core-common in the fork's pom.xml.", "Review and merge the sync PR."],
         "deadline": {
           "at": "2026-11-07T00:00:00.000Z",
           "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
@@ -467,10 +444,7 @@
         "members": [
           {
             "id": "gate1:storage",
-            "ids": [
-              "radar:storage",
-              "gate1:storage"
-            ],
+            "ids": ["radar:storage", "gate1:storage"],
             "fork": "storage",
             "station": "sync",
             "home": "line",
@@ -506,10 +480,7 @@
           },
           {
             "id": "gate1:indexer",
-            "ids": [
-              "radar:indexer",
-              "gate1:indexer"
-            ],
+            "ids": ["radar:indexer", "gate1:indexer"],
             "fork": "indexer",
             "station": "sync",
             "home": "line",
@@ -561,9 +532,7 @@
         "members": [
           {
             "id": "gate1:indexer-queue",
-            "ids": [
-              "gate1:indexer-queue"
-            ],
+            "ids": ["gate1:indexer-queue"],
             "fork": "indexer-queue",
             "station": "sync",
             "home": "line",
@@ -579,10 +548,7 @@
             "effect": "3 upstream commits wait on this PR.",
             "steps": [],
             "evidence": {
-              "areas": [
-                "github",
-                "upstream"
-              ],
+              "areas": ["github", "upstream"],
               "attributed": "item",
               "notRead": []
             }
@@ -601,9 +567,7 @@
         "members": [
           {
             "id": "rollout",
-            "ids": [
-              "rollout"
-            ],
+            "ids": ["rollout"],
             "fork": "fleet",
             "station": "template",
             "home": "engineering",
@@ -701,20 +665,18 @@
             "notRead": [],
             "id": "upstream",
             "stopped": [],
+            "red": [],
             "inProgress": [],
             "waitingOnClock": [],
             "waitingOnPerson": []
           },
           {
             "count": 3,
-            "forks": [
-              "storage",
-              "indexer",
-              "indexer-queue"
-            ],
+            "forks": ["storage", "indexer", "indexer-queue"],
             "notRead": [],
             "id": "sync",
             "stopped": [],
+            "red": [],
             "inProgress": [],
             "waitingOnClock": [],
             "waitingOnPerson": []
@@ -724,9 +686,8 @@
             "forks": [],
             "notRead": [],
             "id": "integration",
-            "stopped": [
-              "entitlements"
-            ],
+            "stopped": ["entitlements"],
+            "red": [],
             "inProgress": [],
             "waitingOnClock": [],
             "waitingOnPerson": []
@@ -751,6 +712,7 @@
             "notRead": [],
             "id": "main",
             "stopped": [],
+            "red": [],
             "inProgress": [],
             "waitingOnClock": [],
             "waitingOnPerson": []
@@ -813,9 +775,7 @@
           },
           {
             "count": 1,
-            "forks": [
-              "partition"
-            ],
+            "forks": ["partition"],
             "notRead": [],
             "id": "other",
             "target": {
@@ -844,13 +804,9 @@
             "unit",
             "crs-conversion"
           ],
-          "stopped": [
-            "entitlements"
-          ],
+          "stopped": ["entitlements"],
           "rest": {
-            "forks": [
-              "crs-catalog"
-            ],
+            "forks": ["crs-catalog"],
             "stations": [
               {
                 "count": 0,
@@ -858,6 +814,7 @@
                 "notRead": [],
                 "id": "upstream",
                 "stopped": [],
+                "red": [],
                 "inProgress": [],
                 "waitingOnClock": [],
                 "waitingOnPerson": []
@@ -868,6 +825,7 @@
                 "notRead": [],
                 "id": "sync",
                 "stopped": [],
+                "red": [],
                 "inProgress": [],
                 "waitingOnClock": [],
                 "waitingOnPerson": []
@@ -878,18 +836,18 @@
                 "notRead": [],
                 "id": "integration",
                 "stopped": [],
+                "red": [],
                 "inProgress": [],
                 "waitingOnClock": [],
                 "waitingOnPerson": []
               },
               {
                 "count": 1,
-                "forks": [
-                  "crs-catalog"
-                ],
+                "forks": ["crs-catalog"],
                 "notRead": [],
                 "id": "main",
                 "stopped": [],
+                "red": [],
                 "inProgress": [],
                 "waitingOnClock": [],
                 "waitingOnPerson": []
@@ -898,17 +856,13 @@
             "doors": [
               {
                 "count": 1,
-                "forks": [
-                  "crs-catalog"
-                ],
+                "forks": ["crs-catalog"],
                 "notRead": [],
                 "id": "template"
               },
               {
                 "count": 1,
-                "forks": [
-                  "crs-catalog"
-                ],
+                "forks": ["crs-catalog"],
                 "notRead": [],
                 "id": "release"
               },
@@ -1218,12 +1172,8 @@
               "label": "ready to merge",
               "count": 1,
               "tone": "ok",
-              "names": [
-                "file #55"
-              ],
-              "urls": [
-                "https://github.com/Azure/osdu-spi-file/pull/55"
-              ]
+              "names": ["file #55"],
+              "urls": ["https://github.com/Azure/osdu-spi-file/pull/55"]
             },
             {
               "kind": "review",
@@ -1288,12 +1238,8 @@
               "label": "chore PRs",
               "count": 1,
               "tone": "neutral",
-              "names": [
-                "partition #218"
-              ],
-              "urls": [
-                "https://github.com/Azure/osdu-spi-partition/pull/218"
-              ]
+              "names": ["partition #218"],
+              "urls": ["https://github.com/Azure/osdu-spi-partition/pull/218"]
             },
             {
               "kind": "dependabot",
@@ -1370,15 +1316,7 @@
           "time": "2026-11-07T00:00:00.000Z",
           "at": "2026-11-07T00:00:00.000Z",
           "count": 7,
-          "names": [
-            "legal",
-            "schema",
-            "file",
-            "search",
-            "workflow",
-            "unit",
-            "crs-conversion"
-          ]
+          "names": ["legal", "schema", "file", "search", "workflow", "unit", "crs-conversion"]
         },
         {
           "id": "template",
@@ -1474,9 +1412,7 @@
     "focus": [
       {
         "id": "conflict:entitlements:121",
-        "ids": [
-          "conflict:entitlements:121"
-        ],
+        "ids": ["conflict:entitlements:121"],
         "origin": "system",
         "rung": 0,
         "cls": "CONFLICT",
@@ -1502,9 +1438,7 @@
       },
       {
         "id": "rollout",
-        "ids": [
-          "rollout"
-        ],
+        "ids": ["rollout"],
         "origin": "system",
         "rung": 1,
         "cls": "ROLLOUT",
@@ -1547,9 +1481,7 @@
       },
       {
         "id": "release-red:Azure/osdu-spi-entitlements#89",
-        "ids": [
-          "release-red:Azure/osdu-spi-entitlements#89"
-        ],
+        "ids": ["release-red:Azure/osdu-spi-entitlements#89"],
         "origin": "system",
         "rung": 1,
         "cls": "BUILD",
@@ -1580,9 +1512,7 @@
       },
       {
         "id": "radar:indexer",
-        "ids": [
-          "radar:indexer"
-        ],
+        "ids": ["radar:indexer"],
         "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
@@ -1617,9 +1547,7 @@
       },
       {
         "id": "radar:legal",
-        "ids": [
-          "radar:legal"
-        ],
+        "ids": ["radar:legal"],
         "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
@@ -1661,9 +1589,7 @@
     "rest": [
       {
         "id": "radar:schema",
-        "ids": [
-          "radar:schema"
-        ],
+        "ids": ["radar:schema"],
         "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
@@ -1698,9 +1624,7 @@
       },
       {
         "id": "radar:storage",
-        "ids": [
-          "radar:storage"
-        ],
+        "ids": ["radar:storage"],
         "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
@@ -1726,9 +1650,7 @@
       },
       {
         "id": "radar:partition",
-        "ids": [
-          "radar:partition"
-        ],
+        "ids": ["radar:partition"],
         "origin": "upstream",
         "rung": 1,
         "cls": "HALT",
@@ -1758,9 +1680,7 @@
       },
       {
         "id": "radar:unit",
-        "ids": [
-          "radar:unit"
-        ],
+        "ids": ["radar:unit"],
         "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
@@ -1795,9 +1715,7 @@
       },
       {
         "id": "radar:workflow",
-        "ids": [
-          "radar:workflow"
-        ],
+        "ids": ["radar:workflow"],
         "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
@@ -1827,9 +1745,7 @@
       },
       {
         "id": "radar:search",
-        "ids": [
-          "radar:search"
-        ],
+        "ids": ["radar:search"],
         "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
@@ -1859,9 +1775,7 @@
       },
       {
         "id": "radar:file",
-        "ids": [
-          "radar:file"
-        ],
+        "ids": ["radar:file"],
         "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
@@ -1891,9 +1805,7 @@
       },
       {
         "id": "radar:crs-conversion",
-        "ids": [
-          "radar:crs-conversion"
-        ],
+        "ids": ["radar:crs-conversion"],
         "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
@@ -1923,9 +1835,7 @@
       },
       {
         "id": "gate1:indexer",
-        "ids": [
-          "gate1:indexer"
-        ],
+        "ids": ["gate1:indexer"],
         "origin": "upstream",
         "rung": 1,
         "cls": "GATE",
@@ -1951,9 +1861,7 @@
       },
       {
         "id": "gate1:storage",
-        "ids": [
-          "gate1:storage"
-        ],
+        "ids": ["gate1:storage"],
         "origin": "upstream",
         "rung": 1,
         "cls": "GATE",
@@ -1979,9 +1887,7 @@
       },
       {
         "id": "gate1:indexer-queue",
-        "ids": [
-          "gate1:indexer-queue"
-        ],
+        "ids": ["gate1:indexer-queue"],
         "origin": "upstream",
         "rung": 1,
         "cls": "GATE",
@@ -2280,10 +2186,7 @@
             "inspect": "mr:crs-conversion:563"
           }
         ],
-        "exposed": [
-          "workflow",
-          "indexer-queue"
-        ],
+        "exposed": ["workflow", "indexer-queue"],
         "when": "at 2026-11-07T00:00:00.000Z",
         "tone": "warn",
         "next": "Add a rule for schemathesis-tests to every fork's .github/upstream-filter.yml.",
@@ -2485,18 +2388,11 @@
               }
             }
           ],
-          "services": [
-            "storage",
-            "indexer",
-            "indexer-queue"
-          ],
+          "services": ["storage", "indexer", "indexer-queue"],
           "text": "37 commits in 3 open sync PRs · 3 forks"
         },
         "forks": {
-          "services": [
-            "entitlements",
-            "crs-catalog"
-          ],
+          "services": ["entitlements", "crs-catalog"],
           "text": "2 forks with nothing queued upstream"
         },
         "wontLand": [
@@ -2597,9 +2493,7 @@
           "needsYou": true,
           "mark": "needs-person",
           "verb": "Absorb",
-          "itemIds": [
-            "radar:legal"
-          ],
+          "itemIds": ["radar:legal"],
           "text": "os-core-common 8.4.1-boot4-SNAPSHOT: at the next sync on legal. Absorb it on the fork first."
         },
         {
@@ -2623,9 +2517,7 @@
           "needsYou": true,
           "mark": "needs-person",
           "verb": "Pre-classify",
-          "itemIds": [
-            "radar:partition"
-          ],
+          "itemIds": ["radar:partition"],
           "text": "schemathesis-tests: won't land on partition; in open upstream MRs for legal and crs-conversion. Add it to top_level first. Not fully read on partition and crs-conversion."
         },
         {
@@ -2646,9 +2538,7 @@
           "needsYou": true,
           "mark": "needs-person",
           "verb": "Review",
-          "itemIds": [
-            "gate1:indexer"
-          ],
+          "itemIds": ["gate1:indexer"],
           "text": "Sync upstream: stage not proven on indexer. Review PR #58."
         },
         {
@@ -2669,9 +2559,7 @@
           "needsYou": true,
           "mark": "needs-person",
           "verb": "Review",
-          "itemIds": [
-            "gate1:indexer-queue"
-          ],
+          "itemIds": ["gate1:indexer-queue"],
           "text": "Sync upstream: stage not proven on indexer-queue. Review PR #58."
         },
         {
@@ -2767,9 +2655,7 @@
         "text": "5 need you before they land · 3 to watch"
       },
       "owed": {
-        "itemIds": [
-          "port:entitlements"
-        ],
+        "itemIds": ["port:entitlements"],
         "count": 23,
         "services": [
           {
@@ -4468,10 +4354,7 @@
           "template"
         ],
         "unread": {
-          "areas": [
-            "approvals",
-            "radar"
-          ]
+          "areas": ["approvals", "radar"]
         },
         "itemIds": [
           "conflict:entitlements:121",
@@ -4557,9 +4440,7 @@
               "text": "crs-conversion: upstream: 5 behind · port owed; release: #17 waiting on review"
             }
           ],
-          "stopped": [
-            "entitlements"
-          ],
+          "stopped": ["entitlements"],
           "horizon": {
             "count": 11,
             "text": "⇣ 11 on the horizon"
@@ -4572,10 +4453,7 @@
         "tone": "neutral",
         "figure": "v0.35.3 ready",
         "line": "v0.35.3 is ready, green since 2026-11-06T04:20:36.000Z.",
-        "areas": [
-          "github",
-          "lifecycle"
-        ],
+        "areas": ["github", "lifecycle"],
         "itemIds": [],
         "fresh": {
           "itemIds": []
@@ -4622,14 +4500,8 @@
         "figure": "0 of 13 forks on 7d269b5",
         "line": "Template rollout is in progress; verification is still pending.",
         "reason": "verification pending",
-        "areas": [
-          "github",
-          "runs",
-          "template"
-        ],
-        "itemIds": [
-          "rollout"
-        ],
+        "areas": ["github", "runs", "template"],
+        "itemIds": ["rollout"],
         "fresh": {
           "itemIds": []
         },
@@ -4713,16 +4585,9 @@
         "line": "Place reading is incomplete.",
         "reason": "Place reading is incomplete.",
         "caveat": "Upstream radar, Security alerts not fully read; the figure covers only the evidence read.",
-        "areas": [
-          "radar",
-          "template",
-          "security"
-        ],
+        "areas": ["radar", "template", "security"],
         "unread": {
-          "areas": [
-            "radar",
-            "security"
-          ]
+          "areas": ["radar", "security"]
         },
         "itemIds": [],
         "fresh": {
@@ -4826,9 +4691,7 @@
           "id": "decision:rollout",
           "theme": "rollout",
           "scope": [],
-          "itemIds": [
-            "rollout"
-          ],
+          "itemIds": ["rollout"],
           "verb": "Merge",
           "text": "Rollout to template 7d269b5"
         },
@@ -4845,9 +4708,7 @@
               }
             }
           ],
-          "itemIds": [
-            "release-red:Azure/osdu-spi-entitlements#89"
-          ],
+          "itemIds": ["release-red:Azure/osdu-spi-entitlements#89"],
           "verb": "Investigate",
           "text": "Release PR #89 fails 📊 Code Coverage"
         }
@@ -4944,9 +4805,7 @@
         "items": [
           {
             "id": "conflict:entitlements:121",
-            "ids": [
-              "conflict:entitlements:121"
-            ],
+            "ids": ["conflict:entitlements:121"],
             "origin": "system",
             "rung": 0,
             "cls": "CONFLICT",
@@ -4973,9 +4832,7 @@
           },
           {
             "id": "release-red:Azure/osdu-spi-entitlements#89",
-            "ids": [
-              "release-red:Azure/osdu-spi-entitlements#89"
-            ],
+            "ids": ["release-red:Azure/osdu-spi-entitlements#89"],
             "origin": "system",
             "rung": 1,
             "cls": "BUILD",
@@ -5007,9 +4864,7 @@
           },
           {
             "id": "gate1:indexer",
-            "ids": [
-              "gate1:indexer"
-            ],
+            "ids": ["gate1:indexer"],
             "origin": "upstream",
             "rung": 1,
             "cls": "GATE",
@@ -5036,9 +4891,7 @@
           },
           {
             "id": "gate1:storage",
-            "ids": [
-              "gate1:storage"
-            ],
+            "ids": ["gate1:storage"],
             "origin": "upstream",
             "rung": 1,
             "cls": "GATE",
@@ -5065,9 +4918,7 @@
           },
           {
             "id": "gate1:indexer-queue",
-            "ids": [
-              "gate1:indexer-queue"
-            ],
+            "ids": ["gate1:indexer-queue"],
             "origin": "upstream",
             "rung": 1,
             "cls": "GATE",
@@ -5130,9 +4981,7 @@
         "items": [
           {
             "id": "radar:partition",
-            "ids": [
-              "radar:partition"
-            ],
+            "ids": ["radar:partition"],
             "origin": "upstream",
             "rung": 1,
             "cls": "HALT",
@@ -5163,9 +5012,7 @@
           },
           {
             "id": "radar:legal",
-            "ids": [
-              "radar:legal"
-            ],
+            "ids": ["radar:legal"],
             "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
@@ -5206,9 +5053,7 @@
           },
           {
             "id": "gate1:indexer",
-            "ids": [
-              "gate1:indexer"
-            ],
+            "ids": ["gate1:indexer"],
             "origin": "upstream",
             "rung": 1,
             "cls": "GATE",
@@ -5235,9 +5080,7 @@
           },
           {
             "id": "gate1:indexer-queue",
-            "ids": [
-              "gate1:indexer-queue"
-            ],
+            "ids": ["gate1:indexer-queue"],
             "origin": "upstream",
             "rung": 1,
             "cls": "GATE",
@@ -5411,9 +5254,7 @@
         "items": [
           {
             "id": "rollout",
-            "ids": [
-              "rollout"
-            ],
+            "ids": ["rollout"],
             "origin": "system",
             "rung": 1,
             "cls": "ROLLOUT",
@@ -5457,9 +5298,7 @@
           }
         ],
         "folded": "On osdu-spi: PR #263 chore: release 1.5.0 · review required.",
-        "itemIds": [
-          "rollout"
-        ],
+        "itemIds": ["rollout"],
         "verifiedTemplate": {
           "verified": 0,
           "total": 13,
@@ -5494,9 +5333,7 @@
         "items": [
           {
             "id": "release-red:Azure/osdu-spi-entitlements#89",
-            "ids": [
-              "release-red:Azure/osdu-spi-entitlements#89"
-            ],
+            "ids": ["release-red:Azure/osdu-spi-entitlements#89"],
             "origin": "system",
             "rung": 1,
             "cls": "BUILD",
@@ -5586,9 +5423,7 @@
         "items": [
           {
             "id": "radar:partition",
-            "ids": [
-              "radar:partition"
-            ],
+            "ids": ["radar:partition"],
             "origin": "upstream",
             "rung": 1,
             "cls": "HALT",
@@ -5667,9 +5502,7 @@
         "items": [
           {
             "id": "conflict:entitlements:121",
-            "ids": [
-              "conflict:entitlements:121"
-            ],
+            "ids": ["conflict:entitlements:121"],
             "origin": "system",
             "rung": 0,
             "cls": "CONFLICT",
@@ -5696,9 +5529,7 @@
           },
           {
             "id": "release-red:Azure/osdu-spi-entitlements#89",
-            "ids": [
-              "release-red:Azure/osdu-spi-entitlements#89"
-            ],
+            "ids": ["release-red:Azure/osdu-spi-entitlements#89"],
             "origin": "system",
             "rung": 1,
             "cls": "BUILD",
@@ -5777,9 +5608,7 @@
         "items": [
           {
             "id": "radar:legal",
-            "ids": [
-              "radar:legal"
-            ],
+            "ids": ["radar:legal"],
             "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
@@ -5868,9 +5697,7 @@
         "items": [
           {
             "id": "radar:schema",
-            "ids": [
-              "radar:schema"
-            ],
+            "ids": ["radar:schema"],
             "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
@@ -5954,9 +5781,7 @@
         "items": [
           {
             "id": "radar:file",
-            "ids": [
-              "radar:file"
-            ],
+            "ids": ["radar:file"],
             "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
@@ -6035,9 +5860,7 @@
         "items": [
           {
             "id": "radar:storage",
-            "ids": [
-              "radar:storage"
-            ],
+            "ids": ["radar:storage"],
             "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
@@ -6064,9 +5887,7 @@
           },
           {
             "id": "gate1:storage",
-            "ids": [
-              "gate1:storage"
-            ],
+            "ids": ["gate1:storage"],
             "origin": "upstream",
             "rung": 1,
             "cls": "GATE",
@@ -6140,9 +5961,7 @@
         "items": [
           {
             "id": "radar:indexer",
-            "ids": [
-              "radar:indexer"
-            ],
+            "ids": ["radar:indexer"],
             "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
@@ -6178,9 +5997,7 @@
           },
           {
             "id": "gate1:indexer",
-            "ids": [
-              "gate1:indexer"
-            ],
+            "ids": ["gate1:indexer"],
             "origin": "upstream",
             "rung": 1,
             "cls": "GATE",
@@ -6255,9 +6072,7 @@
         "items": [
           {
             "id": "radar:search",
-            "ids": [
-              "radar:search"
-            ],
+            "ids": ["radar:search"],
             "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
@@ -6335,9 +6150,7 @@
         "items": [
           {
             "id": "radar:workflow",
-            "ids": [
-              "radar:workflow"
-            ],
+            "ids": ["radar:workflow"],
             "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
@@ -6415,9 +6228,7 @@
         "items": [
           {
             "id": "gate1:indexer-queue",
-            "ids": [
-              "gate1:indexer-queue"
-            ],
+            "ids": ["gate1:indexer-queue"],
             "origin": "upstream",
             "rung": 1,
             "cls": "GATE",
@@ -6492,9 +6303,7 @@
         "items": [
           {
             "id": "radar:unit",
-            "ids": [
-              "radar:unit"
-            ],
+            "ids": ["radar:unit"],
             "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
@@ -6626,9 +6435,7 @@
         "items": [
           {
             "id": "radar:crs-conversion",
-            "ids": [
-              "radar:crs-conversion"
-            ],
+            "ids": ["radar:crs-conversion"],
             "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
@@ -6856,9 +6663,7 @@
         }
       ],
       "unread": {
-        "areas": [
-          "releases"
-        ]
+        "areas": ["releases"]
       }
     },
     "forming": {
@@ -7804,9 +7609,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "template-sync"
-              ],
+              "labels": ["template-sync"],
               "checks": {
                 "state": "passing",
                 "passed": 15,
@@ -7841,9 +7644,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "autorelease: pending"
-              ],
+              "labels": ["autorelease: pending"],
               "checks": {
                 "state": "passing",
                 "passed": 15,
@@ -8972,19 +8773,14 @@
                 "title": "Resolve \"[Venus] CI-friendly Maven versions for Partition\"",
                 "url": "https://community.opengroup.org/osdu/platform/system/partition/-/merge_requests/832",
                 "mergedAt": "2026-10-16T07:30:15Z",
-                "trees": [
-                  "provider/partition-azure",
-                  "testing/partition-test-azure"
-                ]
+                "trees": ["provider/partition-azure", "testing/partition-test-azure"]
               },
               {
                 "iid": 830,
                 "title": "Partition  - migration to java 25",
                 "url": "https://community.opengroup.org/osdu/platform/system/partition/-/merge_requests/830",
                 "mergedAt": "2026-10-14T06:03:40Z",
-                "trees": [
-                  "provider/partition-azure"
-                ]
+                "trees": ["provider/partition-azure"]
               }
             ]
           },
@@ -9458,9 +9254,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "template-sync"
-              ],
+              "labels": ["template-sync"],
               "checks": {
                 "state": "passing",
                 "passed": 16,
@@ -9477,15 +9271,11 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "autorelease: pending"
-              ],
+              "labels": ["autorelease: pending"],
               "checks": {
                 "state": "failing",
                 "passed": 15,
-                "failed": [
-                  "📊 Code Coverage"
-                ]
+                "failed": ["📊 Code Coverage"]
               },
               "gate": "Release PR #89 fails 📊 Code Coverage",
               "waiting": true
@@ -10593,12 +10383,7 @@
               "author": "github-actions",
               "createdAt": "2026-11-05T16:30:59Z",
               "state": "open",
-              "labels": [
-                "cascade-blocked",
-                "high-priority",
-                "human-required",
-                "validation-failed"
-              ]
+              "labels": ["cascade-blocked", "high-priority", "human-required", "validation-failed"]
             }
           ]
         }
@@ -10615,37 +10400,28 @@
                 "title": "Entitlements - migration to java 25",
                 "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
                 "mergedAt": "2026-10-16T14:05:13Z",
-                "trees": [
-                  "provider/entitlements-v2-azure"
-                ]
+                "trees": ["provider/entitlements-v2-azure"]
               },
               {
                 "iid": 967,
                 "title": "Resolve \"[Venus] CI-friendly Maven versions for Entitlements\"",
                 "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
                 "mergedAt": "2026-10-16T07:31:56Z",
-                "trees": [
-                  "provider/entitlements-v2-azure",
-                  "testing/entitlements-v2-test-azure"
-                ]
+                "trees": ["provider/entitlements-v2-azure", "testing/entitlements-v2-test-azure"]
               },
               {
                 "iid": 956,
                 "title": "Fix schemathesis issues",
                 "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
                 "mergedAt": "2026-10-07T09:52:03Z",
-                "trees": [
-                  "provider/entitlements-v2-azure"
-                ]
+                "trees": ["provider/entitlements-v2-azure"]
               },
               {
                 "iid": 963,
                 "title": "Merge forward 'fix/cve-critical-high-tomcat-netty' (!962) from release/0.30",
                 "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
                 "mergedAt": "2026-09-14T14:02:39Z",
-                "trees": [
-                  "testing/entitlements-v2-test-azure"
-                ]
+                "trees": ["testing/entitlements-v2-test-azure"]
               }
             ]
           },
@@ -11074,9 +10850,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "template-sync"
-              ],
+              "labels": ["template-sync"],
               "checks": {
                 "state": "passing",
                 "passed": 14,
@@ -11093,9 +10867,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "autorelease: pending"
-              ],
+              "labels": ["autorelease: pending"],
               "checks": {
                 "state": "passing",
                 "passed": 14,
@@ -11707,19 +11479,14 @@
                 "title": "Resolve \"[Venus] CI-friendly Maven versions for Legal\"",
                 "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/merge_requests/787",
                 "mergedAt": "2026-10-16T11:02:05Z",
-                "trees": [
-                  "provider/legal-azure",
-                  "testing/legal-test-azure"
-                ]
+                "trees": ["provider/legal-azure", "testing/legal-test-azure"]
               },
               {
                 "iid": 783,
                 "title": "Legal - migration to java 25",
                 "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/merge_requests/783",
                 "mergedAt": "2026-10-07T08:05:28Z",
-                "trees": [
-                  "provider/legal-azure"
-                ]
+                "trees": ["provider/legal-azure"]
               }
             ]
           },
@@ -12244,9 +12011,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "template-sync"
-              ],
+              "labels": ["template-sync"],
               "checks": {
                 "state": "passing",
                 "passed": 16,
@@ -12263,9 +12028,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "autorelease: pending"
-              ],
+              "labels": ["autorelease: pending"],
               "checks": {
                 "state": "passing",
                 "passed": 16,
@@ -12965,10 +12728,7 @@
                 "title": "Resolve \"[Venus] CI-friendly Maven versions for Schema\"",
                 "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/merge_requests/871",
                 "mergedAt": "2026-10-16T11:19:29Z",
-                "trees": [
-                  "provider/schema-azure",
-                  "testing/schema-test-azure"
-                ]
+                "trees": ["provider/schema-azure", "testing/schema-test-azure"]
               }
             ]
           },
@@ -13490,9 +13250,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "template-sync"
-              ],
+              "labels": ["template-sync"],
               "checks": {
                 "state": "passing",
                 "passed": 14,
@@ -13509,9 +13267,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "autorelease: pending"
-              ],
+              "labels": ["autorelease: pending"],
               "checks": {
                 "state": "passing",
                 "passed": 14,
@@ -14364,10 +14120,7 @@
                 "title": "Resolve \"[Venus] CI-friendly Maven versions for File\"",
                 "url": "https://community.opengroup.org/osdu/platform/system/file/-/merge_requests/754",
                 "mergedAt": "2026-10-16T10:59:56Z",
-                "trees": [
-                  "provider/file-azure",
-                  "testing/file-test-azure"
-                ]
+                "trees": ["provider/file-azure", "testing/file-test-azure"]
               }
             ]
           },
@@ -14833,9 +14586,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "template-sync"
-              ],
+              "labels": ["template-sync"],
               "checks": {
                 "state": "passing",
                 "passed": 14,
@@ -14856,10 +14607,7 @@
               },
               "state": "open",
               "draft": false,
-              "labels": [
-                "upstream-sync",
-                "human-required"
-              ],
+              "labels": ["upstream-sync", "human-required"],
               "checks": {
                 "state": "passing",
                 "passed": 7,
@@ -14879,9 +14627,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "autorelease: pending"
-              ],
+              "labels": ["autorelease: pending"],
               "checks": {
                 "state": "passing",
                 "passed": 14,
@@ -15442,10 +15188,7 @@
               "author": "osdu-spi-automation",
               "createdAt": "2026-11-05T00:29:22Z",
               "state": "open",
-              "labels": [
-                "upstream-sync",
-                "human-required"
-              ],
+              "labels": ["upstream-sync", "human-required"],
               "tracks": {
                 "number": 58,
                 "url": "https://github.com/Azure/osdu-spi-storage/pull/58"
@@ -15466,10 +15209,7 @@
                 "title": "Enable x-collaboration header support by default",
                 "url": "https://community.opengroup.org/osdu/platform/system/storage/-/merge_requests/1229",
                 "mergedAt": "2026-10-22T09:21:59Z",
-                "trees": [
-                  "provider/storage-azure",
-                  "testing/storage-test-azure"
-                ]
+                "trees": ["provider/storage-azure", "testing/storage-test-azure"]
               }
             ]
           },
@@ -15949,9 +15689,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "template-sync"
-              ],
+              "labels": ["template-sync"],
               "checks": {
                 "state": "passing",
                 "passed": 16,
@@ -15972,10 +15710,7 @@
               },
               "state": "open",
               "draft": false,
-              "labels": [
-                "upstream-sync",
-                "human-required"
-              ],
+              "labels": ["upstream-sync", "human-required"],
               "checks": {
                 "state": "passing",
                 "passed": 7,
@@ -15995,9 +15730,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "autorelease: pending"
-              ],
+              "labels": ["autorelease: pending"],
               "checks": {
                 "state": "passing",
                 "passed": 16,
@@ -16547,10 +16280,7 @@
               "author": "osdu-spi-automation",
               "createdAt": "2026-11-05T00:33:20Z",
               "state": "open",
-              "labels": [
-                "upstream-sync",
-                "human-required"
-              ],
+              "labels": ["upstream-sync", "human-required"],
               "tracks": {
                 "number": 58,
                 "url": "https://github.com/Azure/osdu-spi-indexer/pull/58"
@@ -16571,28 +16301,21 @@
                 "title": "M28: Spring Boot 4 / Spring 7 on Java 25 (vulnerability remediation)",
                 "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/merge_requests/1030",
                 "mergedAt": "2026-11-06T09:36:24Z",
-                "trees": [
-                  "provider/indexer-azure"
-                ]
+                "trees": ["provider/indexer-azure"]
               },
               {
                 "iid": 1026,
                 "title": "Remove x-collaboration feature toggle and enable by default",
                 "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/merge_requests/1026",
                 "mergedAt": "2026-11-04T11:21:05Z",
-                "trees": [
-                  "provider/indexer-azure"
-                ]
+                "trees": ["provider/indexer-azure"]
               },
               {
                 "iid": 1022,
                 "title": "Resolve \"[Venus] CI-friendly Maven versions for Indexer\"",
                 "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/merge_requests/1022",
                 "mergedAt": "2026-10-19T08:45:57Z",
-                "trees": [
-                  "provider/indexer-azure",
-                  "testing/indexer-test-azure"
-                ]
+                "trees": ["provider/indexer-azure", "testing/indexer-test-azure"]
               }
             ]
           },
@@ -17037,9 +16760,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "template-sync"
-              ],
+              "labels": ["template-sync"],
               "checks": {
                 "state": "passing",
                 "passed": 16,
@@ -17056,9 +16777,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "autorelease: pending"
-              ],
+              "labels": ["autorelease: pending"],
               "checks": {
                 "state": "passing",
                 "passed": 16,
@@ -17648,19 +17367,14 @@
                 "title": "enable x-collaboration header support by default",
                 "url": "https://community.opengroup.org/osdu/platform/system/search-service/-/merge_requests/899",
                 "mergedAt": "2026-10-23T14:21:24Z",
-                "trees": [
-                  "provider/search-azure"
-                ]
+                "trees": ["provider/search-azure"]
               },
               {
                 "iid": 900,
                 "title": "Resolve \"[Venus] CI-friendly Maven versions for Search\"",
                 "url": "https://community.opengroup.org/osdu/platform/system/search-service/-/merge_requests/900",
                 "mergedAt": "2026-10-16T11:41:41Z",
-                "trees": [
-                  "provider/search-azure",
-                  "testing/search-test-azure"
-                ]
+                "trees": ["provider/search-azure", "testing/search-test-azure"]
               }
             ]
           },
@@ -18132,9 +17846,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "template-sync"
-              ],
+              "labels": ["template-sync"],
               "checks": {
                 "state": "passing",
                 "passed": 16,
@@ -18151,9 +17863,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "autorelease: pending"
-              ],
+              "labels": ["autorelease: pending"],
               "checks": {
                 "state": "passing",
                 "passed": 16,
@@ -18633,19 +18343,14 @@
                 "title": "Ingestion Workflow - migration to java 25",
                 "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/merge_requests/707",
                 "mergedAt": "2026-10-27T10:40:07Z",
-                "trees": [
-                  "provider/workflow-azure"
-                ]
+                "trees": ["provider/workflow-azure"]
               },
               {
                 "iid": 705,
                 "title": "Resolve \"[Venus] CI-friendly Maven versions for Workflow\"",
                 "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/merge_requests/705",
                 "mergedAt": "2026-10-16T11:43:52Z",
-                "trees": [
-                  "provider/workflow-azure",
-                  "testing/workflow-test-azure"
-                ]
+                "trees": ["provider/workflow-azure", "testing/workflow-test-azure"]
               }
             ]
           },
@@ -19066,9 +18771,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "template-sync"
-              ],
+              "labels": ["template-sync"],
               "checks": {
                 "state": "passing",
                 "passed": 14,
@@ -19089,10 +18792,7 @@
               },
               "state": "open",
               "draft": false,
-              "labels": [
-                "upstream-sync",
-                "human-required"
-              ],
+              "labels": ["upstream-sync", "human-required"],
               "checks": {
                 "state": "passing",
                 "passed": 7,
@@ -19112,9 +18812,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "autorelease: pending"
-              ],
+              "labels": ["autorelease: pending"],
               "checks": {
                 "state": "passing",
                 "passed": 14,
@@ -19719,10 +19417,7 @@
               "author": "osdu-spi-automation",
               "createdAt": "2026-11-05T00:19:57Z",
               "state": "open",
-              "labels": [
-                "upstream-sync",
-                "human-required"
-              ],
+              "labels": ["upstream-sync", "human-required"],
               "tracks": {
                 "number": 58,
                 "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/58"
@@ -20126,9 +19821,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "template-sync"
-              ],
+              "labels": ["template-sync"],
               "checks": {
                 "state": "passing",
                 "passed": 16,
@@ -20145,9 +19838,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "autorelease: pending"
-              ],
+              "labels": ["autorelease: pending"],
               "checks": {
                 "state": "passing",
                 "passed": 16,
@@ -20561,27 +20252,21 @@
                 "title": "M28: Spring Boot 4 / Spring 7 on Java 25 (vulnerability remediation)",
                 "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/503",
                 "mergedAt": "2026-11-06T06:19:09Z",
-                "trees": [
-                  "provider/unit-azure"
-                ]
+                "trees": ["provider/unit-azure"]
               },
               {
                 "iid": 498,
                 "title": "Schemathesis issues fix",
                 "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/498",
                 "mergedAt": "2026-10-29T10:19:47Z",
-                "trees": [
-                  "provider/unit-azure"
-                ]
+                "trees": ["provider/unit-azure"]
               },
               {
                 "iid": 497,
                 "title": "Resolve \"[Venus] CI-friendly Maven versions for Unit\"",
                 "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/497",
                 "mergedAt": "2026-10-16T09:59:15Z",
-                "trees": [
-                  "provider/unit-azure"
-                ]
+                "trees": ["provider/unit-azure"]
               }
             ]
           },
@@ -21009,9 +20694,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "template-sync"
-              ],
+              "labels": ["template-sync"],
               "checks": {
                 "state": "passing",
                 "passed": 16,
@@ -21028,9 +20711,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "autorelease: pending"
-              ],
+              "labels": ["autorelease: pending"],
               "checks": {
                 "state": "passing",
                 "passed": 16,
@@ -21433,9 +21114,7 @@
                 "title": "Resolve \"[Venus] CI-friendly Maven versions for CRS Catalog\"",
                 "url": "https://community.opengroup.org/osdu/platform/system/reference/crs-catalog-service/-/merge_requests/488",
                 "mergedAt": "2026-10-16T11:45:18Z",
-                "trees": [
-                  "provider/crs-catalog-azure"
-                ]
+                "trees": ["provider/crs-catalog-azure"]
               }
             ]
           },
@@ -21862,9 +21541,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "template-sync"
-              ],
+              "labels": ["template-sync"],
               "checks": {
                 "state": "passing",
                 "passed": 16,
@@ -21881,9 +21558,7 @@
               "base": "main",
               "state": "open",
               "draft": false,
-              "labels": [
-                "autorelease: pending"
-              ],
+              "labels": ["autorelease: pending"],
               "checks": {
                 "state": "passing",
                 "passed": 16,
@@ -22187,9 +21862,7 @@
                 "title": "Resolve \"[Venus] CI-friendly Maven versions for CRS Conversion\"",
                 "url": "https://community.opengroup.org/osdu/platform/system/reference/crs-conversion-service/-/merge_requests/555",
                 "mergedAt": "2026-10-16T07:27:13Z",
-                "trees": [
-                  "provider/crs-converter-azure"
-                ]
+                "trees": ["provider/crs-converter-azure"]
               }
             ]
           },
@@ -27638,11 +27311,7 @@
     },
     {
       "path": "/briefing/since",
-      "areas": [
-        "github",
-        "runs",
-        "template"
-      ]
+      "areas": ["github", "runs", "template"]
     },
     {
       "path": "/briefing/focus/0",
@@ -27841,26 +27510,17 @@
     },
     {
       "path": "/briefing/rest/8",
-      "areas": [
-        "github",
-        "upstream"
-      ],
+      "areas": ["github", "upstream"],
       "attributed": "item"
     },
     {
       "path": "/briefing/rest/9",
-      "areas": [
-        "github",
-        "upstream"
-      ],
+      "areas": ["github", "upstream"],
       "attributed": "item"
     },
     {
       "path": "/briefing/rest/10",
-      "areas": [
-        "github",
-        "upstream"
-      ],
+      "areas": ["github", "upstream"],
       "attributed": "item"
     },
     {
@@ -28135,18 +27795,12 @@
     },
     {
       "path": "/briefing/lines/5",
-      "areas": [
-        "github",
-        "upstream"
-      ],
+      "areas": ["github", "upstream"],
       "attributed": "item"
     },
     {
       "path": "/briefing/lines/5/members/0",
-      "areas": [
-        "github",
-        "upstream"
-      ],
+      "areas": ["github", "upstream"],
       "attributed": "item"
     },
     {
@@ -28337,58 +27991,31 @@
     },
     {
       "path": "/briefing/horizon/compact",
-      "areas": [
-        "github",
-        "runs",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "upstream", "radar"]
     },
     {
       "path": "/briefing/horizon/stages/upstream",
-      "areas": [
-        "upstream"
-      ]
+      "areas": ["upstream"]
     },
     {
       "path": "/briefing/horizon/stages/nextSync",
-      "areas": [
-        "github",
-        "runs",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "upstream", "radar"]
     },
     {
       "path": "/briefing/horizon/stages/held",
-      "areas": [
-        "github",
-        "runs",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "upstream", "radar"]
     },
     {
       "path": "/briefing/horizon/stages/forks",
-      "areas": [
-        "upstream"
-      ]
+      "areas": ["upstream"]
     },
     {
       "path": "/briefing/horizon/stages/wontLand",
-      "areas": [
-        "github",
-        "runs",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "upstream", "radar"]
     },
     {
       "path": "/briefing/horizon/owed",
-      "areas": [
-        "github",
-        "radar"
-      ]
+      "areas": ["github", "radar"]
     },
     {
       "path": "/briefing/horizon/cards",
@@ -28477,998 +28104,531 @@
     },
     {
       "path": "/briefing/flow/mode",
-      "areas": [
-        "github",
-        "runs",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/headline",
-      "areas": [
-        "github",
-        "runs",
-        "lifecycle",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/sub",
-      "areas": [
-        "github",
-        "runs",
-        "lifecycle",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/tiles/0",
-      "areas": [
-        "github",
-        "runs",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/tiles/1",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/briefing/flow/tiles/2",
-      "areas": [
-        "github",
-        "runs",
-        "lifecycle",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/tiles/3",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/flow/rows/0",
-      "areas": [
-        "github",
-        "runs",
-        "lifecycle",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/rows/1",
-      "areas": [
-        "github",
-        "runs",
-        "lifecycle",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/rows/2",
-      "areas": [
-        "github",
-        "runs",
-        "lifecycle",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/rows/3",
-      "areas": [
-        "github",
-        "runs",
-        "lifecycle",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/rows/4",
-      "areas": [
-        "github",
-        "runs",
-        "lifecycle",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/rows/5",
-      "areas": [
-        "github",
-        "runs",
-        "lifecycle",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/rows/6",
-      "areas": [
-        "github",
-        "runs",
-        "lifecycle",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/rows/7",
-      "areas": [
-        "github",
-        "runs",
-        "lifecycle",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/rows/8",
-      "areas": [
-        "github",
-        "runs",
-        "lifecycle",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/rows/9",
-      "areas": [
-        "github",
-        "runs",
-        "lifecycle",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/rows/10",
-      "areas": [
-        "github",
-        "runs",
-        "lifecycle",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/rows/11",
-      "areas": [
-        "github",
-        "runs",
-        "lifecycle",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/rows/12",
-      "areas": [
-        "github",
-        "runs",
-        "lifecycle",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/plan",
-      "areas": [
-        "github",
-        "runs",
-        "lifecycle",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/schedule",
-      "areas": [
-        "github",
-        "runs",
-        "lifecycle",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/next",
-      "areas": [
-        "github",
-        "runs",
-        "lifecycle",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/also/0",
-      "areas": [
-        "github",
-        "runs",
-        "lifecycle",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/also/1",
-      "areas": [
-        "github",
-        "runs",
-        "lifecycle",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/environment/headline",
-      "areas": [
-        "lifecycle"
-      ]
+      "areas": ["lifecycle"]
     },
     {
       "path": "/briefing/environment/facts/0/figure",
-      "areas": [
-        "lifecycle"
-      ]
+      "areas": ["lifecycle"]
     },
     {
       "path": "/briefing/environment/facts/1/figure",
-      "areas": [
-        "lifecycle"
-      ]
+      "areas": ["lifecycle"]
     },
     {
       "path": "/briefing/environment/facts/2/figure",
-      "areas": [
-        "lifecycle"
-      ]
+      "areas": ["lifecycle"]
     },
     {
       "path": "/briefing/environment/deployable",
-      "areas": [
-        "lifecycle"
-      ]
+      "areas": ["lifecycle"]
     },
     {
       "path": "/briefing/environment/lanes/0",
-      "areas": [
-        "lifecycle"
-      ]
+      "areas": ["lifecycle"]
     },
     {
       "path": "/briefing/environment/lanes/1",
-      "areas": [
-        "lifecycle"
-      ]
+      "areas": ["lifecycle"]
     },
     {
       "path": "/briefing/environment/lanes/2",
-      "areas": [
-        "lifecycle"
-      ]
+      "areas": ["lifecycle"]
     },
     {
       "path": "/briefing/environment/lanes/3",
-      "areas": [
-        "lifecycle"
-      ]
+      "areas": ["lifecycle"]
     },
     {
       "path": "/briefing/environment/note",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/headline",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/facts/0/figure",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/facts/1/figure",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/facts/2/figure",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/facts/3/figure",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/facts/4/figure",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/template/figure",
-      "areas": [
-        "github",
-        "template"
-      ]
+      "areas": ["github", "template"]
     },
     {
       "path": "/briefing/repositories/rows/0",
-      "areas": [
-        "github",
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["github", "radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/0/cells/changes",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/0/cells/dependabot",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/0/cells/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/0/cells/vulnerabilities",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/0/cells/codeScanning",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/1",
-      "areas": [
-        "github",
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["github", "radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/1/cells/changes",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/1/cells/dependabot",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/1/cells/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/1/cells/vulnerabilities",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/1/cells/codeScanning",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/2",
-      "areas": [
-        "github",
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["github", "radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/2/cells/changes",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/2/cells/dependabot",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/2/cells/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/2/cells/vulnerabilities",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/2/cells/codeScanning",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/3",
-      "areas": [
-        "github",
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["github", "radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/3/cells/changes",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/3/cells/dependabot",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/3/cells/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/3/cells/vulnerabilities",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/3/cells/codeScanning",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/4",
-      "areas": [
-        "github",
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["github", "radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/4/cells/changes",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/4/cells/dependabot",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/4/cells/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/4/cells/vulnerabilities",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/4/cells/codeScanning",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/5",
-      "areas": [
-        "github",
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["github", "radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/5/cells/changes",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/5/cells/dependabot",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/5/cells/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/5/cells/vulnerabilities",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/5/cells/codeScanning",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/6",
-      "areas": [
-        "github",
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["github", "radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/6/cells/changes",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/6/cells/dependabot",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/6/cells/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/6/cells/vulnerabilities",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/6/cells/codeScanning",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/7",
-      "areas": [
-        "github",
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["github", "radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/7/cells/changes",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/7/cells/dependabot",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/7/cells/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/7/cells/vulnerabilities",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/7/cells/codeScanning",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/8",
-      "areas": [
-        "github",
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["github", "radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/8/cells/changes",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/8/cells/dependabot",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/8/cells/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/8/cells/vulnerabilities",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/8/cells/codeScanning",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/9",
-      "areas": [
-        "github",
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["github", "radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/9/cells/changes",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/9/cells/dependabot",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/9/cells/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/9/cells/vulnerabilities",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/9/cells/codeScanning",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/10",
-      "areas": [
-        "github",
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["github", "radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/10/cells/changes",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/10/cells/dependabot",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/10/cells/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/10/cells/vulnerabilities",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/10/cells/codeScanning",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/11",
-      "areas": [
-        "github",
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["github", "radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/11/cells/changes",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/11/cells/dependabot",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/11/cells/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/11/cells/vulnerabilities",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/11/cells/codeScanning",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/12",
-      "areas": [
-        "github",
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["github", "radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/12/cells/changes",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/12/cells/dependabot",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/12/cells/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/12/cells/vulnerabilities",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/12/cells/codeScanning",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/13",
-      "areas": [
-        "github",
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["github", "radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/13/cells/changes",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/13/cells/dependabot",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/13/cells/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/13/cells/vulnerabilities",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/13/cells/codeScanning",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/14",
-      "areas": [
-        "github",
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["github", "radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/14/cells/changes",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/14/cells/dependabot",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/14/cells/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/briefing/repositories/rows/14/cells/vulnerabilities",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/repositories/rows/14/cells/codeScanning",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/briefing/places/0",
@@ -29485,570 +28645,331 @@
     },
     {
       "path": "/briefing/places/1",
-      "areas": [
-        "github",
-        "lifecycle"
-      ]
+      "areas": ["github", "lifecycle"]
     },
     {
       "path": "/briefing/places/2",
-      "areas": [
-        "github",
-        "runs",
-        "template"
-      ]
+      "areas": ["github", "runs", "template"]
     },
     {
       "path": "/briefing/places/3",
-      "areas": [
-        "radar",
-        "template",
-        "security"
-      ]
+      "areas": ["radar", "template", "security"]
     },
     {
       "path": "/stations/0/stations/0",
-      "areas": [
-        "github",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "upstream", "radar"]
     },
     {
       "path": "/stations/0/stations/1",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/0/stations/2",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/0/stations/3",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/0/stations/4",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/stations/0/stations/5",
-      "areas": [
-        "github",
-        "lifecycle"
-      ]
+      "areas": ["github", "lifecycle"]
     },
     {
       "path": "/stations/1/stations/0",
-      "areas": [
-        "upstream"
-      ]
+      "areas": ["upstream"]
     },
     {
       "path": "/stations/1/stations/1",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/1/stations/2",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/stations/1/stations/3",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/1/stations/4",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/stations/1/stations/5",
-      "areas": [
-        "github",
-        "lifecycle"
-      ]
+      "areas": ["github", "lifecycle"]
     },
     {
       "path": "/stations/2/stations/0",
-      "areas": [
-        "github",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "upstream", "radar"]
     },
     {
       "path": "/stations/2/stations/1",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/2/stations/2",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/2/stations/3",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/2/stations/4",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/stations/2/stations/5",
-      "areas": [
-        "github",
-        "lifecycle"
-      ]
+      "areas": ["github", "lifecycle"]
     },
     {
       "path": "/stations/3/stations/0",
-      "areas": [
-        "github",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "upstream", "radar"]
     },
     {
       "path": "/stations/3/stations/1",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/3/stations/2",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/3/stations/3",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/3/stations/4",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/stations/3/stations/5",
-      "areas": [
-        "github",
-        "lifecycle"
-      ]
+      "areas": ["github", "lifecycle"]
     },
     {
       "path": "/stations/4/stations/0",
-      "areas": [
-        "github",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "upstream", "radar"]
     },
     {
       "path": "/stations/4/stations/1",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/4/stations/2",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/4/stations/3",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/4/stations/4",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/stations/4/stations/5",
-      "areas": [
-        "github",
-        "lifecycle"
-      ]
+      "areas": ["github", "lifecycle"]
     },
     {
       "path": "/stations/5/stations/0",
-      "areas": [
-        "github",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "upstream", "radar"]
     },
     {
       "path": "/stations/5/stations/1",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/stations/5/stations/2",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/5/stations/3",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/5/stations/4",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/stations/5/stations/5",
-      "areas": [
-        "github",
-        "lifecycle"
-      ]
+      "areas": ["github", "lifecycle"]
     },
     {
       "path": "/stations/6/stations/0",
-      "areas": [
-        "github",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "upstream", "radar"]
     },
     {
       "path": "/stations/6/stations/1",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/stations/6/stations/2",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/6/stations/3",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/6/stations/4",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/stations/6/stations/5",
-      "areas": [
-        "github",
-        "lifecycle"
-      ]
+      "areas": ["github", "lifecycle"]
     },
     {
       "path": "/stations/7/stations/0",
-      "areas": [
-        "github",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "upstream", "radar"]
     },
     {
       "path": "/stations/7/stations/1",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/7/stations/2",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/7/stations/3",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/7/stations/4",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/stations/7/stations/5",
-      "areas": [
-        "github",
-        "lifecycle"
-      ]
+      "areas": ["github", "lifecycle"]
     },
     {
       "path": "/stations/8/stations/0",
-      "areas": [
-        "github",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "upstream", "radar"]
     },
     {
       "path": "/stations/8/stations/1",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/8/stations/2",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/8/stations/3",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/8/stations/4",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/stations/8/stations/5",
-      "areas": [
-        "github",
-        "lifecycle"
-      ]
+      "areas": ["github", "lifecycle"]
     },
     {
       "path": "/stations/9/stations/0",
-      "areas": [
-        "github",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "upstream", "radar"]
     },
     {
       "path": "/stations/9/stations/1",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/stations/9/stations/2",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/9/stations/3",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/9/stations/4",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/stations/9/stations/5",
-      "areas": [
-        "github",
-        "lifecycle"
-      ]
+      "areas": ["github", "lifecycle"]
     },
     {
       "path": "/stations/10/stations/0",
-      "areas": [
-        "github",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "upstream", "radar"]
     },
     {
       "path": "/stations/10/stations/1",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/10/stations/2",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/10/stations/3",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/10/stations/4",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/stations/10/stations/5",
-      "areas": [
-        "github",
-        "lifecycle"
-      ]
+      "areas": ["github", "lifecycle"]
     },
     {
       "path": "/stations/11/stations/0",
-      "areas": [
-        "upstream"
-      ]
+      "areas": ["upstream"]
     },
     {
       "path": "/stations/11/stations/1",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/11/stations/2",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/11/stations/3",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/11/stations/4",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/stations/11/stations/5",
-      "areas": [
-        "github",
-        "lifecycle"
-      ]
+      "areas": ["github", "lifecycle"]
     },
     {
       "path": "/stations/12/stations/0",
-      "areas": [
-        "github",
-        "upstream",
-        "radar"
-      ]
+      "areas": ["github", "upstream", "radar"]
     },
     {
       "path": "/stations/12/stations/1",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/12/stations/2",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/12/stations/3",
-      "areas": [
-        "github",
-        "runs"
-      ]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/12/stations/4",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/stations/12/stations/5",
-      "areas": [
-        "github",
-        "lifecycle"
-      ]
+      "areas": ["github", "lifecycle"]
     },
     {
       "path": "/releases/lines/0",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30056,9 +28977,7 @@
     },
     {
       "path": "/releases/lines",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30066,10 +28985,7 @@
     },
     {
       "path": "/releases/forming",
-      "areas": [
-        "fleet",
-        "github"
-      ],
+      "areas": ["fleet", "github"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30077,9 +28993,7 @@
     },
     {
       "path": "/releases/today/versions/0/service",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30087,9 +29001,7 @@
     },
     {
       "path": "/releases/today/versions/0/state",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30097,9 +29009,7 @@
     },
     {
       "path": "/releases/today/versions/0/text",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30107,9 +29017,7 @@
     },
     {
       "path": "/releases/today/versions/1/service",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30117,9 +29025,7 @@
     },
     {
       "path": "/releases/today/versions/1/state",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30127,9 +29033,7 @@
     },
     {
       "path": "/releases/today/versions/1/text",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30137,9 +29041,7 @@
     },
     {
       "path": "/releases/today/versions/2/service",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30147,9 +29049,7 @@
     },
     {
       "path": "/releases/today/versions/2/state",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30157,9 +29057,7 @@
     },
     {
       "path": "/releases/today/versions/2/text",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30167,9 +29065,7 @@
     },
     {
       "path": "/releases/today/versions/3/service",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30177,9 +29073,7 @@
     },
     {
       "path": "/releases/today/versions/3/state",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30187,9 +29081,7 @@
     },
     {
       "path": "/releases/today/versions/3/text",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30197,9 +29089,7 @@
     },
     {
       "path": "/releases/today/versions/4/service",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30207,9 +29097,7 @@
     },
     {
       "path": "/releases/today/versions/4/state",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30217,9 +29105,7 @@
     },
     {
       "path": "/releases/today/versions/4/text",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30227,9 +29113,7 @@
     },
     {
       "path": "/releases/today/versions/5/service",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30237,9 +29121,7 @@
     },
     {
       "path": "/releases/today/versions/5/state",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30247,9 +29129,7 @@
     },
     {
       "path": "/releases/today/versions/5/text",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30257,9 +29137,7 @@
     },
     {
       "path": "/releases/today/versions/6/service",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30267,9 +29145,7 @@
     },
     {
       "path": "/releases/today/versions/6/state",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30277,9 +29153,7 @@
     },
     {
       "path": "/releases/today/versions/6/text",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30287,9 +29161,7 @@
     },
     {
       "path": "/releases/today/versions/7/service",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30297,9 +29169,7 @@
     },
     {
       "path": "/releases/today/versions/7/state",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30307,9 +29177,7 @@
     },
     {
       "path": "/releases/today/versions/7/text",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30317,9 +29185,7 @@
     },
     {
       "path": "/releases/today/versions/8/service",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30327,9 +29193,7 @@
     },
     {
       "path": "/releases/today/versions/8/state",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30337,9 +29201,7 @@
     },
     {
       "path": "/releases/today/versions/8/text",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30347,9 +29209,7 @@
     },
     {
       "path": "/releases/today/versions/9/service",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30357,9 +29217,7 @@
     },
     {
       "path": "/releases/today/versions/9/state",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30367,9 +29225,7 @@
     },
     {
       "path": "/releases/today/versions/9/text",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30377,9 +29233,7 @@
     },
     {
       "path": "/releases/today/versions/10/service",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30387,9 +29241,7 @@
     },
     {
       "path": "/releases/today/versions/10/state",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30397,9 +29249,7 @@
     },
     {
       "path": "/releases/today/versions/10/text",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30407,9 +29257,7 @@
     },
     {
       "path": "/releases/today/versions/11/service",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30417,9 +29265,7 @@
     },
     {
       "path": "/releases/today/versions/11/state",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30427,9 +29273,7 @@
     },
     {
       "path": "/releases/today/versions/11/text",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30437,9 +29281,7 @@
     },
     {
       "path": "/releases/today/versions/12/service",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30447,9 +29289,7 @@
     },
     {
       "path": "/releases/today/versions/12/state",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30457,9 +29297,7 @@
     },
     {
       "path": "/releases/today/versions/12/text",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30467,10 +29305,7 @@
     },
     {
       "path": "/releases/today/platform/stack",
-      "areas": [
-        "fleet",
-        "github"
-      ],
+      "areas": ["fleet", "github"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30478,10 +29313,7 @@
     },
     {
       "path": "/releases/today/platform/template/released",
-      "areas": [
-        "fleet",
-        "github"
-      ],
+      "areas": ["fleet", "github"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30489,21 +29321,15 @@
     },
     {
       "path": "/releases/today/platform/template/proposed",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/releases/today/platform/template/pr",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/releases/today/platform/coreLibAzure",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30511,10 +29337,7 @@
     },
     {
       "path": "/releases/today/platform/text",
-      "areas": [
-        "fleet",
-        "github"
-      ],
+      "areas": ["fleet", "github"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30522,23 +29345,15 @@
     },
     {
       "path": "/releases/today/ready",
-      "areas": [
-        "github",
-        "details"
-      ]
+      "areas": ["github", "details"]
     },
     {
       "path": "/releases/today/readyLine",
-      "areas": [
-        "github",
-        "details"
-      ]
+      "areas": ["github", "details"]
     },
     {
       "path": "/releases/today/unread",
-      "areas": [
-        "fleet"
-      ],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30577,187 +29392,121 @@
     },
     {
       "path": "/services/0/work/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/services/0/upstreamSecurity/upstream",
-      "areas": [
-        "fleet",
-        "github",
-        "upstream",
-        "radar"
-      ],
+      "areas": ["fleet", "github", "upstream", "radar"],
       "attributed": "sweep"
     },
     {
       "path": "/services/0/upstreamSecurity/security",
-      "areas": [
-        "fleet",
-        "github",
-        "radar",
-        "template",
-        "security"
-      ],
+      "areas": ["fleet", "github", "radar", "template", "security"],
       "attributed": "sweep"
     },
     {
       "path": "/services/0/runs/0",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/1",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/2",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/3",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/4",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/5",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/6",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/7",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/8",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/9",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/10",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/11",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/12",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/13",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/14",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/15",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/16",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/17",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/18",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/19",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/20",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/21",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/22",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/23",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/runs/24",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/0/releases",
-      "areas": [
-        "fleet",
-        "github"
-      ],
+      "areas": ["fleet", "github"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -30796,187 +29545,121 @@
     },
     {
       "path": "/services/1/work/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/services/1/upstreamSecurity/upstream",
-      "areas": [
-        "fleet",
-        "github",
-        "upstream",
-        "radar"
-      ],
+      "areas": ["fleet", "github", "upstream", "radar"],
       "attributed": "sweep"
     },
     {
       "path": "/services/1/upstreamSecurity/security",
-      "areas": [
-        "fleet",
-        "github",
-        "radar",
-        "template",
-        "security"
-      ],
+      "areas": ["fleet", "github", "radar", "template", "security"],
       "attributed": "sweep"
     },
     {
       "path": "/services/1/runs/0",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/1",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/2",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/3",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/4",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/5",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/6",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/7",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/8",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/9",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/10",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/11",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/12",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/13",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/14",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/15",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/16",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/17",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/18",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/19",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/20",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/21",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/22",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/23",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/runs/24",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/1/releases",
-      "areas": [
-        "fleet",
-        "github"
-      ],
+      "areas": ["fleet", "github"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -31015,187 +29698,121 @@
     },
     {
       "path": "/services/2/work/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/services/2/upstreamSecurity/upstream",
-      "areas": [
-        "fleet",
-        "github",
-        "upstream",
-        "radar"
-      ],
+      "areas": ["fleet", "github", "upstream", "radar"],
       "attributed": "sweep"
     },
     {
       "path": "/services/2/upstreamSecurity/security",
-      "areas": [
-        "fleet",
-        "github",
-        "radar",
-        "template",
-        "security"
-      ],
+      "areas": ["fleet", "github", "radar", "template", "security"],
       "attributed": "sweep"
     },
     {
       "path": "/services/2/runs/0",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/1",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/2",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/3",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/4",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/5",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/6",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/7",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/8",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/9",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/10",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/11",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/12",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/13",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/14",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/15",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/16",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/17",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/18",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/19",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/20",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/21",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/22",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/23",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/runs/24",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/2/releases",
-      "areas": [
-        "fleet",
-        "github"
-      ],
+      "areas": ["fleet", "github"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -31234,187 +29851,121 @@
     },
     {
       "path": "/services/3/work/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/services/3/upstreamSecurity/upstream",
-      "areas": [
-        "fleet",
-        "github",
-        "upstream",
-        "radar"
-      ],
+      "areas": ["fleet", "github", "upstream", "radar"],
       "attributed": "sweep"
     },
     {
       "path": "/services/3/upstreamSecurity/security",
-      "areas": [
-        "fleet",
-        "github",
-        "radar",
-        "template",
-        "security"
-      ],
+      "areas": ["fleet", "github", "radar", "template", "security"],
       "attributed": "sweep"
     },
     {
       "path": "/services/3/runs/0",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/1",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/2",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/3",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/4",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/5",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/6",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/7",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/8",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/9",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/10",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/11",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/12",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/13",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/14",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/15",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/16",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/17",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/18",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/19",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/20",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/21",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/22",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/23",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/runs/24",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/3/releases",
-      "areas": [
-        "fleet",
-        "github"
-      ],
+      "areas": ["fleet", "github"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -31453,187 +30004,121 @@
     },
     {
       "path": "/services/4/work/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/services/4/upstreamSecurity/upstream",
-      "areas": [
-        "fleet",
-        "github",
-        "upstream",
-        "radar"
-      ],
+      "areas": ["fleet", "github", "upstream", "radar"],
       "attributed": "sweep"
     },
     {
       "path": "/services/4/upstreamSecurity/security",
-      "areas": [
-        "fleet",
-        "github",
-        "radar",
-        "template",
-        "security"
-      ],
+      "areas": ["fleet", "github", "radar", "template", "security"],
       "attributed": "sweep"
     },
     {
       "path": "/services/4/runs/0",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/1",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/2",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/3",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/4",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/5",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/6",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/7",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/8",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/9",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/10",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/11",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/12",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/13",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/14",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/15",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/16",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/17",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/18",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/19",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/20",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/21",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/22",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/23",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/runs/24",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/4/releases",
-      "areas": [
-        "fleet",
-        "github"
-      ],
+      "areas": ["fleet", "github"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -31672,187 +30157,121 @@
     },
     {
       "path": "/services/5/work/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/services/5/upstreamSecurity/upstream",
-      "areas": [
-        "fleet",
-        "github",
-        "upstream",
-        "radar"
-      ],
+      "areas": ["fleet", "github", "upstream", "radar"],
       "attributed": "sweep"
     },
     {
       "path": "/services/5/upstreamSecurity/security",
-      "areas": [
-        "fleet",
-        "github",
-        "radar",
-        "template",
-        "security"
-      ],
+      "areas": ["fleet", "github", "radar", "template", "security"],
       "attributed": "sweep"
     },
     {
       "path": "/services/5/runs/0",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/1",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/2",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/3",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/4",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/5",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/6",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/7",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/8",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/9",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/10",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/11",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/12",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/13",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/14",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/15",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/16",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/17",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/18",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/19",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/20",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/21",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/22",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/23",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/runs/24",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/5/releases",
-      "areas": [
-        "fleet",
-        "github"
-      ],
+      "areas": ["fleet", "github"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -31891,187 +30310,121 @@
     },
     {
       "path": "/services/6/work/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/services/6/upstreamSecurity/upstream",
-      "areas": [
-        "fleet",
-        "github",
-        "upstream",
-        "radar"
-      ],
+      "areas": ["fleet", "github", "upstream", "radar"],
       "attributed": "sweep"
     },
     {
       "path": "/services/6/upstreamSecurity/security",
-      "areas": [
-        "fleet",
-        "github",
-        "radar",
-        "template",
-        "security"
-      ],
+      "areas": ["fleet", "github", "radar", "template", "security"],
       "attributed": "sweep"
     },
     {
       "path": "/services/6/runs/0",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/1",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/2",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/3",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/4",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/5",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/6",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/7",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/8",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/9",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/10",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/11",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/12",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/13",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/14",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/15",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/16",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/17",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/18",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/19",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/20",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/21",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/22",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/23",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/runs/24",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/6/releases",
-      "areas": [
-        "fleet",
-        "github"
-      ],
+      "areas": ["fleet", "github"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -32110,187 +30463,121 @@
     },
     {
       "path": "/services/7/work/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/services/7/upstreamSecurity/upstream",
-      "areas": [
-        "fleet",
-        "github",
-        "upstream",
-        "radar"
-      ],
+      "areas": ["fleet", "github", "upstream", "radar"],
       "attributed": "sweep"
     },
     {
       "path": "/services/7/upstreamSecurity/security",
-      "areas": [
-        "fleet",
-        "github",
-        "radar",
-        "template",
-        "security"
-      ],
+      "areas": ["fleet", "github", "radar", "template", "security"],
       "attributed": "sweep"
     },
     {
       "path": "/services/7/runs/0",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/1",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/2",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/3",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/4",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/5",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/6",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/7",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/8",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/9",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/10",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/11",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/12",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/13",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/14",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/15",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/16",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/17",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/18",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/19",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/20",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/21",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/22",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/23",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/runs/24",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/7/releases",
-      "areas": [
-        "fleet",
-        "github"
-      ],
+      "areas": ["fleet", "github"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -32329,175 +30616,113 @@
     },
     {
       "path": "/services/8/work/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/services/8/upstreamSecurity/upstream",
-      "areas": [
-        "fleet",
-        "github",
-        "upstream",
-        "radar"
-      ],
+      "areas": ["fleet", "github", "upstream", "radar"],
       "attributed": "sweep"
     },
     {
       "path": "/services/8/upstreamSecurity/security",
-      "areas": [
-        "fleet",
-        "github",
-        "radar",
-        "template",
-        "security"
-      ],
+      "areas": ["fleet", "github", "radar", "template", "security"],
       "attributed": "sweep"
     },
     {
       "path": "/services/8/runs/0",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/runs/1",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/runs/2",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/runs/3",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/runs/4",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/runs/5",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/runs/6",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/runs/7",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/runs/8",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/runs/9",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/runs/10",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/runs/11",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/runs/12",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/runs/13",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/runs/14",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/runs/15",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/runs/16",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/runs/17",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/runs/18",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/runs/19",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/runs/20",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/runs/21",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/runs/22",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/8/releases",
-      "areas": [
-        "fleet",
-        "github"
-      ],
+      "areas": ["fleet", "github"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -32536,157 +30761,101 @@
     },
     {
       "path": "/services/9/work/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/services/9/upstreamSecurity/upstream",
-      "areas": [
-        "fleet",
-        "github",
-        "upstream",
-        "radar"
-      ],
+      "areas": ["fleet", "github", "upstream", "radar"],
       "attributed": "sweep"
     },
     {
       "path": "/services/9/upstreamSecurity/security",
-      "areas": [
-        "fleet",
-        "github",
-        "radar",
-        "template",
-        "security"
-      ],
+      "areas": ["fleet", "github", "radar", "template", "security"],
       "attributed": "sweep"
     },
     {
       "path": "/services/9/runs/0",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/9/runs/1",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/9/runs/2",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/9/runs/3",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/9/runs/4",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/9/runs/5",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/9/runs/6",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/9/runs/7",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/9/runs/8",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/9/runs/9",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/9/runs/10",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/9/runs/11",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/9/runs/12",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/9/runs/13",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/9/runs/14",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/9/runs/15",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/9/runs/16",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/9/runs/17",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/9/runs/18",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/9/runs/19",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/9/releases",
-      "areas": [
-        "fleet",
-        "github"
-      ],
+      "areas": ["fleet", "github"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -32725,181 +30894,117 @@
     },
     {
       "path": "/services/10/work/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/services/10/upstreamSecurity/upstream",
-      "areas": [
-        "fleet",
-        "github",
-        "upstream",
-        "radar"
-      ],
+      "areas": ["fleet", "github", "upstream", "radar"],
       "attributed": "sweep"
     },
     {
       "path": "/services/10/upstreamSecurity/security",
-      "areas": [
-        "fleet",
-        "github",
-        "radar",
-        "template",
-        "security"
-      ],
+      "areas": ["fleet", "github", "radar", "template", "security"],
       "attributed": "sweep"
     },
     {
       "path": "/services/10/runs/0",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/1",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/2",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/3",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/4",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/5",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/6",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/7",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/8",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/9",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/10",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/11",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/12",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/13",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/14",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/15",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/16",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/17",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/18",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/19",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/20",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/21",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/22",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/runs/23",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/10/releases",
-      "areas": [
-        "fleet",
-        "github"
-      ],
+      "areas": ["fleet", "github"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -32938,187 +31043,121 @@
     },
     {
       "path": "/services/11/work/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/services/11/upstreamSecurity/upstream",
-      "areas": [
-        "fleet",
-        "github",
-        "upstream",
-        "radar"
-      ],
+      "areas": ["fleet", "github", "upstream", "radar"],
       "attributed": "sweep"
     },
     {
       "path": "/services/11/upstreamSecurity/security",
-      "areas": [
-        "fleet",
-        "github",
-        "radar",
-        "template",
-        "security"
-      ],
+      "areas": ["fleet", "github", "radar", "template", "security"],
       "attributed": "sweep"
     },
     {
       "path": "/services/11/runs/0",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/1",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/2",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/3",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/4",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/5",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/6",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/7",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/8",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/9",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/10",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/11",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/12",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/13",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/14",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/15",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/16",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/17",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/18",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/19",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/20",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/21",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/22",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/23",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/runs/24",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/11/releases",
-      "areas": [
-        "fleet",
-        "github"
-      ],
+      "areas": ["fleet", "github"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -33157,169 +31196,109 @@
     },
     {
       "path": "/services/12/work/issues",
-      "areas": [
-        "github"
-      ]
+      "areas": ["github"]
     },
     {
       "path": "/services/12/upstreamSecurity/upstream",
-      "areas": [
-        "fleet",
-        "github",
-        "upstream",
-        "radar"
-      ],
+      "areas": ["fleet", "github", "upstream", "radar"],
       "attributed": "sweep"
     },
     {
       "path": "/services/12/upstreamSecurity/security",
-      "areas": [
-        "fleet",
-        "github",
-        "radar",
-        "template",
-        "security"
-      ],
+      "areas": ["fleet", "github", "radar", "template", "security"],
       "attributed": "sweep"
     },
     {
       "path": "/services/12/runs/0",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/12/runs/1",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/12/runs/2",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/12/runs/3",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/12/runs/4",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/12/runs/5",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/12/runs/6",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/12/runs/7",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/12/runs/8",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/12/runs/9",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/12/runs/10",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/12/runs/11",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/12/runs/12",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/12/runs/13",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/12/runs/14",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/12/runs/15",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/12/runs/16",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/12/runs/17",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/12/runs/18",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/12/runs/19",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/12/runs/20",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/12/runs/21",
-      "areas": [
-        "runs"
-      ]
+      "areas": ["runs"]
     },
     {
       "path": "/services/12/releases",
-      "areas": [
-        "fleet",
-        "github"
-      ],
+      "areas": ["fleet", "github"],
       "envelope": {
         "source": "releases",
         "state": "unread"
