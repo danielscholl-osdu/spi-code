@@ -119,7 +119,11 @@ export default function Today({
   }
   const body = snapshot.body;
   const openEvidence = onOpenEvidence ?? (() => openFreshness(body));
-  const readAgain = async () => store.getState().requestReadAgain();
+  const readAgain = async () => {
+    const state = store.getState();
+    if (state.sweepRequest !== null || state.progress?.outcome === "running") return;
+    return state.requestReadAgain();
+  };
   return (
     <section
       className={leaving ? "today today-handover" : "today"}

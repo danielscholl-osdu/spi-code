@@ -13,7 +13,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import november6 from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
-import { midSweep } from "../../components/sweep/test-helper.js";
+import { midSweep, sweepEvent } from "../../components/sweep/test-helper.js";
 import { createSelectionStore } from "../../panels/selection.js";
 import { createWatchStore } from "../../store/watch.js";
 import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
@@ -238,6 +238,23 @@ describe("Read again on the caveat band", () => {
     expect(send).not.toHaveBeenCalled();
     await act(async () => store.setState({ progress: midSweep({ outcome: "committed" }) }));
     expect(readAgain(container)?.disabled).toBe(false);
+  });
+
+  it("sends nothing on a press that lands before disabled commits", async () => {
+    const { container, store, send } = await mount(morning("bad"));
+    await act(async () => {
+      store.getState().receive(sweepEvent("sweep.progress", midSweep()));
+      expect(readAgain(container)?.disabled).toBe(false);
+      readAgain(container)?.click();
+    });
+    expect(send).not.toHaveBeenCalled();
+    await act(async () => store.setState({ progress: midSweep({ outcome: "committed" }) }));
+    await act(async () => {
+      readAgain(container)?.click();
+      expect(readAgain(container)?.disabled).toBe(false);
+      readAgain(container)?.click();
+    });
+    expect(send).toHaveBeenCalledOnce();
   });
 });
 
