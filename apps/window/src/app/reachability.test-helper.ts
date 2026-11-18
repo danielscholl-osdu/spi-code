@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { ViewSnapshot } from "@spi-code/contracts";
+import type { TodayFleet, ViewSnapshot } from "@spi-code/contracts";
 import { restatesHeadline } from "../components/opened-body/content.js";
 import { plainTitle } from "../text.js";
 import { clockTime, instantsIn, timedText } from "../time.js";
@@ -63,7 +63,7 @@ export type Exemption = {
   pending?: true;
 };
 
-type Leaves = Pick<ViewSnapshot, "briefing" | "releases">;
+type Leaves = Pick<ViewSnapshot, "briefing" | "releases" | "services">;
 type Lane = ViewSnapshot["briefing"]["environment"]["lanes"][number];
 type Event = Lane["events"][number];
 type Repo = ViewSnapshot["briefing"]["repositories"]["rows"][number];
@@ -843,7 +843,7 @@ export function lowerCases(snapshot: ViewSnapshot): Reach[] {
     counts(pointer, tr, entry.counts);
   });
   fleetCases(today, add);
-  forkCases(today, add);
+  forkCases(today, snapshot.services, add);
   causeCases(today, add);
   return cases;
 }
@@ -1017,11 +1017,21 @@ function itemAt(pointer: string, { briefing }: Leaves) {
 const FLEET = "/briefing/today/fleet";
 const FOLD_FIGURES = `${FLEET}/forks/rest`;
 
-function forkCases(today: Summary, add: Add) {
+function unreadRestForks(fleet: TodayFleet, services: ViewSnapshot["services"]) {
+  const checked = new Set(
+    services?.filter(({ home }) => home?.mark.kind === "check").map(({ service }) => service),
+  );
+  return new Set([
+    ...fleet.stations.flatMap(({ notRead }) => notRead),
+    ...fleet.forks.rest.forks.filter((fork) => !checked.has(fork)),
+  ]);
+}
+
+function forkCases(today: Summary, services: ViewSnapshot["services"], add: Add) {
   const fleet = today.fleet;
   if (!fleet) return;
   const { yours, stopped, rest } = fleet.forks;
-  const unread = new Set(fleet.stations.flatMap(({ notRead }) => notRead));
+  const unread = unreadRestForks(fleet, services);
   for (const [index, fork] of yours.entries())
     add(
       `${FLEET}/forks/yours/${index}`,
@@ -1034,13 +1044,15 @@ function forkCases(today: Summary, add: Add) {
       attribute: "title",
       contains: true,
     });
-  for (const [index, fork] of rest.forks.entries())
+  for (const [index, fork] of rest.forks.entries()) {
+    const isUnread = unread.has(fork);
     add(
       `${FOLD_FIGURES}/forks/${index}`,
       fork,
-      unread.has(fork) ? FORKS : UNFOLDED,
-      `tr[data-fork=${quote(fork)}] th`,
+      isUnread ? FORKS : UNFOLDED,
+      `[data-fork-group=${isUnread ? "unread" : "quiet"}] tr[data-fork=${quote(fork)}] th`,
     );
+  }
   for (const [kind, figures] of [
     ["stations", rest.stations],
     ["doors", rest.doors],
@@ -1120,7 +1132,7 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
           figure.id,
           figure.count,
           figure.forks,
-          new Set(fleet.stations.flatMap(({ notRead }) => notRead)),
+          unreadRestForks(fleet, snapshot.services),
         )
       );
     },
@@ -1522,7 +1534,7 @@ export function leaves(snapshot: Pick<ViewSnapshot, "briefing" | "releases">) {
  * shows and the bead that owns it.
  */
 export function coverage(
-  snapshot: Pick<ViewSnapshot, "briefing" | "releases">,
+  snapshot: Leaves,
   cases: readonly Reach[],
   exemptions: Readonly<Record<string, Exemption>> = EXEMPTIONS,
 ) {

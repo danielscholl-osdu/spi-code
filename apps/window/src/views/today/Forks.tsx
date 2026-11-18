@@ -230,7 +230,10 @@ export function Forks({
 
   const { yours, rest } = fleet.forks;
   const homes = new Map(snapshot.services?.map(({ service, home }) => [service, home]));
-  const unread = new Set(fleet.stations.flatMap(({ notRead }) => notRead));
+  const unread = new Set([
+    ...fleet.stations.flatMap(({ notRead }) => notRead),
+    ...rest.forks.filter((fork) => homes.get(fork)?.mark.kind !== "check"),
+  ]);
   const quiet = rest.forks.filter((fork) => !unread.has(fork));
   const total = [...yours, ...rest.forks].map((fork) => homes.get(fork)?.openPrTotal);
   const knownTotal = total.reduce<number>((n, count) => n + (count ?? 0), 0);

@@ -661,6 +661,18 @@ describe("Forks on the 16 Nov sweep", () => {
     expect(fork("file")?.nextElementSibling?.textContent).toContain("Not read on file");
     expect(fork("file")?.nextElementSibling?.textContent).not.toContain("Nothing waiting on you");
   });
+
+  it("keeps a fork with an unread home in the unread group when its stations were read", async () => {
+    const body = whole();
+    const home = body.services?.find(({ service }) => service === "file")?.home;
+    if (!home) throw new Error("Fixture needs file's home reading");
+    home.mark = { kind: "unread" };
+    await render(body, "#today/forks");
+    expect(fold()).toBeNull();
+    expect(fork("file")?.closest("[data-fork-group]")?.getAttribute("data-fork-group")).toBe(
+      "unread",
+    );
+  });
 });
 
 describe("Can wait by cause", () => {
