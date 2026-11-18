@@ -1,7 +1,14 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { PROTOCOL_VERSION, parseMessage, type Station, StationIdSchema } from "@spi-code/contracts";
+import {
+  PROTOCOL_VERSION,
+  parseMessage,
+  type Station,
+  StationIdSchema,
+  type TodayMemberStation,
+  TodayMemberStationSchema,
+} from "@spi-code/contracts";
 import {
   createContext,
   type ReactNode,
@@ -40,6 +47,13 @@ export type PlaceRoute =
 /** A service page, on one of its tabs (Overview when absent) with one of that tab's rows open. */
 export type ServiceRoute = { kind: "service"; id: string; tab?: string; row?: string };
 
+/** Today's tabs after Yours, which opens when the route names none. */
+export const TODAY_TABS = ["activity"] as const;
+export type TodayTab = (typeof TODAY_TABS)[number];
+
+/** Today, on one of its tabs, with Yours filtered to one station's rows. */
+export type TodayRoute = { kind: "today"; tab?: TodayTab; station?: TodayMemberStation };
+
 /** What Evidence was opened for: a Today item, or a Today line with each of its members. */
 export type EvidenceSelection = { kind: "item" | "line"; id: string };
 
@@ -53,7 +67,7 @@ export type OpenSelection = { kind: string; id: string };
  */
 export type EvidenceRoute = {
   kind: "evidence";
-  from?: { kind: "today" } | PlaceRoute;
+  from?: TodayRoute | PlaceRoute;
   selection?: EvidenceSelection;
   open?: OpenSelection;
   about?: EvidenceSelection;
@@ -61,7 +75,7 @@ export type EvidenceRoute = {
 };
 
 /** What the centre can hold. */
-export type Route = { kind: "today" } | PlaceRoute | EvidenceRoute;
+export type Route = TodayRoute | PlaceRoute | EvidenceRoute;
 
 export type RouteKind = Route["kind"];
 export type RouteOf<K extends RouteKind> = Extract<Route, { kind: K }>;
@@ -93,7 +107,6 @@ const SERVICE_ID = /^[a-z0-9][a-z0-9-]*$/;
 const TAB = /^[a-z][a-z-]*$/;
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 const PLAIN = new Set<string>([
-  "today",
   "upstream",
   "environment",
   "engineering-system",
@@ -179,6 +192,21 @@ function parseService(parts: readonly string[]): Route | undefined {
   return { kind: "service", id, ...(tab ? { tab } : {}), ...(row ? { row } : {}) };
 }
 
+/** `today[/<tab>[/<station>]]`: a station filters Yours, so its tab is `yours`. */
+function parseToday(parts: readonly string[]): Route | undefined {
+  const [tab, station, ...rest] = parts;
+  if (rest.length > 0) return undefined;
+  if (tab === undefined) return { kind: "today" };
+  if (station !== undefined)
+    return tab === "yours" && TodayMemberStationSchema.safeParse(station).success
+      ? { kind: "today", station: station as TodayMemberStation }
+      : undefined;
+  if (tab === "yours") return { kind: "today" };
+  return (TODAY_TABS as readonly string[]).includes(tab)
+    ? { kind: "today", tab: tab as TodayTab }
+    : undefined;
+}
+
 /** Reads a location hash (`#service/legal`, `release/2026-10`); undefined when it names no route. */
 export function parseRoute(hash: string): Route | undefined {
   const path = hash.replace(/^#\/?/, "");
@@ -188,6 +216,7 @@ export function parseRoute(hash: string): Route | undefined {
   const head = slash < 0 ? path : path.slice(0, slash);
   if (head === "service")
     return slash < 0 ? undefined : parseService(path.slice(slash + 1).split("/"));
+  if (head === "today") return parseToday(slash < 0 ? [] : path.slice(slash + 1).split("/"));
   const rest = slash < 0 ? undefined : decode(path.slice(slash + 1));
   if (Object.hasOwn(ALIASES, head)) return rest === undefined ? ALIASES[head] : undefined;
   if (
@@ -208,6 +237,12 @@ export function routeHash(route: Route): string {
   switch (route.kind) {
     case "service":
       return `#${["service", route.id, ...(route.tab ? [route.tab] : []), ...(route.tab && route.row ? [route.row] : [])].map(encodeURIComponent).join("/")}`;
+    case "today":
+      return route.station
+        ? `#today/yours/${route.station}`
+        : route.tab
+          ? `#today/${route.tab}`
+          : "#today";
     case "release":
       return `#release/${route.month}`;
     case "releases":

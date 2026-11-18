@@ -834,7 +834,11 @@
             "count": 0,
             "forks": [],
             "notRead": [],
-            "id": "template"
+            "id": "template",
+            "target": {
+              "kind": "station",
+              "station": "template"
+            }
           },
           {
             "count": 12,

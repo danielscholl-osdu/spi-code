@@ -107,7 +107,7 @@ it("opens a reading item in the shared popover, leaving the panel closed", async
   await click('.place-item-content[data-selection-id="rollout"]');
   expect(openSelection()).toEqual({ kind: "item", id: "rollout" });
   expect(selection.getState()).toMatchObject({ selected: null, open: false });
-  expect(popover()?.querySelector(".opened-body-place")?.textContent).toMatch(/^On Today · /);
+  expect(popover()?.querySelector("h3")?.textContent).toMatch(/^fleet · /);
   expect(container.querySelector<HTMLDetailsElement>(".template-details")?.open).toBe(false);
 });
 

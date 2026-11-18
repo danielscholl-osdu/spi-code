@@ -75,15 +75,14 @@ describe.each(NAMES)("on the %s morning", (name) => {
     expect(frame).not.toBeNull();
     expect(
       [...(frame?.children ?? [])]
-        .map((child) => child.className)
+        .map((child) => child.className || child.getAttribute("role"))
         .filter((name) => name !== "today-caveat"),
-    ).toEqual(["today-table"]);
-    const order = ["blocked", "waiting", "can-wait", "moving", "history"];
+    ).toEqual([...(body.briefing.today?.fleet ? ["flow-wrap"] : []), "today-tabs", "tabpanel"]);
+    const order = ["blocked", "waiting", "can-wait"];
     const sections = [...(frame?.querySelectorAll<HTMLElement>(".today-section") ?? [])].map(
       ({ dataset }) => dataset.section ?? "",
     );
     expect(sections).toEqual(order.filter((id) => sections.includes(id)));
-    expect(sections.slice(-3)).toEqual(["can-wait", "moving", "history"]);
   });
 });
 

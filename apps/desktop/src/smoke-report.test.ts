@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { readFileSync } from "node:fs";
-import { ViewSnapshotSchema } from "@spi-code/contracts";
+import { fleetLines, ViewSnapshotSchema } from "@spi-code/contracts";
 import { APPENDIX_A_TOOLS } from "@spi-code/host";
 import { expect, it } from "vitest";
 import { readGenerated } from "../../../scripts/watch-generated.mjs";
@@ -351,36 +351,45 @@ const rejected: Record<string, string> = {
   "strip-20/740": "Toggle sidebar at 76,8 28x28 lies in a drag rectangle",
 };
 
+const morningLines = (morning: MorningSurface["morning"]) =>
+  ViewSnapshotSchema.parse(JSON.parse(readGenerated(MORNING_FIXTURES[morning]))).briefing.lines ??
+  [];
 const lineMembers = Object.fromEntries(
   (["calm", "busy", "bad"] as const).map((morning) => [
     morning,
-    lineMembersText(
-      ViewSnapshotSchema.parse(JSON.parse(readGenerated(MORNING_FIXTURES[morning]))).briefing.lines,
-    ),
+    lineMembersText(morningLines(morning)),
   ]),
 ) as Record<MorningSurface["morning"], string>;
+const syncMembers = lineMembersText(fleetLines(morningLines("busy"), "sync"));
 
 const morningBlocks: Record<MorningSurface["morning"], MorningEvidence["blocks"]> = {
   calm: [
-    { name: "waiting", top: 108, height: 77 },
-    { name: "can-wait", top: 207, height: 140 },
-    { name: "moving", top: 369, height: 108 },
-    { name: "history", top: 499, height: 108 },
+    { name: "flow", top: 108, height: 180 },
+    { name: "waiting", top: 340, height: 77 },
   ],
   busy: [
-    { name: "blocked", top: 108, height: 150 },
-    { name: "waiting", top: 280, height: 219 },
-    { name: "can-wait", top: 521, height: 140 },
-    { name: "moving", top: 683, height: 108 },
-    { name: "history", top: 813, height: 108 },
+    { name: "flow", top: 108, height: 180 },
+    { name: "blocked", top: 340, height: 150 },
+    { name: "waiting", top: 512, height: 219 },
+    { name: "can-wait", top: 753, height: 140 },
   ],
   bad: [
     { name: "caveat", top: 108, height: 35 },
-    { name: "blocked", top: 161, height: 150 },
-    { name: "waiting", top: 333, height: 246 },
-    { name: "can-wait", top: 601, height: 140 },
-    { name: "moving", top: 763, height: 108 },
-    { name: "history", top: 893, height: 108 },
+    { name: "flow", top: 161, height: 180 },
+    { name: "blocked", top: 393, height: 150 },
+    { name: "waiting", top: 565, height: 246 },
+    { name: "can-wait", top: 833, height: 140 },
+  ],
+};
+const viewBlocks: Record<"sync" | "activity", MorningEvidence["blocks"]> = {
+  sync: [
+    { name: "flow", top: 108, height: 180 },
+    { name: "waiting", top: 380, height: 150 },
+  ],
+  activity: [
+    { name: "flow", top: 108, height: 180 },
+    { name: "moving", top: 340, height: 108 },
+    { name: "history", top: 470, height: 108 },
   ],
 };
 
@@ -410,17 +419,26 @@ function morningShot(
       morning: surface.morning,
       fixture: MORNING_FIXTURES[surface.morning],
       open: surface.open,
-      sections: morningSections(surface.morning, surface.open, viewportWidth),
+      view: surface.view,
+      sections: morningSections(surface.morning, surface.open, viewportWidth, surface.view),
       headline: "",
-      members: lineMembers[surface.morning],
+      members:
+        surface.view === "sync"
+          ? syncMembers
+          : surface.view === "activity"
+            ? "blocked · waiting"
+            : lineMembers[surface.morning],
       lineMembers: lineMembers[surface.morning],
+      ...(surface.view === "sync" ? { filtered: syncMembers } : {}),
+      tab: surface.view === "activity" ? "activity" : "yours",
+      pressed: surface.view === "sync" ? "sync" : "",
       todayCount: String(lineMemberCount(lineMembers[surface.morning])),
       viewportHeight: 800,
       scrollHeight: 1594,
       clientHeight: 692,
       pageHeight,
-      blocks: morningBlocks[surface.morning],
-      ...(surface.open ? { opened: "Line › storage › Sync PR ›" } : {}),
+      blocks: surface.view === "yours" ? morningBlocks[surface.morning] : viewBlocks[surface.view],
+      ...(surface.open ? { opened: "Sync PR failing checks" } : {}),
     },
   };
 }
@@ -1081,40 +1099,42 @@ const evidence = (
   change: { [K in keyof MorningEvidence]?: MorningEvidence[K] | undefined },
 ) => ({ morning: { ...shot.morning, ...change } as MorningEvidence });
 
-it("lists Today on calm, busy and bad at 1440 and 740, busy also at 1000, in both appearances, and a row opened at 1440", () => {
+it("lists Today on calm, busy and bad at 1440 and 740, busy also at 1000, a row opened at 1440, and busy with Sync PR pressed and on Activity, in both appearances", () => {
   expect(
     mornings.map(
       ({ surface, viewportWidth, appearance }) => `${surface}/${viewportWidth}/${appearance}`,
     ),
-  ).toHaveLength(20);
-  for (const morning of ["calm", "busy", "bad"])
-    for (const id of [`today-${morning}`, `today-${morning}-open`])
-      for (const appearance of ["light", "dark"]) {
-        const widths = id.endsWith("-open")
-          ? [1440]
-          : morning === "busy"
-            ? [1440, 1000, 740]
-            : [1440, 740];
-        for (const viewportWidth of widths) {
-          const matches = (shot: SmokeReport["views"][number]) =>
-            shot.surface === id &&
-            shot.viewportWidth === viewportWidth &&
-            shot.appearance === appearance;
-          expect(report.views.filter(matches)).toHaveLength(1);
-          expect(() => assertSmokeViews(report.views.filter((shot) => !matches(shot)))).toThrow(
-            "Missing screenshot",
-          );
-          expect(() =>
-            assertSmokeViews(
-              report.views.map((shot) =>
-                matches(shot)
-                  ? { ...shot, appearance: appearance === "light" ? "dark" : "light" }
-                  : shot,
-              ),
+  ).toHaveLength(24);
+  const surfaces: [string, number[]][] = [
+    ...["calm", "busy", "bad"].flatMap((morning): [string, number[]][] => [
+      [`today-${morning}`, morning === "busy" ? [1440, 1000, 740] : [1440, 740]],
+      [`today-${morning}-open`, [1440]],
+    ]),
+    ["today-busy-sync", [1440]],
+    ["today-busy-activity", [1440]],
+  ];
+  for (const [id, widths] of surfaces)
+    for (const appearance of ["light", "dark"]) {
+      for (const viewportWidth of widths) {
+        const matches = (shot: SmokeReport["views"][number]) =>
+          shot.surface === id &&
+          shot.viewportWidth === viewportWidth &&
+          shot.appearance === appearance;
+        expect(report.views.filter(matches)).toHaveLength(1);
+        expect(() => assertSmokeViews(report.views.filter((shot) => !matches(shot)))).toThrow(
+          "Missing screenshot",
+        );
+        expect(() =>
+          assertSmokeViews(
+            report.views.map((shot) =>
+              matches(shot)
+                ? { ...shot, appearance: appearance === "light" ? "dark" : "light" }
+                : shot,
             ),
-          ).toThrow(`Missing or duplicate screenshot: ${id}/${viewportWidth}/`);
-        }
+          ),
+        ).toThrow(`Missing or duplicate screenshot: ${id}/${viewportWidth}/`);
       }
+    }
 });
 
 it("fails the bad morning without its caveat band, and a calm or busy one with a caveat", () => {
@@ -1174,21 +1194,29 @@ it("fails a capture that stops at window height or leaves a block outside the im
     (shot) =>
       evidence(shot, {
         blocks: morningBlocks.bad.map((block) =>
-          block.name === "history" ? { ...block, top: 1600 } : block,
+          block.name === "can-wait" ? { ...block, top: 1600 } : block,
         ),
       }),
   );
   expect(() => assertSmokeViews(below)).toThrow(
-    "Block history outside the capture: today-bad-open/1440",
+    "Block can-wait outside the capture: today-bad-open/1440",
   );
-  const noHistory = withMorning(
+  const noCanWait = withMorning(
+    (shot) => shot.surface === "today-busy",
+    (shot) =>
+      evidence(shot, {
+        blocks: morningBlocks.busy.filter(({ name }) => name !== "can-wait"),
+      }),
+  );
+  expect(() => assertSmokeViews(noCanWait)).toThrow("Missing block can-wait: today-busy/1440");
+  const calmCanWait = withMorning(
     (shot) => shot.surface === "today-calm",
     (shot) =>
       evidence(shot, {
-        blocks: morningBlocks.calm.filter(({ name }) => name !== "history"),
+        blocks: [...morningBlocks.calm, { name: "can-wait", top: 439, height: 140 }],
       }),
   );
-  expect(() => assertSmokeViews(noHistory)).toThrow("Missing block history: today-calm/1440");
+  expect(() => assertSmokeViews(calmCanWait)).toThrow("Unexpected block can-wait: today-calm/1440");
   const reordered = withMorning(
     (shot) => shot.surface === "today-busy",
     (shot) => evidence(shot, { blocks: [...morningBlocks.busy].reverse() }),
@@ -1197,9 +1225,9 @@ it("fails a capture that stops at window height or leaves a block outside the im
 });
 
 it.each(["calm", "busy", "bad"] as const)(
-  "fails the %s morning without Can wait, Moving without you or Last 24 hours",
+  "fails the %s morning's Yours without the flow or its Can wait causes, or with Activity's blocks",
   (morning) => {
-    for (const name of ["can-wait", "moving", "history"])
+    for (const name of morning === "calm" ? ["flow", "waiting"] : ["flow", "can-wait"])
       expect(() =>
         assertSmokeViews(
           withMorning(
@@ -1211,8 +1239,71 @@ it.each(["calm", "busy", "bad"] as const)(
           ),
         ),
       ).toThrow(`Missing block ${name}: today-${morning}/740`);
+    expect(() =>
+      assertSmokeViews(
+        withMorning(
+          (shot) => shot.surface === `today-${morning}` && shot.viewportWidth === 740,
+          (shot) =>
+            evidence(shot, {
+              blocks: [...morningBlocks[morning], ...viewBlocks.activity.slice(1)],
+            }),
+        ),
+      ),
+    ).toThrow(`Unexpected block moving: today-${morning}/740`);
   },
 );
+
+it("fails Sync PR pressed unless it draws only Sync PR members, with the station pressed on Yours", () => {
+  const cases: [Parameters<typeof evidence>[1], string][] = [
+    [{ pressed: "" }, "Wrong pressed"],
+    [{ pressed: "sync template" }, "Wrong pressed"],
+    [{ tab: "activity" }, "Wrong tab selected"],
+    [{ members: lineMembers.busy }, "not core's"],
+    [{ filtered: lineMembers.busy, members: lineMembers.busy }, "Filter keeps every row"],
+    [{ filtered: undefined }, "Missing line members"],
+    [
+      { blocks: [...viewBlocks.sync, { name: "can-wait", top: 600, height: 140 }] },
+      "Unexpected block can-wait",
+    ],
+    [{ view: "yours" }, "Wrong view"],
+  ];
+  for (const [change, message] of cases)
+    expect(() =>
+      assertSmokeViews(
+        withMorning(
+          (shot) => shot.surface === "today-busy-sync",
+          (shot) => evidence(shot, change),
+        ),
+      ),
+    ).toThrow(message);
+});
+
+it("fails Activity unless it draws Moving without you and Last 24 hours and no Yours rows", () => {
+  const cases: [(shot: SmokeReport["views"][number]) => object, string][] = [
+    [
+      (shot) =>
+        evidence(shot, { blocks: viewBlocks.activity.filter(({ name }) => name !== "history") }),
+      "Missing block history",
+    ],
+    [
+      (shot) =>
+        evidence(shot, {
+          blocks: [
+            ...viewBlocks.activity.slice(0, 1),
+            { name: "waiting", top: 300, height: 30 },
+            ...viewBlocks.activity.slice(1),
+          ],
+        }),
+      "Unexpected block waiting",
+    ],
+    [(shot) => evidence(shot, { members: lineMembers.busy }), "Activity draws Yours rows"],
+    [(shot) => evidence(shot, { tab: "yours" }), "Wrong tab selected"],
+  ];
+  for (const [change, message] of cases)
+    expect(() =>
+      assertSmokeViews(withMorning((shot) => shot.surface === "today-busy-activity", change)),
+    ).toThrow(message);
+});
 
 it("fails busy without Blocked, and a morning with lines that says nothing is yours", () => {
   expect(() =>
@@ -1230,7 +1321,11 @@ it("fails busy without Blocked, and a morning with lines that says nothing is yo
         (shot) => shot.surface === "today-calm",
         (shot) =>
           evidence(shot, {
-            blocks: [{ name: "calm", top: 100, height: 30 }, ...morningBlocks.calm],
+            blocks: [
+              ...morningBlocks.calm.slice(0, 1),
+              { name: "calm", top: 300, height: 30 },
+              ...morningBlocks.calm.slice(1),
+            ],
           }),
       ),
     ),
@@ -1330,9 +1425,16 @@ it("compares the sidebar with core membership when a morning regroups", () => {
 
 it("names the settled Today design's rulings per morning, width and opened row", () => {
   expect(morningSections("calm", false, 1440)).toEqual([
-    "Today items 1-5 and X7: Blocked, Waiting on you, Can wait, Moving without you, Last 24 hours",
+    "Today, Fleet flow and D6: Upstream, Sync PR, Integration and Main with the four doors and Environment",
+    "Today, Yours and Can wait: Blocked, Waiting on you, then Can wait by cause; D5: no On Today chip or place link",
     "X4: Today is a table (Fork, What, Open, Age)",
-    "X3: the lower three are counts, not sentences; X8: each opens its place",
+  ]);
+  expect(morningSections("busy", false, 1440, "sync")).toContain(
+    "Today, Filter: Sync PR pressed keeps its rows and group members in Yours and hides Can wait",
+  );
+  expect(morningSections("busy", false, 1440, "activity")).toEqual([
+    "Today, Fleet flow and D6: Upstream, Sync PR, Integration and Main with the four doors and Environment",
+    "Today, Activity: Moving without you and Last 24 hours with their readings",
   ]);
   expect(morningSections("bad", false, 740)).toEqual(
     expect.arrayContaining([
@@ -1340,7 +1442,9 @@ it("names the settled Today design's rulings per morning, width and opened row",
       "Today's table at a narrow centre",
     ]),
   );
-  expect(morningSections("busy", true, 1440)).toContain("Z2: on Today, a row opens in place");
+  expect(morningSections("busy", true, 1440)).toContain(
+    "Today, Yours: a headline expands its row in place",
+  );
 });
 
 it("logs each smoke section's own seconds and the run's seconds since launch", () => {

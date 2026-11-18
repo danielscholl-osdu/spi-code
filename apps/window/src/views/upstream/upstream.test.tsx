@@ -234,9 +234,6 @@ it("lists Before next sync items as briefing records and opens a hold in the sha
   expect(openSelection()).toEqual({ kind: "item", id: "radar:legal" });
   expect(selectionStore.getState()).toMatchObject({ selected: null, open: false });
   const opened = popover()?.querySelector(".opened-body");
-  expect(opened?.querySelector(".opened-body-place")?.textContent).toBe(
-    "On Today · Waiting on you ›",
-  );
   expect(opened?.querySelector("h3")?.textContent).toBe(
     "legal · upstream changes need a toolchain upgrade",
   );

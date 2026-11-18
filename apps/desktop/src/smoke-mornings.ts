@@ -58,6 +58,7 @@ export function assertDrawnMembers(drawn: unknown, members: unknown, label: stri
 /** Today's blocks top to bottom, as the frame draws them; each capture names the ones it holds. */
 export const TODAY_BLOCKS = [
   "caveat",
+  "flow",
   "calm",
   "blocked",
   "waiting",
@@ -67,45 +68,87 @@ export const TODAY_BLOCKS = [
 ] as const;
 export type TodayBlock = (typeof TODAY_BLOCKS)[number];
 
-const LOWER = ["can-wait", "moving", "history"] as const;
-const required: Readonly<Record<Morning, readonly TodayBlock[]>> = {
-  calm: ["waiting", ...LOWER],
-  busy: ["blocked", "waiting", ...LOWER],
-  bad: ["caveat", "blocked", "waiting", ...LOWER],
-};
-const absent: Readonly<Record<Morning, readonly TodayBlock[]>> = {
-  calm: ["caveat", "calm", "blocked"],
-  busy: ["caveat", "calm"],
-  bad: ["calm"],
+/** What a capture shows under the flow: Yours, Yours with the Sync PR station pressed, or Activity. */
+export type TodayView = "yours" | "sync" | "activity";
+export const TODAY_HASHES: Readonly<Record<TodayView, string>> = {
+  yours: "#today",
+  sync: "#today/yours/sync",
+  activity: "#today/activity",
 };
 
-export const MORNING_SURFACES = MORNINGS.flatMap((morning) => [
-  {
-    id: `today-${morning}`,
-    morning,
-    open: false,
-    widths: morning === "busy" ? [1440, 1000, 740] : [1440, 740],
+const ACTIVITY = ["moving", "history"] as const;
+const required: Readonly<Record<Morning, readonly TodayBlock[]>> = {
+  calm: ["flow", "waiting"],
+  busy: ["flow", "blocked", "waiting", "can-wait"],
+  bad: ["caveat", "flow", "blocked", "waiting", "can-wait"],
+};
+const absent: Readonly<Record<Morning, readonly TodayBlock[]>> = {
+  calm: ["caveat", "calm", "blocked", "can-wait", ...ACTIVITY],
+  busy: ["caveat", "calm", ...ACTIVITY],
+  bad: ["calm", ...ACTIVITY],
+};
+const viewBlocks: Readonly<
+  Record<Exclude<TodayView, "yours">, { required: TodayBlock[]; absent: TodayBlock[] }>
+> = {
+  sync: { required: ["flow"], absent: ["calm", "can-wait", ...ACTIVITY] },
+  activity: {
+    required: ["flow", ...ACTIVITY],
+    absent: ["calm", "blocked", "waiting", "can-wait"],
   },
-  { id: `today-${morning}-open`, morning, open: true, widths: [1440] },
-]) satisfies { id: string; morning: Morning; open: boolean; widths: number[] }[];
+};
+
+export const MORNING_SURFACES = [
+  ...MORNINGS.flatMap((morning) => [
+    {
+      id: `today-${morning}`,
+      morning,
+      view: "yours" as TodayView,
+      open: false,
+      widths: morning === "busy" ? [1440, 1000, 740] : [1440, 740],
+    },
+    {
+      id: `today-${morning}-open`,
+      morning,
+      view: "yours" as TodayView,
+      open: true,
+      widths: [1440],
+    },
+  ]),
+  { id: "today-busy-sync", morning: "busy", view: "sync", open: false, widths: [1440] },
+  { id: "today-busy-activity", morning: "busy", view: "activity", open: false, widths: [1440] },
+] satisfies {
+  id: string;
+  morning: Morning;
+  view: TodayView;
+  open: boolean;
+  widths: number[];
+}[];
 export type MorningSurface = (typeof MORNING_SURFACES)[number];
 
 const DESIGN = {
-  sections:
-    "Today items 1-5 and X7: Blocked, Waiting on you, Can wait, Moving without you, Last 24 hours",
+  flow: "Today, Fleet flow and D6: Upstream, Sync PR, Integration and Main with the four doors and Environment",
+  yours:
+    "Today, Yours and Can wait: Blocked, Waiting on you, then Can wait by cause; D5: no On Today chip or place link",
   rows: "X4: Today is a table (Fork, What, Open, Age)",
-  counts: "X3: the lower three are counts, not sentences; X8: each opens its place",
+  filter:
+    "Today, Filter: Sync PR pressed keeps its rows and group members in Yours and hides Can wait",
+  activity: "Today, Activity: Moving without you and Last 24 hours with their readings",
   bad: "Z4: what the sweep did not read opens Evidence",
   narrow: "Today's table at a narrow centre",
-  open: "Z2: on Today, a row opens in place",
+  open: "Today, Yours: a headline expands its row in place",
 } as const;
 
-/** The spi-code-today-and-places.md rulings a reviewer checks this capture against. */
-export function morningSections(morning: Morning, open: boolean, width: number): string[] {
+/** The spi-code-service-home.md rulings a reviewer checks this capture against. */
+export function morningSections(
+  morning: Morning,
+  open: boolean,
+  width: number,
+  view: TodayView = "yours",
+): string[] {
   return [
-    DESIGN.sections,
-    DESIGN.rows,
-    DESIGN.counts,
+    DESIGN.flow,
+    ...(view === "activity" ? [DESIGN.activity] : [DESIGN.yours, DESIGN.rows]),
+    ...(view === "sync" ? [DESIGN.filter] : []),
     ...(morning === "bad" ? [DESIGN.bad] : []),
     ...(width < 1440 ? [DESIGN.narrow] : []),
     ...(open ? [DESIGN.open] : []),
@@ -123,12 +166,18 @@ export interface MorningEvidence {
   morning: Morning;
   fixture: string;
   open: boolean;
+  view: TodayView;
   sections: string[];
   /** The sentence Today draws in place of its rows; none on a morning whose lines core sends. */
   headline: string;
   /** The member rows Blocked and Waiting on you draw, and the members of the fixture's lines. */
   members: string;
   lineMembers: string;
+  /** With a station pressed, the members of the fixture's lines at that station. */
+  filtered?: string;
+  /** The selected tab and the pressed station or door, empty when none is. */
+  tab: string;
+  pressed: string;
   /** The sidebar's Today count, empty when it draws none. */
   todayCount: string;
   viewportHeight: number;
@@ -136,7 +185,7 @@ export interface MorningEvidence {
   clientHeight: number;
   pageHeight: number;
   blocks: MorningBlock[];
-  /** The place link of the row opened in place, drawn directly under that row. */
+  /** The headline of the row opened in place, its body drawn directly under that row. */
   opened?: string;
 }
 
@@ -157,14 +206,28 @@ export function assertMorningEvidence(
   assert.equal(evidence.morning, surface.morning, `Wrong morning: ${label}`);
   assert.equal(evidence.fixture, MORNING_FIXTURES[surface.morning], `Wrong fixture: ${label}`);
   assert.equal(evidence.open, surface.open, `Wrong opened state: ${label}`);
+  assert.equal(evidence.view, surface.view, `Wrong view: ${label}`);
+  assert.equal(
+    evidence.tab,
+    surface.view === "activity" ? "activity" : "yours",
+    `Wrong tab selected: ${label}`,
+  );
+  assert.equal(evidence.pressed, surface.view === "sync" ? "sync" : "", `Wrong pressed: ${label}`);
   assert.deepEqual(
     evidence.sections,
-    morningSections(surface.morning, surface.open, shot.viewportWidth),
+    morningSections(surface.morning, surface.open, shot.viewportWidth, surface.view),
     `Wrong decision sections: ${label}`,
   );
   assert.equal(evidence.headline, "", `Wrong headline: ${label}`);
-  const { members, lineMembers, todayCount } = evidence;
-  assertDrawnMembers(members, lineMembers, label);
+  const { members, lineMembers, filtered, todayCount } = evidence;
+  if (surface.view === "activity") {
+    assertDrawnMembers(lineMembers, lineMembers, label);
+    assert.equal(members, membersText({}), `Activity draws Yours rows: ${label}`);
+  } else if (surface.view === "sync") {
+    assertDrawnMembers(filtered, filtered, `${label} filtered`);
+    assert.notEqual(filtered, lineMembers, `Filter keeps every row: ${label}`);
+    assertDrawnMembers(members, filtered, label);
+  } else assertDrawnMembers(members, lineMembers, label);
   assert(
     typeof todayCount === "string" && /^\d*$/.test(todayCount),
     `Missing Today count: ${label}`,
@@ -207,9 +270,13 @@ export function assertMorningEvidence(
     TODAY_BLOCKS.filter((name) => names.includes(name)),
     `Blocks out of order: ${label}`,
   );
-  for (const name of required[surface.morning])
+  const blocksFor =
+    surface.view === "yours"
+      ? { required: required[surface.morning], absent: absent[surface.morning] }
+      : viewBlocks[surface.view];
+  for (const name of blocksFor.required)
     assert(names.includes(name), `Missing block ${name}: ${label}`);
-  for (const name of absent[surface.morning])
+  for (const name of blocksFor.absent)
     assert(!names.includes(name), `Unexpected block ${name}: ${label}`);
   for (const { name, top, height } of blocks)
     assert(
@@ -222,7 +289,7 @@ export function assertMorningEvidence(
     );
   if (surface.open)
     assert(
-      typeof evidence.opened === "string" && /\S.* ›$/.test(evidence.opened),
+      typeof evidence.opened === "string" && /\p{L}/u.test(evidence.opened),
       `Missing row opened in place: ${label}`,
     );
   else assert.equal(evidence.opened, undefined, `Unexpected opened row: ${label}`);

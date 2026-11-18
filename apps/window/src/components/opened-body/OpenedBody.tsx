@@ -3,7 +3,6 @@
 
 import { useEffect } from "react";
 import {
-  navigate,
   type OpenSelection,
   openEvidence,
   openSelection,
@@ -60,42 +59,11 @@ export function OpenedBody({ content, selection, origin, rowUrl, onClose }: Open
     return () => window.removeEventListener("keydown", keydown);
   }, [primary, onClose]);
 
-  const { place, subject, cause, effect, steps = [], deadline } = content;
+  const { subject, cause, effect, steps = [], deadline } = content;
   const notRead = new Set(content.notRead ?? []).size;
   return (
     <div className="opened-body">
-      {origin === "today" ? (
-        <a
-          className="opened-body-place"
-          href={place.destination.kind === "line" ? "#today" : routeHash(place.destination)}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            navigate(place.destination);
-            if (place.selection) setOpenSelection(place.selection, subject);
-          }}
-        >
-          {place.label} ›
-        </a>
-      ) : (
-        <>
-          {subject && content.section && (
-            <a
-              className="opened-body-place"
-              href={routeHash({ kind: "today" })}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                navigate({ kind: "today" });
-                setOpenSelection(subject);
-              }}
-            >
-              On Today · {content.section === "blocked" ? "Blocked" : "Waiting on you"} ›
-            </a>
-          )}
-          <h3>{content.title}</h3>
-        </>
-      )}
+      {origin === "place" && <h3>{content.title}</h3>}
       {deadline && (
         <p className="opened-body-deadline">
           <span aria-hidden="true">◷</span>{" "}

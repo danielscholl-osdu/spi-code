@@ -72,7 +72,6 @@ const read = () => {
     pills: [...(body?.querySelectorAll<HTMLAnchorElement>(".opened-body-sources a") ?? [])].map(
       (a) => [a.textContent?.replace("↗", "").trim(), a.getAttribute("href")],
     ),
-    onToday: body?.querySelector(".opened-body-place")?.textContent,
     buttons: [...(popover()?.querySelectorAll("button") ?? [])].map((b) => b.className),
   };
 };
@@ -89,7 +88,6 @@ it("says a failed smoke run left the running environment ready and nothing on To
     "A smoke run on a fresh cluster failed. The running environment stayed ready; nothing on Today waits on it.",
   );
   expect(shown.pills).toEqual([["Run", RUN]]);
-  expect(shown.onToday).toBeUndefined();
   expect(shown.buttons).toEqual(["popover-close"]);
   expect(selectionStore.getState().selected).toBeNull();
 });
@@ -192,7 +190,7 @@ it("opens a run's Today member when core folds the run into one", async () => {
   await render(body);
   await act(async () => bar(SMOKE).click());
   const shown = read();
-  expect(shown.onToday).toBe("On Today · Blocked ›");
+  expect(shown.title).toBe("crs-conversion · sync halted: no filter rule for schemathesis-tests");
   expect(shown.pills).toContainEqual(["Run", RUN]);
   expect(openSelection()).toEqual({ kind: "event", id: SMOKE });
 });

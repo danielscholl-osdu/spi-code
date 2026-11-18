@@ -4,8 +4,8 @@
 .opened-body { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; color: var(--text); font-size: 13px; line-height: 1.5; }
 .opened-body h3 { margin: 0; color: var(--text-strong); font-size: 15px; font-weight: 600; }
 .opened-body p { margin: 0; }
-.opened-body-place, .opened-body-evidence { color: var(--text-muted); font-size: 12px; text-decoration: none; }
-.opened-body :is(.opened-body-place, .opened-body-evidence):hover { color: var(--accent-text); text-decoration: underline; }
+.opened-body-evidence { color: var(--text-muted); font-size: 12px; text-decoration: none; }
+.opened-body .opened-body-evidence:hover { color: var(--accent-text); text-decoration: underline; }
 .opened-body .opened-body-deadline { color: var(--warning-text); }
 .opened-body-effect { color: var(--text-muted); }
 .opened-body-step { font-weight: 500; }

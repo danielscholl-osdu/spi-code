@@ -1640,20 +1640,23 @@ ${["pulls", "issues"]
   )
   .join("")}
 <h1>Today on three mornings</h1><p>Each morning is a schema-valid snapshot shown through the same smoke-only
-preload channel, at the Nov 6 fixture clock: ${MORNING_SURFACES.filter(({ open }) => !open)
+preload channel, at the Nov 6 fixture clock: ${MORNING_SURFACES.filter(
+      ({ open, view }) => !open && view === "yours",
+    )
       .map(({ morning }) => `${morning} from ${mornings[morning].fixture}`)
       .join(", ")}.
 Each image is the whole Today frame: the window is 800 px tall, and Today's pane is captured strip by
-strip as it scrolls and joined, so sections below the fold (Can wait, Moving without you, Last 24 hours)
-are in the image. Beside the pane, the sidebar continues its last row below the window's height. The
-blocks line under each image is the DOM evidence: each section's top and height in the image, in CSS pixels.
-Row opened clicks the first Blocked or Waiting on you row's fork; it opens in place, under the row.
-Design: spi-code-today-and-places.md (settled 2026-11-17) and its mock. Record match or mismatch per
-surface against the rulings named under it.</p>
+strip as it scrolls and joined, so sections below the fold are in the image. Beside the pane, the sidebar
+continues its last row below the window's height. The blocks line under each image is the DOM evidence:
+each block's top and height in the image, in CSS pixels. Yours is the tab Today opens on; Row opened
+clicks the first Blocked or Waiting on you headline, which opens in place under the row. Sync PR pressed
+loads #today/yours/sync and Activity loads #today/activity on the busy morning.
+Design: spi-code-service-home.md (Today and rulings D5, D6) wins over draft 9's Today in its mock.
+Record match or mismatch per surface against the rulings named under it.</p>
 ${MORNING_SURFACES.map(
   (
     surface,
-  ) => `<section><h2>Today, ${surface.morning} morning${surface.open ? ", row opened" : ""}</h2>
+  ) => `<section><h2>Today, ${surface.morning} morning, ${{ yours: "Yours", sync: "Yours with Sync PR pressed", activity: "Activity" }[surface.view]}${surface.open ? ", row opened" : ""}</h2>
 ${surface.widths
   .map((width) => {
     const row = ["light", "dark"].map((appearance) =>
@@ -1665,7 +1668,7 @@ ${surface.widths
       ),
     );
     const evidence = row[0]?.morning;
-    return `<h3>${width} px</h3><p>spi-code-today-and-places.md: ${evidence?.sections.join("; ") ?? ""}</p>
+    return `<h3>${width} px</h3><p>spi-code-service-home.md: ${evidence?.sections.join("; ") ?? ""}</p>
 <p>Headline: ${escapeHtml(evidence?.headline ?? "")}${row[0]?.qualifiers[1] ? `<br>Caveat band: ${escapeHtml(row[0].qualifiers[1])}` : ""}${evidence?.opened ? `<br>Opened: ${escapeHtml(evidence.opened)}` : ""}</p>
 <table><tr><th>Light</th><th>Dark</th></tr><tr>${row
       .map((shot) => {

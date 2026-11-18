@@ -91,10 +91,6 @@ function LineContent({
         name="Line"
         place="line"
         snapshot={snapshot}
-        onStep={() => {
-          setColumnId(undefined);
-          setCampaignId(null);
-        }}
         heading={
           <div className="line-toolbar pane-header">
             <h1>Line</h1>

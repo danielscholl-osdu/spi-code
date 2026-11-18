@@ -16,7 +16,6 @@ import {
   setOpenSelection,
 } from "../../app/navigation.js";
 import { Shell } from "../../app/Shell.js";
-import { placeMembers } from "../../components/place/members.js";
 import fixtureText from "../../components/place/members-1116.json?raw";
 import { selectionStore } from "../../panels/selection.js";
 import { watchStore } from "../../store/watch.js";
@@ -105,7 +104,6 @@ it("opens legal Main as its Today row, with the lane re-run first and one gap", 
   expect(popover()?.querySelector(".opened-body-evidence")?.textContent).toBe(
     "⌀ 1 not read · Evidence ›",
   );
-  expect(popover()?.textContent).toContain("On Today · Waiting on you ›");
   expect(popover()?.textContent).not.toMatch(/Other stations|Queue|Copilot/);
   expect(openSelection()).toEqual({ kind: "cell", id: "legal:main" });
   openEvidence();
@@ -124,7 +122,6 @@ it("leads crs-conversion Sync with the blocked halt's filter-rule step and names
   expect(step?.textContent).toBe(
     "Add a rule for schemathesis-tests to .github/upstream-filter.yml, then dispatch sync.",
   );
-  expect(popover()?.textContent).toContain("On Today · Blocked ›");
   const other = popover()?.querySelector<HTMLButtonElement>(".popover-rows button");
   expect(other?.textContent).toBe("crs-conversion · sync PR to review\u00a0›");
   await act(async () => other?.click());
@@ -245,34 +242,4 @@ it("closes on a click in the window's chrome, but not on the Swept capsule, whic
   const route = parseRoute(window.location.hash) as EvidenceRoute;
   expect(route.selection).toEqual({ kind: "item", id: "gate2:legal" });
   expect(route.open).toEqual({ kind: "cell", id: "legal:main" });
-});
-
-it("steps each Line member onto its cell's popover", async () => {
-  const snapshot = watchStore.getState().snapshot?.body;
-  const next = sheet()?.querySelector<HTMLButtonElement>('[aria-label="Next of yours"]');
-  for (const { member } of placeMembers(snapshot, "line")) {
-    await act(async () => next?.click());
-    expect(openSelection()?.id).toBe(member.id);
-    const expanded = sheet()?.querySelector('.line-cell[aria-expanded="true"]');
-    expect(expanded?.closest("[data-service]")?.getAttribute("data-service"), member.id).toBe(
-      member.fork,
-    );
-    expect(popover()?.querySelector("h3")?.textContent, member.id).toMatch(
-      new RegExp(`^${member.fork} · `),
-    );
-  }
-});
-
-it("On Today goes to Today with the member's row open", async () => {
-  await open("legal:main");
-  const link = [...(popover()?.querySelectorAll("a") ?? [])].find((a) =>
-    a.textContent?.startsWith("On Today"),
-  );
-  await act(async () => link?.click());
-  expect(sheet()).toBeNull();
-  expect(window.location.hash).toBe("#today");
-  expect(openSelection()).toEqual({ kind: "item", id: "gate2:legal" });
-  expect(container.querySelector('tr[data-item-id="gate2:legal"]')?.hasAttribute("data-open")).toBe(
-    true,
-  );
 });

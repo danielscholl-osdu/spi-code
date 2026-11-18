@@ -5,15 +5,15 @@ import type { ReactNode } from "react";
 import { PaneTitle } from "../../app/title-row.js";
 import { dayLine } from "../../time.js";
 
-/** Today top to bottom: the date, the caveat band when a read failed, then the table. */
+/** Today top to bottom: the date, the caveat band when a read failed, then its body. */
 export function TodayFrame({
   sweptAt,
   caveat,
-  table,
+  children,
 }: {
   sweptAt: string;
   caveat: ReactNode;
-  table: ReactNode;
+  children: ReactNode;
 }) {
   return (
     <section className="place" aria-label="Today">
@@ -25,7 +25,7 @@ export function TodayFrame({
       </PaneTitle>
       <section className="place-reading today-frame" aria-label="Today reading">
         {caveat}
-        {table}
+        {children}
       </section>
     </section>
   );

@@ -4,6 +4,7 @@
 import type { CanWaitCauses, TodayFleet } from "@spi-code/contracts";
 import type { ServiceHome } from "@spi-code/contracts";
 import type { Environment } from "./index.js";
+import type { TodayLine } from "./lines.js";
 
 type ForkHome = { service: string; home?: ServiceHome | undefined };
 const STATIONS = Object.freeze(["upstream", "sync", "integration", "main"] as const satisfies readonly TodayFleet["stations"][number]["id"][]);
@@ -56,11 +57,14 @@ export function todayFleet(
   environment: Environment,
   nextSyncAt: string | undefined,
   causes: CanWaitCauses,
+  lines: readonly TodayLine[] = [],
 ): TodayFleet {
   const stations = stationFigures(homes);
+  const templateHeld = lines.some(({ members }) => members.some(({ station }) => station === "template"));
   const doors = doorFigures(homes).map((door) => {
+    if (door.id === "template" && (door.count || templateHeld))
+      return { ...door, target: { kind: "station", station: "template" } as const };
     if (!door.count) return door;
-    if (door.id === "template") return { ...door, target: { kind: "station", station: "template" } as const };
     // Causes are already ordered by descending breadth within the cross-fork rows.
     const cause = causes.rows.find(({ kind, forkCount }) => kind === door.id && (kind !== "other" || forkCount > 0));
     return cause ? { ...door, target: { kind: "cause", row: cause.id } as const } : door;

@@ -125,7 +125,6 @@ describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
 
   it("names the window bead for each pending Today exemption", () => {
     expect(Object.values(PENDING).map(({ reason }) => reason.split(":")[0])).toEqual([
-      "spicode-mw0.12",
       "spicode-mw0.13",
     ]);
   });
@@ -135,7 +134,7 @@ describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
   });
 });
 
-describe("Can wait, Moving without you and Last 24 hours, on every morning", () => {
+describe("the fleet flow, Can wait, Moving without you and Last 24 hours, on every morning", () => {
   const MORNINGS = {
     "6 Nov": fixture,
     calm: () => structuredClone(calmSnapshot),
@@ -153,8 +152,11 @@ describe("Can wait, Moving without you and Last 24 hours, on every morning", () 
       expect(coverage(body, lower).uncovered.filter((pointer) => mine.includes(pointer))).toEqual(
         [],
       );
-      await openHome(lower[0]?.home ?? { name: "Today", start: STARTS.today }, body);
-      for (const row of lower) assertReach(row);
+      const homes = new Map(lower.map(({ home }) => [home.name, home]));
+      for (const [name, home] of homes) {
+        await openHome(home, body);
+        for (const row of lower.filter((row) => row.home.name === name)) assertReach(row);
+      }
       for (const { rows } of openerCases(lower.filter(({ opens }) => opens)))
         await assertOpens(rows, body);
     },

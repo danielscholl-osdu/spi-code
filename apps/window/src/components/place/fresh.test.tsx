@@ -87,12 +87,6 @@ it.each(Object.keys(views) as PlaceRow["place"][])(
     await act(async () => target?.click());
     expect(openSelection()).toEqual({ kind: "fresh-item", id: extra.id });
     expect(container.querySelector(".place-fresh-body .opened-body")).not.toBeNull();
-    const onToday = body.briefing.lines?.some(({ members }) =>
-      members.some((member) => member.id === extra.id || member.ids.includes(extra.id)),
-    );
-    expect(container.querySelector(".place-fresh-body .opened-body-place") !== null).toBe(
-      Boolean(onToday),
-    );
     expect(selectionStore.getState().open).toBe(false);
 
     for (const fresh of [{ itemIds: [] }, undefined]) {

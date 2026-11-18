@@ -57,7 +57,7 @@ function Evidence({ route }: { route: EvidenceRoute }) {
 /** The window's views by route. */
 export const DEFAULT_REGISTRY: Registry = {
   views: {
-    today: (route) => gated(route, <Today />),
+    today: (route) => gated(route, <Today tab={route.tab} station={route.station} />),
     upstream: (route) => gated(route, <Upstream />),
     environment: (route) => gated(route, <Environment />),
     "engineering-system": (route) => gated(route, <Template />),

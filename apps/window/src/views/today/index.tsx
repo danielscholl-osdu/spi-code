@@ -1,9 +1,10 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { SweepProgress } from "@spi-code/contracts";
+import type { SweepProgress, TodayMemberStation } from "@spi-code/contracts";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
+import type { TodayTab } from "../../app/navigation.js";
 import { PaneTitle } from "../../app/title-row.js";
 import { useNow } from "../../components/evidence/useNow.js";
 import { FirstSweepBody } from "../../components/sweep/FirstSweepBody.js";
@@ -13,7 +14,7 @@ import { openReadiness } from "../../settings/readiness.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
 import { CaveatBand } from "./CaveatBand.js";
 import { TodayFrame } from "./Frame.js";
-import { TodayTable } from "./Table.js";
+import { TodayHome } from "./Home.js";
 import "./today.css";
 
 const HAND_OVER_MS = 150;
@@ -87,10 +88,14 @@ export default function Today({
   store = watchStore,
   onOpenSettings = openReadiness,
   onOpenEvidence,
+  tab,
+  station,
 }: {
   store?: ReturnType<typeof createWatchStore>;
   onOpenSettings?: () => void;
   onOpenEvidence?: () => void;
+  tab?: TodayTab | undefined;
+  station?: TodayMemberStation | undefined;
 }) {
   const snapshot = useStore(store, (state) => state.snapshot);
   const progress = useStore(store, (state) => state.progress);
@@ -122,8 +127,9 @@ export default function Today({
             onOpenSettings={onOpenSettings}
           />
         }
-        table={<TodayTable snapshot={body} />}
-      />
+      >
+        <TodayHome snapshot={body} tab={tab} station={station} />
+      </TodayFrame>
       {leaving && (
         <div className="today-leaving" aria-hidden="true" inert onAnimationEnd={settle}>
           <FirstSweepBody

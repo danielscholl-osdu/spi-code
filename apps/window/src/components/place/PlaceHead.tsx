@@ -3,12 +3,11 @@
 
 import type { ViewSnapshot } from "@spi-code/contracts";
 import type { ReactNode } from "react";
-import { setOpenSelection, useOpenSelection } from "../../app/navigation.js";
 import { selectStrip } from "../../store/strip.js";
 import { TimedText } from "../../time.js";
 import { useNow } from "../evidence/useNow.js";
 import { statusRows } from "../sidebar/status-marks.js";
-import { type MemberPlace, placeMembers } from "./members.js";
+import type { MemberPlace } from "./members.js";
 import "./place.css";
 
 const pins = {
@@ -23,34 +22,15 @@ export function PlaceHead({
   place,
   snapshot,
   heading,
-  onStep,
 }: {
   name: string;
   place: MemberPlace;
   snapshot: ViewSnapshot | undefined;
   heading?: ReactNode;
-  onStep?: (() => void) | undefined;
 }) {
   const now = useNow(30_000);
   const fields = snapshot && selectStrip(snapshot);
   const status = place === "security" ? undefined : statusRows(fields, now)[pins[place]];
-  const members = placeMembers(snapshot, place);
-  const selected = useOpenSelection();
-  const index = members.findIndex(
-    ({ member }) => selected?.kind === "item" && selected.id === member.id,
-  );
-  const step = (direction: number) => {
-    const next =
-      index < 0
-        ? direction > 0
-          ? 0
-          : members.length - 1
-        : (index + direction + members.length) % members.length;
-    const member = members[next]?.member;
-    if (!member) return;
-    onStep?.();
-    setOpenSelection({ kind: "item", id: member.id });
-  };
   const field =
     place === "line"
       ? fields?.forks
@@ -75,17 +55,6 @@ export function PlaceHead({
         {statusWord && (
           <span className="place-status-word" data-tone={field?.tone}>
             <TimedText text={statusWord} hint={false} />
-          </span>
-        )}
-        {members.length > 0 && (
-          <span className="place-yours" data-member-count={members.length}>
-            <span>{members.length} yours on Today</span>
-            <button type="button" aria-label="Previous of yours" onClick={() => step(-1)}>
-              ‹
-            </button>
-            <button type="button" aria-label="Next of yours" onClick={() => step(1)}>
-              ›
-            </button>
           </span>
         )}
       </div>

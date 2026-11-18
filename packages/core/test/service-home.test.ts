@@ -130,7 +130,11 @@ function project(
       briefing.environment,
       briefing.nextSyncAt,
       causes,
+      lines,
     ),
+    homes,
+    briefing,
+    causes,
     station: (id: (typeof home.stations)[number]["id"]) => home.stations.find((s) => s.id === id),
   };
 }
@@ -570,4 +574,21 @@ test("a review requirement says No reviewer only after reading both reviewer lis
     gate: "Review required",
     reviewers: ["maintainers", "ren"],
   });
+});
+
+test("the Template door opens its filter while Yours holds a Template row, even with no PR to review", () => {
+  const { facts } = handBuilt();
+  const { fleet, lines, homes, briefing, causes } = project(facts);
+  const held = fleetLines(lines, "template").flatMap(({ members }) => members);
+  expect(held.map(({ fork }) => fork)).toEqual(["fleet"]);
+  const door = fleet.doors.find(({ id }) => id === "template");
+  expect(door).toMatchObject({ count: 0, target: { kind: "station", station: "template" } });
+  const quiet = todayFleet(
+    [...homes].map(([service, home]) => ({ service, home })),
+    briefing.environment,
+    briefing.nextSyncAt,
+    causes,
+    lines.filter(({ members }) => !members.some(({ station }) => station === "template")),
+  );
+  expect(quiet.doors.find(({ id }) => id === "template")).not.toHaveProperty("target");
 });

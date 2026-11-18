@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { once } from "node:events";
 import { readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
+import { fleetLines, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { type BrowserWindow, nativeImage } from "electron";
 import type { SmokeGeometry } from "./smoke-geometry.js";
 import {
@@ -17,6 +17,7 @@ import {
   type MorningEvidence,
   membersText,
   morningSections,
+  TODAY_HASHES,
 } from "./smoke-mornings.js";
 import { assertSmokeImage, type SmokeShot } from "./smoke-report.js";
 import { type PaneGeometry, type Pixels, stitchPane } from "./smoke-stitch.js";
@@ -36,10 +37,11 @@ const SCROLLER = 'document.querySelector(".today-frame").closest(".centre-body >
 
 const blocksScript = `(() => {
   const frame = document.querySelector(".today-frame");
-  return [...frame.querySelectorAll(":scope > .today-caveat, .today-table-calm, .today-section[data-section]")]
+  return [...frame.querySelectorAll(":scope > .today-caveat, .flow-wrap, .today-table-calm, .today-section[data-section]")]
     .map(item => {
       const { y, height } = item.getBoundingClientRect();
-      const name = item.dataset.section ?? (item.classList.contains("today-caveat") ? "caveat" : "calm");
+      const name = item.dataset.section ??
+        (item.classList.contains("today-caveat") ? "caveat" : item.classList.contains("flow-wrap") ? "flow" : "calm");
       return { name, top: y, height };
     });
 })()`;
@@ -101,8 +103,9 @@ async function fullPage(context: TodayCaptureContext, path: string) {
 }
 
 /**
- * Today on the calm, busy and bad mornings at each width and appearance, and with its first row
- * opened in place, each captured as the whole frame so blocks below the window's fold are in the image.
+ * Today on the calm, busy and bad mornings at each width and appearance, with its first row opened
+ * in place, and busy with Sync PR pressed and on Activity, each captured as the whole frame so blocks
+ * below the window's fold are in the image.
  */
 export async function captureMornings(
   context: TodayCaptureContext,
@@ -121,7 +124,7 @@ export async function captureMornings(
           localStorage.removeItem("spi-code.panes");
           localStorage.removeItem("spi-code.line-sheet.pinned");
           localStorage.setItem("spi-code.appearance", ${JSON.stringify(appearance)});
-          location.hash = "#today";
+          location.hash = ${JSON.stringify(TODAY_HASHES[surface.view])};
         }`);
         const loaded = once(window.webContents, "did-finish-load");
         window.webContents.reload();
@@ -136,24 +139,29 @@ export async function captureMornings(
         let opened: string | undefined;
         if (surface.open) {
           await window.webContents.executeJavaScript(
-            'document.querySelector(".today [data-section] tr.today-row:not(.today-row--place) .today-row-fork button").click()',
+            'document.querySelector(".today [data-section] tr.today-row .today-row-what button").click()',
           );
-          const place =
-            ".today tr.today-row[data-open] + tr.today-row-body[data-open] .opened-body-place";
-          await rendered(`document.querySelector(${JSON.stringify(place)})`);
+          await rendered(
+            'document.querySelector(".today tr.today-row[data-open] + tr.today-row-body[data-open] .opened-body")',
+          );
           opened = await window.webContents.executeJavaScript(
-            `document.querySelector(${JSON.stringify(place)}).textContent.trim()`,
+            `(() => { const button = document.querySelector(".today tr.today-row[data-open] .today-row-what button");
+              return button.getAttribute("aria-label") ?? button.textContent.trim(); })()`,
           );
         }
         const geometry = [await context.measure("window")];
-        const [headline, members, todayCount, ...qualifiers]: [
+        const [headline, members, tab, pressed, todayCount, ...qualifiers]: [
           string,
           Record<string, string[]>,
+          string,
+          string,
           string,
           ...string[],
         ] = await window.webContents.executeJavaScript(`[
           document.querySelector(".today .today-table-calm")?.textContent.trim() ?? "",
           ${DRAWN_MEMBERS},
+          document.querySelector('.today .today-tab[aria-selected="true"]')?.dataset.todayTab ?? "",
+          [...document.querySelectorAll('.today .flow [aria-pressed="true"]')].map(item => item.dataset.station ?? item.dataset.door).join(" "),
           document.querySelector('[data-sidebar-row=today] .sidebar-pip')?.textContent.trim() ?? "",
           document.getElementById(document.querySelector("[data-sweep-line]")?.getAttribute("aria-labelledby") ?? "")?.textContent ?? "",
           document.querySelector("main .today-caveat")?.innerText?.replace(/\\s+/g, " ").trim() ?? ""
@@ -179,10 +187,16 @@ export async function captureMornings(
             morning: surface.morning,
             fixture: fixtureName,
             open: surface.open,
-            sections: morningSections(surface.morning, surface.open, viewportWidth),
+            view: surface.view,
+            sections: morningSections(surface.morning, surface.open, viewportWidth, surface.view),
             headline: headline ?? "",
             members: membersText(members),
             lineMembers: lineMembersText(snapshot.briefing.lines),
+            ...(surface.view === "sync"
+              ? { filtered: lineMembersText(fleetLines(snapshot.briefing.lines ?? [], "sync")) }
+              : {}),
+            tab: tab ?? "",
+            pressed: pressed ?? "",
             todayCount: todayCount ?? "",
             viewportHeight: page.height,
             scrollHeight: page.scrollHeight,

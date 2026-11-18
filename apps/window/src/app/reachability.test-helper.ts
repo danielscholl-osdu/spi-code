@@ -4,7 +4,7 @@
 import type { ViewSnapshot } from "@spi-code/contracts";
 import { restatesHeadline } from "../components/opened-body/content.js";
 import { plainTitle } from "../text.js";
-import { instantsIn, timedText } from "../time.js";
+import { clockTime, instantsIn, timedText } from "../time.js";
 import { openHold } from "../views/environment/hold.js";
 import { heldLaneRead } from "../views/environment/lead.js";
 import { runName } from "../views/environment/opening.js";
@@ -719,7 +719,7 @@ export function tableCases(snapshot: ViewSnapshot): Reach[] {
       (root) => root.querySelector(head)?.closest("section"),
       { attribute: "data-section" },
     );
-    add(`${pointer}/subject`, line.subject, TODAY, `${head} .today-row-fork button`);
+    add(`${pointer}/subject`, line.subject, TODAY, `${head} .today-fork-name`);
     add(`${pointer}/headline`, plainTitle(line.headline), TODAY, `${head} .today-row-what button`);
     if (line.age)
       add(`${pointer}/age`, ageInOneUnit(line.age), TODAY, `${head} .today-row-age-text`);
@@ -739,7 +739,7 @@ export function tableCases(snapshot: ViewSnapshot): Reach[] {
       add(`${base}/id`, member.id, TODAY, row, { attribute: "data-item-id" });
       const fork = single ? line.subject : member.fork;
       const opens = {
-        click: `${row} .today-row-fork button`,
+        click: `${row} .today-row-what button`,
         opened: `${row}[data-open] + tr.today-row-body .opened-body`,
       };
       for (const [item, entry] of items) {
@@ -751,10 +751,12 @@ export function tableCases(snapshot: ViewSnapshot): Reach[] {
             opens,
           });
         if (entry.scope === fork)
-          add(`${item}/scope`, entry.scope, TODAY, `${row} .today-row-fork button`, { opens });
+          add(`${item}/scope`, entry.scope, TODAY, `${row} .today-fork-name`, { opens });
       }
       if (member.age)
         add(`${base}/age`, ageInOneUnit(member.age), TODAY, `${row} .today-row-age-text`);
+      if (member.station)
+        add(`${base}/station`, member.station, TODAY, row, { attribute: "data-station" });
       if (member.primary)
         add(`${base}/primary/url`, member.primary.url, TODAY, `${row} .today-row-open a`, {
           attribute: "href",
@@ -773,7 +775,9 @@ const LOWER_DESTINATIONS: Readonly<Record<string, Destination>> = {
   security: { kind: "security" },
 };
 
-/** Can wait, Moving without you and Last 24 hours: each row's fields, and the place it opens. */
+const ACTIVITY = home("Today, Activity", STARTS.today, '[data-today-tab="activity"]');
+
+/** Moving without you and Last 24 hours on Activity, each row's fields and the place it opens; the fleet flow and Can wait on Yours. */
 export function lowerCases(snapshot: ViewSnapshot): Reach[] {
   const today = snapshot.briefing.today;
   if (!today) return [];
@@ -794,55 +798,45 @@ export function lowerCases(snapshot: ViewSnapshot): Reach[] {
   ) => {
     const button = `${tr} .today-row-fork button`;
     const destination = LOWER_DESTINATIONS[to];
-    add(`${pointer}/${key}`, id, TODAY, tr, { attribute: "data-row" });
-    add(`${pointer}/label`, label, TODAY, button, {
+    add(`${pointer}/${key}`, id, ACTIVITY, tr, { attribute: "data-row" });
+    add(`${pointer}/label`, label, ACTIVITY, button, {
       ...(destination ? { opens: { click: button, place: destination } } : {}),
     });
-    add(`${pointer}/place`, to, TODAY, tr, { attribute: "data-place" });
+    add(`${pointer}/place`, to, ACTIVITY, tr, { attribute: "data-place" });
   };
-  type Count = NonNullable<ViewSnapshot["briefing"]["today"]>["canWait"][number]["counts"][number];
+  type Count = NonNullable<
+    ViewSnapshot["briefing"]["today"]
+  >["history"]["rows"][number]["counts"][number];
   const counts = (pointer: string, tr: string, list: readonly Count[]) =>
     list.forEach((count, at) => {
       if (count.count === 0) return;
       const span = `${tr} .today-count[data-kind=${quote(count.kind)}]`;
       const leaf = `${pointer}/counts/${at}`;
-      add(`${leaf}/count`, count.count, TODAY, span, {
+      add(`${leaf}/count`, count.count, ACTIVITY, span, {
         read: (element) => (element.textContent ?? "").split(" ")[0] ?? "",
       });
-      add(`${leaf}/label`, count.label, TODAY, span, {
+      add(`${leaf}/label`, count.label, ACTIVITY, span, {
         read: (element) => (element.textContent ?? "").split(" ").slice(1).join(" "),
       });
-      add(`${leaf}/kind`, count.kind, TODAY, span, { attribute: "data-kind" });
-      add(`${leaf}/tone`, count.tone, TODAY, span, { attribute: "data-tone" });
+      add(`${leaf}/kind`, count.kind, ACTIVITY, span, { attribute: "data-kind" });
+      add(`${leaf}/tone`, count.tone, ACTIVITY, span, { attribute: "data-tone" });
       count.names.forEach((name, i) => {
-        add(`${leaf}/names/${i}`, name, TODAY, span, { attribute: "title", contains: true });
+        add(`${leaf}/names/${i}`, name, ACTIVITY, span, { attribute: "title", contains: true });
       });
     });
-  today.canWait.forEach((pile, index) => {
-    const pointer = `${base}/canWait/${index}`;
-    const tr = row("can-wait", pile.id);
-    place(pointer, tr, "id", pile.id, pile.label, pile.place);
-    counts(pointer, tr, pile.counts);
-    pile.notRead.forEach((gap, at) => {
-      add(`${pointer}/notRead/${at}`, gap, TODAY, `${tr} .today-row-gaps`, {
-        attribute: "title",
-        contains: true,
-      });
-    });
-  });
   today.moving.forEach((entry, index) => {
     const pointer = `${base}/moving/${index}`;
     const tr = row("moving", entry.id);
     place(pointer, tr, "id", entry.id, entry.label, entry.place);
     if (entry.at)
-      add(`${pointer}/at`, entry.at, TODAY, `${tr} .today-row-when time`, {
+      add(`${pointer}/at`, entry.at, ACTIVITY, `${tr} .today-row-when time`, {
         attribute: "dateTime",
       });
-    else add(`${pointer}/time`, entry.time, TODAY, `${tr} .today-row-when`);
+    else add(`${pointer}/time`, entry.time, ACTIVITY, `${tr} .today-row-when`);
     const words = `${tr} .today-row-moving`;
-    add(`${pointer}/count`, entry.count, TODAY, words, { attribute: "data-count" });
+    add(`${pointer}/count`, entry.count, ACTIVITY, words, { attribute: "data-count" });
     entry.names.forEach((name, at) => {
-      add(`${pointer}/names/${at}`, name, TODAY, words, { attribute: "title", contains: true });
+      add(`${pointer}/names/${at}`, name, ACTIVITY, words, { attribute: "title", contains: true });
     });
   });
   const { history } = today;
@@ -853,24 +847,178 @@ export function lowerCases(snapshot: ViewSnapshot): Reach[] {
     if (text.startsWith("Since ")) return "history-short";
     return text.startsWith("24 hours to ") ? "stale" : "fallback";
   };
-  add(`${base}/history/basis`, history.basis, TODAY, head, { read: basis });
+  add(`${base}/history/basis`, history.basis, ACTIVITY, head, { read: basis });
   if (history.basis === "seen" || history.basis === "history-short")
-    add(`${base}/history/from`, history.from, TODAY, `${head} time`, { attribute: "dateTime" });
+    add(`${base}/history/from`, history.from, ACTIVITY, `${head} time`, { attribute: "dateTime" });
   if (history.asOf && history.basis !== "seen" && history.basis !== "history-short")
-    add(`${base}/history/asOf`, history.asOf, TODAY, `${head} time`, { attribute: "dateTime" });
+    add(`${base}/history/asOf`, history.asOf, ACTIVITY, `${head} time`, { attribute: "dateTime" });
   history.rows.forEach((entry, index) => {
     const pointer = `${base}/history/rows/${index}`;
     const tr = row("history", entry.workflow);
     place(pointer, tr, "workflow", entry.workflow, entry.label, entry.place);
     counts(pointer, tr, entry.counts);
   });
+  fleetCases(today, add);
+  causeCases(today, add);
   return cases;
 }
 
-/** The Can wait count a count leaf belongs to. */
-function countAt(pointer: string, { briefing }: Leaves) {
-  const [, index, at] = pointer.match(/^\/briefing\/today\/canWait\/(\d+)\/counts\/(\d+)\//) ?? [];
-  return briefing.today?.canWait[Number(index)]?.counts[Number(at)];
+type Summary = NonNullable<ViewSnapshot["briefing"]["today"]>;
+
+/** A figure's word as its count: "None open" and "Sync current" read 0. */
+const figureCount = (element: Element) => {
+  const text = element.textContent ?? "";
+  return text.match(/^(\d+)/)?.[1] ?? (/^(None|Sync current|⌀ not read)/.test(text) ? "0" : text);
+};
+const ENVIRONMENT_STATES: Readonly<Record<string, string>> = {
+  green: "ready",
+  stopped: "maintenance",
+  unread: "unread",
+};
+
+/** The fleet flow on Yours: each station's and door's figure, the forks behind it, and where it opens. */
+function fleetCases(today: Summary, add: Add) {
+  const { fleet } = today;
+  if (!fleet) return;
+  const base = "/briefing/today/fleet";
+  const forks = (pointer: string, selector: string, lists: Record<string, readonly string[]>) => {
+    for (const [key, list] of Object.entries(lists))
+      list.forEach((fork, at) => {
+        add(`${pointer}/${key}/${at}`, fork, TODAY, selector, {
+          attribute: "title",
+          contains: true,
+        });
+      });
+  };
+  fleet.stations.forEach((figure, index) => {
+    const pointer = `${base}/stations/${index}`;
+    const station = `[data-station=${quote(figure.id)}]`;
+    add(`${pointer}/id`, figure.id, TODAY, station, { attribute: "data-station" });
+    add(`${pointer}/count`, figure.count, TODAY, `${station} .flow-word`, { read: figureCount });
+    const {
+      forks: counted,
+      notRead,
+      stopped,
+      inProgress,
+      waitingOnClock,
+      waitingOnPerson,
+    } = figure;
+    forks(pointer, station, {
+      forks: counted,
+      notRead,
+      stopped,
+      inProgress,
+      waitingOnClock,
+      waitingOnPerson,
+    });
+  });
+  fleet.doors.forEach((figure, index) => {
+    const pointer = `${base}/doors/${index}`;
+    const door = `[data-door=${quote(figure.id)}]`;
+    add(`${pointer}/id`, figure.id, TODAY, door, { attribute: "data-door" });
+    add(`${pointer}/count`, figure.count, TODAY, `${door} .flow-door-word`, { read: figureCount });
+    forks(pointer, door, { forks: figure.forks, notRead: figure.notRead });
+    const { target } = figure;
+    if (!target) return;
+    add(`${pointer}/target/kind`, target.kind, TODAY, door, {
+      read: (element) => (element.hasAttribute("aria-pressed") ? "station" : "cause"),
+    });
+    if (target.kind === "station")
+      add(`${pointer}/target/station`, target.station, TODAY, door, { attribute: "data-target" });
+    else
+      add(`${pointer}/target/row`, target.row, TODAY, door, {
+        attribute: "data-target",
+        opens: {
+          click: door,
+          opened: `tr.today-row--cause[data-row=${quote(target.row)}][data-open]`,
+        },
+      });
+  });
+  if (fleet.nextSyncAt)
+    add(
+      `${base}/nextSyncAt`,
+      `next sync ${clockTime(fleet.nextSyncAt, { hint: false })}`,
+      TODAY,
+      '[data-station="upstream"] .flow-line',
+    );
+  const environment = '[data-station="environment"]';
+  add(`${base}/environment/state`, fleet.environment.state, TODAY, environment, {
+    read: (element) => ENVIRONMENT_STATES[element.getAttribute("data-state") ?? ""] ?? "",
+  });
+  if (fleet.environment.version)
+    add(
+      `${base}/environment/version`,
+      fleet.environment.version,
+      TODAY,
+      `${environment} .flow-line`,
+    );
+}
+
+/** Can wait on Yours: a row per cause, and in its opened body the forks, packages and rules. */
+function causeCases(today: Summary, add: Add) {
+  const { causes } = today;
+  if (!causes) return;
+  const base = "/briefing/today/causes";
+  causes.rows.forEach((cause, index) => {
+    const pointer = `${base}/rows/${index}`;
+    const tr = `tr.today-row--cause[data-row=${quote(cause.id)}]`;
+    const open = home(`Today, Can wait ${cause.id}`, STARTS.today, `${tr} .today-row-what button`);
+    const body = `${tr} + tr.today-row-body`;
+    add(`${pointer}/id`, cause.id, TODAY, tr, { attribute: "data-row" });
+    add(`${pointer}/kind`, cause.kind, TODAY, tr, { attribute: "data-cause" });
+    add(`${pointer}/headline`, plainTitle(cause.headline), TODAY, `${tr} .today-row-what button`, {
+      opens: { click: `${tr} .today-row-what button`, opened: `${body} .today-cause-forks` },
+    });
+    add(`${pointer}/count`, cause.count, TODAY, `${tr} .today-row-age`, {
+      read: (element) => (element.textContent ?? "").match(/(\d+) \S+$/)?.[1] ?? "",
+    });
+    add(`${pointer}/forkCount`, cause.forkCount, TODAY, tr, { attribute: "data-fork-count" });
+    if (cause.place)
+      add(`${pointer}/place`, cause.place, TODAY, `${tr} .today-row-place`, {
+        attribute: "data-place",
+      });
+    cause.forks.forEach(({ fork }, at) => {
+      add(
+        `${pointer}/forks/${at}/fork`,
+        fork,
+        open,
+        (root) => root.querySelector(body)?.querySelectorAll(".today-cause-forks > *")[at],
+        { read: (element) => (element.textContent ?? "").split(" ")[0] ?? "" },
+      );
+    });
+    cause.packages?.forEach((entry, at) => {
+      const li = `${body} .today-cause-packages li:nth-child(${at + 1})`;
+      const leaf = `${pointer}/packages/${at}`;
+      add(`${leaf}/ecosystem`, entry.ecosystem, open, li, { contains: true });
+      add(`${leaf}/name`, entry.name, open, li, { contains: true });
+      entry.forks.forEach((fork, i) => {
+        add(`${leaf}/forks/${i}`, fork, open, li, { contains: true });
+      });
+    });
+    if (cause.rules)
+      for (const which of ["mostAlerts", "mostForks"] as const)
+        for (const key of ["name", "count"] as const)
+          add(
+            `${pointer}/rules/${which}/${key}`,
+            cause.rules[which][key],
+            open,
+            `${body} .today-cause-rules`,
+            { contains: true },
+          );
+  });
+  for (const [kind, forks] of Object.entries(causes.notRead))
+    forks.forEach((fork, at) => {
+      const row = causes.rows.find((cause) => cause.kind === kind);
+      add(
+        `${base}/notRead/${kind}/${at}`,
+        fork,
+        TODAY,
+        row
+          ? `tr.today-row--cause[data-row=${quote(row.id)}] .today-row-gaps`
+          : `[data-unread=${quote(kind)}]`,
+        row ? { attribute: "title", contains: true } : { contains: true },
+      );
+    });
 }
 
 /** The focus or rest item a leaf belongs to. */
@@ -881,7 +1029,6 @@ function itemAt(pointer: string, { briefing }: Leaves) {
 
 /** Today briefing fields the contract carries before a window bead draws them; each names its bead. */
 const FLEET = "/briefing/today/fleet";
-const CAUSES = "/briefing/today/causes";
 const FIGURE_LEAVES = ["id", "count", "forks/#", "notRead/#"];
 const STATION_LEAVES = [
   ...FIGURE_LEAVES,
@@ -891,45 +1038,6 @@ const STATION_LEAVES = [
   "waitingOnPerson/#",
 ];
 export const PENDING: Readonly<Record<string, Exemption>> = {
-  "today-fleet": {
-    pending: true,
-    reason: "spicode-mw0.12: Today draws the fleet flow, its filters and Can wait causes",
-    patterns: [
-      "/briefing/lines/#/members/#/station",
-      `${FLEET}/nextSyncAt`,
-      `${FLEET}/environment/state`,
-      `${FLEET}/environment/version`,
-      ...STATION_LEAVES.map((leaf) => `${FLEET}/stations/#/${leaf}`),
-      ...[...FIGURE_LEAVES, "target/kind", "target/station", "target/row"].map(
-        (leaf) => `${FLEET}/doors/#/${leaf}`,
-      ),
-      ...[
-        "id",
-        "kind",
-        "headline",
-        "count",
-        "forkCount",
-        "place",
-        "forks/#/fork",
-        "forks/#/count",
-        "forks/#/objects/#/id",
-        "forks/#/objects/#/url",
-        "forks/#/objects/#/label",
-        "forks/#/objects/#/age",
-        "forks/#/objects/#/count",
-        "packages/#/ecosystem",
-        "packages/#/name",
-        "packages/#/forks/#",
-        "rules/mostAlerts/name",
-        "rules/mostAlerts/count",
-        "rules/mostForks/name",
-        "rules/mostForks/count",
-      ].map((leaf) => `${CAUSES}/rows/#/${leaf}`),
-      ...["release", "dependabot", "other", "issue", "alert"].map(
-        (kind) => `${CAUSES}/notRead/${kind}/#`,
-      ),
-    ],
-  },
   "today-forks": {
     pending: true,
     reason: "spicode-mw0.13: the Forks tab draws its groups and fold totals",
@@ -971,18 +1079,24 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
     reason:
       "spicode-djg.25: a line's source or companion join to its Today member is marked alike; rel names which",
   },
-  "today-zero-count": {
-    patterns: ["count", "kind", "label", "tone"].map(
-      (leaf) => `/briefing/today/canWait/#/counts/#/${leaf}`,
-    ),
+  "can-wait-piles": {
+    patterns: [
+      "id",
+      "label",
+      "place",
+      "notRead/#",
+      ...["count", "kind", "label", "tone", "names/#", "urls/#"].map((leaf) => `counts/#/${leaf}`),
+    ].map((leaf) => `/briefing/today/canWait/#/${leaf}`),
     reason:
-      "spicode-djg.10: a zero count draws nothing; a pile of zeros reads none, or not read when core names a gap (X3)",
-    when: (_value, { pointer, snapshot }) => countAt(pointer, snapshot)?.count === 0,
+      "spicode-mw0.12: Today's Can wait draws core's causes; the piles stay only as the opened body's counted Can wait URLs",
   },
-  "today-count-urls": {
-    patterns: ["/briefing/today/canWait/#/counts/#/urls/#"],
+  "cause-objects": {
+    patterns: [
+      "forks/#/count",
+      ...["id", "url", "label", "age", "count"].map((leaf) => `forks/#/objects/#/${leaf}`),
+    ].map((leaf) => `/briefing/today/causes/rows/#/${leaf}`),
     reason:
-      "spicode-djg.10: a Can wait row opens its place, not each object (X8); the urls are core's join keys",
+      "spicode-mw0.12: a cause's fork pill names the fork and what it holds, and opens the service page row holding its objects",
   },
   "today-moving-time": {
     patterns: ["/briefing/today/moving/#/time"],

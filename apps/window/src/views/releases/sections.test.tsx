@@ -192,9 +192,7 @@ it("opens a PR's item in a popover, else its source, reports failed browser open
   );
   expect(openSelection()).toEqual({ kind: "item", id: item });
   expect(selectionStore.getState()).toMatchObject({ selected: null, open: false });
-  expect(container.querySelector(".popover .opened-body-place")?.textContent).toBe(
-    "On Today · Waiting on you ›",
-  );
+  expect(container.querySelector(".popover h3")?.textContent).toMatch(/^entitlements · /);
   expect(window.spi.openExternal).not.toHaveBeenCalled();
   await act(async () => setOpenSelection(null));
   vi.mocked(window.spi.openExternal).mockRejectedValueOnce(new Error("offline"));

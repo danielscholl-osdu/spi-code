@@ -137,7 +137,7 @@ const dialog = () => container.querySelector<HTMLElement>('[role="dialog"]');
 const clickLine = (id: string) =>
   act(async () => line(id)?.querySelector<HTMLButtonElement>(".repos-line-text")?.click());
 
-it("opens #44 as its Today member and returns to that member from the popover", async () => {
+it("opens #44 as its Today member", async () => {
   await mount(snapshot1116());
   await expand("crs-conversion");
   await clickLine("issue:Azure/osdu-spi-crs-conversion:44");
@@ -147,11 +147,9 @@ it("opens #44 as its Today member and returns to that member from the popover", 
   expect(dialog()?.querySelector('[data-kind="issue"]')?.getAttribute("href")).toBe(
     "https://github.com/Azure/osdu-spi-crs-conversion/issues/44",
   );
-  expect(dialog()?.querySelector('[href="#today"]')).not.toBeNull();
-  await act(async () => dialog()?.querySelector<HTMLAnchorElement>('[href="#today"]')?.click());
-  expect(window.location.hash).toBe("#today");
-  expect(openSelection()).toEqual({ kind: "item", id: "halt:crs-conversion" });
-  expect(dialog()).toBeNull();
+  expect(dialog()?.querySelector("h3")?.textContent).toBe(
+    "crs-conversion · sync halted: no filter rule for schemathesis-tests",
+  );
 });
 
 it("opens storage #67 with its counted Can wait disposition and source", async () => {

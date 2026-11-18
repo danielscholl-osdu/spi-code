@@ -16,6 +16,10 @@ export type FlowStation = {
   inTransit?: boolean | undefined;
   /** Without it the station is not a button. */
   onOpen?: (() => void) | undefined;
+  /** A toggle when set: whether its filter is on. */
+  pressed?: boolean | undefined;
+  /** Names what the figure counts, on hover. */
+  title?: string | undefined;
 };
 
 export type FlowDoor = {
@@ -23,6 +27,10 @@ export type FlowDoor = {
   label: string;
   word: string;
   onOpen?: (() => void) | undefined;
+  pressed?: boolean | undefined;
+  title?: string | undefined;
+  /** What it opens: a filter or a row. */
+  target?: string | undefined;
 };
 
 const MARKS: Readonly<Record<FlowState, { glyph: string; say: string }>> = {
@@ -35,7 +43,10 @@ const MARKS: Readonly<Record<FlowState, { glyph: string; say: string }>> = {
   green: { glyph: "✓", say: "green" },
 };
 
-function Station({ station, place }: { station: FlowStation; place: "top" | "join" }) {
+const pressedProps = (pressed: boolean | undefined) =>
+  pressed === undefined ? {} : { "aria-pressed": pressed };
+
+function Station({ station, place }: { station: FlowStation; place: "top" | "join" | "beyond" }) {
   const { glyph, say } = MARKS[station.state];
   const inner = (
     <>
@@ -55,9 +66,10 @@ function Station({ station, place }: { station: FlowStation; place: "top" | "joi
     "data-station": station.id,
     "data-state": station.state,
     "data-place": place,
+    ...(station.title ? { title: station.title } : {}),
   };
   return station.onOpen ? (
-    <button type="button" {...props} onClick={station.onOpen}>
+    <button type="button" {...props} {...pressedProps(station.pressed)} onClick={station.onOpen}>
       {inner}
     </button>
   ) : (
@@ -66,24 +78,26 @@ function Station({ station, place }: { station: FlowStation; place: "top" | "joi
 }
 
 /**
- * How code reaches a fork's main: the stations before the last in a row, the doors straight into
- * main beneath them, and both joining the last station.
+ * How code reaches main: the stations before the last in a row, the doors straight into main
+ * beneath them, both joining the last station, and what main feeds beyond it.
  */
 export function Flow({
   label,
   stations,
   doors,
+  beyond,
 }: {
   label: string;
   stations: readonly FlowStation[];
   doors: readonly FlowDoor[];
+  beyond?: FlowStation | undefined;
 }) {
   const before = stations.slice(0, -1);
   const last = stations.at(-1);
   return (
     <div className="flow-wrap">
       {/* biome-ignore lint/a11y/useSemanticElements: a grid of stations, not form controls a fieldset would group */}
-      <div className="flow" role="group" aria-label={label}>
+      <div className="flow" role="group" aria-label={label} data-beyond={beyond ? "" : undefined}>
         <div className="flow-top">
           {before.map((station, index) => [
             index > 0 && (
@@ -109,13 +123,16 @@ export function Flow({
                 key={door.id}
                 className="flow-door"
                 data-door={door.id}
+                data-target={door.target}
+                title={door.title}
+                {...pressedProps(door.pressed)}
                 onClick={door.onOpen}
               >
                 <span className="flow-door-label">{door.label}</span>
                 <span className="flow-door-word">{door.word}</span>
               </button>
             ) : (
-              <span key={door.id} className="flow-door" data-door={door.id}>
+              <span key={door.id} className="flow-door" data-door={door.id} title={door.title}>
                 <span className="flow-door-label">{door.label}</span>
                 <span className="flow-door-word">{door.word}</span>
               </span>
@@ -133,6 +150,12 @@ export function Flow({
           <path d="M0 80 C26 80,18 50,44 50" />
         </svg>
         {last && <Station station={last} place="join" />}
+        {beyond && (
+          <>
+            <span className="flow-edge flow-edge-beyond" aria-hidden="true" />
+            <Station station={beyond} place="beyond" />
+          </>
+        )}
       </div>
     </div>
   );

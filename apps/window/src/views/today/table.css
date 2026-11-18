@@ -114,7 +114,7 @@
   text-align: left;
   cursor: pointer;
 }
-.today-row-fork button {
+.today-fork-name {
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
@@ -123,21 +123,25 @@
   font-weight: 600;
   overflow-wrap: anywhere;
 }
-.today-row--sub .today-row-fork button {
+.today-row--sub .today-fork-name {
   padding-left: 12px;
   color: var(--text-muted);
   font-weight: 400;
 }
-.today-row[data-open] .today-row-fork button {
+.today-row--sub[data-open] .today-fork-name {
   color: var(--text-strong);
-}
-.today-row--sub[data-open] .today-row-fork button {
   font-weight: 600;
+}
+.today-row .today-row-expand {
+  padding: 0 4px;
+  color: var(--text-muted);
 }
 .today-row-what button {
   color: var(--text);
 }
-.today-row :is(.today-row-fork, .today-row-what) button:hover {
+.today-row :is(.today-row-fork, .today-row-what) button:hover,
+.today-row .today-row-place:hover,
+.today-not-read button:hover {
   text-decoration: underline;
 }
 .today-row-open {
@@ -221,6 +225,48 @@
 .today-section[data-section="can-wait"] .today-section-dot {
   background: var(--text-muted);
 }
+.today-row .today-row-place {
+  color: var(--accent-text);
+  font-size: 12px;
+}
+.today-cause-packages {
+  margin: 0;
+  padding-left: 18px;
+}
+.today-cause-forks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.today-cause-fork {
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.today-cause-fork:hover {
+  border-color: var(--text-muted);
+}
+.today-not-read {
+  margin: 0 0 10px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+.today-row--unread .today-not-read {
+  margin: 0;
+}
+.today-not-read button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-text);
+  font: inherit;
+  cursor: pointer;
+}
 .today-section[data-section="moving"] .today-section-dot {
   background: var(--work);
 }
@@ -236,6 +282,10 @@
 }
 .today-row--place .today-row-fork button {
   color: var(--text);
+  font-weight: 500;
+}
+.today-row--cause .today-fork-name:not(button) {
+  color: var(--text-muted);
   font-weight: 500;
 }
 .today-row--place .today-row-what {

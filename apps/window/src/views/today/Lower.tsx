@@ -3,10 +3,10 @@
 
 import type { TodayHistory, TodaySummary } from "@spi-code/contracts";
 import type { MouseEvent, ReactNode } from "react";
-import { type Destination, LINE, navigate, openEvidence } from "../../app/navigation.js";
+import { type Destination, LINE, navigate } from "../../app/navigation.js";
 import { Time } from "../../time.js";
 
-type Count = TodaySummary["canWait"][number]["counts"][number];
+type Count = TodayHistory["rows"][number]["counts"][number];
 type Moving = TodaySummary["moving"][number];
 
 export type LowerPlace = { label: string; destination: Destination };
@@ -23,7 +23,7 @@ export const LOWER_PLACES = {
 type PlaceId = keyof typeof LOWER_PLACES;
 
 export type LowerSection = {
-  id: "can-wait" | "moving" | "history";
+  id: "moving" | "history";
   label: ReactNode;
   rows: ReactNode[];
 };
@@ -89,43 +89,6 @@ function PlaceRow({
         </span>
       </td>
     </tr>
-  );
-}
-
-/** A pile core could not read says so, and a zero it could not prove is never drawn. */
-function pileRow(pile: TodaySummary["canWait"][number]) {
-  const gaps = pile.notRead.length;
-  const shown = pile.counts.filter(({ count }) => count > 0);
-  const what = shown.length ? (
-    joined(shown.map((count) => <CountText key={count.kind} count={count} />))
-  ) : (
-    <span className="today-count" data-tone="muted">
-      {gaps ? "not read" : "none"}
-    </span>
-  );
-  const age = gaps ? (
-    <button
-      type="button"
-      className="today-row-gaps"
-      aria-label={`${gaps} not read: open Evidence`}
-      title={pile.notRead.join(", ")}
-      onClick={(event) => {
-        event.stopPropagation();
-        openEvidence(null);
-      }}
-    >
-      ⌀ {gaps}
-    </button>
-  ) : undefined;
-  return (
-    <PlaceRow
-      key={pile.id}
-      id={pile.id}
-      label={pile.label}
-      place={pile.place}
-      what={what}
-      {...(age ? { age } : {})}
-    />
   );
 }
 
@@ -208,11 +171,10 @@ function historyLabel(history: TodayHistory): ReactNode {
   return "Last 24 hours";
 }
 
-/** Can wait, Moving without you and Last 24 hours, from core's Today summary; each row opens its place. */
+/** Moving without you and Last 24 hours, from core's Today summary; each row opens its place. */
 export function lowerSections(summary: TodaySummary | undefined): LowerSection[] {
   if (!summary) return [];
   return [
-    { id: "can-wait", label: "Can wait", rows: summary.canWait.map(pileRow) },
     { id: "moving", label: "Moving without you", rows: summary.moving.map(movingRow) },
     {
       id: "history",

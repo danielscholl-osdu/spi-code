@@ -1,28 +1,19 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type {
-  FocusItem,
-  Link,
-  TodayDeadline,
-  TodayLine,
-  TodayMember,
-  ViewSnapshot,
+import {
+  type FocusItem,
+  fleetLines,
+  type Link,
+  type TodayDeadline,
+  type TodayLine,
+  type TodayMember,
+  type TodayMemberStation,
+  type ViewSnapshot,
 } from "@spi-code/contracts";
+import { Fragment, type MouseEvent, useCallback, useEffect, useRef } from "react";
 import {
-  Fragment,
-  type MouseEvent,
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-} from "react";
-import {
-  type Destination,
   type EvidenceSelection,
-  LINE,
-  type LineColumn,
   navigate,
   openEvidence,
   setOpenSelection,
@@ -34,8 +25,8 @@ import { type BodyPlace, todayContent } from "../../components/opened-body/conte
 import { OpenedBody } from "../../components/opened-body/OpenedBody.js";
 import { plainTitle } from "../../text.js";
 import { timedText } from "../../time.js";
-import { columns, itemStation } from "../line/cells.js";
-import { lowerSections } from "./Lower.js";
+import { CanWait } from "./CanWait.js";
+import { ageInOneUnit, ForkName, Section } from "./parts.js";
 import "./table.css";
 
 const SECTIONS = [
@@ -43,69 +34,11 @@ const SECTIONS = [
   { id: "waiting", label: "Waiting on you" },
 ] as const;
 
-const PLACES = {
-  line: { label: "Line", destination: LINE },
-  environment: { label: "Environment", destination: { kind: "environment" } },
-  engineering: { label: "Template", destination: { kind: "engineering-system" } },
-  security: { label: "Security", destination: { kind: "security" } },
-  upstream: { label: "Upstream", destination: { kind: "upstream" } },
-} satisfies Record<string, BodyPlace>;
+export { ageInOneUnit };
 
-/** Ages in one unit: core's "6d 22h" reads 7d, and "1d 2h" reads 26h. */
-export function ageInOneUnit(age: string | undefined): string | undefined {
-  const parts = age?.match(/^(\d+)d (\d+)h$/);
-  if (!parts) return age;
-  const hours = Number(parts[1]) * 24 + Number(parts[2]);
-  return hours < 48 ? `${hours}h` : `${Math.round(hours / 24)}d`;
-}
+const TODAY: BodyPlace = { label: "Today", destination: { kind: "today" } };
 
 const distinct = (gaps: readonly string[]) => [...new Set(gaps)];
-
-type MemberPlace = BodyPlace & { column?: string };
-
-/** Where a member lives: its Line cell when its kind has a station on a fork's row, else its place. */
-function memberPlace(
-  member: TodayMember,
-  forks: ReadonlySet<string>,
-  places: ViewSnapshot["briefing"]["places"],
-): MemberPlace {
-  const station = itemStation(member.id);
-  if (station && station !== "upstream" && forks.has(member.fork)) {
-    const column = columns.find(({ id }) => id === station)?.label ?? station;
-    const destination: Destination =
-      station === "lane" || station === "release"
-        ? LINE
-        : { ...LINE, column: station as LineColumn };
-    return {
-      label: `Line › ${member.fork} › ${column}`,
-      destination,
-      selection: { kind: "cell", id: `${member.fork}:${station}` },
-      column,
-    };
-  }
-  if (member.id.startsWith("port:") || member.id.startsWith("radar:")) return PLACES.upstream;
-  const ids = new Set([member.id, ...member.ids]);
-  const row = places?.find(({ itemIds }) => itemIds.some((id) => ids.has(id)));
-  return row && row.place in PLACES ? PLACES[row.place as keyof typeof PLACES] : PLACES.line;
-}
-
-/** A group's place: the column its members share, else the place they share, else the Line. */
-function linePlace(
-  line: TodayLine,
-  forks: ReadonlySet<string>,
-  places: ViewSnapshot["briefing"]["places"],
-): BodyPlace {
-  const each = line.members.map((member) => memberPlace(member, forks, places));
-  const [first, ...rest] = each;
-  if (!first) return PLACES.line;
-  if (rest.length === 0) return first;
-  if (first.column && rest.every(({ column }) => column === first.column))
-    return { label: `Line › ${first.column}`, destination: first.destination };
-  const top = (place: MemberPlace) => place.label.split(" › ")[0];
-  return rest.every((place) => top(place) === top(first))
-    ? { label: top(first) ?? "Line", destination: first.column ? LINE : first.destination }
-    : PLACES.line;
-}
 
 type Row = {
   key: string;
@@ -122,7 +55,8 @@ type Row = {
   member?: TodayMember;
 };
 
-function rowsOf(line: TodayLine, index: number): Row[] {
+/** A filtered line keeps the pointers of the line and members it was cut from. */
+function rowsOf(line: TodayLine, index: number, whole: TodayLine = line): Row[] {
   const pointer = `/briefing/lines/${index}`;
   const [one, ...others] = line.members;
   const single = one && others.length === 0 ? one : undefined;
@@ -144,7 +78,7 @@ function rowsOf(line: TodayLine, index: number): Row[] {
   if (single) return [head];
   return [
     head,
-    ...line.members.map((member, at) => ({
+    ...line.members.map((member) => ({
       key: `${line.id}/${member.id}`,
       selection: { kind: "item", id: member.id } as const,
       fork: member.fork,
@@ -152,7 +86,7 @@ function rowsOf(line: TodayLine, index: number): Row[] {
       age: ageInOneUnit(member.age),
       gaps: distinct(member.evidence.notRead).filter((gap) => !lineGaps.includes(gap)).length,
       sub: true,
-      pointer: `${pointer}/members/${at}`,
+      pointer: `${pointer}/members/${whole.members.indexOf(member)}`,
       line,
       member,
     })),
@@ -167,7 +101,7 @@ const isRow = (row: Row, open: { kind: string; id: string } | null) =>
  * several members of one line; null when it is on no row or on rows of different lines.
  */
 export function todayRowOf(lines: readonly TodayLine[], item: string): EvidenceSelection | null {
-  const rows = lines.flatMap(rowsOf);
+  const rows = lines.flatMap((line, index) => rowsOf(line, index));
   const holders = rows.filter((row) => row.member?.id === item || row.member?.ids.includes(item));
   const [first] = holders;
   if (!first) return null;
@@ -188,11 +122,13 @@ function RowCells({
   row,
   origin,
   open,
+  services,
   onToggle,
 }: {
   row: Row;
   origin: string | undefined;
   open: boolean;
+  services: ReadonlySet<string>;
   onToggle(row: Row, event: MouseEvent): void;
 }) {
   const toggle = (event: MouseEvent) => onToggle(row, event);
@@ -203,16 +139,15 @@ function RowCells({
       data-pointer={row.pointer}
       data-line-id={row.line.id}
       {...(row.member ? { "data-item-id": row.member.id } : {})}
+      {...(row.member?.station ? { "data-station": row.member.station } : {})}
       {...(origin ? { "data-origin": origin } : {})}
       {...(open ? { "data-open": "" } : {})}
     >
       <td className="today-row-fork">
-        <button type="button" aria-expanded={open} title={row.fork} onClick={toggle}>
-          {row.fork}
-        </button>
+        <ForkName fork={row.fork} services={services} />
       </td>
       <td className="today-row-what">
-        {row.headline && (
+        {row.headline ? (
           <button
             type="button"
             aria-expanded={open}
@@ -220,6 +155,16 @@ function RowCells({
             onClick={toggle}
           >
             {row.headline.text}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="today-row-expand"
+            aria-expanded={open}
+            aria-label={`${row.fork}: ${plainTitle(row.line.headline)}`}
+            onClick={toggle}
+          >
+            {open ? "⌃" : "⌄"}
           </button>
         )}
       </td>
@@ -256,75 +201,36 @@ function RowCells({
   );
 }
 
-/** One section of Today's table: its heading and a box holding the shared four columns. */
-function Section({
-  id,
-  label,
-  count,
-  head = false,
-  children,
-}: {
-  id: string;
-  label: ReactNode;
-  count?: number;
-  head?: boolean;
-  children: ReactNode;
-}) {
-  const heading = useId();
-  return (
-    <section className="today-section" data-section={id} aria-labelledby={heading}>
-      <h2 className="today-section-head" id={heading}>
-        <span className="today-section-dot" aria-hidden="true" />
-        {label}
-        {count !== undefined && (
-          <>
-            {" "}
-            <span className="today-section-count">{count}</span>
-          </>
-        )}
-      </h2>
-      <div className="today-section-box">
-        <table>
-          <colgroup>
-            <col className="today-col-fork" />
-            <col />
-            <col className="today-col-open" />
-            <col className="today-col-age" />
-          </colgroup>
-          {head && (
-            <thead>
-              <tr>
-                <th scope="col">Fork</th>
-                <th scope="col">What</th>
-                <th scope="col">Open</th>
-                <th scope="col">Age</th>
-              </tr>
-            </thead>
-          )}
-          {children}
-        </table>
-      </div>
-    </section>
-  );
-}
-
 /**
- * Today's table: Blocked and Waiting on you as core's situation lines whose rows open in place, one
- * at a time, then the lower sections whose rows open their place.
+ * Yours: Blocked and Waiting on you as core's situation lines whose rows open in place, one at a
+ * time, then Can wait by cause. A station keeps only its rows and members, and hides Can wait.
  */
-export function TodayTable({ snapshot }: { snapshot: ViewSnapshot }) {
+export function TodayTable({
+  snapshot,
+  station,
+  calm = "Nothing is yours to move today.",
+}: {
+  snapshot: ViewSnapshot;
+  station?: TodayMemberStation | undefined;
+  /** What an empty Yours says; null says nothing. */
+  calm?: string | null;
+}) {
   const { briefing } = snapshot;
   const lines = briefing.lines;
   const open = useOpenSelection();
   const table = useRef<HTMLDivElement>(null);
   const openers = useRef(new Map<string, HTMLButtonElement | null>());
   const close = useCallback(() => setOpenSelection(null), []);
-  const rows = (lines ?? []).flatMap(rowsOf);
+  const shown = lines && station ? fleetLines(lines, station) : (lines ?? []);
+  const rows = shown.flatMap((line) => {
+    const index = lines?.findIndex(({ id }) => id === line.id) ?? -1;
+    return rowsOf(line, index, lines?.[index]);
+  });
   const openRow = rows.find((row) => isRow(row, open));
-  const openKey = openRow?.key;
+  const anyOpen = !!open;
 
   useEffect(() => {
-    if (!openKey) return;
+    if (!anyOpen) return;
     const outside = (event: PointerEvent) => {
       const target = event.target as Element | null;
       const today = table.current?.closest(".today");
@@ -333,8 +239,9 @@ export function TodayTable({ snapshot }: { snapshot: ViewSnapshot }) {
     };
     document.addEventListener("pointerdown", outside, true);
     return () => document.removeEventListener("pointerdown", outside, true);
-  }, [openKey]);
+  }, [anyOpen]);
 
+  const openKey = openRow?.key;
   useEffect(() => {
     if (openKey) {
       const row = table.current?.querySelector(`tr[data-open]`);
@@ -344,7 +251,7 @@ export function TodayTable({ snapshot }: { snapshot: ViewSnapshot }) {
 
   if (!lines) return null;
 
-  const forks = new Set(snapshot.stations.map(({ service }) => service));
+  const services = new Set(snapshot.stations.map(({ service }) => service));
   const items: FocusItem[] = [...briefing.focus, ...briefing.rest];
   const originOf = (row: Row) => {
     const ids = new Set(row.member ? [row.member.id, ...row.member.ids] : []);
@@ -359,14 +266,11 @@ export function TodayTable({ snapshot }: { snapshot: ViewSnapshot }) {
     setOpenSelection(isRow(row, open) ? null : row.selection);
   };
   const body = (row: Row) => {
-    const place = row.member
-      ? memberPlace(row.member, forks, briefing.places)
-      : linePlace(row.line, forks, briefing.places);
     const content = todayContent({
       line: row.line,
       ...(row.member ? { member: row.member } : {}),
       items,
-      place,
+      place: TODAY,
     });
     if (!row.member) delete content.primary;
     return (
@@ -390,9 +294,9 @@ export function TodayTable({ snapshot }: { snapshot: ViewSnapshot }) {
 
   return (
     <div ref={table} className="today-table">
-      {lines.length === 0 && <p className="today-table-calm">Nothing is yours to move today.</p>}
+      {shown.length === 0 && calm && <p className="today-table-calm">{calm}</p>}
       {SECTIONS.map(({ id, label }) => {
-        const held = lines.filter((line) => line.section === id);
+        const held = shown.filter((line) => line.section === id);
         if (held.length === 0) return null;
         const members = held.reduce((n, line) => n + line.members.length, 0);
         return (
@@ -409,6 +313,7 @@ export function TodayTable({ snapshot }: { snapshot: ViewSnapshot }) {
                         row={row}
                         origin={originOf(row)}
                         open={opened}
+                        services={services}
                         onToggle={toggle}
                       />,
                       ...(opened ? [<Fragment key={`${row.key}/body`}>{body(row)}</Fragment>] : []),
@@ -419,11 +324,9 @@ export function TodayTable({ snapshot }: { snapshot: ViewSnapshot }) {
           </Section>
         );
       })}
-      {lowerSections(briefing.today).map(({ id, label, rows }) => (
-        <Section key={id} id={id} label={label}>
-          <tbody>{rows}</tbody>
-        </Section>
-      ))}
+      {!station && briefing.today?.causes && (
+        <CanWait causes={briefing.today.causes} snapshot={snapshot} services={services} />
+      )}
     </div>
   );
 }

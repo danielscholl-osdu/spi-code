@@ -13,6 +13,8 @@ import {
 
 it.each<[string, Route, string]>([
   ["#today", { kind: "today" }, "Today"],
+  ["#today/activity", { kind: "today", tab: "activity" }, "Today"],
+  ["#today/yours/sync", { kind: "today", station: "sync" }, "Today"],
   ["#upstream", { kind: "upstream" }, "Upstream"],
   ["#engineering-system", { kind: "engineering-system" }, "Template"],
   ["#security", { kind: "security" }, "Security"],
@@ -151,6 +153,9 @@ it.each([
   "#setup",
   "#setup/extra",
   "#today/extra",
+  "#today/activity/sync",
+  "#today/yours/lane",
+  "#today/yours/sync/extra",
   "#line",
   "#constructor",
 ])("names no route for %j", (hash) => {

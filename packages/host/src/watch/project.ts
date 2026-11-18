@@ -81,6 +81,7 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
     briefing.environment,
     briefing.nextSyncAt,
     briefing.today.causes,
+    briefing.lines,
   );
   releases.today = today;
   const platform = platformReleased(documents, input.facts, input.context);

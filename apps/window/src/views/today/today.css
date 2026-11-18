@@ -93,3 +93,11 @@
   .today-caveat { flex-wrap: wrap; }
   .today-caveat-actions { flex-wrap: wrap; }
 }
+
+.today-tabs { display: flex; gap: 2px; margin: 18px 0 14px; overflow-x: auto; border-bottom: 1px solid var(--border); }
+.today-tab { display: inline-flex; align-items: center; gap: 6px; margin-bottom: -1px; padding: 7px 10px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--text-muted); font: inherit; white-space: nowrap; cursor: pointer; }
+.today-tab[aria-selected="true"] { border-bottom-color: var(--accent); color: var(--text-strong); font-weight: 650; }
+.today-tab-count { padding: 0 6px; border-radius: 999px; background: var(--surface-raised); color: var(--text-muted); font-size: 11px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.today-filter { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; color: var(--text-strong); font-weight: 600; }
+.today-filter button { padding: 1px 8px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text); font: inherit; font-size: 12px; font-weight: 400; cursor: pointer; }
+.today-filter button:hover { border-color: var(--text-muted); }
