@@ -29,11 +29,19 @@ export type AskingWorkspace =
       readonly cwd: string;
       readonly gitDirectory: string;
       readonly readOnly: true;
+      readonly fetchError?: FetchError;
     };
+
+type FetchError = {
+  readonly operation: "fetch";
+  readonly remote: RemoteName;
+  readonly error: string;
+};
+type WorkspaceFailure = GitStep & { readonly ok: false; readonly error: string };
 
 export type WorkspaceResult =
   | { readonly ok: true; readonly workspace: AskingWorkspace }
-  | (GitStep & { readonly ok: false; readonly error: string });
+  | WorkspaceFailure;
 
 interface PrepareOptions {
   readonly signal?: AbortSignal;
@@ -47,11 +55,11 @@ function check(result: ExecResult<string>): string {
 
 const redactError = execRedactor({});
 
-async function step(
-  job: GitStep,
+async function step<T extends GitStep>(
+  job: T,
   options: PrepareOptions,
   action: (onOutput: NonNullable<ExecOptions["onOutput"]>) => Promise<void>,
-): Promise<Extract<WorkspaceResult, { ok: false }> | undefined> {
+): Promise<(T & { ok: false; error: string }) | undefined> {
   options.onProgress?.({ ...job, phase: "started" });
   try {
     await action((stream, text) => options.onProgress?.({ ...job, phase: "output", stream, text }));
@@ -148,21 +156,36 @@ export class ScopeWorkspaces {
     };
     const signal = options.signal ? { signal: options.signal } : {};
     const target = { clone: join(directory, "checkout") };
-    if (!(await exists(directory))) {
+    const existed = await exists(directory);
+    if (!existed) {
       const failed = await step({ operation: "clone" }, options, (onOutput) =>
         createClone(this.git, directory, remotes, { ...signal, onOutput }),
       );
       if (failed) return failed;
     }
+    const workspace = {
+      kind: "clone",
+      cwd: target.clone,
+      gitDirectory: join(target.clone, ".git"),
+      readOnly: true,
+    } as const;
+    // Validate the recorded remotes before allowing a stale checkout to be used.
+    for (const remote of ["origin", "upstream"] as const) {
+      const url = remotes[remote];
+      if (
+        url !== undefined &&
+        check(await this.git.remoteUrl(target, remote, signal)).trim() !== url
+      ) {
+        throw new Error(`Managed clone's ${remote} remote no longer matches the scope.`);
+      }
+    }
     // A detached checkout follows the fork's current default even when the forge renames it.
     for (const remote of ["origin", "upstream"] as const) {
       const url = remotes[remote];
       if (url === undefined) continue;
+      let fetched = false;
       const failed = await step({ operation: "fetch", remote }, options, async (onOutput) => {
         const gitOptions = { ...signal, onOutput };
-        if (check(await this.git.remoteUrl(target, remote, signal)).trim() !== url) {
-          throw new Error(`Managed clone's ${remote} remote no longer matches the scope.`);
-        }
         const origin = remote === "origin";
         check(
           await this.git.fetch(
@@ -171,18 +194,15 @@ export class ScopeWorkspaces {
             gitOptions,
           ),
         );
+        fetched = true;
         if (origin) check(await this.git.checkoutDetached(target, askingRef, gitOptions));
       });
-      if (failed) return failed;
+      if (failed) {
+        if (fetched || !existed || options.signal?.aborted) return failed;
+        const { operation, remote, error } = failed;
+        return { ok: true, workspace: { ...workspace, fetchError: { operation, remote, error } } };
+      }
     }
-    return {
-      ok: true,
-      workspace: {
-        kind: "clone",
-        cwd: target.clone,
-        gitDirectory: join(target.clone, ".git"),
-        readOnly: true,
-      },
-    };
+    return { ok: true, workspace };
   }
 }

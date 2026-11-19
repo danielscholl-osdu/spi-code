@@ -54,8 +54,27 @@ export class ThreadEngine<Tool> {
   ) {
     this.journal = new ThreadJournal(db);
     this.redactor = options.redactor ?? journalOutputRedactor;
-    for (const event of this.journal.load()) this.apply(event);
-    for (const timeline of this.threads.values()) this.cancelInterrupted(timeline, "restart");
+    const unreadable = new Set<string>();
+    const setAside = (id: string) => {
+      this.threads.delete(id);
+      unreadable.add(id);
+      options.onUnreadableThread?.(id);
+    };
+    for (const row of this.journal.load()) {
+      if (unreadable.has(row.id)) continue;
+      try {
+        this.apply(row.decode());
+      } catch {
+        setAside(row.id);
+      }
+    }
+    for (const [id, timeline] of this.threads) {
+      try {
+        this.cancelInterrupted(timeline, "restart");
+      } catch {
+        setAside(id);
+      }
+    }
   }
 
   create(thread: ThreadDefinition): string {
@@ -219,8 +238,11 @@ export class ThreadEngine<Tool> {
   }
 
   private apply(event: ThreadEvent): void {
-    if (event.type === "thread.created") this.threads.set(event.threadId, new Timeline(event));
-    else this.get(event.threadId).apply(event);
+    if (event.type === "thread.created") {
+      assert(!this.threads.has(event.threadId), "Thread already exists");
+      assert(event.sequence === 1 && typeof event.thread?.scope === "string", "Invalid thread");
+      this.threads.set(event.threadId, new Timeline(event));
+    } else this.get(event.threadId).apply(event);
   }
 
   private record(id: string, entries: JournalEntry[]): void {
@@ -258,7 +280,27 @@ export class ThreadEngine<Tool> {
     }
     const turn = timeline.active;
     assert(turn, "Starting a turn requires an active journal entry");
-    const done = Promise.resolve().then(() => this.run(timeline, pending.message, running));
+    const done = Promise.resolve().then(async () => {
+      const signal = running.controller.signal;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      let boundAbort = () => {};
+      const promise = new Promise<TurnOutcome>((resolve, reject) => {
+        boundAbort = () => {
+          timer = setTimeout(() => {
+            if (turn.outcome === "running") reject(new Error("Thread requires journal recovery"));
+            else resolve(turn.outcome);
+          }, 1500);
+        };
+        if (signal.aborted) boundAbort();
+        else signal.addEventListener("abort", boundAbort, { once: true });
+      });
+      try {
+        return await Promise.race([this.run(timeline, pending.message, running), promise]);
+      } finally {
+        clearTimeout(timer);
+        signal.removeEventListener("abort", boundAbort);
+      }
+    });
     const running: RunningTurn = {
       turn,
       controller: new AbortController(),
@@ -301,7 +343,7 @@ export class ThreadEngine<Tool> {
       message,
       signal,
     };
-    let outcome: "completed" | "failed" = "completed";
+    let outcome: TurnEnd = { outcome: "completed" };
     try {
       signal.throwIfAborted();
       const workspace = await this.options.workspace.resolve(request);
@@ -316,8 +358,9 @@ export class ThreadEngine<Tool> {
         { ...request, workspace, context: { ...context, instructions }, tools },
         this.runtimeEvents(threadId, running),
       );
-    } catch {
-      outcome = "failed";
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "The turn could not finish.";
+      outcome = { outcome: "failed", failure: this.redactor.text(message).slice(0, 500) };
     }
     if (running.turn.outcome !== "running") return running.turn.outcome;
     const end: TurnEnd =
@@ -325,7 +368,7 @@ export class ThreadEngine<Tool> {
         ? { outcome: "stopped", reason: "operator" }
         : signal.reason === "shutdown"
           ? { outcome: "cancelled", reason: "shutdown" }
-          : { outcome };
+          : outcome;
     this.finish(threadId, running, end);
     return end.outcome;
   }
@@ -336,8 +379,8 @@ export class ThreadEngine<Tool> {
   }
 
   private finishEntries({ assistant, turn }: RunningTurn, end: TurnEnd): JournalEntry[] {
-    const entries = finishTurn(turn, end);
     const text = assistant.flush();
+    const entries = finishTurn(turn, end, Boolean(text || turn.text));
     if (text) entries.unshift({ type: "assistant.delta", turnId: turn.id, text });
     return entries;
   }
@@ -412,7 +455,7 @@ export class ThreadEngine<Tool> {
           },
         ]);
       },
-      requestApproval: async ({ approvalId: runtimeId, kind, detail }) => {
+      requestApproval: async ({ approvalId: runtimeId, kind, detail }, decision) => {
         if (!live() || requestedApprovals.has(runtimeId)) return false;
         const candidate = safeId(runtimeId);
         const approvalId = turn.approvals.some(({ request }) => request.approvalId === candidate)
@@ -426,6 +469,10 @@ export class ThreadEngine<Tool> {
           detail: this.redactor.text(detail),
         });
         requestedApprovals.add(runtimeId);
+        if (decision !== undefined) {
+          this.record(id, [{ type: "approval.resolved", turnId, approvalId, approved: decision }]);
+          return decision;
+        }
         return new Promise((resolve) => approvals.set(approvalId, resolve));
       },
     };

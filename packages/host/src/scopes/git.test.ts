@@ -180,7 +180,7 @@ describe("Asking workspace", () => {
     expect(await readdir(root)).not.toContain(basename(appData));
   });
 
-  it("clones once for concurrent threads, then fetches both remotes before a later read", async () => {
+  it("clones once and fetches both remotes for concurrent threads", async () => {
     const first: WorkspaceProgress[] = [];
     const second: WorkspaceProgress[] = [];
     const service = workspaces();
@@ -213,7 +213,10 @@ describe("Asking workspace", () => {
     expect([...first, ...second]).toContainEqual(
       expect.objectContaining({ operation: "clone", phase: "output" }),
     );
+  });
 
+  it("follows a renamed default branch and refreshes upstream before a later read", async () => {
+    const workspace = await checkout(gitRunner());
     await fixtureGit(seed, "checkout", "-b", "new-default");
     const oid = await commit("fresh");
     await fixtureGit(seed, "push", origin, "HEAD:refs/heads/new-default");
@@ -246,7 +249,7 @@ describe("Asking workspace", () => {
     expect(await readFile(join(workspace.cwd, "answer.txt"), "utf8")).toBe("first");
   });
 
-  it("returns a fetch failure instead of a workspace and reuses the clone on recovery", async () => {
+  it("preserves the checkout as stale on a fetch failure and clears it on recovery", async () => {
     const before = await checkout(gitRunner());
     await rename(upstream, `${upstream}.offline`);
     const progress: WorkspaceProgress[] = [];
@@ -254,10 +257,11 @@ describe("Asking workspace", () => {
     expect(
       await service.prepareAsking(scope, { onProgress: (event) => progress.push(event) }),
     ).toMatchObject({
-      ok: false,
-      operation: "fetch",
-      remote: "upstream",
-      error: /repository|fatal:/i,
+      ok: true,
+      workspace: {
+        ...before,
+        fetchError: { operation: "fetch", remote: "upstream", error: /repository|fatal:/i },
+      },
     });
     expect(progressStates(progress)).toEqual([
       "origin:started",
@@ -699,6 +703,7 @@ describe("privileged Git", () => {
         "dataRoot",
         "diff",
         "fetch",
+        "head",
         "listWorktrees",
         "push",
         "remoteUrl",

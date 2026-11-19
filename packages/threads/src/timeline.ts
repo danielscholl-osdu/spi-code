@@ -61,6 +61,7 @@ export class Timeline {
   }
 
   apply(event: Exclude<ThreadEvent, { type: "thread.created" }>): void {
+    assert(event.sequence === this.sequence + 1, "Journal sequence has a gap");
     this.sequence = event.sequence;
     this.updatedAt = event.at;
     switch (event.type) {
@@ -121,9 +122,13 @@ export class Timeline {
       }
       case "turn.finished":
         turn.outcome = event.outcome;
+        if (event.outcome === "failed" && event.failure !== undefined) turn.failure = event.failure;
+        if (event.partialTextSeen !== undefined) turn.partialTextSeen = event.partialTextSeen;
         if (event.outcome === "completed") this.recovery.length = 0;
-        if (event.outcome === "cancelled") this.reportInterruption(turn);
+        else this.reportInterruption(turn);
         break;
+      default:
+        throw new Error("Unknown journal event");
     }
   }
 
@@ -134,11 +139,13 @@ export class Timeline {
   }
 
   private reportInterruption(turn: TimelineTurn): void {
-    this.recovery.push(`Turn ${turn.id}: cancelled.`);
+    const partial = turn.partialTextSeen
+      ? " Whether Copilot saw the partial reply is not known."
+      : "";
+    this.recovery.push(`Turn ${turn.id}: ${turn.outcome}.${partial}`);
     for (const { start, end } of turn.tools) {
       if (end?.type !== "tool.cancelled") continue;
-      const process = end.processState ? ` Process state: ${end.processState}.` : "";
-      this.recovery.push(`Tool call ${start.callId}: cancelled.${process}`);
+      this.recovery.push(`Tool call ${start.callId}: cancelled. Effects are not known.`);
     }
     for (const { request, end } of turn.approvals) {
       if (end?.type === "approval.cancelled")
@@ -147,7 +154,11 @@ export class Timeline {
   }
 }
 
-export function finishTurn(turn: TimelineTurn, end: TurnEnd): JournalEntry[] {
+export function finishTurn(
+  turn: TimelineTurn,
+  end: TurnEnd,
+  hasText = Boolean(turn.text),
+): JournalEntry[] {
   const events: JournalEntry[] = [];
   const turnId = turn.id;
   const reason = "reason" in end ? end.reason : "turn-ended";
@@ -161,12 +172,18 @@ export function finishTurn(turn: TimelineTurn, end: TurnEnd): JournalEntry[] {
       reason,
       durationMs: Math.max(0, at - tool.start.at),
       ...(tool.start.kind === "command" ? { processState: "not known" } : {}),
+      effectState: "not known",
     });
   }
   for (const { request, end } of turn.approvals) {
     if (!end)
       events.push({ type: "approval.cancelled", turnId, approvalId: request.approvalId, reason });
   }
-  events.push({ type: "turn.finished", turnId, ...end });
+  events.push({
+    type: "turn.finished",
+    turnId,
+    ...end,
+    ...(end.outcome !== "completed" && hasText ? { partialTextSeen: "not known" } : {}),
+  });
   return events;
 }

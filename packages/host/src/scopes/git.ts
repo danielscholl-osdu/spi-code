@@ -424,6 +424,10 @@ export class PrivilegedGit {
     );
   }
 
+  async head(target: GitTarget, options: GitOptions = {}): Promise<ExecResult<string>> {
+    return this.#run(target, ["rev-parse", "--verify", "HEAD"], options);
+  }
+
   /** The working tree against HEAD or a named ref, as a patch. */
   async diff(
     target: GitTarget,

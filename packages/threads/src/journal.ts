@@ -42,8 +42,11 @@ export class ThreadJournal {
     this.all = db.prepare("SELECT * FROM thread_engine_journal ORDER BY thread_id, sequence");
   }
 
-  *load(): Iterable<ThreadEvent> {
-    for (const row of this.all.iterate()) yield decode(row as Row);
+  *load(): Iterable<{ id: string; decode(): ThreadEvent }> {
+    for (const entry of this.all.iterate()) {
+      const row = entry as Row;
+      yield { id: row.thread_id, decode: () => decode(row) };
+    }
   }
 
   since(id: string, sequence: number): ThreadEvent[] {

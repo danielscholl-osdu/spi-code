@@ -97,7 +97,7 @@ export interface RuntimeEvents {
   delta(text: string): void;
   toolStarted(call: ToolStart): void;
   toolFinished(result: ToolCompletion): void;
-  requestApproval(request: ApprovalRequest): Promise<boolean>;
+  requestApproval(request: ApprovalRequest, decision?: boolean): Promise<boolean>;
 }
 
 export interface ThreadRuntime<Tool> {
@@ -115,6 +115,7 @@ export interface ThreadEngineOptions<Tool> {
   tools: ToolProvider<Tool>;
   /** Supply the journal profile from createToolOutputRedactor to include host-known secrets. */
   redactor?: JournalOutputRedactor;
+  onUnreadableThread?(id: string): void;
 }
 
 type InterruptionReason = "restart" | "shutdown";
@@ -131,15 +132,17 @@ type TurnEvent = { turnId: string } & (
       reason: CancelReason;
       durationMs: number;
       processState?: "not known";
+      effectState?: "not known";
     }
   | ({ type: "approval.requested" } & ApprovalRequest)
   | { type: "approval.resolved"; approvalId: string; approved: boolean }
   | { type: "approval.cancelled"; approvalId: string; reason: CancelReason }
-  | ({ type: "turn.finished" } & TurnEnd)
+  | ({ type: "turn.finished"; partialTextSeen?: "not known" } & TurnEnd)
 );
 
 export type TurnEnd =
-  | { outcome: "completed" | "failed" }
+  | { outcome: "completed" }
+  | { outcome: "failed"; failure?: string }
   | { outcome: "stopped"; reason: "operator" }
   | { outcome: "cancelled"; reason: InterruptionReason };
 export type TurnOutcome = TurnEnd["outcome"];
@@ -166,6 +169,8 @@ export interface TimelineTurn {
   messageId: string;
   text: string;
   outcome: "running" | TurnOutcome;
+  failure?: string;
+  partialTextSeen?: "not known";
   tools: TimelineTool[];
   approvals: TimelineApproval[];
 }

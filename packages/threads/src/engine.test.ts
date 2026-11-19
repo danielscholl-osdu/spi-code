@@ -254,6 +254,7 @@ it("cancels interrupted work on disk once, leaves process fate unknown and start
       turns: [
         {
           outcome: "cancelled",
+          partialTextSeen: "not known",
           text: "Partial reply\nunfinished line[redacted]\nAfter the block\n",
           tools: [
             { end: { type: "tool.cancelled", reason: "restart", processState: "not known" } },
@@ -321,5 +322,51 @@ it("subscribes after a sequence and delivers only that thread's later events acr
   running.finish();
   await outcome;
   expect(seen).toHaveLength(3);
+  database.close();
+});
+
+it("sets an unreadable thread aside and recovers the rest of the journal", () => {
+  const database = new DatabaseSync(":memory:");
+  const first = harness(database).engine;
+  const healthy = first.create({ scope: "storage" });
+  const damaged = first.create({ scope: "partition" });
+  database.prepare("INSERT INTO thread_engine_journal VALUES (?, 2, 0, '{')").run(damaged);
+  const reopened = harness(database).engine;
+  expect(reopened.list().map(({ id }) => id)).toEqual([healthy]);
+  expect(() => reopened.read(damaged)).toThrow("Unknown thread");
+  database.close();
+});
+
+it("retains a bounded, redacted failure reason", async () => {
+  const { database, engine, runtime } = harness();
+  const id = engine.create({ scope: "partition" });
+  const secret = `ghp_${"x".repeat(36)}`;
+  runtime.run.mockRejectedValueOnce(new Error(`Rejected token: ${secret}\n${"x".repeat(1000)}`));
+  await expect(engine.send(id, { prompt: "Hello" })).resolves.toBe("failed");
+  const outcome = engine.read(id).turns[0];
+  expect(outcome?.failure?.length).toBe(500);
+  expect(outcome?.failure).toContain("Rejected token: [redacted]");
+  expect(JSON.stringify(engine.eventsSince(id, 0))).not.toContain(secret);
+  database.close();
+});
+
+it("unblocks the queue and shutdown when an aborted runtime never settles", async () => {
+  vi.useFakeTimers();
+  const { database, engine, turn } = harness();
+  const id = engine.create({ scope: "partition" });
+  const first = engine.send(id, { prompt: "This runtime ignores abort" });
+  const second = engine.send(id, { prompt: "This is queued" });
+  await turn();
+  const stopped = engine.stop(id);
+  await vi.advanceTimersByTimeAsync(1500);
+  await stopped;
+  await expect(first).resolves.toBe("stopped");
+  const next = await turn(1);
+  expect(next.input.message.prompt).toBe("This is queued");
+  const shutdown = engine.shutdown();
+  await vi.advanceTimersByTimeAsync(1500);
+  await shutdown;
+  await expect(second).resolves.toBe("cancelled");
+  expect(next.input.signal.aborted).toBe(true);
   database.close();
 });
