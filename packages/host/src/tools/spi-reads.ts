@@ -1,8 +1,9 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type AreaName, resolvePointer, type ViewSnapshot } from "@spi-code/contracts";
+import { resolvePointer, type ViewSnapshot } from "@spi-code/contracts";
 import { z } from "zod";
+import { readPlace } from "../threads/context/places.js";
 import type { JsonValue, ModelRedactor } from "../threads/context/seams.js";
 import {
   areaEnvelopes,
@@ -14,12 +15,19 @@ import {
   readStateAt,
   type SavedSweep,
   sourcesAt,
+  withRecords,
 } from "../threads/context/sweep.js";
 import { estimateTokens, type TokenEstimate } from "../threads/context/tokens.js";
-import { buildGatedTool, checkStubTier, type GatedTool, type TierCheck } from "./registry.js";
+import {
+  buildGatedTool,
+  checkStubTier,
+  type GatedTool,
+  type TierCheck,
+  ToolRefusedError,
+} from "./registry.js";
 import { APPENDIX_A_TOOLS, type ToolMetadata } from "./tool-names.js";
 
-export const SPI_RESULT_TOKEN_BUDGET = 6000;
+export const SPI_RESULT_TOKEN_BUDGET = 12_000;
 
 type Fields = Record<string, unknown>;
 type Answer =
@@ -32,6 +40,8 @@ type Answer =
       readonly value: Fields;
       /** Top-level lists that give up whole items, in order, to fit the result budget. */
       readonly lists?: readonly string[];
+      /** Shown even when not read, as evidence names what was and was not read. */
+      readonly always?: boolean;
     };
 
 interface SpiRead<A> {
@@ -48,21 +58,13 @@ const metadata = (name: string): ToolMetadata =>
 const reading = (view: ViewSnapshot, match: (anchor: Fields) => boolean) =>
   view.readings.find(({ anchor }) => match(anchor))?.content ?? NOT_READ;
 
-const place = (
-  name: string,
-  anchor: string,
-  areas: readonly AreaName[],
-  extra: (view: ViewSnapshot) => Fields = () => ({}),
-  lists?: readonly string[],
-  at?: string,
-) => ({
-  read: ({ view }: SavedSweep): Answer => ({
-    place: name,
-    ...(at === undefined ? {} : { at }),
-    state: readState(areaEnvelopes(view, areas)),
-    value: { reading: reading(view, (entry) => entry.kind === anchor), ...extra(view) },
-    ...(lists ? { lists } : {}),
-  }),
+const place = (id: string) => ({
+  read: ({ view }: SavedSweep): Answer => {
+    const found = readPlace(view, id);
+    if (!found) return { found: false, reason: `The saved sweep has no place ${id}.` };
+    const { reading: content, ...rest } = found;
+    return { ...rest, value: { reading: content }, lists: ["reading.items"] };
+  },
 });
 
 /** A list the sweep did not read is said so, never shown as empty. */
@@ -92,16 +94,17 @@ const READS: readonly SpiRead<Fields>[] = [
         summary: view.briefing.summary,
         verdict: view.briefing.verdict,
         decisions: view.briefing.decisions,
-        lines: (view.briefing.lines ?? []).map(({ members, ...line }) => ({
-          ...line,
-          members: members.map(({ id, fork, station, cause, evidence }) => ({
-            id,
-            fork,
-            ...(station === undefined ? {} : { station }),
-            cause,
-            notRead: evidence.notRead,
-          })),
-        })),
+        lines:
+          view.briefing.lines?.map(({ members, ...line }) => ({
+            ...line,
+            members: members.map(({ id, fork, station, cause, evidence }) => ({
+              id,
+              fork,
+              ...(station === undefined ? {} : { station }),
+              cause,
+              notRead: evidence.notRead,
+            })),
+          })) ?? NOT_READ,
       },
       lists: ["lines"],
     }),
@@ -112,17 +115,16 @@ const READS: readonly SpiRead<Fields>[] = [
       "One service's home: its reading, stations, release, open pull requests and issues.",
     args: z.strictObject({ service: z.string().min(1) }),
     read: ({ view }, { service }) => {
-      const index = view.services?.findIndex((entry) => entry.service === service) ?? -1;
-      const entry = view.services?.[index];
-      if (!entry) return { found: false, reason: `The saved sweep has no service ${service}.` };
+      const found = readPlace(view, `service:${service}`);
+      const entry = view.services?.find((row) => row.service === service);
+      if (!found || !entry) {
+        return { found: false, reason: `The saved sweep has no service ${service}.` };
+      }
+      const { reading: content, ...rest } = found;
       return {
-        place: `Service ${service}`,
-        at: entry.home ? `/services/${index}/home` : `/services/${index}`,
-        state: entry.home
-          ? (readStateAt(view, `/services/${index}/home`) ?? readState([]))
-          : readState([]),
+        ...rest,
         value: {
-          reading: reading(view, (anchor) => anchor.kind === "service" && anchor.id === service),
+          reading: content,
           home: entry.home ?? NOT_READ,
           stations: view.stations.find((row) => row.service === service)?.stations ?? NOT_READ,
           releases: entry.releases,
@@ -137,29 +139,28 @@ const READS: readonly SpiRead<Fields>[] = [
     metadata: metadata("spi_radar"),
     description: "Upstream: what the next sync carries per fork and the MRs that would break one.",
     args: none,
-    ...place("Upstream", "upstream", ["upstream", "radar"]),
+    ...place("place:upstream"),
   }),
   define({
     metadata: metadata("spi_template"),
     description: "Template: which template commit each fork runs and what it has not adopted.",
     args: none,
-    ...place("Template", "engineering", ["template"]),
+    ...place("place:engineering-system"),
   }),
   define({
     metadata: metadata("spi_stack"),
     description: "Environment: the stack's state, who holds it, its facts and lanes.",
     args: none,
-    ...place(
-      "Environment",
-      "environment",
-      ["lifecycle"],
-      ({ briefing: { environment } }) => {
-        const { borrows: _b, activity: _a, ...rest } = environment;
-        return rest;
-      },
-      ["lanes"],
-      "/briefing/environment",
-    ),
+    read: ({ view }) => {
+      const { borrows: _b, activity: _a, ...rest } = view.briefing.environment;
+      return {
+        place: "Environment",
+        at: "/briefing/environment",
+        state: readState(areaEnvelopes(view, ["lifecycle"])),
+        value: { reading: reading(view, (entry) => entry.kind === "environment"), ...rest },
+        lists: ["lanes"],
+      };
+    },
   }),
   define({
     metadata: metadata("spi_release_notes"),
@@ -170,26 +171,29 @@ const READS: readonly SpiRead<Fields>[] = [
         .regex(/^\d{4}-\d{2}$/)
         .optional(),
     }),
-    read: ({ view }, { month }) => ({
-      place: "Releases",
-      at: "/releases",
-      state: governedBy(readStateAt(view, "/releases/lines") ?? readState([]), "releases"),
-      value: {
-        lines: view.releases.lines,
-        today: view.releases.today ?? NOT_READ,
-        forming: view.releases.forming ?? NOT_READ,
-        month: reading(
-          view,
-          (anchor) => anchor.kind === "release-month" && (!month || anchor.month === month),
-        ),
-      },
-    }),
+    read: ({ view }, { month }) => {
+      const found = readPlace(view, "place:releases");
+      if (!found) return { found: false, reason: "The saved sweep has no Releases place." };
+      const { reading: _reading, ...head } = found;
+      return {
+        ...head,
+        value: {
+          lines: view.releases.lines,
+          today: view.releases.today ?? NOT_READ,
+          forming: view.releases.forming ?? NOT_READ,
+          month: reading(
+            view,
+            (anchor) => anchor.kind === "release-month" && (!month || anchor.month === month),
+          ),
+        },
+      };
+    },
   }),
   define({
     metadata: metadata("spi_security"),
     description: "Security: SPI-owned and upstream-origin findings across the forks.",
     args: none,
-    ...place("Security", "security", ["security"]),
+    ...place("place:security"),
   }),
   define({
     metadata: metadata("spi_inspect"),
@@ -211,7 +215,7 @@ const READS: readonly SpiRead<Fields>[] = [
     description:
       "The sources behind one value, by the JSON pointer another SPI tool gave as at: its areas, their states and the reads behind them.",
     args: z.strictObject({ path: z.string() }),
-    read: ({ view }, { path }) => {
+    read: ({ view, reads }, { path }) => {
       if (!resolvePointer(view, path).found) {
         return { found: false, reason: `The saved sweep has no value at ${path}.` };
       }
@@ -224,15 +228,26 @@ const READS: readonly SpiRead<Fields>[] = [
           reason: `No source is recorded for the value at ${path}, so its read is not known.`,
         };
       }
-      const areas = new Set<string>(sources.flatMap((source) => source.areas));
+      const readers = sources.flatMap(({ envelope }) => (envelope ? [envelope.source] : []));
+      const collectors = [...new Set([...sources.flatMap((source) => source.areas), ...readers])];
+      const records = (name: string) =>
+        (reads as Record<string, SavedSweep["reads"]["fleet"]>)[name];
       return {
         place: "Evidence",
         at: path,
-        state,
+        state: readers.reduce(governedBy, state),
+        always: true,
         value: {
           recordedAt: own ? own.path : `${sources.length} values below ${path}`,
           ...(own?.attributed ? { attributed: own.attributed } : {}),
-          reads: view.reads.filter(({ source: from }) => areas.has(from)),
+          collectors: collectors.map((name) => ({
+            collector: name,
+            state: state.areas.find(({ area }) => area === name)?.state ?? "unread",
+            reads: records(name)?.length ?? NOT_READ,
+          })),
+          reads: collectors.flatMap((name) =>
+            (records(name) ?? []).map((record) => ({ collector: name, ...record })),
+          ),
         },
         lists: ["reads"],
       };
@@ -283,31 +298,39 @@ export function answerFor(
   const shape = (found: Answer): Fields => {
     if ("found" in found)
       return { sweptAt: sweep.view.sweptAt, found: false, reason: found.reason };
-    const { place: name, at, state, value, lists } = found;
+    const { place: name, at, state, value, lists, always } = found;
     const head = {
       place: name,
       sweptAt: sweep.view.sweptAt,
       ...(at === undefined ? {} : { at }),
       read: state.read,
-      areas: state.areas,
+      areas: withRecords(state.areas, sweep.reads),
       ...(state.notRead.length ? { notRead: state.notRead } : {}),
       ...(state.failed.length ? { failed: state.failed } : {}),
     };
-    return state.read === NOT_READ ? head : fit({ ...head, ...value }, lists ?? [], estimate);
+    return state.read === NOT_READ && !always
+      ? head
+      : fit({ ...head, ...value }, lists ?? [], estimate);
   };
   const found = answer(sweep);
   return found instanceof Promise ? found.then(shape) : shape(found);
 }
 
-/** The SPI read tools over the latest saved sweep, each result through the model profile. */
+/** The SDK forwards a thrown message to the model, so it leaves through the model profile too. */
+function redacted(error: unknown, redactor: ModelRedactor): Error {
+  const message = redactor.text(error instanceof Error ? error.message : String(error));
+  return error instanceof ToolRefusedError ? new ToolRefusedError(message) : new Error(message);
+}
+
+/** The SPI read tools over the latest saved sweep, each result and error through the model profile. */
 export function spiReadTools(
   latest: LatestSweep,
   redactor: ModelRedactor,
   check: TierCheck = checkStubTier,
   estimate: TokenEstimate = estimateTokens,
 ): GatedTool[] {
-  return READS.map(({ metadata: meta, description, args, read }) =>
-    buildGatedTool(
+  return READS.map(({ metadata: meta, description, args, read }) => {
+    const gated = buildGatedTool(
       meta,
       args,
       check,
@@ -316,8 +339,22 @@ export function spiReadTools(
         return JSON.stringify(redactor.value(result as JsonValue));
       },
       description,
-    ),
-  );
+    );
+    const { handler } = gated.tool;
+    return {
+      ...gated,
+      tool: {
+        ...gated.tool,
+        async handler(args, invocation) {
+          try {
+            return await handler(args, invocation);
+          } catch (error) {
+            throw redacted(error, redactor);
+          }
+        },
+      },
+    };
+  });
 }
 
 /** The engine's tools seam: the same tools for every turn. */

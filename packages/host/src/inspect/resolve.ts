@@ -53,8 +53,8 @@ export interface InspectSnapshot {
 export interface InspectDependencies {
   readonly ctx: CoreContext;
   readonly appData: string;
-  /** Runs the inspector's on-demand reads. */
-  readonly exec: Exec;
+  /** Runs the inspector's on-demand reads; without it an inspection reads the saved sweep only. */
+  readonly exec?: Exec;
   readonly inspect?: InspectOptions;
 }
 

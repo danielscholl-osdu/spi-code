@@ -20,7 +20,7 @@ export function threadContext({ scopes, tools, redactor }: ThreadContextOptions)
       return {
         instructions: scopeInstructions(scope, scopes.list(), tools),
         attachments: (message.attachments ?? []).map(({ name, content }) => ({
-          name,
+          name: redactor.text(name),
           content: redactor.text(content),
         })),
       };

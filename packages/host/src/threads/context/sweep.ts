@@ -5,6 +5,7 @@ import type {
   AreaName,
   Envelope,
   InspectResult,
+  ReadRecord,
   ValueSource,
   ViewSnapshot,
 } from "@spi-code/contracts";
@@ -23,17 +24,21 @@ export interface InspectAnswer {
   readonly result: InspectResult;
 }
 
+/** Each collector's own read records as the sweep saved them: the areas and the Releases reader. */
+export type CollectorReads = Partial<Record<AreaName | "releases", readonly ReadRecord[]>>;
+
 /** The latest persisted sweep, as threads read it. */
 export interface SavedSweep {
   readonly view: ViewSnapshot;
+  readonly reads: CollectorReads;
   inspect(id: string): Promise<InspectAnswer | undefined>;
 }
 export type LatestSweep = () => SavedSweep | undefined;
 
-/** Answers ids through the inspect table, naming the row that claimed each one. */
+/** Answers ids through the inspect table from the saved sweep alone, naming the row that claimed each one. */
 export function latestSweep(
-  latest: () => InspectSnapshot | undefined,
-  deps: InspectDependencies,
+  latest: () => (InspectSnapshot & { readonly reads: CollectorReads }) | undefined,
+  { exec: _onDemand, ...saved }: InspectDependencies,
 ): LatestSweep {
   return () => {
     const snapshot = latest();
@@ -41,8 +46,9 @@ export function latestSweep(
     let scope: InspectScope | undefined;
     return {
       view: snapshot.view,
+      reads: snapshot.reads,
       async inspect(id) {
-        scope ??= inspectScope(snapshot, deps);
+        scope ??= inspectScope(snapshot, saved);
         const at = scope;
         const row = INSPECT_TABLE.find((entry) => entry.claims(id, at));
         const result = await row?.resolve(id, at);
@@ -52,18 +58,46 @@ export function latestSweep(
   };
 }
 
+export interface FailedRecords {
+  readonly read: number;
+  readonly retained: readonly { readonly from: string; readonly reads: number }[];
+  readonly lost: number;
+}
+
 export interface AreaRead {
   readonly area: string;
   readonly state: Envelope["state"];
   readonly observedAt?: string;
+  /** A failed area's records: read this sweep, retained from an earlier read, or failed with nothing kept. */
+  readonly records?: FailedRecords | typeof NOT_READ;
 }
 
 export interface ReadState {
   readonly read: "read" | "partly read" | typeof NOT_READ;
   readonly areas: readonly AreaRead[];
   readonly notRead: readonly string[];
-  /** Failed this sweep; the value shown is the read retained from the area's observed time. */
+  /** Failed this sweep with an earlier read on record; its records say what was retained. */
   readonly failed: readonly string[];
+}
+
+/** Gives each failed area the split its own records show; a collector with none saved says not read. */
+export function withRecords(areas: readonly AreaRead[], reads: CollectorReads): AreaRead[] {
+  return areas.map((entry) => {
+    if (entry.state !== "failed") return entry;
+    const records = (reads as Record<string, readonly ReadRecord[] | undefined>)[entry.area];
+    if (!records) return { ...entry, records: NOT_READ };
+    const retained = new Map<string, number>();
+    let read = 0;
+    let lost = 0;
+    for (const { failure, retainedFrom } of records) {
+      if (retainedFrom !== undefined)
+        retained.set(retainedFrom, (retained.get(retainedFrom) ?? 0) + 1);
+      else if (failure !== undefined) lost += 1;
+      else read += 1;
+    }
+    const kept = [...retained].map(([from, count]) => ({ from, reads: count }));
+    return { ...entry, records: { read, retained: kept, lost } };
+  });
 }
 
 /** A failed read with nothing retained read nothing, as an unread one did. */

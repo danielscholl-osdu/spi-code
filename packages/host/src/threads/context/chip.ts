@@ -2,8 +2,15 @@
 // SPDX-License-Identifier: MIT
 
 import type { ReadRecord } from "@spi-code/contracts";
+import type { PlaceRead } from "./places.js";
 import type { JsonValue, ModelRedactor } from "./seams.js";
-import { type InspectAnswer, readState } from "./sweep.js";
+import {
+  type CollectorReads,
+  type InspectAnswer,
+  type ReadState,
+  readState,
+  withRecords,
+} from "./sweep.js";
 import { estimateTokens, type TokenEstimate } from "./tokens.js";
 
 export const CHIP_TOKEN_BUDGET = 2000;
@@ -35,19 +42,26 @@ export interface PackedChip {
 export type Refusal = { readonly ok: false; readonly reason: string };
 export type ChipOutcome = { readonly ok: true; readonly chip: PackedChip } | Refusal;
 
-function reference({ source, object, failure, completeness }: ReadRecord): string {
-  const cut =
-    completeness.kind === "cut" ? ` (cut ${completeness.read}/${completeness.total})` : "";
-  return `${source} ${object}${failure === undefined ? "" : " (failed)"}${cut}`;
+/** The saved sweep a chip is packed from: its time and each collector's records. */
+export interface ChipSweep {
+  readonly sweptAt: string;
+  readonly reads: CollectorReads;
 }
 
-function full({ kind, result }: InspectAnswer, sweptAt: string) {
+function reference({ source, object, failure, retainedFrom, completeness }: ReadRecord): string {
+  const cut =
+    completeness.kind === "cut" ? ` (cut ${completeness.read}/${completeness.total})` : "";
+  const kept = retainedFrom === undefined ? "" : ` (retained from ${retainedFrom})`;
+  return `${source} ${object}${failure === undefined ? "" : " (failed)"}${kept}${cut}`;
+}
+
+function gapsOf(state: ReadState, notRead: readonly string[] = []) {
+  return [...state.notRead, ...state.failed.map((area) => `${area} failed this sweep`), ...notRead];
+}
+
+function full({ kind, result }: InspectAnswer, { sweptAt, reads }: ChipSweep) {
   const state = readState(result.areas ?? []);
-  const notRead = [
-    ...state.notRead,
-    ...state.failed.map((area) => `${area} failed; retained earlier read`),
-    ...(result.notRead ?? []),
-  ];
+  const notRead = gapsOf(state, result.notRead);
   const gaps = result.evidence.some(
     ({ completeness, failure }) => completeness.kind === "cut" || failure !== undefined,
   );
@@ -65,16 +79,40 @@ function full({ kind, result }: InspectAnswer, sweptAt: string) {
     why: result.why,
     related: result.related,
     ...(result.approval === null ? {} : { approval: result.approval }),
-    areas: state.areas,
+    areas: withRecords(state.areas, reads),
     evidence: result.evidence,
   };
 }
 
-function trim(chip: ReturnType<typeof full>) {
+/** A place's chip carries its reading; its evidence is the pointer spi_evidence answers. */
+function placeFull(id: string, found: PlaceRead, { sweptAt, reads }: ChipSweep) {
+  const notRead = gapsOf(found.state);
+  return {
+    id,
+    kind: "place",
+    title: found.place,
+    sweptAt,
+    completeness: notRead.length === 0 ? "complete" : "partial",
+    notRead,
+    reading: found.reading,
+    areas: withRecords(found.state.areas, reads),
+    evidence: found.at === undefined ? [] : [found.at],
+  };
+}
+
+type Draft = { readonly id: string; readonly evidence: readonly (ReadRecord | string)[] } & Record<
+  string,
+  unknown
+>;
+
+function trim(chip: Draft) {
   const kept: Record<string, unknown> = {};
   for (const key of TRIMMED_CHIP_KEEPS) {
-    if (key === "evidence") kept.evidence = chip.evidence.map(reference);
-    else if (chip[key] !== undefined) kept[key] = chip[key];
+    if (key === "evidence") {
+      kept.evidence = chip.evidence.map((entry) =>
+        typeof entry === "string" ? entry : reference(entry),
+      );
+    } else if (chip[key] !== undefined) kept[key] = chip[key];
   }
   const left = Object.keys(chip).filter((key) => !(key in kept));
   kept.trimmed = `Over ${CHIP_TOKEN_BUDGET} tokens: left out ${left.join(", ")}; read records kept as references.`;
@@ -84,11 +122,29 @@ function trim(chip: ReturnType<typeof full>) {
 /** Packs one inspect answer within PS-14's budget, or refuses it. Never clips text. */
 export function packChip(
   answer: InspectAnswer,
-  sweptAt: string,
+  sweep: ChipSweep,
   redactor: ModelRedactor,
   estimate: TokenEstimate = estimateTokens,
 ): ChipOutcome {
-  const whole = full(answer, sweptAt);
+  return pack(full(answer, sweep), sweep.sweptAt, redactor, estimate);
+}
+
+export function packPlace(
+  id: string,
+  found: PlaceRead,
+  sweep: ChipSweep,
+  redactor: ModelRedactor,
+  estimate: TokenEstimate = estimateTokens,
+): ChipOutcome {
+  return pack(placeFull(id, found, sweep), sweep.sweptAt, redactor, estimate);
+}
+
+function pack(
+  whole: Draft,
+  sweptAt: string,
+  redactor: ModelRedactor,
+  estimate: TokenEstimate,
+): ChipOutcome {
   for (const [trimmed, draft] of [
     [false, whole],
     [true, trim(whole)],
