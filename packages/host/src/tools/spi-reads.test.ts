@@ -37,6 +37,17 @@ async function call(name: string, args: object = {}, ...sweep: [SavedSweep | und
   return JSON.parse(output);
 }
 
+const releasesRead = structuredClone(view);
+for (const source of releasesRead.provenance) {
+  if (source.envelope?.source === "releases") {
+    source.envelope = {
+      source: "releases",
+      state: "fresh",
+      observedAt: view.sweptAt,
+      completeness: { kind: "complete" },
+    };
+  }
+}
 const reading = (kind: string) => view.readings.find(({ anchor }) => anchor.kind === kind)?.content;
 const legal = view.services?.find(({ service }) => service === "legal");
 const ALL = [
@@ -70,10 +81,6 @@ describe("SPI read tools over the saved sweep", () => {
       (out: never) => expect(out).toMatchObject({ facts: view.briefing.environment.facts }),
     ],
     [
-      "spi_release_notes",
-      (out: never) => expect(out).toMatchObject({ lines: view.releases.lines }),
-    ],
-    [
       "spi_inspect",
       (out: never) =>
         expect(out).toMatchObject({ item: feed.find(({ id }) => id === "radar:partition") }),
@@ -89,15 +96,15 @@ describe("SPI read tools over the saved sweep", () => {
     expect(security).toEqual({
       place: "Security",
       sweptAt: view.sweptAt,
-      at: "/readings/5",
       read: "not read",
       areas: [{ area: "security", state: "unread" }],
       notRead: ["security"],
     });
-    expect(await call("spi_release_notes")).toMatchObject({
-      read: "partly read",
-      notRead: ["releases"],
-    });
+    const releases = await call("spi_release_notes");
+    expect(releases).toMatchObject({ read: "not read", notRead: ["releases"] });
+    expect(releases).not.toHaveProperty("lines");
+    const month = await call("spi_release_notes", { month: "1999-01" }, saved(releasesRead));
+    expect(month).toMatchObject({ read: "read", lines: view.releases.lines, month: "not read" });
     expect(await call("spi_radar")).toMatchObject({ read: "partly read", failed: ["radar"] });
 
     const index = view.services?.findIndex(({ service }) => service === "legal") ?? -1;
@@ -128,6 +135,15 @@ describe("SPI read tools over the saved sweep", () => {
   ])("%s answers %j as not found rather than empty", async (name, args) => {
     expect(await call(name, args)).toMatchObject({ sweptAt: view.sweptAt, found: false });
   });
+
+  it.each(ALL.filter((name) => name !== "spi_inspect"))(
+    "%s gives an at that spi_evidence can answer",
+    async (name) => {
+      const out = await call(name, ARGS[name], saved(releasesRead));
+      if (out.at === undefined) return;
+      expect(await call("spi_evidence", { path: out.at })).toMatchObject({ place: "Evidence" });
+    },
+  );
 
   it("names the areas and reads behind one value", async () => {
     const out = await call("spi_evidence", { path: "/services/2/home/stations/0" });
