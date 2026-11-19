@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { accessSync, constants } from "node:fs";
+import { mkdir } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, join } from "node:path";
 import {
@@ -18,6 +19,16 @@ import {
   buildManagedToolEnvironment,
   createManagedToolEnvironment,
 } from "../env/tool-environment.js";
+
+import { canonicalSandboxWorkspace, type SandboxWorkspace } from "./sandbox.js";
+import {
+  openSandboxedThread,
+  type ThreadCopilotSession,
+  type ThreadSessionOptions,
+} from "./thread-session.js";
+
+export type { SandboxWorkspace } from "./sandbox.js";
+export type { ThreadCopilotSession, ThreadSessionOptions } from "./thread-session.js";
 
 export const tokenLifetimeSeconds = 60;
 export type TokenSource = () => Promise<string>;
@@ -127,6 +138,7 @@ export async function buildAuthEnvironment(options: RuntimeOptions): Promise<Nod
 export function buildClientOptions(
   options: RuntimeOptions,
   authEnvironment?: NodeJS.ProcessEnv | string,
+  runtimeTemp?: string,
 ): CopilotClientOptions {
   const cliPath = options.cliPath ?? resolveRuntimePath();
   if (!isAbsolute(cliPath) || !isAbsolute(options.appDataDir)) {
@@ -145,21 +157,49 @@ export function buildClientOptions(
     // The SDK overwrites COPILOT_HOME with baseDirectory when spawning the runtime.
     COPILOT_HOME: join(options.appDataDir, "copilot"),
   };
-  const env =
+  const source =
     typeof authEnvironment === "object"
-      ? { ...authEnvironment }
+      ? authEnvironment
       : buildManagedToolEnvironment({
           appData: options.appDataDir,
           capturedPath: options.capturedPath,
           toolsDir: authEnvironment ?? "",
           ...(options.env ? { env: options.env } : {}),
         });
-  for (const name of Object.keys(env)) {
-    const upper = name.toUpperCase();
-    if (Object.hasOwn(homes, upper) || upper === "HOMEDRIVE" || upper === "HOMEPATH") {
-      delete env[name];
-    }
+  const env: NodeJS.ProcessEnv = {};
+  for (const name of [
+    "PATH",
+    "LANG",
+    "LANGUAGE",
+    "LC_ALL",
+    "LC_CTYPE",
+    "LC_MESSAGES",
+    "LC_COLLATE",
+    "LC_NUMERIC",
+    "LC_TIME",
+    "LC_MONETARY",
+    "SystemRoot",
+    "WINDIR",
+    "ComSpec",
+    "PATHEXT",
+  ]) {
+    const key = Object.keys(source).find((key) => key.toUpperCase() === name.toUpperCase());
+    if (key !== undefined) env[name] = source[key];
   }
+  if (runtimeTemp) {
+    env.TMPDIR = runtimeTemp;
+    env.TMP = runtimeTemp;
+    env.TEMP = runtimeTemp;
+  }
+  Object.assign(env, {
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_CONFIG_COUNT: "1",
+    GIT_CONFIG_KEY_0: "credential.helper",
+    GIT_CONFIG_VALUE_0: "",
+    GIT_TERMINAL_PROMPT: "0",
+    GCM_INTERACTIVE: "never",
+    GH_PROMPT_DISABLED: "1",
+  });
   return {
     connection: { kind: "stdio", path: cliPath },
     mode: "empty",
@@ -198,12 +238,24 @@ export function listModelsWithToken<T>(
   return client.rpc.models.list({ gitHubToken });
 }
 
+type CredentialMode = "client" | "session" | "thread";
+
+function connected(client: CopilotClient): boolean {
+  try {
+    return client.rpc !== undefined;
+  } catch {
+    return false;
+  }
+}
+
 export class CopilotRuntime {
   private client: CopilotClient | undefined;
   private token: string | undefined;
+  private mode: CredentialMode | undefined;
   private readonly readToken: (env?: NodeJS.ProcessEnv) => Promise<string>;
   private pending: Promise<unknown> = Promise.resolve();
   private readonly tokens = new Set<string>();
+  private readonly threadSessions = new Map<string, ThreadCopilotSession>();
   private generation = 0;
 
   get clientGeneration(): number {
@@ -238,17 +290,25 @@ export class CopilotRuntime {
     return result;
   }
 
-  private async acquire(): Promise<{ client: CopilotClient; token: string }> {
+  private get threadRuntimeTemp(): string {
+    return join(this.options.appDataDir, "copilot", "runtime-temp");
+  }
+
+  private async acquire(
+    mode: CredentialMode = this.mode ?? this.options.credentialMode ?? "client",
+  ): Promise<{ client: CopilotClient; token: string }> {
     const env = await buildAuthEnvironment(this.options);
     const token = await this.readToken(env);
     validateToken(token);
-    if (this.client && (this.options.credentialMode === "session" || token === this.token)) {
+    if (this.client && this.mode === mode && token === this.token && connected(this.client)) {
       return { client: this.client, token };
     }
     await this.disposeClient();
+    const runtimeTemp = mode === "thread" ? this.threadRuntimeTemp : undefined;
+    if (runtimeTemp) await mkdir(runtimeTemp, { recursive: true, mode: 0o700 });
     const client = new CopilotClient({
-      ...buildClientOptions(this.options, env),
-      ...(this.options.credentialMode === "session" ? {} : { gitHubToken: token }),
+      ...buildClientOptions(this.options, env, runtimeTemp),
+      ...(mode === "client" ? { gitHubToken: token } : {}),
     });
     try {
       await client.start();
@@ -258,6 +318,7 @@ export class CopilotRuntime {
       throw error;
     }
     this.client = client;
+    this.mode = mode;
     this.token = token;
     this.generation++;
     return { client, token };
@@ -278,7 +339,7 @@ export class CopilotRuntime {
 
   createSession(model = "auto"): Promise<CopilotSession> {
     return this.serialize(async () => {
-      const { client } = await this.acquire();
+      const { client } = await this.acquire(this.options.credentialMode ?? "client");
       const { gitHubTokenProvider, ...config } = buildSessionOptions(
         this.readToken,
         this.source,
@@ -293,13 +354,73 @@ export class CopilotRuntime {
     });
   }
 
+  openThreadSession(
+    workspace: SandboxWorkspace,
+    options: ThreadSessionOptions,
+  ): Promise<ThreadCopilotSession> {
+    return this.serialize(async () => {
+      const canonical = await canonicalSandboxWorkspace(workspace);
+      const canaryRoot = join(this.options.appDataDir, "copilot", "sandbox-checks");
+      await mkdir(canaryRoot, { recursive: true, mode: 0o700 });
+      const { client, token } = await this.acquire("thread");
+      if (options.resumeId !== undefined) {
+        const previous = this.threadSessions.get(options.resumeId);
+        this.threadSessions.delete(options.resumeId);
+        await previous?.release();
+      }
+      let released = false;
+      const thread = await openSandboxedThread(
+        client,
+        token,
+        canonical,
+        { canaryRoot, tempPath: this.threadRuntimeTemp },
+        options,
+        () => !released && this.client === client && connected(client),
+        (operation) =>
+          this.serialize(async () => {
+            await this.acquire("thread");
+            return operation();
+          }).catch((error: unknown) => {
+            throw redactError(error, new Set([token]));
+          }),
+      );
+      this.threadSessions.set(thread.sessionId, thread);
+      return {
+        sessionId: thread.sessionId,
+        get sandbox() {
+          return thread.sandbox;
+        },
+        on: thread.on,
+        getEvents: thread.getEvents,
+        abort: thread.abort,
+        send: thread.send,
+        release: () => {
+          released = true;
+          return this.serialize(async () => {
+            if (this.threadSessions.get(thread.sessionId) === thread) {
+              this.threadSessions.delete(thread.sessionId);
+            }
+            await thread.release();
+          });
+        },
+      };
+    });
+  }
+
   private async disposeClient(): Promise<void> {
     const client = this.client;
     this.client = undefined;
+    this.mode = undefined;
     this.token = undefined;
+    const threads = [...this.threadSessions.values()];
+    this.threadSessions.clear();
     if (!client) return;
-    const errors = await client.stop();
-    if (errors.length) throw new AggregateError(errors, "Copilot runtime shutdown failed.");
+    try {
+      const errors = await client.stop();
+      if (errors.length) throw new AggregateError(errors, "Copilot runtime shutdown failed.");
+    } finally {
+      await Promise.allSettled(threads.map((thread) => thread.release()));
+    }
   }
 
   stop(): Promise<void> {
