@@ -414,11 +414,12 @@ export class PrivilegedGit {
     ref: string,
     options: GitOptions = {},
   ): Promise<ExecResult<WorktreeTarget>> {
-    const runtime = await this.#getRuntime();
-    const cwd = join(runtime.appData, "worktrees", worktreeId(id));
+    const at = revision(ref);
+    const name = worktreeId(id);
+    const cwd = join((await this.#getRuntime()).appData, "worktrees", name);
     const result = await this.#run(
       { clone },
-      ["worktree", "add", "--detach", "--", cwd, revision(ref)],
+      ["worktree", "add", "--detach", "--", cwd, at],
       options,
     );
     return result.ok ? { ok: true, data: { clone, worktree: { id, cwd } } } : result;
