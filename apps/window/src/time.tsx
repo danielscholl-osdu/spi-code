@@ -92,6 +92,13 @@ export function dayLine(at: string | number | Date, options: Pick<ClockOptions, 
   return format.format(new Date(at));
 }
 
+const weekdays = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric" });
+
+/** A day as a column heading reads it: `Thu 12`. */
+export function shortDay(at: string | number | Date) {
+  return weekdays.format(new Date(at));
+}
+
 /** A visible time: {@link clockTime} in a `time` element whose `datetime` keeps the ISO value. */
 export function Time({
   at,

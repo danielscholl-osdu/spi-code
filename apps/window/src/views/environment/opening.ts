@@ -23,7 +23,6 @@ import { type Range, rangeOf, routeOf, within } from "./range.js";
 import { eventKey, eventSpan, eventWhen } from "./timeline.js";
 
 const ENVIRONMENT = { kind: "environment" } as const;
-const NO_RANGE = { from: new Date(0).toISOString(), to: new Date(0).toISOString() };
 const STACK = "osdu-spi-stack";
 
 export type EnvironmentOpening = {
@@ -301,9 +300,10 @@ function repositoryLineOpening(snapshot: ViewSnapshot, id: string): EnvironmentO
 export function environmentOpening(
   snapshot: ViewSnapshot | undefined,
   open: OpenSelection | null,
-  range: Range = rangeOf(snapshot?.briefing.environment ?? NO_RANGE),
+  shown?: Range,
 ): EnvironmentOpening | undefined {
   if (!snapshot || !open) return undefined;
+  const range = shown ?? rangeOf(snapshot.briefing.environment);
   switch (open.kind) {
     case "event":
       return eventOpening(snapshot, open.id, range);

@@ -20,7 +20,7 @@ import { Popover } from "../../components/popover/Popover.js";
 import { repositoryLinePointer } from "../../panels/selection-rows.js";
 import { watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
-import { dayLine, TimedText } from "../../time.js";
+import { dayLine, shortDay, TimedText } from "../../time.js";
 import { ActivityLegend, ActivityRow, ActivitySummary, activityView } from "./activity.js";
 import { BorrowRows, DayCell, ForkDays } from "./borrows.js";
 import { FlowContext } from "./flow-context.js";
@@ -59,7 +59,6 @@ function LineReading({ line }: { line: RepoLine }) {
 /** What takes focus once the next range draws: the way back into 7 days, or the day's heading. */
 let pendingFocus: string | undefined;
 const HEADING_PX = 72;
-const weekday = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric" });
 
 // A missed nightly is drawn about as long as a smoke run takes.
 const MISSED_SLOT_MS = 30 * 60_000;
@@ -274,11 +273,11 @@ export default function Environment({
                           type="button"
                           className="env-day-heading"
                           data-day={day.key}
-                          data-from={new Date(day.start).toISOString()}
+                          data-from={day.start === Date.parse(env.from) ? env.from : undefined}
                           aria-label={dayLine(day.start)}
                           onClick={() => openDay(day)}
                         >
-                          {weekday.format(day.start)}
+                          {shortDay(day.start)}
                           {count > 0 && <small>{count}</small>}
                         </button>
                       </DayCell>
