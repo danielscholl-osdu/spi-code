@@ -63,7 +63,7 @@ const place = (id: string) => ({
     const found = readPlace(view, id);
     if (!found) return { found: false, reason: `The saved sweep has no place ${id}.` };
     const { reading: content, ...rest } = found;
-    return { ...rest, value: { reading: content }, lists: ["reading.items"] };
+    return { ...rest, value: { reading: content } };
   },
 });
 
@@ -243,7 +243,7 @@ const READS: readonly SpiRead<Fields>[] = [
           collectors: collectors.map((name) => ({
             collector: name,
             state: state.areas.find(({ area }) => area === name)?.state ?? "unread",
-            reads: records(name)?.length ?? NOT_READ,
+            reads: state.notRead.includes(name) ? NOT_READ : (records(name)?.length ?? NOT_READ),
           })),
           reads: collectors.flatMap((name) =>
             (records(name) ?? []).map((record) => ({ collector: name, ...record })),
