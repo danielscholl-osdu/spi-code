@@ -32,6 +32,7 @@ export default defineConfig({
         "packages/contracts",
         "packages/core",
         "packages/host",
+        "packages/threads",
         "packages/tools",
       ].map((directory) => ({
         test: {

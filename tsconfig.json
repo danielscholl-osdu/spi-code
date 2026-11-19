@@ -4,6 +4,7 @@
     { "path": "./packages/contracts" },
     { "path": "./packages/core" },
     { "path": "./packages/tools" },
+    { "path": "./packages/threads" },
     { "path": "./packages/host" },
     { "path": "./apps/desktop" },
     { "path": "./apps/window" },
