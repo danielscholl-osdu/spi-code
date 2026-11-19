@@ -47,12 +47,13 @@ export function buildGatedTool<S extends z.ZodType>(
   argsSchema: S,
   check: TierCheck = checkStubTier,
   effect: ToolHandler<z.output<S>>,
+  description = `${metadata.tier} tool; ships at ${metadata.milestone}.`,
 ): GatedTool {
   return {
     ...metadata,
     tool: {
       name: metadata.name,
-      description: `${metadata.tier} tool; ships at ${metadata.milestone}.`,
+      description,
       parameters: z.toJSONSchema(argsSchema),
       defer: "never",
       skipPermission: true,
@@ -88,9 +89,14 @@ export type StubSessionConfig = Pick<SessionConfig, "onPermissionRequest"> & {
 };
 
 // The check is host-supplied, never taken from model arguments; M0 has no approval store.
-export function createStubSessionConfig(check: TierCheck = checkStubTier): StubSessionConfig {
-  const registry = APPENDIX_A_TOOLS.map((metadata) =>
-    buildGatedTool(metadata, z.strictObject({}), check, () => `ships at ${metadata.milestone}`),
+export function createStubSessionConfig(
+  check: TierCheck = checkStubTier,
+  implemented: readonly GatedTool[] = [],
+): StubSessionConfig {
+  const registry = APPENDIX_A_TOOLS.map(
+    (metadata) =>
+      implemented.find(({ name }) => name === metadata.name) ??
+      buildGatedTool(metadata, z.strictObject({}), check, () => `ships at ${metadata.milestone}`),
   );
   const tools = registry.map(({ tool }) => tool);
   const config = {

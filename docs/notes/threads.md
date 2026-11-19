@@ -18,3 +18,9 @@
 | `bash` rejected an invalid `mode` carrying the fake fixture | SDK failure. The failure hook received the original fixture. The completion event omitted `result.content` and its error had no fixture. The SDK ignored the hook's attempted `modifiedResult`. | `ABSENT` |
 
 Decision 6 on `spicode-xia.1` accepts the SDK boundary for sandboxed built-ins. The failure hook supports `additionalContext` and the model receives the failure as produced by the runtime. This probe observed a validation failure with the fixture only in the hook, so a model-facing failure with raw subprocess output remains unobserved. The engine redacts any failure contents passed to the SPI Code journal. The live SDK adapter wiring belongs to `spicode-xia.6`.
+
+## Context and SPI tools
+
+- `packages/host/src/threads/context` mirrors the engine's context and tools seams structurally, because the host does not yet depend on `@spi-code/threads`; the wiring passes `createToolOutputRedactor(...).model` as the required redactor.
+- Readings carry no provenance in the snapshot, so each place tool names its areas (Upstream reads `upstream` and `radar`, Environment `lifecycle`); Today, a service and Releases take theirs from provenance at `/briefing/today`, `/services/<i>/home` and `/releases/lines`.
+- Tokens are estimated at two UTF-8 bytes each, with no tokenizer. In the 6 Nov fixture only `radar:partition` (24 read records) goes over a chip's 2,000; a service's `work` and the environment's `borrows` and `activity` are too large to return whole, so tools bound lists by whole items and name what they left out.
