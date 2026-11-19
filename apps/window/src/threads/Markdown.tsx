@@ -9,23 +9,27 @@ type Block =
   | { kind: "code"; text: string }
   | { kind: "list"; ordered: boolean; items: string[] };
 
+const FENCE = /^\s*```/;
+const HEADING = /^(#{1,6})\s+(.*)$/;
 const LIST_ITEM = /^\s*(?:([-*+])|(\d+)[.)])\s+(.*)$/;
+const startsBlock = (line: string) =>
+  FENCE.test(line) || HEADING.test(line) || LIST_ITEM.test(line);
 
 function blocks(source: string): Block[] {
   const out: Block[] = [];
-  const lines = source.replace(/\r\n?/g, "\n").split("\n");
+  const lines = source.split(/\r\n?|[\n\u2028\u2029]/);
   let i = 0;
   while (i < lines.length) {
     const line = lines[i] ?? "";
-    if (/^\s*```/.test(line)) {
+    if (FENCE.test(line)) {
       const code: string[] = [];
       i++;
-      while (i < lines.length && !/^\s*```/.test(lines[i] ?? "")) code.push(lines[i++] ?? "");
+      while (i < lines.length && !FENCE.test(lines[i] ?? "")) code.push(lines[i++] ?? "");
       i++;
       out.push({ kind: "code", text: code.join("\n") });
       continue;
     }
-    const heading = /^(#{1,6})\s+(.*)$/.exec(line);
+    const heading = HEADING.exec(line);
     if (heading) {
       out.push({ kind: "h", level: heading[1]?.length ?? 1, text: heading[2] ?? "" });
       i++;
@@ -50,12 +54,10 @@ function blocks(source: string): Block[] {
       i++;
       continue;
     }
-    const para: string[] = [];
-    while (i < lines.length) {
-      const next = lines[i] ?? "";
-      if (!next.trim() || /^\s*```/.test(next) || /^#{1,6}\s/.test(next) || LIST_ITEM.test(next))
-        break;
-      para.push(next);
+    const para = [line];
+    i++;
+    while (i < lines.length && (lines[i] ?? "").trim() && !startsBlock(lines[i] ?? "")) {
+      para.push(lines[i] ?? "");
       i++;
     }
     out.push({ kind: "p", text: para.join("\n") });

@@ -71,8 +71,10 @@ function Call({ call, open, onToggle }: { call: ToolCall; open: boolean; onToggl
   );
 }
 
+type Item = TimelineRow | ToolCall;
+
 interface RowProps {
-  row: TimelineRow;
+  row: Item;
   open: ReadonlySet<string>;
   toggle(id: string): void;
   onOpenLink?: (url: string) => void;
@@ -120,21 +122,15 @@ function Row({ row, open, toggle, onOpenLink }: RowProps) {
             <Icon name={groupOpen ? "chevD" : "chevR"} size={12} />
             {workSummary(row.calls)}
           </button>
-          {groupOpen && (
-            <ul>
-              {row.calls.map((call) => (
-                <Call
-                  key={call.id}
-                  call={call}
-                  open={open.has(call.id)}
-                  onToggle={() => toggle(call.id)}
-                />
-              ))}
-            </ul>
-          )}
         </section>
       );
     }
+    case "call":
+      return (
+        <ul className="thread-work thread-work-call">
+          <Call call={row} open={open.has(row.id)} onToggle={() => toggle(row.id)} />
+        </ul>
+      );
     case "setup":
       return (
         <div className="thread-setup" data-status={row.status}>
@@ -158,10 +154,11 @@ function Row({ row, open, toggle, onOpenLink }: RowProps) {
   }
 }
 
-const ESTIMATES: Record<TimelineRow["kind"], number> = {
+const ESTIMATES: Record<Item["kind"], number> = {
   user: 64,
   assistant: 96,
-  work: 84,
+  work: 24,
+  call: 22,
   setup: 32,
   "turn-end": 32,
   "model-switch": 32,
@@ -189,13 +186,20 @@ export function Timeline({
       }),
     [],
   );
-  const itemKey = useCallback((row: TimelineRow) => row.id, []);
-  const estimate = useCallback((row: TimelineRow) => ESTIMATES[row.kind], []);
+  const items = useMemo(
+    () =>
+      rows.flatMap((row): Item[] =>
+        row.kind === "work" && !open.has(`${row.id}:closed`) ? [row, ...row.calls] : [row],
+      ),
+    [rows, open],
+  );
+  const itemKey = useCallback((row: Item) => row.id, []);
+  const estimate = useCallback((row: Item) => ESTIMATES[row.kind], []);
   return (
     <div className="thread-timeline">
       {contextLine && <p className="thread-context-line">{contextLine}</p>}
       <VirtualList
-        items={rows}
+        items={items}
         itemKey={itemKey}
         estimate={estimate}
         className="thread-scroll"

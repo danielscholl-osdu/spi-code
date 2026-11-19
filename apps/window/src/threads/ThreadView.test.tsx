@@ -6,9 +6,9 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { stubActEnvironment } from "../test-utils/harness.js";
 import { CHIP_LIMIT } from "./Composer.js";
-import { fixtureThread, longThread } from "./fixture.test-helper.js";
+import { FIXTURE_MODELS, fixtureThread, longThread } from "./fixture.test-helper.js";
 import { ThreadView } from "./ThreadView.js";
-import type { ContextChip, ThreadViewProps } from "./types.js";
+import type { ContextChip, ThreadViewProps, ToolCall } from "./types.js";
 import { ROW_BUDGET } from "./VirtualList.js";
 
 let root: Root;
@@ -76,7 +76,7 @@ it("groups three calls with one failed and opens the failed call's arguments and
   render(fixtureThread());
   const [group] = all("section[aria-label='Work log']");
   expect(group?.querySelector(".thread-work-head")?.textContent).toBe("3 calls · 1 failed");
-  const calls = [...(group?.querySelectorAll<HTMLElement>("li") ?? [])];
+  const calls = all(".thread-call").slice(0, 3);
   expect(calls.map((c) => c.dataset.status)).toEqual(["done", "failed", "done"]);
   const failed = calls[1]?.querySelector("button");
   if (!failed) throw new Error("no failed call");
@@ -108,13 +108,35 @@ it("ends a cancelled turn with a cancelled line and offers Send again", () => {
   expect(button(/^Send/)).toBeTruthy();
 });
 
-it("mounts a 2,000-row thread under the row budget, at its end", () => {
+it("mounts a 2,000-row thread and an open 2,000-call group under the row budget, at its end", () => {
   render(fixtureThread({ entries: longThread(2000), running: false }));
   const rows = all(".thread-row");
   expect(rows.length).toBeGreaterThan(0);
   expect(rows.length).toBeLessThanOrEqual(ROW_BUDGET);
   expect(host.textContent).toContain("Answer 1999");
   expect(host.textContent).not.toContain("Question 0");
+
+  const calls = Array.from(
+    { length: 2000 },
+    (_, i): ToolCall => ({ kind: "call", id: `c${i}`, label: `Step ${i}`, status: "done" }),
+  );
+  render(fixtureThread({ entries: [...longThread(2000), ...calls], running: false }));
+  expect(all(".thread-call").length).toBeGreaterThan(0);
+  expect(all(".thread-row").length).toBeLessThanOrEqual(ROW_BUDGET);
+  expect(all(".thread-call").length).toBeLessThanOrEqual(ROW_BUDGET);
+  expect(host.textContent).toContain("Step 1999");
+});
+
+it("renders a heading split by a Unicode line separator", () => {
+  render(
+    fixtureThread({
+      running: false,
+      entries: [{ kind: "assistant", id: "a", text: "## Result\u2028All passed.\u2029- one" }],
+    }),
+  );
+  expect(host.querySelector(".thread-md-h")?.textContent).toBe("Result");
+  expect(host.querySelector(".thread-md p:not(.thread-md-h)")?.textContent).toBe("All passed.");
+  expect(all(".thread-md li").map((li) => li.textContent)).toEqual(["one"]);
 });
 
 it("shows no reasoning column for a model without reasoning levels", () => {
@@ -140,6 +162,23 @@ it("refuses to choose a disabled model", () => {
   expect(onChoose).not.toHaveBeenCalled();
   click(button(/^GPT-6 mini/));
   expect(onChoose).toHaveBeenCalledWith({ model: "gpt-6-mini" });
+
+  onChoose.mockClear();
+  const refreshed = FIXTURE_MODELS.map((m) =>
+    m.id === "claude-sonnet-5.5" ? { ...m, policy: "disabled" as const } : m,
+  );
+  render(
+    fixtureThread({
+      onChoose,
+      models: refreshed,
+      choice: { model: "claude-sonnet-5.5", effort: "high" },
+    }),
+  );
+  click(button("Model: Claude Sonnet 5.5 · High"));
+  const low = button(/^Low/);
+  expect(low.hasAttribute("disabled")).toBe(true);
+  click(low);
+  expect(onChoose).not.toHaveBeenCalled();
 });
 
 it("lists places after @ and adds the chosen one as a chip", () => {
@@ -178,4 +217,11 @@ it("refuses a ninth chip and says why", () => {
   expect(() => button("Remove legal")).toThrow();
   click(button(/^Send/));
   expect(onSend).toHaveBeenCalledWith({ text: "Also @leg", places: [] });
+
+  render(fixtureThread({ context: context.slice(1), onSend, running: false }));
+  type("Also @par");
+  const menu = host.querySelector("ul[aria-label='Places']");
+  expect([...(menu?.querySelectorAll("button") ?? [])].map((b) => b.textContent)).toEqual([
+    "partition",
+  ]);
 });

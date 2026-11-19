@@ -147,7 +147,9 @@ export function ModelPicker(props: ModelPickerProps) {
                 <button
                   type="button"
                   aria-pressed={choice.effort === effort}
+                  disabled={!usable(chosen)}
                   onClick={() => {
+                    if (!usable(chosen)) return;
                     props.onChoose({ model: chosen.id, effort });
                     props.onClose();
                   }}

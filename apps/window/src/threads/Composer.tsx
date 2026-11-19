@@ -16,6 +16,9 @@ function mentionAt(text: string, caret: number): { from: number; query: string }
   return { from: caret - (match[2]?.length ?? 0) - 1, query: (match[2] ?? "").toLowerCase() };
 }
 
+const mentionKey = (mention: { from: number; query: string } | null) =>
+  mention ? `${mention.from}:${mention.query}` : null;
+
 export function Composer(props: ComposerProps) {
   const [text, setText] = useState("");
   const [caret, setCaret] = useState(0);
@@ -25,14 +28,14 @@ export function Composer(props: ComposerProps) {
   const [picker, setPicker] = useState(false);
   const [scopeMenu, setScopeMenu] = useState(false);
   const [highlight, setHighlight] = useState(0);
-  const [dismissed, setDismissed] = useState<number | null>(null);
+  const [dismissed, setDismissed] = useState<string | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
 
   const mention = mentionAt(text, caret);
   const taken = new Set([...props.context.map((c) => c.id), ...added.map((p) => p.id)]);
   const choices =
-    mention && mention.from !== dismissed
+    mention && mentionKey(mention) !== dismissed
       ? props.places.filter(
           (p) => !taken.has(p.id) && p.label.toLowerCase().includes(mention.query),
         )
@@ -55,7 +58,7 @@ export function Composer(props: ComposerProps) {
     if (!mention) return;
     if (chips >= CHIP_LIMIT) {
       setNotice(LIMIT_REASON);
-      setDismissed(mention.from);
+      setDismissed(mentionKey(mention));
       return;
     }
     const next = `${text.slice(0, mention.from)}${text.slice(caret)}`;
@@ -75,6 +78,7 @@ export function Composer(props: ComposerProps) {
     setCaret(0);
     setAdded([]);
     setNotice("");
+    setDismissed(null);
   };
 
   return (
@@ -139,9 +143,12 @@ export function Composer(props: ComposerProps) {
           props.draft ? "Ask about this, or say what to change…" : "Reply, or @ a place…"
         }
         onChange={(event) => {
-          setText(event.target.value);
-          setCaret(event.target.selectionStart ?? event.target.value.length);
+          const value = event.target.value;
+          const at = event.target.selectionStart ?? value.length;
+          setText(value);
+          setCaret(at);
           setHighlight(0);
+          if (mentionKey(mentionAt(value, at)) !== dismissed) setDismissed(null);
         }}
         onSelect={(event) => setCaret(event.currentTarget.selectionStart ?? 0)}
         onKeyDown={(event) => {
@@ -161,7 +168,7 @@ export function Composer(props: ComposerProps) {
             }
             if (event.key === "Escape") {
               event.preventDefault();
-              setDismissed(mention?.from ?? null);
+              setDismissed(mentionKey(mention));
               return;
             }
           }
