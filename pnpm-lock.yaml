@@ -109,6 +109,9 @@ importers:
       '@spi-code/core':
         specifier: workspace:*
         version: link:../core
+      '@spi-code/threads':
+        specifier: workspace:*
+        version: link:../threads
       '@spi-code/tools':
         specifier: workspace:*
         version: link:../tools

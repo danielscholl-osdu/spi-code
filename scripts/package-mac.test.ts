@@ -66,7 +66,7 @@ ${directories.map((directory) => `\n  ${directory}: {}\n`).join("")}`;
     const omit: string[] = [];
     for (const directory of [
       "apps/desktop/dist",
-      ...["contracts", "core", "tools", "host"].map((name) => `packages/${name}/dist`),
+      ...["contracts", "core", "tools", "threads", "host"].map((name) => `packages/${name}/dist`),
     ]) {
       for (const extension of ["js", "js.map", "d.ts", "d.ts.map"]) {
         keep.push(`${directory}/index.${extension}`);

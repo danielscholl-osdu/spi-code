@@ -21,7 +21,7 @@ import { basename, dirname, join, posix, relative, resolve, win32 } from "node:p
 import { fileURLToPath } from "node:url";
 import { generateNotices } from "./third-party-notices.mjs";
 
-const runtimePackages = ["contracts", "core", "tools", "host"];
+const runtimePackages = ["contracts", "core", "tools", "threads", "host"];
 
 const mxcBin = "node_modules/@microsoft/mxc-sdk/bin";
 const mxcTargets = {

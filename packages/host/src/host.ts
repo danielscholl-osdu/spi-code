@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import {
   type Message,
   PROTOCOL_VERSION,
@@ -22,6 +22,7 @@ import {
   type ToolInstaller,
 } from "@spi-code/tools";
 import { z } from "zod";
+import { CopilotRuntime } from "./copilot/runtime.js";
 import { captureLoginShellPath } from "./env/shell-environment.js";
 import { HostExec } from "./exec/host-exec.js";
 import { attachHostConnections, type HostConnection } from "./process/connections.js";
@@ -39,11 +40,15 @@ import {
 } from "./process/port.js";
 import { WatchRoutes, watchFleet } from "./process/routes.js";
 import { probeStore } from "./process/store-probe.js";
+import { PrivilegedGit } from "./scopes/git.js";
+import { ScopeRegistry } from "./scopes/registry.js";
+import { ScopeWorkspaces } from "./scopes/workspace.js";
 import { probeCopilotSeat } from "./setup/seat.js";
 import { type SetupGit, SetupService } from "./setup/service.js";
 import { openStore } from "./store/open.js";
 import { createRunStore } from "./store/store.js";
 import { SweepService } from "./sweep/service.js";
+import { ThreadRoutes } from "./threads/routes.js";
 
 export interface HostOptions {
   storePath: string;
@@ -262,9 +267,36 @@ export function startHost(options: HostOptions) {
     }
     if (stopped) throw new Error("Host is stopped");
   };
+  const threads = new ThreadRoutes({
+    db,
+    storePath,
+    env,
+    scopes: new ScopeRegistry(ctx.fleet.services),
+    git: memo(async () => {
+      if (stub) throw new Error("Threads are unavailable in stub mode.");
+      return new PrivilegedGit({
+        appData,
+        capturedPath: await capturedPath(),
+        env,
+        ...(platform === "win32"
+          ? { managedGitBinDir: async () => (await gitInstaller()).binDir?.() }
+          : {}),
+      });
+    }),
+    workspaces: (git) => new ScopeWorkspaces(git),
+    runtime: async (onCredential) =>
+      new CopilotRuntime({
+        appDataDir: join(appData, "thread-runtime"),
+        capturedPath: await capturedPath(),
+        installer: await toolInstaller(),
+        env,
+        onCredential,
+      }),
+  });
   const registrations: HostRoutes = {
     ...watch.routes,
     ...setup.routes,
+    ...threads.routes,
     "models.list": Object.assign((message: Message) => conversation(message), { serial: true }),
     "turn.start": Object.assign((message: Message) => conversation(message), { serial: true }),
   };
@@ -273,6 +305,12 @@ export function startHost(options: HostOptions) {
     if (!route) continue;
     const handle: HostRoute = (message, send) => {
       if (stopped || !connectedPort) throw new Error("Host is not connected or is stopped");
+      if (
+        message.type === "setup.signin" &&
+        message.payload.tool === "glab" &&
+        message.payload.token
+      )
+        threads.remember(message.payload.token.trim());
       return route(message, send);
     };
     routes[type as Message["type"]] = Object.assign(
@@ -295,7 +333,7 @@ export function startHost(options: HostOptions) {
       .catch(console.error)
       .then(async () => {
         const backend = activeBackend;
-        await backend?.stop();
+        await Promise.all([threads.stop(), backend?.stop()]);
         await requestQueue.pending;
         if (activeBackend !== backend) await activeBackend?.stop();
       })
@@ -319,11 +357,13 @@ export function startHost(options: HostOptions) {
         console.error("Rejected host connection after stop");
         return;
       }
+      threads.disconnect();
       connectedPort = port;
       (port as typeof port & { on(event: "close", listener: () => void): unknown }).on(
         "close",
         () => {
           ports.delete(port);
+          if (connectedPort === port) threads.disconnect();
         },
       );
       ports.set(port, attachHostPort(port, pid, routes, requestQueue));

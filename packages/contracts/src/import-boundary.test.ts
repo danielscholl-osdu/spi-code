@@ -11,7 +11,8 @@ const graph = {
   contracts: { path: "packages/contracts", allows: [] },
   core: { path: "packages/core", allows: ["contracts"] },
   tools: { path: "packages/tools", allows: ["contracts"] },
-  host: { path: "packages/host", allows: ["core", "contracts", "tools"] },
+  threads: { path: "packages/threads", allows: [] },
+  host: { path: "packages/host", allows: ["core", "contracts", "tools", "threads"] },
   window: { path: "apps/window", allows: ["contracts"] },
   desktop: {
     path: "apps/desktop",

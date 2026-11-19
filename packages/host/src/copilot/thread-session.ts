@@ -24,15 +24,21 @@ import {
 
 export type ThreadSessionOptions = Pick<
   SessionConfig,
-  "model" | "reasoningEffort" | "systemMessage" | "tools" | "onPermissionRequest"
-> & { readonly resumeId?: string; readonly onPermissionRequest: PermissionHandler };
+  "model" | "reasoningEffort" | "systemMessage" | "tools" | "hooks"
+> & {
+  readonly resumeId?: string;
+  readonly onPermissionRequest: PermissionHandler;
+  readonly onPermissionDenied?: PermissionHandler;
+};
 
 export interface ThreadCopilotSession {
   readonly sessionId: string;
   readonly sandbox: CopilotSandboxState;
+  readonly connected: boolean;
   readonly on: CopilotSession["on"];
   readonly getEvents: CopilotSession["getEvents"];
   readonly abort: CopilotSession["abort"];
+  setModel(model: string, reasoningEffort: ThreadSessionOptions["reasoningEffort"]): Promise<void>;
   send(message: MessageOptions): Promise<{ messageId: string; sandbox: CopilotSandboxState }>;
   release(): Promise<void>;
 }
@@ -57,9 +63,12 @@ export async function openSandboxedThread(
 
   const currentState = () =>
     released || !isCurrent() ? sandboxUnavailable("session-released") : state;
-  const permission: PermissionHandler = (request, invocation) => {
-    if ("requestSandboxBypass" in request && request.requestSandboxBypass)
-      return { kind: "reject" };
+  const permission: PermissionHandler = async (request, invocation) => {
+    const deny = async () => {
+      await options.onPermissionDenied?.(request, invocation);
+      return { kind: "reject" } as const;
+    };
+    if ("requestSandboxBypass" in request && request.requestSandboxBypass) return deny();
     if (
       preflight &&
       request.kind === "shell" &&
@@ -75,7 +84,7 @@ export async function openSandboxedThread(
       ((request.kind === "shell" || request.kind === "write") &&
         (!workspace.worktreePath || state.kind !== "confined"))
     ) {
-      return { kind: "reject" };
+      return deny();
     }
     return options.onPermissionRequest(request, invocation);
   };
@@ -87,6 +96,7 @@ export async function openSandboxedThread(
     ...(options.reasoningEffort === undefined ? {} : { reasoningEffort: options.reasoningEffort }),
     ...(options.systemMessage ? { systemMessage: options.systemMessage } : {}),
     ...(options.tools ? { tools: options.tools } : {}),
+    ...(options.hooks ? { hooks: options.hooks } : {}),
     availableTools: initialTools,
     gitHubToken: token,
     workingDirectory: workspace.worktreePath ?? workspace.clonePath ?? workspace.tempPath,
@@ -165,12 +175,24 @@ export async function openSandboxedThread(
   let release: Promise<void> | undefined;
   return {
     sessionId: session.sessionId,
+    get connected() {
+      return !released && isCurrent();
+    },
     get sandbox() {
       return currentState();
     },
     on: session.on.bind(session),
     getEvents: session.getEvents.bind(session),
     abort: () => (released || !isCurrent() ? Promise.resolve() : session.abort()),
+    async setModel(model, reasoningEffort) {
+      const switched = await session.rpc.model.switchTo({
+        modelId: model,
+        reasoningEffort: reasoningEffort ?? null,
+        requireAvailable: true,
+      });
+      if (switched.deferred || switched.confirmation || switched.modelId !== model)
+        throw new Error("Copilot did not confirm the selected model and effort.");
+    },
     async send(message) {
       if (released || !isCurrent()) throw new Error("Reopen the Copilot session before sending.");
       return withCurrentCredential(async () => {

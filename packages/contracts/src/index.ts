@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: MIT
 
 import { z } from "zod";
+import { ThreadMessageSchema } from "./threads.js";
 import { PROTOCOL_VERSION, WatchMessageSchema } from "./watch/messages.js";
 
+export * from "./threads.js";
 export { timeUnit, type WhenOptions, when } from "./time.js";
 export * from "./watch/index.js";
 
@@ -101,6 +103,7 @@ export const MessageSchema = z.discriminatedUnion("type", [
     payload: z.strictObject({ code: identifier, message: identifier }),
   }),
   ...WatchMessageSchema.options,
+  ...ThreadMessageSchema.options,
 ]);
 
 export type Message = z.infer<typeof MessageSchema>;

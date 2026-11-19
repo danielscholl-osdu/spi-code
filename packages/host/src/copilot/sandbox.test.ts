@@ -225,9 +225,11 @@ function recordedRuntime(sample: Sample, canaryRoot: string) {
     createSession: vi.fn(open),
     resumeSession: vi.fn(async (_id: string, options: SessionConfig) => open(options)),
   };
+  const denied = vi.fn(() => ({ kind: "reject" as const }));
   return {
     client,
     session,
+    denied,
     open: (resumeId?: string, platform: NodeJS.Platform = "darwin", paths = workspace) =>
       openSandboxedThread(
         client as unknown as CopilotClient,
@@ -238,6 +240,7 @@ function recordedRuntime(sample: Sample, canaryRoot: string) {
           ...(resumeId === undefined ? {} : { resumeId }),
           tools: [{ name: "spi_read", handler: async () => "fixture" }],
           onPermissionRequest: () => ({ kind: "approve-once" }),
+          onPermissionDenied: denied,
         },
         () => true,
         (operation) => operation(),
@@ -379,6 +382,9 @@ describe("Copilot sandbox preflight", () => {
     } as Parameters<NonNullable<SessionConfig["onPermissionRequest"]>>[0];
     await expect(Promise.resolve(runtime.permission(writeRequest))).resolves.toEqual({
       kind: "reject",
+    });
+    expect(runtime.denied).toHaveBeenCalledWith(writeRequest, {
+      sessionId: runtime.session.sessionId,
     });
   });
 });

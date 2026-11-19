@@ -31,6 +31,7 @@ export type { SandboxWorkspace } from "./sandbox.js";
 export type { ThreadCopilotSession, ThreadSessionOptions } from "./thread-session.js";
 
 export const tokenLifetimeSeconds = 60;
+const threadClientIdleMs = 30_000;
 export type TokenSource = () => Promise<string>;
 export type ModelCatalog = Awaited<ReturnType<CopilotClient["rpc"]["models"]["list"]>>;
 const sessionTokens = new WeakMap<
@@ -104,6 +105,7 @@ export interface RuntimeOptions {
   readonly env?: NodeJS.ProcessEnv;
   readonly cliPath?: string;
   readonly credentialMode?: "client" | "session";
+  readonly onCredential?: (token: string) => void;
 }
 
 export function resolveRuntimePath(): string {
@@ -256,6 +258,7 @@ export class CopilotRuntime {
   private pending: Promise<unknown> = Promise.resolve();
   private readonly tokens = new Set<string>();
   private readonly threadSessions = new Map<string, ThreadCopilotSession>();
+  private threadIdleTimer: ReturnType<typeof setTimeout> | undefined;
   private generation = 0;
 
   get clientGeneration(): number {
@@ -278,7 +281,9 @@ export class CopilotRuntime {
       this.tokens.clear();
       if (this.token) this.tokens.add(this.token);
       this.tokens.add(token);
-      return validateToken(token);
+      const checked = validateToken(token);
+      this.options.onCredential?.(checked);
+      return checked;
     };
   }
 
@@ -363,6 +368,7 @@ export class CopilotRuntime {
       const canaryRoot = join(this.options.appDataDir, "copilot", "sandbox-checks");
       await mkdir(canaryRoot, { recursive: true, mode: 0o700 });
       const { client, token } = await this.acquire("thread");
+      clearTimeout(this.threadIdleTimer);
       if (options.resumeId !== undefined) {
         const previous = this.threadSessions.get(options.resumeId);
         this.threadSessions.delete(options.resumeId);
@@ -387,12 +393,16 @@ export class CopilotRuntime {
       this.threadSessions.set(thread.sessionId, thread);
       return {
         sessionId: thread.sessionId,
+        get connected() {
+          return thread.connected;
+        },
         get sandbox() {
           return thread.sandbox;
         },
         on: thread.on,
         getEvents: thread.getEvents,
         abort: thread.abort,
+        setModel: thread.setModel,
         send: thread.send,
         release: () => {
           released = true;
@@ -400,14 +410,28 @@ export class CopilotRuntime {
             if (this.threadSessions.get(thread.sessionId) === thread) {
               this.threadSessions.delete(thread.sessionId);
             }
-            await thread.release();
+            try {
+              await thread.release();
+            } finally {
+              if (this.client === client && this.threadSessions.size === 0) {
+                clearTimeout(this.threadIdleTimer);
+                this.threadIdleTimer = setTimeout(() => {
+                  void this.serialize(async () => {
+                    if (this.client === client && this.threadSessions.size === 0)
+                      await this.disposeClient();
+                  }).catch(() => {});
+                }, threadClientIdleMs);
+                this.threadIdleTimer.unref();
+              }
+            }
           });
         },
       };
     });
   }
 
-  private async disposeClient(): Promise<void> {
+  private async disposeClient(force = false): Promise<void> {
+    clearTimeout(this.threadIdleTimer);
     const client = this.client;
     this.client = undefined;
     this.mode = undefined;
@@ -416,6 +440,10 @@ export class CopilotRuntime {
     this.threadSessions.clear();
     if (!client) return;
     try {
+      if (force) {
+        await client.forceStop();
+        return;
+      }
       const errors = await client.stop();
       if (errors.length) throw new AggregateError(errors, "Copilot runtime shutdown failed.");
     } finally {
@@ -425,6 +453,12 @@ export class CopilotRuntime {
 
   stop(): Promise<void> {
     return this.serialize(() => this.disposeClient());
+  }
+
+  restartThreadClient(generation: number): Promise<void> {
+    return this.serialize(async () => {
+      if (this.generation === generation && this.mode === "thread") await this.disposeClient(true);
+    });
   }
 }
 
