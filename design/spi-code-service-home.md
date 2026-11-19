@@ -20,7 +20,7 @@ The council (Opus 5.5, Codex Sol, Muse Wonder) held seven rounds on the service 
 | 10 | Find | A service result opens Overview and uses the same mark as its pinned row. Under a service, Find lists its open PRs and actionable issues by number or title and its tabs with their counts. Choosing a PR or issue opens its row on its tab. |
 | 11 | One clock | Show time alone today, weekday and time within six calendar days, and a date beyond. Ages use one unit. Under a day they read in seconds, minutes or hours. From 24 hours they round to the nearest day (24h to 35h reads 1d, 36h to 59h reads 2d, and 60h to 83h reads 3d). |
 
-Out of scope are the Code tab (clone, editor, terminal), a subtree under a pinned service, Release and Lane stations, a headline above the flow, release history, run strips on Overview, in-app diffs, timelines, comments and Copilot actions (Z7). Worktrees and PR checkout arrive with chat.
+Out of scope are the Code tab (clone, editor, terminal), a subtree under a pinned service, Release and Lane stations, a headline above the flow, release history, run strips on Overview, in-app diffs, timelines and comments. The [threads design](spi-code-threads.md) adds a Threads tab after Security, listing the service's threads, and Ask about this on a row; a worktree or a request's branch belongs to a thread's Lands in.
 
 ## Today
 
