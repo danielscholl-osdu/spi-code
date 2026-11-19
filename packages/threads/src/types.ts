@@ -1,6 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import type { ToolOutputRedactor } from "./redaction.js";
+
 export type JsonValue =
   | null
   | boolean
@@ -111,6 +113,7 @@ export interface ThreadEngineOptions<Tool> {
   workspace: WorkspaceProvider;
   context: ContextProvider;
   tools: ToolProvider<Tool>;
+  redactor?: ToolOutputRedactor;
 }
 
 type InterruptionReason = "restart" | "shutdown";

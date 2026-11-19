@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { ThreadJournal } from "./journal.js";
-import { toolOutputRedactor } from "./redaction.js";
+import { type ToolOutputRedactor, toolOutputRedactor } from "./redaction.js";
 import { finishTurn, Timeline } from "./timeline.js";
 import type {
   JournalEntry,
@@ -40,6 +40,7 @@ interface RunningTurn {
 /** One engine writes a database at a time. The caller owns the SQLite connection. */
 export class ThreadEngine<Tool> {
   private readonly journal: ThreadJournal;
+  private readonly redactor: ToolOutputRedactor;
   private readonly threads = new Map<string, Timeline>();
   private readonly queues = new Map<string, PendingMessage[]>();
   private readonly running = new Map<string, RunningTurn>();
@@ -51,6 +52,7 @@ export class ThreadEngine<Tool> {
     private readonly options: ThreadEngineOptions<Tool>,
   ) {
     this.journal = new ThreadJournal(db);
+    this.redactor = options.redactor ?? toolOutputRedactor;
     for (const event of this.journal.load()) this.apply(event);
     for (const timeline of this.threads.values()) this.cancelInterrupted(timeline, "restart");
   }
@@ -312,11 +314,21 @@ export class ThreadEngine<Tool> {
     const live = () => !this.closing && !controller.signal.aborted && turn.outcome === "running";
     return {
       delta: (text) => {
-        if (live() && text) this.record(id, [{ type: "assistant.delta", turnId, text }]);
+        if (live() && text)
+          this.record(id, [{ type: "assistant.delta", turnId, text: this.redactor.text(text) }]);
       },
       toolStarted: ({ callId, name, kind, arguments: args }) => {
         if (!live() || turn.tools.some(({ start }) => start.callId === callId)) return;
-        this.record(id, [{ type: "tool.started", turnId, callId, name, kind, arguments: args }]);
+        this.record(id, [
+          {
+            type: "tool.started",
+            turnId,
+            callId,
+            name,
+            kind,
+            arguments: this.redactor.value(args),
+          },
+        ]);
       },
       toolFinished: (completion) => {
         if (!live()) return;
@@ -325,8 +337,8 @@ export class ThreadEngine<Tool> {
         if (!call || call.end) return;
         const result =
           "resultChunks" in completion
-            ? toolOutputRedactor.chunks(completion.resultChunks)
-            : toolOutputRedactor.value(completion.result);
+            ? this.redactor.chunks(completion.resultChunks)
+            : this.redactor.value(completion.result);
         this.record(id, [
           {
             type: "tool.finished",
@@ -342,7 +354,15 @@ export class ThreadEngine<Tool> {
       requestApproval: async ({ approvalId, kind, detail }) => {
         if (!live() || turn.approvals.some((item) => item.request.approvalId === approvalId))
           return false;
-        this.record(id, [{ type: "approval.requested", turnId, approvalId, kind, detail }]);
+        this.record(id, [
+          {
+            type: "approval.requested",
+            turnId,
+            approvalId,
+            kind,
+            detail: this.redactor.text(detail),
+          },
+        ]);
         return new Promise((resolve) => approvals.set(approvalId, resolve));
       },
     };
