@@ -126,6 +126,7 @@ function recordedRuntime(sample: Sample, canaryRoot: string) {
     disconnect: vi.fn(async () => {}),
     send: vi.fn(async () => "message"),
     rpc: {
+      model: { switchTo: vi.fn().mockResolvedValue({}) },
       options: { update: vi.fn(async (_options: { availableTools: string[] }) => {}) },
       sandbox: {
         getEnforcementStatus: vi.fn().mockResolvedValue({ required: false, blocked: false }),
@@ -370,6 +371,19 @@ describe("Copilot sandbox preflight", () => {
     expect(runtime.session.rpc.tools.execute).not.toHaveBeenCalled();
     expect(thread.sandbox).toEqual({ kind: "not-confined", reason: "unsupported-platform" });
     expect(runtime.client.createSession.mock.calls[0]?.[0].availableTools).toEqual(customOnly);
+  });
+
+  it("reports an effort switch on Auto as unknown when the RPC omits the Auto echo", async () => {
+    const runtime = recordedRuntime("blocked", root);
+    const thread = await runtime.open(undefined, "win32");
+    await expect(thread.setModel("auto", "high")).resolves.toBe("not known");
+    expect(runtime.session.rpc.model.switchTo).toHaveBeenCalledWith({
+      modelId: "auto",
+      reasoningEffort: "high",
+      requireAvailable: true,
+    });
+    await expect(thread.setModel("picked", "high")).rejects.toThrow("did not confirm");
+    await thread.release();
   });
 
   it("rejects bypass requests even when the caller would approve them", async () => {

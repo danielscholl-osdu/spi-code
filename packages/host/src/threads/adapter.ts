@@ -76,7 +76,7 @@ async function releaseWithin<T>(operation: Promise<T>, ms: number): Promise<T> {
 
 export class CopilotThreadAdapter implements ThreadRuntime<Tool> {
   private readonly sessions = new Map<string, Lease>();
-  private readonly opening = new Set<string>();
+  private readonly opening = new Map<string, Promise<Lease>>();
   private closed = false;
 
   constructor(
@@ -95,19 +95,16 @@ export class CopilotThreadAdapter implements ThreadRuntime<Tool> {
       ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
     };
     const lease = await this.open(input, workspace.sandbox, settings, events);
+    signal.throwIfAborted();
     const { session } = lease;
     lease.active = { events, signal };
     try {
       await this.send(input, session, events);
     } catch (error) {
       const disconnected = !session.connected;
-      await this.release(threadId, lease).catch(() => {});
-      if (!signal.aborted && disconnected && !this.closed) {
-        await this.runtime.restartThreadClient(lease.generation);
-        if (this.sessions.get(threadId) === lease) this.sessions.delete(threadId);
-        await this.open(input, workspace.sandbox, settings, events);
+      await this.release(threadId, lease, disconnected && !this.closed).catch(() => {});
+      if (!signal.aborted && disconnected)
         throw new Error("Copilot disconnected. The in-flight tool effects are not known.");
-      }
       throw error;
     } finally {
       lease.active = undefined;
@@ -121,13 +118,16 @@ export class CopilotThreadAdapter implements ThreadRuntime<Tool> {
     events: RuntimeEvents,
   ): Promise<Lease> {
     const { threadId } = input;
-    if (this.opening.has(threadId)) throw new Error("Copilot is still opening this thread.");
-    this.opening.add(threadId);
-    try {
-      return await this.acquire(input, workspace, settings, events);
-    } finally {
-      this.opening.delete(threadId);
+    let opening = this.opening.get(threadId);
+    while (opening) {
+      await opening.catch(() => {});
+      opening = this.opening.get(threadId);
     }
+    const acquired = this.acquire(input, workspace, settings, events).finally(() => {
+      this.opening.delete(threadId);
+    });
+    this.opening.set(threadId, acquired);
+    return acquired;
   }
 
   private async acquire(
@@ -151,13 +151,25 @@ export class CopilotThreadAdapter implements ThreadRuntime<Tool> {
         existing.settings.model !== settings.model ||
         existing.settings.reasoningEffort !== settings.reasoningEffort
       ) {
-        await existing.session.setModel(settings.model, settings.reasoningEffort);
-        existing.settings = settings;
+        try {
+          const applied = await existing.session.setModel(settings.model, settings.reasoningEffort);
+          existing.settings = settings;
+          if (applied === "not known") {
+            record(events, "session.settings", { reasoningEffort: applied });
+          }
+        } catch (error) {
+          await this.release(threadId, existing, !existing.session.connected && !this.closed).catch(
+            () => {},
+          );
+          throw error;
+        }
       }
       existing.tools = tools;
       return existing;
     }
     if (existing) await this.release(threadId, existing);
+    signal.throwIfAborted();
+    if (this.closed) throw new Error("Thread runtime is shutting down.");
     const resumeId = this.ids.get(threadId);
     let lease: Lease | undefined;
     const current = () => (lease?.active?.signal.aborted ? undefined : lease?.active?.events);
@@ -183,9 +195,15 @@ export class CopilotThreadAdapter implements ThreadRuntime<Tool> {
         },
       })),
       hooks: {
-        onPostToolUse: ({ toolResult }) => ({
-          modifiedResult: redactResult(this.modelRedactor, toolResult),
-        }),
+        onPostToolUse: ({ toolResult }) => {
+          try {
+            return { modifiedResult: redactResult(this.modelRedactor, toolResult) };
+          } catch {
+            return {
+              modifiedResult: { resultType: "failure", textResultForLlm: "Tool result withheld." },
+            };
+          }
+        },
       },
       onPermissionRequest: askingPermission(workspace, current),
       onPermissionDenied: askingPermission(workspace, current, true),
@@ -274,10 +292,15 @@ export class CopilotThreadAdapter implements ThreadRuntime<Tool> {
     }
   }
 
-  private async release(threadId: string, lease: Lease) {
+  private async release(threadId: string, lease: Lease, restart = false) {
     lease.active = undefined;
-    lease.releasing ??= lease.session.release();
-    await releaseWithin(lease.releasing, 700);
+    lease.releasing ??= restart
+      ? lease.session
+          .release()
+          .catch(() => {})
+          .then(() => this.runtime.restartThreadClient(lease.generation))
+      : lease.session.release();
+    await lease.releasing;
     if (this.sessions.get(threadId) === lease) this.sessions.delete(threadId);
   }
 

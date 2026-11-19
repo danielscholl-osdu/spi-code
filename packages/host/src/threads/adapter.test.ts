@@ -3,8 +3,9 @@
 
 import { mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { setTimeout } from "node:timers/promises";
 import type { SessionEvent } from "@github/copilot-sdk";
 import { type Message, PROTOCOL_VERSION, type ThreadWireEvent } from "@spi-code/contracts";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -40,7 +41,7 @@ class RecordedSession {
     this.connected = false;
     this.order.push(`released ${this.id}`);
   });
-  readonly setModel = vi.fn<ThreadCopilotSession["setModel"]>(async () => {});
+  readonly setModel = vi.fn<ThreadCopilotSession["setModel"]>(async () => "confirmed");
 
   get session(): ThreadCopilotSession {
     const recording = this;
@@ -254,6 +255,7 @@ it("stops the SDK stream, records partial text as not known and releases before 
         }),
       ),
     );
+    await setTimeout(1550);
     expect(open).toHaveBeenCalledOnce();
   } finally {
     release();
@@ -285,14 +287,95 @@ it("stops the SDK stream, records partial text as not known and releases before 
   expect(await port.response(next)).toMatchObject({ payload: { outcome: "completed" } });
 });
 
+it("waits for a stopped session open to release before starting the queued turn", async () => {
+  const {
+    runtime,
+    sessions: [first, second],
+    open,
+    order,
+  } = recordedRuntime("slow-open", "queued");
+  if (!first || !second) throw new Error("Incomplete recording");
+  let unblock = () => {};
+  const held = new Promise<void>((resolve) => {
+    unblock = resolve;
+  });
+  open.mockImplementationOnce(async () => {
+    order.push("opening");
+    await held;
+    return first.session;
+  });
+  const port = await connect(runtime);
+  const firstSend = port.send({ prompt: "Open a session" });
+  await vi.waitFor(() => expect(open).toHaveBeenCalledOnce());
+  const stopping = port.stop();
+  const next = port.send({ prompt: "Run after stop" });
+  try {
+    expect(await port.response(stopping)).toMatchObject({ type: "thread.stopped" });
+    await vi.waitFor(() =>
+      expect(port.events().filter(({ type }) => type === "turn.started")).toHaveLength(2),
+    );
+    expect(open).toHaveBeenCalledOnce();
+  } finally {
+    unblock();
+  }
+  expect(await port.response(firstSend)).toMatchObject({ payload: { outcome: "stopped" } });
+  await vi.waitFor(() => expect(second.send).toHaveBeenCalledOnce());
+  expect(first.send).not.toHaveBeenCalled();
+  expect(order).toEqual(["opening", "released slow-open", "create"]);
+  second.begin("0");
+  second.finish("0");
+  expect(await port.response(next)).toMatchObject({ payload: { outcome: "completed" } });
+});
+
+it("tracks tools when the same warm session restarts turn numbering at zero", async () => {
+  const {
+    runtime,
+    sessions: [session],
+    open,
+  } = recordedRuntime("warm");
+  if (!session) throw new Error("Incomplete recording");
+  const port = await connect(runtime);
+  for (const [index, callId] of ["first-read", "second-read"].entries()) {
+    const response = port.send({ prompt: `Question ${index + 1}` });
+    await vi.waitFor(() => expect(session.send).toHaveBeenCalledTimes(index + 1));
+    session.event("user.message", { messageId: session.messageId, content: "Question" });
+    session.event("assistant.turn_start", { turnId: "0" });
+    if (index === 1) {
+      session.event("tool.execution_start", {
+        toolName: "view",
+        turnId: "0",
+        toolCallId: "first-read",
+      });
+    }
+    session.event("tool.execution_start", { toolName: "view", turnId: "0", toolCallId: callId });
+    session.event("tool.execution_complete", {
+      turnId: "0",
+      toolCallId: callId,
+      success: true,
+      result: { content: callId },
+    });
+    session.finish("0");
+    expect(await port.response(response)).toMatchObject({ payload: { outcome: "completed" } });
+  }
+  expect(open).toHaveBeenCalledOnce();
+  expect(port.events().filter(({ type }) => type === "tool.started")).toMatchObject([
+    { callId: "first-read" },
+    { callId: "second-read" },
+  ]);
+  expect(port.events().filter(({ type }) => type === "tool.finished")).toMatchObject([
+    { callId: "first-read", result: "first-read" },
+    { callId: "second-read", result: "second-read" },
+  ]);
+});
+
 it("restarts after disconnect, keeps tool effects unknown and drops a synthetic completion in the next turn", async () => {
   const {
     runtime,
-    sessions: [before, recovered, after],
+    sessions: [before, after],
     restart,
     order,
   } = recordedRuntime("sdk-fixed", "sdk-fixed", "sdk-fixed");
-  if (!before || !recovered || !after) throw new Error("Incomplete recording");
+  if (!before || !after) throw new Error("Incomplete recording");
   const port = await connect(runtime);
   const first = port.send({ prompt: "Read this" });
   await vi.waitFor(() => expect(before.send).toHaveBeenCalledOnce());
@@ -305,7 +388,13 @@ it("restarts after disconnect, keeps tool effects unknown and drops a synthetic 
   before.connected = false;
   expect(await port.response(first)).toMatchObject({ payload: { outcome: "failed" } });
   expect(restart).toHaveBeenCalledOnce();
-  expect(order).toEqual(["create", "released sdk-fixed", "restart", "resume sdk-fixed"]);
+  expect(order).toEqual(["create", "released sdk-fixed", "restart"]);
+  expect(port.events()).toContainEqual(
+    expect.objectContaining({
+      type: "turn.finished",
+      failure: "Copilot disconnected. The in-flight tool effects are not known.",
+    }),
+  );
   expect(port.events()).toContainEqual(
     expect.objectContaining({
       type: "tool.cancelled",
@@ -313,11 +402,11 @@ it("restarts after disconnect, keeps tool effects unknown and drops a synthetic 
       effectState: "not known",
     }),
   );
-  expect(recovered.send).not.toHaveBeenCalled();
 
   after.history = [...before.history];
   const followUp = port.send({ prompt: "What happened?" });
   await vi.waitFor(() => expect(after.send).toHaveBeenCalledOnce());
+  expect(order).toEqual(["create", "released sdk-fixed", "restart", "resume sdk-fixed"]);
   after.begin("second");
   after.event("tool.execution_start", {
     toolName: "view",
@@ -417,6 +506,52 @@ it("keeps model and effort on a warm session, and tells the thread when the SDK 
   );
 });
 
+it("records unconfirmed Auto effort once and resumes with desired settings after a failed switch", async () => {
+  const {
+    runtime,
+    sessions: [first, second],
+    open,
+  } = recordedRuntime("auto", "auto");
+  if (!first || !second) throw new Error("Incomplete recording");
+  first.setModel.mockResolvedValueOnce("not known");
+  first.setModel.mockRejectedValueOnce(new Error("Model switch failed."));
+  const port = await connect(runtime);
+  const ask = async (
+    prompt: string,
+    session: RecordedSession,
+    count: number,
+    reasoningEffort?: "high",
+  ) => {
+    const id = port.send({ prompt, ...(reasoningEffort ? { reasoningEffort } : {}) });
+    await vi.waitFor(() => expect(session.send).toHaveBeenCalledTimes(count));
+    session.begin(prompt);
+    session.finish(prompt);
+    expect(await port.response(id)).toMatchObject({ payload: { outcome: "completed" } });
+  };
+  await ask("first", first, 1);
+  await ask("effort", first, 2, "high");
+  await ask("unchanged", first, 3);
+  expect(first.setModel.mock.calls).toEqual([["auto", "high"]]);
+  expect(port.events()).toContainEqual(
+    expect.objectContaining({ type: "tool.finished", result: { reasoningEffort: "not known" } }),
+  );
+
+  const failure = await port.response(
+    port.send({ prompt: "Switch", model: "picked", reasoningEffort: "high" }),
+  );
+  expect(failure).toMatchObject({ payload: { outcome: "failed" } });
+  await ask("resumed", second, 1);
+  expect(first.setModel.mock.calls).toEqual([
+    ["auto", "high"],
+    ["picked", "high"],
+  ]);
+  expect(open.mock.calls[1]?.[1]).toMatchObject({
+    model: "picked",
+    reasoningEffort: "high",
+    resumeId: "auto",
+  });
+});
+
 it("denies and journals Asking permissions and redacts named model and journal fields", async () => {
   const {
     runtime,
@@ -475,6 +610,28 @@ it("denies and journals Asking permissions and redacts named model and journal f
   expect(hook).toEqual({
     modifiedResult: { resultType: "success", textResultForLlm: "password: readable [redacted]" },
   });
+  // A malformed SDK result makes the redactor throw. The hook must still replace it.
+  await expect(
+    Promise.resolve().then(() =>
+      config.hooks?.onPostToolUse?.(
+        {
+          workingDirectory: root,
+          sessionId: session.id,
+          timestamp: new Date(),
+          toolName: "view",
+          toolArgs: {},
+          toolResult: {
+            resultType: "success",
+            textResultForLlm: "password: readable fixture-copilot-value",
+            error: {} as unknown as string,
+          },
+        },
+        invoke,
+      ),
+    ),
+  ).resolves.toEqual({
+    modifiedResult: { resultType: "failure", textResultForLlm: "Tool result withheld." },
+  });
   session.event("tool.execution_start", {
     toolName: "view",
     toolCallId: "view",
@@ -506,26 +663,40 @@ it("denies and journals Asking permissions and redacts named model and journal f
 
 it("allows an attested read inside the clone and denies outside and unresolved paths", async () => {
   const { askingPermission } = await import("./permissions.js");
-  const clone = mkdtempSync(join(root, "clone-"));
+  const managed = mkdtempSync(join(root, "managed-"));
+  const clone = mkdtempSync(join(managed, "clone-"));
   const file = join(clone, "README.md");
   const outside = join(root, "private");
   writeFileSync(file, "Public");
   writeFileSync(outside, "Outside");
   const requestApproval = vi.fn(async (_request, allowed: boolean | undefined) => allowed === true);
   const events = { requestApproval, delta() {}, toolStarted() {}, toolFinished() {} };
-  const decide = askingPermission(
-    { clonePath: clone, tempPath: mkdtempSync(join(root, "temp-")) },
-    () => events,
-  );
+  const tempPath = mkdtempSync(join(root, "temp-"));
+  const decide = askingPermission({ clonePath: clone, tempPath }, () => events);
   const invoke = { sessionId: "sdk" };
   await expect(
     decide({ kind: "read", intention: "read", path: "README.md" }, invoke),
   ).resolves.toEqual({ kind: "approve-once" });
-  for (const path of [outside, "missing", "../private"]) {
+  for (const path of [outside, "missing", "../../private"]) {
     await expect(decide({ kind: "read", intention: "read", path }, invoke)).resolves.toEqual({
       kind: "reject",
     });
   }
+  const prefix = join(root, "alias");
+  symlinkSync(managed, prefix, "junction");
+  const decideFromAlias = askingPermission(
+    { clonePath: join(prefix, basename(clone)), tempPath },
+    () => events,
+  );
+  await expect(
+    decideFromAlias(
+      { kind: "read", intention: "read", path: "README.md", resolvedPath: file },
+      invoke,
+    ),
+  ).resolves.toEqual({ kind: "approve-once" });
+  await expect(
+    decideFromAlias({ kind: "read", intention: "read", path: file }, invoke),
+  ).resolves.toEqual({ kind: "approve-once" });
   if (process.platform !== "win32") {
     symlinkSync(outside, join(clone, "linked"), "file");
     await expect(

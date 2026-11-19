@@ -38,7 +38,10 @@ export interface ThreadCopilotSession {
   readonly on: CopilotSession["on"];
   readonly getEvents: CopilotSession["getEvents"];
   readonly abort: CopilotSession["abort"];
-  setModel(model: string, reasoningEffort: ThreadSessionOptions["reasoningEffort"]): Promise<void>;
+  setModel(
+    model: string,
+    reasoningEffort: ThreadSessionOptions["reasoningEffort"],
+  ): Promise<"confirmed" | "not known">;
   send(message: MessageOptions): Promise<{ messageId: string; sandbox: CopilotSandboxState }>;
   release(): Promise<void>;
 }
@@ -190,8 +193,11 @@ export async function openSandboxedThread(
         reasoningEffort: reasoningEffort ?? null,
         requireAvailable: true,
       });
-      if (switched.deferred || switched.confirmation || switched.modelId !== model)
-        throw new Error("Copilot did not confirm the selected model and effort.");
+      if (!switched.deferred && !switched.confirmation) {
+        if (switched.modelId === model) return "confirmed";
+        if (model === "auto") return "not known";
+      }
+      throw new Error("Copilot did not confirm the selected model and effort.");
     },
     async send(message) {
       if (released || !isCurrent()) throw new Error("Reopen the Copilot session before sending.");

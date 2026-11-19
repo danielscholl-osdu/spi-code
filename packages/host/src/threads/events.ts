@@ -14,9 +14,6 @@ export function trackTurn(
       event.type === "tool.execution_start" ? [event.data.toolCallId] : [],
     ),
   );
-  const oldTurns = new Set(
-    history.flatMap((event) => (event.type === "assistant.turn_start" ? [event.data.turnId] : [])),
-  );
   const calls = new Map<string, string>();
   const replies = new Set<string>();
   const streamed = new Set<string>();
@@ -44,11 +41,7 @@ export function trackTurn(
         }
         break;
       case "assistant.turn_start":
-        if (
-          consumed &&
-          !oldTurns.has(event.data.turnId) &&
-          (turnId === undefined || ended || turnId === event.data.turnId)
-        ) {
+        if (consumed && (turnId === undefined || ended || turnId === event.data.turnId)) {
           turnId = event.data.turnId;
           ended = false;
         }

@@ -39,10 +39,19 @@ export function askingPermission(
     ) {
       const path = resolve(workspace.clonePath, request.path);
       const roots = [workspace.clonePath, workspace.tempPath, ...(workspace.toolchainPaths ?? [])];
-      const canonical = await realpath(path).catch(() => undefined);
+      const [canonical, ...canonicalRoots] = await Promise.all(
+        [path, ...roots].map((entry) => realpath(entry).catch(() => undefined)),
+      );
       allow =
         canonical !== undefined &&
-        roots.some((root) => inside(root, path) && inside(root, canonical)) &&
+        roots.some((root, index) => {
+          const canonicalRoot = canonicalRoots[index];
+          return (
+            canonicalRoot !== undefined &&
+            (inside(root, path) || inside(canonicalRoot, path)) &&
+            inside(canonicalRoot, canonical)
+          );
+        }) &&
         (request.resolvedPath === undefined || relative(canonical, request.resolvedPath) === "");
     }
     if (events !== current()) return { kind: "reject" };

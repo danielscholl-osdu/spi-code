@@ -1,37 +1,57 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { ModelCatalogResult } from "@spi-code/contracts";
+import { type ModelCatalogResult, ModelCatalogSchema } from "@spi-code/contracts";
+import type { ZodType } from "zod";
 import type { CopilotRuntime } from "../copilot/runtime.js";
 
 type RuntimeCatalog = Awaited<ReturnType<CopilotRuntime["listModelCatalog"]>>;
 
+const fields = ModelCatalogSchema.shape;
+const modelFields = fields.models.element.shape;
+const reasoningFields = modelFields.reasoning.unwrap().shape;
+const policyFields = modelFields.policy.unwrap().shape;
+const usageFields = fields.usage.unwrap().options[0].shape;
+
+function known<T>(schema: ZodType<T>, value: unknown): T | "not known" {
+  return schema.safeParse(value).data ?? "not known";
+}
+
 export function projectCatalog({ catalog, login, premium }: RuntimeCatalog): ModelCatalogResult {
   return {
-    models: catalog.models.map((model) => ({
-      id: model.id,
-      name: model.name,
-      multiplier: model.billing?.multiplier ?? "not known",
-      reasoning: {
-        supported: model.capabilities?.supports?.reasoningEffort ?? "not known",
-        levels: model.supportedReasoningEfforts ?? "not known",
-        defaultLevel: model.defaultReasoningEffort ?? "not known",
-      },
-      policy: {
-        state: model.policy?.state ?? "not known",
-        reason: model.policy?.terms || "not known",
-      },
-    })),
-    account: login ? { login } : "not known",
+    models: catalog.models.flatMap((model) => {
+      const { data: id } = modelFields.id.safeParse(model.id);
+      return id === undefined
+        ? []
+        : [
+            {
+              id,
+              name: known(modelFields.name, model.name),
+              multiplier: known(modelFields.multiplier, model.billing?.multiplier),
+              reasoning: {
+                supported: known(
+                  reasoningFields.supported,
+                  model.capabilities?.supports?.reasoningEffort,
+                ),
+                levels: known(reasoningFields.levels, model.supportedReasoningEfforts),
+                defaultLevel: known(reasoningFields.defaultLevel, model.defaultReasoningEffort),
+              },
+              policy: {
+                state: known(policyFields.state, model.policy?.state),
+                reason: known(policyFields.reason, model.policy?.terms),
+              },
+            },
+          ];
+    }),
+    account: known(fields.account, { login }),
     usage: premium
       ? {
-          used: premium.usedRequests ?? "not known",
-          entitlement: premium.isUnlimitedEntitlement
-            ? "unlimited"
-            : premium.entitlementRequests >= 0
-              ? premium.entitlementRequests
-              : "not known",
-          resetAt: premium.resetDate ?? "not known",
+          used: known(usageFields.used, premium.usedRequests),
+          entitlement:
+            premium.isUnlimitedEntitlement === true
+              ? "unlimited"
+              : known(usageFields.used, premium.entitlementRequests),
+          resetAt: known(usageFields.resetAt, premium.resetDate),
         }
       : "not known",
   };
