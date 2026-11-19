@@ -20,8 +20,8 @@ import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import type { ExecResult } from "@spi-code/core";
 import { KNOWN_SERVICES } from "@spi-code/core";
-import { afterEach, beforeEach, describe, expect, it, type TestContext } from "vitest";
-import type { ConfinedResult, MxcApi } from "./confined.js";
+import { afterEach, beforeEach, describe, expect, it, type TestContext, vi } from "vitest";
+import { type ConfinedResult, loadMxc, type MxcApi } from "./confined.js";
 import {
   type GitOptions,
   type GitTarget,
@@ -31,6 +31,20 @@ import {
 } from "./git.js";
 import { ScopeRegistry } from "./registry.js";
 import { ScopeWorkspaces, type WorkspaceProgress, type WorkspaceResult } from "./workspace.js";
+
+const faults = vi.hoisted(() => ({ mkdtemp: undefined as RegExp | undefined }));
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  const mkdtemp = (async (prefix: string, options?: Parameters<typeof actual.mkdtemp>[1]) => {
+    if (faults.mkdtemp?.test(prefix)) {
+      throw Object.assign(new Error("ENOSPC: no space left on device, mkdtemp"), {
+        code: "ENOSPC",
+      });
+    }
+    return actual.mkdtemp(prefix, options);
+  }) as typeof actual.mkdtemp;
+  return { ...actual, mkdtemp, default: { ...actual, mkdtemp } };
+});
 
 const exec = promisify(execFile);
 let root: string;
@@ -891,7 +905,6 @@ describe("confined add and commit", () => {
     }
   }
 
-  const unavailable = (reason: string) => ({ ok: false, refused: reason, code: null });
   const result = (stdout = ""): Awaited<ReturnType<MxcApi["run"]>> => ({
     stdout,
     stderr: "",
@@ -900,13 +913,38 @@ describe("confined add and commit", () => {
     warnings: [],
   });
   const supported = { isSupported: true, availableMethods: ["seatbelt"] };
-  const failures: [string, Pick<PrivilegedGitOptions, "mxc" | "platform">, string][] = [
-    ["Windows", { platform: "win32" }, "unsupported-platform"],
-    ["Linux", { platform: "linux" }, "unsupported-platform"],
+  const sandbox = (run: MxcApi["run"]): Pick<PrivilegedGitOptions, "mxc" | "platform"> => ({
+    platform: "darwin",
+    mxc: async () => ({ getPlatformSupport: () => supported, run }),
+  });
+  /** Runs the request's script with no sandbox, after the caller's changes to the host. */
+  const unconfined =
+    (before: (command: string) => Promise<void> = async () => undefined): MxcApi["run"] =>
+    async (request) => {
+      await before(request.command);
+      const ran = spawnSync("/bin/sh", ["-c", request.command], {
+        cwd: request.workingDirectory,
+        env: request.environment,
+        encoding: "utf8",
+      });
+      return { ...result(ran.stdout), stderr: ran.stderr, exitCode: ran.status ?? 1 };
+    };
+  const refused = (reason: string) => ({ ok: false, refused: reason, code: null });
+  const notProven = { ...refused("confinement-not-proven"), afterExit: "not-known" };
+  const uncertain = {
+    ok: false,
+    uncertain: "outcome-not-known",
+    code: null,
+    afterExit: "not-known",
+  };
+  type Row = [string, Pick<PrivilegedGitOptions, "mxc" | "platform">, object];
+  const failures: Row[] = [
+    ["Windows", { platform: "win32" }, refused("unsupported-platform")],
+    ["Linux", { platform: "linux" }, refused("unsupported-platform")],
     [
       "a missing SDK",
       { platform: "darwin", mxc: () => Promise.reject(new Error("Cannot find module")) },
-      "mxc-unavailable",
+      refused("mxc-unavailable"),
     ],
     [
       "an unsupported host",
@@ -917,57 +955,43 @@ describe("confined add and commit", () => {
           run: async () => result(),
         }),
       },
-      "mxc-unavailable",
+      refused("mxc-unavailable"),
     ],
     [
-      "a sandbox that fails to start",
-      {
-        platform: "darwin",
-        mxc: async () => ({
-          getPlatformSupport: () => supported,
-          run: () => Promise.reject(new Error("spawn mxc-exec-mac ENOENT")),
-        }),
-      },
-      "mxc-failed",
+      "a sandbox that rejects",
+      sandbox(() => Promise.reject(new Error("spawn mxc-exec-mac ENOENT"))),
+      uncertain,
+    ],
+    ["a sandbox that runs nothing", sandbox(async () => result()), notProven],
+    [
+      "a sandbox that returns only the run's id",
+      sandbox(async (request) => result(`${/spi-confined-[\da-f-]{36}/u.exec(request.command)}\n`)),
+      notProven,
     ],
     [
-      "a sandbox that runs nothing",
-      {
-        platform: "darwin",
-        mxc: async () => ({ getPlatformSupport: () => supported, run: async () => result() }),
-      },
-      "confinement-not-proven",
+      "a sandbox that returns no result",
+      sandbox(async () => undefined as unknown as Awaited<ReturnType<MxcApi["run"]>>),
+      notProven,
     ],
     ...(process.platform === "win32"
       ? []
       : ([
+          ["a sandbox that does not confine", sandbox(unconfined()), notProven],
           [
-            "a sandbox that does not confine",
-            {
-              platform: "darwin",
-              mxc: async () => ({
-                getPlatformSupport: () => supported,
-                run: async (request) => {
-                  const ran = spawnSync("/bin/sh", ["-c", request.command], {
-                    cwd: request.workingDirectory,
-                    env: request.environment,
-                    encoding: "utf8",
-                  });
-                  return {
-                    ...result(ran.stdout),
-                    stderr: ran.stderr,
-                    exitCode: ran.status ?? 1,
-                  };
-                },
+            "a canary write that fails for a reason other than a denial",
+            sandbox(
+              unconfined(async (command) => {
+                const check = /\/[^']*\/check-[^/']+/u.exec(command)?.[0];
+                if (!check) throw new Error("No check directory in the command.");
+                await rm(check, { recursive: true });
               }),
-            },
-            "confinement-not-proven",
+            ),
+            notProven,
           ],
-        ] as typeof failures)),
+        ] as Row[])),
   ];
 
-  it("refuses add and commit and runs nothing when the sandbox cannot be proven", async () => {
-    const git = gitRunner();
+  async function fsmonitorFixture(git: PrivilegedGit) {
     const workspace = await checkout(git);
     const target = await linkedWorktree(git, workspace.cwd);
     const worktree = target.worktree.cwd;
@@ -985,28 +1009,132 @@ describe("confined add and commit", () => {
     await rm(marker, { force: true });
     await writeFile(join(worktree, "answer.txt"), "changed again");
     const index = join(workspace.gitDirectory, "worktrees", target.worktree.id, "index");
-    const before = [await readFile(index), await fixtureGit(worktree, "rev-parse", "HEAD")];
+    const state = async () => [
+      await readFile(index),
+      await fixtureGit(worktree, "rev-parse", "HEAD"),
+    ];
+    return { workspace, target, marker, before: await state(), state };
+  }
 
-    for (const [label, confinement, reason] of failures) {
-      const refused = gitRunner(undefined, confinement);
+  const scratchLeft = async () =>
+    (await readdir(join(await realpath(appData), "scope-git"))).filter((name) =>
+      /^(run|check)-/u.test(name),
+    );
+
+  it("refuses add and commit, or reports them uncertain, when the sandbox cannot be proven", async () => {
+    const git = gitRunner();
+    const { target, marker, before, state } = await fsmonitorFixture(git);
+
+    for (const [label, confinement, expected] of failures) {
+      const runner = gitRunner(undefined, confinement);
       const results: ConfinedResult[] = [
-        await refused.add(target, ["."]),
-        await refused.commit(target, "Refused", identity, { all: true }),
+        await runner.add(target, ["."]),
+        await runner.commit(target, "Refused", identity, { all: true }),
       ];
       for (const outcome of results) {
-        expect(outcome, label).toMatchObject(unavailable(reason));
-        expect(outcome, label).not.toHaveProperty("afterExit");
+        expect(outcome, label).toMatchObject(expected);
+        if (!("afterExit" in expected)) expect(outcome, label).not.toHaveProperty("afterExit");
+        expect(outcome.ok ? "" : outcome.error, label).not.toMatch(/start/u);
       }
       expect(await markerRan(marker), label).toBe(false);
-      expect(
-        [await readFile(index), await fixtureGit(worktree, "rev-parse", "HEAD")],
-        label,
-      ).toEqual(before);
+      expect(await state(), label).toEqual(before);
+      expect(await scratchLeft(), label).toEqual([]);
     }
     if (process.platform !== "darwin") {
-      expect(await gitRunner().add(target, ["."])).toMatchObject(
-        unavailable("unsupported-platform"),
-      );
+      expect(await gitRunner().add(target, ["."])).toMatchObject(refused("unsupported-platform"));
     }
   });
+
+  it("refuses add and commit before launch when setup fails, leaving no scratch folder", async () => {
+    const git = gitRunner();
+    const { workspace, target, marker, before, state } = await fsmonitorFixture(git);
+    const run = vi.fn(unconfined());
+    const runner = gitRunner(undefined, sandbox(run));
+    const config = join(workspace.gitDirectory, "config");
+    const pointer = join(target.worktree.cwd, ".git");
+    const other = await linkedWorktree(git, workspace.cwd, "thread-2");
+    const otherPointer = await readFile(join(other.worktree.cwd, ".git"));
+    const setups: [string, () => Promise<() => Promise<void>>, string][] = [
+      [
+        "no space for the second scratch folder",
+        async () => {
+          faults.mkdtemp = /[/\\]check-$/u;
+          return async () => {
+            faults.mkdtemp = undefined;
+          };
+        },
+        "setup-failed",
+      ],
+      [
+        "a changed clone config",
+        async () => {
+          const original = await readFile(config);
+          await writeFile(
+            config,
+            Buffer.concat([original, Buffer.from("[core]\n\tbare = false\n")]),
+          );
+          return () => writeFile(config, original);
+        },
+        "workspace-not-trusted",
+      ],
+      [
+        "a repointed worktree pointer",
+        async () => {
+          const original = await readFile(pointer);
+          await writeFile(pointer, otherPointer);
+          return () => writeFile(pointer, original);
+        },
+        "workspace-not-trusted",
+      ],
+    ];
+    for (const [label, arrange, reason] of setups) {
+      const restore = await arrange();
+      try {
+        const results = [
+          await runner.add(target, ["."]),
+          await runner.commit(target, "Refused", identity, { all: true }),
+        ];
+        for (const outcome of results) {
+          expect(outcome, label).toMatchObject(refused(reason));
+          expect(outcome, label).not.toHaveProperty("afterExit");
+        }
+      } finally {
+        await restore();
+      }
+      expect(run, label).not.toHaveBeenCalled();
+      expect(await markerRan(marker), label).toBe(false);
+      expect(await state(), label).toEqual(before);
+      expect(await scratchLeft(), label).toEqual([]);
+    }
+  });
+
+  it.skipIf(macOnly)(
+    "reports add and commit as uncertain when the sandbox rejects after running them",
+    async () => {
+      const git = gitRunner();
+      const workspace = await checkout(git);
+      const target = await linkedWorktree(git, workspace.cwd);
+      const worktree = target.worktree.cwd;
+      const real = await loadMxc();
+      const runner = gitRunner(
+        undefined,
+        sandbox(async (request) => {
+          await real.run(request);
+          throw new Error("Could not decode the execution result.");
+        }),
+      );
+      const head = await fixtureGit(worktree, "rev-parse", "HEAD");
+      await writeFile(join(worktree, "late.txt"), "late\n");
+
+      const added = await runner.add(target, ["late.txt"]);
+      expect(added).toMatchObject(uncertain);
+      expect(added.ok ? "" : added.error).not.toMatch(/start/u);
+      expect(await fixtureGit(worktree, "diff", "--cached", "--name-only")).toBe("late.txt");
+
+      const committed = await runner.commit(target, "Late", identity);
+      expect(committed).toMatchObject(uncertain);
+      expect(await fixtureGit(worktree, "rev-parse", "HEAD~1")).toBe(head);
+      expect(await scratchLeft()).toEqual([]);
+    },
+  );
 });

@@ -10,7 +10,8 @@ import { buildSandboxConfig, canonicalSandboxWorkspace, quoteShell } from "../co
 export type ConfinementReason =
   | "unsupported-platform"
   | "mxc-unavailable"
-  | "mxc-failed"
+  | "setup-failed"
+  | "workspace-not-trusted"
   | "confinement-not-proven";
 
 /** A program the command started may outlive it; the host cannot tell. */
@@ -24,11 +25,28 @@ export type ConfinedResult =
       readonly code: number | null;
       readonly afterExit: AfterExit;
     }
+  /** Refused before the sandbox was asked to run anything. */
   | {
       readonly ok: false;
       readonly refused: ConfinementReason;
       readonly error: string;
       readonly code: null;
+    }
+  /** The sandbox ran, but its result does not prove it held; Git may have run. */
+  | {
+      readonly ok: false;
+      readonly refused: "confinement-not-proven";
+      readonly error: string;
+      readonly code: null;
+      readonly afterExit: AfterExit;
+    }
+  /** The sandbox was asked to run and gave no usable result; Git may have run. */
+  | {
+      readonly ok: false;
+      readonly uncertain: "outcome-not-known";
+      readonly error: string;
+      readonly code: null;
+      readonly afterExit: AfterExit;
     };
 
 export interface MxcApi {
@@ -53,16 +71,37 @@ export interface ConfinedCommand {
 const messages: Record<ConfinementReason, string> = {
   "unsupported-platform": "Confined Git is not available on this platform yet.",
   "mxc-unavailable": "The sandbox for Git is not available.",
-  "mxc-failed": "The sandbox for Git failed to start.",
+  "setup-failed": "The sandbox for Git could not be set up.",
+  "workspace-not-trusted": "The worktree's Git files are not the ones the host recorded.",
   "confinement-not-proven": "The sandbox for Git could not be proven.",
 };
 
-const refuse = (reason: ConfinementReason): ConfinedResult => ({
+export const refuse = (reason: ConfinementReason): ConfinedResult => ({
   ok: false,
   refused: reason,
   error: messages[reason],
   code: null,
 });
+
+const notProven: ConfinedResult = {
+  ok: false,
+  refused: "confinement-not-proven",
+  error: messages["confinement-not-proven"],
+  code: null,
+  afterExit: "not-known",
+};
+
+const uncertain: ConfinedResult = {
+  ok: false,
+  uncertain: "outcome-not-known",
+  error: "The sandbox for Git gave no usable result. Git may have run.",
+  code: null,
+  afterExit: "not-known",
+};
+
+/** The wrapper's own exits, before Git starts. */
+const canaryWritten = 97;
+const canaryNotDenied = 98;
 
 async function exists(path: string): Promise<boolean> {
   try {
@@ -101,6 +140,41 @@ function diagnostic(stderr: string, exit: number): string {
   return (line ?? `exit ${exit}`).slice(0, 500);
 }
 
+function isExecutionResult(value: unknown): value is ExecutionResult {
+  if (typeof value !== "object" || value === null) return false;
+  const result = value as Record<string, unknown>;
+  return (
+    typeof result.stdout === "string" &&
+    typeof result.stderr === "string" &&
+    Number.isInteger(result.exitCode) &&
+    typeof result.timedOut === "boolean"
+  );
+}
+
+async function judge(value: unknown, proof: string, canary: string): Promise<ConfinedResult> {
+  if (
+    !isExecutionResult(value) ||
+    !value.stdout.startsWith(proof) ||
+    value.exitCode === canaryWritten ||
+    value.exitCode === canaryNotDenied ||
+    (await exists(canary))
+  ) {
+    return notProven;
+  }
+  if (value.timedOut) {
+    return { ok: false, error: "Git timed out.", code: null, afterExit: "not-known" };
+  }
+  if (value.exitCode !== 0) {
+    return {
+      ok: false,
+      error: diagnostic(value.stderr, value.exitCode),
+      code: value.exitCode,
+      afterExit: "not-known",
+    };
+  }
+  return { ok: true, data: value.stdout.slice(proof.length), afterExit: "not-known" };
+}
+
 export async function runConfined(
   command: ConfinedCommand,
   load: () => Promise<MxcApi> = loadMxc,
@@ -117,9 +191,16 @@ export async function runConfined(
   } catch {
     return refuse("mxc-unavailable");
   }
-  const temp = await mkdtemp(join(command.scratch, "run-"));
-  const check = await mkdtemp(join(command.scratch, "check-"));
+  const allocated: string[] = [];
+  const allocate = async (prefix: string) => {
+    const directory = await mkdtemp(join(command.scratch, prefix));
+    allocated.push(directory);
+    return directory;
+  };
+  let launched = false;
   try {
+    const temp = await allocate("run-");
+    const check = await allocate("check-");
     const workspace = await canonicalSandboxWorkspace({
       clonePath: command.clone,
       worktreePath: command.worktree,
@@ -133,53 +214,38 @@ export async function runConfined(
       return refuse("confinement-not-proven");
     }
     const id = `spi-confined-${randomUUID()}`;
+    // Seatbelt denies the write with EPERM; any other failure proves nothing about the policy.
     const script = [
-      `printf '%s\\n' ${quoteShell(id)}`,
-      `if (printf x > ${quoteShell(canary)}) 2>/dev/null; then exit 97; fi`,
+      `denied=$( { printf x > ${quoteShell(canary)}; } 2>&1 ) && exit ${canaryWritten}`,
+      `case $denied in *${quoteShell(`${canary}: Operation not permitted`)}) ;; *) exit ${canaryNotDenied} ;; esac`,
+      `printf '%s\\n' ${quoteShell(`${id}:EPERM`)}`,
       `exec ${[command.binary, ...command.args].map(quoteShell).join(" ")}`,
     ].join("; ");
-    let result: ExecutionResult;
-    try {
-      result = await mxc.run({
-        containment: {
-          type: "seatbelt",
-          config: { guiAccess: false, nestedPty: false, keychainAccess: false },
-        },
-        filesystem: {
-          readwritePaths: [...writable],
-          readonlyPaths: [...(filesystem.readonlyPaths ?? [])],
-        },
-        network: {
-          egress: { default: "deny" },
-          ingress: { default: "deny", hostLoopback: "deny" },
-        },
-        environment: { ...command.env, TMPDIR: temp, TMP: temp, TEMP: temp },
-        workingDirectory: workspace.worktreePath ?? command.worktree,
-        timeoutMs: command.timeoutMs,
-        command: `/bin/sh -c ${quoteShell(script)}`,
-      });
-    } catch {
-      return refuse("mxc-failed");
-    }
-    const begin = `${id}\n`;
-    if ((await exists(canary)) || result.exitCode === 97 || !result.stdout.startsWith(begin)) {
-      return refuse("confinement-not-proven");
-    }
-    if (result.timedOut)
-      return { ok: false, error: "Git timed out.", code: null, afterExit: "not-known" };
-    if (result.exitCode !== 0) {
-      return {
-        ok: false,
-        error: diagnostic(result.stderr, result.exitCode),
-        code: result.exitCode,
-        afterExit: "not-known",
-      };
-    }
-    return { ok: true, data: result.stdout.slice(begin.length), afterExit: "not-known" };
+    launched = true;
+    const result: unknown = await mxc.run({
+      containment: {
+        type: "seatbelt",
+        config: { guiAccess: false, nestedPty: false, keychainAccess: false },
+      },
+      filesystem: {
+        readwritePaths: [...writable],
+        readonlyPaths: [...(filesystem.readonlyPaths ?? [])],
+      },
+      network: {
+        egress: { default: "deny" },
+        ingress: { default: "deny", hostLoopback: "deny" },
+      },
+      environment: { ...command.env, TMPDIR: temp, TMP: temp, TEMP: temp },
+      workingDirectory: workspace.worktreePath ?? command.worktree,
+      timeoutMs: command.timeoutMs,
+      command: `/bin/sh -c ${quoteShell(script)}`,
+    });
+    return await judge(result, `${id}:EPERM\n`, canary);
+  } catch {
+    return launched ? uncertain : refuse("setup-failed");
   } finally {
-    await Promise.all([
-      rm(temp, { recursive: true, force: true }),
-      rm(check, { recursive: true, force: true }),
-    ]);
+    await Promise.allSettled(
+      allocated.map((directory) => rm(directory, { recursive: true, force: true })),
+    );
   }
 }
