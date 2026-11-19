@@ -6,7 +6,7 @@ import { restatesHeadline } from "../components/opened-body/content.js";
 import { plainTitle } from "../text.js";
 import { instantsIn, timedText, when } from "../time.js";
 import { activityView } from "../views/environment/activity.js";
-import { borrowInRange, borrowWhen } from "../views/environment/borrows.js";
+import { borrowDetail, borrowInRange } from "../views/environment/borrows.js";
 import { runName } from "../views/environment/opening.js";
 import { daysOf, lastOf, rangeOf, WEEK, within } from "../views/environment/range.js";
 import { eventSpan, eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
@@ -505,10 +505,20 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
       const words = { contains: true };
       add(`${pointer}/fork`, borrow.fork, where, `${popover} h3`);
       if (borrow.branch) add(`${pointer}/branch`, borrow.branch, where, `${popover} > p`, words);
-      add(`${pointer}/result`, borrow.result, where, `${popover} > p`, words);
-      const span = borrowWhen(borrow, to);
-      add(`${pointer}/start`, span, where, `${popover} > p`, words);
-      if (borrow.end) add(`${pointer}/end`, span, where, `${popover} > p`, words);
+      add(`${pointer}/result`, borrow.result, place, bar, { attribute: "data-result" });
+      const detail = borrowDetail(borrow, to);
+      add(`${pointer}/start`, detail, where, `${popover} > p`, words);
+      if (borrow.end) add(`${pointer}/end`, detail, where, `${popover} > p`, words);
+      if (borrow.detail)
+        add(
+          `${pointer}/detail`,
+          timedText(borrow.detail, { now: to }),
+          where,
+          `${popover} > p`,
+          words,
+        );
+      if (borrow.homeLabel)
+        add(`${pointer}/homeLabel`, borrow.homeLabel, where, ".popover .popover-rows a");
       if (borrow.estimated)
         add(`${pointer}/estimated`, "true", place, bar, { attribute: "data-estimated" });
       if (borrow.overlap)

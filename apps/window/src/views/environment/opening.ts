@@ -18,7 +18,7 @@ import {
 } from "../../components/opened-body/content.js";
 import { envelopesFor } from "../../store/evidence.js";
 import { plainTitle } from "../../text.js";
-import { borrowWhen } from "./borrows.js";
+import { borrowDetail } from "./borrows.js";
 import { type Range, rangeOf, routeOf, within } from "./range.js";
 import { eventKey, eventSpan, eventWhen } from "./timeline.js";
 
@@ -29,7 +29,7 @@ export type EnvironmentOpening = {
   content: OpenedContent;
   /** For a hold, the runs that ran while it held, each its own `event` selection. */
   during: { key: string; text: string }[];
-  fork?: string;
+  fork?: { id: string; label: string };
 };
 
 /** A run's name said once: "Smoke", not "Smoke · smoke". */
@@ -340,14 +340,12 @@ export function environmentOpening(
           title: borrow.fork,
           place,
           subject: null,
-          cause: [borrow.branch, borrow.result, borrowWhen(borrow, Date.parse(to))]
-            .filter(Boolean)
-            .join(" · "),
+          cause: [borrow.branch, borrowDetail(borrow, Date.parse(to))].filter(Boolean).join(" · "),
           ...(borrow.overlap ? { effect: borrow.overlap } : {}),
           links: borrow.links,
         },
         during: [],
-        fork: borrow.fork,
+        fork: { id: borrow.fork, label: borrow.homeLabel ?? borrow.fork },
       };
     }
     case "item":

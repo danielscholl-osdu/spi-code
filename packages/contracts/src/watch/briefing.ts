@@ -140,6 +140,9 @@ const EnvBorrowSchema = z.strictObject({
   fork: z.string(),
   branch: z.string().optional(),
   result: z.enum(["green", "failed", "running", "unknown"]),
+  /** Borrow copy with instant times, absent in snapshots saved before core sent it. */
+  detail: z.string().optional(),
+  homeLabel: z.string().optional(),
   start: ObservedAtSchema,
   end: ObservedAtSchema.optional(),
   estimated: z.literal(true).optional(),

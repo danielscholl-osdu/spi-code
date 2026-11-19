@@ -7,7 +7,7 @@ import { clockTime, timeUnit } from "../../time.js";
 // Ported from keelson-rib-spi @59d6895, src/boards/console.ts.
 export const TRACK_MIN_PX = 960;
 /** The lane label column the track sits beside. */
-export const LABEL_PX = 84;
+export const LABEL_PX = 136;
 const CHAR_PX = 6.6;
 const BAR_MIN_PX = 10;
 const LABEL_GAP_PX = 9;

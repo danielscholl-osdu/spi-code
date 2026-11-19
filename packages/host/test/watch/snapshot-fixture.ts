@@ -48,6 +48,9 @@ export const recordedRoot = fileURLToPath(new URL("../../../core/test/fixtures/"
 export const recordedSnapshotPath = fileURLToPath(
   new URL("../../../../fixtures/watch/snapshot-1106.json", import.meta.url),
 );
+export const chicagoSnapshotPath = fileURLToPath(
+  new URL("../../../../fixtures/watch/generated/snapshot-1106-chicago.json", import.meta.url),
+);
 export const detailFeedPath = fileURLToPath(
   new URL("../../../../fixtures/watch/inspect-1106.json", import.meta.url),
 );
@@ -117,14 +120,14 @@ export function fixtureInput(): WatchInput {
 }
 
 /** The watch snapshots use the host's style; oracle inputs keep their default context. */
-export function appStyle(input: WatchInput): WatchInput {
+export function appStyle(input: WatchInput, timeZone = "UTC"): WatchInput {
   return {
     ...input,
     context: Object.freeze({
       ...input.context,
       timeStyle: "instant",
       words: "app",
-      timeZone: "UTC",
+      timeZone,
     }),
   };
 }

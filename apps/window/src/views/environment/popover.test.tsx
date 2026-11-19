@@ -236,6 +236,7 @@ it.each(["Escape", "Close"])(
         fork: "indexer",
         branch: "main",
         result: "running",
+        detail: "running",
         start: new Date(Date.parse(body.briefing.environment.to) - 3_600_000).toISOString(),
         links: [],
       },

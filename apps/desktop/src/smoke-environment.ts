@@ -1,7 +1,11 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { ViewSnapshot } from "@spi-code/contracts";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
+
+export const SMOKE_TIME_ZONE = "America/Chicago";
 
 export const ENVIRONMENT_LIVE = '.environment .env-status[data-state="in-use"] button';
 export const ENVIRONMENT_BORROW = '.environment .popover[data-selection^="borrow~"]';
@@ -37,6 +41,14 @@ export function environmentYesterdayUpgrade(source: ViewSnapshot): string {
 })()`;
 }
 
+export function recordedChicagoSnapshot(fixturePath: string): ViewSnapshot {
+  return ViewSnapshotSchema.parse(
+    JSON.parse(
+      readFileSync(join(dirname(fixturePath), "generated", "snapshot-1106-chicago.json"), "utf8"),
+    ),
+  );
+}
+
 export function smokeEnvironment(source: ViewSnapshot): ViewSnapshot {
   const body = structuredClone(source);
   const env = body.briefing.environment;
@@ -57,6 +69,8 @@ export function smokeEnvironment(source: ViewSnapshot): ViewSnapshot {
       fork: "indexer",
       branch: "release/upstream",
       result: "running",
+      detail: `running · ${start} to now · 1\u00a0h 21\u00a0min`,
+      homeLabel: "indexer home",
       start,
       links: [
         { kind: "run", label: "Run", url: "https://github.com/example/indexer/actions/runs/7" },
@@ -67,7 +81,15 @@ export function smokeEnvironment(source: ViewSnapshot): ViewSnapshot {
         },
       ],
     },
-    { id: "search:smoke", fork: "search", ...search, result: "green", links: [] },
+    {
+      id: "search:smoke",
+      fork: "search",
+      ...search,
+      result: "green",
+      detail: `green · ${search.start} to ${search.end} · 1\u00a0h`,
+      homeLabel: "search home",
+      links: [],
+    },
     ...(env.borrows ?? []),
   ];
   // The recorded range ends in idle time. Put the synthetic borrows into that gap.
@@ -87,12 +109,12 @@ export function smokeEnvironment(source: ViewSnapshot): ViewSnapshot {
 
 export const ENVIRONMENT_STACK = '.environment [data-lane="reset"] .env-last';
 
-/** Reset, read 15 days back, and a by-hand smoke after a missed nightly, over the recorded lanes. */
+/** An overdue Reset, a waiting Upgrade and a by-hand smoke after a missed nightly. */
 function stackLanes(env: ViewSnapshot["briefing"]["environment"]) {
   const to = Date.parse(env.to);
   const at = (hours: number) => new Date(to - hours * 3_600_000).toISOString();
   const refresh = env.lanes.findIndex(({ id }) => id === "refresh");
-  const text = "Tue 3 Nov \u00b7 green";
+  const text = "Thu 22 Oct \u00b7 green";
   const late = { text, note: "15 days ago", late: true as const };
   const days = (env.days ?? []).map(({ from }, index, all) => ({
     from,
@@ -110,6 +132,11 @@ function stackLanes(env: ViewSnapshot["briefing"]["environment"]) {
       ...days.map((day) => (day.to === env.to ? { ...day, ...late } : day)),
     ],
   });
+  const upgrade = env.lanes.find(({ id }) => id === "upgrade");
+  if (!upgrade?.last) throw new Error("The Environment smoke scene needs an empty Upgrade lane");
+  const note = "v0.35.4 not adopted";
+  upgrade.last.note = note;
+  for (const last of upgrade.lasts ?? []) if (last.to === env.to) last.note = note;
   const smoke = env.lanes.find(({ id }) => id === "smoke");
   if (!smoke) return;
   smoke.missed = [at(20)];

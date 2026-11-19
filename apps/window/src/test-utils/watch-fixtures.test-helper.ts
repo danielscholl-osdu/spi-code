@@ -15,7 +15,10 @@ export const WATCH_SNAPSHOTS = [
 ] as const;
 
 /** Snapshots in fixtures/watch the text rules leave out, each with its reason. */
-export const EXCLUDED_SNAPSHOTS: Record<string, string> = {};
+export const EXCLUDED_SNAPSHOTS: Record<string, string> = {
+  "snapshot-1106-chicago.json":
+    "Packaged Environment capture in the renderer's zone. Text rules already walk snapshot-1106.json.",
+};
 
 export const WATCH_INSPECTIONS = ["inspect-1106.json", "inspect-stations-legal-59d6895.json"];
 

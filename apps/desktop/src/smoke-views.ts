@@ -26,6 +26,8 @@ import {
   ENVIRONMENT_WEEK,
   ENVIRONMENT_YESTERDAY,
   environmentYesterdayUpgrade,
+  recordedChicagoSnapshot,
+  SMOKE_TIME_ZONE,
   smokeEnvironment,
 } from "./smoke-environment.js";
 import { captureForks } from "./smoke-forks.js";
@@ -917,6 +919,8 @@ export async function captureSmokeViews(
   const snapshot = withServiceLists(
     withSmokeServiceRuns(ViewSnapshotSchema.parse(JSON.parse(readFileSync(fixturePath, "utf8")))),
   );
+  const recordedEnvironment = recordedChicagoSnapshot(fixturePath);
+  const environmentScene = smokeEnvironment(recordedEnvironment);
   const acknowledged = ViewSnapshotSchema.parse(
     JSON.parse(readFileSync(join(dirname(fixturePath), "generated", ACKNOWLEDGED_FIXTURE), "utf8")),
   );
@@ -1026,7 +1030,7 @@ export async function captureSmokeViews(
     await window.webContents.debugger.sendCommand("Page.enable");
     stopDrawing = await keepDrawing(window);
     await window.webContents.debugger.sendCommand("Emulation.setTimezoneOverride", {
-      timezoneId: "America/Chicago",
+      timezoneId: SMOKE_TIME_ZONE,
     });
     const clock: { identifier: string } = await window.webContents.debugger.sendCommand(
       "Page.addScriptToEvaluateOnNewDocument",
@@ -1192,7 +1196,7 @@ export async function captureSmokeViews(
               fixture(window, "view.snapshot", { ...unreadForks, cursor: scheduledCursor++ });
             if (surface.id === "environment")
               fixture(window, "view.snapshot", {
-                ...smokeEnvironment(snapshot),
+                ...environmentScene,
                 cursor: scheduledCursor++,
               });
             await window.webContents.executeJavaScript(
@@ -1550,14 +1554,20 @@ export async function captureSmokeViews(
               join(output, `environment-day-${viewportWidth}-${appearance}.png`),
             );
             const upgrade = await window.webContents.executeJavaScript(
-              environmentYesterdayUpgrade(snapshot),
+              environmentYesterdayUpgrade(environmentScene),
             );
             assert(
               upgrade === true,
               `Environment yesterday at ${viewportWidth}: Upgrade reads ${JSON.stringify(upgrade)}, not core's last run for that day`,
             );
             await window.webContents.executeJavaScript('location.hash = "#environment"');
-            await rendered(window, `!document.querySelector(${JSON.stringify(ENVIRONMENT_BACK)})`);
+            fixture(window, "view.snapshot", { ...recordedEnvironment, cursor: scheduledCursor++ });
+            await captureSettled(
+              window,
+              `document.querySelector('.environment .env-status[data-state="idle"]') &&
+              !document.querySelector(${JSON.stringify(ENVIRONMENT_BACK)})`,
+              join(output, `environment-1106-${viewportWidth}-${appearance}.png`),
+            );
           }
           if (surface.id === "service-calm" || surface.id === "environment")
             fixture(window, "view.snapshot", { ...snapshot, cursor: scheduledCursor++ });
@@ -1826,7 +1836,11 @@ ${VIEW_WIDTHS.map(
             shot.viewportWidth === width &&
             shot.appearance === appearance,
         );
-        return `<td><a href="${file}"><img alt="${surface.name}, ${width} px, ${appearance}" src="${file}"></a><p>Geometry: ${shot?.geometry.map((check) => check.rule).join(", ") || "not probed on this surface"}</p></td>`;
+        const recorded =
+          surface.id === "environment"
+            ? `<p><a href="environment-1106-${width}-${appearance}.png">Recorded Nov 6 status</a></p>`
+            : "";
+        return `<td><a href="${file}"><img alt="${surface.name}, ${width} px, ${appearance}" src="${file}"></a><p>Geometry: ${shot?.geometry.map((check) => check.rule).join(", ") || "not probed on this surface"}</p>${recorded}</td>`;
       })
       .join("")}</tr></table>`,
 ).join("")}</section>`,

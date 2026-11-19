@@ -2,7 +2,15 @@
 // SPDX-License-Identifier: MIT
 
 import type { Reading, RepoLine } from "@spi-code/contracts";
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { useStore } from "zustand";
 import {
   FORKS,
@@ -33,6 +41,7 @@ import {
   eventWord,
   fixed,
   hourTicks,
+  LABEL_PX,
   pctOf,
   place,
   TIER_PX,
@@ -246,7 +255,16 @@ export default function Environment({
       )}
       <SectionEvidence evidence={body} prefixes={["/briefing/environment/lanes"]} />
       <div className="env-scroll">
-        <div className="env-timeline" style={{ minWidth: TRACK_MIN_PX }}>
+        <div
+          className="env-timeline"
+          style={
+            {
+              minWidth: TRACK_MIN_PX,
+              "--env-label-width": `${LABEL_PX}px`,
+              "--env-after-label": `${LABEL_PX + 6}px`,
+            } as CSSProperties
+          }
+        >
           <div className="env-grid" aria-hidden="true">
             {range.to === now.getTime() && <span className="env-now" />}
             {ticks.map((tick) => (
@@ -514,9 +532,9 @@ export default function Environment({
             <div className="popover-rows">
               <a
                 className="kit-link kit-link--muted"
-                href={routeHash({ kind: "service", id: opening.fork })}
+                href={routeHash({ kind: "service", id: opening.fork.id })}
               >
-                {opening.fork} home
+                {opening.fork.label}
               </a>
             </div>
           )}

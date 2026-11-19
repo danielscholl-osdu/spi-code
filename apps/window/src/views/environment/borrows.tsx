@@ -3,17 +3,13 @@
 
 import type { EnvBorrow, Environment } from "@spi-code/contracts";
 import { type ComponentProps, type ReactNode, useState } from "react";
-import { clockTime } from "../../time.js";
+import { timedText } from "../../time.js";
 import { type Day, dayNames } from "./range.js";
-import { eventWord, fixed, LABEL_PX, pctOf, span, TRACK_MIN_PX } from "./timeline.js";
+import { eventWord, fixed, LABEL_PX, pctOf, TRACK_MIN_PX } from "./timeline.js";
 
-export function borrowWhen(borrow: EnvBorrow, now: number): string {
-  const start = clockTime(borrow.start, { now });
-  const estimate = borrow.estimated ? "≈" : "";
-  const end = borrow.end ? Date.parse(borrow.end) : borrow.result === "running" ? now : undefined;
-  if (end === undefined) return start;
-  const endText = borrow.end ? clockTime(end, { now }) : "now";
-  return `${start} to ${estimate}${endText} · ${estimate}${span(end - Date.parse(borrow.start))}`;
+export function borrowDetail(borrow: EnvBorrow, now: number): string {
+  const detail = borrow.detail ?? [borrow.start, borrow.end].filter(Boolean).join(" → ");
+  return timedText(detail, { now });
 }
 
 export function borrowInRange(borrow: EnvBorrow, from: number, to: number): boolean {
@@ -187,7 +183,7 @@ export function BorrowRows({
             <div className="env-lane-label env-fork-label">{fork}</div>
             <div className="env-track" style={{ height: ends.length * 16 + 10 }}>
               {placed.map(({ borrow, tier, start, end }) => {
-                const label = [fork, borrow.result, borrowWhen(borrow, now)].join(" · ");
+                const label = [fork, borrowDetail(borrow, now)].join(" · ");
                 return (
                   <button
                     type="button"

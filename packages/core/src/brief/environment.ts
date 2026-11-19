@@ -19,6 +19,8 @@ export interface EnvBorrow {
   fork: string;
   branch?: string;
   result: "green" | "failed" | "running" | "unknown";
+  detail: string;
+  homeLabel: string;
   start: string;
   end?: string;
   estimated?: true;
@@ -93,7 +95,8 @@ function borrowEnd(deploy: DeploymentFact, to: number): number | undefined {
     ? end : undefined;
 }
 
-function borrowList(histories: readonly ForkDeployments[], to: number): EnvBorrow[] {
+function borrowList(histories: readonly ForkDeployments[], now: Date, context: CoreContext): EnvBorrow[] {
+  const to = now.getTime();
   const typical = median(histories.flatMap(({ deployments }) => deployments.flatMap((deploy) => {
     const end = borrowEnd(deploy, to);
     return end === undefined ? [] : [end - Date.parse(deploy.createdAt)];
@@ -109,14 +112,26 @@ function borrowList(histories: readonly ForkDeployments[], to: number): EnvBorro
         ? Math.min(start + typical, next ? Date.parse(next.createdAt) : to)
         : undefined;
       const end = borrowEnd(deploy, to) ?? estimate;
+      const startAt = new Date(start).toISOString();
+      const endAt = end === undefined ? undefined : new Date(end).toISOString();
+      const outcome = result(deploy.state);
+      const estimated = estimate !== undefined;
+      const since = environmentAt(startAt, now, context);
+      const until = endAt
+        ? `${estimated ? "≈\u00a0" : ""}${environmentAt(endAt, now, context)}`
+        : outcome === "running" ? "now" : undefined;
+      const time = until === undefined ? since
+        : `${since} to ${until} · ${estimated ? "≈" : ""}${span((end ?? to) - start)}`;
       return {
         id: `${fork}:${deploy.id ?? `${deploy.createdAt}:${deploy.sha ?? ""}:${index}`}`,
         fork,
         ...(deploy.ref ? { branch: deploy.ref } : {}),
-        result: result(deploy.state),
-        start: new Date(start).toISOString(),
-        ...(end !== undefined ? { end: new Date(end).toISOString() } : {}),
-        ...(estimate !== undefined ? { estimated: true } : {}),
+        result: outcome,
+        detail: `${outcome} · ${time}`,
+        homeLabel: `${fork} home`,
+        start: startAt,
+        ...(endAt ? { end: endAt } : {}),
+        ...(estimated ? { estimated: true } : {}),
         links: [
           ...(deploy.runUrl ? [{ kind: "run" as const, label: "Run", url: deploy.runUrl }] : []),
           ...(deploy.deploymentUrl
@@ -352,7 +367,7 @@ export function environmentUsage(
   model: Model, lanes: readonly EnvLane[], from: number, now: Date, context: CoreContext,
 ) {
   const to = now.getTime();
-  const all = borrowList(model.forkDeployments, to);
+  const all = borrowList(model.forkDeployments, now, context);
   const forksNote = incompleteNote(model.forkDeployments, from);
   const status = statusOf(model, lanes, all, forksNote, now, context);
   const borrows = all.filter((borrow) =>

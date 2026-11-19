@@ -20,6 +20,8 @@ import {
   ENVIRONMENT_LINK,
   ENVIRONMENT_LIVE,
   ENVIRONMENT_STACK,
+  recordedChicagoSnapshot,
+  SMOKE_TIME_ZONE,
   smokeEnvironment,
 } from "./smoke-environment.js";
 import { RUNS_FAILURE, RUNS_ROUTE, withSmokeServiceRuns } from "./smoke-service-runs.js";
@@ -947,7 +949,7 @@ export async function assertRenderedContrast(
     await debug.sendCommand("Page.enable");
     await debug.sendCommand("DOM.enable");
     await debug.sendCommand("CSS.enable");
-    await debug.sendCommand("Emulation.setTimezoneOverride", { timezoneId: "America/Chicago" });
+    await debug.sendCommand("Emulation.setTimezoneOverride", { timezoneId: SMOKE_TIME_ZONE });
     const clock: { identifier: string } = await debug.sendCommand(
       "Page.addScriptToEvaluateOnNewDocument",
       { source: `Date.now = () => ${Date.parse(checkedAt)};` },
@@ -1098,7 +1100,7 @@ export async function assertRenderedContrast(
       await push(snapshot);
       await everyShade(`today-${morning}`, ".today");
     }
-    await push(smokeEnvironment(nov6));
+    await push(smokeEnvironment(recordedChicagoSnapshot(fixturePath)));
     const liveBorrow = `document.querySelector(${JSON.stringify(ENVIRONMENT_LIVE)})`;
     const borrowPopover = `document.querySelector(${JSON.stringify(ENVIRONMENT_BORROW)})`;
     await js('location.hash = "#environment"');
