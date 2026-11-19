@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { ThreadJournal } from "./journal.js";
+import { toolOutputRedactor } from "./redaction.js";
 import { finishTurn, Timeline } from "./timeline.js";
 import type {
   JournalEntry,
@@ -313,32 +314,36 @@ export class ThreadEngine<Tool> {
       delta: (text) => {
         if (live() && text) this.record(id, [{ type: "assistant.delta", turnId, text }]);
       },
-      toolStarted: (call) => {
-        if (!live() || turn.tools.some(({ start }) => start.callId === call.callId)) return;
-        this.record(id, [{ ...call, type: "tool.started", turnId }]);
+      toolStarted: ({ callId, name, kind, arguments: args }) => {
+        if (!live() || turn.tools.some(({ start }) => start.callId === callId)) return;
+        this.record(id, [{ type: "tool.started", turnId, callId, name, kind, arguments: args }]);
       },
-      toolFinished: (result) => {
+      toolFinished: (completion) => {
         if (!live()) return;
-        const call = turn.tools.find(({ start }) => start.callId === result.callId);
+        const { callId, outcome } = completion;
+        const call = turn.tools.find(({ start }) => start.callId === callId);
         if (!call || call.end) return;
+        const result =
+          "resultChunks" in completion
+            ? toolOutputRedactor.chunks(completion.resultChunks)
+            : toolOutputRedactor.value(completion.result);
         this.record(id, [
           {
-            ...result,
             type: "tool.finished",
             turnId,
-            resultBytes: Buffer.byteLength(JSON.stringify(result.result)),
+            callId,
+            outcome,
+            result,
+            resultBytes: Buffer.byteLength(JSON.stringify(result)),
             durationMs: Math.max(0, Date.now() - call.start.at),
           },
         ]);
       },
-      requestApproval: async (request) => {
-        if (
-          !live() ||
-          turn.approvals.some((item) => item.request.approvalId === request.approvalId)
-        )
+      requestApproval: async ({ approvalId, kind, detail }) => {
+        if (!live() || turn.approvals.some((item) => item.request.approvalId === approvalId))
           return false;
-        this.record(id, [{ ...request, type: "approval.requested", turnId }]);
-        return new Promise((resolve) => approvals.set(request.approvalId, resolve));
+        this.record(id, [{ type: "approval.requested", turnId, approvalId, kind, detail }]);
+        return new Promise((resolve) => approvals.set(approvalId, resolve));
       },
     };
   }

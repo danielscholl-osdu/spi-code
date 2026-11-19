@@ -78,6 +78,13 @@ export interface ToolResult {
   result: JsonValue;
 }
 
+/** A runtime can submit ordered raw text chunks instead of a complete structured result. */
+export type ToolCompletion =
+  | ToolResult
+  | (Omit<ToolResult, "result"> & {
+      resultChunks: Iterable<string>;
+    });
+
 export interface ApprovalRequest {
   approvalId: string;
   kind: string;
@@ -87,7 +94,7 @@ export interface ApprovalRequest {
 export interface RuntimeEvents {
   delta(text: string): void;
   toolStarted(call: ToolStart): void;
-  toolFinished(result: ToolResult): void;
+  toolFinished(result: ToolCompletion): void;
   requestApproval(request: ApprovalRequest): Promise<boolean>;
 }
 
