@@ -11,6 +11,10 @@ The Environment place's design, settled on 2026-11-18. Its mock is `spi-code-env
 
 The sidebar does not change: it shows green or in maintenance, never in use.
 
+## Place title
+
+The place title carries the stack repository as a pill: its name (`osdu-spi-stack`) in neutral ink, with a small dot in the repository's tone only when it is not fine. The pill opens a popover with the repository's facts, its line, its sections and their lines, and its note; a line opens its own popover in place of it.
+
 ## Status line
 
 One line, then one facts line. The three tiles go.
@@ -47,6 +51,7 @@ Refresh, Reset, Upgrade and Smoke, each with its cadence under its name, taken f
 
 - One bar per run, coloured by result: green, failed, running, cancelled. A popover gives the run's span, length, trigger and its link.
 - A run started by hand on Refresh or Smoke carries a small ◆. Reset is always by hand and is not marked.
+- A run's label never runs past the range's edge; at the left edge it starts at the edge.
 - An empty lane shows its last run on a backing: `‹ Tue 3 Nov · green`. At now, Reset adds its age (`15 days ago`, amber after 7 days) and Upgrade adds a version waiting to be adopted (`v0.35.6 not adopted`); inside an opened past day neither does.
 - Smoke draws a dashed slot only for a nightly that did not run.
 - The Reset lane is absent until core reads `env-reset.yml`.
@@ -69,7 +74,7 @@ One line under the timeline listing only the marks in the current range.
 
 ## Below the timeline
 
-Waiting on you, the Stack runs fold and the Stack repository fold stay. The Version and Fork deploys rows go.
+Only Waiting on you. The Stack runs fold goes: its Upstream syncs are Upstream's and Today's, and its run headline repeats the status line, the facts line and the lanes. The Stack repository fold moves to the title's pill. The Version and Fork deploys rows go.
 
 ## Data and its limits
 
