@@ -55,9 +55,9 @@ function label(names: string, separator: string): string {
 }
 
 const placeholderValue = String.raw`(?:\$?\{[^{}\r\n]*\}|<[^<>\r\n]*>|\$[\w]+\$?)`;
-const modelScalar = `${quotedValue}|${placeholderValue}|${tokenValue}`;
+const kubeDataValue = `${quotedValue}|${placeholderValue}|${tokenValue}`;
 const kubeDataAssignment = new RegExp(
-  `(${label("(?:client-key-data|client-certificate-data)", ":")})(${modelScalar})`,
+  `(${label("(?:client-key-data|client-certificate-data)", ":")})(${kubeDataValue})`,
   "g",
 );
 const journalAssignments = new RegExp(
@@ -70,15 +70,8 @@ const journalSignature = new RegExp(
 );
 const authorization = /^(?:proxy-)?authorization$/i;
 const scheme = /^(?:Basic|Bearer|Token)[ \t]+/i;
-function authorizationHeader(scalar: string): RegExp {
-  const name = label("(?:proxy-)?authorization", "[:=]");
-  const value = `${quotedValue}|(?:Basic|Bearer|Token)[ \\t]+(?:${scalar})`;
-  return new RegExp(`(${name})(${value})`, "gi");
-}
-const modelHeader = authorizationHeader(modelScalar);
-const journalHeader = authorizationHeader(`${quotedValue}|${tokenValue}`);
-const escapedHeader = new RegExp(
-  String.raw`(\\+"(?:proxy-)?authorization\\+"[ \t]*:[ \t]*\\+"(?:Basic|Bearer|Token)[ \t]+)(${placeholderValue}|${tokenValue})(?=\\+")`,
+const journalHeader = new RegExp(
+  `(${label("(?:proxy-)?authorization", "[:=]")})(${quotedValue}|(?:Basic|Bearer|Token)[ \\t]+(?:${quotedValue}|${tokenValue}))`,
   "gi",
 );
 const tokenCharacters = new RegExp(`^${tokenValue}$`);
@@ -101,27 +94,10 @@ function azureConnection(key: string): RegExp {
     "gi",
   );
 }
-const connectionValue = String.raw`(?:${quotedValue}|${placeholderValue}|[^;\\\s"'<>\x60]+)`;
-const connectionField = String.raw`[\w.-]+=${connectionValue}`;
-const modelConnection = new RegExp(
-  String.raw`(?<![\w.-])${connectionField}(?:;${connectionField})+`,
-  "g",
-);
-const connectionEntry = new RegExp(String.raw`([\w.-]+)=(${connectionValue})`, "g");
-const connectionAnchors = new Set(["AccountName", "Endpoint", "DefaultEndpointsProtocol"]);
-const connectionKeys = new Set(["AccountKey", "SharedAccessKey", "sig"]);
-const querySignature = new RegExp(`([?&]sig=)(${modelScalar})`, "g");
 const journalConnection = azureConnection("AccountKey|SharedAccessKey|SharedAccessSignature");
 
 const yamlField = /^([ \t]*(?:-[ \t]+)?)([\w-]+)[ \t]*:[ \t]*/;
 const blockIndicator = /^[|>](?:[+-]?[1-9]?|[1-9][+-]?)[ \t]*(?:#.*)?$/;
-const kubeDataField = /^client-(?:certificate|key)-data$/;
-const kubeToken = new RegExp(
-  `([,{][ \\t\\r\\n]*(?:"token"|'token'|token)[ \\t\\r\\n]*:[ \\t\\r\\n]*)(${modelScalar})`,
-  "g",
-);
-const flowKubeUser =
-  /(?<![\w.-])(?:"user"|'user'|user)\s*:\s*\{(?:[^{}"'\\]|"(?:\\.|[^"\\])*"|'(?:''|[^'])*'|\{[^{}]*\})*\}/g;
 const kubeUser = /^([ \t]*(?:-[ \t]+)?)user[ \t]*:[ \t]*(?:#.*)?$/;
 const spacedPassword = /^[^\s[\]{}()<>;,"'`|&\\]+(?:[ \t]+[^\s[\]{}()<>;,"'`|&\\]+)+$/u;
 const outputPrefix =
@@ -166,17 +142,14 @@ function scanAssignments(
   }
 }
 
-function scanAuthorization(collect: Scan, offset: number, value: string, journal: boolean): void {
+function scanAuthorization(collect: Scan, offset: number, value: string): void {
   const prefix = scheme.exec(value)?.[0];
   if (!prefix) return;
-  const credential = value.slice(prefix.length);
-  if (journal || isModelCredential(credential)) {
-    scanScalar(collect, offset + prefix.length, credential);
-  }
+  scanScalar(collect, offset + prefix.length, value.slice(prefix.length));
 }
 
-function scanHeaders(collect: Scan, output: string, journal: boolean): void {
-  for (const match of output.matchAll(journal ? journalHeader : modelHeader)) {
+function scanHeaders(collect: Scan, output: string): void {
+  for (const match of output.matchAll(journalHeader)) {
     const [prefix = "", value = ""] = match.slice(1);
     // Only headers whose whole value is quoted have an opening quote before the scheme.
     const quote = quoteWidth(value);
@@ -184,26 +157,8 @@ function scanHeaders(collect: Scan, output: string, journal: boolean): void {
       collect,
       match.index + prefix.length + quote,
       value.slice(quote, value.length - quote),
-      journal,
     );
   }
-  if (!journal) scanAssignments(collect, output, escapedHeader, isModelCredential);
-}
-
-function scanModelConnection(collect: Scan, output: string): void {
-  if (output.includes(";")) {
-    for (const match of output.matchAll(modelConnection)) {
-      const fields = [...match[0].matchAll(connectionEntry)];
-      if (!fields.some(([, key]) => key !== undefined && connectionAnchors.has(key))) continue;
-      for (const field of fields) {
-        const [, key = "", value = ""] = field;
-        if (connectionKeys.has(key) && isModelCredential(value)) {
-          scanScalar(collect, match.index + field.index + key.length + 1, value);
-        }
-      }
-    }
-  }
-  scanAssignments(collect, output, querySignature, isModelCredential);
 }
 
 function maskSpans(output: string, spans: SecretSpan[]): string {
@@ -298,7 +253,7 @@ function yamlBodyOffset(raw: string, prefix: string, indent: number, block: Yaml
   return indent > block.indent && (!diffLine || block.indent > 0) ? prefix.length + indent : -1;
 }
 
-function scanYaml(collect: Scan, output: string, journal: boolean): void {
+function scanYaml(collect: Scan, output: string): void {
   if (!output.includes(":")) return;
   let block: YamlBlock | undefined;
   let userIndent: number | undefined;
@@ -310,9 +265,7 @@ function scanYaml(collect: Scan, output: string, journal: boolean): void {
     if (block) {
       const offset = yamlBodyOffset(raw, prefix, indent, block);
       if (offset >= 0) {
-        if (journal || isModelCredential(raw.slice(offset))) {
-          collect(line.index + offset, line.index + raw.length);
-        }
+        collect(line.index + offset, line.index + raw.length);
         continue;
       }
       block = undefined;
@@ -325,17 +278,12 @@ function scanYaml(collect: Scan, output: string, journal: boolean): void {
     const [matchedLabel, keyIndent = "", key = ""] = field;
     const value = content.slice(matchedLabel.length);
     const kubeUserToken = key === "token" && userIndent !== undefined;
-    const credential = journal ? secretField.test(key) : kubeDataField.test(key) || kubeUserToken;
-    if (credential && blockIndicator.test(value)) {
+    if (secretField.test(key) && blockIndicator.test(value)) {
       block = { indent: keyIndent.length, numbered: prefix.endsWith("\t") };
-    } else if ((journal && key.toLowerCase() === "password") || kubeUserToken) {
+    } else if (key.toLowerCase() === "password" || kubeUserToken) {
       const comment = value.search(/[ \t]#/);
       const scalar = (comment < 0 ? value : value.slice(0, comment)).trimEnd();
-      if (
-        kubeUserToken
-          ? isCredential(scalar, 1) && (journal || isModelCredential(scalar))
-          : spacedPassword.test(scalar)
-      ) {
+      if (kubeUserToken ? isCredential(scalar, 1) : spacedPassword.test(scalar)) {
         scanScalar(collect, line.index + prefix.length + matchedLabel.length, scalar);
       }
     }
@@ -564,50 +512,34 @@ export function createToolOutputRedactor(knownSecrets: Iterable<string> = []): {
         for (const match of output.matchAll(shape))
           collect(match.index, match.index + match[0].length);
       }
-      scanYaml(collect, output, journal);
-      scanHeaders(collect, output, journal);
       if (journal) {
+        scanYaml(collect, output);
+        scanHeaders(collect, output);
         scanAssignments(collect, output, journalAssignments, (value) => isCredential(value, 16));
         scanAssignments(collect, output, kubeDataAssignment, (value) => isCredential(value, 1));
         scanAssignments(collect, output, journalSignature, (value) => isCredential(value, 1));
+        if (authorizationField) scanAuthorization(collect, 0, output);
       } else {
         scanModelPrivateKeys(collect, output);
-        scanModelConnection(collect, output);
-        scanAssignments(collect, output, kubeDataAssignment, isModelCredential);
-        for (const user of output.matchAll(flowKubeUser)) {
-          scanAssignments(
-            (start, end) => collect(user.index + start, user.index + end),
-            user[0],
-            kubeToken,
-            isModelCredential,
-          );
-        }
       }
-      if (authorizationField) scanAuthorization(collect, 0, output, journal);
       return maskSpans(output, spans);
     }
 
     const text = (output: string) => redact(output);
 
-    function value(output: JsonValue, inKubeUser = false): JsonValue {
+    function value(output: JsonValue): JsonValue {
       if (typeof output === "string") return text(output);
       if (output === null || typeof output !== "object") return output;
       if (Array.isArray(output)) return output.map((item) => value(item));
       return Object.fromEntries(
         Object.entries(output).map(([key, field]) => {
-          const credential = journal
-            ? secretField.test(key) || key.toLowerCase() === "sig"
-            : kubeDataField.test(key) || (inKubeUser && key === "token");
           let sanitized: JsonValue;
-          if (
-            typeof field === "string" &&
-            credential &&
-            (journal ? field : isModelCredential(field))
-          )
-            sanitized = marker;
-          else if (typeof field === "string" && authorization.test(key))
-            sanitized = redact(field, true);
-          else sanitized = value(field, key === "user");
+          if (journal && typeof field === "string") {
+            if (field && (secretField.test(key) || key.toLowerCase() === "sig")) sanitized = marker;
+            else sanitized = redact(field, authorization.test(key));
+          } else {
+            sanitized = value(field);
+          }
           return [text(key), sanitized];
         }),
       );

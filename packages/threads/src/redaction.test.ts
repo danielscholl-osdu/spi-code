@@ -66,15 +66,25 @@ const modelCorpus: CorpusEntry[] = [
   { name: "GitLab after an encoded equals", before: "%3D", secret: fakeGitLab },
   { name: "GitLab after a word prefix", before: "PREFIX_", secret: fakeGitLab },
   { name: "GitLab runner", secret: ["gl", "rt-", fakeToken].join("") },
+  { name: "private key", secret: privateKey },
+  { name: "private key missing its footer", secret: pem.slice(0, 2).join("\n") },
+  { name: "private key on one line", secret: pem.join(" ") },
+  {
+    name: "private key with double-escaped line breaks",
+    secret: JSON.stringify(JSON.stringify(privateKey).slice(1, -1)).slice(1, -1),
+  },
+  { name: "private key with escaped line breaks", secret: JSON.stringify(privateKey).slice(1, -1) },
+  { name: "host value", secret: knownSecret },
+];
+
+const journalOnlyCorpus: CorpusEntry[] = [
   {
     name: "Azure connection string",
     secret: connection,
-    replacement: connection.replace(fakeKey, marker),
   },
   {
     name: "Azure Service Bus connection string",
     secret: serviceBus,
-    replacement: serviceBus.replace(fakeKey, marker),
   },
   {
     name: "Azure connection starting with AccountKey",
@@ -115,15 +125,6 @@ const modelCorpus: CorpusEntry[] = [
     after: "\r\n    username: fake-user",
   },
   { name: "bearer header", before: "Authorization: bEaReR  ", secret: fakeToken },
-  { name: "private key", secret: privateKey },
-  { name: "private key missing its footer", secret: pem.slice(0, 2).join("\n") },
-  { name: "private key on one line", secret: pem.join(" ") },
-  {
-    name: "private key with double-escaped line breaks",
-    secret: JSON.stringify(JSON.stringify(privateKey).slice(1, -1)).slice(1, -1),
-  },
-  { name: "private key with escaped line breaks", secret: JSON.stringify(privateKey).slice(1, -1) },
-  { name: "host value", secret: knownSecret },
   { name: "Basic header", before: "Authorization: Basic ", secret: `${fakeOpaque}=` },
   {
     name: "Basic header with a quoted credential",
@@ -134,10 +135,10 @@ const modelCorpus: CorpusEntry[] = [
   { name: "Token header", before: "Authorization: Token ", secret: fakeOpaque },
   { name: "Authorization assignment", before: "Authorization=Bearer ", secret: fakeToken },
   {
-    name: "Authorization inside escaped JSON",
-    before: String.raw`{\"Authorization\": \"Bearer `,
+    name: "Authorization inside JSON",
+    before: '{"Authorization":"Bearer ',
     secret: fakeToken,
-    after: String.raw`\"}`,
+    after: '"}',
   },
   {
     name: "flow-style kubeconfig token",
@@ -159,21 +160,8 @@ const modelCorpus: CorpusEntry[] = [
 ];
 
 const journalCorpus: CorpusEntry[] = [
-  ...modelCorpus
-    .filter(
-      ({ name }) =>
-        ![
-          "host value",
-          "Authorization inside escaped JSON",
-          "flow-style kubeconfig token",
-          "signature inside a connection string",
-        ].includes(name),
-    )
-    .map((entry) =>
-      entry.secret === connection || entry.secret === serviceBus
-        ? { ...entry, replacement: marker }
-        : entry,
-    ),
+  ...modelCorpus.filter(({ name }) => name !== "host value"),
+  ...journalOnlyCorpus,
   {
     name: "Azure shared signature connection string",
     secret: [
@@ -286,6 +274,21 @@ it.each(modelCorpus)(
   },
 );
 
+it.each(journalOnlyCorpus)(
+  "preserves $name for the model and redacts it for the journal",
+  ({ before = "", secret, after = "", replacement = marker }) => {
+    const raw = before + secret + after;
+    expect(modelOutputRedactor.text(raw)).toBe(raw);
+    expect(journalOutputRedactor.text(raw)).toBe(before + replacement + after);
+  },
+);
+
+it("preserves Authorization inside escaped JSON in both profiles", () => {
+  const raw = String.raw`{\"Authorization\": \"Bearer ${fakeToken}\"}`;
+  expect(modelOutputRedactor.text(raw)).toBe(raw);
+  expect(journalOutputRedactor.text(raw)).toBe(raw);
+});
+
 const prefixes = [
   { name: "cat -n", line: (n: number) => `${String(n).padStart(6)}\t` },
   { name: "grep -n", line: (n: number) => `${n}:` },
@@ -339,17 +342,15 @@ it.each(
   expect(journalOutputRedactor.text(prefixed(input))).toBe(prefixed(expected));
   const excerpt = `${line(1)}password: fake spaced password!`;
   expect(journalOutputRedactor.text(excerpt)).toBe(`${line(1)}password: ${marker}`);
-  const modelExpected = [...expected.slice(0, 4), ...input.slice(4)];
-  expect(modelOutputRedactor.text(prefixed(input))).toBe(prefixed(modelExpected));
 });
 
-it("redacts both sides of a diff below a kubeconfig block in context", () => {
+it("redacts both sides of a journaled diff below a kubeconfig block in context", () => {
   const header = "     client-key-data: |";
   const oldLine = "-      ";
   const newLine = "+      ";
   const footer = "     username: fixture";
   expect(
-    modelOutputRedactor.text(
+    journalOutputRedactor.text(
       [header, `${oldLine}FAKE_OLD_KEY`, `${newLine}FAKE_NEW_KEY`, footer].join("\n"),
     ),
   ).toBe([header, oldLine + marker, newLine + marker, footer].join("\n"));
@@ -490,7 +491,7 @@ it.each(["journal", "model"] as const)(
   },
 );
 
-it("preserves clean output byte for byte and redacts credential fields and keys in structured output", () => {
+it("preserves clean output byte for byte and redacts token prefixes in structured output", () => {
   const clean =
     'résumé\r\nA bearer of good news.\nToken count: 4\ntoken: ""\npassword: null\n\t🌍\u0000';
   const output = { stdout: clean, nested: [null, 0, false, { public: clean }] };
@@ -498,22 +499,8 @@ it("preserves clean output byte for byte and redacts credential fields and keys 
     Buffer.from(clean),
   );
   expect(JSON.stringify(modelOutputRedactor.value(output))).toBe(JSON.stringify(output));
-  const clientKey = "FAKE-kubeconfig-data";
-
-  const structured = {
-    token: "a-horizon-halt-token",
-    users: [{ name: "fake-user", user: { token: fakeToken } }],
-    kube: [{ "client-key-data": clientKey, "client-certificate": "path/to/public.cert" }],
-    headers: { Authorization: `Bearer ${fakeToken}` },
-    [fakeGitLab]: "credential used as a key",
-  };
-  const redacted = {
-    token: "a-horizon-halt-token",
-    users: [{ name: "fake-user", user: { token: marker } }],
-    kube: [{ "client-key-data": marker, "client-certificate": "path/to/public.cert" }],
-    headers: { Authorization: `Bearer ${marker}` },
-    [marker]: "credential used as a key",
-  };
+  const structured = { token: fakeGitHub, [fakeGitLab]: "credential used as a key" };
+  const redacted = { token: marker, [marker]: "credential used as a key" };
   expect(modelOutputRedactor.value(structured)).toEqual(redacted);
   expect(modelOutputRedactor.value(redacted)).toEqual(redacted);
   const placeholders = {
@@ -522,6 +509,35 @@ it("preserves clean output byte for byte and redacts credential fields and keys 
   };
   expect(modelOutputRedactor.value(placeholders)).toEqual(placeholders);
 });
+
+it.each([
+  {
+    name: "client-key-data",
+    raw: { kube: [{ "client-key-data": "FAKE-kubeconfig-data" }] },
+    redacted: { kube: [{ "client-key-data": marker }] },
+  },
+  {
+    name: "client-certificate-data",
+    raw: { "client-certificate-data": "FAKE-kubeconfig-certificate" },
+    redacted: { "client-certificate-data": marker },
+  },
+  {
+    name: "kubeconfig user token",
+    raw: { users: [{ user: { token: fakeToken } }] },
+    redacted: { users: [{ user: { token: marker } }] },
+  },
+  {
+    name: "Authorization",
+    raw: { headers: { Authorization: `Bearer ${fakeToken}` } },
+    redacted: { headers: { Authorization: `Bearer ${marker}` } },
+  },
+])(
+  "preserves structured $name for the model and redacts it for the journal",
+  ({ raw, redacted }) => {
+    expect(modelOutputRedactor.value(raw)).toEqual(raw);
+    expect(journalOutputRedactor.value(raw)).toEqual(redacted);
+  },
+);
 
 it.each([{ mode: "default" }, { mode: "host supplied" }])(
   "writes only sanitized runtime output to the SQLite journal with $mode redaction",
