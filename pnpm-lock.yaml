@@ -113,6 +113,8 @@ importers:
         specifier: 4.6.7
         version: 4.6.7
 
+  packages/threads: {}
+
   packages/tools:
     dependencies:
       '@spi-code/contracts':

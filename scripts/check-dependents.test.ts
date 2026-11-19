@@ -111,6 +111,7 @@ it("leaves to the import-following run every project that does not run whole", (
     "apps/window",
     "packages/contracts",
     "packages/core",
+    "packages/threads",
     "packages/tools",
     "scripts",
   ]);
