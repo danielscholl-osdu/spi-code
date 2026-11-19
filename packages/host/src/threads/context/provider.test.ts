@@ -31,6 +31,8 @@ describe("scope instructions", () => {
     }
     expect(program).toContain("Lands in: Asking only.");
     expect(program).not.toContain("Fork · main");
+    expect(program).toContain("no edit or command is offered in a program thread");
+    expect(service).toContain("once it lands in a worktree you edit files and run commands");
   });
 
   it("list exactly the SPI tools offered, and the fleet they are given", () => {

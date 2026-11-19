@@ -6,13 +6,14 @@ import { z } from "zod";
 import type { JsonValue, ModelRedactor } from "../threads/context/seams.js";
 import {
   areaEnvelopes,
+  governedBy,
   type LatestSweep,
   NOT_READ,
   type ReadState,
   readState,
   readStateAt,
   type SavedSweep,
-  sourceAt,
+  sourcesAt,
 } from "../threads/context/sweep.js";
 import { estimateTokens, type TokenEstimate } from "../threads/context/tokens.js";
 import { buildGatedTool, checkStubTier, type GatedTool, type TierCheck } from "./registry.js";
@@ -44,13 +45,8 @@ const define = <A>(read: SpiRead<A>) => read as unknown as SpiRead<Fields>;
 const metadata = (name: string): ToolMetadata =>
   APPENDIX_A_TOOLS.find((entry) => entry.name === name) ?? { name, tier: "Read", milestone: "M3" };
 
-const readingAt = (view: ViewSnapshot, anchor: string) => {
-  const index = view.readings.findIndex((entry) => entry.anchor.kind === anchor);
-  return index < 0 ? {} : { at: `/readings/${index}` };
-};
-
 const reading = (view: ViewSnapshot, match: (anchor: Fields) => boolean) =>
-  view.readings.find(({ anchor }) => match(anchor))?.content ?? null;
+  view.readings.find(({ anchor }) => match(anchor))?.content ?? NOT_READ;
 
 const place = (
   name: string,
@@ -58,10 +54,11 @@ const place = (
   areas: readonly AreaName[],
   extra: (view: ViewSnapshot) => Fields = () => ({}),
   lists?: readonly string[],
+  at?: string,
 ) => ({
   read: ({ view }: SavedSweep): Answer => ({
     place: name,
-    ...readingAt(view, anchor),
+    ...(at === undefined ? {} : { at }),
     state: readState(areaEnvelopes(view, areas)),
     value: { reading: reading(view, (entry) => entry.kind === anchor), ...extra(view) },
     ...(lists ? { lists } : {}),
@@ -88,7 +85,7 @@ const READS: readonly SpiRead<Fields>[] = [
     args: none,
     read: ({ view }) => ({
       place: "Today",
-      at: "/briefing",
+      at: "/briefing/today",
       state: readStateAt(view, "/briefing/today") ?? readState([]),
       value: {
         headline: view.briefing.headline,
@@ -120,7 +117,7 @@ const READS: readonly SpiRead<Fields>[] = [
       if (!entry) return { found: false, reason: `The saved sweep has no service ${service}.` };
       return {
         place: `Service ${service}`,
-        at: `/services/${index}`,
+        at: entry.home ? `/services/${index}/home` : `/services/${index}`,
         state: entry.home
           ? (readStateAt(view, `/services/${index}/home`) ?? readState([]))
           : readState([]),
@@ -161,6 +158,7 @@ const READS: readonly SpiRead<Fields>[] = [
         return rest;
       },
       ["lanes"],
+      "/briefing/environment",
     ),
   }),
   define({
@@ -175,7 +173,7 @@ const READS: readonly SpiRead<Fields>[] = [
     read: ({ view }, { month }) => ({
       place: "Releases",
       at: "/releases",
-      state: readStateAt(view, "/releases/lines") ?? readState([]),
+      state: governedBy(readStateAt(view, "/releases/lines") ?? readState([]), "releases"),
       value: {
         lines: view.releases.lines,
         today: view.releases.today ?? NOT_READ,
@@ -217,22 +215,23 @@ const READS: readonly SpiRead<Fields>[] = [
       if (!resolvePointer(view, path).found) {
         return { found: false, reason: `The saved sweep has no value at ${path}.` };
       }
-      const source = sourceAt(view, path);
+      const sources = sourcesAt(view, path);
       const state = readStateAt(view, path);
-      if (!source || !state) {
+      const own = sources.length === 1 ? sources[0] : undefined;
+      if (!state) {
         return {
           found: false,
           reason: `No source is recorded for the value at ${path}, so its read is not known.`,
         };
       }
-      const areas = new Set<string>(source.areas);
+      const areas = new Set<string>(sources.flatMap((source) => source.areas));
       return {
         place: "Evidence",
         at: path,
         state,
         value: {
-          recordedAt: source.path,
-          ...(source.attributed ? { attributed: source.attributed } : {}),
+          recordedAt: own ? own.path : `${sources.length} values below ${path}`,
+          ...(own?.attributed ? { attributed: own.attributed } : {}),
           reads: view.reads.filter(({ source: from }) => areas.has(from)),
         },
         lists: ["reads"],

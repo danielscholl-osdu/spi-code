@@ -112,12 +112,27 @@ export function sourceAt(view: ViewSnapshot, path: string): ValueSource | undefi
   return undefined;
 }
 
+/** The value's own source, else every source recorded below it, as a place's parts carry theirs. */
+export function sourcesAt(view: ViewSnapshot, path: string): readonly ValueSource[] {
+  const own = sourceAt(view, path);
+  if (own) return [own];
+  return view.provenance.filter((entry) => entry.path.startsWith(`${path}/`));
+}
+
 /** A value's read state from its provenance, or undefined when no source is recorded for it. */
 export function readStateAt(view: ViewSnapshot, path: string): ReadState | undefined {
-  const source = sourceAt(view, path);
-  if (!source) return undefined;
+  const sources = sourcesAt(view, path);
+  if (!sources.length) return undefined;
+  const own = new Map(
+    sources.flatMap(({ envelope }) => (envelope ? [[envelope.source, envelope] as const] : [])),
+  );
   return readState([
-    ...areaEnvelopes(view, source.areas),
-    ...(source.envelope ? [{ area: source.envelope.source, envelope: source.envelope }] : []),
+    ...areaEnvelopes(view, [...new Set(sources.flatMap(({ areas }) => areas))]),
+    ...[...own].map(([area, envelope]) => ({ area, envelope })),
   ]);
+}
+
+/** A place whose own reader did not read reads as not read, whatever else it drew on. */
+export function governedBy(state: ReadState, area: string): ReadState {
+  return state.notRead.includes(area) ? { ...state, read: NOT_READ } : state;
 }
