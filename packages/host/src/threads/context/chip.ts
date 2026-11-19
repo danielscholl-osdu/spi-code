@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 import type { ReadRecord } from "@spi-code/contracts";
+import type { JsonValue, ToolOutputRedactor } from "@spi-code/threads";
 import type { PlaceRead } from "./places.js";
-import type { JsonValue, ModelRedactor } from "./seams.js";
 import {
   type CollectorReads,
   type InspectAnswer,
@@ -123,7 +123,7 @@ function trim(chip: Draft) {
 export function packChip(
   answer: InspectAnswer,
   sweep: ChipSweep,
-  redactor: ModelRedactor,
+  redactor: Pick<ToolOutputRedactor, "value">,
   estimate: TokenEstimate = estimateTokens,
 ): ChipOutcome {
   return pack(full(answer, sweep), sweep.sweptAt, redactor, estimate);
@@ -133,7 +133,7 @@ export function packPlace(
   id: string,
   found: PlaceRead,
   sweep: ChipSweep,
-  redactor: ModelRedactor,
+  redactor: Pick<ToolOutputRedactor, "value">,
   estimate: TokenEstimate = estimateTokens,
 ): ChipOutcome {
   return pack(placeFull(id, found, sweep), sweep.sweptAt, redactor, estimate);
@@ -142,7 +142,7 @@ export function packPlace(
 function pack(
   whole: Draft,
   sweptAt: string,
-  redactor: ModelRedactor,
+  redactor: Pick<ToolOutputRedactor, "value">,
   estimate: TokenEstimate,
 ): ChipOutcome {
   for (const [trimmed, draft] of [

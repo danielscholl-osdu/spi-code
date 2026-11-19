@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import type { ThreadAttachment, ToolOutputRedactor } from "@spi-code/threads";
 import {
   CHIP_TOKEN_BUDGET,
   type ChipOutcome,
@@ -10,7 +11,6 @@ import {
   type Refusal,
 } from "./chip.js";
 import { readPlace, UNPACKED_PLACES } from "./places.js";
-import type { ModelRedactor, ThreadAttachment } from "./seams.js";
 import type { LatestSweep } from "./sweep.js";
 import { estimateTokens, type TokenEstimate } from "./tokens.js";
 
@@ -23,7 +23,7 @@ const refuse = (reason: string): Refusal => ({ ok: false, reason });
 export async function chipFromSweep(
   latest: LatestSweep,
   id: string,
-  redactor: ModelRedactor,
+  redactor: Pick<ToolOutputRedactor, "value">,
   estimate: TokenEstimate = estimateTokens,
 ): Promise<ChipOutcome> {
   const sweep = latest();
@@ -42,7 +42,7 @@ export async function chipFromSweep(
 export function refreshChip(
   latest: LatestSweep,
   chip: PackedChip,
-  redactor: ModelRedactor,
+  redactor: Pick<ToolOutputRedactor, "value">,
   estimate: TokenEstimate = estimateTokens,
 ): Promise<ChipOutcome> {
   return chipFromSweep(latest, chip.id, redactor, estimate);

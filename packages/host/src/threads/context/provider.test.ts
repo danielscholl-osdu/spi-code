@@ -2,19 +2,22 @@
 // SPDX-License-Identifier: MIT
 
 import { KNOWN_SERVICES } from "@spi-code/core";
+import type { ToolOutputRedactor } from "@spi-code/threads";
 import { describe, expect, it } from "vitest";
 import { ScopeRegistry } from "../../scopes/registry.js";
 import { offeredTools, spiReadTools } from "../../tools/spi-reads.js";
 import { threadContext } from "./provider.js";
-import type { ModelRedactor } from "./seams.js";
 
-const plain: ModelRedactor = { text: (text) => text, value: (value) => value };
+const plain: Pick<ToolOutputRedactor, "text" | "value"> = {
+  text: (text) => text,
+  value: (value) => value,
+};
 const tools = offeredTools(spiReadTools(() => undefined, plain));
 const scopes = new ScopeRegistry();
 const prepare = (scope: string, offered = tools, registry = scopes) =>
   threadContext({ scopes: registry, tools: offered, redactor: plain }).prepare({
     thread: { scope },
-    message: {},
+    message: { prompt: "Question" },
   }).instructions;
 
 describe("scope instructions", () => {
@@ -50,13 +53,15 @@ describe("scope instructions", () => {
 describe("the context seam", () => {
   it("sends the chips the message snapshotted, names included, through the model redactor", () => {
     const fake = ["gh", "p_", "FAKE".repeat(9)].join("");
-    const masking: ModelRedactor = {
+    const masking: Pick<ToolOutputRedactor, "text"> = {
       text: (text) => `<${text.replaceAll(fake, "[redacted]")}>`,
-      value: (value) => value,
     };
     const context = threadContext({ scopes, tools, redactor: masking }).prepare({
       thread: { scope: "template" },
-      message: { attachments: [{ name: `context:pr:${fake}`, content: '{"id":"rollout"}' }] },
+      message: {
+        prompt: "Question",
+        attachments: [{ name: `context:pr:${fake}`, content: '{"id":"rollout"}' }],
+      },
     });
     expect(context.attachments).toEqual([
       { name: "<context:pr:[redacted]>", content: '<{"id":"rollout"}>' },

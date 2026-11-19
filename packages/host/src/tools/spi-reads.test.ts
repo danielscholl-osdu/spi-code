@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 import type { InspectResult, ViewSnapshot } from "@spi-code/contracts";
 import { emptyFacts } from "@spi-code/core";
+import type { ToolOutputRedactor } from "@spi-code/threads";
 import { describe, expect, it } from "vitest";
 import {
   appStyle,
@@ -13,7 +14,6 @@ import {
   recordedSnapshotPath,
 } from "../../test/watch/snapshot-fixture.js";
 import { FakeSession } from "../testing/fake-session.js";
-import type { ModelRedactor } from "../threads/context/seams.js";
 import type { CollectorReads, SavedSweep } from "../threads/context/sweep.js";
 import { estimateTokens } from "../threads/context/tokens.js";
 import { projectWatch, type WatchInput } from "../watch/project.js";
@@ -23,7 +23,10 @@ import { SPI_RESULT_TOKEN_BUDGET, spiReadTools, spiToolProvider } from "./spi-re
 
 const view: ViewSnapshot = JSON.parse(readFileSync(recordedSnapshotPath, "utf8"));
 const feed: InspectResult[] = JSON.parse(readFileSync(detailFeedPath, "utf8"));
-const plain: ModelRedactor = { text: (text) => text, value: (value) => value };
+const plain: Pick<ToolOutputRedactor, "text" | "value"> = {
+  text: (text) => text,
+  value: (value) => value,
+};
 const recorded = appStyle(recordedInput());
 const collected = ({ reads, releaseRecords }: WatchInput): CollectorReads => ({
   ...reads,
@@ -231,7 +234,7 @@ describe("SPI read tools over the saved sweep", () => {
   });
 
   const fake = ["gh", "p_", "FAKE".repeat(9)].join("");
-  const masking: ModelRedactor = {
+  const masking: typeof plain = {
     text: (text) => text.replaceAll(fake, "[redacted]"),
     value: (value) => value,
   };
@@ -249,7 +252,7 @@ describe("SPI read tools over the saved sweep", () => {
   });
 
   it.each(ALL)("%s returns what the model redactor returned", async (name) => {
-    const marked: ModelRedactor = { text: () => "marked", value: () => ({ marked: name }) };
+    const marked: typeof plain = { text: () => "marked", value: () => ({ marked: name }) };
     expect(await session(saved(), marked).callTool(name, ARGS[name] ?? {})).toBe(
       JSON.stringify({ marked: name }),
     );

@@ -3,17 +3,17 @@
 
 import { readFileSync } from "node:fs";
 import type { InspectResult, ViewSnapshot } from "@spi-code/contracts";
+import type { JsonValue, ToolOutputRedactor } from "@spi-code/threads";
 import { describe, expect, it } from "vitest";
 import { detailFeedPath, recordedSnapshotPath } from "../../../test/watch/snapshot-fixture.js";
 import { CHIP_TOKEN_BUDGET, type PackedChip, packChip, TRIMMED_CHIP_KEEPS } from "./chip.js";
 import { addChip, chipFromSweep, MAX_CHIPS, refreshChip, snapshotChips } from "./draft.js";
-import type { JsonValue, ModelRedactor } from "./seams.js";
 import type { SavedSweep } from "./sweep.js";
 import { estimateTokens } from "./tokens.js";
 
 const view: ViewSnapshot = JSON.parse(readFileSync(recordedSnapshotPath, "utf8"));
 const feed: InspectResult[] = JSON.parse(readFileSync(detailFeedPath, "utf8"));
-const plain: ModelRedactor = { text: (text) => text, value: (value) => value };
+const plain: Pick<ToolOutputRedactor, "value"> = { value: (value) => value };
 const result = (id: string) => {
   const found = feed.find((entry) => entry.id === id);
   if (!found) throw new Error(`Fixture has no ${id}`);
@@ -105,7 +105,7 @@ describe("a context chip", () => {
           : value !== null && typeof value === "object"
             ? Object.fromEntries(Object.entries(value).map(([key, field]) => [key, upper(field)]))
             : value;
-    const chip = pack("rollout", { text: (text) => text, value: upper });
+    const chip = pack("rollout", { value: upper });
     expect(chip.chip.cause).toBe(result("rollout").cause.toUpperCase());
     expect(chip.content).toBe(JSON.stringify(chip.chip));
   });

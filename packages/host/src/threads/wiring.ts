@@ -7,17 +7,21 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { setTimeout } from "node:timers/promises";
 import type { Tool } from "@github/copilot-sdk";
-import { createToolOutputRedactor, ThreadEngine } from "@spi-code/threads";
+import { createToolOutputRedactor, ThreadEngine, type ToolOutputRedactor } from "@spi-code/threads";
 import type { CopilotRuntime } from "../copilot/runtime.js";
 import type { PrivilegedGit } from "../scopes/git.js";
 import type { ScopeRegistry } from "../scopes/registry.js";
 import type { ScopeWorkspaces } from "../scopes/workspace.js";
+import { offeredTools, spiReadTools, spiToolProvider } from "../tools/spi-reads.js";
 import { type AskingTurnWorkspace, CopilotThreadAdapter } from "./adapter.js";
+import { threadContext } from "./context/provider.js";
+import type { LatestSweep } from "./context/sweep.js";
 
 export interface ThreadHostOptions {
   db: DatabaseSync;
   storePath: string;
   scopes: ScopeRegistry;
+  savedSweep: LatestSweep;
   git: () => Promise<PrivilegedGit>;
   workspaces: (git: PrivilegedGit) => ScopeWorkspaces;
   runtime: (onCredential: (token: string) => void) => Promise<CopilotRuntime>;
@@ -48,6 +52,11 @@ export function openThreadHost(options: ThreadHostOptions) {
         .filter((value): value is string => Boolean(value)),
     );
     let profiles = createToolOutputRedactor(secrets);
+    const modelRedactor: ToolOutputRedactor = {
+      text: (value) => profiles.model.text(value),
+      value: (value) => profiles.model.value(value),
+      chunks: (value) => profiles.model.chunks(value),
+    };
     const remember = (token: string) => {
       if (secrets.has(token)) return;
       secrets.add(token);
@@ -67,11 +76,7 @@ export function openThreadHost(options: ThreadHostOptions) {
                   write.run(id, sessionId);
                 },
               },
-              {
-                text: (value) => profiles.model.text(value),
-                value: (value) => profiles.model.value(value),
-                chunks: (value) => profiles.model.chunks(value),
-              },
+              modelRedactor,
             ),
         )
         .catch((error: unknown) => {
@@ -81,6 +86,7 @@ export function openThreadHost(options: ThreadHostOptions) {
       return adapter;
     };
     let workspaces: ScopeWorkspaces | undefined;
+    const tools = spiReadTools(options.savedSweep, modelRedactor);
     const engine = new ThreadEngine<Tool>(db, {
       runtime: { run: async (input, events) => (await getAdapter()).run(input, events) },
       workspace: {
@@ -110,8 +116,8 @@ export function openThreadHost(options: ThreadHostOptions) {
           };
         },
       },
-      context: { prepare: () => ({ instructions: "", attachments: [] }) },
-      tools: { offer: () => [] },
+      context: threadContext({ scopes, tools: offeredTools(tools), redactor: modelRedactor }),
+      tools: spiToolProvider(tools),
       redactor: {
         text: (value) => profiles.journal.text(value),
         value: (value) => profiles.journal.value(value),

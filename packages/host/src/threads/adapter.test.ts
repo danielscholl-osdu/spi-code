@@ -8,12 +8,20 @@ import { DatabaseSync } from "node:sqlite";
 import { setTimeout } from "node:timers/promises";
 import type { SessionEvent } from "@github/copilot-sdk";
 import { type Message, PROTOCOL_VERSION, type ThreadWireEvent } from "@spi-code/contracts";
+import { emptyCache } from "@spi-code/core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { appStyle, mixedFixtureInput } from "../../test/watch/snapshot-fixture.js";
 import { CopilotRuntime, type ThreadCopilotSession } from "../copilot/runtime.js";
 import { attachHostPort } from "../process/port.js";
+import { WatchRoutes, watchFleet } from "../process/routes.js";
 import { PrivilegedGit } from "../scopes/git.js";
 import { ScopeRegistry } from "../scopes/registry.js";
 import { ScopeWorkspaces } from "../scopes/workspace.js";
+import { createLeaseStore } from "../store/leases.js";
+import { openStore } from "../store/open.js";
+import { createSnapshotStore } from "../store/snapshots.js";
+import { projectWatch } from "../watch/project.js";
+import type { LatestSweep } from "./context/sweep.js";
 import { ThreadRoutes } from "./routes.js";
 import { openThreadHost } from "./wiring.js";
 
@@ -129,13 +137,14 @@ function recordedRuntime(...ids: string[]) {
   return { runtime, sessions, open, restart, order };
 }
 
-function dependencies(runtime: CopilotRuntime) {
+function dependencies(runtime: CopilotRuntime, savedSweep: LatestSweep = () => undefined) {
   const git = new PrivilegedGit({ appData: root, capturedPath: "" });
   const workspaces = new ScopeWorkspaces(git);
   return {
     db: database,
     storePath,
     scopes: new ScopeRegistry(),
+    savedSweep,
     git: async () => git,
     workspaces: () => workspaces,
     runtime: async (remember: (value: string) => void) => {
@@ -146,8 +155,8 @@ function dependencies(runtime: CopilotRuntime) {
   };
 }
 
-async function connect(runtime: CopilotRuntime, existing?: string) {
-  const host = new ThreadRoutes(dependencies(runtime));
+async function connect(runtime: CopilotRuntime, existing?: string, savedSweep?: LatestSweep) {
+  const host = new ThreadRoutes(dependencies(runtime, savedSweep));
   hosts.push(host);
   const output: Message[] = [];
   let receive: (event: { data: unknown }) => void = () => {};
@@ -550,6 +559,141 @@ it("records unconfirmed Auto effort once and resumes with desired settings after
     reasoningEffort: "high",
     resumeId: "auto",
   });
+});
+
+it("lets an Asking turn read model-redacted evidence from the saved sweep", async () => {
+  openStore(storePath).close();
+  const input = appStyle(mixedFixtureInput());
+  const now = input.context.clock.now().getTime();
+  const fleet = watchFleet(input.context);
+  const owner = "fixture-sweeper";
+  const fence = createLeaseStore(database).acquire(fleet, owner, 60_000, now);
+  if (fence === undefined) throw new Error("No sweep lease");
+  const releaseRecords = input.releaseRecords.map((record) =>
+    record.source === "github-releases"
+      ? { ...record, object: "password: readable fixture-copilot-value" }
+      : record,
+  );
+  const view = projectWatch(input);
+  createSnapshotStore(database).writeSnapshot(
+    { fleet, owner, fence },
+    {
+      facts: input.facts,
+      cache: { ...emptyCache(), releases: { ...input.releases, records: releaseRecords } },
+      reads: input.reads,
+    },
+    view,
+    now,
+  );
+  const watch = new WatchRoutes({
+    db: () => database,
+    fleet,
+    ctx: input.context,
+    appData: input.appData,
+    exec: {
+      runJSON: vi.fn(() => {
+        throw new Error("Unexpected forge read");
+      }),
+      runText: vi.fn(() => {
+        throw new Error("Unexpected forge read");
+      }),
+    },
+    onError: (error) => {
+      throw error;
+    },
+  });
+  const {
+    runtime,
+    sessions: [session],
+    open,
+  } = recordedRuntime("spi-read");
+  if (!session) throw new Error("Incomplete recording");
+  const port = await connect(runtime, undefined, watch.savedSweep);
+  const id = port.send({
+    prompt: "Question",
+    attachments: [{ name: "context:releases", content: "fixture-glab-value" }],
+  });
+  await vi.waitFor(() => expect(session.send).toHaveBeenCalledOnce());
+  session.begin("spi-read-turn");
+  const config = open.mock.calls[0]?.[1];
+  const tool = config?.tools?.find(({ name }) => name === "spi_evidence");
+  const handler = tool?.handler;
+  if (!config || !tool || !handler) throw new Error("SPI evidence was not offered");
+  expect(config.systemMessage).toMatchObject({
+    content: expect.stringContaining("- spi_evidence: "),
+  });
+  expect(session.send).toHaveBeenCalledWith({ prompt: "context:releases\n[redacted]\n\nQuestion" });
+  expect(tool.skipPermission).toBe(false);
+  const readEvidence = async (path: string) => {
+    const args = { path };
+    const invocation = {
+      sessionId: session.id,
+      toolCallId: path,
+      toolName: tool.name,
+      arguments: args,
+    };
+    await expect(
+      config.onPermissionRequest(
+        { kind: "custom-tool", toolName: tool.name, toolDescription: "Evidence", args },
+        invocation,
+      ),
+    ).resolves.toEqual({ kind: "approve-once" });
+    return JSON.parse(String(await handler(args, invocation)));
+  };
+  expect(await readEvidence("/releases/lines")).toMatchObject({
+    sweptAt: view.sweptAt,
+    reads: expect.arrayContaining([
+      expect.objectContaining({
+        collector: "releases",
+        source: "github-releases",
+        object: "password: readable [redacted]",
+      }),
+    ]),
+  });
+  expect(await readEvidence("/services/2/home/stations/0")).toMatchObject({
+    reads: expect.arrayContaining([expect.objectContaining({ collector: "github" })]),
+  });
+  session.finish("spi-read-turn");
+  await expect(port.response(id)).resolves.toMatchObject({ payload: { outcome: "completed" } });
+});
+
+it("denies a non-read custom tool while an Asking turn can use SPI read tools", async () => {
+  const {
+    runtime,
+    sessions: [session],
+    open,
+  } = recordedRuntime("spi-change");
+  if (!session) throw new Error("Incomplete recording");
+  const port = await connect(runtime);
+  const id = port.send({ prompt: "Question" });
+  await vi.waitFor(() => expect(session.send).toHaveBeenCalledOnce());
+  session.begin("spi-change-turn");
+  const config = open.mock.calls[0]?.[1];
+  if (!config) throw new Error("Missing session configuration");
+  const invocation = { sessionId: session.id };
+  await expect(
+    config.onPermissionRequest(
+      {
+        kind: "custom-tool",
+        toolName: "merge_pr",
+        toolDescription: "Merge a pull request",
+        skipPermission: true,
+      },
+      invocation,
+    ),
+  ).resolves.toEqual({ kind: "reject" });
+  await expect(
+    config.onPermissionRequest(
+      { kind: "custom-tool", toolName: "spi_brief", toolDescription: "Read Today" },
+      invocation,
+    ),
+  ).resolves.toEqual({ kind: "approve-once" });
+  session.finish("spi-change-turn");
+  await port.response(id);
+  expect(port.events().filter(({ type }) => type === "approval.resolved")).toMatchObject([
+    { approved: false },
+    { approved: true },
+  ]);
 });
 
 it("denies and journals Asking permissions and redacts named model and journal fields", async () => {

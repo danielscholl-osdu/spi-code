@@ -31,6 +31,7 @@ import { createSeenStore } from "../store/seen.js";
 import { createSnapshotStore, type SnapshotRecord } from "../store/snapshots.js";
 import { sweepEvidence } from "../sweep/evidence.js";
 import { emptySweepStatus, SWEEP_SCHEDULE, type SweepSchedulerStatus } from "../sweep/status.js";
+import { type LatestSweep, latestSweep } from "../threads/context/sweep.js";
 import {
   baselineItems,
   parseSeenItems,
@@ -154,7 +155,22 @@ export class WatchRoutes {
     },
   };
 
-  constructor(private readonly options: WatchRoutesOptions) {}
+  readonly savedSweep: LatestSweep;
+
+  constructor(private readonly options: WatchRoutesOptions) {
+    this.savedSweep = latestSweep(() => {
+      const snapshot = this.latest();
+      if (!snapshot?.facts) return undefined;
+      const state = sweepStateSchema(factsSchema, cacheSchema).safeParse(snapshot.state);
+      const reads = state.success
+        ? {
+            ...sweepEvidence(state.data, SWEEP_MS, new Date(snapshot.view.sweptAt)).reads,
+            releases: state.data.cache.releases.records,
+          }
+        : {};
+      return { view: snapshot.view, facts: snapshot.facts, releases: snapshot.releases, reads };
+    }, options);
+  }
 
   /**
    * The stored budget with this host run's schedule state; a store that cannot be read leaves

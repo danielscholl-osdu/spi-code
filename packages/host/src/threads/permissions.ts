@@ -16,7 +16,7 @@ function inside(root: string, candidate: string): boolean {
 export function askingPermission(
   workspace: SandboxWorkspace,
   current: () => RuntimeEvents | undefined,
-  gateDenied = false,
+  { gateDenied = false, spiReads }: { gateDenied?: boolean; spiReads?: ReadonlySet<string> } = {},
 ): PermissionHandler {
   return async (request) => {
     const events = current();
@@ -28,8 +28,11 @@ export function askingPermission(
           ? request.fileName
           : request.kind === "shell"
             ? request.fullCommandText
-            : request.kind;
-    let allow = false;
+            : request.kind === "custom-tool"
+              ? request.toolName
+              : request.kind;
+    let allow =
+      !gateDenied && request.kind === "custom-tool" && spiReads?.has(request.toolName) === true;
     if (
       !gateDenied &&
       request.kind === "read" &&

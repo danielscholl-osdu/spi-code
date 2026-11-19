@@ -19,6 +19,7 @@ import type {
   ThreadSessionOptions,
 } from "../copilot/runtime.js";
 import type { SandboxWorkspace } from "../copilot/sandbox.js";
+import { isSpiReadTool } from "../tools/spi-reads.js";
 import { trackTurn } from "./events.js";
 import { askingPermission } from "./permissions.js";
 
@@ -173,11 +174,13 @@ export class CopilotThreadAdapter implements ThreadRuntime<Tool> {
     const resumeId = this.ids.get(threadId);
     let lease: Lease | undefined;
     const current = () => (lease?.active?.signal.aborted ? undefined : lease?.active?.events);
+    const spiReads = new Set(tools.map(({ name }) => name).filter(isSpiReadTool));
     const options: ThreadSessionOptions = {
       ...settings,
       ...(instructions ? { systemMessage: { content: instructions } } : {}),
       tools: tools.map((tool) => ({
         ...tool,
+        skipPermission: false,
         handler: async (args, invocation) => {
           const active = lease?.tools.find(({ name }) => name === tool.name);
           try {
@@ -205,8 +208,8 @@ export class CopilotThreadAdapter implements ThreadRuntime<Tool> {
           }
         },
       },
-      onPermissionRequest: askingPermission(workspace, current),
-      onPermissionDenied: askingPermission(workspace, current, true),
+      onPermissionRequest: askingPermission(workspace, current, { spiReads }),
+      onPermissionDenied: askingPermission(workspace, current, { gateDenied: true }),
     };
     let session: ThreadCopilotSession;
     try {
@@ -273,7 +276,7 @@ export class CopilotThreadAdapter implements ThreadRuntime<Tool> {
           signal.throwIfAborted();
           const tracker = trackTurn(history, events, finish);
           unsubscribe = session.on(tracker.observe);
-          const prompt = [...context.attachments, ...(message.attachments ?? [])]
+          const prompt = context.attachments
             .map(({ name, content }) => `${name}\n${content}`)
             .concat(message.prompt)
             .join("\n\n");

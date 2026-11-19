@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 
 import { resolvePointer, type ViewSnapshot } from "@spi-code/contracts";
+import type { JsonValue, ToolOutputRedactor } from "@spi-code/threads";
 import { z } from "zod";
 import { readPlace } from "../threads/context/places.js";
-import type { JsonValue, ModelRedactor } from "../threads/context/seams.js";
 import {
   areaEnvelopes,
   governedBy,
@@ -255,6 +255,10 @@ const READS: readonly SpiRead<Fields>[] = [
   }),
 ];
 
+export function isSpiReadTool(name: string): boolean {
+  return READS.some(({ metadata }) => metadata.name === name && metadata.tier === "Read");
+}
+
 /** Whole items only: each named list (`key` or `key.list`) keeps what fits, in order, and says what it left out. */
 function fit(value: Fields, lists: readonly string[], estimate: TokenEstimate): Fields {
   const result: Fields = { ...value };
@@ -317,7 +321,7 @@ export function answerFor(
 }
 
 /** The SDK forwards a thrown message to the model, so it leaves through the model profile too. */
-function redacted(error: unknown, redactor: ModelRedactor): Error {
+function redacted(error: unknown, redactor: Pick<ToolOutputRedactor, "text">): Error {
   const message = redactor.text(error instanceof Error ? error.message : String(error));
   return error instanceof ToolRefusedError ? new ToolRefusedError(message) : new Error(message);
 }
@@ -325,7 +329,7 @@ function redacted(error: unknown, redactor: ModelRedactor): Error {
 /** The SPI read tools over the latest saved sweep, each result and error through the model profile. */
 export function spiReadTools(
   latest: LatestSweep,
-  redactor: ModelRedactor,
+  redactor: Pick<ToolOutputRedactor, "text" | "value">,
   check: TierCheck = checkStubTier,
   estimate: TokenEstimate = estimateTokens,
 ): GatedTool[] {

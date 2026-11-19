@@ -41,6 +41,7 @@ try {
     db,
     storePath,
     scopes: new ScopeRegistry(),
+    savedSweep: () => undefined,
     env: process.env,
     git: async () => git,
     workspaces: (runner) => new ScopeWorkspaces(runner),

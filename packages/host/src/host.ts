@@ -272,6 +272,7 @@ export function startHost(options: HostOptions) {
     storePath,
     env,
     scopes: new ScopeRegistry(ctx.fleet.services),
+    savedSweep: watch.savedSweep,
     git: memo(async () => {
       if (stub) throw new Error("Threads are unavailable in stub mode.");
       return new PrivilegedGit({
