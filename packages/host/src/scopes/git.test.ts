@@ -1,7 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { execFile } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import {
   cp,
   mkdir,
@@ -13,14 +14,21 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import type { ExecResult } from "@spi-code/core";
 import { KNOWN_SERVICES } from "@spi-code/core";
 import { afterEach, beforeEach, describe, expect, it, type TestContext } from "vitest";
-import { type GitOptions, type GitTarget, PrivilegedGit } from "./git.js";
+import type { ConfinedResult, MxcApi } from "./confined.js";
+import {
+  type GitOptions,
+  type GitTarget,
+  PrivilegedGit,
+  type PrivilegedGitOptions,
+  type WorktreeTarget,
+} from "./git.js";
 import { ScopeRegistry } from "./registry.js";
 import { ScopeWorkspaces, type WorkspaceProgress, type WorkspaceResult } from "./workspace.js";
 
@@ -35,6 +43,7 @@ const registry = new ScopeRegistry();
 const firstScope = registry.lookup(KNOWN_SERVICES[0]?.id ?? "");
 if (firstScope?.kind !== "service") throw new Error("Expected a service scope");
 const scope = firstScope;
+const identity = { name: "Fixture Operator", email: "operator@example.invalid" };
 
 async function fixtureGit(cwd: string, ...args: string[]): Promise<string> {
   const { stdout } = await exec("git", args, {
@@ -55,12 +64,16 @@ async function fixtureGit(cwd: string, ...args: string[]): Promise<string> {
   return stdout.trim();
 }
 
-function gitRunner(env?: NodeJS.ProcessEnv): PrivilegedGit {
+function gitRunner(
+  env?: NodeJS.ProcessEnv,
+  confinement: Pick<PrivilegedGitOptions, "mxc" | "platform"> = {},
+): PrivilegedGit {
   return new PrivilegedGit({
     appData,
     capturedPath,
     allowLocalRemotes: true,
     ...(env ? { env } : {}),
+    ...confinement,
   });
 }
 
@@ -494,6 +507,7 @@ describe("privileged Git", () => {
   });
 
   const target = { clone: "/nowhere" };
+  const worktreeTarget = { clone: "/nowhere", worktree: { id: "t", cwd: "/nowhere/t" } };
   const remote = /^Invalid Git remote name\.$/u;
   const ref = /^Invalid Git ref\.$/u;
   const id = /^Worktree is outside its managed location\.$/u;
@@ -570,6 +584,47 @@ describe("privileged Git", () => {
       id,
       (git: PrivilegedGit) => git.addWorktree(target.clone, name, "HEAD"),
     ]),
+    ...[
+      "",
+      "/abs",
+      "../x",
+      "a/../b",
+      "./a",
+      "a/.",
+      "a//b",
+      "a/",
+      ".git",
+      ".GIT/config",
+      "a/.git/config",
+      "a\\b",
+      "a\0b",
+    ].map((path) => [
+      `add of ${JSON.stringify(path)}`,
+      /^Invalid worktree path\.$/u,
+      (git: PrivilegedGit) => git.add(worktreeTarget, [path]),
+    ]),
+    [
+      "add of no paths",
+      /^Invalid worktree path\.$/u,
+      (git: PrivilegedGit) => git.add(worktreeTarget, []),
+    ],
+    ...["", " \n", "a\0b"].map((message) => [
+      `commit message ${JSON.stringify(message)}`,
+      /^Invalid commit message\.$/u,
+      (git: PrivilegedGit) => git.commit(worktreeTarget, message, identity),
+    ]),
+    ...["", " ", "a\nb", "a\rb", "<a>", "a\0b", "x".repeat(257)].flatMap((value) => [
+      [
+        `commit name ${JSON.stringify(value)}`,
+        /^Invalid commit identity\.$/u,
+        (git: PrivilegedGit) => git.commit(worktreeTarget, "m", { ...identity, name: value }),
+      ],
+      [
+        `commit email ${JSON.stringify(value)}`,
+        /^Invalid commit identity\.$/u,
+        (git: PrivilegedGit) => git.commit(worktreeTarget, "m", { ...identity, email: value }),
+      ],
+    ]),
   ] as [string, RegExp, (git: PrivilegedGit) => Promise<unknown>][];
 
   it("refuses an invalid remote, ref or worktree id before running Git", async () => {
@@ -586,7 +641,11 @@ describe("privileged Git", () => {
       : T extends object
         ? T[keyof T]
         : never;
-    type Input = Inputs<PrivilegedGit[keyof PrivilegedGit]>;
+    // add's paths are validated worktree paths, never options.
+    type Input = Exclude<
+      Inputs<PrivilegedGit[keyof PrivilegedGit]>,
+      Parameters<PrivilegedGit["add"]>[1]
+    >;
     type Lists = Extract<Input | Fields<Input> | Fields<Fields<Input>>, readonly unknown[]>;
     const noLists: [Lists] extends [never] ? true : false = true;
     type Variadic = {
@@ -607,9 +666,11 @@ describe("privileged Git", () => {
     expect([noLists, noRest, typeof misuse]).toEqual([true, true, "function"]);
     expect(Object.getOwnPropertyNames(PrivilegedGit.prototype).sort()).toEqual(
       [
+        "add",
         "addWorktree",
         "checkoutDetached",
         "clone",
+        "commit",
         "constructor",
         "dataRoot",
         "diff",
@@ -644,5 +705,302 @@ describe("privileged Git", () => {
       data: "",
     });
     expect(await readdir(root)).not.toContain(basename(marker));
+  });
+});
+
+const macOnly = process.platform !== "darwin";
+
+interface Canary {
+  readonly target: WorktreeTarget;
+  readonly clone: string;
+  /** Written by the planted program inside the worktree: proof that it ran. */
+  readonly inside: string;
+  /** Outside every writable path; plain Git writes it. */
+  readonly fired: string;
+  readonly home: string;
+  readonly protectedFiles: readonly string[];
+}
+
+async function plainGit(cwd: string, ...args: string[]): Promise<void> {
+  await exec("git", args, {
+    cwd,
+    windowsHide: true,
+    env: {
+      PATH: capturedPath,
+      HOME: root,
+      GIT_CONFIG_NOSYSTEM: "1",
+      GIT_CONFIG_GLOBAL: join(root, "empty-config"),
+      SPI_PLAIN: "1",
+    },
+  }).catch(() => undefined);
+}
+
+/** A nested repository in a linked worktree whose config names a program that tries to escape. */
+async function plantCanary(git: PrivilegedGit, kind: "fsmonitor" | "filter"): Promise<Canary> {
+  const workspace = await checkout(git);
+  const target = await linkedWorktree(git, workspace.cwd);
+  const worktree = target.worktree.cwd;
+  const elsewhere = join(root, "elsewhere");
+  const oid = await nestedRepository(elsewhere);
+  const sub = join(worktree, "sub");
+  await cp(elsewhere, sub, { recursive: true });
+  await fixtureGit(worktree, "update-index", "--add", "--cacheinfo", `160000,${oid},sub`);
+  const canary: Canary = {
+    target,
+    clone: workspace.cwd,
+    inside: join(sub, "inside-ran"),
+    fired: join(root, `${kind}-ran`),
+    home: join(homedir(), `spi-canary-${randomUUID()}`),
+    protectedFiles: [join(workspace.gitDirectory, "config"), join(worktree, ".git")],
+  };
+  const script = join(sub, "canary.sh");
+  await writeFile(
+    script,
+    [
+      "#!/bin/sh",
+      `printf ran > ${shellQuote(canary.inside)}`,
+      `printf ran > ${shellQuote(canary.fired)}`,
+      '[ -n "$SPI_PLAIN" ] && exit 0',
+      `printf ran > ${shellQuote(canary.home)}`,
+      ...canary.protectedFiles.map((file) => `printf x >> ${shellQuote(file)}`),
+      `mkdir ${shellQuote(join(workspace.gitDirectory, "hooks"))}`,
+      "",
+    ].join("\n"),
+    { mode: 0o755 },
+  );
+  const config = join(sub, ".git", "config");
+  if (kind === "fsmonitor") {
+    await fixtureGit(root, "config", "--file", config, "core.fsmonitor", shellQuote(script));
+  } else {
+    await fixtureGit(root, "config", "--file", config, "filter.canary.clean", shellQuote(script));
+    await mkdir(join(sub, ".git", "info"), { recursive: true });
+    await writeFile(join(sub, ".git", "info", "attributes"), "* filter=canary\n");
+    // Same size as the committed content, so only the clean filter can tell it changed.
+    await writeFile(join(sub, "f"), "y");
+  }
+  return canary;
+}
+
+async function exists(path: string): Promise<boolean> {
+  return readFile(path).then(
+    () => true,
+    () => false,
+  );
+}
+
+async function snapshot(canary: Canary): Promise<Buffer[]> {
+  return Promise.all(canary.protectedFiles.map((file) => readFile(file)));
+}
+
+describe("confined add and commit", () => {
+  const _head = (canary: Canary) => fixtureGit(canary.target.worktree.cwd, "rev-parse", "HEAD");
+
+  it.skipIf(macOnly)("commits a regular file in a linked worktree and advances HEAD", async () => {
+    const git = gitRunner();
+    const workspace = await checkout(git);
+    const target = await linkedWorktree(git, workspace.cwd);
+    const before = await fixtureGit(target.worktree.cwd, "rev-parse", "HEAD");
+    const name = "it's $(touch quoted-ran) `touch ticked-ran`; x.txt";
+    await writeFile(join(target.worktree.cwd, name), "new\n");
+    const message = "Change it's $(touch quoted-ran)\n\n`touch ticked-ran`; done";
+
+    const added = await git.add(target, [name]);
+    expect(added).toEqual({ ok: true, data: "", afterExit: "not-known" });
+    const committed = await git.commit(target, message, identity);
+    expect(committed).toMatchObject({ ok: true, afterExit: "not-known" });
+
+    const after = await fixtureGit(target.worktree.cwd, "rev-parse", "HEAD");
+    expect(after).not.toBe(before);
+    expect(await fixtureGit(target.worktree.cwd, "rev-parse", "HEAD~1")).toBe(before);
+    expect(await fixtureGit(target.worktree.cwd, "log", "-1", "--format=%B")).toBe(message);
+    expect(await fixtureGit(target.worktree.cwd, "log", "-1", "--format=%an <%ae>|%cn <%ce>")).toBe(
+      "Fixture Operator <operator@example.invalid>|Fixture Operator <operator@example.invalid>",
+    );
+    expect(await fixtureGit(target.worktree.cwd, "show", "--name-only", "--format=")).toBe(name);
+    for (const directory of [root, target.worktree.cwd, workspace.cwd]) {
+      expect(await readdir(directory)).not.toEqual(
+        expect.arrayContaining([expect.stringMatching(/^(quoted|ticked)-ran$/u)]),
+      );
+    }
+    expect(await git.status(target)).toMatchObject({ ok: true, data: "" });
+  });
+
+  it.skipIf(macOnly)(
+    "reports a Git failure as having run, with what happens after unknown",
+    async () => {
+      const git = gitRunner();
+      const workspace = await checkout(git);
+      const target = await linkedWorktree(git, workspace.cwd);
+      expect(await git.commit(target, "Nothing", identity)).toMatchObject({
+        ok: false,
+        code: 1,
+        afterExit: "not-known",
+      });
+    },
+  );
+
+  const operations = {
+    "add .": (git: PrivilegedGit, canary: Canary) => git.add(canary.target, ["."]),
+    "commit -a": (git: PrivilegedGit, canary: Canary) =>
+      git.commit(canary.target, "Confined", identity, { all: true }),
+  };
+  const plain = { "add .": ["add", "--", "."], "commit -a": ["commit", "-qam", "Plain"] };
+
+  for (const kind of ["fsmonitor", "filter"] as const) {
+    for (const [name, operation] of Object.entries(operations)) {
+      const label = name as keyof typeof operations;
+      it.skipIf(macOnly)(
+        `runs a nested repository's ${kind} program confined under ${label}`,
+        async () => {
+          const git = gitRunner();
+          const canary = await plantCanary(git, kind);
+          const worktree = canary.target.worktree.cwd;
+          try {
+            await writeFile(join(worktree, "answer.txt"), "changed");
+            await plainGit(worktree, ...plain[label]);
+            expect(await exists(canary.fired), `${kind}: plain ${label} runs it`).toBe(true);
+            await fixtureGit(worktree, "reset", "-q", "HEAD@{1}").catch(() => undefined);
+            await rm(canary.fired);
+            await rm(canary.inside);
+            await writeFile(join(worktree, "answer.txt"), "changed again");
+            const before = await snapshot(canary);
+            const head = await fixtureGit(worktree, "rev-parse", "HEAD");
+
+            const result = await operation(git, canary);
+            expect(result).toMatchObject({ ok: true, afterExit: "not-known" });
+            expect(await exists(canary.inside), "the program ran inside the sandbox").toBe(true);
+            expect(await exists(canary.fired)).toBe(false);
+            expect(await exists(canary.home)).toBe(false);
+            expect(await snapshot(canary)).toEqual(before);
+            expect(await readdir(join(canary.clone, ".git"))).not.toContain("hooks");
+            if (label === "commit -a") {
+              expect(await fixtureGit(worktree, "rev-parse", "HEAD~1")).toBe(head);
+            }
+            expect(await git.status(canary.target)).toMatchObject({ ok: true });
+          } finally {
+            await rm(canary.home, { force: true });
+          }
+        },
+      );
+    }
+  }
+
+  const unavailable = (reason: string) => ({ ok: false, refused: reason, code: null });
+  const result = (stdout = ""): Awaited<ReturnType<MxcApi["run"]>> => ({
+    stdout,
+    stderr: "",
+    exitCode: 0,
+    timedOut: false,
+    warnings: [],
+  });
+  const supported = { isSupported: true, availableMethods: ["seatbelt"] };
+  const failures: [string, Pick<PrivilegedGitOptions, "mxc" | "platform">, string][] = [
+    ["Windows", { platform: "win32" }, "unsupported-platform"],
+    ["Linux", { platform: "linux" }, "unsupported-platform"],
+    [
+      "a missing SDK",
+      { platform: "darwin", mxc: () => Promise.reject(new Error("Cannot find module")) },
+      "mxc-unavailable",
+    ],
+    [
+      "an unsupported host",
+      {
+        platform: "darwin",
+        mxc: async () => ({
+          getPlatformSupport: () => ({ isSupported: false, availableMethods: [] }),
+          run: async () => result(),
+        }),
+      },
+      "mxc-unavailable",
+    ],
+    [
+      "a sandbox that fails to start",
+      {
+        platform: "darwin",
+        mxc: async () => ({
+          getPlatformSupport: () => supported,
+          run: () => Promise.reject(new Error("spawn mxc-exec-mac ENOENT")),
+        }),
+      },
+      "mxc-failed",
+    ],
+    [
+      "a sandbox that runs nothing",
+      {
+        platform: "darwin",
+        mxc: async () => ({ getPlatformSupport: () => supported, run: async () => result() }),
+      },
+      "confinement-not-proven",
+    ],
+    ...(process.platform === "win32"
+      ? []
+      : ([
+          [
+            "a sandbox that does not confine",
+            {
+              platform: "darwin",
+              mxc: async () => ({
+                getPlatformSupport: () => supported,
+                run: async (request) => {
+                  const ran = spawnSync("/bin/sh", ["-c", request.command], {
+                    cwd: request.workingDirectory,
+                    env: request.environment,
+                    encoding: "utf8",
+                  });
+                  return {
+                    ...result(ran.stdout),
+                    stderr: ran.stderr,
+                    exitCode: ran.status ?? 1,
+                  };
+                },
+              }),
+            },
+            "confinement-not-proven",
+          ],
+        ] as typeof failures)),
+  ];
+
+  it("refuses add and commit and runs nothing when the sandbox cannot be proven", async () => {
+    const git = gitRunner();
+    const workspace = await checkout(git);
+    const target = await linkedWorktree(git, workspace.cwd);
+    const worktree = target.worktree.cwd;
+    const script = join(root, "program.sh");
+    const marker = join(root, "fail-closed-ran");
+    await markerScript(script, marker);
+    const elsewhere = join(root, "elsewhere");
+    const oid = await nestedRepository(elsewhere);
+    await fixtureGit(elsewhere, "config", "core.fsmonitor", shellQuote(script));
+    await cp(elsewhere, join(worktree, "sub"), { recursive: true });
+    await fixtureGit(worktree, "update-index", "--add", "--cacheinfo", `160000,${oid},sub`);
+    await writeFile(join(worktree, "answer.txt"), "changed");
+    await fixtureGit(worktree, "add", "--", ".");
+    if (process.platform !== "win32") expect(await markerRan(marker)).toBe(true);
+    await rm(marker, { force: true });
+    await writeFile(join(worktree, "answer.txt"), "changed again");
+    const index = join(workspace.gitDirectory, "worktrees", target.worktree.id, "index");
+    const before = [await readFile(index), await fixtureGit(worktree, "rev-parse", "HEAD")];
+
+    for (const [label, confinement, reason] of failures) {
+      const refused = gitRunner(undefined, confinement);
+      const results: ConfinedResult[] = [
+        await refused.add(target, ["."]),
+        await refused.commit(target, "Refused", identity, { all: true }),
+      ];
+      for (const outcome of results) {
+        expect(outcome, label).toMatchObject(unavailable(reason));
+        expect(outcome, label).not.toHaveProperty("afterExit");
+      }
+      expect(await markerRan(marker), label).toBe(false);
+      expect(
+        [await readFile(index), await fixtureGit(worktree, "rev-parse", "HEAD")],
+        label,
+      ).toEqual(before);
+    }
+    if (process.platform !== "darwin") {
+      expect(await gitRunner().add(target, ["."])).toMatchObject(
+        unavailable("unsupported-platform"),
+      );
+    }
   });
 });
