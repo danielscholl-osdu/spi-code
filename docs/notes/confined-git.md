@@ -16,7 +16,7 @@ below, then runs `commit(target, "Confined commit", identity, { all: true })`:
 ```text
 platform: darwin arm64, git version 2.56.0
 commit result: {"ok":true,"afterExit":"not-known"}
-HEAD: 9f103a85bac5 -> 0f5e4f102572
+HEAD: 350f67b849b4 -> 4f26057d2ab6
 committed: Confined commit
 
 answer.txt
@@ -52,9 +52,24 @@ failed, and the commit advanced HEAD.
 - A read-only path inside a writable one holds: writing, renaming over or
   removing `.git/config` and the worktree's `.git` file fail, and so does
   creating the missing `.git/hooks`.
-- `probe()` is Windows-only. Proof is per run instead: the script prints a
-  random id, then tries to write a host-owned canary outside the policy and
-  exits 97 if it can, before Git starts.
+- `probe()` is Windows-only. Proof is per run instead: the script tries to
+  write a host-owned canary outside the policy and exits 97 if it can, or 98
+  if the write fails with anything but `<canary>: Operation not permitted`
+  (Seatbelt's denial; a missing directory gives `No such file or directory`
+  inside the sandbox too). Only then does it print `<random id>:EPERM` and
+  exec Git. The host accepts the result only when it has the SDK's shape,
+  stdout starts with that line, the exit is not 97 or 98 and the canary is
+  absent.
+- A result carries `afterExit: "not-known"` exactly when `run()` was called.
+  Failures before that (no sandbox, a scratch folder that cannot be made, a
+  clone config or worktree pointer that is not the recorded one) are
+  `refused` with no `afterExit`. After it, a failed proof is
+  `refused: "confinement-not-proven"` and a rejected `run()` is
+  `uncertain: "outcome-not-known"`, both with `afterExit`: the SDK validates,
+  runs and decodes in one promise, so a rejection may come after Git changed
+  the index or HEAD.
+- Each run's scratch folders are removed on every path, including a failure
+  to create the second one.
 - Whether a program Git started is still running after the commit returns is
   not known; results carry `afterExit: "not-known"`.
 

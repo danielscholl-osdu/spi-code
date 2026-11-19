@@ -7,7 +7,14 @@ import { homedir } from "node:os";
 import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { type ExecOptions, type ExecResult, textResult } from "@spi-code/core";
 import { HostExec } from "../exec/host-exec.js";
-import { type ConfinedResult, installRoot, loadMxc, type MxcApi, runConfined } from "./confined.js";
+import {
+  type ConfinedResult,
+  installRoot,
+  loadMxc,
+  type MxcApi,
+  refuse,
+  runConfined,
+} from "./confined.js";
 
 export interface PrivilegedGitOptions {
   readonly appData: string;
@@ -550,8 +557,19 @@ export class PrivilegedGit {
     env: Record<string, string>,
     options: ConfinedGitOptions,
   ): Promise<ConfinedResult> {
-    const runtime = await this.#getRuntime();
-    const { admin, common } = await this.#resolve(runtime, target);
+    let runtime: Runtime;
+    let resolved: { admin: string; common: string };
+    try {
+      runtime = await this.#getRuntime();
+    } catch {
+      return refuse("setup-failed");
+    }
+    try {
+      resolved = await this.#resolve(runtime, target);
+    } catch {
+      return refuse("workspace-not-trusted");
+    }
+    const { admin, common } = resolved;
     return runConfined(
       {
         binary: runtime.binary,
