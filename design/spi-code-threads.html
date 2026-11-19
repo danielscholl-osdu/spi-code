@@ -501,7 +501,7 @@ figcaption{font-size:13px;color:var(--faint);margin-top:10px;max-width:96ch}
     <p>Threads run in SPI Code's own host, on the Copilot SDK session the host already starts. The engine is a new package, <code>@spi-code/threads</code>, that imports nothing from SPI Code. The host hands it four things: where a thread works, which tools are offered, the instructions and context, and the channel its events travel on. Another app can supply its own four and use the same engine and view.</p>
     <figure>
       <div class="flow">
-        <svg viewBox="0 0 1000 366" role="img" aria-label="The window holds SPI Code's views and the thread view. Both talk to one host process over a MessagePort. In the host, the thread engine drives the Copilot SDK runtime, whose shell and file tools run inside a sandbox, and Copilot reads the program through SPI tools. The host's own git, gh and glab run outside the sandbox.">
+        <svg viewBox="0 0 1000 366" role="img" aria-label="The window holds SPI Code's views and the thread view. Both talk to one host process over a MessagePort. In the host, the thread engine drives the Copilot SDK runtime, whose shell and file tools run inside a sandbox, and Copilot reads the program through SPI tools. The host's own git add and commit run confined under MXC; its push, gh and glab run outside the sandbox.">
           <defs><marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--line-strong)"/></marker></defs>
           <rect x="8" y="8" width="984" height="100" class="b-frame" rx="10"/><text x="22" y="28" class="col">The window</text>
           <rect x="24" y="36" width="440" height="60" class="box b-spi"/><text x="38" y="60" class="t">SPI Code's views and shell</text><text x="38" y="80" class="sub">sidebar, top row, ⌘K, Today, places, Evidence, Settings</text>
@@ -515,7 +515,7 @@ figcaption{font-size:13px;color:var(--faint);margin-top:10px;max-width:96ch}
           <rect x="520" y="290" width="456" height="62" class="box b-agent"/><text x="534" y="314" class="t">Copilot SDK runtime</text><text x="534" y="334" class="sub">its shell and file tools run inside the sandbox</text>
           <path d="M520 321 L385 321 L385 238" class="arrow" marker-end="url(#a3)"/><text x="394" y="312" class="tiny">calls SPI tools</text>
           <path d="M149 246 L149 286" class="arrow" marker-end="url(#a3)"/>
-          <rect x="24" y="290" width="250" height="62" class="box b-mute"/><text x="38" y="314" class="t">git, gh, glab</text><text x="38" y="334" class="sub">the host's own, outside the sandbox</text>
+          <rect x="24" y="290" width="250" height="62" class="box b-mute"/><text x="38" y="314" class="t">git, gh, glab</text><text x="38" y="334" class="sub">the host's own; commit under MXC</text>
         </svg>
       </div>
       <figcaption>One host, one runtime. Copilot's tools are confined; commit, push and opening a request are done by the host when the operator presses them.</figcaption>
@@ -561,7 +561,7 @@ figcaption{font-size:13px;color:var(--faint);margin-top:10px;max-width:96ch}
         <tr><td><b>Edit a file</b></td><td>Copilot</td><td>An approval row with the diff in Supervised; no prompt in Auto-accept edits</td></tr>
         <tr><td><b>Run a command (build, test, <code>git</code>)</b></td><td>Copilot, in the sandbox, with no sign-in</td><td>An approval row with the command, every time</td></tr>
         <tr><td><b>Read GitHub or GitLab</b></td><td>The host, through SPI tools</td><td>Typed read tools. <code>gh</code> and <code>glab</code> have no sign-in inside the sandbox</td></tr>
-        <tr><td><b>Commit, push, open a PR or MR</b></td><td>The host's own git, <code>gh</code> and <code>glab</code>, outside the sandbox (CT-11)</td><td>The operator presses it on the Thread tab. Copilot cannot</td></tr>
+        <tr><td><b>Commit, push, open a PR or MR</b></td><td>The host's own git, <code>gh</code> and <code>glab</code>; add and commit confined under <code>@microsoft/mxc-sdk</code>, push outside the sandbox (CT-11)</td><td>The operator presses it on the Thread tab. Copilot cannot</td></tr>
         <tr><td><b>A program operation (dispatch, re-run, merge)</b></td><td>The host</td><td>A typed SPI tool that raises a card, M4, unchanged</td></tr>
       </tbody>
     </table></div>
@@ -639,7 +639,7 @@ figcaption{font-size:13px;color:var(--faint);margin-top:10px;max-width:96ch}
           <tr><td><b>Service home</b> A subtree under a pinned service and Copilot actions are out of scope</td><td>Still no subtree. The service page gains a Threads tab, and rows gain Ask about this</td></tr>
         </tbody>
       </table></div>
-      <p class="note">Unchanged: the host drives Copilot through the SDK (CP-01 to CP-03), one runtime and no MCP server, SPI Code's own worktrees and git outside the sandbox (CT-11), the sandbox's write, home and environment rules (CT-08, CT-09), no commands when the sandbox can't start (CT-07), one right panel that exists only in a thread (PS-11), threads by status and the Settled shelf (PS-08, TH-07), the context chip's contents and budget (PS-14), the thread marker on an owned row (TH-05, PS-15), the model picker (CP-09), and M4's cards for program operations.</p>
+      <p class="note">Unchanged: the host drives Copilot through the SDK (CP-01 to CP-03), one runtime and no MCP server, SPI Code's own worktrees, the sandbox's write, home and environment rules (CT-08, CT-09), no commands when the sandbox can't start (CT-07), one right panel that exists only in a thread (PS-11), threads by status and the Settled shelf (PS-08, TH-07), the context chip's contents and budget (PS-14), the thread marker on an owned row (TH-05, PS-15), the model picker (CP-09), and M4's cards for program operations.</p>
     </section>
 
     <section>
