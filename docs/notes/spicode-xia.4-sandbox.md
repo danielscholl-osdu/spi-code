@@ -25,3 +25,12 @@ process, reopened the session, started a one-word model turn, and sent
 session ID and obtained a fresh `seatbelt` attestation. This exercised the
 runtime adapter. The thread routes and their restart handling are owned by
 spicode-xia.6. Windows sandbox verification is owned by spicode-xia.17.
+
+The fix-round probe reran the signed-in linked-worktree check on macOS 27.2
+arm64 with SDK 1.0.26. The shell preflight attested Seatbelt. The exported
+names matched the expected four Git config key/value pairs, including the
+launcher's entry ahead of the three SDK entries. The shell's count and key
+comparison returned yes. The probe printed only names and pass/fail results.
+Seatbelt blocked appending to the linked worktree's `.git` pointer. A scratch
+`git commit --allow-empty` advanced the linked worktree's HEAD, and the
+pointer's bytes matched before and after both calls.

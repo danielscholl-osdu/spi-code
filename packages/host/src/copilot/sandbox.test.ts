@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { execFileSync } from "node:child_process";
 import { mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -33,7 +34,7 @@ describe("Copilot sandbox policy", () => {
     });
   });
 
-  it("allows a linked worktree and Git metadata while protecting hooks and config", () => {
+  it("allows a linked worktree and Git metadata while protecting hooks, config and the pointer", () => {
     const runtimeTemp = resolve("app", "copilot", "runtime-temp");
     expect(buildSandboxConfig(workspace, runtimeTemp)).toEqual({
       enabled: true,
@@ -44,7 +45,7 @@ describe("Copilot sandbox policy", () => {
       userPolicy: {
         filesystem: {
           readwritePaths: [roots.temp, roots.worktree, git],
-          readonlyPaths: protectedPaths,
+          readonlyPaths: [...protectedPaths, join(roots.worktree, ".git")],
           deniedPaths: [runtimeTemp],
         },
         network: {
@@ -79,10 +80,36 @@ type Sample =
   | "unsupported"
   | "missing-event"
   | "wrong-call"
+  | "policy-source"
+  | "inactive"
+  | "missing-enforcement"
+  | "allow-bypass"
+  | "git-auth"
+  | "gh-auth"
+  | "keychain-access"
+  | "tool-failure"
+  | "reported-write"
+  | "missing-path"
+  | "writable-canary"
+  | "unexpected-count"
+  | "unexpected-key"
   | "credential"
   | "unknown-name"
   | "missing-output"
   | "no-preflight";
+
+const shellGitSamples = new Set<Sample>(["unexpected-count", "unexpected-key"]);
+const gitEnvironment = {
+  GIT_CONFIG_COUNT: "4",
+  GIT_CONFIG_KEY_0: "credential.helper",
+  GIT_CONFIG_VALUE_0: "",
+  GIT_CONFIG_KEY_1: "safe.bareRepository",
+  GIT_CONFIG_VALUE_1: "explicit",
+  GIT_CONFIG_KEY_2: "credential.interactive",
+  GIT_CONFIG_VALUE_2: "false",
+  GIT_CONFIG_KEY_3: "core.fsmonitor",
+  GIT_CONFIG_VALUE_3: "false",
+};
 
 function recordedRuntime(sample: Sample, canaryRoot: string) {
   const listeners = new Set<(event: unknown) => void>();
@@ -130,29 +157,60 @@ function recordedRuntime(sample: Sample, canaryRoot: string) {
                 ...observed,
                 kind: "policy_resolved",
                 outcome: "resolved",
-                policySource: "user_policy",
-                allowBypass: false,
-                gitAuth: false,
-                ghAuth: false,
-                keychainAccess: false,
+                policySource: sample === "policy-source" ? "default_policy" : "user_policy",
+                allowBypass: sample === "allow-bypass",
+                gitAuth: sample === "git-auth",
+                ghAuth: sample === "gh-auth",
+                keychainAccess: sample === "keychain-access",
               },
               { ...observed, kind: "spawn_completed", outcome: "succeeded", durationMs: 10 },
               {
                 ...observed,
                 kind: "enforcement_state",
-                outcome: "engaged",
+                outcome: sample === "inactive" ? "inactive" : "engaged",
                 attestation: "spawn_succeeded",
               },
             ]) {
+              if (sample === "missing-enforcement" && data.kind === "enforcement_state") continue;
               for (const listener of listeners) listener({ type: "sandbox.decision", data });
             }
           }
-          const names = ["HOME", "PATH"];
+          if (shellGitSamples.has(sample)) {
+            const env = {
+              ...gitEnvironment,
+              PATH: "/usr/bin:/bin",
+              ...(sample === "unexpected-count" ? { GIT_CONFIG_COUNT: "5" } : {}),
+              ...(sample === "unexpected-key" ? { GIT_CONFIG_KEY_2: "credential.username" } : {}),
+            };
+            const blockedCanary = command.replace(
+              /printf x > '([^']+)'/,
+              "printf x > /dev/null/outside",
+            );
+            return {
+              resultType: "success",
+              textResultForLlm: execFileSync(
+                "/bin/bash",
+                ["--noprofile", "--norc", "-c", blockedCanary],
+                {
+                  encoding: "utf8",
+                  env,
+                },
+              ),
+            };
+          }
+          const names = ["HOME", ...Object.keys(gitEnvironment)];
+          if (sample !== "missing-path") names.push("PATH");
           if (sample === "credential") names.push("COPILOT_SDK_AUTH_TOKEN");
           if (sample === "unknown-name") names.push("NEW_SDK_BRIDGE");
-          const text = [`${toolCallId}:begin`, "blocked", ...names, `${toolCallId}:end`].join("\n");
+          const text = [
+            `${toolCallId}:begin`,
+            sample === "reported-write" ? "wrote" : "blocked",
+            "yes",
+            ...names,
+            `${toolCallId}:end`,
+          ].join("\n");
           return {
-            resultType: "success",
+            resultType: sample === "tool-failure" ? "failure" : "success",
             textResultForLlm: sample === "missing-output" ? "" : text,
           };
         }),
@@ -200,25 +258,45 @@ describe("Copilot sandbox preflight", () => {
     await rm(root, { recursive: true, force: true });
   });
 
-  it.each([
+  it.for([
     ["write", "write-not-blocked"],
     ["unsupported", "sandbox-not-attested"],
     ["missing-event", "sandbox-not-attested"],
     ["wrong-call", "sandbox-not-attested"],
+    ["policy-source", "sandbox-not-attested"],
+    ["inactive", "sandbox-not-attested"],
+    ["missing-enforcement", "sandbox-not-attested"],
+    ["allow-bypass", "sandbox-not-attested"],
+    ["git-auth", "sandbox-not-attested"],
+    ["gh-auth", "sandbox-not-attested"],
+    ["keychain-access", "sandbox-not-attested"],
+    ["tool-failure", "preflight-failed"],
+    ["reported-write", "write-not-blocked"],
+    ["missing-path", "preflight-failed"],
+    ["writable-canary", "preflight-failed"],
+    ["unexpected-count", "credential-environment"],
+    ["unexpected-key", "credential-environment"],
     ["credential", "credential-environment"],
     ["unknown-name", "credential-environment"],
     ["missing-output", "preflight-failed"],
-  ] as const)("keeps only custom tools when the preflight records %s", async (sample, reason) => {
-    const runtime = recordedRuntime(sample, root);
-    const thread = await runtime.open();
-    expect(thread.sandbox).toEqual({ kind: "not-confined", reason });
-    expect(runtime.session.rpc.options.update).toHaveBeenLastCalledWith({
-      availableTools: customOnly,
-      toolFilterPrecedence: "excluded",
-    });
-    await thread.send({ prompt: "Ask" });
-    expect(runtime.session.send).toHaveBeenCalledOnce();
-  });
+  ] as const)(
+    "keeps only custom tools when the preflight records %s",
+    async ([sample, reason], context) => {
+      if (process.platform === "win32" && shellGitSamples.has(sample)) {
+        context.skip("Requires the Bash preflight shell.");
+      }
+      const runtime = recordedRuntime(sample, root);
+      const paths = sample === "writable-canary" ? { ...workspace, tempPath: root } : workspace;
+      const thread = await runtime.open(undefined, "darwin", paths);
+      expect(thread.sandbox).toEqual({ kind: "not-confined", reason });
+      expect(runtime.session.rpc.options.update).toHaveBeenLastCalledWith({
+        availableTools: customOnly,
+        toolFilterPrecedence: "excluded",
+      });
+      await thread.send({ prompt: "Ask" });
+      expect(runtime.session.send).toHaveBeenCalledOnce();
+    },
+  );
 
   it("attests the recorded shell spawn and withdraws tools if the next turn is blocked", async () => {
     const runtime = recordedRuntime("blocked", root);
