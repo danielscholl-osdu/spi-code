@@ -115,11 +115,13 @@ describe("an area's read state", () => {
       { area: "radar", state: "failed" as const, observedAt: earlier },
       { area: "upstream", state: "fresh" as const, observedAt: at },
       { area: "template", state: "failed" as const },
+      { area: "lifecycle", state: "failed" as const },
     ];
-    expect(withRecords(areas, { radar })).toEqual([
+    expect(withRecords(areas, { radar, lifecycle: [] })).toEqual([
       { ...areas[0], records: { read: 1, retained: [{ from: earlier, reads: 1 }], lost: 1 } },
       areas[1],
       { ...areas[2], records: NOT_READ },
+      { ...areas[3], records: NOT_READ },
     ]);
   });
 });

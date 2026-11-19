@@ -85,7 +85,7 @@ export function withRecords(areas: readonly AreaRead[], reads: CollectorReads): 
   return areas.map((entry) => {
     if (entry.state !== "failed") return entry;
     const records = (reads as Record<string, readonly ReadRecord[] | undefined>)[entry.area];
-    if (!records) return { ...entry, records: NOT_READ };
+    if (!records?.length) return { ...entry, records: NOT_READ };
     const retained = new Map<string, number>();
     let read = 0;
     let lost = 0;

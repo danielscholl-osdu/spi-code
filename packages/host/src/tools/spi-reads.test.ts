@@ -214,7 +214,11 @@ describe("SPI read tools over the saved sweep", () => {
 
     const unread = await call("spi_evidence", { path: "/releases/lines" });
     expect(unread).toMatchObject({ read: "not read" });
-    expect(unread.collectors).toContainEqual({ collector: "releases", state: "unread", reads: 0 });
+    expect(unread.collectors).toContainEqual({
+      collector: "releases",
+      state: "unread",
+      reads: "not read",
+    });
   });
 
   it("bounds a result by whole items and names what it left out", async () => {
