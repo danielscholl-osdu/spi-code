@@ -132,12 +132,12 @@ Copilot has its own shell and file tools in a thread, and every one of them runs
 | Edit a file | Copilot | An approval row with the diff in Supervised; no prompt in Auto-accept edits |
 | Run a command (build, test, git) | Copilot, in the sandbox, with no sign-in | An approval row with the command, in every access mode |
 | Read GitHub or GitLab | The host, through SPI tools | Typed read tools |
-| Commit, push, open a pull request or merge request | The host's own git, gh and glab, outside the sandbox (CT-11) | Buttons the operator presses on the Thread tab |
+| Commit, push, open a pull request or merge request | The host's own git, gh and glab. Staging and commit run confined under `@microsoft/mxc-sdk` (ruling T9); push and the requests run outside the sandbox under the operator's sign-in (CT-11) | Buttons the operator presses on the Thread tab |
 | A program operation (dispatch, re-run, merge) | The host | A typed SPI tool that raises a card, M4, unchanged |
 
 Copilot has no commit, push or request tool. A git command it runs is a command like any other, approved row by row; it can commit in the worktree, and it cannot push or open a request, because it has no sign-in inside the sandbox. The Thread tab's buttons are the only way a change leaves the machine.
 
-A command the host spawns itself, such as a fork's build or verify script (CT-16), is not a Copilot tool and the SDK's sandbox does not cover it. Those run under `@microsoft/mxc-sdk` with the same policy. The Copilot runtime's sandbox is that same library, so one policy format serves both. It takes the place of the hand-written Seatbelt profile and Windows restricted token the PRD once named. On Windows it needs Windows 11, and SPI Code accepts MXC's required Windows telemetry.
+A command the host spawns itself, such as its own `git add` and `git commit` (ruling T9) or a fork's build or verify script (CT-16), is not a Copilot tool and the SDK's sandbox does not cover it. Those run under `@microsoft/mxc-sdk` with the same policy. The Copilot runtime's sandbox is that same library, so one policy format serves both. It takes the place of the hand-written Seatbelt profile and Windows restricted token the PRD once named. On Windows it needs Windows 11, and SPI Code accepts MXC's required Windows telemetry.
 
 The sandbox has been observed on macOS only. Until the same checks pass on Windows (spicode-xia.17), a Windows thread asks and reads and offers no shell or file tools.
 
@@ -153,6 +153,7 @@ The sandbox has been observed on macOS only. Until the same checks pass on Windo
 | T6 | Redaction keeps EV-05 for the journal, for every custom tool and for every successful built-in result. A failed built-in tool's output inside the sandbox reaches Copilot as the runtime produced it, because the SDK lets the host replace only a successful result; the sandbox holds no credential store or token variable for that output to carry. |
 | T7 | The threads epic (spicode-xia) carries what the PRD split between M3 threads and M5 code threads. M3's Diagnose, Lane watch and campaigns stay in their epic (spicode-cp0) and build on it. |
 | T8 | `@microsoft/mxc-sdk` is a direct dependency for commands the host spawns itself, with Windows 11 as the minimum and its required Windows telemetry accepted. |
+| T9 | SPI Code's own `git add` and `git commit` run inside an `@microsoft/mxc-sdk` sandbox, so a program a nested repository's config names, such as `core.fsmonitor` or a filter driver, runs confined. `git add` and `git commit` have no switch to ignore a nested repository, so the host confines them instead of refusing commands one at a time. Status, diff and push stay outside the sandbox (CT-11). Decided 2026-11-19 on spicode-xia.13; built by spicode-xia.24. |
 
 ## Build order
 
@@ -176,9 +177,10 @@ The sandbox has been observed on macOS only. Until the same checks pass on Windo
 | EV-05 | Ruling T6. |
 | CT-07 | The SDK's `sandboxConfig` for Copilot's tools and `@microsoft/mxc-sdk` for host-run commands, in place of a hand-written Seatbelt profile and Windows restricted token. |
 | CT-10, CT-13, CT-14 | A command is an approval row. Commit, push and opening a request are buttons the operator presses. A changed file's diff is on the Changes tab. |
+| CT-11 | Ruling T9. The host's own `git add` and `git commit` run confined under `@microsoft/mxc-sdk`. Status, diff and push run outside the sandbox. All of them run with hooks off, name the clone's git folder directly, never follow the worktree's `.git` file and check the repository config; status and diff pass `--ignore-submodules=all`. |
 | Milestones | A Threads row carries both, in the build order above. |
 | Open questions | The `sandboxConfig` question is settled; the Windows question is whether the SDK's sandbox engages there. |
 | Today and places, Z7 | Ask about this is the one Copilot control on a row or popover. |
 | Service home | Still no subtree under a pinned service. The service page gains a Threads tab, and rows gain Ask about this. |
 
-Unchanged: the host drives Copilot through the SDK (CP-01 to CP-03), one runtime and no MCP server, SPI Code's own git outside the sandbox (CT-11), the home and environment rules (CT-09), one right panel that exists only in a thread (PS-11), threads by status and the Settled shelf (PS-08, TH-07), the context chip's contents and budget (PS-14), the thread marker on an owned row (TH-05, PS-15), the model picker (CP-09), and M4's cards for program operations.
+Unchanged: the host drives Copilot through the SDK (CP-01 to CP-03), one runtime and no MCP server, the home and environment rules (CT-09), one right panel that exists only in a thread (PS-11), threads by status and the Settled shelf (PS-08, TH-07), the context chip's contents and budget (PS-14), the thread marker on an owned row (TH-05, PS-15), the model picker (CP-09), and M4's cards for program operations.
