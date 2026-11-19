@@ -24,6 +24,7 @@ Each bead is one slice: one worktree, one author, one reviewer, one landing.
   - the case the code cannot prove (a missing read, an unknown order, an empty history), and that it must report the quieter state;
   - where the design is silent and a builder would have to guess, your ruling, or a `decision` bead for the maintainer;
   - for a bead that changes a gate (`scripts/land`, the sandbox, a credential path), what the gate defends against and what it does not.
+  - for a `risk:high` bead, its attack surface: every input the caller, the worktree or tool output controls, each closed by construction or by a filter. A filter's acceptance is a closed table both ways, what it must catch and what it must leave alone; anything outside the table is a follow-up.
   - for a line about how a place looks or reads (copy, markup, layout, spacing), the capture and the design section to compare it with, not a test (`.agents/orchestration/rules.md`, "What to test");
   - for a change meant to alter no behaviour (a split, a move, a rename), the proof: which tests must pass unedited, which fixtures must stay byte-identical, and what may change in tests (moves only).
 
@@ -42,7 +43,7 @@ bd dep add <bead> <blocker>        # <bead> waits for <blocker>
 bd swarm validate <epic>           # confirms the graph and shows the waves
 ```
 
-Prefer a wide first wave. A bead that only creates shared scaffolding (the monorepo, a contracts package) goes first and alone, so everything after it can run side by side.
+Prefer a wide first wave. A bead that only creates shared scaffolding (the monorepo, a contracts package) goes first and alone, so everything after it can run side by side. Plan the waves so at most two `risk:high` beads hand off together, and a waiting `risk:high` review takes free slots before a new build.
 
 Create one **sweep bead** per epic (`-t chore -p 3`, title "<epic>: sweep"), blocked by the epic's last build bead. Reviewers add polish, test tidy-ups and unhit edges to it as comments instead of filing a bead each; it is built once, as one change.
 

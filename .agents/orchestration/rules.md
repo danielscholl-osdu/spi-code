@@ -41,7 +41,7 @@ Several agents share this machine. The full `scripts/check` runs every test twic
 - The roughly 800-line size cap counts product code only, not tests, smoke or fixtures.
 - When code cannot prove something (an order, a read, a membership), it reports the quieter, honest state: not read, unknown, holds nothing. It never reports a claim. Test that case.
 - Don't edit a package's `index.ts`, `package.json`, root config, `vitest.config.ts` or `pnpm-lock.yaml` unless your bead owns that package. Don't add a dependency unless the bead cannot be done without it.
-- One review round. After a `risk:std` fix round, the orchestrator reads the fix diff, confirms CI green and records the pass citing the review, with the reviewer's `review.provider` and `review.model`. No recheck. `risk:high` keeps a recheck.
+- One review round. After round 1, only a blocker buys another cycle, and a fix round adds no behaviour outside acceptance. After a `risk:std` fix round, the orchestrator reads the fix diff, confirms CI green and records the pass citing the review, with the reviewer's `review.provider` and `review.model`. No recheck. `risk:high` keeps a recheck, except for a fix that changes only tests. A recheck finding graded `should` or follow-up goes to the epic's hardening bead, and the passing head lands. "Review rounds" in `.agents/orchestration/README.md` has the whole rule.
 - Only wrong behaviour against acceptance, a broken gate or red CI blocks a pass. Nits, test tidy-ups, evidence gaps and captures go as comments to the epic's sweep bead.
 
 ## What to test

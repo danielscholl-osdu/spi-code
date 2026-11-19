@@ -87,6 +87,8 @@ Not proven: <anything the acceptance asks that no test shows, and why>."
 
 Break-and-restore evidence is required only for stores, state machines, parsing and gates. For those acceptance lines, break the code the test guards, run that one test, see it fail, and restore the code (`git checkout -- <file>`; the shared stash is off limits). When the test lives in another package, rebuild the package you broke first (`pnpm --filter <package> build`), or the test runs the old build and passes; rebuild again after restoring. For other behaviour, cite the test and its result. Include the case the code cannot prove: when it cannot know an order, a read or a membership, it must report the quieter state, and a test must show that.
 
+For `risk:high`, a fixture in a runtime's shape comes from a capture of the real runtime, not one written by hand, and every error path crosses the same boundary as the success path.
+
 Two kinds of line need a capture or command instead of a test:
 
 - a line about how a place looks or reads (copy, markup, layout, spacing), which the reviewer judges from a capture compared with the design: write "reviewer's: <what you looked at and saw>". Don't add a test for it;
@@ -102,6 +104,6 @@ Stop here when an orchestrator dispatched you: reply with the worktree path, the
 
 When you work alone, follow `.agents/skills/bead-review/SKILL.md` to get that review yourself, fix the findings that hold up, push back on the ones that don't, and land with `.agents/skills/bead-land/SKILL.md` once the pass is recorded.
 
-One review round. In a fix round you work in the bead's existing worktree, under your own `--actor` name; the claim stays with the bead. Change only what the findings name, and add to the evidence note a line per finding: the test and its result, with break-and-restore evidence only for stores, state machines, parsing and gates. After a `risk:std` fix round, the orchestrator reads the fix diff, confirms CI green and records the pass citing the review, with the reviewer's `review.provider` and `review.model`. No recheck. `risk:high` keeps a recheck.
+One review round. After round 1, only a blocker buys another cycle. In a fix round you work in the bead's existing worktree, under your own `--actor` name; the claim stays with the bead. Change only what the findings name and add no behaviour outside acceptance. Add to the evidence note a line per finding: the test and its result, with break-and-restore evidence only for stores, state machines, parsing and gates. In a `risk:high` fix round the brief names the seats' probe files: add their rows to the bead's tests and push only when every row passes. If a ruling makes a row fail, stop and say so. After a `risk:std` fix round, the orchestrator reads the fix diff, confirms CI green and records the pass citing the review, with the reviewer's `review.provider` and `review.model`. No recheck. `risk:high` keeps a recheck, except for a fix that changes only tests, which the orchestrator confirms as "Review rounds" in `.agents/orchestration/README.md` says.
 
 If you stop early, leave a note saying where you got to (`bd note <id> "<state>"`) and keep the claim, so the next agent can pick it up.
