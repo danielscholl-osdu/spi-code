@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@github/copilot-sdk": "1.0.26",
+    "@microsoft/mxc-sdk": "1.1.0",
     "@spi-code/contracts": "workspace:*",
     "@spi-code/core": "workspace:*",
     "@spi-code/tools": "workspace:*",

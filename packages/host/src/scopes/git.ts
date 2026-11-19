@@ -6,6 +6,7 @@ import { access, copyFile, lstat, mkdir, readFile, realpath } from "node:fs/prom
 import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { type ExecOptions, type ExecResult, textResult } from "@spi-code/core";
 import { HostExec } from "../exec/host-exec.js";
+import { type ConfinedResult, installRoot, loadMxc, type MxcApi, runConfined } from "./confined.js";
 
 export interface PrivilegedGitOptions {
   readonly appData: string;
@@ -15,6 +16,9 @@ export interface PrivilegedGitOptions {
   readonly env?: NodeJS.ProcessEnv;
   /** Local bare repositories used by offline fixtures. */
   readonly allowLocalRemotes?: boolean;
+  /** Loads the sandbox that add and commit run in. */
+  readonly mxc?: () => Promise<MxcApi>;
+  readonly platform?: NodeJS.Platform;
 }
 
 export interface GitTarget {
@@ -49,6 +53,20 @@ export interface PushRequest {
 
 export type WorktreeTarget = Required<GitTarget>;
 
+export interface CommitIdentity {
+  readonly name: string;
+  readonly email: string;
+}
+
+export interface ConfinedGitOptions {
+  readonly timeoutMs?: number;
+}
+
+export interface CommitOptions extends ConfinedGitOptions {
+  /** Stage changes to tracked files first, as commit -a does. */
+  readonly all?: boolean;
+}
+
 const upstreamRefspec = "+refs/heads/*:refs/remotes/upstream/*";
 const timeoutMs = 180_000;
 const submodulesOff = "--ignore-submodules=all";
@@ -80,6 +98,27 @@ function worktreeId(id: string): string {
     throw new Error("Worktree is outside its managed location.");
   }
   return id;
+}
+
+/** A worktree-relative path, or "." for the whole worktree; never a pathspec or Git metadata. */
+function worktreePath(path: string): string {
+  const parts = path.split("/");
+  if (
+    path !== "." &&
+    (path.length > 4096 ||
+      /[\0\\]/u.test(path) ||
+      parts.some((part) => ["", ".", ".."].includes(part) || part.toLowerCase() === ".git"))
+  ) {
+    throw new Error("Invalid worktree path.");
+  }
+  return path;
+}
+
+function identityPart(value: string): string {
+  if (!value.trim() || value.length > 256 || /[\0\r\n<>]/u.test(value)) {
+    throw new Error("Invalid commit identity.");
+  }
+  return value;
 }
 
 function isMissing(error: unknown): boolean {
@@ -132,6 +171,7 @@ interface Runtime {
   readonly cwd: string;
   readonly empty: string;
   readonly binary: string;
+  readonly env: Readonly<Record<string, string>>;
   readonly exec: HostExec;
 }
 
@@ -157,31 +197,41 @@ async function createRuntime(options: PrivilegedGitOptions): Promise<Runtime> {
   const windows = process.platform === "win32";
   const root = systemRoot(options.env ?? process.env);
   const paths = windows ? [join(root, "System32"), root] : ["/usr/bin", "/bin"];
+  const capturedPath = [dirname(binary), ...paths].join(delimiter);
+  const env = {
+    ...(windows ? { SystemRoot: root, WINDIR: root } : {}),
+    HOME: cwd,
+    USERPROFILE: cwd,
+    XDG_CONFIG_HOME: cwd,
+    TMPDIR: temp,
+    TMP: temp,
+    TEMP: temp,
+    LC_ALL: "C",
+    GIT_ASKPASS: "",
+    SSH_ASKPASS: "",
+    GIT_TERMINAL_PROMPT: "0",
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_CONFIG_GLOBAL: join(empty, "gitconfig"),
+    GIT_ATTR_NOSYSTEM: "1",
+    GIT_CEILING_DIRECTORIES: appData,
+    GIT_ALLOW_PROTOCOL: options.allowLocalRemotes ? "file" : "https",
+  };
   const exec = new HostExec({
     appData: cwd,
-    capturedPath: [dirname(binary), ...paths].join(delimiter),
+    capturedPath,
     installer: { binDir: async () => undefined },
     managedTools: [],
-    env: {
-      ...(windows ? { SystemRoot: root, WINDIR: root } : {}),
-      HOME: cwd,
-      USERPROFILE: cwd,
-      XDG_CONFIG_HOME: cwd,
-      TMPDIR: temp,
-      TMP: temp,
-      TEMP: temp,
-      LC_ALL: "C",
-      GIT_ASKPASS: "",
-      SSH_ASKPASS: "",
-      GIT_TERMINAL_PROMPT: "0",
-      GIT_CONFIG_NOSYSTEM: "1",
-      GIT_CONFIG_GLOBAL: join(empty, "gitconfig"),
-      GIT_ATTR_NOSYSTEM: "1",
-      GIT_CEILING_DIRECTORIES: appData,
-      GIT_ALLOW_PROTOCOL: options.allowLocalRemotes ? "file" : "https",
-    },
+    env,
   });
-  return { appData, cwd, empty, binary, exec };
+  return {
+    appData,
+    cwd,
+    empty,
+    binary,
+    // The sandbox cannot read the runner's own directory, only its empty one.
+    env: { ...env, PATH: capturedPath, HOME: empty, USERPROFILE: empty, XDG_CONFIG_HOME: empty },
+    exec,
+  };
 }
 
 function worktreePointer(text: string): string | undefined {
@@ -212,6 +262,23 @@ async function validateWorktree(
   return admin;
 }
 
+function fixedArgs(runtime: Runtime): string[] {
+  return [
+    "--no-pager",
+    "-c",
+    `core.hooksPath=${runtime.empty}`,
+    "-c",
+    "maintenance.auto=false",
+    "-c",
+    "gc.auto=0",
+    "-c",
+    "submodule.recurse=false",
+    "-c",
+    "commit.gpgSign=false",
+    ...(process.platform === "win32" ? ["-c", "http.sslBackend=schannel"] : []),
+  ];
+}
+
 async function execGit(
   runtime: Runtime,
   repository: string[],
@@ -221,22 +288,7 @@ async function execGit(
 ): Promise<ExecResult<string>> {
   const output = await runtime.exec.run(
     runtime.binary,
-    [
-      "--no-pager",
-      "-c",
-      `core.hooksPath=${runtime.empty}`,
-      "-c",
-      "maintenance.auto=false",
-      "-c",
-      "gc.auto=0",
-      "-c",
-      "submodule.recurse=false",
-      "-c",
-      "commit.gpgSign=false",
-      ...(process.platform === "win32" ? ["-c", "http.sslBackend=schannel"] : []),
-      ...repository,
-      ...args,
-    ],
+    [...fixedArgs(runtime), ...repository, ...args],
     {
       timeoutMs,
       ...options,
@@ -451,8 +503,77 @@ export class PrivilegedGit {
     );
   }
 
-  async #run(target: GitTarget, args: string[], options: GitOptions): Promise<ExecResult<string>> {
+  /** Stages the paths, which a nested repository's config can make Git run programs for. */
+  async add(
+    target: WorktreeTarget,
+    paths: readonly string[],
+    options: ConfinedGitOptions = {},
+  ): Promise<ConfinedResult> {
+    if (paths.length === 0) throw new Error("Invalid worktree path.");
+    const pathspecs = paths.map(worktreePath);
+    return this.#confined(target, ["add", "--", ...pathspecs], {}, options);
+  }
+
+  async commit(
+    target: WorktreeTarget,
+    message: string,
+    identity: CommitIdentity,
+    options: CommitOptions = {},
+  ): Promise<ConfinedResult> {
+    if (!message.trim() || message.includes("\0")) throw new Error("Invalid commit message.");
+    const name = identityPart(identity.name);
+    const email = identityPart(identity.email);
+    return this.#confined(
+      target,
+      [
+        "commit",
+        "--no-verify",
+        "--no-gpg-sign",
+        ...(options.all ? ["--all"] : []),
+        "--message",
+        message,
+      ],
+      {
+        GIT_AUTHOR_NAME: name,
+        GIT_AUTHOR_EMAIL: email,
+        GIT_COMMITTER_NAME: name,
+        GIT_COMMITTER_EMAIL: email,
+      },
+      options,
+    );
+  }
+
+  async #confined(
+    target: WorktreeTarget,
+    args: string[],
+    env: Record<string, string>,
+    options: ConfinedGitOptions,
+  ): Promise<ConfinedResult> {
     const runtime = await this.#getRuntime();
+    const { admin, common } = await this.#resolve(runtime, target);
+    return runConfined(
+      {
+        binary: runtime.binary,
+        args: [
+          ...fixedArgs(runtime),
+          "--literal-pathspecs",
+          `--git-dir=${admin}`,
+          `--work-tree=${target.worktree.cwd}`,
+          ...args,
+        ],
+        env: { ...runtime.env, ...env, GIT_COMMON_DIR: common },
+        clone: target.clone,
+        worktree: target.worktree.cwd,
+        scratch: runtime.cwd,
+        readonlyPaths: [installRoot(runtime.binary), runtime.empty],
+        timeoutMs: options.timeoutMs ?? timeoutMs,
+      },
+      this.#options.mxc ?? loadMxc,
+      this.#options.platform,
+    );
+  }
+
+  async #resolve(runtime: Runtime, target: GitTarget): Promise<{ admin: string; common: string }> {
     const common = join(target.clone, ".git");
     const directory = dirname(target.clone);
     if (
@@ -472,6 +593,12 @@ export class PrivilegedGit {
     const admin = target.worktree
       ? await validateWorktree(runtime, common, target.worktree)
       : common;
+    return { admin, common };
+  }
+
+  async #run(target: GitTarget, args: string[], options: GitOptions): Promise<ExecResult<string>> {
+    const runtime = await this.#getRuntime();
+    const { admin, common } = await this.#resolve(runtime, target);
     return execGit(
       runtime,
       [`--git-dir=${admin}`, `--work-tree=${target.worktree?.cwd ?? target.clone}`],
