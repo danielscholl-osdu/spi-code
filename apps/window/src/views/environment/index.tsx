@@ -17,6 +17,7 @@ import {
   navigate,
   type OpenSelection,
   routeHash,
+  routeLabel,
   setOpenSelection,
   useOpenSelection,
 } from "../../app/navigation.js";
@@ -114,10 +115,11 @@ export default function Environment({
   const dayHeading = useId();
   const snapshot = useStore(store, (state) => state.snapshot);
   const body = snapshot?.body;
-  const env = body?.briefing.environment;
+  // A snapshot saved before core sent the place's words stays not read until the next projection.
+  const env = body?.briefing.environment.words ? body.briefing.environment : undefined;
   const range = env ? rangeOf(env, routeRange) : undefined;
   const marked = useOpenSelection();
-  const opening = environmentOpening(body, marked, range);
+  const opening = env ? environmentOpening(body, marked, range) : undefined;
   const markedKey = marked && keyOf(marked);
   const pane = useRef<HTMLDivElement>(null);
   const clicked = useRef<{ key: string; element: HTMLElement } | null>(null);
@@ -157,7 +159,8 @@ export default function Environment({
     pendingFocus = `.env-day-heading[data-day="${range?.day?.key}"]`;
     navigate({ kind: "environment", range: WEEK });
   };
-  const reading = body?.readings.find(({ anchor }) => anchor.kind === "environment") ?? NO_READING;
+  const reading =
+    (env && body?.readings.find(({ anchor }) => anchor.kind === "environment")) || NO_READING;
   const { from, to } = range ?? { from: 0, to: 0 };
   const words = env?.words;
   const activity = env && activityView(env, from, to, range?.week);
@@ -195,7 +198,7 @@ export default function Environment({
   const placeOf = (extra: Pick<PlaceProps, "tiles" | "belowTiles" | "readingLead"> = {}) => (
     <Place
       {...extra}
-      name="Environment"
+      name={words?.place ?? routeLabel({ kind: "environment" })}
       pin={placePin("environment")}
       reading={reading}
       snapshot={body}

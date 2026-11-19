@@ -425,6 +425,7 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
   const words = environment.words;
   if (words) {
     const lead = "Environment · Stack runs";
+    add(`${base}/words/place`, words.place, environmentHome, "h1[data-place]");
     add(`${base}/words/runs`, words.runs, lensHome(lead), '[data-part="runs"] > summary');
     add(
       `${base}/words/repository`,
@@ -1774,9 +1775,8 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
     },
   },
   "environment-unseen-words": {
-    patterns: ["place", "run"].map((field) => `/briefing/environment/words/${field}`),
-    reason:
-      "A popover's place and its run pill's label, which no surface draws; the pill shows its kind",
+    patterns: ["/briefing/environment/words/run"],
+    reason: "A run pill's label, which no surface draws; the pill shows its kind",
   },
   "environment-quiet-words": {
     patterns: [

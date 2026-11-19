@@ -27,7 +27,10 @@ import { eventWhen, hourTicks, place } from "./timeline.js";
 
 const mixed = watchFixtureText("snapshot-mixed-59d6895.json", readFixture);
 
+const recordedSnapshot = mixedSnapshot(recorded);
 const snapshot = testSnapshot(briefing, releases);
+// The rib's oracle has no app words; the place draws core's, so it borrows the recorded ones.
+snapshot.briefing.environment.words = recordedSnapshot.briefing.environment.words;
 const environmentStyles = readFileSync(
   resolve("apps/window/src/views/environment/environment.css"),
   "utf8",
@@ -446,6 +449,38 @@ async function renderRecorded(body = mixedSnapshot(recorded)) {
     },
   };
 }
+
+it("leaves a snapshot saved before core sent the place's words not read, never with blank words", async () => {
+  // The recorded week as the build before core's words saved it.
+  const saved = mixedSnapshot(recorded);
+  delete saved.briefing.environment.words;
+  for (const lane of saved.briefing.environment.lanes)
+    for (const e of lane.events) {
+      delete e.trigger;
+      delete e.meaning;
+      delete e.meaningReady;
+    }
+  const store = createWatchStore(vi.fn());
+  store.setState({ snapshot: { cursor: saved.cursor, body: saved } });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<Environment store={store} />));
+    expect(container.querySelector("h1")?.textContent).toBe("Environment");
+    expect(container.querySelector(".place-reading, .env-day, .env-part, [data-opens]")).toBeNull();
+    const current = mixedSnapshot(recorded);
+    await act(async () => store.setState({ snapshot: { cursor: current.cursor, body: current } }));
+    const words = current.briefing.environment.words;
+    expect(container.querySelector("h1")?.textContent).toBe(words?.place);
+    expect(
+      [...container.querySelectorAll(".env-range button")].map((button) => button.textContent),
+    ).toEqual([words?.daySwitch, words?.weekSwitch]);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
 
 it("draws the last 24 hours open between status and the items, an open hold apart from an ended one", async () => {
   const body = mixedSnapshot(mixed);
