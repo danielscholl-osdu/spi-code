@@ -31,6 +31,7 @@ const fake = vi.hoisted(() => ({
   start: vi.fn().mockResolvedValue(undefined),
   stop: vi.fn().mockResolvedValue([]),
   createSession: vi.fn().mockRejectedValue(new Error("session stub")),
+  resumeSession: vi.fn().mockRejectedValue(new Error("resume stub")),
   list: vi.fn().mockResolvedValue({ models: [] }),
   construct: vi.fn(),
 }));
@@ -44,6 +45,7 @@ vi.mock("@github/copilot-sdk", () => ({
     start = fake.start;
     stop = fake.stop;
     createSession = fake.createSession;
+    resumeSession = fake.resumeSession;
     rpc = { models: { list: fake.list } };
   },
 }));
@@ -74,12 +76,13 @@ describe("Copilot runtime boundary", () => {
     fake.start.mockResolvedValue(undefined);
     fake.stop.mockResolvedValue([]);
     fake.createSession.mockRejectedValue(new Error("session stub"));
+    fake.resumeSession.mockRejectedValue(new Error("resume stub"));
     fake.list.mockResolvedValue({ models: [] });
     fake.configs.length = 0;
   });
 
   it.each(["normal", "sentinel"] as const)(
-    "shares the %s managed environment between auth, the runtime child and HostExec",
+    "uses the %s managed PATH for auth, the runtime child and HostExec",
     async (builder) => {
       const root = await mkdtemp(join(tmpdir(), "spicode-shared-env-"));
       const appDataDir = join(root, "app");
@@ -134,12 +137,16 @@ describe("Copilot runtime boundary", () => {
         expect(result.ok).toBe(true);
         if (!result.ok) throw new Error(result.error);
         await runtime.start();
-        for (const actual of [authEnv, result.data, fake.configs.at(-1)?.env]) {
+        for (const actual of [authEnv, result.data]) {
           expect(actual).toMatchObject(expected);
           for (const token of ["GH_TOKEN", "GITHUB_TOKEN", "COPILOT_GITHUB_TOKEN"]) {
             expect(actual).not.toHaveProperty(token);
           }
         }
+        const runtimeEnv = fake.configs.at(-1)?.env;
+        expect(runtimeEnv?.PATH).toEqual(expected.PATH);
+        expect(runtimeEnv).not.toHaveProperty("KUBECONFIG");
+        expect(runtimeEnv).not.toHaveProperty("AZURE_CONFIG_DIR");
         expect(await readFile(legacyConfig, "utf8")).toBe("legacy configuration fixture");
       } finally {
         await runtime.stop();
@@ -525,6 +532,13 @@ describe("Copilot runtime boundary", () => {
         GH_TOKEN: "stray",
         github_token: "stray",
         COPILOT_GITHUB_TOKEN: "stray",
+        COPILOT_SDK_AUTH_TOKEN: "stray",
+        GITHUB_PAT_TOKEN: "stray",
+        AZURE_CONFIG_DIR: "/operator/azure",
+        ARM_CLIENT_SECRET: "stray",
+        SSH_AUTH_SOCK: "/operator/ssh",
+        GIT_CONFIG_VALUE_0: "operator-helper",
+        SPI_CANARY: "stray",
       },
     });
     expect(options).toMatchObject({
@@ -538,6 +552,17 @@ describe("Copilot runtime boundary", () => {
     expect(options.env).not.toHaveProperty("github_token");
     expect(options.env).not.toHaveProperty("COPILOT_GITHUB_TOKEN");
     expect(options).not.toHaveProperty("gitHubToken");
+    expect(options.env).not.toHaveProperty("COPILOT_SDK_AUTH_TOKEN");
+    expect(options.env).not.toHaveProperty("GITHUB_PAT_TOKEN");
+    expect(options.env).not.toHaveProperty("AZURE_CONFIG_DIR");
+    expect(options.env).not.toHaveProperty("ARM_CLIENT_SECRET");
+    expect(options.env).not.toHaveProperty("SSH_AUTH_SOCK");
+    expect(options.env).not.toHaveProperty("SPI_CANARY");
+    expect(options.env).toMatchObject({
+      GIT_CONFIG_NOSYSTEM: "1",
+      GIT_CONFIG_KEY_0: "credential.helper",
+      GIT_CONFIG_VALUE_0: "",
+    });
   });
 
   it("isolates every runtime home without mutating the caller or process environment", () => {
@@ -698,6 +723,76 @@ describe("Copilot runtime boundary", () => {
     ]);
     await runtime.stop();
     expect(fake.stop).toHaveBeenCalledTimes(3);
+  });
+
+  it("requires a workspace on resume and rotates the client before a turn on another account", async () => {
+    const root = await mkdtemp(join(tmpdir(), "spicode-thread-auth-"));
+    const tempPath = join(root, "thread-temp");
+    const workspace = { tempPath };
+    const opened = {
+      sessionId: "thread",
+      on: vi.fn(() => () => {}),
+      getEvents: vi.fn(async () => []),
+      abort: vi.fn(async () => {}),
+      disconnect: vi.fn(async () => {}),
+      send: vi.fn(async () => "message"),
+      rpc: {
+        options: { update: vi.fn(async () => {}) },
+        tools: { initializeAndValidate: vi.fn().mockRejectedValue(new Error("no preflight")) },
+      },
+    };
+    const resumed = { ...opened, disconnect: vi.fn(async () => {}) };
+    let token = "first";
+    const runtime = new CopilotRuntime(
+      { appDataDir: join(root, "app"), capturedPath: "/bin" },
+      async () => token,
+    );
+    const permission = stubToolSource.onPermissionRequest;
+    try {
+      await mkdir(tempPath);
+      await expect(
+        runtime.openThreadSession(
+          { tempPath: "" },
+          { resumeId: "thread", onPermissionRequest: permission },
+        ),
+      ).rejects.toThrow("absolute workspace paths");
+      expect(fake.resumeSession).not.toHaveBeenCalled();
+
+      fake.createSession.mockResolvedValueOnce(opened);
+      const thread = await runtime.openThreadSession(workspace, {
+        onPermissionRequest: permission,
+      });
+      expect(fake.configs.at(-1)).not.toHaveProperty("gitHubToken");
+      expect(fake.createSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gitHubToken: "first",
+          sandboxConfig: expect.objectContaining({ enabled: true, allowBypass: false }),
+        }),
+      );
+      token = "second";
+      await expect(thread.send({ prompt: "Ask" })).rejects.toThrow("Reopen");
+      expect(thread.sandbox).toEqual({ kind: "not-confined", reason: "session-released" });
+      expect(opened.send).not.toHaveBeenCalled();
+      expect(fake.stop).toHaveBeenCalledOnce();
+
+      fake.resumeSession.mockResolvedValueOnce(resumed);
+      await runtime.openThreadSession(workspace, {
+        resumeId: "thread",
+        onPermissionRequest: permission,
+      });
+      expect(fake.configs.map((config) => config.gitHubToken)).toEqual([undefined, undefined]);
+      expect(fake.resumeSession).toHaveBeenCalledWith(
+        "thread",
+        expect.objectContaining({
+          gitHubToken: "second",
+          continuePendingWork: false,
+          sandboxConfig: expect.objectContaining({ enabled: true, allowBypass: false }),
+        }),
+      );
+    } finally {
+      await runtime.stop();
+      await rm(root, { recursive: true, force: true });
+    }
   });
 
   it("cleans up a failed start before retrying with a fresh credential", async () => {

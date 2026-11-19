@@ -1,30 +1,48 @@
 # Copilot runtime boundary
 
 The host starts the SDK platform package's `prebuilds/<platform>/copilot-runtime`
-by absolute path, over stdio. Only the runtime child's environment redirects the
-home, XDG, app-data and `COPILOT_HOME` variables beneath app data. Token lookup uses
-a separate scrubbed environment with the operator's original home and gh
-configuration. Tokens stay out of these environment objects; only the SDK's client
-credential receives one.
+by absolute path over stdio. The client runs in empty mode under
+`<appDataDir>/copilot`. The runtime gets the managed PATH, locale and Windows
+startup variables, an app-owned home, and a Git configuration with credential
+helpers disabled. Credential lookup uses a separate environment with the
+operator's home and gh configuration.
 
-## CP-03 fallback
+## Thread sessions
 
-The bundled runtime rejects a provider credential with less than 3,600 seconds
-remaining, so a gh credential cannot carry CP-03's short refresh interval. The host
-uses CP-03's client-level fallback instead: each model listing and session creation
-reads gh again, and a changed credential stops the previous client before another
-starts.
+`CopilotRuntime.openThreadSession(workspace, options)` requires the host-managed
+workspace on create and resume. The caller supplies existing clone, worktree,
+thread temp and toolchain paths as applicable. To change the policy, release the
+session and open it with the current workspace and its previous SDK session ID.
 
-Under this fallback the SDK passes the token to the runtime in
-`COPILOT_SDK_AUTH_TOKEN`, so any process the runtime spawns inherits it. That is
-safe only because production sessions expose custom tools alone (CP-04) and the
-runtime's base directory is the app-owned `<appDataDir>/copilot`. The app must never
-write `mcp-config.json` or any MCP configuration there: a server spawned from it
-would inherit the token.
+The returned handle owns the SDK session. Its `sandbox` property contains the
+current typed state and `send` checks that state before sending a turn. The
+thread can use the state's `reason` to explain unavailable shell and file tools.
+Use `release` to disconnect and discard the proof.
 
-## Live probes
+The first shell call on macOS is a host-only preflight. It checks a write
+outside the workspace, verifies the correlated Seatbelt policy and enforcement
+events, and checks exported variable names. The initial tool list is never sent
+to a model. A successful check enables file reads for Asking and adds the shell
+and file writes for worktree threads. Windows keeps custom tools only.
 
-Both need gh sign-in, a Copilot seat and network access, and use disposable homes.
+## CP-03 credentials
+
+The SDK's provider rejects credentials with less than 3,600 seconds remaining.
+Thread sessions instead get the existing gh credential through the session RPC.
+The runtime launches without a client-level token. The host reads gh again on
+create, resume, model listing and before each turn. A changed credential retires
+the warm runtime and its sessions. Reopen the thread to continue with the
+current credential. Model listing also receives the current token explicitly.
+
+The legacy conversation and seat probe use the client-level fallback with
+custom tools only. That fallback puts `COPILOT_SDK_AUTH_TOKEN` into the runtime
+process environment. Keep its app-owned base directory free of MCP configuration.
+
+## Live evidence
+
+The thread sandbox checks are recorded in
+[spicode-xia.4-sandbox.md](../../../../docs/notes/spicode-xia.4-sandbox.md).
+The earlier runtime and isolation probes are separate from those checks.
 
 ```sh
 pnpm --filter @spi-code/host probe:copilot
