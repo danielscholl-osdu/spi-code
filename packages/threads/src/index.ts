@@ -4,7 +4,9 @@
 export { ThreadEngine } from "./engine.js";
 export {
   createToolOutputRedactor,
+  type JournalOutputRedactor,
+  journalOutputRedactor,
+  modelOutputRedactor,
   type ToolOutputRedactor,
-  toolOutputRedactor,
 } from "./redaction.js";
 export type * from "./types.js";

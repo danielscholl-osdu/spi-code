@@ -6,7 +6,7 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { CopilotClient, type ToolResultObject } from "@github/copilot-sdk";
 import { buildClientOptions } from "../packages/host/dist/copilot/runtime.js";
-import { toolOutputRedactor } from "../packages/threads/dist/index.js";
+import { modelOutputRedactor } from "../packages/threads/dist/index.js";
 
 const fixture = ["gh", "p_", "FAKE".repeat(9)].join("");
 const fixtureLine = `probe-value=${fixture}`;
@@ -17,7 +17,7 @@ function commandOf(args: unknown): unknown {
 }
 
 function redact(result: ToolResultObject): ToolResultObject {
-  const { text } = toolOutputRedactor;
+  const { text } = modelOutputRedactor;
   return {
     resultType: result.resultType,
     textResultForLlm: text(result.textResultForLlm),
@@ -101,7 +101,7 @@ async function runShell(
           additionalContext: "",
           modifiedResult: {
             resultType: "failure",
-            textResultForLlm: toolOutputRedactor.text(error),
+            textResultForLlm: modelOutputRedactor.text(error),
           },
         };
       },

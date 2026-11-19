@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { ToolOutputRedactor } from "./redaction.js";
+import type { JournalOutputRedactor } from "./redaction.js";
 
 export type JsonValue =
   | null
@@ -113,7 +113,8 @@ export interface ThreadEngineOptions<Tool> {
   workspace: WorkspaceProvider;
   context: ContextProvider;
   tools: ToolProvider<Tool>;
-  redactor?: ToolOutputRedactor;
+  /** Supply the journal profile from createToolOutputRedactor to include host-known secrets. */
+  redactor?: JournalOutputRedactor;
 }
 
 type InterruptionReason = "restart" | "shutdown";

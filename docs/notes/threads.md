@@ -7,7 +7,8 @@
 
 ## Tool output redaction
 
-- `@spi-code/threads` exports `toolOutputRedactor`. Use `value` for custom tool results and `text` for SDK text fields. `chunks` joins a single output in order before scanning. Pass complete JSON or ordered `resultChunks` to the engine. The engine redacts both result paths before SQLite and records the size of the stored JSON. The corpus recognizes credential formats and labels. An unlabeled Azure key with no distinctive format cannot be identified by this scan.
+- `@spi-code/threads` exports `journalOutputRedactor` for SQLite and `modelOutputRedactor` for everything the host returns to Copilot from a tool. With host-known secrets, call `createToolOutputRedactor(knownSecrets)` and pass its `journal` profile to `ThreadEngine`. Use its `model` profile for SDK hooks and SPI tools. Use `value` for structured output, `text` for text and `chunks` for one complete output delivered in pieces. The journal masks secret labels as well as recognized formats. The model profile uses recognized formats and explicit kubeconfig fields so product source such as `token: IdentifierSchema` stays byte-identical.
+- The engine records the size of the redacted tool result JSON. Assistant text is journaled by complete line when safe, with the trailing text or a potential multiline secret held until the turn ends. An unfinished tail that exceeds 1,048,576 UTF-16 code units is replaced with a marker.
 - Live macOS arm64 probe with Copilot SDK 1.0.26. Run `pnpm build` and `node scripts/probe-copilot-redaction.ts --use-existing-login` with a signed-in Copilot CLI. The script launches the host's bundled runtime over stdio and restricts the shell to its own fixture commands and workspace. Its report masks the fixture even when an event holds the original.
 
 | Shell case | `tool.execution_complete` | Copilot reply |

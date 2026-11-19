@@ -68,7 +68,7 @@ it("passes the host's workspace, context and tools, journals deltas in order and
       .eventsSince(id, 0)
       .filter((event) => event.type === "assistant.delta")
       .map((event) => event.text),
-  ).toEqual(["The ", "sweep."]);
+  ).toEqual(["The sweep."]);
   expect(engine.read(id)).toMatchObject({
     status: "Settled",
     turns: [{ text: "The sweep.", outcome: "completed" }],
@@ -200,7 +200,7 @@ it("cancels interrupted work on disk once, leaves process fate unknown and start
     const id = first.engine.create({ scope: "partition" });
     void first.engine.send(id, { prompt: "Run checks" });
     const running = await first.turn();
-    running.events.delta("Partial reply");
+    running.events.delta("Partial reply\nunfinished line");
     running.events.toolStarted({
       callId: "call-crash",
       name: "check",
@@ -225,7 +225,7 @@ it("cancels interrupted work on disk once, leaves process fate unknown and start
       turns: [
         {
           outcome: "cancelled",
-          text: "Partial reply",
+          text: "Partial reply\n",
           tools: [
             { end: { type: "tool.cancelled", reason: "restart", processState: "not known" } },
           ],
@@ -273,10 +273,10 @@ it("subscribes after a sequence and delivers only that thread's later events acr
   const unsubscribe = engine.subscribe(id, 2, {
     send(events) {
       seen.push(...events);
-      if (seen.length === 2) running.events.delta("live");
+      if (seen.length === 2) running.events.delta("live\n");
     },
   });
-  running.events.delta("catch-up");
+  running.events.delta("catch-up\n");
   engine.send(other, { prompt: "Check storage" }).catch(() => {});
   const sibling = await turn(1);
   sibling.finish();
