@@ -3,6 +3,7 @@
 
 import { constants } from "node:fs";
 import { access, copyFile, lstat, mkdir, readFile, realpath } from "node:fs/promises";
+import { homedir } from "node:os";
 import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { type ExecOptions, type ExecResult, textResult } from "@spi-code/core";
 import { HostExec } from "../exec/host-exec.js";
@@ -565,7 +566,7 @@ export class PrivilegedGit {
         clone: target.clone,
         worktree: target.worktree.cwd,
         scratch: runtime.cwd,
-        readonlyPaths: [installRoot(runtime.binary), runtime.empty],
+        readonlyPaths: [installRoot(runtime.binary, [homedir(), runtime.appData]), runtime.empty],
         timeoutMs: options.timeoutMs ?? timeoutMs,
       },
       this.#options.mxc ?? loadMxc,
