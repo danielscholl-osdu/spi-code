@@ -71,6 +71,7 @@ const HEADING_PX = 72;
 // A missed nightly is drawn about as long as a smoke run takes.
 const MISSED_SLOT_MS = 30 * 60_000;
 
+const READING_ITEMS = 5;
 const NO_READING: Reading = { anchor: { kind: "environment" }, content: null };
 
 const keyOf = ({ kind, id }: OpenSelection) => `${kind}~${id}`;
@@ -202,7 +203,9 @@ export default function Environment({
       name={words?.place ?? routeLabel({ kind: "environment" })}
       pin={placePin("environment")}
       reading={
-        reading.content ? { ...reading, content: { ...reading.content, folded: null } } : reading
+        reading.content && reading.content.items.length < READING_ITEMS
+          ? { ...reading, content: { ...reading.content, folded: null } }
+          : reading
       }
       snapshot={body}
       services={treeServices(body?.tree)}
@@ -452,7 +455,7 @@ export default function Environment({
             aria-expanded={repositoryOpen && opened}
           >
             {repository.name}
-            {repository.tone !== "ok" && (
+            {(repository.tone === "warn" || repository.tone === "bad") && (
               <span className="env-repository-dot" data-tone={repository.tone} aria-hidden="true" />
             )}
           </button>

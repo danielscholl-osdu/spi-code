@@ -135,13 +135,17 @@ it("uses the rib's unknown timestamp marker for malformed dates", () => {
   expect(eventWhen({ ...first, end: "invalid" }, now, SPAN_WORDS)).toMatch(/ to \?$/);
 });
 
-it("keeps a flipped run label inside the range when the run starts before its left edge", async () => {
+it.each([
+  ["flipped", 24 * 60, true],
+  ["unflipped", 15, false],
+] as const)("clamps only flipped labels at left 0 (%s)", async (_, minutes, flip) => {
   const body = mixedSnapshot(recorded);
   const env = body.briefing.environment;
+  const start = Date.parse(env.to) - 86_400_000;
   const edge = {
     id: "edge-refresh",
-    start: new Date(Date.parse(env.to) - 86_400_000 - 60_000).toISOString(),
-    end: env.to,
+    start: new Date(start - 60_000).toISOString(),
+    end: new Date(start + minutes * 60_000).toISOString(),
     state: "ok" as const,
     label: "v0.35.5",
     detail: "",
@@ -149,12 +153,12 @@ it("keeps a flipped run label inside the range when the run starts before its le
   env.lanes = [{ id: "refresh", label: "Refresh", events: [edge] }];
   const view = await renderRecorded(body);
   try {
-    const label = view.page.querySelector<HTMLElement>(
-      '[data-event="refresh:edge-refresh"] .env-event-label',
-    );
-    expect(label?.textContent).toBe("✓ v0.35.5");
-    expect(label?.style.transform).toBe("translateX(max(calc(-100% - 9px), -0cqw))");
-    expect(environmentStyles).toMatch(/\.env-event-label\.flip\s*\{\s*left: 0;/);
+    const bar = view.page.querySelector<HTMLElement>('[data-event="refresh:edge-refresh"]');
+    const label = bar?.querySelector<HTMLElement>(".env-event-label");
+    if (!bar || !label) throw new Error("Missing run bar or label");
+    expect(bar.style.left).toBe("0%");
+    expect(label.classList.contains("flip")).toBe(flip);
+    expect(label.style.transform).toEqual(flip ? expect.stringContaining("max(") : "");
   } finally {
     await view.done();
   }
@@ -543,8 +547,12 @@ it.each([
   },
 );
 
-it("ends the timeline with the reading’s item groups", async () => {
-  const view = await renderRecorded(mixedSnapshot(mixed));
+it("ends the timeline with the item groups and hides the extra for a short reading", async () => {
+  const body = mixedSnapshot(mixed);
+  const reading = body.readings.find(({ anchor }) => anchor.kind === "environment")?.content;
+  expect(reading?.items).toHaveLength(2);
+  expect(reading?.folded).toContain("Open in osdu-spi-stack:");
+  const view = await renderRecorded(body);
   try {
     expect(view.page.querySelector("details")).toBeNull();
     const timeline = view.page.querySelector(".env-day");
@@ -555,7 +563,53 @@ it("ends the timeline with the reading’s item groups", async () => {
       ),
     ).toEqual(["Stopped", "Waiting on you"]);
     expect(timeline?.nextElementSibling?.nextElementSibling).toBeNull();
+    expect(view.page.querySelector(".place-folded")).toBeNull();
     expect(view.page.querySelector("section.place")?.nextElementSibling).toBeNull();
+  } finally {
+    await view.done();
+  }
+});
+
+it("shows the overflow line for a six-item reading", async () => {
+  const body = mixedSnapshot(mixed);
+  const reading = body.readings.find(({ anchor }) => anchor.kind === "environment")?.content;
+  const item = reading?.items[0];
+  if (!reading?.folded || !item) throw new Error("Mixed snapshot needs a reading item and extra");
+  const items = Array.from({ length: 6 }, (_, index) => ({
+    ...item,
+    id: `queued-change-${index + 1}`,
+    ids: [],
+    scope: "Environment",
+    title: `queued change ${index + 1}`,
+  }));
+  // Core sends the first five items and folds the sixth into the same line as the extra.
+  reading.items = items.slice(0, 5);
+  reading.itemIds = items.map(({ id }) => id);
+  reading.folded = `1 more item: Environment queued change 6. ${reading.folded}`;
+  const view = await renderRecorded(body);
+  try {
+    expect(view.page.querySelectorAll(".place-item")).toHaveLength(5);
+    expect(view.page.querySelector(".place-folded")?.textContent).toBe(reading.folded);
+  } finally {
+    await view.done();
+  }
+});
+
+it.each([
+  ["ok", undefined],
+  ["neutral", undefined],
+  ["warn", "warn"],
+  ["bad", "bad"],
+] as const)("shows a repository pill dot only for actionable tones (%s)", async (tone, dot) => {
+  const body = mixedSnapshot(recorded);
+  const repository = body.briefing.repositories.rows.find(({ name }) => name === "osdu-spi-stack");
+  if (!repository) throw new Error("Missing recorded stack repository");
+  repository.tone = tone;
+  const view = await renderRecorded(body);
+  try {
+    const pill = view.page.querySelector(".env-repository-pill");
+    expect(pill?.textContent).toBe(repository.name);
+    expect(pill?.querySelector(".env-repository-dot")?.getAttribute("data-tone")).toBe(dot);
   } finally {
     await view.done();
   }
