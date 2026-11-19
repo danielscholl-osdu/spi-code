@@ -24,68 +24,62 @@ export interface GitTarget {
   readonly worktree?: { readonly id: string; readonly cwd: string };
 }
 
-const gitCommands = [
-  "check-ref-format",
-  "checkout",
-  "diff",
-  "fetch",
-  "for-each-ref",
-  "ls-files",
-  "ls-remote",
-  "push",
-  "remote",
-  "reset",
-  "rev-parse",
-  "show-ref",
-  "status",
-  "symbolic-ref",
-  "worktree",
-] as const;
-
-type GitCommand = (typeof gitCommands)[number];
-
-type GitOptions = Pick<ExecOptions, "onOutput" | "signal" | "timeoutMs">;
+export type GitOptions = Pick<ExecOptions, "onOutput" | "signal" | "timeoutMs">;
 
 export interface CloneRemotes {
   readonly origin: string;
   readonly upstream?: string;
 }
 
-const upstreamRefspec = "+refs/heads/*:refs/remotes/upstream/*";
-const timeoutMs = 180_000;
-
-function overridesSubmodules(arg: string): boolean {
-  const name = /^--(?:no-)?([^=]*)/u.exec(arg)?.[1];
-  return !!name && "ignore-submodules".startsWith(name);
+export interface FetchRequest {
+  readonly remote: string;
+  /** Fetch tags the remote's branches point at. */
+  readonly tags: boolean;
+  /** A ref under refs/ that receives the remote's HEAD. */
+  readonly head?: string;
 }
 
-// A nested repository's own config can name programs; Git runs them whenever it looks inside one.
-function commandLine(command: GitCommand, args: readonly string[]): string[] {
-  if (!(gitCommands as readonly string[]).includes(command)) {
-    throw new Error(`Unsupported privileged Git command: ${command}.`);
+export interface PushRequest {
+  readonly remote: string;
+  readonly source: string;
+  /** A ref under refs/ on the remote. */
+  readonly destination: string;
+  readonly dryRun?: boolean;
+}
+
+export type WorktreeTarget = Required<GitTarget>;
+
+const upstreamRefspec = "+refs/heads/*:refs/remotes/upstream/*";
+const timeoutMs = 180_000;
+const submodulesOff = "--ignore-submodules=all";
+
+function remoteName(name: string): string {
+  if (!/^[A-Za-z0-9][\w-]*$/u.test(name)) throw new Error("Invalid Git remote name.");
+  return name;
+}
+
+function fullRef(name: string): string {
+  const parts = name.split("/");
+  if (
+    parts[0] !== "refs" ||
+    parts.length < 3 ||
+    !parts.every((part) => /^\w[\w.-]*$/u.test(part) && !/(\.\.|\.lock$|\.$)/u.test(part))
+  ) {
+    throw new Error("Invalid Git ref.");
   }
-  if (command === "checkout") {
-    const [detach, force, ref, ...rest] = args;
-    if (
-      detach !== "--detach" ||
-      force !== "--force" ||
-      !ref ||
-      ref.startsWith("-") ||
-      rest.length
-    ) {
-      throw new Error("Privileged Git checkout requires --detach --force and one ref.");
-    }
+  return name;
+}
+
+/** HEAD, a full object id or a full ref name: never a range, a reflog entry or an option. */
+function revision(name: string): string {
+  return name === "HEAD" || /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(name) ? name : fullRef(name);
+}
+
+function worktreeId(id: string): string {
+  if (!/^[\w.-]+$/u.test(id) || [".", ".."].includes(id)) {
+    throw new Error("Worktree is outside its managed location.");
   }
-  if (command !== "status" && command !== "diff") return [command, ...args];
-  if (args.some(overridesSubmodules)) {
-    throw new Error("Privileged Git controls submodule handling.");
-  }
-  return [
-    command,
-    "--ignore-submodules=all",
-    ...(command === "diff" ? ["--no-ext-diff", "--no-textconv"] : []),
-    ...args,
-  ];
+  return id;
 }
 
 function isMissing(error: unknown): boolean {
@@ -199,11 +193,8 @@ async function validateWorktree(
   common: string,
   worktree: NonNullable<GitTarget["worktree"]>,
 ): Promise<string> {
-  if (
-    !/^[\w.-]+$/u.test(worktree.id) ||
-    [".", ".."].includes(worktree.id) ||
-    !isWithin(join(runtime.appData, "worktrees"), worktree.cwd)
-  ) {
+  worktreeId(worktree.id);
+  if (!isWithin(join(runtime.appData, "worktrees"), worktree.cwd)) {
     throw new Error("Worktree is outside its managed location.");
   }
   await directDirectory(worktree.cwd);
@@ -221,64 +212,67 @@ async function validateWorktree(
   return admin;
 }
 
+async function execGit(
+  runtime: Runtime,
+  repository: string[],
+  args: string[],
+  options: GitOptions,
+  common?: string,
+): Promise<ExecResult<string>> {
+  const output = await runtime.exec.run(
+    runtime.binary,
+    [
+      "--no-pager",
+      "-c",
+      `core.hooksPath=${runtime.empty}`,
+      "-c",
+      "maintenance.auto=false",
+      "-c",
+      "gc.auto=0",
+      "-c",
+      "submodule.recurse=false",
+      "-c",
+      "commit.gpgSign=false",
+      ...(process.platform === "win32" ? ["-c", "http.sslBackend=schannel"] : []),
+      ...repository,
+      ...args,
+    ],
+    {
+      timeoutMs,
+      ...options,
+      cwd: runtime.cwd,
+      // Pin the common directory; Git must not consult a worktree's commondir file.
+      ...(common === undefined ? {} : { env: { GIT_COMMON_DIR: common } }),
+    },
+  );
+  if (!output.error && output.exit !== 0) {
+    const diagnostic = output.stderr.split(/[\r\n]/u).find((line) => /^(fatal|error):/u.test(line));
+    if (diagnostic) return { ok: false, error: diagnostic.slice(0, 500), code: output.exit };
+  }
+  return textResult(output, options);
+}
+
+// Each operation fixes its own arguments: a nested repository's config names programs
+// that Git runs whenever an option lets it look inside one.
 export class PrivilegedGit {
-  private runtime: Promise<Runtime> | undefined;
+  #runtime: Promise<Runtime> | undefined;
+  readonly #options: PrivilegedGitOptions;
 
-  constructor(private readonly options: PrivilegedGitOptions) {}
+  constructor(options: PrivilegedGitOptions) {
+    this.#options = options;
+  }
 
-  private getRuntime(): Promise<Runtime> {
-    this.runtime ??= createRuntime(this.options).catch((error: unknown) => {
-      this.runtime = undefined;
+  #getRuntime(): Promise<Runtime> {
+    this.#runtime ??= createRuntime(this.#options).catch((error: unknown) => {
+      this.#runtime = undefined;
       throw error;
     });
-    return this.runtime;
+    return this.#runtime;
   }
 
   async dataRoot(): Promise<string> {
-    await mkdir(this.options.appData, { recursive: true });
-    return realpath(this.options.appData);
-  }
-
-  private async exec(
-    runtime: Runtime,
-    repository: string[],
-    args: string[],
-    options: GitOptions,
-    common?: string,
-  ): Promise<ExecResult<string>> {
-    const output = await runtime.exec.run(
-      runtime.binary,
-      [
-        "--no-pager",
-        "-c",
-        `core.hooksPath=${runtime.empty}`,
-        "-c",
-        "maintenance.auto=false",
-        "-c",
-        "gc.auto=0",
-        "-c",
-        "submodule.recurse=false",
-        "-c",
-        "commit.gpgSign=false",
-        ...(process.platform === "win32" ? ["-c", "http.sslBackend=schannel"] : []),
-        ...repository,
-        ...args,
-      ],
-      {
-        timeoutMs,
-        ...options,
-        cwd: runtime.cwd,
-        // Pin the common directory; Git must not consult a worktree's commondir file.
-        ...(common === undefined ? {} : { env: { GIT_COMMON_DIR: common } }),
-      },
-    );
-    if (!output.error && output.exit !== 0) {
-      const diagnostic = output.stderr
-        .split(/[\r\n]/u)
-        .find((line) => /^(fatal|error):/u.test(line));
-      if (diagnostic) return { ok: false, error: diagnostic.slice(0, 500), code: output.exit };
-    }
-    return textResult(output, options);
+    await mkdir(this.#options.appData, { recursive: true });
+    return realpath(this.#options.appData);
   }
 
   /** Initialize a new checkout inside the caller's private staging directory. */
@@ -287,19 +281,20 @@ export class PrivilegedGit {
     remotes: CloneRemotes,
     options: GitOptions = {},
   ): Promise<ExecResult<string>> {
-    const runtime = await this.getRuntime();
+    const runtime = await this.#getRuntime();
     if (!isWithin(join(runtime.appData, "repos"), directory)) {
       throw new Error("Clone is outside the managed repository directory.");
     }
     await directDirectory(directory);
     const checkout = join(directory, "checkout");
-    const result = await this.exec(
+    const result = await execGit(
       runtime,
       [],
       [
         "clone",
         "--progress",
         "--no-local",
+        "--no-recurse-submodules",
         "--origin",
         "origin",
         `--template=${runtime.empty}`,
@@ -328,14 +323,135 @@ export class PrivilegedGit {
     return result;
   }
 
-  async run(
+  async remoteUrl(
     target: GitTarget,
-    command: GitCommand,
-    args: readonly string[] = [],
+    remote: string,
     options: GitOptions = {},
   ): Promise<ExecResult<string>> {
-    const line = commandLine(command, args);
-    const runtime = await this.getRuntime();
+    return this.#run(target, ["remote", "get-url", "--", remoteName(remote)], options);
+  }
+
+  /** Fetches the remote's branches into refs/remotes/<remote>/, pruning deleted ones. */
+  async fetch(
+    target: GitTarget,
+    request: FetchRequest,
+    options: GitOptions = {},
+  ): Promise<ExecResult<string>> {
+    const remote = remoteName(request.remote);
+    return this.#run(
+      target,
+      [
+        "fetch",
+        "--progress",
+        "--prune",
+        "--no-recurse-submodules",
+        ...(request.tags ? [] : ["--no-tags"]),
+        "--",
+        remote,
+        `+refs/heads/*:refs/remotes/${remote}/*`,
+        ...(request.head === undefined ? [] : [`+HEAD:${fullRef(request.head)}`]),
+      ],
+      options,
+    );
+  }
+
+  /** Porcelain v1 with NUL separators. */
+  async status(target: GitTarget, options: GitOptions = {}): Promise<ExecResult<string>> {
+    return this.#run(
+      target,
+      ["status", "--porcelain=v1", "-z", "--untracked-files=normal", submodulesOff],
+      options,
+    );
+  }
+
+  /** The working tree against HEAD or a named ref, as a patch. */
+  async diff(
+    target: GitTarget,
+    against = "HEAD",
+    options: GitOptions = {},
+  ): Promise<ExecResult<string>> {
+    return this.#run(
+      target,
+      [
+        "diff",
+        submodulesOff,
+        "--no-ext-diff",
+        "--no-textconv",
+        "--no-color",
+        "--end-of-options",
+        revision(against),
+        "--",
+      ],
+      options,
+    );
+  }
+
+  /** Discards local changes and detaches HEAD at the ref. */
+  async checkoutDetached(
+    target: GitTarget,
+    ref: string,
+    options: GitOptions = {},
+  ): Promise<ExecResult<string>> {
+    return this.#run(
+      target,
+      [
+        "checkout",
+        "--detach",
+        "--force",
+        "--no-recurse-submodules",
+        "--end-of-options",
+        revision(ref),
+        "--",
+      ],
+      options,
+    );
+  }
+
+  /** Adds a detached worktree at the managed path for the id. */
+  async addWorktree(
+    clone: string,
+    id: string,
+    ref: string,
+    options: GitOptions = {},
+  ): Promise<ExecResult<WorktreeTarget>> {
+    const runtime = await this.#getRuntime();
+    const cwd = join(runtime.appData, "worktrees", worktreeId(id));
+    const result = await this.#run(
+      { clone },
+      ["worktree", "add", "--detach", "--", cwd, revision(ref)],
+      options,
+    );
+    return result.ok ? { ok: true, data: { clone, worktree: { id, cwd } } } : result;
+  }
+
+  /** Porcelain with NUL separators. */
+  async listWorktrees(clone: string, options: GitOptions = {}): Promise<ExecResult<string>> {
+    return this.#run({ clone }, ["worktree", "list", "--porcelain", "-z"], options);
+  }
+
+  /** A fast-forward push of one ref; there is no force or delete form. */
+  async push(
+    target: GitTarget,
+    request: PushRequest,
+    options: GitOptions = {},
+  ): Promise<ExecResult<string>> {
+    return this.#run(
+      target,
+      [
+        "push",
+        "--porcelain",
+        "--no-recurse-submodules",
+        ...(request.dryRun ? ["--dry-run"] : []),
+        "--",
+        remoteName(request.remote),
+        `${revision(request.source)}:${fullRef(request.destination)}`,
+      ],
+      options,
+    );
+  }
+
+  async #run(target: GitTarget, args: string[], options: GitOptions): Promise<ExecResult<string>> {
+    const runtime = await this.#getRuntime();
     const common = join(target.clone, ".git");
     const directory = dirname(target.clone);
     if (
@@ -355,10 +471,10 @@ export class PrivilegedGit {
     const admin = target.worktree
       ? await validateWorktree(runtime, common, target.worktree)
       : common;
-    return this.exec(
+    return execGit(
       runtime,
       [`--git-dir=${admin}`, `--work-tree=${target.worktree?.cwd ?? target.clone}`],
-      line,
+      args,
       options,
       common,
     );

@@ -17,9 +17,10 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
+import type { ExecResult } from "@spi-code/core";
 import { KNOWN_SERVICES } from "@spi-code/core";
 import { afterEach, beforeEach, describe, expect, it, type TestContext } from "vitest";
-import { PrivilegedGit } from "./git.js";
+import { type GitOptions, type GitTarget, PrivilegedGit } from "./git.js";
 import { ScopeRegistry } from "./registry.js";
 import { ScopeWorkspaces, type WorkspaceProgress, type WorkspaceResult } from "./workspace.js";
 
@@ -114,10 +115,10 @@ async function checkout(git: PrivilegedGit) {
 }
 
 async function linkedWorktree(git: PrivilegedGit, clone: string, id = "thread-1") {
-  const cwd = join(appData, "worktrees", id);
-  const result = await git.run({ clone }, "worktree", ["add", "--detach", cwd, "HEAD"]);
-  expect(result).toMatchObject({ ok: true });
-  return { clone, worktree: { id, cwd } };
+  const result = await git.addWorktree(clone, id, "HEAD");
+  if (!result.ok) throw new Error(result.error);
+  expect(result.data.worktree.cwd).toBe(join(appData, "worktrees", id));
+  return result.data;
 }
 
 function progressStates(progress: WorkspaceProgress[]) {
@@ -292,6 +293,10 @@ describe("privileged Git", () => {
 
     await linkedWorktree(git, workspace.cwd);
     expect(await readdir(root)).not.toContain(basename(marker));
+    expect(await git.listWorktrees(workspace.cwd)).toMatchObject({
+      ok: true,
+      data: expect.stringMatching(/\0worktree [^\0]*thread-1\0/u),
+    });
   });
 
   it("refuses hostile clone config before Git can run a configured program", async () => {
@@ -302,9 +307,7 @@ describe("privileged Git", () => {
     await markerScript(script, marker);
     await plantConfig(join(workspace.gitDirectory, "config"), script);
 
-    const result = await git
-      .run({ clone: workspace.cwd }, "status", ["--porcelain"])
-      .catch((error: unknown) => error);
+    const result = await git.status({ clone: workspace.cwd }).catch((error: unknown) => error);
     expect(await readdir(root)).not.toContain(basename(marker));
     expect(result).toEqual(new Error("Managed clone Git configuration changed."));
   });
@@ -321,7 +324,7 @@ describe("privileged Git", () => {
       script,
     );
 
-    expect(await git.run(target, "status", ["--porcelain"])).toMatchObject({ ok: true, data: "" });
+    expect(await git.status(target)).toMatchObject({ ok: true, data: "" });
     expect(await readdir(root)).not.toContain(basename(marker));
 
     await fixtureGit(
@@ -332,9 +335,7 @@ describe("privileged Git", () => {
       "extensions.worktreeConfig",
       "true",
     );
-    const result = await git
-      .run(target, "status", ["--porcelain"])
-      .catch((error: unknown) => error);
+    const result = await git.status(target).catch((error: unknown) => error);
     expect(await readdir(root)).not.toContain(basename(marker));
     expect(result).toEqual(new Error("Managed clone Git configuration changed."));
   });
@@ -345,12 +346,12 @@ describe("privileged Git", () => {
     const target = await linkedWorktree(git, workspace.cwd);
     const other = await linkedWorktree(git, workspace.cwd, "thread-2");
     const dotGit = join(target.worktree.cwd, ".git");
-    expect(await git.run(target, "status", ["--porcelain"])).toMatchObject({ ok: true });
+    expect(await git.status(target)).toMatchObject({ ok: true });
     const repointed = await readFile(join(other.worktree.cwd, ".git"));
     await rm(dotGit);
     await writeFile(dotGit, repointed);
 
-    await expect(git.run(target, "status", ["--porcelain"])).rejects.toThrow(
+    await expect(git.status(target)).rejects.toThrow(
       "Worktree .git file does not point to its recorded Git directory.",
     );
   });
@@ -372,7 +373,7 @@ describe("privileged Git", () => {
     await fixtureGit(target.worktree.cwd, "status", "--porcelain").catch(() => undefined);
     await expectCanary(marker, skip);
 
-    expect(await git.run(target, "status", ["--porcelain"])).toMatchObject({ ok: true, data: "" });
+    expect(await git.status(target)).toMatchObject({ ok: true, data: "" });
     expect(await markerRan(marker)).toBe(false);
   });
 
@@ -396,19 +397,21 @@ describe("privileged Git", () => {
       `160000,${oid},sub`,
     );
 
-    const quiet = async (state: string, runs: ["status" | "diff", string[]][]) => {
+    type Run = (target: GitTarget) => Promise<ExecResult<string>>;
+    const status: Run = (target) => git.status(target);
+    const quiet = async (state: string, runs: Record<string, Run>) => {
       await fixtureGit(target.worktree.cwd, "status", "--porcelain");
       await expectCanary(marker, skip, `${state}: Git without the guard runs it`);
-      for (const [command, args] of runs) {
-        expect(await git.run(target, command, args)).toMatchObject({ ok: true });
-        expect(await markerRan(marker), `${state}: ${command} ${args.join(" ")}`).toBe(false);
+      for (const [name, run] of Object.entries(runs)) {
+        expect(await run(target)).toMatchObject({ ok: true });
+        expect(await markerRan(marker), `${state}: ${name}`).toBe(false);
       }
     };
-    await quiet("core.fsmonitor", [
-      ["status", ["--porcelain"]],
-      ["diff", []],
-      ["diff", ["HEAD"]],
-    ]);
+    await quiet("core.fsmonitor", {
+      status,
+      "diff HEAD": (target) => git.diff(target),
+      "diff a named ref": (target) => git.diff(target, "refs/spi/asking"),
+    });
 
     const nested = join(sub, ".git");
     await fixtureGit(root, "config", "--file", join(nested, "config"), "--unset", "core.fsmonitor");
@@ -423,7 +426,7 @@ describe("privileged Git", () => {
     await mkdir(join(nested, "info"), { recursive: true });
     await writeFile(join(nested, "info", "attributes"), "* filter=canary\n");
     await writeFile(join(sub, "f"), "y");
-    await quiet("clean filter", [["status", ["--porcelain"]]]);
+    await quiet("clean filter", { status });
 
     const outside = join(root, "outside.git");
     await rename(nested, outside);
@@ -437,7 +440,7 @@ describe("privileged Git", () => {
     );
     await fixtureGit(root, "config", "--file", join(outside, "config"), "core.worktree", sub);
     await writeFile(join(sub, ".git"), `gitdir: ${outside}\n`);
-    await quiet(".git file outside the worktree", [["status", ["--porcelain"]]]);
+    await quiet(".git file outside the worktree", { status });
   });
 
   it("never looks inside a nested repository the shared clone's tree links", async ({ skip }) => {
@@ -448,39 +451,163 @@ describe("privileged Git", () => {
     const oid = await nestedRepository(elsewhere);
     await fixtureGit(elsewhere, "config", "core.fsmonitor", shellQuote(script));
     await fixtureGit(seed, "update-index", "--add", "--cacheinfo", `160000,${oid},sub`);
+    // Without .gitmodules, Git run from outside the work tree never finds the nested repository.
+    await writeFile(join(seed, ".gitmodules"), '[submodule "sub"]\n\tpath = sub\n\turl = ./sub\n');
+    await fixtureGit(seed, "add", "--", ".gitmodules");
     await commit("first");
     await fixtureGit(seed, "push", origin, "HEAD:refs/heads/main");
     const git = gitRunner();
     const workspace = await checkout(git);
     await cp(join(elsewhere, ".git"), join(workspace.cwd, "sub", ".git"), { recursive: true });
+    const target = { clone: workspace.cwd };
     await fixtureGit(workspace.cwd, "status", "--porcelain");
-    await expectCanary(marker, skip);
+    await expectCanary(marker, skip, "status");
+    expect(await git.status(target)).toMatchObject({ ok: true });
+    expect(await markerRan(marker)).toBe(false);
 
-    expect(await git.run({ clone: workspace.cwd }, "status", ["--porcelain"])).toMatchObject({
-      ok: true,
-    });
+    await fixtureGit(workspace.cwd, "fetch", "--recurse-submodules", "origin");
+    await expectCanary(marker, skip, "fetch");
+    for (const remote of ["origin", "upstream"]) {
+      expect(await git.fetch(target, { remote, tags: true })).toMatchObject({ ok: true });
+    }
     expect(getClone(await workspaces(git).prepareAsking(scope))).toEqual(workspace);
     expect(await markerRan(marker)).toBe(false);
   });
 
-  it.each([
-    ["status", ["--ignore-submod=none"]],
-    ["status", ["--no-ignore-submodules"]],
-    ["diff", ["--ignore-submodules=dirty"]],
-    ["checkout", ["HEAD"]],
-    ["checkout", ["--detach", "HEAD"]],
-    ["checkout", ["--force", "HEAD"]],
-    ["checkout", ["--detach", "--force", "HEAD", "--", "answer.txt"]],
-  ] as const)("refuses %s %j before running Git", async (command, args) => {
-    await expect(gitRunner().run({ clone: root }, command, args)).rejects.toThrow(
-      /^Privileged Git (controls submodule handling|checkout requires --detach --force and one ref)\.$/u,
+  it("pushes one ref as a dry run without changing the remote", async () => {
+    const git = gitRunner();
+    const workspace = await checkout(git);
+    const result = await git.push(
+      { clone: workspace.cwd },
+      { remote: "origin", source: "HEAD", destination: "refs/heads/spi-dry-run", dryRun: true },
+    );
+    expect(result).toMatchObject({
+      ok: true,
+      data: expect.stringContaining("refs/heads/spi-dry-run"),
+    });
+    expect(await fixtureGit(root, "--git-dir", origin, "for-each-ref", "--format=%(refname)")).toBe(
+      "refs/heads/main",
     );
   });
 
-  it.each(["add", "commit"])("refuses %s, which is not a privileged command", async (command) => {
-    // @ts-expect-error The test passes a command outside the runner's closed list.
-    await expect(gitRunner().run({ clone: root }, command, [])).rejects.toThrow(
-      `Unsupported privileged Git command: ${command}.`,
+  const target = { clone: "/nowhere" };
+  const remote = /^Invalid Git remote name\.$/u;
+  const ref = /^Invalid Git ref\.$/u;
+  const id = /^Worktree is outside its managed location\.$/u;
+  const refusals = [
+    ...[
+      "-x",
+      "--upload-pack=x",
+      "../x",
+      "file:///x",
+      "https://example.invalid/x",
+      "ext::sh",
+      "",
+    ].flatMap((name) => [
+      [
+        `fetch from ${name}`,
+        remote,
+        (git: PrivilegedGit) => git.fetch(target, { remote: name, tags: false }),
+      ],
+      [`get-url of ${name}`, remote, (git: PrivilegedGit) => git.remoteUrl(target, name)],
+      [
+        `push to ${name}`,
+        remote,
+        (git: PrivilegedGit) =>
+          git.push(target, { remote: name, source: "HEAD", destination: "refs/heads/x" }),
+      ],
+    ]),
+    ...[
+      "-p",
+      "--output=x",
+      "main",
+      "HEAD~1",
+      "HEAD^",
+      "HEAD@{1}",
+      "HEAD..refs/heads/x",
+      "refs/heads/a..b",
+      "refs/heads/../x",
+      "refs/heads/x.lock",
+      "refs/heads/x.",
+      "refs/heads/.x",
+      "refs/stash",
+      "refs/heads/x:refs/heads/y",
+      ":/message",
+      "abc123",
+    ].flatMap((name) => [
+      [`diff against ${name}`, ref, (git: PrivilegedGit) => git.diff(target, name)],
+      [`checkout of ${name}`, ref, (git: PrivilegedGit) => git.checkoutDetached(target, name)],
+      [
+        `worktree at ${name}`,
+        ref,
+        (git: PrivilegedGit) => git.addWorktree(target.clone, "t", name),
+      ],
+      [
+        `push of ${name}`,
+        ref,
+        (git: PrivilegedGit) =>
+          git.push(target, { remote: "origin", source: name, destination: "refs/heads/x" }),
+      ],
+    ]),
+    ...["HEAD", "+refs/heads/x", "refs/heads/x:refs/heads/y"].flatMap((name) => [
+      [
+        `fetch of HEAD into ${name}`,
+        ref,
+        (git: PrivilegedGit) => git.fetch(target, { remote: "origin", tags: false, head: name }),
+      ],
+      [
+        `push into ${name}`,
+        ref,
+        (git: PrivilegedGit) =>
+          git.push(target, { remote: "origin", source: "HEAD", destination: name }),
+      ],
+    ]),
+    ...["..", "a/b", ""].map((name) => [
+      `worktree id ${name}`,
+      id,
+      (git: PrivilegedGit) => git.addWorktree(target.clone, name, "HEAD"),
+    ]),
+  ] as [string, RegExp, (git: PrivilegedGit) => Promise<unknown>][];
+
+  it("refuses an invalid remote, ref or worktree id before running Git", async () => {
+    const git = gitRunner();
+    for (const [label, error, operation] of refusals) {
+      await expect(operation(git), label).rejects.toThrow(error);
+    }
+  });
+
+  it("takes no argument list from its callers", () => {
+    type Inputs<F> = F extends (...args: infer P) => unknown ? P[number] : never;
+    type Fields<T> = T extends AbortSignal | ((...args: never[]) => unknown)
+      ? never
+      : T extends object
+        ? T[keyof T]
+        : never;
+    type Input = Inputs<PrivilegedGit[keyof PrivilegedGit]>;
+    type Lists = Extract<Input | Fields<Input> | Fields<Fields<Input>>, readonly unknown[]>;
+    const noLists: [Lists] extends [never] ? true : false = true;
+    const misuse = (git: PrivilegedGit, options: GitOptions) => [
+      // @ts-expect-error Options are fixed by the runner.
+      git.status({ clone: root }, ["--no-ignore-submodules"]),
+      // @ts-expect-error Options are fixed by the runner.
+      git.fetch({ clone: root }, { remote: "origin", tags: false, args: ["--recurse-submodules"] }),
+      git.status({ clone: root }, options),
+    ];
+    expect([noLists, typeof misuse]).toEqual([true, "function"]);
+    expect(Object.getOwnPropertyNames(PrivilegedGit.prototype).sort()).toEqual(
+      [
+        "addWorktree",
+        "checkoutDetached",
+        "clone",
+        "constructor",
+        "dataRoot",
+        "diff",
+        "fetch",
+        "listWorktrees",
+        "push",
+        "remoteUrl",
+        "status",
+      ].sort(),
     );
   });
 
@@ -501,7 +628,7 @@ describe("privileged Git", () => {
       SSH_AUTH_SOCK: join(root, "fake-agent"),
     });
     const workspace = await checkout(git);
-    expect(await git.run({ clone: workspace.cwd }, "status", ["--porcelain"])).toMatchObject({
+    expect(await git.status({ clone: workspace.cwd })).toMatchObject({
       ok: true,
       data: "",
     });

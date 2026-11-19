@@ -160,28 +160,18 @@ export class ScopeWorkspaces {
       if (url === undefined) continue;
       const failed = await step({ operation: "fetch", remote }, options, async (onOutput) => {
         const gitOptions = { ...signal, onOutput };
-        if (
-          check(await this.git.run(target, "remote", ["get-url", remote], signal)).trim() !== url
-        ) {
+        if (check(await this.git.remoteUrl(target, remote, signal)).trim() !== url) {
           throw new Error(`Managed clone's ${remote} remote no longer matches the scope.`);
         }
-        const refs =
-          remote === "origin"
-            ? ["+refs/heads/*:refs/remotes/origin/*", `+HEAD:${askingRef}`]
-            : ["--no-tags"];
+        const origin = remote === "origin";
         check(
-          await this.git.run(
+          await this.git.fetch(
             target,
-            "fetch",
-            ["--progress", "--prune", "--no-recurse-submodules", remote, ...refs],
+            { remote, tags: origin, ...(origin ? { head: askingRef } : {}) },
             gitOptions,
           ),
         );
-        if (remote === "origin") {
-          check(
-            await this.git.run(target, "checkout", ["--detach", "--force", askingRef], gitOptions),
-          );
-        }
+        if (origin) check(await this.git.checkoutDetached(target, askingRef, gitOptions));
       });
       if (failed) return failed;
     }
