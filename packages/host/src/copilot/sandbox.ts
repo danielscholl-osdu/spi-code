@@ -93,8 +93,12 @@ export function buildSandboxConfig(
   if (clonePath) {
     const git = join(clonePath, ".git");
     readonlyPaths.push(clonePath, join(git, "hooks"), join(git, "config"));
-    if (worktreePath) readwritePaths.push(worktreePath, git);
-    else readonlyPaths.push(git);
+    if (worktreePath) {
+      readwritePaths.push(worktreePath, git);
+      readonlyPaths.push(join(worktreePath, ".git"));
+    } else {
+      readonlyPaths.push(git);
+    }
   }
   return {
     enabled: true,
@@ -151,6 +155,13 @@ export function sandboxToolList(
   return [...custom, ...[...reads, ...writes].map((name) => `builtin:${name}`)];
 }
 
+// The runtime appends its keys after the launcher's credential.helper override.
+const gitConfigKeys = [
+  "credential.helper",
+  "safe.bareRepository",
+  "credential.interactive",
+  "core.fsmonitor",
+];
 const shellEnvironmentNames = new Set([
   "ALL_PROXY",
   "HTTPS_PROXY",
@@ -166,6 +177,7 @@ const shellEnvironmentNames = new Set([
   "GH_PROMPT_DISABLED",
   "GIT_ASKPASS",
   "GIT_CONFIG_COUNT",
+  ...gitConfigKeys.flatMap((_, index) => [`GIT_CONFIG_KEY_${index}`, `GIT_CONFIG_VALUE_${index}`]),
   "GIT_CONFIG_NOSYSTEM",
   "GIT_OPTIONAL_LOCKS",
   "GIT_TERMINAL_PROMPT",
@@ -198,7 +210,6 @@ const shellEnvironmentNames = new Set([
   "__CF_USER_TEXT_ENCODING",
   "_",
 ]);
-const gitConfigName = /^GIT_CONFIG_(?:KEY|VALUE)_[0-9]+$/;
 const namePattern = /^[A-Za-z_][A-Za-z_0-9]*$/;
 const probeTimeoutMs = 15_000;
 
@@ -210,10 +221,15 @@ export function quoteShell(value: string): string {
 
 function buildPreflight(path: string): PreflightInvocation {
   const id = `spi-sandbox-${randomUUID()}`;
+  const gitConfigChecks = [
+    `\${GIT_CONFIG_COUNT-} == ${gitConfigKeys.length}`,
+    ...gitConfigKeys.map((key, index) => `\${GIT_CONFIG_KEY_${index}-} == ${quoteShell(key)}`),
+  ].join(" && ");
   // Bash lists exported names directly. "env | cut" can treat a newline in a value as a name.
   const command = [
     `printf '%s\\n' '${id}:begin'`,
     `if (printf x > ${quoteShell(path)}) 2>/dev/null; then printf 'wrote\\n'; else printf 'blocked\\n'; fi`,
+    `if [[ ${gitConfigChecks} ]]; then printf 'yes\\n'; else printf 'no\\n'; fi`,
     "compgen -e",
     `printf '%s\\n' '${id}:end'`,
   ].join("; ");
@@ -225,11 +241,13 @@ function preflightOutput(text: string | undefined, id: string) {
   if (!lines) return;
   const first = lines.indexOf(`${id}:begin`);
   const last = lines.indexOf(`${id}:end`);
-  if (first < 0 || last <= first + 2) return;
+  if (first < 0 || last <= first + 3) return;
   const write = lines[first + 1];
-  const names = lines.slice(first + 2, last);
+  const gitConfig = lines[first + 2];
+  const names = lines.slice(first + 3, last);
   if (!names.every((name) => namePattern.test(name)) || !names.includes("PATH")) return;
-  if (write === "wrote" || write === "blocked") return { write, names };
+  if (gitConfig !== "yes" && gitConfig !== "no") return;
+  if (write === "wrote" || write === "blocked") return { write, gitConfig, names };
 }
 
 function decisionFor(event: unknown, toolCallId: string) {
@@ -319,7 +337,8 @@ export async function runSandboxPreflight(
       if (!output) return sandboxUnavailable("preflight-failed");
       if (output.write !== "blocked") return sandboxUnavailable("write-not-blocked");
       if (
-        output.names.some((name) => !shellEnvironmentNames.has(name) && !gitConfigName.test(name))
+        output.gitConfig !== "yes" ||
+        output.names.some((name) => !shellEnvironmentNames.has(name))
       ) {
         return sandboxUnavailable("credential-environment");
       }
