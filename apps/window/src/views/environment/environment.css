@@ -1,23 +1,10 @@
 /* Copyright 2026, Daniel Scholl
  * SPDX-License-Identifier: MIT */
 
-.environment .env-facts { display: flex; flex-wrap: wrap; gap: 24px; margin: 16px 0; }
-.environment .env-fact { flex: 1 1 180px; }
-.environment .env-fact strong { display: block; font-size: 24px; }
-.environment .env-fact dd { margin: 0; }
-.environment .env-flow-plan dl {
-  display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px;
-}
-.environment .env-flow-plan dl > div { display: contents; }
-.environment .env-flow-plan dt { color: var(--text-muted); }
-.environment .env-flow-plan dd { margin: 0; }
-.environment .env-fact-label, .environment .env-lane-label {
+.environment .env-lane-label {
   font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--text-muted);
 }
-.environment .tone-bad strong { color: var(--error-text); }
-.environment .tone-warn strong { color: var(--warning-text); }
-.environment .tone-ok strong { color: var(--success-text); }
 .environment .env-day { margin: 4px 0 16px; }
 .environment .env-section-label {
   margin: 0; font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase;
@@ -30,7 +17,7 @@
 .environment .env-lane-label {
   position: sticky; left: 0; z-index: 2; background: var(--surface); padding: 8px 8px 0 0;
 }
-.environment .env-track { position: relative; min-height: 26px; }
+.environment .env-track { position: relative; min-height: 26px; container-type: inline-size; }
 .environment .env-axis .env-track { height: 20px; min-height: 0; }
 .environment .env-hour {
   position: absolute; top: 1px; transform: translateX(-50%); font-size: 12px;
@@ -59,7 +46,7 @@
   position: absolute; left: calc(100% + 9px); top: -3px;
   font-size: 12px; line-height: 18px; color: var(--text); background: var(--surface); white-space: nowrap;
 }
-.environment .env-event-label.flip { left: auto; right: calc(100% + 9px); }
+.environment .env-event-label.flip { left: 0; }
 .environment .state-held .env-event-label { color: var(--text-muted); }
 .environment :is(.state-failed, .state-held.open) .env-event-label {
   color: var(--error-text); background: var(--error-surface); font-weight: 600;
@@ -135,15 +122,16 @@
   position: absolute; top: 10px; height: 12px; min-width: 10px; box-sizing: border-box;
   border: 1px dashed var(--text-muted); border-radius: 6px;
 }
-.environment .env-part { margin-top: 12px; }
-.environment .env-part > summary {
-  padding: 6px 0; border-bottom: 1px solid var(--border-soft);
-  color: var(--text-strong); font-weight: 600; cursor: pointer;
+.env-repository-pill, .centre-title > button.env-repository-pill {
+  display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px;
+  border-radius: 12px; color: var(--text); font-size: 12px; white-space: nowrap;
 }
-.environment .env-part > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.environment .env-part-body { padding-top: 8px; }
-.environment .env-lead { max-width: 70ch; margin: 8px 0 0; }
-.environment .env-part > summary small, .environment .env-repo-section h3 small {
+.env-repository-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted);
+}
+.env-repository-dot[data-tone="bad"] { background: var(--error); }
+.env-repository-dot[data-tone="warn"] { background: var(--warning); }
+.environment .env-repo-section h3 small {
   color: var(--text-muted); font-weight: 400; margin-left: 8px;
 }
 .environment .env-muted { color: var(--text-muted); font-size: 12px; }
@@ -155,12 +143,12 @@
   border: 0; border-bottom: 1px solid var(--border-soft); background: transparent;
 }
 .environment button.env-repo-line { cursor: pointer; }
-.environment .env-repo-line[aria-expanded="true"] { background: var(--accent-surface); }
+.environment button.env-repo-line:hover { background: var(--accent-surface); }
 .environment .env-repo-line small { display: block; color: var(--text-muted); font-size: 12px; }
 .environment .env-repo-tag { min-width: 48px; font-size: 12px; }
-.environment .env-part [data-tone="bad"] { color: var(--error-text); }
-.environment .env-part [data-tone="warn"] { color: var(--warning-text); }
-.environment .env-part [data-tone="ok"] { color: var(--success-text); }
+.environment .env-repository [data-tone="bad"] { color: var(--error-text); }
+.environment .env-repository [data-tone="warn"] { color: var(--warning-text); }
+.environment .env-repository [data-tone="ok"] { color: var(--success-text); }
 .environment [data-selection-id]:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 .environment .env-status {

@@ -77,6 +77,32 @@ describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
     });
   });
 
+  it("names the run headline, flow context and reading extra as undrawn on Environment", async () => {
+    const body = fixture();
+    const retired = EXEMPTIONS["environment-retired-folds"];
+    const pointers = ["/briefing/environment/headline", "/briefing/flow/headline"];
+    expect(retired?.patterns).toEqual(expect.arrayContaining(pointers));
+    const where = { name: "Environment", start: STARTS.environment };
+    await openHome(where, body);
+    const page = container.querySelector(".environment");
+    expect(page).not.toBeNull();
+    const extra = body.readings.find(({ anchor }) => anchor.kind === "environment")?.content
+      ?.folded;
+    expect(extra).toContain("Open in osdu-spi-stack:");
+    for (const text of [
+      body.briefing.environment.headline,
+      body.briefing.flow.headline,
+      body.briefing.flow.plan.note,
+      extra,
+    ]) {
+      expect(text).toBeTruthy();
+      expect(page?.textContent).not.toContain(text);
+    }
+    await openHome({ ...where, step: ".env-repository-pill" }, body);
+    expect(container.querySelector(".popover .env-repository")?.textContent).toContain("#463");
+    expect(container.querySelector(".popover .env-repository")?.textContent).not.toContain(extra);
+  });
+
   it("counts an exemption used when the optional-field sweep uses it", () => {
     const optional = [
       "since-undrawn /briefing/since/asOf",
@@ -395,8 +421,8 @@ describe("the suite's own guards", () => {
   });
 
   it("rejects a click on a target hidden inside a closed details", async () => {
-    const step = '[data-part="repository"] button.env-repo-line';
-    const hidden = { name: "Environment · Stack repository line", start: STARTS.environment, step };
+    const step = ".template-details .template-repo-lead";
+    const hidden = { name: "Template · Repository lead", start: STARTS.engineering, step };
     await start(hidden);
     expect(container.querySelector(step)?.closest("details")?.open).toBe(false);
     await expect(openHome(hidden)).rejects.toThrow(/click/);
@@ -411,11 +437,12 @@ describe("the suite's own guards", () => {
   });
 
   it("fails a field whose value no surface shows", async () => {
-    const row = drawn.find(({ pointer }) => pointer === "/briefing/environment/headline");
+    const row = drawn.find(({ pointer }) => pointer === "/briefing/environment/words/place");
     expect(row).toBeDefined();
     if (!row) return;
     const body = fixture();
-    body.briefing.environment.headline = "";
+    if (!body.briefing.environment.words) throw new Error("Missing Environment words");
+    body.briefing.environment.words.place = "Changed Environment name";
     await openHome(row.home, body);
     expect(() => assertReach(row)).toThrow();
   });

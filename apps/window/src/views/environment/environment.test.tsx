@@ -21,7 +21,6 @@ import {
 import { mixedSnapshot, testSnapshot } from "../../store/test-snapshot.js";
 import { createWatchStore } from "../../store/watch.js";
 import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
-import { timedText } from "../../time.js";
 import Environment from "./index.js";
 import { eventWhen, hourTicks, place } from "./timeline.js";
 
@@ -136,6 +135,31 @@ it("uses the rib's unknown timestamp marker for malformed dates", () => {
   expect(eventWhen({ ...first, end: "invalid" }, now, SPAN_WORDS)).toMatch(/ to \?$/);
 });
 
+it("keeps a flipped run label inside the range when the run starts before its left edge", async () => {
+  const body = mixedSnapshot(recorded);
+  const env = body.briefing.environment;
+  const edge = {
+    id: "edge-refresh",
+    start: new Date(Date.parse(env.to) - 86_400_000 - 60_000).toISOString(),
+    end: env.to,
+    state: "ok" as const,
+    label: "v0.35.5",
+    detail: "",
+  };
+  env.lanes = [{ id: "refresh", label: "Refresh", events: [edge] }];
+  const view = await renderRecorded(body);
+  try {
+    const label = view.page.querySelector<HTMLElement>(
+      '[data-event="refresh:edge-refresh"] .env-event-label',
+    );
+    expect(label?.textContent).toBe("✓ v0.35.5");
+    expect(label?.style.transform).toBe("translateX(max(calc(-100% - 9px), -0cqw))");
+    expect(environmentStyles).toMatch(/\.env-event-label\.flip\s*\{\s*left: 0;/);
+  } finally {
+    await view.done();
+  }
+});
+
 it("keeps timeline affordances, and the empty lane's words clear of the sticky lane label", async () => {
   const store = createWatchStore(vi.fn());
   store.setState({
@@ -208,7 +232,6 @@ it("renders oracle lane order, labels and bars; a bar opens its popover", async 
     expect(container.querySelector(".place-reading")).toBeNull();
     expect(container.querySelector("details")).toBeNull();
     await act(async () => receive(snapshot));
-    expect(container.querySelector(".env-lead")?.textContent).toBe(environment.headline);
     const labels = [...consoleHtml.matchAll(/<div class="tl-lab">([^<]+)<\/div>/g)].map(
       (match) => match[1],
     );
@@ -290,9 +313,11 @@ it.each([
         expectNoEvidenceMarks(container);
         return;
       }
+      await act(async () =>
+        container.querySelector<HTMLButtonElement>(".env-repository-pill")?.click(),
+      );
       expectEvidenceMarks(container, body, {
         sections: [
-          ["/briefing/environment/headline"],
           ...(body.briefing.environment.line ? [["/briefing/environment/line"]] : []),
           ["/briefing/environment/lanes"],
           [
@@ -302,6 +327,7 @@ it.each([
       });
       expect(container.querySelector("[data-pointer] [data-inferred]")).toBeNull();
     } finally {
+      await act(async () => setOpenSelection(null));
       await act(async () => root.unmount());
       container.remove();
     }
@@ -329,6 +355,9 @@ it.each(["identified", "unidentified"])(
     const root = createRoot(container);
     try {
       await act(async () => root.render(<Environment store={store} />));
+      await act(async () =>
+        container.querySelector<HTMLButtonElement>(".env-repository-pill")?.click(),
+      );
       expect(
         [...container.querySelectorAll(".env-repo-line")].filter((element) =>
           element.textContent?.includes(line.text),
@@ -338,51 +367,13 @@ it.each(["identified", "unidentified"])(
         errors.mock.calls.filter((args) => args.some((arg) => String(arg).includes("same key"))),
       ).toHaveLength(0);
     } finally {
+      await act(async () => setOpenSelection(null));
       await act(async () => root.unmount());
       errors.mockRestore();
       container.remove();
     }
   },
 );
-
-it("orders the place, stack runs and stack repository", async () => {
-  const body = mixedSnapshot(mixed);
-  const store = createWatchStore(vi.fn());
-  store.setState({ snapshot: { cursor: body.cursor, body } });
-  const repo = body.briefing.repositories.rows.find((row) => row.name === "osdu-spi-stack");
-  if (!repo) throw new Error("Recorded snapshot needs the stack repository");
-  const container = document.createElement("div");
-  document.body.append(container);
-  const root = createRoot(container);
-  try {
-    await act(async () => root.render(<Environment store={store} />));
-    const page = container.querySelector(".environment");
-    if (!page) throw new Error("Missing Environment page");
-    expect(
-      [...page.children].map(
-        (child) => child.getAttribute("data-part") ?? child.getAttribute("aria-label"),
-      ),
-    ).toEqual(["Environment", "runs", "repository"]);
-    expect(page.textContent).not.toContain("not available yet");
-    expect(page.textContent).not.toMatch(/\bM[0-9]\b/);
-    for (const section of repo.sections) {
-      expect(page.textContent).toContain(section.title);
-      expect(page.textContent).toContain(section.count);
-      if (section.rest) expect(page.textContent).toContain(section.rest);
-      for (const entry of section.lines) {
-        expect(page.textContent).toContain(entry.tag);
-        expect(page.textContent).toContain(entry.text);
-        expect(page.textContent).toContain(entry.sub);
-      }
-    }
-    expect(page.textContent).toContain(repo.title);
-    expect(page.textContent).toContain(repo.sub);
-    expect(page.querySelector(".env-detail, .inspector, aside")).toBeNull();
-  } finally {
-    await act(async () => root.unmount());
-    container.remove();
-  }
-});
 
 it("omits absent snapshot parts and leaves unidentifiable lines as text, not fake selections", async () => {
   const body = mixedSnapshot(mixed);
@@ -399,6 +390,9 @@ it("omits absent snapshot parts and leaves unidentifiable lines as text, not fak
   const root = createRoot(container);
   try {
     await act(async () => root.render(<Environment store={store} />));
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>(".env-repository-pill")?.click(),
+    );
     const textLine = [...container.querySelectorAll(".env-repo-line")].find((element) =>
       element.textContent?.includes(line.text),
     );
@@ -416,14 +410,11 @@ it("omits absent snapshot parts and leaves unidentifiable lines as text, not fak
       (row) => row.name !== "osdu-spi-stack",
     );
     await act(async () => store.setState({ snapshot: { cursor: 2, body: bare } }));
-    expect(container.querySelector(".env-part-body > .env-facts")).toBeNull();
     expect(container.querySelector(".env-day")).toBeNull();
-    expect(container.querySelector("[data-part='repository']")).toBeNull();
+    expect(container.querySelector(".env-repository-pill, .popover")).toBeNull();
     expect(container.textContent).not.toContain(repo.note);
-    expect(container.querySelector("[data-part='runs'] .env-lead")?.textContent).toBe(
-      bare.briefing.environment.headline,
-    );
   } finally {
+    await act(async () => setOpenSelection(null));
     await act(async () => root.unmount());
     container.remove();
   }
@@ -468,7 +459,7 @@ it("leaves a snapshot saved before core sent the place's words not read, never w
   try {
     await act(async () => root.render(<Environment store={store} />));
     expect(container.querySelector("h1")?.textContent).toBe("Environment");
-    expect(container.querySelector(".place-reading, .env-day, .env-part, [data-opens]")).toBeNull();
+    expect(container.querySelector(".place-reading, .env-day, [data-opens]")).toBeNull();
     const current = mixedSnapshot(recorded);
     await act(async () => store.setState({ snapshot: { cursor: current.cursor, body: current } }));
     const words = current.briefing.environment.words;
@@ -552,129 +543,19 @@ it.each([
   },
 );
 
-it.each([
-  ["1106", recorded],
-  ["mixed", mixed],
-] as const)("keeps %s Stack runs to the flow context and the run headline", async (_, raw) => {
-  const view = await renderRecorded(mixedSnapshot(raw));
+it("ends the timeline with the reading’s item groups", async () => {
+  const view = await renderRecorded(mixedSnapshot(mixed));
   try {
-    const runs = view.page.querySelector<HTMLDetailsElement>('[data-part="runs"]');
-    if (!runs) throw new Error("Missing Stack runs disclosure");
-    expect(runs.open).toBe(false);
-    expect(runs.querySelector(".env-lead")?.textContent).toBe(
-      timedText(view.body.briefing.environment.headline, { hint: false }),
-    );
-    expect(runs.querySelector("[aria-label='Upstream syncs']")).not.toBeNull();
-    expect(runs.querySelector("[data-lane], .place-tile, [data-pointer*='/facts/']")).toBeNull();
-    const env = view.body.briefing.environment;
-    expect(view.page.querySelectorAll(".env-day [data-lane]")).toHaveLength(
-      env.lanes.filter(({ id }) => id !== "holds" || !env.activity).length,
-    );
-  } finally {
-    await view.done();
-  }
-});
-
-type FormerField = {
-  field: string;
-  find: (page: HTMLElement) => Element | undefined;
-  text: string;
-};
-
-function formerFields(body: ReturnType<typeof mixedSnapshot>): FormerField[] {
-  const env = body.briefing.environment;
-  const now = new Date(Date.parse(env.to));
-  const repo = body.briefing.repositories.rows.find(({ name }) => name === "osdu-spi-stack");
-  if (!repo) throw new Error("Recorded snapshot needs the stack row");
-  const all = (page: HTMLElement, selector: string) => [...page.querySelectorAll(selector)];
-  const holding = (selector: string, text: string) => (page: HTMLElement) =>
-    all(page, selector).find((element) =>
-      element.textContent?.includes(timedText(text, { hint: false })),
-    );
-  return [
-    { field: "headline", find: holding(".env-lead", env.headline), text: env.headline },
-    ...env.lanes.flatMap((lane) => [
-      {
-        field: `lane ${lane.id}`,
-        find: (page: HTMLElement) =>
-          page.querySelector(
-            lane.id === "holds" && env.activity
-              ? ".env-activity .env-lane-label"
-              : `[data-lane='${lane.id}'] .env-lane-label`,
-          ) ?? undefined,
-        text: lane.id === "holds" && env.activity ? env.activity.label : lane.label,
-      },
-      ...(lane.events.every(({ end }) => end && Date.parse(end) < now.getTime() - 86_400_000)
-        ? [
-            {
-              field: `lane ${lane.id} empty`,
-              find: (page: HTMLElement) =>
-                page.querySelector(`[data-lane='${lane.id}'] .env-none`) ?? undefined,
-              text: lane.last?.text ?? "none in the last day",
-            },
-          ]
-        : lane.events
-            .filter(({ end }) => !end || Date.parse(end) >= now.getTime() - 86_400_000)
-            .map((event) => ({
-              field: `lane ${lane.id} event ${event.id}`,
-              find: (page: HTMLElement) =>
-                page.querySelector(`[data-event='${lane.id}:${event.id}']`) ?? undefined,
-              text: event.label,
-            }))),
-    ]),
-    {
-      field: "repository title",
-      find: holding("[data-part='repository'] p", repo.title),
-      text: repo.title,
-    },
-    { field: "repository sub", find: holding(".env-muted", repo.sub), text: repo.sub },
-    ...repo.sections.flatMap((section) => [
-      {
-        field: `section ${section.title}`,
-        find: holding(".env-repo-section h3", section.title),
-        text: `${section.title} ${section.count}`,
-      },
-      ...section.lines.flatMap((line) =>
-        [line.tag, line.text, line.sub].map((text) => ({
-          field: `line ${line.id} ${text}`,
-          find: (page: HTMLElement) =>
-            all(page, ".env-repo-line").find(
-              (element) => element.getAttribute("data-opens") === `repository-line~${line.id}`,
-            ),
-          text,
-        })),
+    expect(view.page.querySelector("details")).toBeNull();
+    const timeline = view.page.querySelector(".env-day");
+    expect(timeline?.nextElementSibling?.className).toBe("place-groups");
+    expect(
+      [...(timeline?.nextElementSibling?.querySelectorAll("h3") ?? [])].map(
+        (heading) => heading.textContent,
       ),
-    ]),
-  ];
-}
-
-it("keeps every former Environment page field within one click", async () => {
-  const view = await renderRecorded();
-  const fields = formerFields(view.body);
-  try {
-    expect(fields.length).toBeGreaterThan(15);
-    for (const { field, find, text } of fields) {
-      const element = find(view.page);
-      expect(element, field).toBeDefined();
-      const shown = `${element?.textContent ?? ""} ${element?.getAttribute("aria-label") ?? ""}`;
-      expect(shown, field).toContain(timedText(text, { hint: false }));
-      const closed: HTMLDetailsElement[] = [];
-      for (let node = element?.parentElement; node && node !== view.page; node = node.parentElement)
-        if (node instanceof HTMLDetailsElement && !node.open) closed.push(node);
-      expect(closed.length, field).toBeLessThanOrEqual(1);
-      const [fold] = closed;
-      if (!fold) continue;
-      await act(async () => fold.querySelector<HTMLElement>(":scope > summary")?.click());
-      expect(fold.open, field).toBe(true);
-      await act(async () => fold.querySelector<HTMLElement>(":scope > summary")?.click());
-    }
-    const event = fields
-      .find(({ field }) => field.startsWith("lane refresh event"))
-      ?.find(view.page);
-    if (!(event instanceof HTMLButtonElement))
-      throw new Error("Recorded refresh event is a button");
-    await act(async () => event.click());
-    expect(view.container.querySelector(".popover h3")?.textContent).toBe("Refresh · v0.35.3");
+    ).toEqual(["Stopped", "Waiting on you"]);
+    expect(timeline?.nextElementSibling?.nextElementSibling).toBeNull();
+    expect(view.page.querySelector("section.place")?.nextElementSibling).toBeNull();
   } finally {
     await view.done();
   }

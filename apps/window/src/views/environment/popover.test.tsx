@@ -9,6 +9,7 @@ import recorded from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { openSelection, setOpenSelection } from "../../app/navigation.js";
 import { selectionStore } from "../../panels/selection.js";
 import { createWatchStore } from "../../store/watch.js";
+import { plainTitle } from "../../text.js";
 import sweep from "../today/snapshot-1116.json?raw";
 import Environment from "./index.js";
 
@@ -219,13 +220,8 @@ it("opens a run's Today member when core folds the run into one", async () => {
   expect(openSelection()).toEqual({ kind: "event", id: SMOKE });
 });
 
-it("opens every Environment selection in a popover or at its source, never in the panel", async () => {
+it("opens every Environment selection in a popover, never in the panel", async () => {
   const body = await render();
-  const runs = container.querySelector<HTMLDetailsElement>('[data-part="runs"]');
-  const repository = container.querySelector<HTMLDetailsElement>('[data-part="repository"]');
-  if (!runs || !repository) throw new Error("Missing the Stack runs and Stack repository folds");
-  runs.open = true;
-  repository.open = true;
   const openers = [
     ...container.querySelectorAll<HTMLElement>("[data-opens], .place [data-selection-id]"),
   ];
@@ -239,16 +235,70 @@ it("opens every Environment selection in a popover or at its source, never in th
     await act(async () => opener.click());
     expect(popover()).toBeNull();
   }
-  const also = [
-    ...runs.querySelectorAll<HTMLButtonElement>("ul[aria-label='Also waiting'] button"),
-  ];
-  expect(also.map((button) => button.textContent)).toEqual([
-    "Review partition's Sync to Main PR on GitHub",
-  ]);
-  await act(async () => also[0]?.click());
-  expect(window.location.hash).toBe("#today/forks");
-  expect(openSelection()).toEqual({ kind: "fork", id: "partition" });
   expect(selectionStore.getState().selected).toBeNull();
+});
+
+it.each([
+  ["Close", "ok"],
+  ["Escape", "warn"],
+] as const)("opens the stack repository and restores focus via %s", async (close, tone) => {
+  const body = november16();
+  const repository = body.briefing.repositories.rows.find(({ name }) => name === "osdu-spi-stack");
+  const line = repository?.sections[0]?.lines[0];
+  if (!repository || !line?.id) throw new Error("16 Nov needs an identified stack repository line");
+  repository.tone = tone;
+  await render(body);
+  const pill = container.querySelector<HTMLButtonElement>(".env-repository-pill");
+  if (!pill) throw new Error("Missing repository pill");
+  expect(pill.textContent).toBe(repository.name);
+  expect(pill.querySelector(".env-repository-dot")?.getAttribute("data-tone")).toBe(
+    tone === "ok" ? undefined : tone,
+  );
+  const dismiss = async () => {
+    await act(async () => {
+      if (close === "Escape") {
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", cancelable: true }));
+      } else {
+        popover()?.querySelector<HTMLButtonElement>(".popover-close")?.click();
+      }
+    });
+    expect(popover()).toBeNull();
+    expect(document.activeElement).toBe(pill);
+  };
+
+  await act(async () => pill.click());
+  const contents = popover();
+  expect(contents?.getAttribute("aria-label")).toBe(body.briefing.environment.words?.repository);
+  expect(contents?.querySelector(".repository-counts")?.textContent).toContain(
+    repository.cells.issues.text,
+  );
+  for (const text of [repository.title, repository.sub, repository.note ?? ""]) {
+    expect(text).toBeTruthy();
+    expect(contents?.querySelector(".env-repository")?.textContent).toContain(plainTitle(text));
+  }
+  for (const section of repository.sections) {
+    expect(contents?.textContent).toContain(`${section.title} ${section.count}`);
+    for (const entry of section.lines) {
+      expect(contents?.textContent).toContain(entry.tag);
+      expect(contents?.textContent).toContain(plainTitle(entry.text));
+      expect(contents?.textContent).toContain(plainTitle(entry.sub));
+    }
+  }
+  await dismiss();
+
+  await act(async () => pill.click());
+  const row = popover()?.querySelector<HTMLButtonElement>(
+    `button[data-opens="repository-line~${line.id}"]`,
+  );
+  if (!row) throw new Error("Missing repository line");
+  row.focus();
+  await act(async () => row.click());
+  expect(openSelection()).toEqual({ kind: "repository-line", id: line.id });
+  expect(container.querySelectorAll(".popover")).toHaveLength(1);
+  expect(popover()?.querySelector(".env-repository")).toBeNull();
+  expect(read().title).toBe(plainTitle(line.text));
+  expect(document.activeElement).toBe(popover());
+  await dismiss();
 });
 
 it.each(["Escape", "Close"])(

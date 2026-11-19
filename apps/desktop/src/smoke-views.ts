@@ -18,11 +18,13 @@ import { type BrowserWindow, ipcMain, nativeImage } from "electron";
 import {
   ENVIRONMENT_BACK,
   ENVIRONMENT_BORROW,
+  ENVIRONMENT_HEAD,
   ENVIRONMENT_HOLD,
   ENVIRONMENT_INSIDE_NOW,
   ENVIRONMENT_LINK,
   ENVIRONMENT_LIVE,
   ENVIRONMENT_OVERLAP,
+  ENVIRONMENT_REPOSITORY,
   ENVIRONMENT_RUN,
   ENVIRONMENT_WEEK,
   ENVIRONMENT_YESTERDAY,
@@ -1484,6 +1486,7 @@ export async function captureSmokeViews(
               lineMembersText(acknowledged.briefing.lines),
               seen,
             );
+          if (surface.id === "environment") await rendered(window, ENVIRONMENT_HEAD);
           const file = `${surface.id}-${viewportWidth}-${appearance}.png`;
           const path = join(output, file);
           writeFileSync(path, (await window.webContents.capturePage()).toPNG());
@@ -1520,6 +1523,7 @@ export async function captureSmokeViews(
               ["hold", ENVIRONMENT_HOLD, ""],
               ["overlap", ENVIRONMENT_OVERLAP, ""],
               ["run", ENVIRONMENT_RUN, ".env-trigger"],
+              ["repository", ENVIRONMENT_REPOSITORY, ".env-repository .repository-counts"],
             ]) {
               const anchor = `[...document.querySelectorAll(${JSON.stringify(selector)})].at(-1)`;
               const popover = 'document.querySelector(".environment .popover")';
@@ -1546,13 +1550,13 @@ export async function captureSmokeViews(
             );
             await captureSettled(
               window,
-              heading,
+              `${heading} && ${ENVIRONMENT_HEAD}`,
               join(output, `environment-7d-${viewportWidth}-${appearance}.png`),
             );
             await window.webContents.executeJavaScript(`${ENVIRONMENT_YESTERDAY}.click()`);
             await captureSettled(
               window,
-              `document.activeElement === document.querySelector(${JSON.stringify(ENVIRONMENT_BACK)})`,
+              `document.activeElement === document.querySelector(${JSON.stringify(ENVIRONMENT_BACK)}) && ${ENVIRONMENT_HEAD}`,
               join(output, `environment-day-${viewportWidth}-${appearance}.png`),
             );
             const upgrade = await window.webContents.executeJavaScript(

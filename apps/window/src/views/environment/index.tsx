@@ -13,7 +13,6 @@ import {
 } from "react";
 import { useStore } from "zustand";
 import {
-  FORKS,
   navigate,
   type OpenSelection,
   routeHash,
@@ -32,8 +31,7 @@ import { plainTitle } from "../../text.js";
 import { TimedText } from "../../time.js";
 import { ActivityLegend, ActivityRow, ActivitySummary, activityView } from "./activity.js";
 import { BorrowRows, DayCell, ForkDays } from "./borrows.js";
-import { FlowContext } from "./flow-context.js";
-import { environmentOpening } from "./opening.js";
+import { environmentOpening, STACK } from "./opening.js";
 import { type Day, dayNames, daysOf, lastOf, missedIn, rangeOf, WEEK, within } from "./range.js";
 import {
   eventKey,
@@ -102,7 +100,6 @@ function anchorOf(
   );
 }
 
-/** The Environment place: the reading, then the stack's runs and its repository, each folded. */
 export default function Environment({
   store = watchStore,
   range: routeRange,
@@ -110,8 +107,6 @@ export default function Environment({
   store?: typeof watchStore;
   range?: string | undefined;
 }) {
-  const runsHeading = useId();
-  const repositoryHeading = useId();
   const dayHeading = useId();
   const snapshot = useStore(store, (state) => state.snapshot);
   const body = snapshot?.body;
@@ -124,14 +119,18 @@ export default function Environment({
   const pane = useRef<HTMLDivElement>(null);
   const clicked = useRef<{ key: string; element: HTMLElement } | null>(null);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const [repositoryAnchor, setRepositoryAnchor] = useState<HTMLButtonElement | null>(null);
+  const repositoryOpen = marked?.kind === "repository" || marked?.kind === "repository-line";
+  const popoverAnchor = repositoryOpen ? repositoryAnchor : anchor;
   const opened = opening !== undefined;
   // biome-ignore lint/correctness/useExhaustiveDependencies: A new snapshot redraws the anchors.
   useLayoutEffect(() => {
-    const found = markedKey && opened ? anchorOf(pane.current, markedKey, clicked.current) : null;
-    const folded = found?.closest("details");
-    if (folded && !folded.open) folded.open = true;
-    setAnchor(found);
-  }, [markedKey, opened, body]);
+    setAnchor(
+      markedKey && opened && !repositoryOpen
+        ? anchorOf(pane.current, markedKey, clicked.current)
+        : null,
+    );
+  }, [markedKey, opened, body, repositoryOpen]);
   const close = useCallback(() => setOpenSelection(null), []);
   const toggle = (selection: OpenSelection, element: HTMLElement) => {
     const key = keyOf(selection);
@@ -184,7 +183,7 @@ export default function Environment({
           ],
     ) ?? [];
   const repositories = body?.briefing.repositories.rows ?? [];
-  const repositoryIndex = repositories.findIndex((row) => row.name === "osdu-spi-stack");
+  const repositoryIndex = repositories.findIndex((row) => row.name === STACK);
   const repository = repositories[repositoryIndex];
   const repositoryPointer = `/briefing/repositories/rows/${repositoryIndex}`;
   const sections =
@@ -195,12 +194,16 @@ export default function Environment({
         pointer: repositoryLinePointer(repositoryIndex, sectionIndex, lineIndex),
       })),
     })) ?? [];
-  const placeOf = (extra: Pick<PlaceProps, "tiles" | "belowTiles" | "readingLead"> = {}) => (
+  const placeOf = (
+    extra: Pick<PlaceProps, "actions" | "tiles" | "belowTiles" | "readingLead"> = {},
+  ) => (
     <Place
       {...extra}
       name={words?.place ?? routeLabel({ kind: "environment" })}
       pin={placePin("environment")}
-      reading={reading}
+      reading={
+        reading.content ? { ...reading, content: { ...reading.content, folded: null } } : reading
+      }
       snapshot={body}
       services={treeServices(body?.tree)}
       onNavigate={navigate}
@@ -380,7 +383,16 @@ export default function Environment({
                           </span>
                         )}
                         {!range.week && (
-                          <span className={`env-event-label${p.flip ? " flip" : ""}`}>
+                          <span
+                            className={`env-event-label${p.flip ? " flip" : ""}`}
+                            style={
+                              p.flip
+                                ? {
+                                    transform: `translateX(max(calc(-100% - 9px), -${fixed(p.left)}cqw))`,
+                                  }
+                                : undefined
+                            }
+                          >
                             {eventText(p.e)}
                           </span>
                         )}
@@ -430,6 +442,21 @@ export default function Environment({
   return (
     <div className="environment" data-view-pane="environment" ref={pane}>
       {placeOf({
+        actions: repository && (
+          <button
+            ref={setRepositoryAnchor}
+            className="env-repository-pill"
+            type="button"
+            title={words?.repository}
+            {...opener({ kind: "repository", id: repository.name })}
+            aria-expanded={repositoryOpen && opened}
+          >
+            {repository.name}
+            {repository.tone !== "ok" && (
+              <span className="env-repository-dot" data-tone={repository.tone} aria-hidden="true" />
+            )}
+          </button>
+        ),
         tiles: [],
         readingLead: status && (
           <>
@@ -468,77 +495,58 @@ export default function Environment({
         ),
         belowTiles: timeline || undefined,
       })}
-      <details className="env-part" data-part="runs">
-        <summary id={runsHeading}>{words?.runs}</summary>
-        <section className="env-part-body" aria-labelledby={runsHeading}>
-          <FlowContext
-            flow={body.briefing.flow}
-            onSelect={(id) => {
-              const fork = body.briefing.flow.rows.find(({ inspect }) => inspect === id)?.fork;
-              navigate(FORKS);
-              if (fork) setOpenSelection({ kind: "fork", id: fork });
-            }}
-          />
-          <SectionEvidence evidence={body} prefixes={["/briefing/environment/headline"]} />
-          <p className="env-lead" data-pointer="/briefing/environment/headline">
-            <TimedText text={env.headline} hint={false} />
-          </p>
-        </section>
-      </details>
-      {repository && (
-        <details className="env-part" data-part="repository" data-pointer={repositoryPointer}>
-          <summary id={repositoryHeading}>
-            {words?.repository} <small>{repository.name}</small>
-          </summary>
-          <section className="env-part-body" aria-labelledby={repositoryHeading}>
-            <SectionEvidence evidence={body} prefixes={[repositoryPointer]} />
-            <RepositoryFacts repository={repository} pointer={repositoryPointer} />
-            {repository.title && (
-              <p data-tone={repository.tone} data-pointer={`${repositoryPointer}/title`}>
-                {plainTitle(repository.title)}
-              </p>
-            )}
-            {repository.sub && <p className="env-muted">{plainTitle(repository.sub)}</p>}
-            {sections.map((section) => (
-              <div className="env-repo-section" key={section.title} data-weight={section.weight}>
-                <h3>
-                  {section.title}{" "}
-                  <small>
-                    {section.count}
-                    {section.rest}
-                  </small>
-                </h3>
-                {section.lines.map(({ line, pointer }) => {
-                  return line.id ? (
-                    <button
-                      className="env-repo-line"
-                      type="button"
-                      key={pointer}
-                      data-pointer={pointer}
-                      {...opener({ kind: "repository-line", id: line.id })}
-                    >
-                      <LineReading line={line} upstream={words?.upstream} />
-                    </button>
-                  ) : (
-                    <div className="env-repo-line" key={pointer} data-pointer={pointer}>
-                      <LineReading line={line} upstream={words?.upstream} />
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-            {repository.note && <p className="env-muted">{repository.note}</p>}
-          </section>
-        </details>
-      )}
-      {opening && marked && anchor?.isConnected && (
+      {opening && marked && popoverAnchor?.isConnected && (
         <Popover
-          anchor={anchor}
+          key={repositoryOpen ? markedKey : undefined}
+          anchor={popoverAnchor}
           selection={marked}
           content={opening.content}
           onClose={close}
           within={pane.current?.closest<HTMLElement>("main")}
         >
+          {marked.kind === "repository" && repository && (
+            <div className="env-repository">
+              <SectionEvidence evidence={body} prefixes={[repositoryPointer]} />
+              <RepositoryFacts repository={repository} pointer={repositoryPointer} />
+              {repository.title && (
+                <p data-tone={repository.tone} data-pointer={`${repositoryPointer}/title`}>
+                  {plainTitle(repository.title)}
+                </p>
+              )}
+              {repository.sub && <p className="env-muted">{plainTitle(repository.sub)}</p>}
+              {sections.map((section) => (
+                <div className="env-repo-section" key={section.title} data-weight={section.weight}>
+                  <h3>
+                    {section.title}{" "}
+                    <small>
+                      {section.count}
+                      {section.rest}
+                    </small>
+                  </h3>
+                  {section.lines.map(({ line, pointer }) => {
+                    const id = line.id;
+                    return id ? (
+                      <button
+                        className="env-repo-line"
+                        type="button"
+                        key={pointer}
+                        data-pointer={pointer}
+                        data-opens={keyOf({ kind: "repository-line", id })}
+                        onClick={() => setOpenSelection({ kind: "repository-line", id })}
+                      >
+                        <LineReading line={line} upstream={words?.upstream} />
+                      </button>
+                    ) : (
+                      <div className="env-repo-line" key={pointer} data-pointer={pointer}>
+                        <LineReading line={line} upstream={words?.upstream} />
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+              {repository.note && <p className="env-muted">{repository.note}</p>}
+            </div>
+          )}
           {opening.trigger && <p className="env-trigger">{opening.trigger}</p>}
           {opening.fork && (
             <div className="popover-rows">

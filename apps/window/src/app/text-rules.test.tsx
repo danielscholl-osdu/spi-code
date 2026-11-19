@@ -5,7 +5,6 @@ import { ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { expect, it, vi } from "vitest";
 import { readFixture } from "../../../../scripts/watch-generated.mjs";
-import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
 import { fixtureLoader } from "../test-utils/harness.js";
 import { WATCH_SNAPSHOTS } from "../test-utils/watch-fixtures.test-helper.js";
@@ -52,26 +51,6 @@ it("starts Today headlines in sentence case on every fixture", () => {
   }
 });
 
-it.each(["flight", "planning", "quiet"] as const)(
-  "names the %s state and draws no empty plan or next part",
-  async (mode) => {
-    const body = structuredClone(snapshots[0]?.body);
-    if (!body) throw new Error("Missing snapshot");
-    body.briefing.flow.mode = mode;
-    body.briefing.flow.plan = { title: "", lines: [], note: "", button: "" };
-    body.briefing.flow.next = { title: "", text: "", button: "", quiet: true };
-    await open(body, { kind: "environment" });
-    expect(container.querySelector('[data-pointer="/briefing/flow/mode"]')?.textContent).toBe(
-      { flight: "Syncs in progress", planning: "Planning upstream syncs", quiet: "Nothing queued" }[
-        mode
-      ],
-    );
-    expect(container.querySelector('[data-pointer="/briefing/flow/plan"]')).toBeNull();
-    expect(container.querySelector('[data-pointer="/briefing/flow/next"]')).toBeNull();
-    assertRules(`Empty ${mode} plan`);
-  },
-);
-
 it("labels an incomplete sweep without exposing its internal state name", async () => {
   const body = structuredClone(snapshots[0]?.body);
   if (!body) throw new Error("Missing snapshot");
@@ -86,19 +65,6 @@ it("labels an incomplete sweep without exposing its internal state name", async 
   await open(body);
   expect(container.querySelector("[data-sweep-line]")?.textContent).toContain("1 incomplete");
   assertRules("Incomplete sweep");
-});
-
-it("opens the upstream plan without presenting preparation as the button's action", async () => {
-  const body = snapshots[0]?.body;
-  if (!body) throw new Error("Missing snapshot");
-  await open(body, { kind: "environment" });
-  const button = container.querySelector<HTMLButtonElement>(
-    '[data-pointer="/briefing/flow/next"] button',
-  );
-  expect(button?.textContent?.trim()).toBe("View upstream plan");
-  await act(async () => button?.click());
-  expect(window.location.hash).toBe("#today/forks");
-  expect(selectionStore.getState().selected).toBeNull();
 });
 
 it("renders the whole sweep on the Evidence page", async () => {
@@ -225,6 +191,9 @@ it("strips injected emoji from an environment repository line", async () => {
   line.text = "🐛 Fix the stack";
   line.sub = "🚨 Check the build";
   await open(body, { kind: "environment" });
+  await act(async () =>
+    container.querySelector<HTMLButtonElement>(".env-repository-pill")?.click(),
+  );
   expect(container.querySelector(".env-repo-line-text")?.textContent).toBe("Fix the stack");
   expect(container.querySelector(".env-repo-line small")?.textContent).toBe("Check the build");
   assertRules("Environment repository line with emoji");
@@ -238,8 +207,11 @@ it.each([
 ])("rejects a rendered %s source mutation", async (kind, text) => {
   const body = structuredClone(snapshots[0]?.body);
   if (!body) throw new Error("Missing snapshot");
-  body.briefing.flow.headline = text;
-  await open(body, { kind: "environment" });
+  body.briefing.repositories.headline = text;
+  await open(body, { kind: "engineering-system" });
+  await act(async () =>
+    container.querySelector<HTMLElement>(".template-details > summary")?.click(),
+  );
   expect(violations(container).some((failure) => failure.startsWith(`${kind}:`))).toBe(true);
 });
 

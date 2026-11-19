@@ -18,6 +18,13 @@ export const ENVIRONMENT_WEEK = ".environment .env-range button:last-child";
 export const ENVIRONMENT_YESTERDAY =
   '[...document.querySelectorAll(".environment .env-day-heading")].at(-2)';
 export const ENVIRONMENT_BACK = ".environment .env-back";
+export const ENVIRONMENT_REPOSITORY = ".centre-title .env-repository-pill";
+export const ENVIRONMENT_HEAD = `(() => {
+  const pill = document.querySelector(${JSON.stringify(ENVIRONMENT_REPOSITORY)});
+  return pill?.offsetWidth > 0 && pill.textContent.trim() === "osdu-spi-stack" &&
+    !document.querySelector(".environment :is(details, .place-folded)");
+})()`;
+
 /** Every day heading and fork pill ends at or before the now line. */
 export const ENVIRONMENT_INSIDE_NOW = `(() => {
   const now = document.querySelector(".environment .env-now")?.getBoundingClientRect().right;

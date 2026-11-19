@@ -131,11 +131,10 @@ function branchOf(body: ViewSnapshot, key: string): string {
 }
 
 /** The parts of the place the Environment view draws itself, without the shared kit inside them. */
-const OWN = "h1[data-place], .env-status, .env-line, .env-day, .env-part, .popover";
+const OWN = "h1[data-place], .env-status, .env-line, .env-day, .env-repository-pill, .popover";
 const SHARED = [
   ".section-evidence",
   ".repository-counts",
-  '[data-pointer="/briefing/flow"]',
   ".popover-close",
   ".opened-body-sources",
   ".opened-body-evidence",
@@ -199,14 +198,30 @@ it("draws no word of its own: every word on the place is core's, apart from leng
       if (!openers.has(branch)) openers.set(branch, opener);
     }
     for (const [branch, opener] of openers) {
-      const folded = opener.closest("details");
-      if (folded) folded.open = true;
       await act(async () => opener.click());
       const popover = page.querySelector(".popover");
       if (!popover) throw new Error(`${branch} opened no popover`);
       if (popover.querySelector(".env-trigger")) triggers += 1;
       branches.add(branch);
       texts.push(...drawnText(page).map((text) => text.replaceAll(CAN_WAIT, " ")));
+      if (branch === "repository") {
+        const lines = new Map<string, string>();
+        for (const line of popover.querySelectorAll<HTMLElement>("[data-opens]")) {
+          const key = line.dataset.opens ?? "";
+          const lineBranch = branchOf(body, key);
+          if (!lines.has(lineBranch)) lines.set(lineBranch, key);
+        }
+        for (const [lineBranch, key] of lines) {
+          const row = page.querySelector<HTMLButtonElement>(`[data-opens="${key}"]`);
+          if (!row) throw new Error(`Missing ${lineBranch} opener`);
+          await act(async () => row.click());
+          if (!page.querySelector('.popover[data-selection^="repository-line~"]'))
+            throw new Error(`${lineBranch} opened no popover`);
+          branches.add(lineBranch);
+          texts.push(...drawnText(page).map((text) => text.replaceAll(CAN_WAIT, " ")));
+          await act(async () => opener.click());
+        }
+      }
       await act(async () => setOpenSelection(null));
     }
   }
@@ -219,6 +234,7 @@ it("draws no word of its own: every word on the place is core's, apart from leng
       "hold",
       "item",
       "item on Today",
+      "repository",
       "repository line",
       "repository line counted",
       "repository line on Today",

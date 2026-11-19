@@ -154,17 +154,15 @@ function lensHome(name: string): Home {
           ? STARTS.today
           : STARTS.upstream;
   const step =
-    target === "Stack runs"
-      ? '[data-part="runs"] > summary'
-      : target === "Stack repository"
-        ? '[data-part="repository"] > summary'
-        : target === "Details"
-          ? ".template-details > summary"
-          : target === "Repository"
-            ? '[data-section="repository"] > summary'
-            : target === "Upstream sync Detail"
-              ? "[data-service-detail='upstream']"
-              : undefined;
+    target === "Stack repository"
+      ? ".env-repository-pill"
+      : target === "Details"
+        ? ".template-details > summary"
+        : target === "Repository"
+          ? '[data-section="repository"] > summary'
+          : target === "Upstream sync Detail"
+            ? "[data-service-detail='upstream']"
+            : undefined;
   return home(name, from, step);
 }
 
@@ -383,13 +381,6 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
   });
 
   const environment = briefing.environment;
-  const runs = lensHome("Environment · Stack runs");
-  add(
-    "/briefing/environment/headline",
-    subText(environment.headline),
-    runs,
-    at("/briefing/environment/headline"),
-  );
   const environmentHome = home("Environment", STARTS.environment);
   const now = new Date(Date.parse(environment.to));
   const to = now.getTime();
@@ -424,18 +415,11 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
     add(`${base}/forksNote`, environment.forksNote, environmentHome, ".env-forks-note");
   const words = environment.words;
   if (words) {
-    const lead = "Environment · Stack runs";
     add(`${base}/words/place`, words.place, environmentHome, "h1[data-place]");
-    add(`${base}/words/runs`, words.runs, lensHome(lead), '[data-part="runs"] > summary');
-    add(
-      `${base}/words/repository`,
-      words.repository,
-      lensHome(lead),
-      '[data-part="repository"] > summary',
-      {
-        contains: true,
-      },
-    );
+    if (briefing.repositories.rows.some(({ name }) => name === "osdu-spi-stack"))
+      add(`${base}/words/repository`, words.repository, environmentHome, ".env-repository-pill", {
+        attribute: "title",
+      });
     if (environment.lanes.length || environment.activity) {
       add(`${base}/words/range`, words.range, environmentHome, ".env-range", {
         attribute: "aria-label",
@@ -871,7 +855,7 @@ function repositoryCases(
   } else if (repo.name === "osdu-spi-stack") {
     where = lensHome("Environment · Stack repository");
     sub = (root) => root.querySelector(`${at(`${pointer}/title`)} + p.env-muted`);
-    note = '[data-part="repository"] .env-part-body > p.env-muted:last-child';
+    note = ".env-repository > p.env-muted:last-child";
     section = (index) => sectionAt(".env-repo-section", index);
     title = (s) => within(s, "h3");
     count = (s) => within(s, "h3 > small");
@@ -1853,10 +1837,32 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
       return field !== "figure" || fact?.label !== "Running" || fact.figure === "?";
     },
   },
-  "lens-button": {
-    patterns: ["/briefing/flow/plan/button"],
+  "environment-retired-folds": {
+    patterns: [
+      "/briefing/environment/headline",
+      "/briefing/environment/words/runs",
+      "/briefing/flow/mode",
+      "/briefing/flow/headline",
+      "/briefing/flow/sub",
+      "/briefing/flow/tiles/#/label",
+      "/briefing/flow/tiles/#/value",
+      "/briefing/flow/tiles/#/sub",
+      "/briefing/flow/tiles/#/meter/busy",
+      "/briefing/flow/tiles/#/meter/cap",
+      "/briefing/flow/plan/title",
+      "/briefing/flow/plan/lines/#/label",
+      "/briefing/flow/plan/lines/#/text",
+      "/briefing/flow/plan/note",
+      "/briefing/flow/plan/button",
+      "/briefing/flow/next/title",
+      "/briefing/flow/next/text",
+      "/briefing/flow/next/button",
+      "/briefing/flow/also/#/text",
+      "/briefing/flow/schedule/title",
+      "/briefing/flow/schedule/text",
+    ],
     reason:
-      "The retired Flow lens's button label; Stack runs draws its own control (spicode-t1k.189)",
+      "spicode-8q6.11: Environment draws neither the run headline nor the legacy flow context. The status, facts and lanes give the run reading. Today and Upstream show the syncs in their own projections.",
   },
   "item-moves": {
     patterns: [

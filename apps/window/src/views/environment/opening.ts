@@ -23,7 +23,7 @@ import { type Range, rangeOf, routeOf, within } from "./range.js";
 import { eventKey, eventSpan, eventWhen } from "./timeline.js";
 
 const ENVIRONMENT = { kind: "environment" } as const;
-const STACK = "osdu-spi-stack";
+export const STACK = "osdu-spi-stack";
 
 export type EnvironmentOpening = {
   content: OpenedContent;
@@ -269,7 +269,6 @@ function repositoryLineOpening(snapshot: ViewSnapshot, id: string): EnvironmentO
   return undefined;
 }
 
-/** What opens over the Environment for the open selection: a run or hold, an item, a stack repository line. */
 export function environmentOpening(
   snapshot: ViewSnapshot | undefined,
   open: OpenSelection | null,
@@ -323,6 +322,23 @@ export function environmentOpening(
     }
     case "item":
       return itemOpening(snapshot, open.id);
+    case "repository": {
+      const title = snapshot.briefing.environment.words?.repository;
+      if (
+        !title ||
+        open.id !== STACK ||
+        !snapshot.briefing.repositories.rows.some(({ name }) => name === open.id)
+      )
+        return undefined;
+      return {
+        content: {
+          title,
+          place: { label: trail(snapshot, title), destination: routeOf(range), selection: open },
+          subject: null,
+        },
+        during: [],
+      };
+    }
     case "repository-line":
       return repositoryLineOpening(snapshot, open.id);
     default:
