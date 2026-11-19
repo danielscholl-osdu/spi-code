@@ -32,13 +32,14 @@ export async function inspectResult(
   item: QueueItem,
   now: Date,
   ctx: CoreContext,
-  exec: Exec,
+  exec: Exec | undefined,
   areas: readonly AreaEnvelope[],
   opts: InspectOptions = {},
 ): Promise<InspectResult> {
-  const entries = checkable(item.halt)
-    ? await entryAcrossForks(new Gh(exec), new Glab(exec), item.halt, ctx)
-    : undefined;
+  const entries =
+    exec && checkable(item.halt)
+      ? await entryAcrossForks(new Gh(exec), new Glab(exec), item.halt, ctx)
+      : undefined;
   const inspection = inspectItem(
     model,
     item,
@@ -85,7 +86,10 @@ export async function inspectResult(
       ...(approvals?.items.flatMap((entry) => entry.actions) ?? []),
     ]),
     areas,
-    notRead,
+    notRead:
+      !exec && checkable(item.halt)
+        ? [...notRead, "Whether the other forks carry the same entry"]
+        : notRead,
     provenance: [{ path: "", ...attribution }],
   });
 }

@@ -48,14 +48,18 @@ describe("scope instructions", () => {
 });
 
 describe("the context seam", () => {
-  it("sends the chips the message snapshotted, through the model redactor", () => {
-    const marked: ModelRedactor = { text: (text) => `<${text}>`, value: (value) => value };
-    const context = threadContext({ scopes, tools, redactor: marked }).prepare({
+  it("sends the chips the message snapshotted, names included, through the model redactor", () => {
+    const fake = ["gh", "p_", "FAKE".repeat(9)].join("");
+    const masking: ModelRedactor = {
+      text: (text) => `<${text.replaceAll(fake, "[redacted]")}>`,
+      value: (value) => value,
+    };
+    const context = threadContext({ scopes, tools, redactor: masking }).prepare({
       thread: { scope: "template" },
-      message: { attachments: [{ name: "context:rollout", content: '{"id":"rollout"}' }] },
+      message: { attachments: [{ name: `context:pr:${fake}`, content: '{"id":"rollout"}' }] },
     });
     expect(context.attachments).toEqual([
-      { name: "context:rollout", content: '<{"id":"rollout"}>' },
+      { name: "<context:pr:[redacted]>", content: '<{"id":"rollout"}>' },
     ]);
   });
 

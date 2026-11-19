@@ -6,8 +6,10 @@ import {
   type ChipOutcome,
   type PackedChip,
   packChip,
+  packPlace,
   type Refusal,
 } from "./chip.js";
+import { readPlace, UNPACKED_PLACES } from "./places.js";
 import type { ModelRedactor, ThreadAttachment } from "./seams.js";
 import type { LatestSweep } from "./sweep.js";
 import { estimateTokens, type TokenEstimate } from "./tokens.js";
@@ -17,7 +19,7 @@ export const CHIP_ATTACHMENT_PREFIX = "context:";
 
 const refuse = (reason: string): Refusal => ({ ok: false, reason });
 
-/** Packs an id from the latest saved sweep; a refresh is the same read again. */
+/** Packs a place or an id from the latest saved sweep; a refresh is the same read again. */
 export async function chipFromSweep(
   latest: LatestSweep,
   id: string,
@@ -26,9 +28,15 @@ export async function chipFromSweep(
 ): Promise<ChipOutcome> {
   const sweep = latest();
   if (!sweep) return refuse("No sweep has been saved.");
+  if (UNPACKED_PLACES.includes(id)) {
+    return refuse(`${id} cannot be a chip yet: it packs with the scope that reads it.`);
+  }
+  const at = { sweptAt: sweep.view.sweptAt, reads: sweep.reads };
+  const place = readPlace(sweep.view, id);
+  if (place) return packPlace(id, place, at, redactor, estimate);
   const answer = await sweep.inspect(id);
   if (!answer) return refuse(`Nothing in the latest sweep has the id ${id}.`);
-  return packChip(answer, sweep.view.sweptAt, redactor, estimate);
+  return packChip(answer, at, redactor, estimate);
 }
 
 export function refreshChip(

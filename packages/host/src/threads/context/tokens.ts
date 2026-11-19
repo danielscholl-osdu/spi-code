@@ -3,6 +3,5 @@
 
 export type TokenEstimate = (text: string) => number;
 
-/** No tokenizer ships with the SDK; two UTF-8 bytes a token overcounts JSON, ids and timestamps. */
-export const estimateTokens: TokenEstimate = (text) =>
-  Math.ceil(Buffer.byteLength(text, "utf8") / 2);
+/** A byte-level BPE token covers at least one UTF-8 byte, so the byte count bounds the token count. */
+export const estimateTokens: TokenEstimate = (text) => Buffer.byteLength(text, "utf8");
