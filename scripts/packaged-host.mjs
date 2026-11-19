@@ -2,11 +2,43 @@
 // SPDX-License-Identifier: MIT
 
 import assert from "node:assert/strict";
+import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { CopilotClient } from "@github/copilot-sdk";
 import { assertNoProcessListeners } from "../apps/desktop/dist/smoke-listeners.js";
 import { publishRuntimeProbe } from "../apps/desktop/dist/smoke-runtime-report.js";
 import { buildClientOptions, resolveRuntimePath } from "../packages/host/dist/copilot/runtime.js";
+import { runConfined } from "../packages/host/dist/scopes/confined.js";
+
+process.env.MXC_FFI_DIR = fileURLToPath(
+  new URL(
+    `../../app.asar.unpacked/node_modules/@microsoft/mxc-sdk/bin/${process.arch}`,
+    import.meta.url,
+  ),
+);
+
+/** @param {string} appDataDir */
+async function probeConfinement(appDataDir) {
+  const scratch = await mkdtemp(join(await realpath(appDataDir), "mxc-smoke-"));
+  try {
+    const clone = join(scratch, "clone");
+    const worktree = join(scratch, "worktree");
+    await Promise.all([mkdir(join(clone, ".git"), { recursive: true }), mkdir(worktree)]);
+    return await runConfined({
+      binary: "/bin/echo",
+      args: ["spi-code-packaged-mxc"],
+      env: { HOME: clone, PATH: "/usr/bin:/bin", LC_ALL: "C" },
+      clone,
+      worktree,
+      scratch,
+      readonlyPaths: [],
+      timeoutMs: 4000,
+    });
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+}
 
 /**
  * @param {CopilotClient} client
@@ -47,7 +79,14 @@ if (process.argv.includes("--stub-model") && process.argv[3] === "write") {
     const status = await client.getStatus();
     assert.equal(ping.message, "pong: spi-code-packaged-smoke");
     assert(Number.isSafeInteger(status.protocolVersion) && status.protocolVersion > 0);
-    handshake = { hostPid: process.pid, runtimePath, transport: "stdio", ping, status };
+    handshake = {
+      hostPid: process.pid,
+      nodeVersion: process.versions.node,
+      runtimePath,
+      transport: "stdio",
+      ping,
+      status,
+    };
   } catch (error) {
     await stopProbe(client, error);
   } finally {
@@ -65,7 +104,7 @@ if (process.argv.includes("--stub-model") && process.argv[3] === "write") {
       failure = error;
     }
     await stopProbe(client, failure);
-    return listenerCheck;
+    return { listenerCheck, confinement: await probeConfinement(dirname(storePath)) };
   }).catch((error) => {
     console.error(error);
     process.exit(1);

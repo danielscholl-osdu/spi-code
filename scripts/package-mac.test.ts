@@ -8,7 +8,7 @@ import { join, posix, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { listenerScanBudget } from "../apps/desktop/src/smoke-listeners.js";
-import { stageRuntimeFiles } from "./package.mjs";
+import { stageMxcBinaries, stageRuntimeFiles } from "./package.mjs";
 import {
   assertRuntimeEvidence,
   installProductionDependencies,
@@ -112,6 +112,45 @@ ${directories.map((directory) => `\n  ${directory}: {}\n`).join("")}`;
     expect(await readFile(join(stage, "pnpm-lock.yaml"), "utf8")).toBe(lockfile);
   });
 
+  it.each([
+    ["darwin", "arm64", ["libmxc_ffi.dylib", "mxc-exec-mac"]],
+    [
+      "win32",
+      "x64",
+      [
+        "mxc-diagnostic-console.exe",
+        "mxc-wslc-gateway.tar",
+        "mxc_ffi.dll",
+        "wslcsdk.dll",
+        "wxc-exec.exe",
+        "wxc-test-proxy.exe",
+        "wxc-windows-sandbox-daemon.exe",
+        "wxc-windows-sandbox-guest.exe",
+        "wxc-wslc-daemon.exe",
+      ],
+    ],
+  ] as const)("stages only the MXC binaries for %s %s", async (platform, arch, expected) => {
+    const stage = await mkdtemp(join(tmpdir(), "spi-package-mxc-"));
+    fixtures.push(stage);
+    const bin = join(stage, "node_modules/@microsoft/mxc-sdk/bin");
+    const target = join(bin, arch);
+    const otherArch = join(bin, arch === "x64" ? "arm64" : "x64");
+    await mkdir(target, { recursive: true });
+    await mkdir(otherArch);
+    await writeFile(join(otherArch, "wxc-exec.exe"), "other architecture");
+    for (const file of [...expected, "libmxc_ffi.so", "lxc-exec"])
+      await writeFile(join(target, file), file);
+    await writeFile(
+      join(target, platform === "darwin" ? "mxc_ffi.dll" : "libmxc_ffi.dylib"),
+      "other platform",
+    );
+
+    await stageMxcBinaries(stage, platform);
+
+    expect(await readdir(bin)).toEqual([arch]);
+    expect((await readdir(target)).sort()).toEqual([...expected].sort());
+  });
+
   it("fails the staging install when its lockfile does not match a manifest", async () => {
     const { stage, lockfile } = await fixture();
     await writeFile(
@@ -146,8 +185,17 @@ describe("packaged smoke gate", () => {
   });
 
   const resources = "/artifacts/SPI Code.app/Contents/Resources";
+  const confined = { ok: true, data: "spi-code-packaged-mxc\n", afterExit: "not-known" };
+  const refusal = {
+    ok: false,
+    refused: "unsupported-platform",
+    code: null,
+    error: "Confined Git is not available on this platform yet.",
+  };
   const evidence = {
     hostPid: 42,
+    nodeVersion: "24.0.0",
+    confinement: confined,
     runtimePath: `${resources}/app.asar.unpacked/node_modules/@github/copilot-sdk-darwin-arm64/prebuilds/darwin-arm64/copilot-runtime`,
     transport: "stdio",
     ping: { message: "pong: spi-code-packaged-smoke", timestamp: "2026-11-05T00:00:00Z" },
@@ -183,6 +231,7 @@ describe("packaged smoke gate", () => {
           { mainPid: 41, hostPid: 42 },
           {
             ...evidence,
+            confinement: platform === "win32" ? refusal : confined,
             runtimePath,
             listenerCheck: { ...evidence.listenerCheck, scanDurationMs },
           },
@@ -205,10 +254,10 @@ describe("packaged smoke gate", () => {
       windowsResources,
       "app.asar.unpacked/node_modules/@github/copilot-sdk-win32-x64/prebuilds/win32-x64/copilot-runtime.exe",
     );
-    const check = (path: string, listenerCheck = evidence.listenerCheck) =>
+    const check = (path: string, overrides: Record<string, unknown> = {}) =>
       assertRuntimeEvidence(
         { mainPid: 41, hostPid: 42 },
-        { ...evidence, runtimePath: path, listenerCheck },
+        { ...evidence, confinement: refusal, runtimePath: path, ...overrides },
         windowsResources,
         "win32",
         "x64",
@@ -216,9 +265,11 @@ describe("packaged smoke gate", () => {
     expect(() => check(runtimePath)).not.toThrow();
     expect(() =>
       check(runtimePath, {
-        ...evidence.listenerCheck,
-        scanDurationMs: 12000,
-        processQueryAttempts: 2,
+        listenerCheck: {
+          ...evidence.listenerCheck,
+          scanDurationMs: 12000,
+          processQueryAttempts: 2,
+        },
       }),
     ).not.toThrow();
     for (const invalid of [
@@ -226,7 +277,9 @@ describe("packaged smoke gate", () => {
       { processQueryAttempts: 0 },
       { processQueryAttempts: 4 },
     ])
-      expect(() => check(runtimePath, { ...evidence.listenerCheck, ...invalid })).toThrow();
+      expect(() =>
+        check(runtimePath, { listenerCheck: { ...evidence.listenerCheck, ...invalid } }),
+      ).toThrow();
     for (const path of [
       runtimePath.replace("app.asar.unpacked", "app.asar"),
       runtimePath.replaceAll("win32-x64", "darwin-arm64"),
@@ -234,9 +287,35 @@ describe("packaged smoke gate", () => {
       runtimePath.replace("C:\\artifacts", "C:\\external"),
     ])
       expect(() => check(path)).toThrow();
+    for (const confinement of [
+      undefined,
+      confined,
+      { ok: true },
+      { ...refusal, error: "" },
+      { ok: false, uncertain: "outcome-not-known", error: "No result", code: null },
+    ])
+      expect(() => check(runtimePath, { confinement })).toThrow();
+  });
+  it.each([
+    undefined,
+    refusal,
+    { ...confined, data: "" },
+    { ok: true, data: confined.data },
+    { ok: false, uncertain: "outcome-not-known", code: null, afterExit: "not-known" },
+  ])("requires a proven confined command with its stdout on macOS: %o", (confinement) => {
+    expect(() =>
+      assertRuntimeEvidence(
+        { mainPid: 41, hostPid: 42 },
+        { ...evidence, confinement },
+        resources,
+        "darwin",
+        "arm64",
+      ),
+    ).toThrow();
   });
   it.each([
     { ...evidence, hostPid: 43 },
+    { ...evidence, nodeVersion: undefined },
     { ...evidence, runtimePath: evidence.runtimePath.replace("app.asar.unpacked", "app.asar") },
     { ...evidence, runtimePath: "/usr/local/bin/copilot-runtime" },
     { ...evidence, transport: "tcp" },

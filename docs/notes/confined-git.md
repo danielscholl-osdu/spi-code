@@ -75,12 +75,19 @@ failed, and the commit advanced HEAD.
 
 ## Packaging and runtime
 
-- The SDK declares Node 24 or later. Seatbelt runs under Node 22.22.0 here.
+- The packaged Electron 44.10.0 host runs Node 24.22.1 (`runtime.nodeVersion`
+  in the ZIP smoke report), which meets MXC 1.1.0's `engines.node` of
+  `>=24.0.0`. The repository probe above ran on development Node 22.22.0.
 - On macOS the SDK runs Seatbelt in-process through `bin/<arch>/libmxc_ffi.dylib`
   loaded by koffi. With `mxc-exec-mac` moved aside the probe still committed
   confined. With the library moved aside, commit returned
   `refused: "mxc-unavailable"` and HEAD did not move.
-- The packaged app keeps that library inside the asar, where it cannot be
-  loaded, so add and commit are expected to refuse there until
-  spicode-xia.25 unpacks it. Not observed in a packaged build.
+- The packaged host points `MXC_FFI_DIR` at the physical SDK binary directory
+  in `app.asar.unpacked` for koffi. The one-shot Seatbelt run uses the FFI;
+  `node-pty` is loaded on the ProcessContainer PTY path. The macOS ZIP smoke
+  requires the output of `/bin/echo` through the same confinement proof as
+  Git. The Windows ZIP smoke requires the typed `unsupported-platform` refusal.
+- Target filtering shrank the MXC binary tree from 112.02 MiB to 9.81 MiB on
+  macOS arm64 and to 35.09 MiB for the Windows x64 staged file set. The macOS
+  ZIP dropped from 199.4 to 187.5 MiB and the DMG from 205.9 to 193.6 MiB.
 - Windows and Linux refuse with `unsupported-platform` until spicode-xia.17.

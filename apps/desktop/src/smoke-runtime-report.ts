@@ -25,11 +25,11 @@ export function publishRuntimeReport(path: string, report: object): void {
 export async function publishRuntimeProbe(
   path: string,
   handshake: object,
-  probe: () => Promise<unknown>,
+  probe: () => Promise<object>,
 ): Promise<void> {
-  let listenerCheck: unknown;
+  let evidence: object;
   try {
-    listenerCheck = await probe();
+    evidence = await probe();
   } catch (error) {
     const failure: RuntimeFailure = {
       message: describe(error),
@@ -38,7 +38,7 @@ export async function publishRuntimeProbe(
     publishRuntimeReport(path, { ...handshake, failure });
     throw error;
   }
-  publishRuntimeReport(path, { ...handshake, listenerCheck });
+  publishRuntimeReport(path, { ...handshake, ...evidence });
 }
 
 export async function waitForFile(path: string, timeout: number): Promise<void> {
