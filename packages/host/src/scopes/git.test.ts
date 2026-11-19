@@ -452,7 +452,10 @@ describe("privileged Git", () => {
     await fixtureGit(elsewhere, "config", "core.fsmonitor", shellQuote(script));
     await fixtureGit(seed, "update-index", "--add", "--cacheinfo", `160000,${oid},sub`);
     // Without .gitmodules, Git run from outside the work tree never finds the nested repository.
-    await writeFile(join(seed, ".gitmodules"), '[submodule "sub"]\n\tpath = sub\n\turl = ./sub\n');
+    await writeFile(
+      join(seed, ".gitmodules"),
+      '[submodule "sub"]\n\tpath = sub\n\turl = ./sub\n\tfetchRecurseSubmodules = true\n',
+    );
     await fixtureGit(seed, "add", "--", ".gitmodules");
     await commit("first");
     await fixtureGit(seed, "push", origin, "HEAD:refs/heads/main");
@@ -586,6 +589,14 @@ describe("privileged Git", () => {
     type Input = Inputs<PrivilegedGit[keyof PrivilegedGit]>;
     type Lists = Extract<Input | Fields<Input> | Fields<Fields<Input>>, readonly unknown[]>;
     const noLists: [Lists] extends [never] ? true : false = true;
+    type Variadic = {
+      [K in keyof PrivilegedGit]: PrivilegedGit[K] extends (...args: infer P) => unknown
+        ? number extends P["length"]
+          ? K
+          : never
+        : never;
+    }[keyof PrivilegedGit];
+    const noRest: [Variadic] extends [never] ? true : false = true;
     const misuse = (git: PrivilegedGit, options: GitOptions) => [
       // @ts-expect-error Options are fixed by the runner.
       git.status({ clone: root }, ["--no-ignore-submodules"]),
@@ -593,7 +604,7 @@ describe("privileged Git", () => {
       git.fetch({ clone: root }, { remote: "origin", tags: false, args: ["--recurse-submodules"] }),
       git.status({ clone: root }, options),
     ];
-    expect([noLists, typeof misuse]).toEqual([true, "function"]);
+    expect([noLists, noRest, typeof misuse]).toEqual([true, true, "function"]);
     expect(Object.getOwnPropertyNames(PrivilegedGit.prototype).sort()).toEqual(
       [
         "addWorktree",
