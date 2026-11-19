@@ -25,12 +25,16 @@ export function daysOf(env: Pick<Environment, "days" | "to">): Day[] {
 /** A day's names read from its date, not from any zone: `Thu 12` and `Thursday 12 Nov`. */
 export const dayNames = ({ key }: Day) => dateNames(key);
 
-export function rangeOf(env: Pick<Environment, "from" | "to" | "days">, range?: string): Range {
+export function rangeOf(
+  env: Pick<Environment, "from" | "to" | "days" | "words">,
+  range?: string,
+): Range {
   const to = Date.parse(env.to);
-  if (range === WEEK) return { from: Date.parse(env.from), to, label: "Last 7 days", week: true };
+  if (range === WEEK)
+    return { from: Date.parse(env.from), to, label: env.words?.week ?? "", week: true };
   const day = range ? daysOf(env).find(({ key }) => key === range) : undefined;
   if (day) return { from: day.start, to: day.end, label: dayNames(day).long, day };
-  return { from: to - 86_400_000, to, label: "Last 24 hours" };
+  return { from: to - 86_400_000, to, label: env.words?.day ?? "" };
 }
 
 export const routeOf = (range: Range): EnvironmentRoute => ({

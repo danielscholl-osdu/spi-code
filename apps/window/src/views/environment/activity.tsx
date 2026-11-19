@@ -7,7 +7,7 @@ import type { OpenSelection } from "../../app/navigation.js";
 import { timeUnit } from "../../time.js";
 import { borrowInRange } from "./borrows.js";
 import { missedIn, within } from "./range.js";
-import { eventWhen, eventWord, fixed, LABEL_PX, pctOf, span, TRACK_MIN_PX } from "./timeline.js";
+import { eventWhen, fixed, LABEL_PX, pctOf, span, TRACK_MIN_PX } from "./timeline.js";
 
 export const IDLE_LABEL_SHARE = 1 / 8;
 const MINUTE = 60_000;
@@ -23,6 +23,7 @@ export function activityView(env: Environment, from: number, to: number, week?: 
   const { activity } = env;
   if (!activity) return undefined;
   const { words } = activity;
+  const states = env.words?.states;
   const range = { from, to };
   const now = Date.parse(env.to);
   const borrows = env.borrows?.filter((borrow) => borrowInRange(borrow, from, to)) ?? [];
@@ -78,23 +79,23 @@ export function activityView(env: Environment, from: number, to: number, week?: 
     [
       [
         "ok",
-        eventWord.ok,
+        states?.ok ?? "",
         events.some(({ state }) => state === "ok") ||
           borrows.some(({ result }) => result === "green"),
       ],
       [
         "failed",
-        eventWord.failed,
+        states?.failed ?? "",
         events.some(({ state }) => state === "failed") ||
           borrows.some(({ result }) => result === "failed"),
       ],
       [
         "running",
-        eventWord.running,
+        states?.running ?? "",
         events.some(({ state }) => state === "running") ||
           borrows.some(({ result }) => result === "running"),
       ],
-      ["cancelled", eventWord.cancelled, events.some(({ state }) => state === "cancelled")],
+      ["cancelled", states?.cancelled ?? "", events.some(({ state }) => state === "cancelled")],
       ["borrowed", words.borrowed, has("borrowed")],
       ["estimated", words.estimated, !week && (approximate || has("estimated"))],
       [
@@ -108,7 +109,7 @@ export function activityView(env: Environment, from: number, to: number, week?: 
       ["byHand", words.byHand, events.some(({ byHand }) => byHand)],
     ] as const
   ).filter(([, , shown]) => shown);
-  return { label: activity.label, words, segments, holds, summary, legend };
+  return { label: activity.label, words, place: env.words, segments, holds, summary, legend };
 }
 
 type ActivityView = NonNullable<ReturnType<typeof activityView>>;
@@ -185,7 +186,7 @@ export function ActivityRow({
             ) : null;
           }
           if (kind === "maintenance") return null;
-          const text = `${title} · ${eventWhen(segment, now)}`;
+          const text = `${title} · ${eventWhen(segment, now, view.place)}`;
           return (
             <button
               type="button"
@@ -221,7 +222,7 @@ export function ActivityRow({
               data-event={id}
               data-inspect={event.inspect}
               style={band(start, end)}
-              aria-label={`${view.words.held} ${event.label}, ${eventWhen(event, now)}`}
+              aria-label={`${view.words.held} ${event.label}, ${eventWhen(event, now, view.place)}`}
               {...opener({ kind: "event", id })}
             >
               {placement && (

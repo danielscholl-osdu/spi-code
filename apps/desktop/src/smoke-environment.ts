@@ -13,6 +13,7 @@ export const ENVIRONMENT_LINK = `${ENVIRONMENT_BORROW} [data-kind="deploy"]`;
 export const ENVIRONMENT_ACTIVITY = ".environment .env-activity";
 export const ENVIRONMENT_OVERLAP = `${ENVIRONMENT_ACTIVITY} button[data-mark="overlap"]`;
 export const ENVIRONMENT_HOLD = `${ENVIRONMENT_ACTIVITY} button[data-mark="maintenance"]`;
+export const ENVIRONMENT_RUN = ".environment .env-event[data-by-hand]";
 export const ENVIRONMENT_WEEK = ".environment .env-range button:last-child";
 export const ENVIRONMENT_YESTERDAY =
   '[...document.querySelectorAll(".environment .env-day-heading")].at(-2)';
@@ -148,5 +149,7 @@ function stackLanes(env: ViewSnapshot["briefing"]["environment"]) {
     label: "smoke",
     detail: "green in 30 min",
     byHand: true,
+    trigger: "by hand",
+    meaning: "A smoke run on a fresh cluster went green.",
   });
 }

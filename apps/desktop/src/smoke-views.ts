@@ -23,6 +23,7 @@ import {
   ENVIRONMENT_LINK,
   ENVIRONMENT_LIVE,
   ENVIRONMENT_OVERLAP,
+  ENVIRONMENT_RUN,
   ENVIRONMENT_WEEK,
   ENVIRONMENT_YESTERDAY,
   environmentYesterdayUpgrade,
@@ -1515,9 +1516,10 @@ export async function captureSmokeViews(
               `${borrow}.querySelector('[aria-label="Close"]').click()`,
             );
             await rendered(window, `!${borrow}`);
-            for (const [mark, selector] of [
-              ["hold", ENVIRONMENT_HOLD],
-              ["overlap", ENVIRONMENT_OVERLAP],
+            for (const [mark, selector, settled] of [
+              ["hold", ENVIRONMENT_HOLD, ""],
+              ["overlap", ENVIRONMENT_OVERLAP, ""],
+              ["run", ENVIRONMENT_RUN, ".env-trigger"],
             ]) {
               const anchor = `[...document.querySelectorAll(${JSON.stringify(selector)})].at(-1)`;
               const popover = 'document.querySelector(".environment .popover")';
@@ -1525,7 +1527,7 @@ export async function captureSmokeViews(
               await window.webContents.executeJavaScript(`${anchor}.click()`);
               await captureSettled(
                 window,
-                popover,
+                settled ? `${popover}?.querySelector(${JSON.stringify(settled)})` : popover,
                 join(output, `environment-${mark}-${viewportWidth}-${appearance}.png`),
               );
               await window.webContents.executeJavaScript(

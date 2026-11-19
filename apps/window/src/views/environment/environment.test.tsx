@@ -93,10 +93,12 @@ it("reuses cleared tiers and reserves space for a flipped label", () => {
   ]);
 });
 
+const SPAN_WORDS = { to: "to", now: "now" };
+
 it("uses the track clock for event duration", () => {
-  expect(eventWhen({ ...first, start: new Date(0).toISOString() }, new Date(3_600_000))).toContain(
-    "to now \u00b7 1\u00a0h",
-  );
+  expect(
+    eventWhen({ ...first, start: new Date(0).toISOString() }, new Date(3_600_000), SPAN_WORDS),
+  ).toContain("to now \u00b7 1\u00a0h");
 });
 
 it.each([
@@ -105,7 +107,11 @@ it.each([
 ])("keeps day and hour units bound in a %i-hour timeline event", (hours, expected) => {
   const end = new Date(hours * 3_600_000);
   expect(
-    eventWhen({ ...first, start: new Date(0).toISOString(), end: end.toISOString() }, end),
+    eventWhen(
+      { ...first, start: new Date(0).toISOString(), end: end.toISOString() },
+      end,
+      SPAN_WORDS,
+    ),
   ).toContain(` \u00b7 ${expected}`);
 });
 
@@ -120,9 +126,11 @@ it("ticks at local hours strictly inside the window", () => {
 
 it("uses the rib's unknown timestamp marker for malformed dates", () => {
   const now = new Date(to);
-  expect(eventWhen({ ...first, start: "invalid", end: undefined }, now)).toBe("? to now");
-  expect(eventWhen({ ...first, start: "invalid", end: "invalid" }, now)).toBe("? to ?");
-  expect(eventWhen({ ...first, end: "invalid" }, now)).toMatch(/ to \?$/);
+  expect(eventWhen({ ...first, start: "invalid", end: undefined }, now, SPAN_WORDS)).toBe(
+    "? to now",
+  );
+  expect(eventWhen({ ...first, start: "invalid", end: "invalid" }, now, SPAN_WORDS)).toBe("? to ?");
+  expect(eventWhen({ ...first, end: "invalid" }, now, SPAN_WORDS)).toMatch(/ to \?$/);
 });
 
 it("keeps timeline affordances, and the empty lane's words clear of the sticky lane label", async () => {

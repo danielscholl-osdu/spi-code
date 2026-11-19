@@ -38,19 +38,19 @@ import {
   eventKey,
   eventText,
   eventWhen,
-  eventWord,
   fixed,
   hourTicks,
   LABEL_PX,
   pctOf,
   place,
+  stateWord,
   TIER_PX,
   TRACK_MIN_PX,
 } from "./timeline.js";
 import "./environment.css";
 import { placePin } from "../../store/pins.js";
 
-function LineReading({ line }: { line: RepoLine }) {
+function LineReading({ line, upstream }: { line: RepoLine; upstream: string | undefined }) {
   return (
     <>
       <span className="env-repo-tag" data-tone={line.tone}>
@@ -59,7 +59,7 @@ function LineReading({ line }: { line: RepoLine }) {
       <span>
         <span className="env-repo-line-text">{plainTitle(line.text)}</span>
         {line.sub && <small>{plainTitle(line.sub)}</small>}
-        {line.upstream && <small>upstream</small>}
+        {line.upstream && upstream && <small>{upstream}</small>}
       </span>
     </>
   );
@@ -159,6 +159,7 @@ export default function Environment({
   };
   const reading = body?.readings.find(({ anchor }) => anchor.kind === "environment") ?? NO_READING;
   const { from, to } = range ?? { from: 0, to: 0 };
+  const words = env?.words;
   const activity = env && activityView(env, from, to, range?.week);
   const lanes =
     env?.lanes.flatMap((lane, index) =>
@@ -227,20 +228,20 @@ export default function Environment({
         <h3 className="env-section-label" id={dayHeading}>
           {range.label}
         </h3>
-        <fieldset className="env-range" aria-label="Range">
+        <fieldset className="env-range" aria-label={words?.range}>
           <button
             type="button"
             aria-pressed={!range.week && !range.day}
             onClick={() => navigate({ kind: "environment" })}
           >
-            24 h
+            {words?.daySwitch}
           </button>
           <button
             type="button"
             aria-pressed={!!range.week}
             onClick={() => navigate({ kind: "environment", range: WEEK })}
           >
-            7 days
+            {words?.weekSwitch}
           </button>
         </fieldset>
       </div>
@@ -248,7 +249,7 @@ export default function Environment({
         <ActivitySummary view={activity}>
           {range.day && (
             <button type="button" className="env-back" onClick={back}>
-              {"‹ 7 days"}
+              {`\u2039 ${words?.weekSwitch ?? ""}`}
             </button>
           )}
         </ActivitySummary>
@@ -345,7 +346,14 @@ export default function Environment({
                   })}
                   {placed.map((p) => {
                     const key = eventKey(lane, p.e);
-                    const name = `${lane.label} ${p.e.label}, ${eventWord[p.e.state]}${p.e.byHand ? ", by hand" : ""}, ${eventWhen(p.e, now)}`;
+                    const name = [
+                      `${lane.label} ${p.e.label}`,
+                      stateWord(words, p.e.state),
+                      p.e.byHand ? env.activity?.words.byHand : undefined,
+                      eventWhen(p.e, now, words),
+                    ]
+                      .filter(Boolean)
+                      .join(", ");
                     return (
                       <button
                         type="button"
@@ -392,7 +400,7 @@ export default function Environment({
                       </span>
                     ) : (
                       <span className="env-none">
-                        {range.week || range.day ? "none" : "none in the last day"}
+                        {range.week || range.day ? words?.none : words?.noneDay}
                       </span>
                     ))}
                 </div>
@@ -458,7 +466,7 @@ export default function Environment({
         belowTiles: timeline || undefined,
       })}
       <details className="env-part" data-part="runs">
-        <summary id={runsHeading}>Stack runs</summary>
+        <summary id={runsHeading}>{words?.runs}</summary>
         <section className="env-part-body" aria-labelledby={runsHeading}>
           <FlowContext
             flow={body.briefing.flow}
@@ -477,7 +485,7 @@ export default function Environment({
       {repository && (
         <details className="env-part" data-part="repository" data-pointer={repositoryPointer}>
           <summary id={repositoryHeading}>
-            Stack repository <small>{repository.name}</small>
+            {words?.repository} <small>{repository.name}</small>
           </summary>
           <section className="env-part-body" aria-labelledby={repositoryHeading}>
             <SectionEvidence evidence={body} prefixes={[repositoryPointer]} />
@@ -506,11 +514,11 @@ export default function Environment({
                       data-pointer={pointer}
                       {...opener({ kind: "repository-line", id: line.id })}
                     >
-                      <LineReading line={line} />
+                      <LineReading line={line} upstream={words?.upstream} />
                     </button>
                   ) : (
                     <div className="env-repo-line" key={pointer} data-pointer={pointer}>
-                      <LineReading line={line} />
+                      <LineReading line={line} upstream={words?.upstream} />
                     </div>
                   );
                 })}
@@ -528,6 +536,7 @@ export default function Environment({
           onClose={close}
           within={pane.current?.closest<HTMLElement>("main")}
         >
+          {opening.trigger && <p className="env-trigger">{opening.trigger}</p>}
           {opening.fork && (
             <div className="popover-rows">
               <a

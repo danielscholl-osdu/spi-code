@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { EnvEvent, EnvLane } from "@spi-code/contracts";
+import type { EnvEvent, EnvLane, EnvState, EnvWords } from "@spi-code/contracts";
 import { clockTime, timeUnit } from "../../time.js";
 
 // Ported from keelson-rib-spi @59d6895, src/boards/console.ts.
@@ -15,13 +15,11 @@ export const TIER_PX = 22;
 const MAX_TIERS = 6;
 
 const glyph = { ok: "\u2713", failed: "\u2715", cancelled: "\u2298", running: "\u25cf", held: "" };
-export const eventWord = {
-  ok: "green",
-  failed: "failed",
-  cancelled: "cancelled",
-  running: "running",
-  held: "held",
-};
+
+/** A run's result in core's words; a hold has none. */
+export function stateWord(words: Pick<EnvWords, "states"> | undefined, state: EnvState) {
+  return state === "held" ? undefined : words?.states[state];
+}
 
 export function eventText(e: EnvEvent): string {
   return glyph[e.state] ? `${glyph[e.state]} ${e.label}` : e.label;
@@ -94,12 +92,16 @@ export function span(ms: number): string | undefined {
   return `${timeUnit(Math.floor(ms / day), "d")}${h > 0 ? ` ${timeUnit(h, "h")}` : ""}`;
 }
 
-/** When the event ran, without its length. */
-export function eventSpan(e: Pick<EnvEvent, "start" | "end">, now: Date): string {
-  return `${stamp(e.start, now)} to ${e.end ? stamp(e.end, now) : "now"}`;
+type Words = Pick<EnvWords, "to" | "now"> | undefined;
+
+/** When the event ran, without its length, in core's words. */
+export function eventSpan(e: Pick<EnvEvent, "start" | "end">, now: Date, words: Words): string {
+  return [stamp(e.start, now), words?.to, e.end ? stamp(e.end, now) : words?.now]
+    .filter(Boolean)
+    .join(" ");
 }
 
-export function eventWhen(e: Pick<EnvEvent, "start" | "end">, now: Date): string {
+export function eventWhen(e: Pick<EnvEvent, "start" | "end">, now: Date, words: Words): string {
   const took = span((e.end ? Date.parse(e.end) : now.getTime()) - Date.parse(e.start));
-  return `${eventSpan(e, now)}${took ? ` \u00b7 ${took}` : ""}`;
+  return `${eventSpan(e, now, words)}${took ? ` \u00b7 ${took}` : ""}`;
 }

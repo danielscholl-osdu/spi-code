@@ -27,6 +27,8 @@ const STACK = "osdu-spi-stack";
 
 export type EnvironmentOpening = {
   content: OpenedContent;
+  /** How a Stack run started, as core read it. */
+  trigger?: string;
   /** For a hold, the runs that ran while it held, each its own `event` selection. */
   during: { key: string; text: string }[];
   fork?: { id: string; label: string };
@@ -45,7 +47,10 @@ function findEvent(snapshot: ViewSnapshot, key: string) {
   return undefined;
 }
 
-const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+/** A popover's place: core's name for the Environment, then each part opened. */
+function trail(snapshot: ViewSnapshot, ...parts: (string | undefined)[]): string {
+  return [snapshot.briefing.environment.words?.place, ...parts].filter(Boolean).join(" \u203a ");
+}
 
 function span(e: EnvEvent, to: number): [number, number] {
   return [Date.parse(e.start), e.end ? Date.parse(e.end) : to];
@@ -97,44 +102,8 @@ function stayedReady(snapshot: ViewSnapshot, e: EnvEvent): boolean {
 }
 
 /** What the run meant for the running environment, in what SPI Code can prove. */
-function meaning(snapshot: ViewSnapshot, lane: EnvLane, e: EnvEvent): string {
-  const { deployable } = snapshot.briefing.environment;
-  const today = "nothing on Today waits on it.";
-  if (lane.id === "holds")
-    return e.end
-      ? "The stack was in maintenance; fork lanes queued behind it."
-      : `The stack is in maintenance; fork lanes queue behind it, and ${today}`;
-  if (lane.id === "smoke") {
-    const what = {
-      ok: "went green",
-      failed: "failed",
-      cancelled: "was cancelled",
-      running: "is running",
-      held: "was held",
-    }[e.state];
-    const head = `A smoke run on a fresh cluster ${what}.`;
-    if (e.state !== "failed" && e.state !== "cancelled") return head;
-    return stayedReady(snapshot, e)
-      ? `${head} The running environment stayed ready; ${today}`
-      : `${head} ${sentence(today)}`;
-  }
-  const version = e.label.trim();
-  switch (e.state) {
-    case "ok":
-      return `The environment deployed ${version} and went green.`;
-    case "running":
-      return `${version} is deploying to the running environment.`;
-    default: {
-      const now =
-        deployable === "yes"
-          ? " The running environment is ready now;"
-          : deployable === "no"
-            ? " The running environment is not ready;"
-            : "";
-      const what = e.state === "cancelled" ? "was cancelled" : "failed";
-      return `Deploying ${version} to the running environment ${what}.${now} ${now ? today : sentence(today)}`;
-    }
-  }
+function meaning(snapshot: ViewSnapshot, e: EnvEvent): string | undefined {
+  return e.meaningReady && stayedReady(snapshot, e) ? e.meaningReady : e.meaning;
 }
 
 /** The stack repository on GitHub, from a line the sweep read on it; unknown when it read none. */
@@ -168,9 +137,10 @@ function eventOpening(
   if (!found) return undefined;
   const { lane, e } = found;
   const env = snapshot.briefing.environment;
+  const { words } = env;
   const holdWords = lane.id === "holds" ? env.activity?.words : undefined;
   const place: BodyPlace = {
-    label: `Environment › ${range.label} › ${holdWords ? env.activity?.label : lane.label}`,
+    label: trail(snapshot, range.label, holdWords ? env.activity?.label : lane.label),
     destination: routeOf(range),
     selection: { kind: "event", id: key },
   };
@@ -178,7 +148,7 @@ function eventOpening(
   const run: Link | undefined = repository
     ? {
         kind: "run",
-        label: `${lane.label} run`,
+        label: [lane.label, words?.run].filter(Boolean).join(" "),
         url: `${repository}/actions/runs/${e.id}`,
       }
     : undefined;
@@ -204,12 +174,14 @@ function eventOpening(
         title: `${holdWords.held} · ${e.label}`,
         place,
         subject: null,
-        cause: `From ${eventSpan(e, new Date(to))}`,
+        cause: [words?.from, eventSpan(e, new Date(to), words)].filter(Boolean).join(" "),
         ...(e.likely ? { effect: e.likely } : {}),
       },
       during,
     };
   }
+  const trigger = e.trigger ? { trigger: e.trigger } : {};
+  const effect = meaning(snapshot, e);
   const member = memberOf(snapshot, e.inspect);
   if (member) {
     const content = todayContent({
@@ -218,24 +190,25 @@ function eventOpening(
       place,
       links: run ? [run] : [],
     });
-    return { content: { ...content, title: plainTitle(content.title) }, during };
+    return { content: { ...content, title: plainTitle(content.title) }, during, ...trigger };
   }
   return {
     content: {
       title: runName(lane, e),
       place,
       subject: null,
-      cause: `${e.detail} · ${eventSpan(e, new Date(to))}`,
-      effect: meaning(snapshot, lane, e),
+      cause: `${e.detail} · ${eventSpan(e, new Date(to), words)}`,
+      ...(effect ? { effect } : {}),
       ...(run ? { primary: run, links: [run] } : {}),
     },
     during,
+    ...trigger,
   };
 }
 
 function itemOpening(snapshot: ViewSnapshot, id: string): EnvironmentOpening | undefined {
   const place: BodyPlace = {
-    label: "Environment",
+    label: trail(snapshot),
     destination: ENVIRONMENT,
     selection: { kind: "item", id },
   };
@@ -284,7 +257,7 @@ function repositoryLineOpening(snapshot: ViewSnapshot, id: string): EnvironmentO
       lines: snapshot.briefing.lines ?? [],
       items: itemsOf(snapshot),
       place: {
-        label: `Environment › Stack repository › ${section.title}`,
+        label: trail(snapshot, snapshot.briefing.environment.words?.repository, section.title),
         destination: ENVIRONMENT,
         selection: { kind: "repository-line", id },
       },
@@ -308,30 +281,30 @@ export function environmentOpening(
     case "event":
       return eventOpening(snapshot, open.id, range);
     case "activity": {
-      const { activity, to } = snapshot.briefing.environment;
+      const { activity, to, words } = snapshot.briefing.environment;
       const segment = activity?.segments.find(({ start }) => start === open.id);
       if (!activity || !segment?.title) return undefined;
       return {
         content: {
           title: segment.title,
           place: {
-            label: `Environment › ${activity.label}`,
+            label: trail(snapshot, activity.label),
             destination: routeOf(range),
             selection: open,
           },
           subject: null,
-          cause: eventWhen(segment, new Date(to)),
+          cause: eventWhen(segment, new Date(to), words),
           ...(segment.kind === "estimated" ? { effect: activity.words.estimatedNote } : {}),
         },
         during: [],
       };
     }
     case "borrow": {
-      const { borrows, to } = snapshot.briefing.environment;
+      const { borrows, to, words } = snapshot.briefing.environment;
       const borrow = borrows?.find(({ id }) => id === open.id);
       if (!borrow) return undefined;
       const place: BodyPlace = {
-        label: "Environment › Forks",
+        label: trail(snapshot, words?.forks),
         destination: routeOf(range),
         selection: open,
       };

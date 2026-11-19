@@ -5,11 +5,10 @@ import type { EnvBorrow, Environment } from "@spi-code/contracts";
 import { type ComponentProps, type ReactNode, useState } from "react";
 import { timedText } from "../../time.js";
 import { type Day, dayNames } from "./range.js";
-import { eventWord, fixed, LABEL_PX, pctOf, TRACK_MIN_PX } from "./timeline.js";
+import { fixed, LABEL_PX, pctOf, TRACK_MIN_PX } from "./timeline.js";
 
 export function borrowDetail(borrow: EnvBorrow, now: number): string {
-  const detail = borrow.detail ?? [borrow.start, borrow.end].filter(Boolean).join(" → ");
-  return timedText(detail, { now });
+  return borrow.detail ? timedText(borrow.detail, { now }) : "";
 }
 
 export function borrowInRange(borrow: EnvBorrow, from: number, to: number): boolean {
@@ -33,7 +32,7 @@ function forkRows(env: Environment, from: number, to: number) {
 function ForksHeading({ env }: { env: Environment }) {
   return (
     <div className="env-row">
-      <h4 className="env-lane-label">Forks</h4>
+      <h4 className="env-lane-label">{env.words?.forks}</h4>
       {env.forksNote && <p className="env-forks-note">{env.forksNote}</p>}
     </div>
   );
@@ -86,9 +85,10 @@ export function ForkDays({
   const [all, setAll] = useState(false);
   const rows = forkRows(env, from, to);
   const words = env.activity?.words;
+  const states = env.words?.states;
   if (!rows.length && !env.forksNote) return null;
   return (
-    <section className="env-borrows" aria-label="Forks">
+    <section className="env-borrows" aria-label={env.words?.forks}>
       <ForksHeading env={env} />
       {rows.slice(0, all ? undefined : SHOWN_FORKS).map(([fork, entries]) => (
         <div className="env-row" key={fork} data-fork={fork}>
@@ -107,8 +107,8 @@ export function ForkDays({
                 : String(own.length);
               const label = [
                 `${fork}, ${dayNames(day).long}: ${count}`,
-                failed ? `${failed} ${eventWord.failed}` : "",
-                running ? eventWord.running : "",
+                failed ? [failed, states?.failed].filter(Boolean).join(" ") : "",
+                running ? (states?.running ?? "") : "",
               ]
                 .filter(Boolean)
                 .join(", ");
@@ -139,7 +139,9 @@ export function ForkDays({
           aria-expanded={all}
           onClick={() => setAll((shown) => !shown)}
         >
-          {all ? "Fewer forks" : `All ${rows.length} forks`}
+          {all
+            ? env.words?.fewerForks
+            : [env.words?.allForks, rows.length, env.words?.forksCount].filter(Boolean).join(" ")}
         </button>
       )}
     </section>
@@ -162,7 +164,7 @@ export function BorrowRows({
   const rows = forkRows(env, from, to);
   if (!rows.length && !env.forksNote) return null;
   return (
-    <section className="env-borrows" aria-label="Forks">
+    <section className="env-borrows" aria-label={env.words?.forks}>
       <ForksHeading env={env} />
       {rows.map(([fork, entries]) => {
         const ends: number[] = [];
@@ -183,7 +185,7 @@ export function BorrowRows({
             <div className="env-lane-label env-fork-label">{fork}</div>
             <div className="env-track" style={{ height: ends.length * 16 + 10 }}>
               {placed.map(({ borrow, tier, start, end }) => {
-                const label = [fork, borrowDetail(borrow, now)].join(" · ");
+                const label = [fork, borrowDetail(borrow, now)].filter(Boolean).join(" · ");
                 return (
                   <button
                     type="button"

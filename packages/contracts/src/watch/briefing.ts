@@ -105,6 +105,12 @@ export const EnvEventSchema = z.strictObject({
   byHand: z.literal(true).optional(),
   /** Time-matched run attribution for a maintenance hold. */
   likely: z.string().optional(),
+  /** How a Stack run started (scheduled, by hand, on push); absent when core could not read it. */
+  trigger: z.string().optional(),
+  /** What a Stack run meant for the running environment. */
+  meaning: z.string().optional(),
+  /** The meaning when the window shows the running environment stayed ready over the run. */
+  meaningReady: z.string().optional(),
 });
 export const EnvLaneSchema = z.strictObject({
   id: z.enum(["upgrade", "refresh", "reset", "smoke", "holds"]),
@@ -187,6 +193,36 @@ const EnvActivitySchema = z.strictObject({
 export type EnvActivity = z.infer<typeof EnvActivitySchema>;
 export type EnvActivitySegment = z.infer<typeof EnvActivitySegmentSchema>;
 
+const EnvWordsSchema = z.strictObject({
+  place: z.string(),
+  forks: z.string(),
+  forksCount: z.string(),
+  allForks: z.string(),
+  fewerForks: z.string(),
+  runs: z.string(),
+  repository: z.string(),
+  run: z.string(),
+  range: z.string(),
+  day: z.string(),
+  week: z.string(),
+  daySwitch: z.string(),
+  weekSwitch: z.string(),
+  from: z.string(),
+  to: z.string(),
+  now: z.string(),
+  none: z.string(),
+  noneDay: z.string(),
+  upstream: z.string(),
+  /** A run's result: green, failed, cancelled, running. */
+  states: z.strictObject({
+    ok: z.string(),
+    failed: z.string(),
+    cancelled: z.string(),
+    running: z.string(),
+  }),
+});
+export type EnvWords = z.infer<typeof EnvWordsSchema>;
+
 export const EnvironmentSchema = z.strictObject({
   headline: z.string(),
   facts: z.array(BriefFactSchema),
@@ -203,6 +239,8 @@ export const EnvironmentSchema = z.strictObject({
   borrows: z.array(EnvBorrowSchema).optional(),
   forksNote: z.string().optional(),
   activity: EnvActivitySchema.optional(),
+  /** The place's own words, under the app's context only. */
+  words: EnvWordsSchema.optional(),
 });
 /** The strip's four marks: stopped or Interrupt, Surface, Ambient, and nothing due or Background. */
 export const MarkSchema = z.enum(["stopped", "needs-person", "in-progress", "nothing-due"]);

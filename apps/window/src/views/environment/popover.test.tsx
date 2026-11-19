@@ -5,6 +5,7 @@ import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
+import recorded from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { openSelection, setOpenSelection } from "../../app/navigation.js";
 import { selectionStore } from "../../panels/selection.js";
 import { createWatchStore } from "../../store/watch.js";
@@ -14,7 +15,24 @@ import Environment from "./index.js";
 const SMOKE = "smoke:43831504653";
 const RUN = "https://github.com/Azure/osdu-spi-stack/actions/runs/43831504653";
 
-const november16 = (): ViewSnapshot => ViewSnapshotSchema.parse(JSON.parse(sweep));
+const WORDS = ViewSnapshotSchema.parse(JSON.parse(recorded)).briefing.environment.words;
+
+/** The 16 Nov sweep with core's place words, and a meaning, trigger and ready meaning marked on each run. */
+const november16 = (): ViewSnapshot => {
+  const body = ViewSnapshotSchema.parse(JSON.parse(sweep));
+  const env = body.briefing.environment;
+  if (WORDS) env.words = WORDS;
+  for (const lane of env.lanes)
+    for (const e of lane.events)
+      if (lane.id !== "holds")
+        Object.assign(e, {
+          meaning: `meaning ${e.id}`,
+          meaningReady: `ready ${e.id}`,
+          trigger: `trigger ${e.id}`,
+        });
+  return body;
+};
+const SMOKE_ID = SMOKE.split(":")[1];
 
 // Read in Chicago, where the run and the end of the sweep fall on the same day.
 const previousZone = process.env.TZ;
@@ -83,10 +101,9 @@ it("says a failed smoke run left the running environment ready and nothing on To
   const shown = read();
   expect(shown.title).toBe("Smoke");
   expect(shown.lines[0]).toBe("failed after 4 min · 02:28 to 02:32");
-  expect(shown.effect).toBe(
-    "A smoke run on a fresh cluster failed. The running environment stayed ready; nothing on Today waits on it.",
-  );
+  expect(shown.effect).toBe(`ready ${SMOKE_ID}`);
   expect(shown.pills).toEqual([["Run", RUN]]);
+  expect(text(popover()?.querySelector(".env-trigger"))).toBe(`trigger ${SMOKE_ID}`);
   expect(shown.buttons).toEqual(["popover-close"]);
   expect(selectionStore.getState().selected).toBeNull();
 });
@@ -148,9 +165,18 @@ it.each([
     };
   await render(body);
   await act(async () => bar(SMOKE).click());
-  expect(read().effect).toBe(
-    "A smoke run on a fresh cluster failed. Nothing on Today waits on it.",
-  );
+  expect(read().effect).toBe(`meaning ${SMOKE_ID}`);
+});
+
+it("draws no trigger line for a run whose trigger core could not read", async () => {
+  const body = november16();
+  const smoke = body.briefing.environment.lanes.find(({ id }) => id === "smoke")?.events[0];
+  if (!smoke) throw new Error("16 Nov needs its first smoke run");
+  delete smoke.trigger;
+  await render(body);
+  await act(async () => bar(SMOKE).click());
+  expect(read().title).toBe("Smoke");
+  expect(popover()?.querySelector(".env-trigger")).toBeNull();
 });
 
 it("has no run pill when the sweep read no line on the stack repository", async () => {
@@ -170,14 +196,13 @@ it("lists the runs a hold held over, and each opens its own popover", async () =
   if (!hold) throw new Error("16 Nov needs a hold");
   await act(async () => bar(`holds:${hold.id}`).click());
   expect(read().title).toBe("Held · 5 min");
-  expect(read().effect).toBe("The stack was in maintenance; fork lanes queued behind it.");
   expect(read().pills).toEqual([]);
   const rows = [...(popover()?.querySelectorAll<HTMLButtonElement>(".popover-rows button") ?? [])];
   expect(rows.map(text)).toEqual(["Refresh · v0.35.5 · green in 7 min ›"]);
   await act(async () => rows[0]?.click());
   expect(openSelection()).toEqual({ kind: "event", id: "refresh:43801995078" });
   expect(read().title).toBe("Refresh · v0.35.5");
-  expect(read().effect).toBe("The environment deployed v0.35.5 and went green.");
+  expect(read().effect).toBe("meaning 43801995078");
   expect(bar("refresh:43801995078").getAttribute("aria-expanded")).toBe("true");
 });
 

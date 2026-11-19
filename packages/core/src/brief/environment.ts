@@ -11,7 +11,7 @@ import type { ForkDeployments, Model } from "../model/index.js";
 import { cadence, firesBetween, wallClock } from "../model/schedule.js";
 import { replayHolds, type RunView, runResult, semverCmp, viewRun } from "../model/stack.js";
 import { span, stamp } from "../util.js";
-import type { EnvLane, Link } from "./index.js";
+import type { EnvLane, EnvState, Environment, Link } from "./index.js";
 import { deployableWords } from "./words.js";
 
 export interface EnvBorrow {
@@ -290,6 +290,80 @@ const ACTIVITY_WORDS = Object.freeze({
   byHand: "by hand",
 });
 
+const ENVIRONMENT_WORDS = Object.freeze({
+  place: "Environment",
+  forks: "Forks",
+  forksCount: "forks",
+  allForks: "All",
+  fewerForks: "Fewer forks",
+  runs: "Stack runs",
+  repository: "Stack repository",
+  run: "run",
+  range: "Range",
+  day: "Last 24 hours",
+  week: "Last 7 days",
+  daySwitch: "24 h",
+  weekSwitch: "7 days",
+  from: "From",
+  to: "to",
+  now: "now",
+  none: "none",
+  noneDay: "none in the last day",
+  upstream: "upstream",
+  states: Object.freeze({
+    ok: "green",
+    failed: "failed",
+    cancelled: "cancelled",
+    running: "running",
+  }),
+});
+
+export type EnvWords = typeof ENVIRONMENT_WORDS;
+
+const TRIGGERS: Readonly<Record<string, string>> = Object.freeze({
+  schedule: "scheduled",
+  workflow_dispatch: "by hand",
+  push: "on push",
+});
+
+/** How a run started, in the place's words; nothing for an event core cannot read. */
+export function runTrigger(event: string | undefined): string | undefined {
+  return event && Object.hasOwn(TRIGGERS, event) ? TRIGGERS[event] : undefined;
+}
+
+type RunMeaning = { meaning: string; meaningReady?: string };
+
+/**
+ * What a Stack run meant for the running environment. A failed or cancelled smoke also carries the
+ * words for when the window can show the running environment stayed ready over it.
+ */
+export function runMeaning(
+  lane: Exclude<EnvLane["id"], "holds">, state: EnvState, label: string, deployable: Environment["deployable"],
+): RunMeaning {
+  const today = "nothing on Today waits on it.";
+  const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+  if (lane === "smoke") {
+    const what = {
+      ok: "went green", failed: "failed", cancelled: "was cancelled", running: "is running", held: "was held",
+    }[state];
+    const head = `A smoke run on a fresh cluster ${what}.`;
+    if (state !== "failed" && state !== "cancelled") return { meaning: head };
+    return {
+      meaning: `${head} ${sentence(today)}`,
+      meaningReady: `${head} The running environment stayed ready; ${today}`,
+    };
+  }
+  const version = label.trim();
+  if (state === "ok") return { meaning: `The environment deployed ${version} and went green.` };
+  if (state === "running") return { meaning: `${version} is deploying to the running environment.` };
+  const now = deployable === "yes" ? " The running environment is ready now;"
+    : deployable === "no" ? " The running environment is not ready;" : "";
+  const what = state === "cancelled" ? "was cancelled" : "failed";
+  return {
+    meaning: `Deploying ${version} to the running environment ${what}.${now} ${now ? today : sentence(today)}`,
+  };
+}
+
 type EnvActivitySegment = {
   kind: "maintenance" | "borrowed" | "estimated" | "overlap" | "idle";
   start: string;
@@ -378,7 +452,10 @@ export function environmentUsage(
   });
   const line = status.state === "maintenance" ? undefined : factsLine(model, now, context);
   const activity = activityOf(borrows, lanes, from, to);
-  return { status, borrows, activity, ...(forksNote ? { forksNote } : {}), ...(line ? { line } : {}) };
+  return {
+    words: ENVIRONMENT_WORDS, status, borrows, activity,
+    ...(forksNote ? { forksNote } : {}), ...(line ? { line } : {}),
+  };
 }
 
 const UNSCHEDULED: Readonly<Partial<Record<LifecycleKind, string>>> = Object.freeze({

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, test } from "vitest";
-import { environmentUsage, holdAttribution, lastRun } from "../src/brief/environment";
+import { environmentUsage, holdAttribution, lastRun, runMeaning } from "../src/brief/environment";
 import { type BriefFact, buildBriefing, type DoctorView, readItem } from "../src/brief/index";
 import { ago, deployableWords, streakText } from "../src/brief/words";
 import { createContext, defaultContext } from "../src/context";
@@ -642,6 +642,14 @@ describe("the environment", () => {
       defaultContext,
     ).environment;
     expect(headline).toBe("An upgrade to v0.28.2 is running, at verify.");
+    const env = buildBriefing(fixtureModel(), CLEAR, FIXTURE_NOW, defaultContext).environment;
+    expect(env.words).toBeUndefined();
+    for (const event of env.lanes.flatMap(({ events }) => events))
+      expect([event.trigger, event.meaning, event.meaningReady]).toEqual([
+        undefined,
+        undefined,
+        undefined,
+      ]);
     expect(facts).toMatchInlineSnapshot(`
       [
         {
@@ -1179,9 +1187,15 @@ describe("Environment borrow status in the app context", () => {
     });
   });
 
+  test("words a running borrow up to now", () => {
+    const model = modelFor([history("legal", [deployment("1", -35, "IN_PROGRESS")])]);
+    expect(brief(model).borrows?.[0]?.detail).toBe("running · 11:25 to now · 35\u00a0min");
+  });
+
   test("starts in Usage unknown before a read", () => {
     const model = buildModel(emptyFacts(), now, {}, app);
     expect(brief(model).status).toMatchObject({ state: "unknown" });
+    expect(brief(model).words?.day).toBe("Last 24 hours");
   });
 
   test("caps inactive estimates at the next deployment and leaves unmeasured ticks without an end", () => {
@@ -1193,10 +1207,15 @@ describe("Environment borrow status in the app context", () => {
       end: measured.createdAt,
       estimated: true,
       result: "unknown",
+      detail: "unknown · 11:20 to \u2248\u00a011:30 · \u224810\u00a0min",
       links: [],
     });
     model.forkDeployments = [history("file", [inactive])];
-    expect(borrow()).toMatchObject({ start: inactive.createdAt, links: [] });
+    expect(borrow()).toMatchObject({
+      start: inactive.createdAt,
+      detail: "unknown · 11:20",
+      links: [],
+    });
     expect(borrow()?.end).toBeUndefined();
     expect(borrow()?.estimated).toBeUndefined();
   });
@@ -1512,6 +1531,44 @@ describe("Stack lanes in the app context", () => {
     expect(at(-7)).toBe("2026-03-10T05:00:00.000Z");
     expect(day("2026-03-09T05:00:00.000Z")).toBe("Fri 6 Mar · green");
     expect(day("2026-03-10T05:00:00.000Z")).toBeUndefined();
+  });
+
+  test("names each run's trigger, and none for an event core cannot read", () => {
+    const model = modelWith({
+      smoke: [run("smoke", -3)],
+      reset: [run("reset", -4, { event: "workflow_dispatch" })],
+      upgrade: [run("upgrade", -5, { event: "push" })],
+      refresh: [run("refresh", -6, { event: "" }), run("refresh", -2, { event: "workflow_run" })],
+    });
+    const triggers = (kind: string) => lane(model, kind)?.events.map((event) => event.trigger);
+    expect(triggers("smoke")).toEqual(["scheduled"]);
+    expect(triggers("reset")).toEqual(["by hand"]);
+    expect(triggers("upgrade")).toEqual(["on push"]);
+    expect(triggers("refresh")).toEqual([undefined, undefined]);
+    expect(lane(model, "upgrade", defaultContext)?.events[0]?.trigger).toBeUndefined();
+  });
+
+  test("says what each run meant for the running environment", () => {
+    expect(runMeaning("smoke", "ok", "smoke", "yes")).toEqual({
+      meaning: "A smoke run on a fresh cluster went green.",
+    });
+    expect(runMeaning("smoke", "cancelled", "smoke", "no")).toEqual({
+      meaning: "A smoke run on a fresh cluster was cancelled. Nothing on Today waits on it.",
+      meaningReady:
+        "A smoke run on a fresh cluster was cancelled. The running environment stayed ready; nothing on Today waits on it.",
+    });
+    expect(runMeaning("refresh", "running", " v0.35.5 ", "no").meaning).toBe(
+      "v0.35.5 is deploying to the running environment.",
+    );
+    expect(
+      (["yes", "no", "unknown"] as const).map(
+        (deployable) => runMeaning("upgrade", "failed", "v0.35.6", deployable).meaning,
+      ),
+    ).toEqual([
+      "Deploying v0.35.6 to the running environment failed. The running environment is ready now; nothing on Today waits on it.",
+      "Deploying v0.35.6 to the running environment failed. The running environment is not ready; nothing on Today waits on it.",
+      "Deploying v0.35.6 to the running environment failed. Nothing on Today waits on it.",
+    ]);
   });
 
   test("by hand marks dispatched Refresh and Smoke runs, never Reset", () => {

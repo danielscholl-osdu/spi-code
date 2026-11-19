@@ -46,7 +46,8 @@ import {
 } from "../model/stack.js";
 import { age, clip, firstAndMore, fitHeadline, plural, short, span, stamp, timeClause, whose } from "../util.js";
 import {
-  type EnvActivity, type EnvBorrow, type EnvStatus, environmentUsage, environmentDays, environmentFrom, holdAttribution, laneRhythm, runEnd,
+  type EnvActivity, type EnvBorrow, type EnvStatus, type EnvWords, environmentUsage, environmentDays, environmentFrom, holdAttribution, laneRhythm, runEnd,
+  runMeaning, runTrigger,
 } from "./environment.js";
 import { type Horizon, type Origin, itemOrigin, upstreamHorizon } from "./horizon.js";
 import { type Repositories, repositoriesOf } from "./repos.js";
@@ -158,6 +159,9 @@ export interface EnvEvent {
   inspect?: string;
   byHand?: true;
   likely?: string;
+  trigger?: string;
+  meaning?: string;
+  meaningReady?: string;
 }
 
 export interface EnvLane {
@@ -184,6 +188,7 @@ export interface Environment {
   borrows?: EnvBorrow[];
   forksNote?: string;
   activity?: EnvActivity;
+  words?: EnvWords;
 }
 
 export interface Briefing {
@@ -1310,8 +1315,15 @@ function envLanes(model: Model, from: number, now: Date, context?: CoreContext):
       .map((view) => {
         const r = view.run;
         const event = runEvent(view, covered.has(r.id) ? item?.id : undefined);
-        const byHand = app && id !== "reset" && id !== "upgrade" && r.event === "workflow_dispatch";
-        return byHand ? { ...event, byHand: true as const } : event;
+        if (!app) return event;
+        const byHand = id !== "reset" && id !== "upgrade" && r.event === "workflow_dispatch";
+        const trigger = runTrigger(r.event);
+        return {
+          ...event,
+          ...(byHand ? { byHand: true as const } : {}),
+          ...(trigger ? { trigger } : {}),
+          ...runMeaning(id, event.state, event.label, stack.deployable.state),
+        };
       }),
     ...(app && context ? laneRhythm(model, id, from, now, context) : {}),
   }));

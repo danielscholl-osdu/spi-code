@@ -7,9 +7,9 @@ import { plainTitle } from "../text.js";
 import { instantsIn, timedText, when } from "../time.js";
 import { activityView } from "../views/environment/activity.js";
 import { borrowDetail, borrowInRange } from "../views/environment/borrows.js";
-import { runName } from "../views/environment/opening.js";
+import { environmentOpening, runName } from "../views/environment/opening.js";
 import { daysOf, lastOf, rangeOf, WEEK, within } from "../views/environment/range.js";
-import { eventSpan, eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
+import { eventSpan, eventText, eventWhen, stateWord } from "../views/environment/timeline.js";
 import { releaseSectionCases } from "../views/releases/reachability.test-helper.js";
 import { readFork } from "../views/today/Forks.js";
 import { ageInOneUnit } from "../views/today/parts.js";
@@ -422,6 +422,38 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
     add(`${base}/line`, subText(environment.line), environmentHome, ".env-line");
   if (environment.forksNote)
     add(`${base}/forksNote`, environment.forksNote, environmentHome, ".env-forks-note");
+  const words = environment.words;
+  if (words) {
+    const lead = "Environment · Stack runs";
+    add(`${base}/words/runs`, words.runs, lensHome(lead), '[data-part="runs"] > summary');
+    add(
+      `${base}/words/repository`,
+      words.repository,
+      lensHome(lead),
+      '[data-part="repository"] > summary',
+      {
+        contains: true,
+      },
+    );
+    if (environment.lanes.length || environment.activity) {
+      add(`${base}/words/range`, words.range, environmentHome, ".env-range", {
+        attribute: "aria-label",
+      });
+      add(`${base}/words/day`, words.day, environmentHome, ".env-day h3");
+      add(
+        `${base}/words/daySwitch`,
+        words.daySwitch,
+        environmentHome,
+        ".env-range button:first-child",
+      );
+      add(
+        `${base}/words/weekSwitch`,
+        words.weekSwitch,
+        environmentHome,
+        ".env-range button:last-child",
+      );
+    }
+  }
   // Each field at the first range that draws it: 24 h, then 7 days, then the day that holds it.
   const days = daysOf(environment);
   const ranges = [
@@ -441,6 +473,26 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
   const popover = ".popover .opened-body";
   if (environment.activity) {
     const week = home("Environment, 7 days", STARTS.environmentWeek);
+    if (words) {
+      add(`${base}/words/week`, words.week, week, ".env-day h3");
+      const forks = new Set(
+        environment.borrows
+          ?.filter((borrow) => borrowInRange(borrow, Date.parse(environment.from), to))
+          .map(({ fork }) => fork),
+      );
+      if (forks.size > 0) add(`${base}/words/forks`, words.forks, week, ".env-borrows h4");
+      if (forks.size > 5) {
+        const more = { contains: true };
+        add(`${base}/words/allForks`, words.allForks, week, ".env-more", more);
+        add(`${base}/words/forksCount`, words.forksCount, week, ".env-more", more);
+        const all = home("Environment, 7 days, all forks", STARTS.environmentWeek, ".env-more");
+        add(`${base}/words/fewerForks`, words.fewerForks, all, ".env-more");
+      }
+      if (days.length > 0) {
+        const day = home("Environment, a day", STARTS.environmentDay(days[0]?.key ?? ""));
+        add(`${base}/words/weekSwitch`, words.weekSwitch, day, ".env-back", { contains: true });
+      }
+    }
     const heading = (day: string) => `.env-day-heading[data-day=${quote(day)}]`;
     if (days[0])
       add(`${base}/from`, environment.from, week, heading(days[0].key), {
@@ -473,8 +525,13 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
         );
       });
       activity.legend.forEach(([mark, label]) => {
-        if (!(mark in activity.words) || !first(`legend:${mark}`)) return;
-        add(`${pointer}/words/${mark}`, label, place, `[data-legend=${quote(mark)}]`);
+        if (!first(`legend:${mark}`)) return;
+        const state =
+          mark === "ok" || mark === "failed" || mark === "running" || mark === "cancelled";
+        if (state)
+          add(`${base}/words/states/${mark}`, label, place, `[data-legend=${quote(mark)}]`);
+        else if (mark in activity.words)
+          add(`${pointer}/words/${mark}`, label, place, `[data-legend=${quote(mark)}]`);
       });
       environment.activity.segments.forEach((segment, index) => {
         if (!segment.title || !activity.segments.some((visible) => visible.segment === segment))
@@ -485,8 +542,8 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
         const where = opened(`activity ${segment.start}`, bar);
         add(`${part}/kind`, segment.kind, place, bar, { attribute: "data-mark" });
         add(`${part}/title`, segment.title, where, `${popover} h3`);
-        add(`${part}/start`, eventWhen(segment, now), where, `${popover} > p`);
-        add(`${part}/end`, eventWhen(segment, now), where, `${popover} > p`);
+        add(`${part}/start`, eventWhen(segment, now, words), where, `${popover} > p`);
+        add(`${part}/end`, eventWhen(segment, now, words), where, `${popover} > p`);
         if (segment.kind === "estimated")
           add(
             `${pointer}/words/estimatedNote`,
@@ -575,20 +632,37 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
             `${bar} ${activityHold ? ".env-hold-label" : ".env-event-label"}`,
             { contains: !!activityHold },
           );
-        add(`${event}/state`, eventWord[e.state], place, bar, {
-          ...(activityHold
-            ? {
-                read: (element: Element) =>
-                  element.getAttribute("data-mark") === "maintenance" ? "held" : "",
-              }
-            : { attribute: "aria-label", contains: true }),
-        });
-        add(`${event}/start`, eventWhen(e, now), place, bar, {
+        const state = activityHold ? "held" : stateWord(words, e.state);
+        if (state)
+          add(`${event}/state`, state, place, bar, {
+            ...(activityHold
+              ? {
+                  read: (element: Element) =>
+                    element.getAttribute("data-mark") === "maintenance" ? "held" : "",
+                }
+              : { attribute: "aria-label", contains: true }),
+          });
+        if (state && !activityHold && first(`words:state:${e.state}`))
+          add(`${base}/words/states/${e.state}`, state, place, bar, {
+            attribute: "aria-label",
+            contains: true,
+          });
+        add(`${event}/start`, eventWhen(e, now, words), place, bar, {
           attribute: "aria-label",
           contains: true,
         });
         if (e.end)
-          add(`${event}/end`, eventWhen(e, now), place, bar, {
+          add(`${event}/end`, eventWhen(e, now, words), place, bar, {
+            attribute: "aria-label",
+            contains: true,
+          });
+        if (words && e.end && first("words:to"))
+          add(`${base}/words/to`, words.to, place, bar, {
+            attribute: "aria-label",
+            contains: true,
+          });
+        if (words && !e.end && first("words:now"))
+          add(`${base}/words/now`, words.now, place, bar, {
             attribute: "aria-label",
             contains: true,
           });
@@ -600,6 +674,20 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
         if (e.detail && !activityHold)
           add(`${event}/detail`, e.detail, where, `${popover} > p`, { contains: true });
         if (e.likely) add(`${event}/likely`, e.likely, where, `${popover} .opened-body-effect`);
+        const opening = environmentOpening(
+          snapshot,
+          { kind: "event", id: `${lane.id}:${e.id}` },
+          range,
+        );
+        if (e.trigger && opening?.trigger === e.trigger)
+          add(`${event}/trigger`, e.trigger, where, ".popover .env-trigger");
+        const effect = opening?.content.effect;
+        if (effect && effect === e.meaning)
+          add(`${event}/meaning`, effect, where, `${popover} .opened-body-effect`);
+        if (effect && effect === e.meaningReady)
+          add(`${event}/meaningReady`, effect, where, `${popover} .opened-body-effect`);
+        if (activityHold && words && first("words:from"))
+          add(`${base}/words/from`, words.from, where, `${popover} > p`, { contains: true });
         if (activityHold)
           add(`${base}/activity/words/held`, activityHold.words.held, where, `${popover} h3`, {
             contains: true,
@@ -607,11 +695,11 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
         // The popover says when the event ran without its length, which the bar's name carries.
         const ran = (element: Element) =>
           activityHold
-            ? (element.textContent ?? "").replace(/^From /, "")
+            ? (element.textContent ?? "").replace(`${words?.from ?? ""} `, "")
             : (element.textContent ?? "").split(" · ").slice(1).join(" · ");
         const length = { read: ran, canon: (value: string) => value.split(" · ")[0] ?? value };
-        add(`${event}/start`, eventSpan(e, now), where, `${popover} > p`, length);
-        if (e.end) add(`${event}/end`, eventSpan(e, now), where, `${popover} > p`, length);
+        add(`${event}/start`, eventSpan(e, now, words), where, `${popover} > p`, length);
+        if (e.end) add(`${event}/end`, eventSpan(e, now, words), where, `${popover} > p`, length);
         if (lane.id !== "holds") return;
         let offset = 0;
         environment.lanes
@@ -1683,6 +1771,38 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
           !activity?.summary.some(({ part }) => part === word) &&
           !activity?.legend.some(([mark]) => mark === word),
       );
+    },
+  },
+  "environment-unseen-words": {
+    patterns: ["place", "run"].map((field) => `/briefing/environment/words/${field}`),
+    reason:
+      "A popover's place and its run pill's label, which no surface draws; the pill shows its kind",
+  },
+  "environment-quiet-words": {
+    patterns: [
+      "/briefing/environment/words/now",
+      "/briefing/environment/words/none",
+      "/briefing/environment/words/noneDay",
+      "/briefing/environment/words/upstream",
+      "/briefing/environment/words/states/running",
+      "/briefing/environment/words/states/cancelled",
+    ],
+    reason:
+      "The recorded week has no open run or hold, no lane without a run or a last run, no upstream stack line and no running or cancelled run.",
+    when: (_value, { pointer, snapshot }) => {
+      const env = snapshot.briefing.environment;
+      const events = env.lanes.flatMap(({ events }) => events);
+      const word = pointer.split("/").at(-1);
+      if (word === "now") return events.every(({ end }) => end !== undefined);
+      if (word === "running" || word === "cancelled")
+        return !events.some(
+          ({ state }) => state === (word === "running" ? "running" : "cancelled"),
+        );
+      if (word === "upstream")
+        return !snapshot.briefing.repositories.rows.some(({ sections }) =>
+          sections.some(({ lines }) => lines.some(({ upstream }) => upstream)),
+        );
+      return env.lanes.every(({ events, last, lasts }) => events.length > 0 || !!last || !!lasts);
     },
   },
   "environment-activity-partition": {

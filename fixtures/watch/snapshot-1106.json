@@ -3855,7 +3855,9 @@
               "end": "2026-11-02T04:08:52Z",
               "state": "ok",
               "label": "v0.34.0",
-              "detail": "green in 3 min"
+              "detail": "green in 3 min",
+              "trigger": "scheduled",
+              "meaning": "The environment deployed v0.34.0 and went green."
             },
             {
               "id": "41576049363",
@@ -3863,7 +3865,9 @@
               "end": "2026-11-03T04:09:28Z",
               "state": "failed",
               "label": "v0.35.0",
-              "detail": "failed at refresh › Refresh fork-sourced canonicals"
+              "detail": "failed at refresh › Refresh fork-sourced canonicals",
+              "trigger": "scheduled",
+              "meaning": "Deploying v0.35.0 to the running environment failed. The running environment is ready now; nothing on Today waits on it."
             },
             {
               "id": "41771097957",
@@ -3871,7 +3875,9 @@
               "end": "2026-11-04T06:37:52Z",
               "state": "ok",
               "label": "v0.35.1",
-              "detail": "green in 2 h 32 min"
+              "detail": "green in 2 h 32 min",
+              "trigger": "scheduled",
+              "meaning": "The environment deployed v0.35.1 and went green."
             },
             {
               "id": "41965650223",
@@ -3879,7 +3885,9 @@
               "end": "2026-11-05T04:09:40Z",
               "state": "ok",
               "label": "v0.35.3",
-              "detail": "green in 4 min"
+              "detail": "green in 4 min",
+              "trigger": "scheduled",
+              "meaning": "The environment deployed v0.35.3 and went green."
             },
             {
               "id": "42160446124",
@@ -3887,7 +3895,9 @@
               "end": "2026-11-06T04:20:19Z",
               "state": "ok",
               "label": "v0.35.3",
-              "detail": "green in 14 min"
+              "detail": "green in 14 min",
+              "trigger": "scheduled",
+              "meaning": "The environment deployed v0.35.3 and went green."
             }
           ],
           "cadence": "Mon–Fri 04:00",
@@ -3914,7 +3924,9 @@
               "end": "2026-10-31T00:26:49Z",
               "state": "ok",
               "label": "v0.33.3",
-              "detail": "green in 24 min"
+              "detail": "green in 24 min",
+              "trigger": "on push",
+              "meaning": "The environment deployed v0.33.3 and went green."
             },
             {
               "id": "41312282208",
@@ -3922,7 +3934,9 @@
               "end": "2026-11-01T14:44:26Z",
               "state": "ok",
               "label": "v0.34.0",
-              "detail": "green in 1 h 5 min"
+              "detail": "green in 1 h 5 min",
+              "trigger": "on push",
+              "meaning": "The environment deployed v0.34.0 and went green."
             },
             {
               "id": "41452702809",
@@ -3930,7 +3944,9 @@
               "end": "2026-11-02T13:41:27Z",
               "state": "ok",
               "label": "v0.35.0",
-              "detail": "green in 17 min"
+              "detail": "green in 17 min",
+              "trigger": "on push",
+              "meaning": "The environment deployed v0.35.0 and went green."
             },
             {
               "id": "41642201079",
@@ -3938,7 +3954,9 @@
               "end": "2026-11-03T13:46:16Z",
               "state": "ok",
               "label": "v0.35.1",
-              "detail": "green in 34 min"
+              "detail": "green in 34 min",
+              "trigger": "on push",
+              "meaning": "The environment deployed v0.35.1 and went green."
             },
             {
               "id": "41836003228",
@@ -3946,7 +3964,9 @@
               "end": "2026-11-04T13:29:24Z",
               "state": "ok",
               "label": "v0.35.2",
-              "detail": "green in 17 min"
+              "detail": "green in 17 min",
+              "trigger": "on push",
+              "meaning": "The environment deployed v0.35.2 and went green."
             },
             {
               "id": "41916026498",
@@ -3954,7 +3974,9 @@
               "end": "2026-11-04T21:49:46Z",
               "state": "ok",
               "label": "v0.35.3",
-              "detail": "green in 24 min"
+              "detail": "green in 24 min",
+              "trigger": "on push",
+              "meaning": "The environment deployed v0.35.3 and went green."
             }
           ],
           "cadence": "on version bump",
@@ -3984,7 +4006,9 @@
               "end": "2026-10-31T08:37:53Z",
               "state": "ok",
               "label": "smoke",
-              "detail": "green in 24 min"
+              "detail": "green in 24 min",
+              "trigger": "scheduled",
+              "meaning": "A smoke run on a fresh cluster went green."
             },
             {
               "id": "41287962042",
@@ -3992,7 +4016,9 @@
               "end": "2026-11-01T09:53:05Z",
               "state": "ok",
               "label": "smoke",
-              "detail": "green in 39 min"
+              "detail": "green in 39 min",
+              "trigger": "scheduled",
+              "meaning": "A smoke run on a fresh cluster went green."
             },
             {
               "id": "41412003542",
@@ -4000,7 +4026,9 @@
               "end": "2026-11-02T08:55:22Z",
               "state": "ok",
               "label": "smoke",
-              "detail": "green in 38 min"
+              "detail": "green in 38 min",
+              "trigger": "scheduled",
+              "meaning": "A smoke run on a fresh cluster went green."
             },
             {
               "id": "41601889185",
@@ -4008,7 +4036,9 @@
               "end": "2026-11-03T08:49:57Z",
               "state": "ok",
               "label": "smoke",
-              "detail": "green in 35 min"
+              "detail": "green in 35 min",
+              "trigger": "scheduled",
+              "meaning": "A smoke run on a fresh cluster went green."
             },
             {
               "id": "41798014400",
@@ -4016,7 +4046,9 @@
               "end": "2026-11-04T08:38:33Z",
               "state": "ok",
               "label": "smoke",
-              "detail": "green in 24 min"
+              "detail": "green in 24 min",
+              "trigger": "scheduled",
+              "meaning": "A smoke run on a fresh cluster went green."
             },
             {
               "id": "41993162867",
@@ -4024,7 +4056,9 @@
               "end": "2026-11-05T08:54:34Z",
               "state": "ok",
               "label": "smoke",
-              "detail": "green in 38 min"
+              "detail": "green in 38 min",
+              "trigger": "scheduled",
+              "meaning": "A smoke run on a fresh cluster went green."
             },
             {
               "id": "42186326146",
@@ -4032,7 +4066,9 @@
               "end": "2026-11-06T08:42:09Z",
               "state": "ok",
               "label": "smoke",
-              "detail": "green in 27 min"
+              "detail": "green in 27 min",
+              "trigger": "scheduled",
+              "meaning": "A smoke run on a fresh cluster went green."
             }
           ],
           "cadence": "daily 08:00"
@@ -8571,6 +8607,33 @@
             "end": "2026-11-06T14:02:00.133Z"
           }
         ]
+      },
+      "words": {
+        "place": "Environment",
+        "forks": "Forks",
+        "forksCount": "forks",
+        "allForks": "All",
+        "fewerForks": "Fewer forks",
+        "runs": "Stack runs",
+        "repository": "Stack repository",
+        "run": "run",
+        "range": "Range",
+        "day": "Last 24 hours",
+        "week": "Last 7 days",
+        "daySwitch": "24 h",
+        "weekSwitch": "7 days",
+        "from": "From",
+        "to": "to",
+        "now": "now",
+        "none": "none",
+        "noneDay": "none in the last day",
+        "upstream": "upstream",
+        "states": {
+          "ok": "green",
+          "failed": "failed",
+          "cancelled": "cancelled",
+          "running": "running"
+        }
       }
     },
     "repositories": {
