@@ -92,12 +92,28 @@ export function dayLine(at: string | number | Date, options: Pick<ClockOptions, 
   return format.format(new Date(at));
 }
 
-const weekdays = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric" });
+const weekdays = new Map<string, Intl.DateTimeFormat>();
 
 /** A day as a column heading reads it: `Thu 12`. */
-export function shortDay(at: string | number | Date) {
-  return weekdays.format(new Date(at));
+export function shortDay(at: string | number | Date, options: Pick<ClockOptions, "timeZone"> = {}) {
+  const key = options.timeZone ?? "";
+  let format = weekdays.get(key);
+  if (!format) {
+    format = new Intl.DateTimeFormat("en-GB", {
+      ...(options.timeZone ? { timeZone: options.timeZone } : {}),
+      weekday: "short",
+      day: "numeric",
+    });
+    weekdays.set(key, format);
+  }
+  return format.format(new Date(at));
 }
+
+/** A calendar date, `2026-11-12`, as a column heading and a date line read it, in no zone. */
+export const dateNames = (date: string) => ({
+  short: shortDay(date, { timeZone: "UTC" }),
+  long: dayLine(date, { timeZone: "UTC" }),
+});
 
 /** A visible time: {@link clockTime} in a `time` element whose `datetime` keeps the ISO value. */
 export function Time({

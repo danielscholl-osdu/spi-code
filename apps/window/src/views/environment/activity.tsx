@@ -6,6 +6,7 @@ import type { ComponentProps, ReactNode } from "react";
 import type { OpenSelection } from "../../app/navigation.js";
 import { timeUnit } from "../../time.js";
 import { borrowInRange } from "./borrows.js";
+import { missedIn, within } from "./range.js";
 import { eventWhen, eventWord, fixed, LABEL_PX, pctOf, span, TRACK_MIN_PX } from "./timeline.js";
 
 export const IDLE_LABEL_SHARE = 1 / 8;
@@ -22,6 +23,8 @@ export function activityView(env: Environment, from: number, to: number, week?: 
   const { activity } = env;
   if (!activity) return undefined;
   const { words } = activity;
+  const range = { from, to };
+  const now = Date.parse(env.to);
   const borrows = env.borrows?.filter((borrow) => borrowInRange(borrow, from, to)) ?? [];
   const segments = activity.segments.flatMap((segment) => {
     const start = Math.max(from, Date.parse(segment.start));
@@ -37,14 +40,16 @@ export function activityView(env: Environment, from: number, to: number, week?: 
   }
   const parts = ["borrowed", "maintenance", "idle"] as const;
   const minutes = (ms: number) => (ms > 0 ? Math.max(1, Math.round(ms / MINUTE)) : 0);
-  const rounded = {
-    borrowed: minutes(totals.borrowed),
-    maintenance: minutes(totals.maintenance),
-    idle: minutes(totals.idle),
-  };
-  const largest = parts.reduce((a, b) => (totals[a] >= totals[b] ? a : b));
+  // The parts share the range's rounded minutes, the spare ones going to the largest remainders.
   const rangeMinutes = Math.round(parts.reduce((sum, part) => sum + totals[part], 0) / MINUTE);
-  rounded[largest] += rangeMinutes - parts.reduce((sum, part) => sum + rounded[part], 0);
+  const rounded = {
+    borrowed: Math.floor(totals.borrowed / MINUTE),
+    maintenance: Math.floor(totals.maintenance / MINUTE),
+    idle: Math.floor(totals.idle / MINUTE),
+  };
+  let spare = rangeMinutes - parts.reduce((sum, part) => sum + rounded[part], 0);
+  for (const part of [...parts].sort((a, b) => (totals[b] % MINUTE) - (totals[a] % MINUTE)))
+    if (spare-- > 0) rounded[part] += 1;
   const approximate = borrows.some(({ estimated }) => estimated);
   const countWord = borrows.length === 1 ? "borrow" : "borrows";
   const summary: { part: keyof typeof words; text: string }[] = borrows.length
@@ -61,13 +66,11 @@ export function activityView(env: Environment, from: number, to: number, week?: 
   const holds =
     env.lanes
       .find(({ id }) => id === "holds")
-      ?.events.filter(
-        (event) => Date.parse(event.start) <= to && (!event.end || Date.parse(event.end) > from),
-      )
+      ?.events.filter((event) => within(range, event.start, event.end, now))
       .sort((a, b) => Date.parse(a.start) - Date.parse(b.start)) ?? [];
   const runs = env.lanes.filter(({ id }) => id !== "holds");
   const events = runs.flatMap(({ events }) =>
-    events.filter(({ start, end }) => Date.parse(start) <= to && (!end || Date.parse(end) >= from)),
+    events.filter(({ start, end }) => within(range, start, end, now)),
   );
   const has = (kind: EnvActivitySegment["kind"]) =>
     segments.some(({ segment }) => segment.kind === kind);
@@ -101,11 +104,7 @@ export function activityView(env: Environment, from: number, to: number, week?: 
       ],
       ["maintenance", words.maintenance, holds.length > 0],
       ["overlap", words.overlap, has("overlap")],
-      [
-        "missed",
-        words.missed,
-        runs.some(({ missed }) => missed?.some((at) => Date.parse(at) >= from)),
-      ],
+      ["missed", words.missed, runs.some((lane) => missedIn(lane, range, now).length > 0)],
       ["byHand", words.byHand, events.some(({ byHand }) => byHand)],
     ] as const
   ).filter(([, , shown]) => shown);

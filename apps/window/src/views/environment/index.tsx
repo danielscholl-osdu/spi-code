@@ -20,12 +20,12 @@ import { Popover } from "../../components/popover/Popover.js";
 import { repositoryLinePointer } from "../../panels/selection-rows.js";
 import { watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
-import { dayLine, shortDay, TimedText } from "../../time.js";
+import { TimedText } from "../../time.js";
 import { ActivityLegend, ActivityRow, ActivitySummary, activityView } from "./activity.js";
 import { BorrowRows, DayCell, ForkDays } from "./borrows.js";
 import { FlowContext } from "./flow-context.js";
 import { environmentOpening } from "./opening.js";
-import { type Day, daysOf, lastOf, rangeOf, WEEK, within } from "./range.js";
+import { type Day, dayNames, daysOf, lastOf, missedIn, rangeOf, WEEK, within } from "./range.js";
 import {
   eventKey,
   eventText,
@@ -273,11 +273,11 @@ export default function Environment({
                           type="button"
                           className="env-day-heading"
                           data-day={day.key}
-                          data-from={day.start === Date.parse(env.from) ? env.from : undefined}
-                          aria-label={dayLine(day.start)}
+                          data-from={env.days?.find(({ day: key }) => key === day.key)?.from}
+                          aria-label={dayNames(day).long}
                           onClick={() => openDay(day)}
                         >
-                          {shortDay(day.start)}
+                          {dayNames(day).short}
                           {count > 0 && <small>{count}</small>}
                         </button>
                       </DayCell>
@@ -312,21 +312,19 @@ export default function Environment({
                   {lane.cadence && <small className="env-cadence">{lane.cadence}</small>}
                 </div>
                 <div className="env-track" style={{ height: tiers * TIER_PX + 10 }}>
-                  {lane.missed
-                    ?.filter((at) => Date.parse(at) >= from && Date.parse(at) <= to)
-                    .map((at) => {
-                      const left = pctOf(Date.parse(at), from, to);
-                      const right = pctOf(Date.parse(at) + MISSED_SLOT_MS, from, to);
-                      return (
-                        <span
-                          className="env-missed"
-                          key={at}
-                          data-missed={at}
-                          aria-hidden="true"
-                          style={{ left: `${fixed(left)}%`, width: `${fixed(right - left)}%` }}
-                        />
-                      );
-                    })}
+                  {missedIn(lane, range, now.getTime()).map((at) => {
+                    const left = pctOf(Date.parse(at), from, to);
+                    const right = pctOf(Date.parse(at) + MISSED_SLOT_MS, from, to);
+                    return (
+                      <span
+                        className="env-missed"
+                        key={at}
+                        data-missed={at}
+                        aria-hidden="true"
+                        style={{ left: `${fixed(left)}%`, width: `${fixed(right - left)}%` }}
+                      />
+                    );
+                  })}
                   {placed.map((p) => {
                     const key = eventKey(lane, p.e);
                     const name = `${lane.label} ${p.e.label}, ${eventWord[p.e.state]}${p.e.byHand ? ", by hand" : ""}, ${eventWhen(p.e, now)}`;

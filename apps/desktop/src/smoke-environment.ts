@@ -21,6 +21,22 @@ export const ENVIRONMENT_INSIDE_NOW = `(() => {
     marks.every((mark) => mark.getBoundingClientRect().right <= now + 0.5);
 })()`;
 
+const UPGRADE_LAST = '.environment [data-lane="upgrade"] .env-last';
+
+/** The opened day before today reads Upgrade's last run as core sent it for that day. */
+export function environmentYesterdayUpgrade(source: ViewSnapshot): string {
+  const env = source.briefing.environment;
+  const day = env.days?.at(-2)?.from;
+  const last = env.lanes
+    .find(({ id }) => id === "upgrade")
+    ?.lasts?.find(({ from }) => from === day)?.text;
+  if (!last) throw new Error("The Environment smoke scene needs an Upgrade run before yesterday");
+  return `(() => {
+  const text = document.querySelector(${JSON.stringify(UPGRADE_LAST)})?.textContent;
+  return text === ${JSON.stringify(`\u2039 ${last}`)} || text;
+})()`;
+}
+
 export function smokeEnvironment(source: ViewSnapshot): ViewSnapshot {
   const body = structuredClone(source);
   const env = body.briefing.environment;
@@ -78,15 +94,11 @@ function stackLanes(env: ViewSnapshot["briefing"]["environment"]) {
   const refresh = env.lanes.findIndex(({ id }) => id === "refresh");
   const text = "Tue 3 Nov \u00b7 green";
   const late = { text, note: "15 days ago", late: true as const };
-  const iso = (time: number) => new Date(time).toISOString();
-  const days: { from: string; to: string; text: string }[] = [];
-  for (let day = new Date(env.from); day.getTime() < to; ) {
-    const next = new Date(day);
-    next.setDate(next.getDate() + 1);
-    next.setHours(0, 0, 0, 0);
-    days.push({ from: iso(day.getTime()), to: iso(Math.min(to, next.getTime())), text });
-    day = next;
-  }
+  const days = (env.days ?? []).map(({ from }, index, all) => ({
+    from,
+    to: all[index + 1]?.from ?? env.to,
+    text,
+  }));
   env.lanes.splice(refresh + 1, 0, {
     id: "reset",
     label: "Reset",

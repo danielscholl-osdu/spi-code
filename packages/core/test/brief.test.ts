@@ -1497,6 +1497,21 @@ describe("Stack lanes in the app context", () => {
     expect(reset?.slice(1, -1).every(([, , note]) => note === undefined)).toBe(true);
     expect(reset?.at(-1)).toEqual(["2026-03-10T05:00:00.000Z", nowIso, "8 days ago"]);
     expect(reset).toHaveLength(8);
+    const days = buildBriefing(model, CLEAR, now, app).environment.days;
+    expect(days?.map(({ day, from }) => [day, from])).toEqual(
+      reset
+        ?.slice(1)
+        .map(([from], index) => [`2026-03-${String(4 + index).padStart(2, "0")}`, from]),
+    );
+  });
+
+  test("a run starting at midnight belongs to its own day, not the one before", () => {
+    const model = modelWith({ upgrade: [run("upgrade", -100), run("upgrade", -7)] });
+    const day = (from: string) =>
+      lane(model, "upgrade")?.lasts?.find((last) => last.from === from)?.text;
+    expect(at(-7)).toBe("2026-03-10T05:00:00.000Z");
+    expect(day("2026-03-09T05:00:00.000Z")).toBe("Fri 6 Mar · green");
+    expect(day("2026-03-10T05:00:00.000Z")).toBeUndefined();
   });
 
   test("by hand marks dispatched Refresh and Smoke runs, never Reset", () => {

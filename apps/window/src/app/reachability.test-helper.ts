@@ -439,14 +439,18 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
   const drawn = new Set<string>();
   const first = (key: string) => !drawn.has(key) && !!drawn.add(key);
   const popover = ".popover .opened-body";
-  if (environment.activity && days[0])
-    add(
-      `${base}/from`,
-      environment.from,
-      home("Environment, 7 days", STARTS.environmentWeek),
-      `.env-day-heading[data-day=${quote(days[0].key)}]`,
-      { attribute: "data-from" },
-    );
+  if (environment.activity) {
+    const week = home("Environment, 7 days", STARTS.environmentWeek);
+    const heading = (day: string) => `.env-day-heading[data-day=${quote(day)}]`;
+    if (days[0])
+      add(`${base}/from`, environment.from, week, heading(days[0].key), {
+        attribute: "data-from",
+      });
+    environment.days?.forEach(({ day, from }, index) => {
+      add(`${base}/days/${index}/day`, day, week, heading(day), { attribute: "data-day" });
+      add(`${base}/days/${index}/from`, from, week, heading(day), { attribute: "data-from" });
+    });
+  }
   for (const { range, from: rangeStart } of ranges) {
     const place = home(rangeStart.name, rangeStart);
     const opened = (what: string, step: string) => ({
@@ -539,8 +543,7 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
           });
       }
       lane.missed?.forEach((slot, index) => {
-        const when = Date.parse(slot);
-        if (when < range.from || when > range.to || !first(`missed:${pointer}:${slot}`)) return;
+        if (!within(range, slot, slot, to) || !first(`missed:${pointer}:${slot}`)) return;
         add(`${pointer}/missed/${index}`, slot, place, `${row} [data-missed=${quote(slot)}]`, {
           attribute: "data-missed",
         });

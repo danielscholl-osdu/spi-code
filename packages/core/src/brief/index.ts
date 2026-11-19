@@ -46,7 +46,7 @@ import {
 } from "../model/stack.js";
 import { age, clip, firstAndMore, fitHeadline, plural, short, span, stamp, timeClause, whose } from "../util.js";
 import {
-  type EnvActivity, type EnvBorrow, type EnvStatus, environmentUsage, environmentFrom, holdAttribution, laneRhythm, runEnd,
+  type EnvActivity, type EnvBorrow, type EnvStatus, environmentUsage, environmentDays, environmentFrom, holdAttribution, laneRhythm, runEnd,
 } from "./environment.js";
 import { type Horizon, type Origin, itemOrigin, upstreamHorizon } from "./horizon.js";
 import { type Repositories, repositoriesOf } from "./repos.js";
@@ -178,6 +178,7 @@ export interface Environment {
   // The axis window.
   from: string;
   to: string;
+  days?: { day: string; from: string }[];
   status?: EnvStatus;
   line?: string;
   borrows?: EnvBorrow[];
@@ -1484,6 +1485,7 @@ function environmentOf(model: Model, env: BriefFact, now: Date, context: CoreCon
     lanes,
     from: new Date(from).toISOString(),
     to: now.toISOString(),
+    ...(context.words === "app" ? { days: environmentDays(from, now, context) } : {}),
     ...(context.words === "app" ? environmentUsage(model, lanes, from, now, context) : {}),
   };
 }

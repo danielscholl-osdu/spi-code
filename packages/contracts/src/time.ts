@@ -71,3 +71,8 @@ export function when(at: string | number | Date, options: WhenOptions = {}): str
   if (apart < 7) return `${time.weekday} ${time.clock}`;
   return time.year === today.year ? time.date : `${time.date} ${time.year}`;
 }
+
+/** Whether something over [start, end) falls in [from, to); a range ending now also keeps what starts at `to`. */
+export function inRange(start: number, end: number, from: number, to: number, live: boolean) {
+  return (start < to || (live && start === to)) && (end > from || start >= from);
+}

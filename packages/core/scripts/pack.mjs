@@ -39,7 +39,11 @@ try {
       !/^(?:src|test|fixtures|testing)$/.test(basename(path)) && !/\.test\.|\.map$/.test(path),
   });
   const sharedContracts = [
-    { bindings: ["import { timeUnit }", "import { when }"], source: "time", module: "time" },
+    {
+      bindings: ["import { inRange, timeUnit }", "import { timeUnit }", "import { when }"],
+      source: "time",
+      module: "time",
+    },
     { bindings: ["import { isStoppedFork }"], source: "stopped-forks", module: "stopped-forks" },
     {
       bindings: ["import type { ServiceHome }"],

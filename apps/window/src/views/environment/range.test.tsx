@@ -8,7 +8,9 @@ import recorded from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { navigate, parseRoute, setOpenSelection, useOpenSelection } from "../../app/navigation.js";
 import { mixedSnapshot } from "../../store/test-snapshot.js";
 import { createWatchStore } from "../../store/watch.js";
+import { activityView } from "./activity.js";
 import Environment from "./index.js";
+import { missedIn, rangeOf, within } from "./range.js";
 import { fixed, pctOf } from "./timeline.js";
 
 vi.hoisted(() => {
@@ -140,4 +142,60 @@ it("shows five forks until all are asked for, and counts only days with borrows"
   expect(container.querySelector('.env-day-heading[data-day="2026-11-06"] small')).toBeNull();
   await button("Fewer forks");
   expect(forks()).toBe(5);
+});
+
+it("draws and opens the days core projected, whatever the window's own zone", async () => {
+  process.env.TZ = "America/Chicago";
+  try {
+    await button("7 days");
+    const headings = [...container.querySelectorAll<HTMLElement>(".env-day-heading")];
+    expect(headings.map(({ dataset }) => [dataset.day, dataset.from])).toEqual(
+      env.days?.map(({ day, from }) => [day, from]),
+    );
+    expect(headings.at(-2)?.firstChild?.textContent).toBe("Thu 5");
+    await click('.env-day-heading[data-day="2026-11-05"]');
+    expect(title()).toBe("Thursday 5 Nov");
+    expect(find('[data-lane="upgrade"] .env-last').textContent).toBe(
+      "‹ v0.35.3 · Wed 4 Nov · green",
+    );
+  } finally {
+    process.env.TZ = "UTC";
+  }
+});
+
+it("gives a day what starts in it, never what starts at the next midnight", () => {
+  const nov5 = rangeOf(env, "2026-11-05");
+  const nov6 = rangeOf(env, "2026-11-06");
+  const midnight = "2026-11-06T00:00:00.000Z";
+  expect(within(nov5, midnight, "2026-11-06T00:30:00.000Z", to)).toBe(false);
+  expect(within(nov6, midnight, "2026-11-06T00:30:00.000Z", to)).toBe(true);
+  expect(within(nov5, "2026-11-05T23:30:00.000Z", midnight, to)).toBe(true);
+  expect(within(nov6, "2026-11-05T23:30:00.000Z", midnight, to)).toBe(false);
+  expect(within(nov6, env.to, undefined, to)).toBe(true);
+
+  const missed = structuredClone(env);
+  const smoke = missed.lanes.find(({ id }) => id === "smoke");
+  if (!smoke) throw new Error("The recorded week needs a smoke lane");
+  smoke.missed = [midnight];
+  const legend = (range: typeof nov5) =>
+    activityView(missed, range.from, range.to)?.legend.some(([mark]) => mark === "missed");
+  expect([missedIn(smoke, nov5, to), legend(nov5)]).toEqual([[], false]);
+  expect([missedIn(smoke, nov6, to), legend(nov6)]).toEqual([[midnight], true]);
+});
+
+it("adds the summary's parts up to the range's own rounded minutes", () => {
+  const start = to - 75_000;
+  const at = (seconds: number) => new Date(start + seconds * 1000).toISOString();
+  const short = structuredClone(env);
+  if (!short.activity) throw new Error("The recorded week needs an activity row");
+  short.borrows = [];
+  short.activity.segments = [
+    { kind: "borrowed", start: at(0), end: at(20), title: "search" },
+    { kind: "maintenance", start: at(20), end: at(50) },
+    { kind: "idle", start: at(50), end: at(75) },
+  ];
+  const parts = activityView(short, start, to)
+    ?.summary.filter(({ part }) => ["borrowed", "maintenance", "idle"].includes(part))
+    .map(({ part, text }) => [part, minutes(text)]);
+  expect(parts).toEqual([["maintenance", 1]]);
 });

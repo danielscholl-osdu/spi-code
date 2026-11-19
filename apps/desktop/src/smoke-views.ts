@@ -25,6 +25,7 @@ import {
   ENVIRONMENT_OVERLAP,
   ENVIRONMENT_WEEK,
   ENVIRONMENT_YESTERDAY,
+  environmentYesterdayUpgrade,
   smokeEnvironment,
 } from "./smoke-environment.js";
 import { captureForks } from "./smoke-forks.js";
@@ -1547,6 +1548,13 @@ export async function captureSmokeViews(
               window,
               `document.activeElement === document.querySelector(${JSON.stringify(ENVIRONMENT_BACK)})`,
               join(output, `environment-day-${viewportWidth}-${appearance}.png`),
+            );
+            const upgrade = await window.webContents.executeJavaScript(
+              environmentYesterdayUpgrade(snapshot),
+            );
+            assert(
+              upgrade === true,
+              `Environment yesterday at ${viewportWidth}: Upgrade reads ${JSON.stringify(upgrade)}, not core's last run for that day`,
             );
             await window.webContents.executeJavaScript('location.hash = "#environment"');
             await rendered(window, `!document.querySelector(${JSON.stringify(ENVIRONMENT_BACK)})`);

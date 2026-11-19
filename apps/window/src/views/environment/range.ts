@@ -1,9 +1,9 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { Environment, EnvLane } from "@spi-code/contracts";
+import { type Environment, type EnvLane, inRange } from "@spi-code/contracts";
 import type { EnvironmentRoute } from "../../app/navigation.js";
-import { dayLine } from "../../time.js";
+import { dateNames } from "../../time.js";
 
 export const WEEK = "7-days";
 
@@ -12,29 +12,24 @@ export type Day = { key: string; start: number; end: number };
 /** What the timeline draws: the last 24 hours, 7 days, or one day of them opened. */
 export type Range = { from: number; to: number; label: string; week?: true; day?: Day };
 
-const pad = (n: number) => String(n).padStart(2, "0");
-const keyOf = (at: Date) => `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
-
-/** The local days from the briefing's `from` to now, the last one ending at now. */
-export function daysOf(env: Pick<Environment, "from" | "to">): Day[] {
-  const from = Date.parse(env.from);
-  const to = Date.parse(env.to);
-  const days: Day[] = [];
-  for (let start = new Date(from); start.getTime() < to; ) {
-    const next = new Date(start);
-    next.setDate(next.getDate() + 1);
-    next.setHours(0, 0, 0, 0);
-    days.push({ key: keyOf(start), start: start.getTime(), end: Math.min(to, next.getTime()) });
-    start = next;
-  }
-  return days;
+/** The days core projected the range with, the last one ending at now. */
+export function daysOf(env: Pick<Environment, "days" | "to">): Day[] {
+  const days = env.days ?? [];
+  return days.map(({ day, from }, index) => ({
+    key: day,
+    start: Date.parse(from),
+    end: Date.parse(days[index + 1]?.from ?? env.to),
+  }));
 }
 
-export function rangeOf(env: Pick<Environment, "from" | "to">, range?: string): Range {
+/** A day's names read from its date, not from any zone: `Thu 12` and `Thursday 12 Nov`. */
+export const dayNames = ({ key }: Day) => dateNames(key);
+
+export function rangeOf(env: Pick<Environment, "from" | "to" | "days">, range?: string): Range {
   const to = Date.parse(env.to);
   if (range === WEEK) return { from: Date.parse(env.from), to, label: "Last 7 days", week: true };
   const day = range ? daysOf(env).find(({ key }) => key === range) : undefined;
-  if (day) return { from: day.start, to: day.end, label: dayLine(day.start), day };
+  if (day) return { from: day.start, to: day.end, label: dayNames(day).long, day };
   return { from: to - 86_400_000, to, label: "Last 24 hours" };
 }
 
@@ -51,6 +46,12 @@ export function lastOf(lane: EnvLane, range: Range) {
   );
 }
 
-/** The range includes [start, end]; an open end runs to `to`. */
-export const within = (range: Range, start: string, end: string | undefined, to: number) =>
-  Date.parse(start) <= range.to && (end ? Date.parse(end) : to) >= range.from;
+type Span = Pick<Range, "from" | "to">;
+
+/** The range holds [start, end); an open end runs to `to`, and a range ending at `to` is live. */
+export const within = (range: Span, start: string, end: string | undefined, to: number) =>
+  inRange(Date.parse(start), end ? Date.parse(end) : to, range.from, range.to, range.to >= to);
+
+/** The lane's missed slots the range draws. */
+export const missedIn = (lane: EnvLane, range: Span, to: number) =>
+  lane.missed?.filter((at) => within(range, at, at, to)) ?? [];

@@ -19,6 +19,7 @@ import {
   unreadSchema,
 } from "./panes.js";
 
+export { inRange } from "../time.js";
 export { type BriefFact, BriefFactSchema, type Tone, ToneSchema } from "./panes.js";
 
 /** In the system (forks, PRs, environment, template, releases), or coming from upstream GitLab. */
@@ -191,6 +192,8 @@ export const EnvironmentSchema = z.strictObject({
   lanes: z.array(EnvLaneSchema),
   from: ObservedAtSchema,
   to: ObservedAtSchema,
+  /** The local days of the 7-day range, by the zone that projected it, `from` first; each ends where the next starts. */
+  days: z.array(z.strictObject({ day: z.iso.date(), from: ObservedAtSchema })).optional(),
   note: z.string().optional(),
   status: EnvStatusSchema.optional(),
   line: z.string().optional(),

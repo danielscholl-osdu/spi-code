@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { timeUnit } from "@spi-code/contracts";
+import { inRange, timeUnit } from "@spi-code/contracts";
 import { when } from "@spi-code/contracts";
 import { HISTORY_DAYS, type LifecycleKind } from "../config.js";
 import type { CoreContext } from "../context.js";
@@ -63,15 +63,21 @@ export function environmentFrom(now: Date, context: CoreContext): number {
   return midnightOf(new Date(localDay - 6 * DAY).toISOString().slice(0, 10), dateKey);
 }
 
-/** The local midnights from `from` up to `to`, `from` first. */
-function dayStarts(from: number, to: number, context: CoreContext): number[] {
+/** The local dates from `from` up to `to` and the instant each starts, `from` first. */
+function localDays(from: number, to: number, context: CoreContext): { day: string; start: number }[] {
   const dateKey = dateKeyIn(context);
-  const starts = [from];
+  const days = [{ day: dateKey(from), start: from }];
   for (let day = Date.parse(dateKey(from)) + DAY; ; day += DAY) {
-    const start = midnightOf(new Date(day).toISOString().slice(0, 10), dateKey);
-    if (start >= to) return starts;
-    starts.push(start);
+    const key = new Date(day).toISOString().slice(0, 10);
+    const start = midnightOf(key, dateKey);
+    if (start >= to) return days;
+    days.push({ day: key, start });
   }
+}
+
+/** The days the 7-day range is drawn and opened by, so the window never reads them in its own zone. */
+export function environmentDays(from: number, now: Date, context: CoreContext): { day: string; from: string }[] {
+  return localDays(from, now.getTime(), context).map(({ day, start }) => ({ day, from: new Date(start).toISOString() }));
 }
 
 function result(state: DeploymentFact["state"]): EnvBorrow["result"] {
@@ -377,7 +383,7 @@ type LastRun = { text: string; note?: string; late?: true };
 type LaneLast = LastRun & { from: string; to: string };
 
 /**
- * A lane's newest run before `before` when none touches [before, to]. At now, Reset adds
+ * A lane's newest run before `before` when none falls in [before, to). At now, Reset adds
  * its age and Upgrade the release not yet adopted; a past day adds neither.
  */
 export function lastRun(
@@ -389,7 +395,7 @@ export function lastRun(
     const end = runEnd(viewRun(run));
     return end ? Date.parse(end) : to;
   };
-  if (runs.some((run) => endOf(run) >= before && Date.parse(run.createdAt) <= to)) return undefined;
+  if (runs.some((run) => inRange(Date.parse(run.createdAt), endOf(run), before, to, atNow))) return undefined;
   const run = runs.filter((item) => Date.parse(item.createdAt) < before).at(-1);
   if (!run) return undefined;
   const date = wallClock(Date.parse(run.createdAt), context.timeZone ?? "UTC").date;
@@ -418,7 +424,7 @@ export function laneRhythm(
   const crons = stack.schedules?.[kind];
   const rhythm = crons && (crons.length ? cadence(crons, now, context.timeZone ?? "UTC") : UNSCHEDULED[kind]);
   const last = lastRun(model, kind, to - DAY, to, true, context);
-  const days = dayStarts(from, to, context);
+  const days = localDays(from, to, context).map(({ start }) => start);
   const ranges: [number, number][] = [[from, to], ...days.map((start, index): [number, number] => [start, days[index + 1] ?? to])];
   const lasts = ranges.flatMap(([start, end]) => {
     const found = lastRun(model, kind, start, end, end === to, context);

@@ -3,8 +3,8 @@
 
 import type { EnvBorrow, Environment } from "@spi-code/contracts";
 import { type ComponentProps, type ReactNode, useState } from "react";
-import { clockTime, dayLine } from "../../time.js";
-import type { Day } from "./range.js";
+import { clockTime } from "../../time.js";
+import { type Day, dayNames } from "./range.js";
 import { eventWord, fixed, LABEL_PX, pctOf, span, TRACK_MIN_PX } from "./timeline.js";
 
 export function borrowWhen(borrow: EnvBorrow, now: number): string {
@@ -110,7 +110,7 @@ export function ForkDays({
                 ? `${own.length} ${own.length === 1 ? words.borrow : words.borrows}`
                 : String(own.length);
               const label = [
-                `${fork}, ${dayLine(day.start)}: ${count}`,
+                `${fork}, ${dayNames(day).long}: ${count}`,
                 failed ? `${failed} ${eventWord.failed}` : "",
                 running ? eventWord.running : "",
               ]
