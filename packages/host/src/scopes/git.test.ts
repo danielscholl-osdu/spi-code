@@ -860,7 +860,9 @@ describe("confined add and commit", () => {
             await writeFile(join(worktree, "answer.txt"), "changed");
             await plainGit(worktree, ...plain[label]);
             expect(await exists(canary.fired), `${kind}: plain ${label} runs it`).toBe(true);
-            await fixtureGit(worktree, "reset", "-q", "HEAD@{1}").catch(() => undefined);
+            expect(await fixtureGit(worktree, "ls-files", "--stage", "--", "sub")).toMatch(
+              /^160000 /u,
+            );
             await rm(canary.fired);
             await rm(canary.inside);
             await writeFile(join(worktree, "answer.txt"), "changed again");
