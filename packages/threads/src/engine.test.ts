@@ -76,6 +76,29 @@ it("passes the host's workspace, context and tools, journals deltas in order and
   database.close();
 });
 
+it("journals text through the redactor before a tool call and an approval request", async () => {
+  const { engine, turn, database } = harness();
+  const id = engine.create({ scope: "partition" });
+  const outcome = engine.send(id, { prompt: "Run checks" });
+  const { events, finish } = await turn();
+  const fake = "fake".repeat(5);
+  events.delta(`Checking token: ${fake}`);
+  events.toolStarted({ callId: "check", name: "check", kind: "command", arguments: {} });
+  events.delta(`Confirm password: ${fake}`);
+  void events.requestApproval({ approvalId: "edit", kind: "edit", detail: "Edit file" });
+  const journal = engine.eventsSince(id, 0).slice(-4);
+  expect(journal).toMatchObject([
+    { type: "assistant.delta", text: "Checking token: [redacted]" },
+    { type: "tool.started" },
+    { type: "assistant.delta", text: "Confirm password: [redacted]" },
+    { type: "approval.requested" },
+  ]);
+  expect(JSON.stringify(journal).includes(fake)).toBe(false);
+  finish();
+  await expect(outcome).resolves.toBe("completed");
+  database.close();
+});
+
 it("stops by operator request, releases approvals and ignores callbacks from the stopped turn", async () => {
   const { engine, turn, database } = harness();
   const id = engine.create({ scope: "partition" });
@@ -212,6 +235,12 @@ it("cancels interrupted work on disk once, leaves process fate unknown and start
       kind: "edit",
       detail: "edit file",
     });
+    const fakeBlock = `  ${"fixture".repeat(2400)}\n`;
+    running.events.delta("client-key-data: |\n");
+    running.events.delta(fakeBlock);
+    running.events.delta("After the block\n");
+    const unfinished = "x".repeat(16 * 1024);
+    running.events.delta(unfinished);
     void first.engine.send(id, { prompt: "Queued before crash" });
     first.database.close();
 
@@ -225,7 +254,7 @@ it("cancels interrupted work on disk once, leaves process fate unknown and start
       turns: [
         {
           outcome: "cancelled",
-          text: "Partial reply\n",
+          text: "Partial reply\nunfinished line[redacted]\nAfter the block\n",
           tools: [
             { end: { type: "tool.cancelled", reason: "restart", processState: "not known" } },
           ],

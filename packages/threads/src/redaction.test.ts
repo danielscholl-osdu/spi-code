@@ -30,13 +30,22 @@ const serviceBus = [
   "SharedAccessKeyName=fake-rule",
   `SharedAccess${"Key"}=${fakeKey}`,
 ].join(";");
-const privateKey = [
+const pem = [
   `-----BEGIN ${"OPENSSH PRIVATE KEY"}-----`,
-  "FAKE KEY MATERIAL FOR TESTS ONLY",
+  Buffer.from("FAKE KEY MATERIAL FOR TESTS ONLY").toString("base64"),
   `-----END ${"OPENSSH PRIVATE KEY"}-----`,
-].join("\r\n");
+];
+const privateKey = pem.join("\r\n");
 
-const modelCorpus = [
+type CorpusEntry = {
+  name: string;
+  secret: string;
+  before?: string;
+  after?: string;
+  replacement?: string;
+};
+
+const modelCorpus: CorpusEntry[] = [
   { name: "GitHub classic", secret: fakeGitHub },
   {
     name: "GitHub after an escaped newline",
@@ -57,8 +66,16 @@ const modelCorpus = [
   { name: "GitLab after an encoded equals", before: "%3D", secret: fakeGitLab },
   { name: "GitLab after a word prefix", before: "PREFIX_", secret: fakeGitLab },
   { name: "GitLab runner", secret: ["gl", "rt-", fakeToken].join("") },
-  { name: "Azure connection string", secret: connection },
-  { name: "Azure Service Bus connection string", secret: serviceBus },
+  {
+    name: "Azure connection string",
+    secret: connection,
+    replacement: connection.replace(fakeKey, marker),
+  },
+  {
+    name: "Azure Service Bus connection string",
+    secret: serviceBus,
+    replacement: serviceBus.replace(fakeKey, marker),
+  },
   {
     name: "Azure connection starting with AccountKey",
     before: "AccountKey=",
@@ -69,7 +86,7 @@ const modelCorpus = [
     name: "Azure connection starting with SharedAccessKey",
     before: "SharedAccessKey=",
     secret: fakeKey,
-    after: ";SharedAccessKeyName=fake-rule",
+    after: ";SharedAccessKeyName=fake-rule;Endpoint=sb://fake.example/",
   },
   {
     name: "kubeconfig client key",
@@ -99,6 +116,12 @@ const modelCorpus = [
   },
   { name: "bearer header", before: "Authorization: bEaReR  ", secret: fakeToken },
   { name: "private key", secret: privateKey },
+  { name: "private key missing its footer", secret: pem.slice(0, 2).join("\n") },
+  { name: "private key on one line", secret: pem.join(" ") },
+  {
+    name: "private key with double-escaped line breaks",
+    secret: JSON.stringify(JSON.stringify(privateKey).slice(1, -1)).slice(1, -1),
+  },
   { name: "private key with escaped line breaks", secret: JSON.stringify(privateKey).slice(1, -1) },
   { name: "host value", secret: knownSecret },
   { name: "Basic header", before: "Authorization: Basic ", secret: `${fakeOpaque}=` },
@@ -109,6 +132,24 @@ const modelCorpus = [
     after: '"',
   },
   { name: "Token header", before: "Authorization: Token ", secret: fakeOpaque },
+  { name: "Authorization assignment", before: "Authorization=Bearer ", secret: fakeToken },
+  {
+    name: "Authorization inside escaped JSON",
+    before: String.raw`{\"Authorization\": \"Bearer `,
+    secret: fakeToken,
+    after: String.raw`\"}`,
+  },
+  {
+    name: "flow-style kubeconfig token",
+    before: "user: {token: ",
+    secret: fakeToken,
+    after: ", username: fake-user}",
+  },
+  {
+    name: "signature inside a connection string",
+    before: "AccountName=fakeaccount;sig=",
+    secret: fakeOpaque,
+  },
   {
     name: "Azure SAS signature",
     before: "?sv=2025-01-01&sig=",
@@ -117,8 +158,22 @@ const modelCorpus = [
   },
 ];
 
-const journalCorpus = [
-  ...modelCorpus.filter(({ name }) => name !== "host value"),
+const journalCorpus: CorpusEntry[] = [
+  ...modelCorpus
+    .filter(
+      ({ name }) =>
+        ![
+          "host value",
+          "Authorization inside escaped JSON",
+          "flow-style kubeconfig token",
+          "signature inside a connection string",
+        ].includes(name),
+    )
+    .map((entry) =>
+      entry.secret === connection || entry.secret === serviceBus
+        ? { ...entry, replacement: marker }
+        : entry,
+    ),
   {
     name: "Azure shared signature connection string",
     secret: [
@@ -241,6 +296,22 @@ const prefixes = [
   { name: "timestamp", line: (n: number) => `2026-01-01T12:34:0${n}.123Z ` },
 ];
 
+it.each(prefixes)("redacts a PEM excerpt after $name", ({ line }) => {
+  const formatted = (lines: string[]) =>
+    lines.map((content, index) => line(index + 1) + content).join("\n");
+  for (const lines of [pem, pem.slice(0, 2)]) {
+    const raw = `${formatted(lines)}\nplain output`;
+    const expected = `${line(1)}${marker}\nplain output`;
+    expect(modelOutputRedactor.value({ result: raw, error: raw })).toEqual({
+      result: expected,
+      error: expected,
+    });
+    for (let split = 1; split < raw.length; split++) {
+      expect(modelOutputRedactor.chunks([raw.slice(0, split), raw.slice(split)])).toBe(expected);
+    }
+  }
+});
+
 it.each(
   prefixes.flatMap((prefix) => [
     { ...prefix, newline: "LF", eol: "\n" },
@@ -302,6 +373,27 @@ it.each([
   "~~~pem\n-----BEGIN PRIVATE KEY-----\n~~~",
   "PEM delimiters: -----BEGIN PRIVATE KEY----- and -----END PRIVATE KEY-----",
   "const token = await getToken();",
+  "const sig = sign(payload);",
+  "accountKey = props.accountKey",
+  'let sig = ""',
+  `sig=${fakeOpaque}`,
+  `AccountKey=${fakeKey};Unrelated=fixture`,
+  `SharedAccessKey=${fakeKey};SharedAccessKeyName=fixture`,
+  `AccountName=fixture;accountKey=${fakeKey}`,
+  `AccountKey=${fakeKey};accountname=fixture`,
+  `AccountName=fixture;AccountKey =${fakeKey}`,
+  `AccountName=fixture;AccountKey= ${fakeKey}`,
+  `?Sig=${fakeOpaque}&sig =${fakeOpaque}&sig= ${fakeOpaque}`,
+  "- user:\n    token: string\n    client-key-data: string",
+  ...["...", "{token}", "<placeholder>", `\${KEY}`, "$TOKEN", "$TOKEN$", "short"].flatMap(
+    (value) => [
+      `Authorization: Bearer ${value}`,
+      `Authorization: "Basic ${value}"`,
+      `AccountName=fixture;AccountKey=${value};EndpointSuffix=example.com`,
+      `?sig=${value}&after=fixture`,
+      `-----BEGIN PRIVATE KEY-----\n${value}\n-----END PRIVATE KEY-----`,
+    ],
+  ),
   "apiKey: props.apiKey,",
   "password: true",
   `token: \${{ secrets.X }}`,
@@ -424,6 +516,11 @@ it("preserves clean output byte for byte and redacts credential fields and keys 
   };
   expect(modelOutputRedactor.value(structured)).toEqual(redacted);
   expect(modelOutputRedactor.value(redacted)).toEqual(redacted);
+  const placeholders = {
+    user: { token: "string", "client-key-data": `\${KEY}` },
+    Authorization: "Bearer {token}",
+  };
+  expect(modelOutputRedactor.value(placeholders)).toEqual(placeholders);
 });
 
 it.each([{ mode: "default" }, { mode: "host supplied" }])(
@@ -557,6 +654,30 @@ it.each([{ mode: "default" }, { mode: "host supplied" }])(
   },
 );
 
+it.each([
+  { header: pem[0], body: pem[1], end: pem[2], redacted: marker },
+  { header: "token: |", body: "  fake block body", end: "", redacted: `token: |\n  ${marker}` },
+  {
+    header: "- user:",
+    body: "    token: fake-token",
+    end: "",
+    redacted: `- user:\n    token: ${marker}`,
+  },
+])("resumes assistant streaming after $header", ({ header, body, end, redacted }) => {
+  const journal = createToolOutputRedactor(["fake host part one\nfake host part two"]).journal;
+  const stream = journal.assistantText();
+  const visible = [
+    stream.push(`${header}\n`),
+    stream.push(`${body}\n`),
+    stream.push(`${end ? `${end}\n` : ""}visible after the block\nunfinished`),
+  ].join("");
+  expect(visible).toBe(`${redacted}\nvisible after the block\n`);
+
+  const multiline = journal.assistantText();
+  expect(multiline.push("visible before\nfake host part one\n")).toBe("visible before\n");
+  expect(multiline.push("fake host part two\nvisible after\n")).toBe(`${marker}\nvisible after\n`);
+});
+
 it.each([undefined, "fake host part one\r\nfake host part two"])(
   "flushes split multiline assistant secrets on shutdown with host value %s",
   async (hostValue) => {
@@ -595,7 +716,7 @@ it.each([undefined, "fake host part one\r\nfake host part two"])(
       const id = engine.create({ scope: "partition" });
       const outcome = engine.send(id, { prompt: "Run fixtures" });
       await ready;
-      expect(engine.read(id).turns[0]?.text).toBe("");
+      expect(engine.read(id).turns[0]?.text).toContain(`${marker}\r\n`);
       await engine.shutdown();
       await expect(outcome).resolves.toBe("cancelled");
       expect(engine.read(id).turns[0]?.text).toBe(

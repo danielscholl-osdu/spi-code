@@ -337,7 +337,7 @@ export class ThreadEngine<Tool> {
 
   private finishEntries({ assistant, turn }: RunningTurn, end: TurnEnd): JournalEntry[] {
     const entries = finishTurn(turn, end);
-    const text = assistant.remaining();
+    const text = assistant.flush();
     if (text) entries.unshift({ type: "assistant.delta", turnId: turn.id, text });
     return entries;
   }
@@ -362,6 +362,11 @@ export class ThreadEngine<Tool> {
     const requestedApprovals = new Set<string>();
     const safeId = (runtimeId: string) =>
       this.redactor.text(runtimeId) === runtimeId ? runtimeId : randomUUID();
+    const recordAfterAssistant = (entry: JournalEntry) => {
+      const text = assistant.flush();
+      const entries: JournalEntry[] = text ? [{ type: "assistant.delta", turnId, text }] : [];
+      this.record(id, [...entries, entry]);
+    };
     return {
       delta: (delta) => {
         if (!live() || !delta) return;
@@ -374,16 +379,14 @@ export class ThreadEngine<Tool> {
         const callId = turn.tools.some(({ start }) => start.callId === candidate)
           ? randomUUID()
           : candidate;
-        this.record(id, [
-          {
-            type: "tool.started",
-            turnId,
-            callId,
-            name: this.redactor.text(name),
-            kind,
-            arguments: this.redactor.value(args),
-          },
-        ]);
+        recordAfterAssistant({
+          type: "tool.started",
+          turnId,
+          callId,
+          name: this.redactor.text(name),
+          kind,
+          arguments: this.redactor.value(args),
+        });
         calls.set(runtimeId, callId);
       },
       toolFinished: (completion) => {
@@ -415,15 +418,13 @@ export class ThreadEngine<Tool> {
         const approvalId = turn.approvals.some(({ request }) => request.approvalId === candidate)
           ? randomUUID()
           : candidate;
-        this.record(id, [
-          {
-            type: "approval.requested",
-            turnId,
-            approvalId,
-            kind: this.redactor.text(kind),
-            detail: this.redactor.text(detail),
-          },
-        ]);
+        recordAfterAssistant({
+          type: "approval.requested",
+          turnId,
+          approvalId,
+          kind: this.redactor.text(kind),
+          detail: this.redactor.text(detail),
+        });
         requestedApprovals.add(runtimeId);
         return new Promise((resolve) => approvals.set(approvalId, resolve));
       },
