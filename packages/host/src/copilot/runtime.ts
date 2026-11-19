@@ -34,6 +34,12 @@ export const tokenLifetimeSeconds = 60;
 const threadClientIdleMs = 30_000;
 export type TokenSource = () => Promise<string>;
 export type ModelCatalog = Awaited<ReturnType<CopilotClient["rpc"]["models"]["list"]>>;
+type AccountQuota = Awaited<ReturnType<CopilotClient["rpc"]["account"]["getQuota"]>>;
+export type RuntimeModelCatalog = {
+  catalog: ModelCatalog;
+  login: string | undefined;
+  premium: AccountQuota["quotaSnapshots"][string];
+};
 const sessionTokens = new WeakMap<
   CopilotSession,
   { initial: ReadonlySet<string>; current: ReadonlySet<string> }
@@ -339,6 +345,22 @@ export class CopilotRuntime {
     return this.serialize(async () => {
       const { client, token } = await this.acquire();
       return listModelsWithToken(client, token);
+    });
+  }
+
+  listModelCatalog(): Promise<RuntimeModelCatalog> {
+    return this.serialize(async () => {
+      const { client, token } = await this.acquire();
+      const [catalog, account, quota] = await Promise.all([
+        listModelsWithToken(client, token),
+        client.getAuthStatus().catch(() => undefined),
+        client.rpc.account.getQuota({ gitHubToken: token }).catch(() => undefined),
+      ]);
+      return {
+        catalog,
+        login: account?.login,
+        premium: quota?.quotaSnapshots.premium_interactions,
+      };
     });
   }
 

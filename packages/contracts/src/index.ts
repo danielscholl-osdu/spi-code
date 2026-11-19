@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { z } from "zod";
-import { ThreadMessageSchema } from "./threads.js";
+import { ModelCatalogSchema, ThreadMessageSchema } from "./threads.js";
 import { PROTOCOL_VERSION, WatchMessageSchema } from "./watch/messages.js";
 
 export * from "./threads.js";
@@ -61,9 +61,7 @@ export const MessageSchema = z.discriminatedUnion("type", [
     ...envelope,
     kind: z.literal("response"),
     type: z.literal("models.result"),
-    payload: z.strictObject({
-      models: z.array(z.strictObject({ id: identifier, name: identifier })),
-    }),
+    payload: ModelCatalogSchema,
   }),
   z.strictObject({
     ...envelope,

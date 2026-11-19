@@ -128,3 +128,38 @@ export const ThreadMessageSchema = z.discriminatedUnion("type", [
     threadId.extend({ events: z.array(ThreadEventSchema) }).strict(),
   ),
 ]);
+
+export const ModelCatalogSchema = z.strictObject({
+  models: z.array(
+    z.strictObject({
+      id,
+      name: id,
+      multiplier: z.union([z.number().nonnegative(), unknown]).optional(),
+      reasoning: z
+        .strictObject({
+          supported: z.union([z.boolean(), unknown]),
+          levels: z.union([z.array(id), unknown]),
+          defaultLevel: z.union([id, unknown]),
+        })
+        .optional(),
+      policy: z
+        .strictObject({
+          state: z.enum(["enabled", "disabled", "unconfigured", "not known"]),
+          reason: z.union([id, unknown]),
+        })
+        .optional(),
+    }),
+  ),
+  account: z.union([z.strictObject({ login: id }), unknown]).optional(),
+  usage: z
+    .union([
+      z.strictObject({
+        used: z.union([z.number().nonnegative(), unknown]),
+        entitlement: z.union([z.number().nonnegative(), z.literal("unlimited"), unknown]),
+        resetAt: z.union([z.iso.datetime({ offset: true }), unknown]),
+      }),
+      unknown,
+    ])
+    .optional(),
+});
+export type ModelCatalogResult = z.infer<typeof ModelCatalogSchema>;

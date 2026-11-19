@@ -53,7 +53,7 @@ function fakeBackend(): ConversationBackend {
   return {
     mode: "gh",
     generation: 1,
-    models: vi.fn(async () => [{ id: "stub", name: "Stub" }]),
+    models: vi.fn(async () => ({ models: [{ id: "stub", name: "Stub" }] })),
     turn: vi.fn(async (_model, _prompt, delta) => {
       delta("OK");
     }),
@@ -98,7 +98,7 @@ it("never forwards credential-bearing errors and terminates a failed turn explic
 
 it("does not dispatch a model absent from the current catalog", async () => {
   const backend = fakeBackend();
-  backend.models = vi.fn(async () => []);
+  backend.models = vi.fn(async () => ({ models: [] }));
   const send = vi.fn();
   await conversationHandler(backend, send)(turn);
   expect(backend.turn).not.toHaveBeenCalled();
@@ -182,4 +182,76 @@ it("rejects a stub state that claims gh authentication", () => {
       payload: { mode: "stub", signedIn: true },
     }).ok,
   ).toBe(false);
+});
+
+it("returns the recorded Copilot picker fields over the model list contract", async () => {
+  const { projectCatalog } = await import("../threads/catalog.js");
+  const backend = fakeBackend();
+  const capabilities = {
+    supports: { reasoningEffort: true },
+    limits: { max_context_window_tokens: 1000 },
+  };
+  backend.models = async () =>
+    projectCatalog({
+      catalog: {
+        models: [
+          {
+            id: "reasoning",
+            name: "Reasoning",
+            capabilities,
+            billing: { multiplier: 2 },
+            supportedReasoningEfforts: ["low", "high"],
+            defaultReasoningEffort: "high",
+            policy: { state: "disabled", terms: "Enable this model in GitHub settings." },
+          },
+          {
+            id: "reported",
+            name: "Reported",
+            capabilities: { ...capabilities, supports: {} },
+          },
+        ],
+      },
+      login: "recorded-account",
+      premium: {
+        isUnlimitedEntitlement: false,
+        entitlementRequests: 300,
+        usedRequests: 42,
+        usageAllowedWithExhaustedQuota: false,
+        remainingPercentage: 86,
+        overage: 0,
+        overageAllowedWithExhaustedQuota: false,
+      },
+    });
+  const messages: Message[] = [];
+  await conversationHandler(backend, (message) => messages.push(message))(list);
+  const picker = messages.find((message) => message.type === "models.result");
+  expect(parseMessage(picker)).toEqual({
+    ok: true,
+    message: {
+      version: PROTOCOL_VERSION,
+      id: "list",
+      kind: "response",
+      type: "models.result",
+      payload: {
+        models: [
+          {
+            id: "reasoning",
+            name: "Reasoning",
+            multiplier: 2,
+            reasoning: { supported: true, levels: ["low", "high"], defaultLevel: "high" },
+            policy: { state: "disabled", reason: "Enable this model in GitHub settings." },
+          },
+          {
+            id: "reported",
+            name: "Reported",
+            multiplier: "not known",
+            reasoning: { supported: "not known", levels: "not known", defaultLevel: "not known" },
+            policy: { state: "not known", reason: "not known" },
+          },
+        ],
+        account: { login: "recorded-account" },
+        usage: { used: 42, entitlement: 300, resetAt: "not known" },
+      },
+    },
+  });
 });

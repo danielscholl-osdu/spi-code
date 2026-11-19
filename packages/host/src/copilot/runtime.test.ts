@@ -46,7 +46,11 @@ vi.mock("@github/copilot-sdk", () => ({
     stop = fake.stop;
     createSession = fake.createSession;
     resumeSession = fake.resumeSession;
-    rpc = { models: { list: fake.list } };
+    getAuthStatus = async () => ({ isAuthenticated: true });
+    rpc = {
+      models: { list: fake.list },
+      account: { getQuota: async () => ({ quotaSnapshots: {} }) },
+    };
   },
 }));
 
@@ -207,7 +211,11 @@ describe("Copilot runtime boundary", () => {
         });
         const backend = await createConversationBackend(appDataDir, false, () => {}, tools);
         try {
-          expect(await backend.models()).toEqual([]);
+          expect(await backend.models()).toEqual({
+            models: [],
+            account: "not known",
+            usage: "not known",
+          });
           expect(fake.configs.at(-1)?.gitHubToken).toBe(token);
           expect(fake.configs.at(-1)?.env?.PATH?.split(delimiter)).toEqual([bin]);
         } finally {

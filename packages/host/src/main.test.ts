@@ -103,7 +103,7 @@ it("serializes backend startup and in-flight turns across reloads with correct e
   const backend: ConversationBackend = {
     mode: "stub",
     generation: 1,
-    models: async () => [{ id: "stub", name: "Stub" }],
+    models: async () => ({ models: [{ id: "stub", name: "Stub" }] }),
     endSession() {},
     stop: async () => {},
     async turn(_model, prompt, delta) {
@@ -670,7 +670,7 @@ it("the composed turn registration holds models.list on the shared queue", async
   const blocked = new Promise<void>((resolve) => {
     release = resolve;
   });
-  const models = vi.fn(async () => [{ id: "stub", name: "Stub" }]);
+  const models = vi.fn(async () => ({ models: [{ id: "stub", name: "Stub" }] }));
   const turn = vi.fn(async () => {
     await blocked;
   });
@@ -782,7 +782,7 @@ it("SIGTERM stops setup before the backend and closes the store once", async () 
   mocks.createBackend.mockResolvedValue({
     mode: "stub",
     generation: 1,
-    models: async () => [{ id: "stub", name: "Stub" }],
+    models: async () => ({ models: [{ id: "stub", name: "Stub" }] }),
     turn: async () => {},
     endSession() {},
     stop: backendStop,
@@ -853,7 +853,7 @@ it("tags detached tool callbacks with their active turn and logs callbacks with 
     return {
       mode: "stub",
       generation: 1,
-      models: async () => [{ id: "stub", name: "Stub" }],
+      models: async () => ({ models: [{ id: "stub", name: "Stub" }] }),
       turn,
       endSession() {},
       stop: async () => {},
@@ -894,7 +894,7 @@ it("answers a backend startup failure with host_failed and retries the next seri
   mocks.createBackend.mockRejectedValueOnce(new Error("private startup detail")).mockResolvedValue({
     mode: "stub",
     generation: 1,
-    models: async () => [{ id: "stub", name: "Stub" }],
+    models: async () => ({ models: [{ id: "stub", name: "Stub" }] }),
     turn: async () => {},
     endSession() {},
     stop: async () => {},
@@ -933,7 +933,7 @@ it("stop waits for an already-started backend and never starts a queued turn", a
   const backend: ConversationBackend = {
     mode: "stub",
     generation: 1,
-    models: async () => [{ id: "stub", name: "Stub" }],
+    models: async () => ({ models: [{ id: "stub", name: "Stub" }] }),
     turn,
     endSession() {},
     stop: backendStop,
@@ -976,7 +976,7 @@ it("SIGTERM aborts a live turn before waiting for the request queue", async () =
   mocks.createBackend.mockResolvedValue({
     mode: "stub",
     generation: 1,
-    models: async () => [{ id: "stub", name: "Stub" }],
+    models: async () => ({ models: [{ id: "stub", name: "Stub" }] }),
     turn,
     endSession() {},
     stop: backendStop,
@@ -1010,7 +1010,7 @@ it("stop prevents an in-flight turn startup from calling models or turn", async 
   const startup = new Promise<ConversationBackend>((resolve) => {
     finishStartup = resolve;
   });
-  const models = vi.fn(async () => [{ id: "stub", name: "Stub" }]);
+  const models = vi.fn(async () => ({ models: [{ id: "stub", name: "Stub" }] }));
   const turn = vi.fn(async () => {});
   const backendStop = vi.fn(async () => {});
   const backend: ConversationBackend = {
@@ -1062,7 +1062,7 @@ it("SIGTERM during models exits without starting a turn on the stopped backend",
   });
   const models = vi.fn(async () => {
     await heldModels;
-    return [{ id: "stub", name: "Stub" }];
+    return { models: [{ id: "stub", name: "Stub" }] };
   });
   const turn = vi.fn(() => heldTurn);
   const backendStop = vi.fn(async () => {
@@ -1118,7 +1118,7 @@ it("SIGTERM exits within 2000 ms while a backend turn is blocked on an internal 
   mocks.createBackend.mockResolvedValue({
     mode: "stub",
     generation: 1,
-    models: async () => [{ id: "stub", name: "Stub" }],
+    models: async () => ({ models: [{ id: "stub", name: "Stub" }] }),
     turn,
     endSession() {},
     stop: backendStop,
@@ -1154,7 +1154,7 @@ it("the guarded turn settles and drains queued work before the backend turn retu
   const heldTurn = new Promise<void>((resolve) => {
     release = resolve;
   });
-  const models = vi.fn(async () => [{ id: "stub", name: "Stub" }]);
+  const models = vi.fn(async () => ({ models: [{ id: "stub", name: "Stub" }] }));
   const turn = vi.fn(() => heldTurn);
   mocks.createBackend.mockResolvedValue({
     mode: "stub",
@@ -1233,7 +1233,7 @@ it("drops a backend delta after stop answered its turn", async () => {
   mocks.createBackend.mockResolvedValue({
     mode: "stub",
     generation: 1,
-    models: async () => [{ id: "stub", name: "Stub" }],
+    models: async () => ({ models: [{ id: "stub", name: "Stub" }] }),
     turn,
     endSession() {},
     stop: async () => {},

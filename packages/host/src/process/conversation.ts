@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: MIT
 
 import type { CopilotSession } from "@github/copilot-sdk";
-import { type Message, PROTOCOL_VERSION } from "@spi-code/contracts";
+import { type Message, type ModelCatalogResult, PROTOCOL_VERSION } from "@spi-code/contracts";
 import { registrySource } from "../copilot/registry-source.js";
 import { CopilotRuntime, type RuntimeOptions, streamTurn } from "../copilot/runtime.js";
 import { captureLoginShellPath } from "../env/shell-environment.js";
 import { FakeSession } from "../testing/fake-session.js";
+import { projectCatalog } from "../threads/catalog.js";
 import { ToolRefusedError } from "../tools/registry.js";
 import { APPENDIX_A_TOOLS } from "../tools/tool-names.js";
 
 export interface ConversationBackend {
   readonly mode: "gh" | "stub";
   readonly generation: number;
-  models(): Promise<{ id: string; name: string }[]>;
+  models(): Promise<ModelCatalogResult>;
   turn(model: string, prompt: string, delta: (text: string) => void): Promise<void>;
   endSession(): void;
   stop(): Promise<void>;
@@ -31,7 +32,7 @@ export async function createConversationBackend(
     return {
       mode: "stub",
       generation: 1,
-      models: async () => [{ id: "stub", name: "Stub model (no Copilot seat)" }],
+      models: async () => ({ models: [{ id: "stub", name: "Stub model (no Copilot seat)" }] }),
       endSession() {},
       stop: async () => {},
       async turn(_model, _prompt, delta) {
@@ -85,7 +86,7 @@ export async function createConversationBackend(
     get generation() {
       return runtime.clientGeneration;
     },
-    models: async () => (await runtime.listModels()).models.map(({ id, name }) => ({ id, name })),
+    models: async () => projectCatalog(await runtime.listModelCatalog()),
     endSession() {
       session = undefined;
       sessionModel = undefined;
@@ -138,11 +139,11 @@ export function conversationHandler(
         ...envelope,
         kind: "response",
         type: "models.result",
-        payload: { models },
+        payload: models,
       });
       if (message.type === "turn.start") {
         failureMessage = "The selected model is no longer available. Refresh models and retry.";
-        if (!models.some(({ id }) => id === message.payload.modelId))
+        if (!models.models.some(({ id }) => id === message.payload.modelId))
           throw new Error("Requested model is not in the current catalog");
         failureMessage = "Copilot turn failed. Retry the turn.";
         hasSession = true;
