@@ -3,7 +3,9 @@
 
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { constants } from "node:fs";
 import {
+  access,
   cp,
   mkdir,
   mkdtemp,
@@ -20,6 +22,25 @@ import { fileURLToPath } from "node:url";
 import { generateNotices } from "./third-party-notices.mjs";
 
 const runtimePackages = ["contracts", "core", "tools", "host"];
+
+const mxcBin = "node_modules/@microsoft/mxc-sdk/bin";
+const mxcTargets = {
+  darwin: { arch: "arm64", files: ["libmxc_ffi.dylib", "mxc-exec-mac"] },
+  win32: {
+    arch: "x64",
+    files: [
+      "mxc-diagnostic-console.exe",
+      "mxc-wslc-gateway.tar",
+      "mxc_ffi.dll",
+      "wslcsdk.dll",
+      "wxc-exec.exe",
+      "wxc-test-proxy.exe",
+      "wxc-windows-sandbox-daemon.exe",
+      "wxc-windows-sandbox-guest.exe",
+      "wxc-wslc-daemon.exe",
+    ],
+  },
+};
 
 /** @param {NodeJS.ProcessEnv} inherited */
 export function packagingEnvironment(inherited) {
@@ -95,6 +116,25 @@ export function assertRuntimeEvidence(
     (platform === "darwin" && arch === "arm64") || (platform === "win32" && arch === "x64"),
     "Unsupported packaged runtime platform",
   );
+  assert(
+    typeof runtime.nodeVersion === "string" && /^\d+\.\d+\.\d+$/.test(runtime.nodeVersion),
+    "Missing Node version from the packaged host",
+  );
+  if (platform === "darwin") {
+    assert.deepEqual(
+      runtime.confinement,
+      { ok: true, data: "spi-code-packaged-mxc\n", afterExit: "not-known" },
+      "The packaged host must run a proven confined command",
+    );
+  } else {
+    const { error, ...result } = record(runtime.confinement);
+    assert.deepEqual(
+      result,
+      { ok: false, refused: "unsupported-platform", code: null },
+      "The packaged host must refuse confined commands on Windows",
+    );
+    assert(typeof error === "string" && error.length > 0, "Missing confinement refusal message");
+  }
   const target = `${platform}-${arch}`;
   const expected = (platform === "win32" ? win32.join : posix.join)(
     resources,
@@ -130,6 +170,40 @@ function pnpm(args, options) {
 function record(value) {
   assert(value && typeof value === "object" && !Array.isArray(value), "Expected a report object");
   return /** @type {Record<string, unknown>} */ (value);
+}
+
+/** @param {string} stage @param {keyof typeof mxcTargets} platform */
+export async function stageMxcBinaries(stage, platform) {
+  const { arch, files } = mxcTargets[platform];
+  const bin = join(stage, mxcBin);
+  const native = join(bin, arch);
+  for (const file of files) {
+    assert((await stat(join(native, file))).isFile(), `Missing MXC binary: ${arch}/${file}`);
+  }
+  for (const name of await readdir(bin)) {
+    if (name !== arch) await rm(join(bin, name), { recursive: true });
+  }
+  for (const name of await readdir(native)) {
+    if (!files.includes(name)) await rm(join(native, name), { recursive: true });
+  }
+}
+
+/** @param {string} resources @param {keyof typeof mxcTargets} platform */
+async function assertPackagedMxc(resources, platform) {
+  const { arch, files } = mxcTargets[platform];
+  const bin = join(resources, "app.asar.unpacked", mxcBin);
+  assert.deepEqual(
+    await readdir(bin),
+    [arch],
+    "Packaged MXC must have only the target architecture",
+  );
+  const native = join(bin, arch);
+  assert.deepEqual(
+    (await readdir(native)).sort(),
+    [...files].sort(),
+    "Wrong packaged MXC binaries",
+  );
+  if (platform === "darwin") await access(join(native, "mxc-exec-mac"), constants.X_OK);
 }
 
 /** @param {string} root @param {string} stage */
@@ -236,6 +310,7 @@ export async function packageDesktop(platform = process.platform) {
     });
     await stageWorkspace(root, stage);
     process.stdout.write(installProductionDependencies(stage, env));
+    await stageMxcBinaries(stage, platform);
     const desktop = /** @type {Manifest} */ (
       await readJson(join(root, "apps/desktop/package.json"))
     );
@@ -352,6 +427,7 @@ export async function packageDesktop(platform = process.platform) {
     }
     const bundle = windows ? extracted : join(extracted, "SPI Code.app/Contents");
     const resources = join(bundle, windows ? "resources" : "Resources");
+    await assertPackagedMxc(resources, platform);
     const reportPath = join(output, "smoke.json");
     const runtimeReportPath = join(output, "runtime.json");
     for (const path of [reportPath, runtimeReportPath]) await rm(path, { force: true });

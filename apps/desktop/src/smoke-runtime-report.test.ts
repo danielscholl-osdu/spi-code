@@ -31,11 +31,14 @@ it("waits for a file and fails when it never appears", async () => {
   await expect(waitForFile(join(dir, "missing.json"), 150)).rejects.toThrow("Timed out");
 });
 
-it("publishes a passing listener check atomically and hands it to the desktop", async () => {
-  const listenerCheck = { runtimePids: [7], listeners: [] };
+it("publishes runtime probe evidence atomically and hands it to the desktop", async () => {
+  const evidence = {
+    listenerCheck: { runtimePids: [7], listeners: [] },
+    confinement: { ok: false, refused: "unsupported-platform", code: null },
+  };
   const desktop = waitForRuntimeReport(report, 5000);
-  await publishRuntimeProbe(report, handshake, async () => listenerCheck);
-  await expect(desktop).resolves.toEqual({ ...handshake, listenerCheck });
+  await publishRuntimeProbe(report, handshake, async () => evidence);
+  await expect(desktop).resolves.toEqual({ ...handshake, ...evidence });
   expect(existsSync(`${report}.partial`)).toBe(false);
 });
 
@@ -112,7 +115,7 @@ it("rejects with the report's error, not the process-tree error, once the failed
 });
 
 it("scans after a passing report, and without a report outside the packaged app", async () => {
-  await publishRuntimeProbe(report, handshake, async () => ({ listeners: [] }));
+  await publishRuntimeProbe(report, handshake, async () => ({ listenerCheck: { listeners: [] } }));
   const scan = vi.fn(async () => "scanned");
   await expect(scanAfterRuntimeReport(report, 5000, scan)).resolves.toBe("scanned");
   await expect(scanAfterRuntimeReport(undefined, 5000, scan)).resolves.toBe("scanned");

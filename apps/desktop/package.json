@@ -28,7 +28,8 @@
     "productName": "SPI Code",
     "asar": true,
     "asarUnpack": [
-      "node_modules/@github/copilot-sdk-*/prebuilds/**/*"
+      "node_modules/@github/copilot-sdk-*/prebuilds/**/*",
+      "node_modules/@microsoft/mxc-sdk/bin/**/*"
     ],
     "npmRebuild": false,
     "extraResources": [
