@@ -642,10 +642,8 @@ describe("privileged Git", () => {
         ? T[keyof T]
         : never;
     // add's paths are validated worktree paths, never options.
-    type Input = Exclude<
-      Inputs<PrivilegedGit[keyof PrivilegedGit]>,
-      Parameters<PrivilegedGit["add"]>[1]
-    >;
+    type Add = Parameters<PrivilegedGit["add"]>;
+    type Input = Inputs<PrivilegedGit[Exclude<keyof PrivilegedGit, "add">]> | Add[0] | Add[2];
     type Lists = Extract<Input | Fields<Input> | Fields<Fields<Input>>, readonly unknown[]>;
     const noLists: [Lists] extends [never] ? true : false = true;
     type Variadic = {
@@ -709,6 +707,8 @@ describe("privileged Git", () => {
 });
 
 const macOnly = process.platform !== "darwin";
+const cleaned =
+  /^(GIT_[A-Z_]+|HOME|USERPROFILE|XDG_CONFIG_HOME|TMPDIR|TMP|TEMP|LC_ALL|PATH|PWD|SHLVL|SSH_ASKPASS|_)$/u;
 
 interface Canary {
   readonly target: WorktreeTarget;
@@ -761,6 +761,7 @@ async function plantCanary(git: PrivilegedGit, kind: "fsmonitor" | "filter"): Pr
       `printf ran > ${shellQuote(canary.inside)}`,
       `printf ran > ${shellQuote(canary.fired)}`,
       '[ -n "$SPI_PLAIN" ] && exit 0',
+      `env | cut -d= -f1 | sort -u > ${shellQuote(`${canary.inside}-env`)}`,
       `printf ran > ${shellQuote(canary.home)}`,
       ...canary.protectedFiles.map((file) => `printf x >> ${shellQuote(file)}`),
       `mkdir ${shellQuote(join(workspace.gitDirectory, "hooks"))}`,
@@ -869,6 +870,9 @@ describe("confined add and commit", () => {
             const result = await operation(git, canary);
             expect(result).toMatchObject({ ok: true, afterExit: "not-known" });
             expect(await exists(canary.inside), "the program ran inside the sandbox").toBe(true);
+            const names = (await readFile(`${canary.inside}-env`, "utf8")).split("\n");
+            expect(names).toEqual(expect.arrayContaining(["GIT_CONFIG_NOSYSTEM", "HOME", "PATH"]));
+            expect(names.filter((name) => name && !cleaned.test(name))).toEqual([]);
             expect(await exists(canary.fired)).toBe(false);
             expect(await exists(canary.home)).toBe(false);
             expect(await snapshot(canary)).toEqual(before);

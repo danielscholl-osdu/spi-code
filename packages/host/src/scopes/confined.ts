@@ -79,12 +79,20 @@ function within(directory: string, path: string): boolean {
   return !isAbsolute(from) && from !== ".." && !from.startsWith(`..${sep}`);
 }
 
-/** Homebrew links a formula's libraries from its prefix, not from the formula's own directory. */
-export function installRoot(binary: string): string {
+/**
+ * The widest read-only grant Git needs that holds none of the protected paths. Homebrew links
+ * a formula's libraries from its prefix, not from the formula's own directory.
+ */
+export function installRoot(binary: string, protectedPaths: readonly string[]): string {
   const parts = binary.split(sep);
   const cellar = parts.lastIndexOf("Cellar");
-  const root = cellar > 1 ? parts.slice(0, cellar).join(sep) : dirname(dirname(binary));
-  return parse(root).root === root ? dirname(binary) : root;
+  const prefix = cellar > 1 ? parts.slice(0, cellar).join(sep) : dirname(dirname(binary));
+  return (
+    [prefix, dirname(binary)].find(
+      (path) =>
+        parse(path).root !== path && !protectedPaths.some((guarded) => within(path, guarded)),
+    ) ?? binary
+  );
 }
 
 function diagnostic(stderr: string, exit: number): string {

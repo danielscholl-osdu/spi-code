@@ -46,7 +46,9 @@ failed, and the commit advanced HEAD.
   HOME set to its read-only empty directory.
 - Reads are denied outside the listed paths and the system directories.
   Homebrew git loads libraries from the Homebrew prefix, not its Cellar
-  directory, so `installRoot` grants the prefix read-only.
+  directory, so `installRoot` grants the prefix read-only, falling back to
+  narrower paths when the prefix would hold the home or app data. Apple's
+  `/usr/bin/git` passes the same confined tests with no extra grant.
 - A read-only path inside a writable one holds: writing, renaming over or
   removing `.git/config` and the worktree's `.git` file fail, and so does
   creating the missing `.git/hooks`.
@@ -59,7 +61,11 @@ failed, and the commit advanced HEAD.
 ## Packaging and runtime
 
 - The SDK declares Node 24 or later. Seatbelt runs under Node 22.22.0 here.
-- Its native binaries (`bin/<arch>/mxc-exec-mac`, `libmxc_ffi.dylib`) need to
-  be outside the asar for the packaged app; until they are, add and commit
-  refuse there with `mxc-failed` or `mxc-unavailable`.
+- On macOS the SDK runs Seatbelt in-process through `bin/<arch>/libmxc_ffi.dylib`
+  loaded by koffi. With `mxc-exec-mac` moved aside the probe still committed
+  confined. With the library moved aside, commit returned
+  `refused: "mxc-unavailable"` and HEAD did not move.
+- The packaged app keeps that library inside the asar, where it cannot be
+  loaded, so add and commit are expected to refuse there until
+  spicode-xia.25 unpacks it. Not observed in a packaged build.
 - Windows and Linux refuse with `unsupported-platform` until spicode-xia.17.
