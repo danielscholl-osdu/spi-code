@@ -24,24 +24,25 @@ export interface GitTarget {
   readonly worktree?: { readonly id: string; readonly cwd: string };
 }
 
-type GitCommand =
-  | "add"
-  | "check-ref-format"
-  | "checkout"
-  | "commit"
-  | "diff"
-  | "fetch"
-  | "for-each-ref"
-  | "ls-files"
-  | "ls-remote"
-  | "push"
-  | "remote"
-  | "reset"
-  | "rev-parse"
-  | "show-ref"
-  | "status"
-  | "symbolic-ref"
-  | "worktree";
+const gitCommands = [
+  "check-ref-format",
+  "checkout",
+  "diff",
+  "fetch",
+  "for-each-ref",
+  "ls-files",
+  "ls-remote",
+  "push",
+  "remote",
+  "reset",
+  "rev-parse",
+  "show-ref",
+  "status",
+  "symbolic-ref",
+  "worktree",
+] as const;
+
+type GitCommand = (typeof gitCommands)[number];
 
 type GitOptions = Pick<ExecOptions, "onOutput" | "signal" | "timeoutMs">;
 
@@ -52,6 +53,40 @@ export interface CloneRemotes {
 
 const upstreamRefspec = "+refs/heads/*:refs/remotes/upstream/*";
 const timeoutMs = 180_000;
+
+function overridesSubmodules(arg: string): boolean {
+  const name = /^--(?:no-)?([^=]*)/u.exec(arg)?.[1];
+  return !!name && "ignore-submodules".startsWith(name);
+}
+
+// A nested repository's own config can name programs; Git runs them whenever it looks inside one.
+function commandLine(command: GitCommand, args: readonly string[]): string[] {
+  if (!(gitCommands as readonly string[]).includes(command)) {
+    throw new Error(`Unsupported privileged Git command: ${command}.`);
+  }
+  if (command === "checkout") {
+    const [detach, force, ref, ...rest] = args;
+    if (
+      detach !== "--detach" ||
+      force !== "--force" ||
+      !ref ||
+      ref.startsWith("-") ||
+      rest.length
+    ) {
+      throw new Error("Privileged Git checkout requires --detach --force and one ref.");
+    }
+  }
+  if (command !== "status" && command !== "diff") return [command, ...args];
+  if (args.some(overridesSubmodules)) {
+    throw new Error("Privileged Git controls submodule handling.");
+  }
+  return [
+    command,
+    "--ignore-submodules=all",
+    ...(command === "diff" ? ["--no-ext-diff", "--no-textconv"] : []),
+    ...args,
+  ];
+}
 
 function isMissing(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
@@ -299,6 +334,7 @@ export class PrivilegedGit {
     args: readonly string[] = [],
     options: GitOptions = {},
   ): Promise<ExecResult<string>> {
+    const line = commandLine(command, args);
     const runtime = await this.getRuntime();
     const common = join(target.clone, ".git");
     const directory = dirname(target.clone);
@@ -322,7 +358,7 @@ export class PrivilegedGit {
     return this.exec(
       runtime,
       [`--git-dir=${admin}`, `--work-tree=${target.worktree?.cwd ?? target.clone}`],
-      [command, ...(command === "diff" ? ["--no-ext-diff", "--no-textconv"] : []), ...args],
+      line,
       options,
       common,
     );
