@@ -27,7 +27,7 @@ Both users already hold the sign-ins the work needs: a GitHub account with a Cop
 | See what needs attention | Keelson SPI tab: briefing, queue, six console views | The same views, from the same domain code, in the app's program tree |
 | Understand a failure | Read the inspector, then open Actions logs by hand | An anchored thread where Copilot reads the job, logs and attribution and cites each result |
 | Act on GitHub | Eleven board verbs, no record that survives a restart | Typed tools with tiers, bindings re-read under a lock, and an intent ledger |
-| Fix code on `fork_integration` or a release branch | Clone, edit, test and push from a terminal | A code thread in an app-owned worktree, commands in an OS sandbox, the push as an approval card |
+| Fix code on `fork_integration` or a release branch | Clone, edit, test and push from a terminal | A code thread in an app-owned worktree, Copilot's commands in the Copilot SDK's sandbox behind approvals, the push a button the operator presses |
 | Operate the stack | `spi`, `kubectl`, `flux` and `az` in a terminal | Read tools at once; Consequential tools only after the operator types the target's name |
 | Work upstream | `glab` or the GitLab web UI | MR reads and typed MR tools in the same thread |
 | Set up a machine | Bun, Keelson and seven CLIs installed by hand | Setup installs each tool from a checksum manifest and walks each sign-in |
@@ -70,12 +70,12 @@ The program tree follows the program's three nouns, not repositories or chat ses
 These rules hold across every feature. The [PRD](spi-code-prd.md) states each as a requirement with its test.
 
 - **Copilot proposes; it never approves.** A Copilot tool call, a playbook step and a button press all go through the same handler check. Neither Copilot nor a playbook can approve a card.
-- **A button never writes.** It creates an approval card, and the card holds the decision.
+- **A button never writes.** It creates an approval card, and the card holds the decision. The exception is a thread's Commit, Push and Create PR or MR, which are the decision themselves.
 - **Every action is a typed tool with one tier.** Read, Local, Command, Change or Consequential. Anything not in the tool table has no tool.
 - **Bindings are checked twice.** A write runs only if the facts it was approved against still hold when the target's lock is taken.
 - **Evidence carries its age.** Fresh, stale, incomplete, failed or unread, shown wherever a value is drawn. Inferred values say so.
 - **A write is never re-sent blind.** After an interruption, the host looks up the outcome first.
-- **Code runs without credentials.** Commands in a code thread run in an OS sandbox with no tokens, keychain, SSH agent or kube config. SPI Code makes the commits and the push.
+- **Code runs without credentials.** Copilot's shell and file tools run in the Copilot SDK's sandbox with no tokens, keychain, SSH agent or kube config, and each edit or command waits for approval. SPI Code pushes and opens requests when the operator presses them.
 
 ## Built from
 
@@ -141,8 +141,7 @@ These are decided exclusions. Items still being decided are under Open questions
 | Host as a utilityProcess or a Node child | Decides how the Copilot binary and `node:sqlite` run in a signed build | M0 spike |
 | Per-session token provider | The SDK marks it experimental; the fallback is a client-level token | M0 spike |
 | Re-sign the Copilot binary or keep GitHub's signature | Notarization and Gatekeeper behavior | M0 spike |
-| Windows command sandbox | Without one, Windows code threads offer no commands | Probed at M0, proved at M5 |
-| The SDK's own `sandboxConfig` | It can confine Copilot's built-in tools; SPI Code exposes none, so its value next to the host sandbox is unclear | M0, revisited at M5 |
+| The Copilot SDK's sandbox on Windows 11 | Until it is observed there, a Windows thread asks and reads, with no shell or file tools | The threads epic's Windows checks |
 | Environment refresh and upgrade as Change or Consequential | The PRD ships them at M4 as Change, since the rib already sends them as single GitHub dispatches; reset arrives at M6 as Consequential | Maintainer, before M4 |
 | When the repository goes private | Everything published before then stays MIT for anyone who has it | Maintainer, by M7 when a second engineer installs it |
 | When the rib retires | Two codebases carry adapters until it does | After a release cycle of daily use |

@@ -1,0 +1,713 @@
+<title>SPI Code Threads</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: one reading column, 1180px, with the window mocks and figures at full column width. Tokens are SPI Code's Neutral palette. */
+:root{
+  --chrome:#f4f4f5; --sidebar:#efeff1; --surface:#ffffff; --raised:#f4f4f5;
+  --border:#d4d4d8; --border-soft:#e4e4e7; --line-strong:#8e8e99;
+  --text:#27272a; --strong:#09090b; --muted:#52525b; --faint:#6b6b74;
+  --accent:#1d7a6c; --accent-text:#1c796b; --accent-surface:#e3f1ed;
+  --error:#b42318; --error-surface:#fde4e1;
+  --warning:#94560a; --warning-surface:#fdf0d5;
+  --success:#15803d; --success-surface:#e3f5e8;
+  --work:#0369a1; --work-surface:#ddeefa;
+  --upstream:#9a2680; --upstream-surface:#f8e3f0;
+  --agent:#6d4bb5; --agent-surface:#ece6f8;
+  --fork:#55606e; --fork-surface:#e8ebef;
+  --hover:#e9e9ec; --on-fill:#ffffff; --page:#e9e9ec;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --chrome:#141416; --sidebar:#141416; --surface:#0d0d0f; --raised:#1a1a1d;
+    --border:#27272a; --border-soft:#1d1d20; --line-strong:#6f6f7a;
+    --text:#e4e4e7; --strong:#fafafa; --muted:#a1a1aa; --faint:#8b8b93;
+    --accent:#5cc4b2; --accent-text:#5cc4b2; --accent-surface:#14302b;
+    --error:#fca5a5; --error-surface:#311616;
+    --warning:#fcd34d; --warning-surface:#2b2410;
+    --success:#6ee7a0; --success-surface:#10291b;
+    --work:#7dd3fc; --work-surface:#0f2533;
+    --upstream:#d67fbe; --upstream-surface:#2d1727;
+    --agent:#b79cf0; --agent-surface:#231a38;
+    --fork:#a3adba; --fork-surface:#1f2329;
+    --hover:#232328; --on-fill:#0d0d0f; --page:#09090b;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --chrome:#141416; --sidebar:#141416; --surface:#0d0d0f; --raised:#1a1a1d;
+  --border:#27272a; --border-soft:#1d1d20; --line-strong:#6f6f7a;
+  --text:#e4e4e7; --strong:#fafafa; --muted:#a1a1aa; --faint:#8b8b93;
+  --accent:#5cc4b2; --accent-text:#5cc4b2; --accent-surface:#14302b;
+  --error:#fca5a5; --error-surface:#311616;
+  --warning:#fcd34d; --warning-surface:#2b2410;
+  --success:#6ee7a0; --success-surface:#10291b;
+  --work:#7dd3fc; --work-surface:#0f2533;
+  --upstream:#d67fbe; --upstream-surface:#2d1727;
+  --agent:#b79cf0; --agent-surface:#231a38;
+  --fork:#a3adba; --fork-surface:#1f2329;
+  --hover:#232328; --on-fill:#0d0d0f; --page:#09090b;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--page);color:var(--text);font-family:var(--sans);font-size:14.5px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-size:28px;font-weight:650;letter-spacing:-.01em;margin:0 0 8px;color:var(--strong);text-wrap:balance}
+h2{font-size:20px;font-weight:650;margin:0 0 8px;color:var(--strong);text-wrap:balance}
+h3{font-size:14.5px;font-weight:650;margin:18px 0 6px;color:var(--strong)}
+p{margin:0 0 10px;max-width:72ch}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin:0 0 6px}
+.lead{font-size:16.5px;color:var(--strong);max-width:68ch}
+code{font-family:var(--mono);font-size:.9em}
+a{color:var(--accent-text)}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+section{margin-top:44px;padding-top:28px;border-top:1px solid var(--border)}
+.problem{margin-top:20px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 22px}
+.problem p{max-width:80ch}
+.problem p:last-child{margin-bottom:0}
+.legend{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:8px;font-size:13.5px}
+.owner{display:inline-flex;align-items:center;gap:7px;font-weight:600}
+.owner::before{content:"";width:10px;height:10px;border-radius:2px;background:var(--c);flex:none}
+.owner span{font-weight:400;color:var(--muted)}
+.c-spi{--c:var(--accent)} .c-t3{--c:var(--work)} .c-agent{--c:var(--agent)} .c-fork{--c:var(--fork)} .c-up{--c:var(--upstream)}
+.note{font-size:13px;color:var(--faint);margin-top:10px;max-width:96ch}
+figure{margin:18px 0 0}
+figcaption{font-size:13px;color:var(--faint);margin-top:10px;max-width:96ch}
+.flow{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;overflow-x:auto}
+.flow svg{display:block;width:100%;height:auto;min-width:860px}
+.flow text{font-family:var(--sans);fill:var(--text);font-size:12px}
+.flow .t{font-size:13.5px;font-weight:650;fill:var(--strong)}
+.flow .sub{fill:var(--muted)}
+.flow .tiny{fill:var(--faint);font-size:11px}
+.flow .mono{font-family:var(--mono);font-size:11.5px}
+.flow .col{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;fill:var(--faint)}
+.flow .box{rx:8;stroke-width:1.3}
+.flow .b-spi{fill:var(--accent-surface);stroke:var(--accent)}
+.flow .b-t3{fill:var(--work-surface);stroke:var(--work)}
+.flow .b-agent{fill:var(--agent-surface);stroke:var(--agent)}
+.flow .b-fork{fill:var(--fork-surface);stroke:var(--fork)}
+.flow .b-up{fill:var(--upstream-surface);stroke:var(--upstream)}
+.flow .b-mute{fill:var(--raised);stroke:var(--line-strong);stroke-dasharray:4 3}
+.flow .b-frame{fill:none;stroke:var(--border);stroke-dasharray:3 4}
+.flow .arrow{stroke:var(--line-strong);stroke-width:1.5;fill:none}
+.tblwrap{overflow-x:auto;margin-top:14px}
+.tbl{width:100%;min-width:640px;border-collapse:collapse;background:var(--surface);border:1px solid var(--border);font-size:13.5px}
+.tbl th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:600;padding:9px 12px;border-bottom:1px solid var(--border);background:var(--raised)}
+.tbl td{padding:9px 12px;border-bottom:1px solid var(--border-soft);vertical-align:top;color:var(--muted)}
+.tbl tr:last-child td{border-bottom:none}
+.tbl td b{color:var(--strong);font-weight:600}
+.tag{display:inline-block;font-size:11px;font-weight:600;border-radius:4px;padding:0 6px;line-height:18px;white-space:nowrap}
+.tag.spi{background:var(--accent-surface);color:var(--accent-text)}
+.tag.t3{background:var(--work-surface);color:var(--work)}
+.tag.fork{background:var(--fork-surface);color:var(--fork)}
+.tag.up{background:var(--upstream-surface);color:var(--upstream)}
+.tag.warn{background:var(--warning-surface);color:var(--warning)}
+.tag.out{background:var(--raised);color:var(--faint)}
+.appendix{margin-top:56px;padding-top:28px;border-top:3px solid var(--border)}
+
+/* the window mock */
+.bar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:16px 0 10px;font-size:13px}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;padding:6px 12px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent-surface);color:var(--accent-text);font-weight:600}
+.winwrap{overflow-x:auto;border-radius:12px}
+.win{display:grid;grid-template-columns:212px minmax(0,1fr) 296px;min-width:1060px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface);font-size:13px;min-height:640px}
+.win.nopanel{grid-template-columns:212px minmax(0,1fr)}
+.side{background:var(--sidebar);border-right:1px solid var(--border);padding:10px 8px;display:flex;flex-direction:column;gap:2px}
+.find{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:6px 9px;color:var(--muted);margin-bottom:8px}
+.kbd{font-family:var(--mono);font-size:10.5px;border:1px solid var(--border);border-radius:4px;padding:0 4px;color:var(--faint)}
+.nav{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;color:var(--text)}
+.nav.cur{background:var(--surface);box-shadow:0 0 0 1px var(--border);color:var(--strong);font-weight:600}
+.nav .end{margin-left:auto;font-size:11px;color:var(--faint)}
+.n{font-size:11px;font-variant-numeric:tabular-nums;border-radius:999px;min-width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px;margin-left:auto}
+.n.bad{background:var(--error);color:var(--on-fill);font-weight:700}
+.n.ring{box-shadow:inset 0 0 0 1.75px var(--warning);color:var(--warning);font-weight:600}
+.n.okm{color:var(--success)}
+.grp{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);padding:12px 8px 3px}
+.thr{display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:2px 6px;align-items:baseline;padding:5px 8px;border-radius:6px}
+.thr.cur{background:var(--surface);box-shadow:0 0 0 1px var(--border)}
+.thr .ti{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--strong)}
+.thr .sc{font-size:11px;color:var(--faint)}
+.thr .br{grid-column:2 / 4;font-family:var(--mono);font-size:10.5px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.dot.wait{background:var(--warning)} .dot.workg{box-shadow:inset 0 0 0 2px var(--work)}
+.foot{margin-top:auto;display:flex;justify-content:space-between;color:var(--faint);padding:8px 8px 2px;border-top:1px solid var(--border);font-size:12px}
+.centre{display:flex;flex-direction:column;min-width:0}
+.top{height:44px;flex:none;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid var(--border);background:var(--chrome)}
+.top .title{font-weight:650;color:var(--strong);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top .sp{margin-left:auto}
+.chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:6px;padding:1px 7px;font-size:12px;background:var(--surface);color:var(--text);white-space:nowrap}
+.chip.scope{border-color:var(--accent);color:var(--accent-text);background:var(--accent-surface);font-weight:600}
+.chip.fork{border-color:var(--fork);color:var(--fork);background:var(--fork-surface)}
+.chip.up{border-color:var(--upstream);color:var(--upstream);background:var(--upstream-surface)}
+.chip.ask{border-style:dashed;color:var(--muted)}
+.tl{flex:1;padding:16px 22px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.ctx{font-size:12px;color:var(--faint);border-bottom:1px dashed var(--border);padding-bottom:8px}
+.um{align-self:flex-end;max-width:78%;background:var(--raised);border:1px solid var(--border-soft);border-radius:10px;padding:8px 11px;display:flex;flex-direction:column;gap:6px}
+.wk{font-size:12px;color:var(--muted);display:flex;gap:8px;align-items:baseline}
+.wk::before{content:"›";color:var(--faint)}
+.wk code{color:var(--text)}
+.am{max-width:86%}
+.am .who{font-size:11px;font-weight:600;color:var(--agent);margin-bottom:2px}
+.appr{border:1px solid var(--warning);background:var(--warning-surface);border-radius:8px;padding:8px 10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.appr .k{font-size:11px;font-weight:600;color:var(--warning)}
+.appr code{color:var(--strong)}
+.btn{border:1px solid var(--border);background:var(--surface);border-radius:6px;padding:2px 10px;font-size:12px;color:var(--text)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--on-fill);font-weight:600}
+.comp{margin:0 22px 16px;border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:8px 10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 1px 0 var(--border-soft)}
+.comp .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.comp .ph{color:var(--faint);padding:2px 0}
+.comp .send{margin-left:auto}
+.panel{border-left:1px solid var(--border);display:flex;flex-direction:column;min-width:0;background:var(--surface)}
+.tabs{height:44px;flex:none;display:flex;align-items:center;gap:2px;padding:0 8px;border-bottom:1px solid var(--border);background:var(--chrome);font-size:12.5px}
+.tabs span{padding:4px 8px;border-radius:6px;color:var(--muted)}
+.tabs span.on{background:var(--surface);box-shadow:0 0 0 1px var(--border);color:var(--strong);font-weight:600}
+.pb{padding:12px;display:flex;flex-direction:column;gap:12px}
+.fld{display:flex;flex-direction:column;gap:3px}
+.fld .l{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.fld .v{color:var(--text)}
+.fld .v.m{font-family:var(--mono);font-size:11.5px;overflow-wrap:anywhere}
+.file{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 6px;font-size:12px;padding:4px 0;border-top:1px solid var(--border-soft)}
+.file .p{font-family:var(--mono);font-size:11.5px;overflow-wrap:anywhere;color:var(--text)}
+.file .d{font-family:var(--mono);font-size:11px;color:var(--faint);white-space:nowrap}
+.file .w{grid-column:1 / 3;color:var(--warning);background:var(--warning-surface);border-radius:6px;padding:4px 7px}
+.menu{border:1px solid var(--border);border-radius:10px;background:var(--surface);box-shadow:0 8px 24px rgba(0,0,0,.14);padding:5px;width:min(420px,100%)}
+.menu .it{display:grid;grid-template-columns:16px minmax(0,1fr);gap:0 8px;padding:6px 8px;border-radius:6px}
+.menu .it.on{background:var(--hover)}
+.menu .it b{color:var(--strong);font-weight:600}
+.menu .it small{grid-column:2;color:var(--muted);font-size:12px}
+.draft{flex:1;display:flex;flex-direction:column;justify-content:center;gap:14px;padding:22px}
+.draft .from{font-size:12px;color:var(--faint);margin:0 22px}
+.row-open{border:1px solid var(--border);border-radius:10px;background:var(--surface);font-size:13px;overflow:hidden}
+.row-open .r{display:grid;grid-template-columns:110px minmax(0,1fr) auto 48px;gap:10px;padding:8px 12px;align-items:center}
+.row-open .body{padding:4px 12px 12px 132px;color:var(--muted);display:flex;flex-direction:column;gap:8px}
+.pill{display:inline-flex;border:1px solid var(--border);border-radius:999px;padding:0 8px;font-size:12px;color:var(--text);white-space:nowrap}
+@media (max-width:640px){ .row-open .body{padding-left:12px} .row-open .r{grid-template-columns:70px minmax(0,1fr) auto} .row-open .r .age{display:none} }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">spi-code · threads and Copilot · design after two prototypes · 2026-11-19</p>
+  <h1>SPI Code Threads</h1>
+  <p class="lead">How SPI Code gets AI threads like T3 Code's, with the 13 services, the template and the stack in place of user-made projects, with Copilot told what the operator is looking at, and with its tools in a sandbox.</p>
+
+  <div class="problem">
+    <p>SPI Code reads the program well and can't yet talk about it or change it. The host streams one Copilot turn through the SDK, but there is no thread, no composer and no checkout of any repository, and all 53 agent tools are stubs.</p>
+    <p>This design adds threads on SPI Code's own engine, in the host, on the Copilot SDK it already runs. The engine is a package with no SPI Code imports, so another app can use it. T3 Code supplies the behaviour and the look, re-made in SPI Code's kit, and none of the code. In place of T3 Code's projects there is a fixed set of <b>scopes</b> (the program, each service, the template, the environment). Each service has one clone that holds both its GitHub fork and its GitLab upstream. A <b>Lands in</b> choice decides whether a change becomes a fork pull request or an upstream merge request. Copilot is handed the place or row the operator started from as packed context, plus read tools over the last sweep.</p>
+    <p>It changes one PRD rule: Copilot gets its built-in shell and file tools. They run inside the SDK's sandbox, without the operator's sign-ins, and each edit or command waits for approval. Copilot can't commit, push or open a request; the operator does, from the thread. The sandbox has been run on macOS only, so a Windows thread asks and reads until the same checks pass there. Program operations (dispatch a cascade, re-run a lane) stay typed tools with cards, as M4 has them.</p>
+  </div>
+
+  <p class="eyebrow" style="margin-top:26px">Colors identify who owns a part</p>
+  <div class="legend">
+    <span class="owner c-spi">SPI Code <span>· the program's views, scopes, context and SPI tools</span></span>
+    <span class="owner c-t3">Thread engine and view <span>· its own package: turns, approvals, worktrees, timeline</span></span>
+    <span class="owner c-agent">Copilot <span>· reasons, reads, edits, proposes</span></span>
+    <span class="owner c-fork">Fork on GitHub <span>· provider code SPI owns</span></span>
+    <span class="owner c-up">Upstream on GitLab <span>· code OSDU owns</span></span>
+  </div>
+
+  <section>
+    <h2>The window with a thread open</h2>
+    <p>A thread takes the centre, as a place does. The sidebar, top row and palette stay SPI Code's. The timeline, composer, approval row and the Thread and Changes tabs follow T3 Code's patterns, drawn in SPI Code's kit. Three things in the mock are new: the scope chip, the Lands in chip, and the owner tag on each changed file.</p>
+    <div class="bar">
+      <div class="seg" role="group" aria-label="Mock state">
+        <button type="button" id="m-a" aria-pressed="true" data-m="a">A change in a service</button>
+        <button type="button" id="m-b" aria-pressed="false" data-m="b">Starting from a Today row</button>
+        <button type="button" id="m-c" aria-pressed="false" data-m="c">A question across the program</button>
+      </div>
+      <span style="color:var(--faint)">Every title, number, path and time in the mock is an example.</span>
+    </div>
+
+    <div class="winwrap">
+    <!-- A -->
+    <div class="win" data-win="a">
+      <div class="side">
+        <div class="find"><span>Find or ask</span><span class="kbd">⌘K</span></div>
+        <div class="nav">Today <span class="n bad">16</span></div>
+        <div class="nav">Environment <span class="n okm">✓</span></div>
+        <div class="nav">Template <span class="n ring">5</span></div>
+        <div class="grp">Pinned</div>
+        <div class="nav">Upstream <span class="n ring">1</span></div>
+        <div class="nav">Releases</div>
+        <div class="nav">partition <span class="n ring">2</span></div>
+        <div class="grp">Waiting on you</div>
+        <div class="thr cur"><span class="dot wait"></span><span class="ti">Fix the blob retry test</span><span class="sc">partition</span><span class="br">spi/blob-retry → main</span></div>
+        <div class="grp">Working</div>
+        <div class="thr"><span class="dot workg"></span><span class="ti">Why is the sync halted</span><span class="sc">indexer</span></div>
+        <div class="thr"><span class="dot workg"></span><span class="ti">Forks still on 8.4</span><span class="sc">Program</span></div>
+        <div class="nav" style="margin-top:8px;color:var(--muted)">Settled <span class="end">12</span></div>
+        <div class="foot"><span>⚙</span><span>⟳ 13:50</span></div>
+      </div>
+      <div class="centre">
+        <div class="top"><span class="title">Fix the blob retry test</span><span class="chip scope">partition</span><span class="chip fork">Lands in · Fork · main</span><span class="sp"></span></div>
+        <div class="tl">
+          <div class="ctx">Context · partition · from the sweep at 13:50 · 1 item, 1,300 tokens</div>
+          <div class="um"><span class="chip">PR #251 · Build failed</span><span>Build is red on this PR. Find out why and fix it.</span></div>
+          <div class="wk"><span>Read <code>spi_inspect</code> · <code>gh run view --log-failed</code> · 4 files</span></div>
+          <div class="am"><div class="who">Copilot</div>The retry test waits a fixed 200 ms and the blob client's backoff now starts at 250 ms. The test is in the Azure provider, which the fork owns. One file also needs a constant from the shared retry policy, which upstream owns.</div>
+          <div class="wk"><span>Edited 2 files</span></div>
+          <div class="appr"><span class="k">Run a command</span><code>mvn -q -pl provider/partition-azure test</code><span style="margin-left:auto;display:flex;gap:6px"><span class="btn">Decline</span><span class="btn pri">Approve</span></span></div>
+        </div>
+        <div class="comp">
+          <div class="ph">Reply, @ a file or a place, / a command…</div>
+          <div class="row"><span class="chip scope">partition</span><span class="chip fork">Fork · main</span><span class="chip">✦ Auto</span><span class="chip">Supervised</span><span class="chip send">⏎ send</span></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="tabs"><span class="on">Thread</span><span>Changes 2</span><span>Reading</span><span>Evidence</span></div>
+        <div class="pb">
+          <div class="fld"><span class="l">Scope</span><span class="v">partition · one clone, two remotes</span>
+            <span class="v m"><span class="tag fork">origin</span> Azure/osdu-spi-partition</span>
+            <span class="v m"><span class="tag up">upstream</span> osdu/platform/system/partition</span></div>
+          <div class="fld"><span class="l">Lands in</span><span class="v">Fork · <code>main</code> · a GitHub pull request</span><span class="v m">spi/blob-retry · 0 commits · 2 files changed</span></div>
+          <div class="fld"><span class="l">Changes against main</span>
+            <div class="file"><span class="p">provider/partition-azure/…/BlobRetryTest.java</span><span class="d">+12 −4</span><span><span class="tag fork">fork</span></span></div>
+            <div class="file"><span class="p">partition-core/…/RetryPolicy.java</span><span class="d">+3 −1</span><span><span class="tag up">upstream</span></span>
+              <span class="w">Upstream owns this file. The next sync overwrites a change made here. <b>Move it to an upstream thread ›</b></span></div>
+          </div>
+          <div class="fld"><span class="l">Git</span><span class="v" style="display:flex;gap:6px;flex-wrap:wrap"><span class="btn">Commit</span><span class="btn">Push</span><span class="btn">Create PR</span></span></div>
+          <div class="fld"><span class="l">Worktree</span><span class="v m">…/SPI Code/worktrees/partition/blob-retry</span><span class="v"><span class="btn">Open in editor</span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- B -->
+    <div class="win nopanel" data-win="b" hidden>
+      <div class="side">
+        <div class="find"><span>Find or ask</span><span class="kbd">⌘K</span></div>
+        <div class="nav">Today <span class="n bad">16</span></div>
+        <div class="nav">Environment <span class="n okm">✓</span></div>
+        <div class="nav">Template <span class="n ring">5</span></div>
+        <div class="grp">Pinned</div>
+        <div class="nav">Upstream <span class="n ring">1</span></div>
+        <div class="nav">Releases</div>
+        <div class="nav">partition <span class="n ring">2</span></div>
+        <div class="grp">Working</div>
+        <div class="thr"><span class="dot workg"></span><span class="ti">Forks still on 8.4</span><span class="sc">Program</span></div>
+        <div class="nav" style="margin-top:8px;color:var(--muted)">Settled <span class="end">12</span></div>
+        <div class="foot"><span>⚙</span><span>⟳ 13:50</span></div>
+      </div>
+      <div class="centre">
+        <div class="top"><span class="title">New thread</span><span class="chip scope">indexer</span><span class="sp"></span></div>
+        <div class="draft">
+          <div class="from">Started from Today › Blocked › Sync halted. Nothing is sent until you press send.</div>
+          <div class="comp" style="margin-bottom:0">
+            <div class="row"><span class="chip">Sync halted · indexer · issue #72 ×</span></div>
+            <div class="ph">Ask about this, or say what to change…</div>
+            <div class="row"><span class="chip scope">indexer ▾</span><span class="chip ask">Lands in · Asking ▾</span><span class="chip">✦ Auto</span><span class="chip">Supervised</span><span class="chip send">⏎ send</span></div>
+          </div>
+          <div style="margin:0 22px">
+            <div class="menu" role="img" aria-label="The Lands in menu with four choices">
+              <div class="it on"><span>✓</span><b>Asking</b><small>Reads the shared clone. No branch, nothing to push.</small></div>
+              <div class="it"><span></span><b>Fork · main</b><small>A worktree from the fork's main. Ends as a GitHub pull request.</small></div>
+              <div class="it"><span></span><b>Fork · fork_integration</b><small>For a sync conflict or a failed integration. A pull request into fork_integration.</small></div>
+              <div class="it"><span></span><b>Upstream</b><small>A worktree from OSDU's default branch. Ends as a GitLab merge request.</small></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- C -->
+    <div class="win" data-win="c" hidden>
+      <div class="side">
+        <div class="find"><span>Find or ask</span><span class="kbd">⌘K</span></div>
+        <div class="nav">Today <span class="n bad">16</span></div>
+        <div class="nav">Environment <span class="n okm">✓</span></div>
+        <div class="nav">Template <span class="n ring">5</span></div>
+        <div class="grp">Pinned</div>
+        <div class="nav">Upstream <span class="n ring">1</span></div>
+        <div class="nav">Releases</div>
+        <div class="nav">partition <span class="n ring">2</span></div>
+        <div class="grp">Working</div>
+        <div class="thr cur"><span class="dot workg"></span><span class="ti">Forks still on 8.4</span><span class="sc">Program</span></div>
+        <div class="nav" style="margin-top:8px;color:var(--muted)">Settled <span class="end">12</span></div>
+        <div class="foot"><span>⚙</span><span>⟳ 13:50</span></div>
+      </div>
+      <div class="centre">
+        <div class="top"><span class="title">Forks still on 8.4</span><span class="chip scope">Program</span><span class="chip ask">Asking</span><span class="sp"></span></div>
+        <div class="tl">
+          <div class="ctx">Context · Program · from the sweep at 13:50 · Today, 2,100 tokens</div>
+          <div class="um"><span>Which forks still pin os-core-common 8.4, and which of them have a release PR open?</span></div>
+          <div class="wk"><span>Read <code>spi_today</code> · <code>spi_upstream</code> · <code>gh search code</code> in 13 repositories</span></div>
+          <div class="am"><div class="who">Copilot</div>Four forks pin 8.4: storage, indexer, unit and crs-conversion. Storage and unit have a release PR open, so a bump there rides the next release. Indexer's sync is halted, so its bump waits on that.</div>
+          <div class="am" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span style="color:var(--muted)">Continue in a service:</span><span class="btn">storage ›</span><span class="btn">unit ›</span><span class="btn">indexer ›</span><span class="btn">crs-conversion ›</span></div>
+        </div>
+        <div class="comp">
+          <div class="ph">Reply, @ a place, / a command…</div>
+          <div class="row"><span class="chip scope">Program</span><span class="chip ask">Asking</span><span class="chip">✦ Auto</span><span class="chip">Supervised</span><span class="chip send">⏎ send</span></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="tabs"><span class="on">Thread</span><span>Reading</span><span>Evidence</span></div>
+        <div class="pb">
+          <div class="fld"><span class="l">Scope</span><span class="v">Program · every repository</span><span class="v">15 on GitHub, 13 upstreams on GitLab · 3 cloned on this machine</span></div>
+          <div class="fld"><span class="l">Lands in</span><span class="v">Asking. A program thread changes no code. A change continues in a service, the template or the environment.</span></div>
+          <div class="fld"><span class="l">Context</span><span class="v">Today as read at 13:50 · 16 members</span></div>
+          <div class="fld"><span class="l">Usage</span><span class="v">11k of 200k context</span></div>
+        </div>
+      </div>
+    </div>
+    </div>
+    <p class="note">The right panel exists only in a thread, as the window layout already rules. Reading and Evidence are the scope's place and its sweep evidence, one tab away.</p>
+  </section>
+
+  <section>
+    <h2>Scopes in place of projects</h2>
+    <p>T3 Code binds a thread to one project, and a project is one folder the user added. SPI Code has no projects to add. A thread has a scope, picked from a fixed list that SPI Code seeds from the fleet it already reads: the program, the 13 services, the template and the environment. That is 16 scopes. The engine sees each as a project whose folder SPI Code owns under app data; the operator never sees the word project, a folder picker or a clone dialog.</p>
+    <figure>
+      <div class="flow">
+        <svg viewBox="0 0 1000 372" role="img" aria-label="Each scope maps to one folder on disk and to fixed remotes: a service to one clone with a GitHub fork remote and a GitLab upstream remote, the template and environment to one GitHub repository each, and the program to the folder that holds every clone.">
+          <defs><marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--line-strong)"/></marker></defs>
+          <text x="20" y="16" class="col">Scope</text><text x="300" y="16" class="col">Folder the engine works in</text><text x="640" y="16" class="col">Remotes</text>
+          <!-- program -->
+          <rect x="20" y="28" width="210" height="60" class="box b-spi"/><text x="34" y="52" class="t">Program</text><text x="34" y="72" class="sub">no service selected</text>
+          <path d="M230 58 L296 58" class="arrow" marker-end="url(#a1)"/>
+          <rect x="300" y="28" width="270" height="60" class="box b-t3"/><text x="314" y="52" class="t mono">repos/</text><text x="314" y="72" class="sub">the folder that holds every clone</text>
+          <path d="M570 58 L636 58" class="arrow" marker-end="url(#a1)"/>
+          <rect x="640" y="28" width="340" height="60" class="box b-mute"/><text x="654" y="52" class="t">Every repository below</text><text x="654" y="72" class="sub">each cloned the first time a thread needs it</text>
+          <!-- service -->
+          <rect x="20" y="104" width="210" height="104" class="box b-spi"/><text x="34" y="128" class="t">A service</text><text x="34" y="148" class="sub">partition, one of 13</text>
+          <path d="M230 156 L296 156" class="arrow" marker-end="url(#a1)"/>
+          <rect x="300" y="104" width="270" height="104" class="box b-t3"/><text x="314" y="128" class="t mono">repos/partition</text><text x="314" y="148" class="sub">one clone, two remotes</text><text x="314" y="168" class="tiny">a worktree per thread that changes code</text>
+          <path d="M570 132 L636 132" class="arrow" marker-end="url(#a1)"/>
+          <path d="M570 182 L636 182" class="arrow" marker-end="url(#a1)"/>
+          <rect x="640" y="104" width="340" height="46" class="box b-fork"/><text x="654" y="124" class="t">origin · GitHub</text><text x="654" y="141" class="mono">Azure/osdu-spi-partition</text>
+          <rect x="640" y="162" width="340" height="46" class="box b-up"/><text x="654" y="182" class="t">upstream · GitLab</text><text x="654" y="199" class="mono">osdu/platform/system/partition</text>
+          <!-- template -->
+          <rect x="20" y="224" width="210" height="60" class="box b-spi"/><text x="34" y="248" class="t">Template</text><text x="34" y="268" class="sub">the Template place</text>
+          <path d="M230 254 L296 254" class="arrow" marker-end="url(#a1)"/>
+          <rect x="300" y="224" width="270" height="60" class="box b-t3"/><text x="314" y="248" class="t mono">repos/osdu-spi</text><text x="314" y="268" class="sub">one clone</text>
+          <path d="M570 254 L636 254" class="arrow" marker-end="url(#a1)"/>
+          <rect x="640" y="224" width="340" height="60" class="box b-fork"/><text x="654" y="248" class="t">origin · GitHub</text><text x="654" y="268" class="mono">Azure/osdu-spi</text>
+          <!-- environment -->
+          <rect x="20" y="300" width="210" height="60" class="box b-spi"/><text x="34" y="324" class="t">Environment</text><text x="34" y="344" class="sub">the Environment place</text>
+          <path d="M230 330 L296 330" class="arrow" marker-end="url(#a1)"/>
+          <rect x="300" y="300" width="270" height="60" class="box b-t3"/><text x="314" y="324" class="t mono">repos/osdu-spi-stack</text><text x="314" y="344" class="sub">one clone</text>
+          <path d="M570 330 L636 330" class="arrow" marker-end="url(#a1)"/>
+          <rect x="640" y="300" width="340" height="60" class="box b-fork"/><text x="654" y="324" class="t">origin · GitHub</text><text x="654" y="344" class="mono">Azure/osdu-spi-stack</text>
+        </svg>
+      </div>
+      <figcaption>A scope fixes which repositories a thread can reach. The engine allows one folder per thread, so a service is one clone carrying both remotes, and the program is the parent folder of all clones.</figcaption>
+    </figure>
+    <p style="margin-top:14px">The scope comes from where the thread starts: a service page gives that service, Template and Environment give theirs, and Today, Upstream, Releases, Security and ⌘N from anywhere else give Program. The scope chip in the composer changes it before the first message. After that it is fixed, because the engine's worktree and history belong to one folder.</p>
+    <p>A program thread reads across everything and changes nothing. When its answer leads to a change, it offers the scopes involved, and choosing one starts a child thread there that carries the finding. The Thread tab shows the lineage.</p>
+    <p>A fork and its upstream share history through the fork's upstream branch, which is what lets one clone hold both. A scope's repositories are cloned on first use and the clone shows as the first row of the timeline, the way T3 Code shows worktree setup. Nothing is cloned for a scope the operator never opens a thread in.</p>
+  </section>
+
+  <section>
+    <h2>Where a change lands</h2>
+    <p>In a service, some code is OSDU's and can only change through a merge request upstream, and some is the fork's provider code and changes through a pull request on GitHub. T3 Code's branch toolbar asks for a base branch and an environment mode. SPI Code replaces it with one choice, Lands in, whose options are the only destinations a change in that scope can have.</p>
+    <figure>
+      <div class="flow">
+        <svg viewBox="0 0 1000 300" role="img" aria-label="The Lands in choice decides the branch a thread starts from, where it pushes and what it opens: Asking pushes nothing, the two fork choices open GitHub pull requests, and Upstream opens a GitLab merge request.">
+          <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--line-strong)"/></marker></defs>
+          <text x="20" y="16" class="col">Lands in</text><text x="280" y="16" class="col">The thread's branch starts from</text><text x="560" y="16" class="col">A push goes to</text><text x="790" y="16" class="col">It opens</text>
+          <g>
+            <rect x="20" y="28" width="210" height="52" class="box b-mute"/><text x="34" y="59" class="t">Asking</text>
+            <path d="M230 54 L276 54" class="arrow" marker-end="url(#a2)"/>
+            <rect x="280" y="28" width="230" height="52" class="box b-mute"/><text x="294" y="50" class="sub">the shared clone, read only</text><text x="294" y="68" class="tiny">no branch, no worktree</text>
+            <path d="M510 54 L556 54" class="arrow" marker-end="url(#a2)"/>
+            <rect x="560" y="28" width="180" height="52" class="box b-mute"/><text x="574" y="59" class="sub">nothing is pushed</text>
+            <path d="M740 54 L786 54" class="arrow" marker-end="url(#a2)"/>
+            <rect x="790" y="28" width="190" height="52" class="box b-mute"/><text x="804" y="59" class="sub">nothing</text>
+          </g>
+          <g>
+            <rect x="20" y="96" width="210" height="52" class="box b-fork"/><text x="34" y="127" class="t">Fork · main</text>
+            <path d="M230 122 L276 122" class="arrow" marker-end="url(#a2)"/>
+            <rect x="280" y="96" width="230" height="52" class="box b-fork"/><text x="294" y="127" class="mono">origin/main</text>
+            <path d="M510 122 L556 122" class="arrow" marker-end="url(#a2)"/>
+            <rect x="560" y="96" width="180" height="52" class="box b-fork"/><text x="574" y="118" class="sub">the fork on GitHub</text><text x="574" y="136" class="tiny">a spi/ branch</text>
+            <path d="M740 122 L786 122" class="arrow" marker-end="url(#a2)"/>
+            <rect x="790" y="96" width="190" height="52" class="box b-fork"/><text x="804" y="118" class="sub">a pull request</text><text x="804" y="136" class="tiny">into main</text>
+          </g>
+          <g>
+            <rect x="20" y="164" width="210" height="52" class="box b-fork"/><text x="34" y="195" class="t">Fork · fork_integration</text>
+            <path d="M230 190 L276 190" class="arrow" marker-end="url(#a2)"/>
+            <rect x="280" y="164" width="230" height="52" class="box b-fork"/><text x="294" y="195" class="mono">origin/fork_integration</text>
+            <path d="M510 190 L556 190" class="arrow" marker-end="url(#a2)"/>
+            <rect x="560" y="164" width="180" height="52" class="box b-fork"/><text x="574" y="186" class="sub">the fork on GitHub</text><text x="574" y="204" class="tiny">a spi/ branch</text>
+            <path d="M740 190 L786 190" class="arrow" marker-end="url(#a2)"/>
+            <rect x="790" y="164" width="190" height="52" class="box b-fork"/><text x="804" y="186" class="sub">a pull request</text><text x="804" y="204" class="tiny">into fork_integration</text>
+          </g>
+          <g>
+            <rect x="20" y="232" width="210" height="52" class="box b-up"/><text x="34" y="263" class="t">Upstream</text>
+            <path d="M230 258 L276 258" class="arrow" marker-end="url(#a2)"/>
+            <rect x="280" y="232" width="230" height="52" class="box b-up"/><text x="294" y="254" class="sub">upstream's default branch</text><text x="294" y="272" class="tiny">on the upstream remote</text>
+            <path d="M510 258 L556 258" class="arrow" marker-end="url(#a2)"/>
+            <rect x="560" y="232" width="180" height="52" class="box b-up"/><text x="574" y="254" class="sub">GitLab</text><text x="574" y="272" class="tiny">where the operator can push</text>
+            <path d="M740 258 L786 258" class="arrow" marker-end="url(#a2)"/>
+            <rect x="790" y="232" width="190" height="52" class="box b-up"/><text x="804" y="254" class="sub">a merge request</text><text x="804" y="272" class="tiny">into upstream</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption>The four choices in a service scope. Template and Environment have two: Asking, and their repository's main. Program has only Asking.</figcaption>
+    </figure>
+    <p style="margin-top:14px">A thread starts on Asking unless it starts from something that names a branch. An existing pull request or merge request is a fifth case: the thread is prepared on that request's own branch. An asking thread moves into a worktree later through the same chip, so the operator does not have to decide before the question is answered.</p>
+    <h3>The owner tag on a changed file</h3>
+    <p>The Changes list tags each file fork or upstream. When a file's owner does not match where the thread lands, the row says so and offers to move that file's change to a thread that lands in the right place. The same sentence goes to Copilot in its instructions, with the scope's ownership rule, so it proposes the split itself. The tag is a warning and blocks nothing: the operator can still commit an upstream-owned file to the fork.</p>
+    <p>Core already separates SPI code from upstream code for security alerts. The tag needs that rule exposed per path. Until core can classify a path, the file carries no tag and no warning, never a guess.</p>
+    <p>Where an upstream push goes depends on the operator's GitLab access. A maintainer pushes a branch to the upstream project. Anyone else pushes to their own fork of it on GitLab, which the clone holds as a third remote, and the merge request goes from that fork into upstream. SPI Code reads which applies with <code>glab</code> when the thread first lands in Upstream and names the remote on the Thread tab. It does not create a fork: when the operator has neither, the Thread tab says so and links to the upstream project.</p>
+  </section>
+
+  <section>
+    <h2>What Copilot is told</h2>
+    <p>T3 Code tells its agent the folder and the user's message. SPI Code adds three layers so the operator never has to describe what is on screen.</p>
+    <div class="tblwrap"><table class="tbl">
+      <thead><tr><th>Layer</th><th>What it carries</th><th>When</th><th>How it travels</th></tr></thead>
+      <tbody>
+        <tr><td><b>Scope instructions</b></td><td>The scope's repositories and remotes, the branch model (upstream, sync, integration, main), which paths the fork owns, where each kind of change lands, and that SPI tools answer program questions faster than re-reading GitHub</td><td>Every thread</td><td>The session's instructions, resent only when they change</td></tr>
+        <tr><td><b>What you were looking at</b></td><td>The place, opened row or popover the thread started from, packed as the PRD's context chip: id, kind, title, cause, effect, next, evidence links, sweep time, what was not read. Never a raw log, diff or issue body</td><td>On the first message, and whenever the operator adds one with @</td><td>A draft chip in the composer that can be removed; snapshotted onto the message when sent</td></tr>
+        <tr><td><b>SPI tools</b></td><td>Reads over the last sweep: Today, a service's home, Upstream, Template, Environment, Releases, Security, one item by id, and the evidence behind a value</td><td>When Copilot asks</td><td>Tools the host registers on the Copilot session. No server is involved</td></tr>
+      </tbody>
+    </table></div>
+    <p style="margin-top:14px">The packed chip is what the host's inspect already returns for a row or popover, so no new reading is written for it. The SPI tools return the snapshot and say when it was read. For anything deeper, Copilot reads the code in the thread's folder and runs <code>git</code> there, and the work log shows each call. <code>gh</code> and <code>glab</code> have no sign-in inside the sandbox, so a fresher read of GitHub or GitLab is an SPI tool the host answers.</p>
+    <p>SPI tools read only. Program operations that write (dispatch, re-run, merge) are not offered in this change and arrive with M4 as tools that raise a card.</p>
+  </section>
+
+  <section>
+    <h2>Starting a thread</h2>
+    <p>A thread starts as a draft in the centre: the composer with its scope and any context chip, and nothing sent. There are four ways in, and all four land in that same draft.</p>
+    <div class="tblwrap"><table class="tbl">
+      <thead><tr><th>From</th><th>How</th><th>Scope</th><th>Context chip</th></tr></thead>
+      <tbody>
+        <tr><td><b>Anywhere</b></td><td>⌘N, or New thread at the head of the sidebar's thread list</td><td>The open service, Template or Environment; otherwise Program</td><td>The open row or popover if one is open; otherwise none</td></tr>
+        <tr><td><b>An opened row or a popover</b></td><td>Ask about this, one control at the end of the source pills</td><td>The row's fork when it has one; otherwise Program</td><td>That row or popover's subject</td></tr>
+        <tr><td><b>Find or ask</b></td><td>A sentence typed into ⌘K, then ↵ on "Ask Copilot"</td><td>As ⌘N</td><td>As ⌘N; the sentence becomes the draft's text</td></tr>
+        <tr><td><b>A service page</b></td><td>New thread on its Threads tab</td><td>That service</td><td>None</td></tr>
+      </tbody>
+    </table></div>
+    <figure>
+      <div class="row-open" role="img" aria-label="An opened Today row with its source pills and one Ask about this control at their end.">
+        <div class="r"><span style="color:var(--strong);font-weight:600">indexer</span><span>Sync halted on a conflict</span><span class="pill">Issue #72 ↗</span><span class="age" style="color:var(--faint);text-align:right">2d</span></div>
+        <div class="body"><span>The sync PR conflicts with a fork-owned file. Nothing from upstream reaches main until it is resolved.</span><span style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="pill">Sync PR #70 ↗</span><span class="pill">Sync Upstream run ↗</span><span class="chip scope" style="margin-left:auto">✦ Ask about this</span></span></div>
+      </div>
+      <figcaption>Example row. Ask about this opens a draft thread scoped to indexer with this row as its chip. It sends nothing and is the only Copilot control on a row or popover.</figcaption>
+    </figure>
+    <p style="margin-top:14px">This is the Copilot design that ruling Z7 on Today and places left open. The earlier buttons were removed because their labels promised an outcome ("Ask Copilot why", "Port !968"). This control names what it produces, a thread about this row, and the operator writes the request.</p>
+    <p>When a thread already owns a row, the control reads the thread's title and status and opens that thread, as TH-05 has it.</p>
+  </section>
+
+  <section>
+    <h2>Threads in the sidebar and on a service</h2>
+    <p>The sidebar lists threads by status under Pinned, as PS-08 already draws: Waiting on you, Working, then the Settled shelf with its count. This is also how T3 Code's sidebar groups them. Each row adds its scope at the end in muted ink, and a thread with a worktree shows its branch and target under its title.</p>
+    <p>A service page gains a Threads tab after Security, with the count of threads that are Waiting on you or Working. It lists every thread scoped to that service, settled ones under a fold. Template and Environment list theirs under their reading. Threads are not nested under a pinned service in the sidebar.</p>
+  </section>
+
+  <section>
+    <h2>How it runs</h2>
+    <p>Threads run in SPI Code's own host, on the Copilot SDK session the host already starts. The engine is a new package, <code>@spi-code/threads</code>, that imports nothing from SPI Code. The host hands it four things: where a thread works, which tools are offered, the instructions and context, and the channel its events travel on. Another app can supply its own four and use the same engine and view.</p>
+    <figure>
+      <div class="flow">
+        <svg viewBox="0 0 1000 366" role="img" aria-label="The window holds SPI Code's views and the thread view. Both talk to one host process over a MessagePort. In the host, the thread engine drives the Copilot SDK runtime, whose shell and file tools run inside a sandbox, and Copilot reads the program through SPI tools. The host's own git, gh and glab run outside the sandbox.">
+          <defs><marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--line-strong)"/></marker></defs>
+          <rect x="8" y="8" width="984" height="100" class="b-frame" rx="10"/><text x="22" y="28" class="col">The window</text>
+          <rect x="24" y="36" width="440" height="60" class="box b-spi"/><text x="38" y="60" class="t">SPI Code's views and shell</text><text x="38" y="80" class="sub">sidebar, top row, ⌘K, Today, places, Evidence, Settings</text>
+          <rect x="520" y="36" width="456" height="60" class="box b-t3"/><text x="534" y="60" class="t">Thread view</text><text x="534" y="80" class="sub">timeline, work log, composer, approval rows, Thread tab</text>
+          <path d="M500 108 L500 142" class="arrow" marker-start="url(#a3)" marker-end="url(#a3)"/><text x="510" y="130" class="tiny">one MessagePort, as today</text>
+          <rect x="8" y="146" width="984" height="100" class="b-frame" rx="10"/><text x="22" y="166" class="col">The host process</text>
+          <rect x="24" y="174" width="250" height="60" class="box b-spi"/><text x="38" y="198" class="t">SPI host</text><text x="38" y="218" class="sub">sweeps, snapshot, inspect, scopes</text>
+          <rect x="290" y="174" width="190" height="60" class="box b-spi"/><text x="304" y="198" class="t">SPI tools</text><text x="304" y="218" class="sub">read the snapshot only</text>
+          <rect x="520" y="174" width="456" height="60" class="box b-t3"/><text x="534" y="198" class="t">Thread engine</text><text x="534" y="218" class="sub">event journal, turns, approvals, worktrees, recovery</text>
+          <path d="M748 246 L748 286" class="arrow" marker-end="url(#a3)"/><text x="758" y="270" class="tiny">SDK session and sandbox policy</text>
+          <rect x="520" y="290" width="456" height="62" class="box b-agent"/><text x="534" y="314" class="t">Copilot SDK runtime</text><text x="534" y="334" class="sub">its shell and file tools run inside the sandbox</text>
+          <path d="M520 321 L385 321 L385 238" class="arrow" marker-end="url(#a3)"/><text x="394" y="312" class="tiny">calls SPI tools</text>
+          <path d="M149 246 L149 286" class="arrow" marker-end="url(#a3)"/>
+          <rect x="24" y="290" width="250" height="62" class="box b-mute"/><text x="38" y="314" class="t">git, gh, glab</text><text x="38" y="334" class="sub">the host's own, outside the sandbox</text>
+        </svg>
+      </div>
+      <figcaption>One host, one runtime. Copilot's tools are confined; commit, push and opening a request are done by the host when the operator presses them.</figcaption>
+    </figure>
+    <p style="margin-top:14px">T3 Code is the source of the thread's behaviour and look, not of its code. Its server is about 303,000 lines written in Effect, and its web app is not a package that can be mounted. The table says what is re-made from it in SPI Code's kit and what is not carried.</p>
+    <div class="tblwrap"><table class="tbl">
+      <thead><tr><th>T3 Code has</th><th>In SPI Code</th><th></th></tr></thead>
+      <tbody>
+        <tr><td><b>Event log, thread statuses, turns, stop, queued messages</b></td><td>The engine's journal and timeline projection. On restart, work in flight is marked cancelled and Copilot is told on the next turn, which is T3 Code's rule and RN-06</td><td><span class="tag t3">re-made</span></td></tr>
+        <tr><td><b>Timeline, grouped work log, composer, approval and question rows</b></td><td>The thread view, in SPI Code's tokens. An approval row shows the diff or the command</td><td><span class="tag t3">re-made</span></td></tr>
+        <tr><td><b>Worktrees, setup progress, commit, push, create PR or MR</b></td><td>The engine's worktrees and the host's own git, <code>gh</code> and <code>glab</code>, as buttons on the Thread tab</td><td><span class="tag t3">re-made</span></td></tr>
+        <tr><td><b>Projects and the add, clone and scratch project flows</b></td><td>Scopes from the fleet. Nothing creates one</td><td><span class="tag spi">replaced</span></td></tr>
+        <tr><td><b>Branch toolbar: environment mode and base branch</b></td><td>Lands in</td><td><span class="tag spi">replaced</span></td></tr>
+        <tr><td><b>Sidebar and command palette</b></td><td>SPI Code's own, listing the engine's threads; ⌘K gains thread results and ask</td><td><span class="tag spi">replaced</span></td></tr>
+        <tr><td><b>Context on a message: files, mentions</b></td><td>The packed place or row; @ completes places</td><td><span class="tag spi">replaced</span></td></tr>
+        <tr><td><b>Model and effort picker</b></td><td>Copilot's models only, no provider rail, as CP-09 draws it</td><td><span class="tag spi">narrowed</span></td></tr>
+        <tr><td><b>Access modes</b></td><td>Supervised and Auto-accept edits. Auto and Full access are not offered</td><td><span class="tag spi">narrowed</span></td></tr>
+        <tr><td><b>Diff panel, terminal drawer, Open in editor, plan mode</b></td><td>After the first threads land</td><td><span class="tag out">later</span></td></tr>
+        <tr><td><b>Other providers, remote machines, mobile, guest sharing, side chat, preview and device panels, Linear</b></td><td>Not carried</td><td><span class="tag out">left out</span></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Authority</h2>
+    <p>Copilot has its own shell and file tools in a thread that lands somewhere, and every one of them runs inside the Copilot SDK's sandbox. The engine sets the policy; the operator's approval decides whether a call runs at all. The sandbox was run on macOS on the prototype. Appendix D has each check.</p>
+    <div class="tblwrap"><table class="tbl">
+      <thead><tr><th>Inside the sandbox</th><th>Policy</th><th>Seen on macOS</th></tr></thead>
+      <tbody>
+        <tr><td><b>Files written</b></td><td>The thread's worktree and a temp folder</td><td>A write anywhere else fails, by shell and by file tool</td></tr>
+        <tr><td><b>Files read</b></td><td>The worktree, the clone and the toolchain folders</td><td>Reads are denied unless granted. The home folder, <code>~/.ssh</code> and <code>~/.config/gh</code> can't be listed</td></tr>
+        <tr><td><b>The clone's git folder</b></td><td>Writable, with its hooks and config read only (CT-08)</td><td>A commit works; a hook or config write fails. The default policy alone leaves both writable</td></tr>
+        <tr><td><b>Network</b></td><td>GitHub, the OSDU GitLab and the package registries a build needs</td><td>An allowed host answers; any other fails, also when the proxy is skipped</td></tr>
+        <tr><td><b>Environment</b></td><td>An allow-list with no token variables (CT-09)</td><td>The sandbox does not filter the environment, so the engine starts the runtime with a cleaned one</td></tr>
+        <tr><td><b>Leaving the sandbox</b></td><td>Not offered</td><td>With bypass off, a blocked call fails and raises no request</td></tr>
+      </tbody>
+    </table></div>
+    <p style="margin-top:14px">Three rules follow from what the probe found. The engine supplies the policy on every create and resume, because a session resumed without it runs unconfined and says nothing. Before each turn it reads the runtime's sandbox state, and a thread whose sandbox is not engaged offers no shell or file tools (CT-07). An approval is never granted by its kind alone, because a request to leave the sandbox arrives as an ordinary write request with a flag.</p>
+    <div class="tblwrap"><table class="tbl">
+      <thead><tr><th>Action</th><th>Who does it</th><th>Control</th></tr></thead>
+      <tbody>
+        <tr><td><b>Read files, search code</b></td><td>Copilot, in the worktree or the shared clone</td><td>The sandbox's read paths. No prompt</td></tr>
+        <tr><td><b>Edit a file</b></td><td>Copilot</td><td>An approval row with the diff in Supervised; no prompt in Auto-accept edits</td></tr>
+        <tr><td><b>Run a command (build, test, <code>git</code>)</b></td><td>Copilot, in the sandbox, with no sign-in</td><td>An approval row with the command, every time</td></tr>
+        <tr><td><b>Read GitHub or GitLab</b></td><td>The host, through SPI tools</td><td>Typed read tools. <code>gh</code> and <code>glab</code> have no sign-in inside the sandbox</td></tr>
+        <tr><td><b>Commit, push, open a PR or MR</b></td><td>The host's own git, <code>gh</code> and <code>glab</code>, outside the sandbox (CT-11)</td><td>The operator presses it on the Thread tab. Copilot cannot</td></tr>
+        <tr><td><b>A program operation (dispatch, re-run, merge)</b></td><td>The host</td><td>A typed SPI tool that raises a card, M4, unchanged</td></tr>
+      </tbody>
+    </table></div>
+    <p style="margin-top:14px">A command the host runs itself, such as a fork's build or verify script (CT-16), is not a Copilot tool and the SDK's sandbox does not cover it. Those run under <code>@microsoft/mxc-sdk</code> with the same policy. The Copilot runtime's sandbox is that same library, so one policy format serves both. It takes the place of the hand-written Seatbelt profile and Windows restricted token in CT-07.</p>
+    <p>Windows is not proven. Until the same checks pass there, a Windows thread asks and reads and offers no shell or file tools.</p>
+  </section>
+
+  <section>
+    <h2>What the prototypes showed</h2>
+    <p>Two throwaway prototypes were built and stopped mid-work on purpose: T3 Code's server embedded in SPI Code, and SPI Code's own engine on the SDK. Three reviewers from different providers and a fourth review read both.</p>
+    <div class="tblwrap"><table class="tbl">
+      <thead><tr><th>Question</th><th>T3 Code's server embedded</th><th>Own engine on the SDK</th></tr></thead>
+      <tbody>
+        <tr><td><b>A thread from a Today row, with its context</b></td><td>Works</td><td>Works</td></tr>
+        <tr><td><b>Quit, relaunch, continue</b></td><td>Works</td><td>Works, on the same SDK session</td></tr>
+        <tr><td><b>Killed while a reply streams, or while an approval waits</b></td><td>Recovers</td><td>Recovers</td></tr>
+        <tr><td><b>Killed while a command runs</b></td><td>Marks it cancelled at start. Also starts a turn nobody asked for</td><td>The command's fate is unknown. Needs the journal and T3 Code's rule</td></tr>
+        <tr><td><b>Everything killed at once</b></td><td>The command's process is orphaned</td><td>The same. The engine must own the process group</td></tr>
+        <tr><td><b>A command longer than five minutes</b></td><td>Works</td><td>Fails on the prototype's own fixed wait, and blames sign-in</td></tr>
+        <tr><td><b>Size SPI Code would own</b></td><td>A patch set of five to seven changes on about 303,000 lines it does not control</td><td>About 1,450 lines so far, with six areas left to build</td></tr>
+        <tr><td><b>The thread view</b></td><td>T3 Code's can't be mounted; a new one is written either way</td><td>Written in SPI Code's kit</td></tr>
+        <tr><td><b>An approved command and the operator's tokens</b></td><td>Inherits the launch environment</td><td>The same, until the sandbox and a cleaned environment</td></tr>
+      </tbody>
+    </table></div>
+    <p style="margin-top:14px">The reviews put the own engine at 78 percent, and the embed and a narrow port at 60 to 65. The embed's recovery is better today, and its rule is small enough to re-make. Its cost is permanent: a second process, Effect, and a rebase on each T3 Code version. Both branches are kept as references.</p>
+  </section>
+
+  <section>
+    <h2>Build order</h2>
+    <p>Each slice is something the operator can run. The work is estimated at three to five weeks by its builder and six to nine by the reviewer.</p>
+    <div class="tblwrap"><table class="tbl">
+      <thead><tr><th>Slice</th><th>The operator can</th><th>What it needs underneath</th></tr></thead>
+      <tbody>
+        <tr><td><b>1 · Ask in a service</b></td><td>Start a thread from a row, ⌘N or a service, on Asking; stop it; quit and continue</td><td>The engine package with its journal, timeline, stop, queued messages and restart recovery; scopes and clones; the packed chip and SPI tools; the sandbox on with the clone read only</td></tr>
+        <tr><td><b>2 · Change code</b></td><td>Pick Lands in, approve edits and commands, see changed files, commit</td><td>Worktrees; the full sandbox policy and cleaned environment; approval rows with diffs; owned process groups</td></tr>
+        <tr><td><b>3 · Send it</b></td><td>Push and open a pull request or a merge request; see the owner tag</td><td>The host's git, <code>gh</code> and <code>glab</code> actions; the per-path owner rule from core</td></tr>
+        <tr><td><b>4 · Everywhere</b></td><td>Ask across the program, in Template and in Environment; ask from ⌘K; see a service's Threads tab</td><td>The other scopes; thread results in Find</td></tr>
+        <tr><td><b>5 · Windows</b></td><td>Do the same on Windows</td><td>The sandbox checks on Windows; the packaged smoke; MXC for host-run scripts on both platforms</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Open decisions</h2>
+    <p>The engine and the use of MXC are settled. These are not.</p>
+    <div class="tblwrap"><table class="tbl">
+      <thead><tr><th>Decision</th><th>Recommended</th><th>The other choice</th></tr></thead>
+      <tbody>
+        <tr><td><b><code>gh</code> and <code>glab</code> inside the sandbox</b></td><td>No sign-in. Copilot reads the forges through SPI tools, and the host sends</td><td>Mask the token variables so the runtime injects them only into requests to GitHub and GitLab. The masking was seen; the injection has not been tested</td></tr>
+        <tr><td><b>Where this work is tracked</b></td><td>A new threads epic, built from the prototype. M3's Diagnose, lane watch and campaigns stay in their epic and build on it</td><td>Re-scope the M3 epic, which waits on M2 and holds those three as well</td></tr>
+        <tr><td><b>The composer on every place</b></td><td>Retire it. A thread starts as a draft in the centre</td><td>Keep a standing composer at the foot of each place, as TH-03 says</td></tr>
+        <tr><td><b>Program threads and code</b></td><td>Asking only; a change continues in a service, the template or the environment</td><td>Let a program thread edit across clones, with no single branch, diff or request to show</td></tr>
+        <tr><td><b>Hosts a build may reach</b></td><td>GitHub, the OSDU GitLab, Maven Central and the OSDU package registry, listed in Settings</td><td>Any host, with only the file and environment rules applied</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <div class="appendix">
+    <p class="eyebrow">Appendix · reference material</p>
+    <h2>Reference detail</h2>
+
+    <section>
+      <h3>A · Where this departs from the PRD and design pages</h3>
+      <div class="tblwrap"><table class="tbl">
+        <thead><tr><th>Today's text</th><th>This proposal</th></tr></thead>
+        <tbody>
+          <tr><td><b>TH-01</b> A thread has one anchor of eleven kinds, from the program down to a queue item or a PR</td><td>A thread has one scope of four kinds (Program, a service, Template, Environment). The item it started from is context, not identity</td></tr>
+          <tr><td><b>TH-03, PS-05</b> Every place carries a composer</td><td>No standing composer. Four start paths lead to one draft</td></tr>
+          <tr><td><b>TH-04</b> Kind is operate or code, fixed at start, and sets the tools</td><td>One kind. Lands in decides whether there is a worktree, and can change from Asking later</td></tr>
+          <tr><td><b>TH-08</b> T3 Code's runtime modes are not carried</td><td>Two are: Supervised and Auto-accept edits</td></tr>
+          <tr><td><b>CP-04, CP-05, NF-01</b> No built-in shell or file tool; every permission request denied</td><td>The built-in shell and file tools are on, inside the sandbox, behind an approval. Fetch and subagent tools stay off</td></tr>
+          <tr><td><b>CT-07</b> Seatbelt on macOS, a restricted token on Windows</td><td>The SDK's sandbox for Copilot's tools and <code>@microsoft/mxc-sdk</code> for host-run commands. On Windows that means Windows 11 and MXC's required telemetry</td></tr>
+          <tr><td><b>CT-10, CT-13, CT-14</b> Commands and each commit and push are cards with bindings</td><td>A command is an approval row. Commit and push are buttons the operator presses; Copilot has no way to do either</td></tr>
+          <tr><td><b>Milestones</b> Threads at M3, code threads at M5</td><td>One threads epic carries both, in the build order above</td></tr>
+          <tr><td><b>Service home</b> A subtree under a pinned service and Copilot actions are out of scope</td><td>Still no subtree. The service page gains a Threads tab, and rows gain Ask about this</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">Unchanged: the host drives Copilot through the SDK (CP-01 to CP-03), one runtime and no MCP server, SPI Code's own worktrees and git outside the sandbox (CT-11), the sandbox's write, home and environment rules (CT-08, CT-09), no commands when the sandbox can't start (CT-07), one right panel that exists only in a thread (PS-11), threads by status and the Settled shelf (PS-08, TH-07), the context chip's contents and budget (PS-14), the thread marker on an owned row (TH-05, PS-15), the model picker (CP-09), and M4's cards for program operations.</p>
+    </section>
+
+    <section>
+      <h3>B · What SPI Code builds</h3>
+      <div class="tblwrap"><table class="tbl">
+        <thead><tr><th>Piece</th><th>What it is</th><th>Builds on</th></tr></thead>
+        <tbody>
+          <tr><td><b>Thread engine</b></td><td><code>@spi-code/threads</code>: journal, timeline projection, turns, stop, queue, approvals, recovery, process ownership. No SPI imports</td><td>The prototype's <code>engine.ts</code>; the host's SDK runtime and its unused thread tables</td></tr>
+          <tr><td><b>Thread view</b></td><td>Timeline, work log, composer, approval rows and the Thread tab, as components that draw data they are given</td><td>The prototype's view; SPI Code's tokens and kit</td></tr>
+          <tr><td><b>Sandbox policy</b></td><td>The paths, hosts and environment for a thread; the engaged check before each turn</td><td>The SDK's <code>sandboxConfig</code>; the prototype's probe script</td></tr>
+          <tr><td><b>Scope registry</b></td><td>The 16 scopes with their folders and remotes, from the fleet</td><td><code>KNOWN_SERVICES</code>, <code>TEMPLATE_REPO</code>, <code>STACK_REPO</code> and the live fleet read in core</td></tr>
+          <tr><td><b>Clones and worktrees</b></td><td>Clone on first use, add the upstream remote, fetch before a worktree is made</td><td>The prototype's <code>worktree.ts</code>; the managed <code>git</code></td></tr>
+          <tr><td><b>Lands in</b></td><td>The chip and menu; maps a choice to a base ref, a push remote and a request kind</td><td>The engine's worktree seam</td></tr>
+          <tr><td><b>Owner tag</b></td><td>Fork or upstream for a path, and the mismatch sentence</td><td>Core's split of SPI code and upstream code, exposed per path</td></tr>
+          <tr><td><b>Scope instructions</b></td><td>The text Copilot gets for a scope</td><td>The rib's Watch Officer prompt, rewritten for a thread that can change code (CP-06)</td></tr>
+          <tr><td><b>Context chip</b></td><td>Packs a place, row or popover; preview, remove, refresh from the latest sweep</td><td>The host's <code>resolveInspect</code> and <code>InspectResult</code></td></tr>
+          <tr><td><b>SPI tools</b></td><td>Read tools over the snapshot, registered on the SDK session</td><td><code>ViewSnapshot</code>; the tool registry's stubs</td></tr>
+          <tr><td><b>Shell</b></td><td>Thread rows in the sidebar, Ask about this, the Threads tab, thread results and ask in ⌘K</td><td>The sidebar, palette, opened body and right-panel frame already in the window</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section>
+      <h3>C · Alternatives not chosen</h3>
+      <div class="tblwrap"><table class="tbl">
+        <thead><tr><th>Alternative</th><th>Why not</th></tr></thead>
+        <tbody>
+          <tr><td><b>Run T3 Code's server inside SPI Code</b></td><td>It was prototyped and it runs. It adds a second process and Effect, needs five to seven patches rebased on each T3 Code version, drives Copilot through the CLI, where the SDK's sandbox option is not set by SPI Code, and still needs a thread view written from scratch</td></tr>
+          <tr><td><b>Port T3 Code's orchestrator line by line</b></td><td>About 100,000 lines built for eleven providers and remote machines. SPI Code needs one provider and one machine</td></tr>
+          <tr><td><b>No shell, typed tools only, as the PRD has it</b></td><td>Copilot could not run a build or a test, and each capability would wait for a tool to be written. The sandbox gives the containment the rule was for</td></tr>
+          <tr><td><b>Two clones per service, one per forge</b></td><td>Doubles disk and fetch time for 13 services, and a thread has one folder, so comparing fork and upstream code would need a second thread</td></tr>
+          <tr><td><b>Let the operator add other repositories as scopes</b></td><td>SPI Code works on a fixed program. A free project list brings back the folder picker and makes scope instructions and the owner tag meaningless for what was added</td></tr>
+          <tr><td><b>Group threads by scope in the sidebar</b></td><td>Sixteen folders, most of them empty. Status is what the operator acts on, and the service page lists a service's threads</td></tr>
+          <tr><td><b>A verb button per row ("Diagnose", "Fix", "Port")</b></td><td>Ruling Z7 removed these. One control that opens a draft keeps the request in the operator's words</td></tr>
+          <tr><td><b>Block a commit that touches an upstream-owned file in a fork thread</b></td><td>Some fork changes do touch such files on purpose, in a sync conflict for one. A warning with a way to split the change covers the mistake without stopping the exception</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section>
+      <h3>D · The sandbox checks</h3>
+      <p>Run on macOS 27 with SDK 1.0.26, by calling the runtime's shell, create and view tools directly. No model turn was part of it.</p>
+      <div class="tblwrap"><table class="tbl">
+        <thead><tr><th>Check</th><th>Sandbox off</th><th>Sandbox on</th></tr></thead>
+        <tbody>
+          <tr><td><b>Starts</b></td><td>Reported inactive</td><td>Reported engaged, on Seatbelt, with network filtering and denied paths supported</td></tr>
+          <tr><td><b>Shell write outside the worktree</b></td><td>Written</td><td>Fails. The worktree and the temp folder are writable</td></tr>
+          <tr><td><b>File tool write outside</b></td><td>Written after a request</td><td>Refused, with no request</td></tr>
+          <tr><td><b>Read a file outside</b></td><td>Read</td><td>Fails, whether or not the folder is on the denied list</td></tr>
+          <tr><td><b>List the home folder</b></td><td>Listed</td><td>Fails</td></tr>
+          <tr><td><b>A variable from the launch environment</b></td><td>Visible</td><td>Still visible. Masked, it becomes a placeholder</td></tr>
+          <tr><td><b>One allowed host</b></td><td>Every host answers</td><td>Only that host answers</td></tr>
+          <tr><td><b>Hook and config in the clone's git folder</b></td><td>Writable</td><td>Writable by default; read only once listed, and a commit still works</td></tr>
+          <tr><td><b>Bypass turned on</b></td><td>Not applicable</td><td>The file tool raises a write request flagged as a bypass; approving it writes outside</td></tr>
+          <tr><td><b>Resume without the policy</b></td><td>Not applicable</td><td>The sandbox is off, with no warning</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">Not run: Windows and Linux, whether a masked token is injected at its allowed host, the SDK's git and gh sign-in options, a model's reaction to a blocked call, and attempts to escape.</p>
+    </section>
+  </div>
+</div>
+
+<script>
+(function(){
+  var btns=document.querySelectorAll('.seg button'), wins=document.querySelectorAll('[data-win]');
+  btns.forEach(function(b){b.addEventListener('click',function(){
+    btns.forEach(function(x){x.setAttribute('aria-pressed', x===b ? 'true':'false')});
+    wins.forEach(function(w){w.hidden = w.getAttribute('data-win')!==b.getAttribute('data-m')});
+  });});
+})();
+</script>
