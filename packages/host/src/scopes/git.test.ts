@@ -32,7 +32,10 @@ import {
 import { ScopeRegistry } from "./registry.js";
 import { ScopeWorkspaces, type WorkspaceProgress, type WorkspaceResult } from "./workspace.js";
 
-const faults = vi.hoisted(() => ({ mkdtemp: undefined as RegExp | undefined }));
+const faults = vi.hoisted(() => ({
+  mkdtemp: undefined as RegExp | undefined,
+  rm: undefined as RegExp | undefined,
+}));
 vi.mock("node:fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs/promises")>();
   const mkdtemp = (async (prefix: string, options?: Parameters<typeof actual.mkdtemp>[1]) => {
@@ -43,7 +46,16 @@ vi.mock("node:fs/promises", async (importOriginal) => {
     }
     return actual.mkdtemp(prefix, options);
   }) as typeof actual.mkdtemp;
-  return { ...actual, mkdtemp, default: { ...actual, mkdtemp } };
+  const rm = (async (
+    path: Parameters<typeof actual.rm>[0],
+    options?: Parameters<typeof actual.rm>[1],
+  ) => {
+    if (faults.rm?.test(String(path))) {
+      throw Object.assign(new Error("EBUSY: resource busy or locked, rmdir"), { code: "EBUSY" });
+    }
+    return actual.rm(path, options);
+  }) as typeof actual.rm;
+  return { ...actual, mkdtemp, rm, default: { ...actual, mkdtemp, rm } };
 });
 
 const exec = promisify(execFile);
@@ -1081,8 +1093,13 @@ describe("confined add and commit", () => {
         "a repointed worktree pointer",
         async () => {
           const original = await readFile(pointer);
-          await writeFile(pointer, otherPointer);
-          return () => writeFile(pointer, original);
+          // Git for Windows hides the .git file, and a hidden file cannot be opened for writing.
+          const plant = async (content: Buffer) => {
+            await rm(pointer);
+            await writeFile(pointer, content);
+          };
+          await plant(otherPointer);
+          return () => plant(original);
         },
         "workspace-not-trusted",
       ],
@@ -1137,4 +1154,92 @@ describe("confined add and commit", () => {
       expect(await scratchLeft()).toEqual([]);
     },
   );
+
+  /** Answers like a sandbox that held: the proof line, no canary, exit 0. */
+  const proven =
+    (shape: (genuine: Record<string, unknown>) => Record<string, unknown>): MxcApi["run"] =>
+    async (request) => {
+      const id = /spi-confined-[\da-f-]{36}/u.exec(request.command)?.[0];
+      if (!id) throw new Error("No run id in the command.");
+      return shape({ ...result(`${id}:EPERM\n`) }) as unknown as Awaited<ReturnType<MxcApi["run"]>>;
+    };
+
+  it("refuses a result missing or mistyping any field of the SDK's result", async () => {
+    const git = gitRunner();
+    const workspace = await checkout(git);
+    const target = await linkedWorktree(git, workspace.cwd);
+    const accepted = await gitRunner(undefined, sandbox(proven((genuine) => genuine))).add(target, [
+      ".",
+    ]);
+    expect(accepted).toMatchObject({ ok: true, data: "", afterExit: "not-known" });
+    expect(accepted).not.toHaveProperty("cleanup");
+
+    const shapes: [string, (genuine: Record<string, unknown>) => Record<string, unknown>][] = [
+      ["no warnings", ({ warnings: _, ...rest }) => rest],
+      ["warnings not an array", (genuine) => ({ ...genuine, warnings: "none" })],
+      ["a warning not a string", (genuine) => ({ ...genuine, warnings: [1] })],
+      ["no stdout", ({ stdout: _, ...rest }) => rest],
+      ["stderr not a string", (genuine) => ({ ...genuine, stderr: null })],
+      ["exitCode not a number", (genuine) => ({ ...genuine, exitCode: "0" })],
+      ["no timedOut", ({ timedOut: _, ...rest }) => rest],
+    ];
+    for (const [label, shape] of shapes) {
+      const run = vi.fn(proven(shape));
+      const runner = gitRunner(undefined, sandbox(run));
+      expect(await runner.add(target, ["."]), label).toMatchObject(notProven);
+      expect(run, label).toHaveBeenCalledOnce();
+    }
+    expect(await scratchLeft()).toEqual([]);
+  });
+
+  it.skipIf(macOnly)("refuses a genuine MXC result with its warnings removed", async () => {
+    const git = gitRunner();
+    const workspace = await checkout(git);
+    const target = await linkedWorktree(git, workspace.cwd);
+    const real = await loadMxc();
+    const runner = gitRunner(
+      undefined,
+      sandbox(async (request) => {
+        const { warnings: _, ...rest } = await real.run(request);
+        return rest as Awaited<ReturnType<MxcApi["run"]>>;
+      }),
+    );
+    expect(await gitRunner().status(target)).toMatchObject({ ok: true });
+    expect(await runner.add(target, ["."])).toMatchObject(notProven);
+  });
+
+  it("keeps the run's outcome and reports a scratch folder it could not remove", async () => {
+    const git = gitRunner();
+    const workspace = await checkout(git);
+    const target = await linkedWorktree(git, workspace.cwd);
+    const scratch = join(await realpath(appData), "scope-git");
+    const cases: [string, MxcApi["run"], object][] = [
+      [
+        "a proven run",
+        proven((genuine) => genuine),
+        { ok: true, data: "", afterExit: "not-known" },
+      ],
+      [
+        "a sandbox that rejects after launch",
+        () => Promise.reject(new Error("Could not decode the execution result.")),
+        uncertain,
+      ],
+    ];
+    for (const [label, run, expected] of cases) {
+      faults.rm = /[/\\]run-[^/\\]+$/u;
+      let outcome: ConfinedResult;
+      try {
+        outcome = await gitRunner(undefined, sandbox(run)).add(target, ["."]);
+      } finally {
+        faults.rm = undefined;
+      }
+      const left = await scratchLeft();
+      expect(left, label).toEqual([expect.stringMatching(/^run-/u)]);
+      expect(outcome, label).toMatchObject({
+        ...expected,
+        cleanup: { failed: [join(scratch, left[0] ?? "")] },
+      });
+      await rm(join(scratch, left[0] ?? ""), { recursive: true });
+    }
+  });
 });

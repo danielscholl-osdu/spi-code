@@ -17,7 +17,12 @@ export type ConfinementReason =
 /** A program the command started may outlive it; the host cannot tell. */
 export type AfterExit = "not-known";
 
-export type ConfinedResult =
+/** Scratch folders the host made for the run and could not remove. */
+export interface CleanupFailure {
+  readonly failed: readonly string[];
+}
+
+export type ConfinedResult = (
   | { readonly ok: true; readonly data: string; readonly afterExit: AfterExit }
   | {
       readonly ok: false;
@@ -47,7 +52,8 @@ export type ConfinedResult =
       readonly error: string;
       readonly code: null;
       readonly afterExit: AfterExit;
-    };
+    }
+) & { readonly cleanup?: CleanupFailure };
 
 export interface MxcApi {
   getPlatformSupport(): { readonly isSupported: boolean; readonly availableMethods: string[] };
@@ -147,7 +153,9 @@ function isExecutionResult(value: unknown): value is ExecutionResult {
     typeof result.stdout === "string" &&
     typeof result.stderr === "string" &&
     Number.isInteger(result.exitCode) &&
-    typeof result.timedOut === "boolean"
+    typeof result.timedOut === "boolean" &&
+    Array.isArray(result.warnings) &&
+    result.warnings.every((warning) => typeof warning === "string")
   );
 }
 
@@ -198,7 +206,19 @@ export async function runConfined(
     return directory;
   };
   let launched = false;
+  let outcome: ConfinedResult;
   try {
+    outcome = await launch();
+  } catch {
+    outcome = launched ? uncertain : refuse("setup-failed");
+  }
+  const removals = await Promise.allSettled(
+    allocated.map((directory) => rm(directory, { recursive: true, force: true })),
+  );
+  const failed = allocated.filter((_, index) => removals[index]?.status === "rejected");
+  return failed.length > 0 ? { ...outcome, cleanup: { failed } } : outcome;
+
+  async function launch(): Promise<ConfinedResult> {
     const temp = await allocate("run-");
     const check = await allocate("check-");
     const workspace = await canonicalSandboxWorkspace({
@@ -241,11 +261,5 @@ export async function runConfined(
       command: `/bin/sh -c ${quoteShell(script)}`,
     });
     return await judge(result, `${id}:EPERM\n`, canary);
-  } catch {
-    return launched ? uncertain : refuse("setup-failed");
-  } finally {
-    await Promise.allSettled(
-      allocated.map((directory) => rm(directory, { recursive: true, force: true })),
-    );
   }
 }
