@@ -8,6 +8,7 @@ import { z } from "zod";
 import { FakeSession } from "../testing/fake-session.js";
 import { buildPermissionGate, buildSessionToolFilter } from "./permission-gate.js";
 import { buildGatedTool, createStubSessionConfig } from "./registry.js";
+import { spiReadTools } from "./spi-reads.js";
 import { APPENDIX_A_TOOLS, GATED_KINDS, type ToolTier } from "./tool-names.js";
 
 const prd = readFileSync(new URL("../../../../design/spi-code-prd.md", import.meta.url), "utf8");
@@ -131,6 +132,24 @@ describe("appendix A session boundary", () => {
     const session = new FakeSession(config);
     await expect(session.callTool("merge_pr", {})).rejects.toThrow("approval");
     await expect(session.callTool("spi_brief", {})).resolves.toBe("ships at M3");
+  });
+
+  it("replaces only the stubs a host implements, and offers no name outside the appendix", async () => {
+    const plain = { text: (text: string) => text, value: <T>(value: T) => value };
+    const config = createStubSessionConfig(
+      undefined,
+      spiReadTools(() => undefined, plain),
+    );
+    expect(config.registry.map(({ name }) => name)).toEqual(
+      APPENDIX_A_TOOLS.map(({ name }) => name),
+    );
+    expect(config.availableTools).not.toContain("custom:spi_inspect");
+    const session = new FakeSession(config);
+    expect(JSON.parse(String(await session.callTool("spi_brief", {})))).toEqual({
+      read: "not read",
+      reason: "No sweep has been saved.",
+    });
+    await expect(session.callTool("spi_watchstand", {})).resolves.toBe("ships at M3");
   });
 });
 
