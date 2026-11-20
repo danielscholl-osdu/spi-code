@@ -112,6 +112,8 @@ Not built in the threads epic, each to come later as its own work: plan mode, th
 
 Copilot has its own shell and file tools in a thread, and every one of them runs inside the Copilot SDK's sandbox, set through the session's `sandboxConfig`. The engine sets the policy; the operator's approval decides whether a call runs at all.
 
+Commands are not offered until they run as a host-run tool (spicode-7ay).
+
 | Inside the sandbox | Policy |
 |---|---|
 | Files written | The thread's worktree and a temp folder. An Asking thread writes nothing in the clone |
@@ -160,7 +162,7 @@ The sandbox has been observed on macOS only. Until the same checks pass on Windo
 | Slice | The operator can |
 |---|---|
 | 1 · Ask in a service | Start a thread from a row, ⌘N or a service, on Asking; stop it; quit and continue |
-| 2 · Change code | Pick Lands in, approve edits and commands, see changed files, commit |
+| 2 · Change code | Pick Lands in, approve edits, see changed files, commit |
 | 3 · Send it | Push and open a pull request or a merge request; see the owner tag |
 | 4 · Everywhere | Ask across the program, in Template and in Environment; ask from ⌘K; see a service's Threads tab |
 | 5 · Windows | Do the same on Windows |
