@@ -73,6 +73,30 @@ async function waitFor(check, timeoutMs = 5_000) {
   throw new Error("Timed out waiting for probe state");
 }
 
+/**
+ * @template T
+ * @param {Promise<T>} operation
+ * @param {number} timeoutMs
+ * @param {string} label
+ */
+async function bounded(operation, timeoutMs, label) {
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
+  let timer;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`${label} timed out after ${timeoutMs} ms`)),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
 /** @param {string} command */
 function powershell(command) {
   return [
@@ -243,7 +267,7 @@ async function probeMxc(root, workspace, report, sdkPackage, mxcBin) {
     ]);
   for (const [name, read] of readers) {
     try {
-      report.mxc[name] = await read();
+      report.mxc[name] = await bounded(Promise.resolve(read()), 10_000, `MXC ${name}`);
     } catch (error) {
       report.mxc[name] = { error: message(error) };
     }
@@ -332,9 +356,13 @@ async function probeMxc(root, workspace, report, sdkPackage, mxcBin) {
    * @param {number} [timeoutMs]
    */
   const mxcRun = async (scenario, target = "", timeoutMs = 15_000) =>
-    sdk.run(
-      { ...request, command: invoke(scenario, target), timeoutMs },
-      { telemetry: { enabled: false } },
+    bounded(
+      sdk.run(
+        { ...request, command: invoke(scenario, target), timeoutMs },
+        { telemetry: { enabled: false } },
+      ),
+      timeoutMs + 10_000,
+      `MXC ${scenario}`,
     );
   /**
    * @param {string} name
@@ -342,6 +370,14 @@ async function probeMxc(root, workspace, report, sdkPackage, mxcBin) {
    * @param {(result: import("@microsoft/mxc-sdk/v1").ExecutionResult) => string} judge
    */
   const check = async (name, run, judge) => {
+    if (mxcRunsFailed) {
+      confinement.push({
+        check: name,
+        observation: "not run",
+        how: "earlier packaged MXC execution did not complete",
+      });
+      return "not run";
+    }
     try {
       const result = await run();
       const observation = judge(result);
@@ -352,6 +388,7 @@ async function probeMxc(root, workspace, report, sdkPackage, mxcBin) {
         result: summarizeResult(result),
       });
     } catch (error) {
+      mxcRunsFailed = true;
       confinement.push({
         check: name,
         observation: "not run",
@@ -360,6 +397,7 @@ async function probeMxc(root, workspace, report, sdkPackage, mxcBin) {
       });
     }
   };
+  let mxcRunsFailed = false;
 
   const outside = join(root, "outside.txt");
   const kube = join(workspace.appData, "kube", "config");
@@ -428,6 +466,7 @@ async function probeMxc(root, workspace, report, sdkPackage, mxcBin) {
 
   const sleepPid = join(workspace.temp, "sleep.pid");
   try {
+    if (mxcRunsFailed) throw new Error("An earlier packaged MXC execution did not complete");
     const timed = await mxcRun("sleep", "", 500);
     const pid = Number.parseInt(await readFile(sleepPid, "utf8"), 10);
     confinement.push({
@@ -453,7 +492,12 @@ async function probeMxc(root, workspace, report, sdkPackage, mxcBin) {
 
   const killPid = join(workspace.temp, "kill.pid");
   try {
-    const child = await sdk.spawn({ ...request, command: invoke("sleep", "", killPid) });
+    if (mxcRunsFailed) throw new Error("An earlier packaged MXC execution did not complete");
+    const child = await bounded(
+      sdk.spawn({ ...request, command: invoke("sleep", "", killPid) }),
+      25_000,
+      "MXC spawn",
+    );
     child.standardOutput?.resume();
     child.standardError?.resume();
     const pid = Number.parseInt(
@@ -461,7 +505,7 @@ async function probeMxc(root, workspace, report, sdkPackage, mxcBin) {
       10,
     );
     child.kill();
-    const waited = await child.wait();
+    const waited = await bounded(child.wait(), 15_000, "MXC process wait");
     child.dispose();
     report.ownership.push({
       check: "MxcProcess.kill",
