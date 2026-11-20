@@ -81,7 +81,7 @@ A fix brief lists the findings that stand, each with its file and line and the s
 - After a `risk:std` fix round, read the fix diff, confirm CI green and record the pass citing the review. Use the reviewer's `review.provider` and `review.model`, and pin the fixed head with `scripts/review-head`. Send no recheck.
 - Send both seats of a `risk:high` review at once, on the same head. Wait for both, write one synthesis on the bead, and send one fix round. One seat rechecks.
 - When a round 1 blocker is one member of an open class, the synthesis rules the structural fix then, or asks the maintainer then. It also names the cut that lands with no further round if the recheck fails.
-- The epic's first `risk:high` synthesis files its hardening bead: `risk:high`, two seats, blocking the closing checkpoint. Later syntheses name the same bead. A recheck finding graded `should` or follow-up goes there as a comment, and the passing head lands.
+- A recheck finding graded `should` or follow-up goes to the epic's hardening bead as a comment, and the passing head lands. The first such finding files that bead: `risk:high`, two seats, blocking the closing checkpoint.
 - A `risk:high` fix that changes only tests gets no recheck. You confirm it when it removes or loosens no assertion or fixture row on a gate and CI is green on the platform that was red, then record the pass citing the review.
 - Only wrong behaviour against acceptance, a broken gate or red CI blocks a pass. Put nits, test tidy-ups, evidence gaps and captures in comments on the epic's sweep bead. Break-and-restore evidence is required only for stores, state machines, parsing and gates.
 - Reviewers check CI once: red blocks, running is fine. They don't wait. `scripts/land --wait` still lands only a commit CI passed.
@@ -89,7 +89,7 @@ A fix brief lists the findings that stand, each with its file and line and the s
 - When a finding is a disagreement with the design, rule on it and record the ruling; don't let it ride through fix rounds. The same goes for a conflict a builder raises before review: rule, send the fix, and only then send the reviewer.
 - A reviewer's note about the bead's text (a missing statement, an unclear line) is yours: edit the bead and say so in a comment. It needs no recheck.
 - If a fix round changes nothing in the diff's own lines (regenerated fixtures only), the review stands; send no recheck.
-- If the `risk:high` recheck finds the same kind of failure, the cut the synthesis named lands. With none named, stop and take the approach to the maintainer.
+- If the `risk:high` recheck finds the same kind of failure, the cut the synthesis named lands with no further round: you confirm its diff removes or narrows only what the synthesis named and CI is green. With none named, stop and take the approach to the maintainer.
 
 ## Landing
 
