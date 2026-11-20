@@ -13,6 +13,7 @@ import type {
   ThreadDefinition,
   ThreadEngineOptions,
   ThreadEvent,
+  ThreadLanding,
   ThreadMessage,
   ThreadSummary,
   ThreadTimeline,
@@ -45,6 +46,7 @@ export class ThreadEngine<Tool> {
   private readonly threads = new Map<string, Timeline>();
   private readonly queues = new Map<string, PendingMessage[]>();
   private readonly running = new Map<string, RunningTurn>();
+  private readonly transitions = new Set<string>();
   private readonly subscriptions = new Map<string, Set<() => void>>();
   private readonly unreadable = new Map<string, ThreadSummary>();
   private closing?: Promise<void>;
@@ -167,6 +169,8 @@ export class ThreadEngine<Tool> {
   async send(id: string, message: ThreadMessage): Promise<TurnOutcome> {
     this.assertOpen();
     const timeline = this.get(id);
+    if (this.transitions.has(id))
+      throw new Error("Thread is busy changing Lands in or deleting; try again shortly.");
     if (timeline.active && !this.running.has(id))
       throw new Error("Thread requires journal recovery");
     const messageId = randomUUID();
@@ -275,6 +279,38 @@ export class ThreadEngine<Tool> {
     return settled;
   }
 
+  land(id: string, landsIn: ThreadLanding): void {
+    this.assertOpen();
+    this.get(id);
+    if (this.isRunning(id))
+      throw new Error("Wait for the thread to finish before changing Lands in.");
+    this.record(id, [{ type: "thread.landed", landsIn: structuredClone(landsIn) }]);
+  }
+
+  isRunning(id: string): boolean {
+    return this.running.has(id) || Boolean(this.queues.get(id)?.length);
+  }
+
+  async transition<T>(id: string, action: () => Promise<T>): Promise<T> {
+    this.assertOpen();
+    this.get(id);
+    if (this.transitions.has(id)) throw new Error("Thread is busy with another change.");
+    if (this.isRunning(id)) throw new Error("Stop the thread before changing or deleting it.");
+    this.transitions.add(id);
+    try {
+      return await action();
+    } finally {
+      this.transitions.delete(id);
+    }
+  }
+
+  delete(id: string): void {
+    this.assertOpen();
+    this.get(id);
+    if (this.isRunning(id)) throw new Error("Stop the thread before deleting it.");
+    this.record(id, [{ type: "thread.deleted" }]);
+  }
+
   decideApproval(id: string, turnId: string, approvalId: string, approved: boolean): boolean {
     if (this.closing) return false;
     const running = this.running.get(id);
@@ -323,6 +359,9 @@ export class ThreadEngine<Tool> {
       assert(!this.threads.has(event.threadId), "Thread already exists");
       assert(event.sequence === 1 && typeof event.thread?.scope === "string", "Invalid thread");
       this.threads.set(event.threadId, new Timeline(event));
+    } else if (event.type === "thread.deleted") {
+      this.get(event.threadId).apply(event);
+      this.threads.delete(event.threadId);
     } else this.get(event.threadId).apply(event);
   }
 
@@ -415,7 +454,8 @@ export class ThreadEngine<Tool> {
     message: ThreadMessage,
     running: RunningTurn,
   ): Promise<TurnOutcome> {
-    const { threadId, thread } = timeline.created;
+    const { threadId } = timeline.created;
+    const thread = timeline.summary().thread;
     const signal = running.controller.signal;
     const request: TurnRequest = {
       threadId,

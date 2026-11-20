@@ -23,6 +23,44 @@ function nonnegativeInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
 
+function nonemptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+function validLanding(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const landing = value as Record<string, unknown>;
+  if (landing.target === "asking") {
+    strictKeys(landing, ["target"]);
+    return true;
+  }
+  const common = ["target", "branch", "baseRef", "worktree", "head"] as const;
+  if (
+    landing.target !== "fork-main" &&
+    landing.target !== "fork-integration" &&
+    landing.target !== "upstream" &&
+    landing.target !== "request"
+  )
+    return false;
+  if (landing.target === "request")
+    strictKeys(landing, [...common, "forge", "repository", "requestNumber", "sourceBranch"]);
+  else strictKeys(landing, common);
+  return (
+    nonemptyString(landing.branch) &&
+    nonemptyString(landing.baseRef) &&
+    nonemptyString(landing.worktree) &&
+    typeof landing.head === "string" &&
+    /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(landing.head) &&
+    (landing.target !== "request" ||
+      ((landing.forge === "github" || landing.forge === "gitlab") &&
+        nonemptyString(landing.repository) &&
+        typeof landing.requestNumber === "number" &&
+        Number.isSafeInteger(landing.requestNumber) &&
+        landing.requestNumber > 0 &&
+        nonemptyString(landing.sourceBranch)))
+  );
+}
+
 function journalEntry(payload: string): JournalEntry {
   const parsed: unknown = JSON.parse(payload);
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
@@ -46,6 +84,13 @@ function journalEntry(payload: string): JournalEntry {
     case "thread.seen":
       strictKeys(entry, ["type", "seenSequence"]);
       if (!nonnegativeInteger(entry.seenSequence)) throw new Error("Invalid thread seen event");
+      break;
+    case "thread.landed":
+      strictKeys(entry, ["type", "landsIn"]);
+      if (!validLanding(entry.landsIn)) throw new Error("Invalid thread landed event");
+      break;
+    case "thread.deleted":
+      strictKeys(entry, ["type"]);
       break;
   }
   return parsed as JournalEntry;

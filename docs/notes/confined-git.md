@@ -91,3 +91,12 @@ failed, and the commit advanced HEAD.
   macOS arm64 and to 35.09 MiB for the Windows x64 staged file set. The macOS
   ZIP dropped from 199.4 to 187.5 MiB and the DMG from 205.9 to 193.6 MiB.
 - Windows and Linux refuse with `unsupported-platform` until spicode-xia.17.
+
+## Thread worktrees
+
+Host-created branch worktrees use `-c branch.autoSetupMerge=false`, so creating
+`spi/<thread>` does not add branch tracking configuration to the clone's
+trusted config copy. The Copilot session receives the clone read-only plus its
+one worktree read-write; moving an Asking thread releases and resumes its SDK
+session with that changed workspace so the journal and model history stay on
+the same thread.

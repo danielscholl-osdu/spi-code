@@ -40,6 +40,7 @@ type Lease = {
   instructions: string;
   active: { events: RuntimeEvents; signal: AbortSignal } | undefined;
   tools: readonly Tool[];
+  workspace: SandboxWorkspace;
   releasing?: Promise<void>;
 };
 
@@ -147,7 +148,8 @@ export class CopilotThreadAdapter implements ThreadRuntime<Tool> {
       existing?.session.connected &&
       !existing.releasing &&
       existing.instructions === instructions &&
-      existing.tools.map(({ name }) => name).join() === tools.map(({ name }) => name).join()
+      existing.tools.map(({ name }) => name).join() === tools.map(({ name }) => name).join() &&
+      JSON.stringify(existing.workspace) === JSON.stringify(workspace)
     ) {
       if (
         existing.settings.model !== settings.model ||
@@ -243,6 +245,7 @@ export class CopilotThreadAdapter implements ThreadRuntime<Tool> {
       generation: this.runtime.clientGeneration,
       settings,
       instructions,
+      workspace,
       active: undefined,
       tools,
     };

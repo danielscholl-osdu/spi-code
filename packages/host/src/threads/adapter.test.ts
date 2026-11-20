@@ -23,6 +23,7 @@ import {
   todayMembers,
 } from "@spi-code/contracts";
 import { emptyCache } from "@spi-code/core";
+import { ThreadEngine } from "@spi-code/threads";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { appStyle, mixedFixtureInput } from "../../test/watch/snapshot-fixture.js";
 import { CopilotRuntime, type ThreadCopilotSession } from "../copilot/runtime.js";
@@ -253,6 +254,7 @@ it("stops the SDK stream, records partial text as not known and releases before 
     model: "selected",
     reasoningEffort: "medium",
   });
+
   await vi.waitFor(() => expect(first.send).toHaveBeenCalledOnce());
   first.begin("first");
   first.event("assistant.message_start", { messageId: "partial" });
@@ -319,6 +321,327 @@ it("stops the SDK stream, records partial text as not known and releases before 
   second.begin("second");
   second.finish("second");
   expect(await port.response(next)).toMatchObject({ payload: { outcome: "completed" } });
+});
+
+it("reopens a moved thread in its worktree while resuming the same history", async () => {
+  const { runtime, sessions, open, order } = recordedRuntime("asking-session", "worktree-session");
+  const landsIn = {
+    target: "fork-main" as const,
+    branch: "spi/fixture",
+    baseRef: "refs/remotes/origin/main",
+    worktree: join(root, "thread-worktree"),
+    head: "a".repeat(40),
+  };
+  const prepare = vi
+    .spyOn(ScopeWorkspaces.prototype, "prepareThread")
+    .mockImplementation(async (_db, _scope, _threadId, landing) =>
+      landing?.target === "asking" || landing === undefined
+        ? { ok: true, workspace: { kind: "program" } }
+        : {
+            ok: true,
+            workspace: {
+              kind: "worktree",
+              cwd: landsIn.worktree,
+              gitDirectory: join(root, "clone", ".git"),
+              clonePath: join(root, "clone"),
+              worktreeId: "fixture",
+              readOnly: false,
+            },
+          },
+    );
+  const land = vi.spyOn(ScopeWorkspaces.prototype, "land").mockResolvedValue({ ok: true, landsIn });
+  const head = vi
+    .spyOn(PrivilegedGit.prototype, "head")
+    .mockResolvedValue({ ok: true, data: landsIn.head });
+  try {
+    const port = await connect(runtime);
+    const first = port.send({ prompt: "Read it" });
+    await vi.waitFor(() => expect(sessions[0]?.send).toHaveBeenCalledOnce());
+    sessions[0]?.begin("asking");
+    sessions[0]?.finish("asking");
+    await port.response(first);
+    await port.response(
+      port.dispatch("thread.land", { threadId: port.threadId, landsIn: { target: "fork-main" } }),
+    );
+    const second = port.send({ prompt: "Change it" });
+    await vi.waitFor(() => expect(sessions[1]?.send).toHaveBeenCalledOnce());
+    sessions[1]?.begin("worktree");
+    sessions[1]?.finish("worktree");
+    await port.response(second);
+    expect(open.mock.calls.map(([workspace]) => workspace)).toEqual([
+      { tempPath: expect.any(String) },
+      {
+        clonePath: join(root, "clone"),
+        worktreePath: landsIn.worktree,
+        tempPath: expect.any(String),
+      },
+    ]);
+    expect(order).toContain("released asking-session");
+    expect(order).toContain("resume asking-session");
+    expect(prepare).toHaveBeenCalledWith(
+      database,
+      expect.anything(),
+      port.threadId,
+      landsIn,
+      expect.anything(),
+    );
+  } finally {
+    prepare.mockRestore();
+    land.mockRestore();
+    head.mockRestore();
+  }
+});
+
+it("keeps a thread on Asking when its worktree cannot be made", async () => {
+  const { runtime } = recordedRuntime();
+  const land = vi
+    .spyOn(ScopeWorkspaces.prototype, "land")
+    .mockResolvedValue({ ok: false, error: "Branch spi/held is already held by thread first." });
+  try {
+    const port = await connect(runtime);
+    const result = await port.response(
+      port.dispatch("thread.land", { threadId: port.threadId, landsIn: { target: "fork-main" } }),
+    );
+    expect(result).toMatchObject({
+      type: "error",
+      payload: {
+        code: "lands_in_failed",
+        message: expect.stringContaining("held by thread first"),
+      },
+    });
+    const listed = await port.response(port.dispatch("threads.list", {}));
+    expect(listed).toMatchObject({
+      type: "threads.result",
+      payload: {
+        threads: [
+          expect.objectContaining({
+            id: port.threadId,
+            thread: expect.objectContaining({ landsIn: { target: "asking" } }),
+          }),
+        ],
+      },
+    });
+  } finally {
+    land.mockRestore();
+  }
+});
+
+it("reserves an Asking thread for a gated landing and refuses a send during it", async () => {
+  const { runtime } = recordedRuntime();
+  let enter = () => {};
+  let release = () => {};
+  const entered = new Promise<void>((resolve) => {
+    enter = resolve;
+  });
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const landsIn = {
+    target: "fork-main" as const,
+    branch: "spi/reserved",
+    baseRef: "refs/remotes/origin/main",
+    worktree: join(root, "reserved-worktree"),
+    head: "a".repeat(40),
+  };
+  const land = vi.spyOn(ScopeWorkspaces.prototype, "land").mockImplementation(async () => {
+    enter();
+    await held;
+    return { ok: true, landsIn };
+  });
+  try {
+    const port = await connect(runtime);
+    const landing = port.dispatch("thread.land", {
+      threadId: port.threadId,
+      landsIn: { target: "fork-main" },
+    });
+    await entered;
+    expect(await port.response(port.send({ prompt: "Do not race the landing" }))).toMatchObject({
+      type: "error",
+      payload: {
+        code: "thread_send_failed",
+        message: expect.stringMatching(/busy.*Lands in/u),
+      },
+    });
+    expect(
+      await port.response(port.dispatch("thread.delete", { threadId: port.threadId })),
+    ).toMatchObject({
+      type: "error",
+      payload: { message: expect.stringMatching(/busy with another change/u) },
+    });
+    release();
+    expect(await port.response(landing)).toMatchObject({
+      type: "thread.landed",
+      payload: { landsIn },
+    });
+    expect(await port.response(port.dispatch("threads.list", {}))).toMatchObject({
+      payload: {
+        threads: [expect.objectContaining({ thread: expect.objectContaining({ landsIn }) })],
+      },
+    });
+  } finally {
+    release();
+    land.mockRestore();
+  }
+});
+
+it("refuses a landing and deletion when a turn is already running", async () => {
+  const {
+    runtime,
+    sessions: [session],
+  } = recordedRuntime("busy-turn");
+  if (!session) throw new Error("Missing recorded session");
+  const port = await connect(runtime);
+  const turn = port.send({ prompt: "Hold this turn" });
+  await vi.waitFor(() => expect(session.send).toHaveBeenCalledOnce());
+  const landing = port.dispatch("thread.land", {
+    threadId: port.threadId,
+    landsIn: { target: "fork-main" },
+  });
+  const deletion = port.dispatch("thread.delete", { threadId: port.threadId });
+  await expect(port.response(landing)).resolves.toMatchObject({
+    type: "error",
+    payload: { message: expect.stringMatching(/Stop the thread/u) },
+  });
+  await expect(port.response(deletion)).resolves.toMatchObject({
+    type: "error",
+    payload: { message: expect.stringMatching(/Stop the thread/u) },
+  });
+  session.begin("busy");
+  session.finish("busy");
+  expect(await port.response(turn)).toMatchObject({ payload: { outcome: "completed" } });
+});
+
+it("reserves a thread for deletion and touches no worktree before journaling", async () => {
+  const { runtime } = recordedRuntime();
+  let enter = () => {};
+  let release = () => {};
+  const entered = new Promise<void>((resolve) => {
+    enter = resolve;
+  });
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const keep = vi.spyOn(ScopeWorkspaces.prototype, "keepWorktree").mockImplementation(async () => {
+    enter();
+    await held;
+    return {
+      worktree: "kept",
+      reason: "The thread was deleted; its worktree and branch were kept.",
+    };
+  });
+  try {
+    const port = await connect(runtime);
+    const deletion = port.dispatch("thread.delete", { threadId: port.threadId });
+    await entered;
+    expect(await port.response(port.send({ prompt: "Do not race deletion" }))).toMatchObject({
+      type: "error",
+      payload: { message: expect.stringMatching(/busy.*deleting/u) },
+    });
+    expect(
+      await port.response(
+        port.dispatch("thread.land", {
+          threadId: port.threadId,
+          landsIn: { target: "fork-main" },
+        }),
+      ),
+    ).toMatchObject({
+      type: "error",
+      payload: { message: expect.stringMatching(/busy with another change/u) },
+    });
+    release();
+    expect(await port.response(deletion)).toMatchObject({
+      type: "thread.deleted",
+      payload: {
+        deleted: true,
+        worktree: "kept",
+        reason: expect.stringContaining("kept"),
+      },
+    });
+    expect(await port.response(port.dispatch("threads.list", {}))).toMatchObject({
+      payload: { threads: [] },
+    });
+  } finally {
+    release();
+    keep.mockRestore();
+  }
+});
+
+it("rolls back a worktree when the landed journal entry fails", async () => {
+  const { runtime } = recordedRuntime();
+  const landsIn = {
+    target: "fork-main" as const,
+    branch: "spi/journal-failure",
+    baseRef: "refs/remotes/origin/main",
+    worktree: join(root, "journal-failure"),
+    head: "b".repeat(40),
+  };
+  const land = vi.spyOn(ScopeWorkspaces.prototype, "land").mockResolvedValue({ ok: true, landsIn });
+  const rollback = vi.spyOn(ScopeWorkspaces.prototype, "rollbackLanding").mockResolvedValue();
+  const journal = vi.spyOn(ThreadEngine.prototype, "land").mockImplementation(() => {
+    throw new Error("Journal write failed");
+  });
+  try {
+    const port = await connect(runtime);
+    expect(
+      await port.response(
+        port.dispatch("thread.land", {
+          threadId: port.threadId,
+          landsIn: { target: "fork-main" },
+        }),
+      ),
+    ).toMatchObject({
+      type: "error",
+      payload: { message: "Journal write failed" },
+    });
+    expect(rollback).toHaveBeenCalledWith(database, port.threadId);
+    expect(await port.response(port.dispatch("threads.list", {}))).toMatchObject({
+      type: "threads.result",
+      payload: {
+        threads: [
+          expect.objectContaining({
+            id: port.threadId,
+            thread: expect.objectContaining({ landsIn: { target: "asking" } }),
+          }),
+        ],
+      },
+    });
+  } finally {
+    journal.mockRestore();
+    rollback.mockRestore();
+    land.mockRestore();
+  }
+});
+
+it("restores a retained worktree row when the delete journal entry fails", async () => {
+  const { runtime } = recordedRuntime();
+  const kept = {
+    worktree: "kept" as const,
+    reason: "The thread was deleted; its worktree and branch were kept.",
+  };
+  const keep = vi.spyOn(ScopeWorkspaces.prototype, "keepWorktree").mockResolvedValue(kept);
+  const restore = vi
+    .spyOn(ScopeWorkspaces.prototype, "restoreWorktree")
+    .mockImplementation(() => {});
+  const journal = vi.spyOn(ThreadEngine.prototype, "delete").mockImplementation(() => {
+    throw new Error("Delete journal write failed");
+  });
+  try {
+    const port = await connect(runtime);
+    expect(
+      await port.response(port.dispatch("thread.delete", { threadId: port.threadId })),
+    ).toMatchObject({
+      type: "error",
+      payload: { message: "Delete journal write failed" },
+    });
+    expect(restore).toHaveBeenCalledWith(database, port.threadId);
+    expect(await port.response(port.dispatch("threads.list", {}))).toMatchObject({
+      payload: { threads: [expect.objectContaining({ id: port.threadId })] },
+    });
+  } finally {
+    journal.mockRestore();
+    restore.mockRestore();
+    keep.mockRestore();
+  }
 });
 
 it("waits for a stopped session open to release before starting the queued turn", async () => {
@@ -1083,7 +1406,11 @@ it("packs a row's chip from the saved sweep, says why it refuses one, and keeps 
   expect(listed.payload.threads).toContainEqual(
     expect.objectContaining({
       id: started.payload.threadId,
-      thread: { scope: "program", title: "Why", subject: member.id },
+      thread: expect.objectContaining({
+        scope: "program",
+        title: "Why",
+        subject: member.id,
+      }),
     }),
   );
 });

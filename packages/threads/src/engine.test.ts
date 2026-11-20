@@ -10,7 +10,10 @@ import { afterEach, expect, it, vi } from "vitest";
 import type { RuntimeEvents, RuntimeStop, RuntimeTurn, ThreadEvent } from "./index.js";
 import { ThreadEngine } from "./index.js";
 
-function harness(database = new DatabaseSync(":memory:")) {
+function harness(
+  database = new DatabaseSync(":memory:"),
+  workspace: () => { cwd: string } = () => ({ cwd: "/workspace" }),
+) {
   const turns: {
     input: RuntimeTurn<string>;
     events: RuntimeEvents;
@@ -25,7 +28,7 @@ function harness(database = new DatabaseSync(":memory:")) {
   };
   const engine = new ThreadEngine(database, {
     runtime,
-    workspace: { resolve: () => ({ cwd: "/workspace" }) },
+    workspace: { resolve: () => workspace() },
     context: {
       prepare: ({ message }) => ({
         instructions: "Scope instructions.",
@@ -40,11 +43,53 @@ function harness(database = new DatabaseSync(":memory:")) {
     assert(active, `Runtime turn ${index + 1} did not start`);
     return active;
   }
+
   return { engine, runtime, turn, database };
 }
 
 afterEach(() => {
   vi.useRealTimers();
+});
+
+it("moves an Asking thread without changing its messages and resolves the next turn in the worktree", async () => {
+  let cwd = "/workspace/clone";
+  const { engine, turn, database } = harness(new DatabaseSync(":memory:"), () => ({ cwd }));
+  const id = engine.create({ scope: "partition", title: "Retry the port" });
+  const first = engine.send(id, { prompt: "Why did this stop?" });
+  (await turn()).finish();
+  await first;
+
+  cwd = "/workspace/thread";
+  engine.land(id, {
+    target: "fork-main",
+    branch: `spi/${id}`,
+    baseRef: "refs/remotes/origin/main",
+    worktree: cwd,
+    head: "a".repeat(40),
+  });
+  const next = engine.send(id, { prompt: "Make the change" });
+  const second = await turn(1);
+  expect(second.input.workspace).toEqual({ cwd });
+  expect(second.input.thread.landsIn).toMatchObject({
+    target: "fork-main",
+    worktree: cwd,
+    branch: `spi/${id}`,
+  });
+  second.finish();
+  await next;
+  expect(engine.read(id).messages.map(({ message }) => message.prompt)).toEqual([
+    "Why did this stop?",
+    "Make the change",
+  ]);
+  const reopened = harness(database).engine;
+  expect(reopened.read(id)).toMatchObject({
+    thread: { landsIn: { target: "fork-main", worktree: cwd } },
+    messages: [
+      { message: { prompt: "Why did this stop?" } },
+      { message: { prompt: "Make the change" } },
+    ],
+  });
+  database.close();
 });
 
 it("passes the host's workspace, context and tools, journals deltas in order and settles", async () => {
@@ -98,6 +143,21 @@ it("journals text through the redactor before a tool call and an approval reques
   expect(JSON.stringify(journal).includes(fake)).toBe(false);
   finish();
   await expect(outcome).resolves.toBe("completed");
+  database.close();
+});
+
+it("will not delete a thread while a command or turn is running", async () => {
+  const { engine, turn, database } = harness();
+  const id = engine.create({ scope: "partition" });
+  const outcome = engine.send(id, { prompt: "Run it" });
+  const active = await turn();
+  active.events.toolStarted({ callId: "command", name: "bash", kind: "command", arguments: {} });
+  expect(() => engine.delete(id)).toThrow("Stop the thread");
+  expect(engine.list()).toContainEqual(expect.objectContaining({ id }));
+  active.finish();
+  await outcome;
+  engine.delete(id);
+  expect(engine.list()).not.toContainEqual(expect.objectContaining({ id }));
   database.close();
 });
 
@@ -531,6 +591,20 @@ it.each([
     name: "extra settlement field",
     payload: (at: number) =>
       JSON.stringify({ type: "thread.settled", reason: "operator", settledAt: at, extra: true }),
+  },
+  {
+    name: "malformed landed target",
+    payload: () =>
+      JSON.stringify({
+        type: "thread.landed",
+        landsIn: {
+          target: "fork-main",
+          branch: "spi/thread",
+          baseRef: "refs/remotes/origin/main",
+          worktree: "/workspace/thread",
+          head: "not-a-sha",
+        },
+      }),
   },
 ])("lists a journal with $name as unreadable", ({ payload }) => {
   const database = new DatabaseSync(":memory:");

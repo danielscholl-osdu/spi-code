@@ -49,6 +49,7 @@ export interface FetchRequest {
   readonly tags: boolean;
   /** A ref under refs/ that receives the remote's HEAD. */
   readonly head?: string;
+  readonly ref?: { readonly source: string; readonly destination: string };
 }
 
 export interface PushRequest {
@@ -94,6 +95,11 @@ function fullRef(name: string): string {
     throw new Error("Invalid Git ref.");
   }
   return name;
+}
+
+function branchName(name: string): string {
+  const ref = fullRef(`refs/heads/${name}`);
+  return ref.slice("refs/heads/".length);
 }
 
 /** HEAD, a full object id or a full ref name: never a range, a reflog entry or an option. */
@@ -410,6 +416,9 @@ export class PrivilegedGit {
         remote,
         `+refs/heads/*:refs/remotes/${remote}/*`,
         ...(request.head === undefined ? [] : [`+HEAD:${fullRef(request.head)}`]),
+        ...(request.ref === undefined
+          ? []
+          : [`+${fullRef(request.ref.source)}:${fullRef(request.ref.destination)}`]),
       ],
       options,
     );
@@ -426,6 +435,36 @@ export class PrivilegedGit {
 
   async head(target: GitTarget, options: GitOptions = {}): Promise<ExecResult<string>> {
     return this.#run(target, ["rev-parse", "--verify", "HEAD"], options);
+  }
+
+  async resolveRef(
+    target: GitTarget,
+    ref: string,
+    options: GitOptions = {},
+  ): Promise<ExecResult<string>> {
+    return this.#run(target, ["rev-parse", "--verify", revision(ref)], options);
+  }
+
+  async ahead(
+    target: GitTarget,
+    base: string,
+    options: GitOptions = {},
+  ): Promise<ExecResult<string>> {
+    return this.#run(target, ["rev-list", "--count", `${revision(base)}..HEAD`], options);
+  }
+
+  async headIsAncestorOf(
+    target: GitTarget,
+    descendant: string,
+    options: GitOptions = {},
+  ): Promise<ExecResult<boolean>> {
+    const result = await this.#run(
+      target,
+      ["merge-base", "--is-ancestor", "HEAD", revision(descendant)],
+      options,
+    );
+    if (result.ok) return { ok: true, data: true };
+    return result.code === 1 ? { ok: true, data: false } : result;
   }
 
   /** The working tree against HEAD or a named ref, as a patch. */
@@ -480,13 +519,79 @@ export class PrivilegedGit {
   ): Promise<ExecResult<WorktreeTarget>> {
     const at = revision(ref);
     const name = worktreeId(id);
-    const cwd = join((await this.#getRuntime()).appData, "worktrees", name);
+    const root = join((await this.#getRuntime()).appData, "worktrees");
+    await mkdir(root, { recursive: true, mode: 0o700 });
+    const cwd = join(root, name);
     const result = await this.#run(
       { clone },
       ["worktree", "add", "--detach", "--", cwd, at],
       options,
     );
     return result.ok ? { ok: true, data: { clone, worktree: { id, cwd } } } : result;
+  }
+
+  /** Adds a managed worktree with a branch whose config never tracks its starting ref. */
+  async addBranchWorktree(
+    clone: string,
+    id: string,
+    branch: string,
+    ref: string,
+    reuse = false,
+    options: GitOptions = {},
+  ): Promise<ExecResult<WorktreeTarget>> {
+    const branchRef = branchName(branch);
+    const at = revision(ref);
+    const name = worktreeId(id);
+    const root = join((await this.#getRuntime()).appData, "worktrees");
+    await mkdir(root, { recursive: true, mode: 0o700 });
+    const cwd = join(root, name);
+    const result = await this.#run(
+      { clone },
+      [
+        "-c",
+        "branch.autoSetupMerge=false",
+        "worktree",
+        "add",
+        ...(reuse ? [] : ["-b", branchRef]),
+        "--",
+        cwd,
+        reuse ? branchRef : at,
+      ],
+      options,
+    );
+    return result.ok ? { ok: true, data: { clone, worktree: { id, cwd } } } : result;
+  }
+
+  async rollbackWorktree(
+    target: WorktreeTarget,
+    options: GitOptions = {},
+  ): Promise<ExecResult<string>> {
+    const runtime = await this.#getRuntime();
+    await this.#resolve(runtime, target);
+    const common = join(target.clone, ".git");
+    return execGit(
+      runtime,
+      [`--git-dir=${common}`, `--work-tree=${target.clone}`],
+      ["worktree", "remove", "--force", "--", target.worktree.cwd],
+      options,
+      common,
+    );
+  }
+
+  /** Includes ignored and untracked entries, for the operator's delete confirmation. */
+  async statusAll(target: WorktreeTarget, options: GitOptions = {}): Promise<ExecResult<string>> {
+    return this.#run(
+      target,
+      [
+        "status",
+        "--porcelain=v1",
+        "-z",
+        "--untracked-files=all",
+        "--ignored=matching",
+        submodulesOff,
+      ],
+      options,
+    );
   }
 
   /** Porcelain with NUL separators. */

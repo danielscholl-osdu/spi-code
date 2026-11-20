@@ -6,6 +6,7 @@ import type {
   EventOf,
   JournalEntry,
   ThreadEvent,
+  ThreadLanding,
   ThreadSummary,
   ThreadTimeline,
   TimelineMessage,
@@ -18,6 +19,7 @@ export class Timeline {
   private readonly turns: TimelineTurn[] = [];
   private readonly messagesById = new Map<string, TimelineMessage>();
   private readonly recovery: string[] = [];
+  private landsIn: ThreadLanding = { target: "asking" };
   private sequence: number;
   private updatedAt: number;
   private settledAt: number | null = null;
@@ -39,7 +41,7 @@ export class Timeline {
   summary(): ThreadSummary {
     return {
       id: this.created.threadId,
-      thread: { ...this.created.thread },
+      thread: { ...this.created.thread, landsIn: this.landsIn },
       status: this.active?.approvals.some((approval) => !approval.end)
         ? "Waiting on you"
         : this.active
@@ -114,6 +116,11 @@ export class Timeline {
           "Seen sequence moved backwards",
         );
         this.seenSequence = event.seenSequence;
+        return;
+      case "thread.landed":
+        this.landsIn = event.landsIn;
+        return;
+      case "thread.deleted":
         return;
       case "message.sent": {
         this.settledAt = null;

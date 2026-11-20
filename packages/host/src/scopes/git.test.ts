@@ -5,6 +5,7 @@ import { execFile, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import {
   cp,
+  lstat,
   mkdir,
   mkdtemp,
   readdir,
@@ -16,6 +17,7 @@ import {
 } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import type { ExecResult } from "@spi-code/core";
@@ -271,6 +273,221 @@ describe("Asking workspace", () => {
     ]);
     await rename(`${upstream}.offline`, upstream);
     expect(getClone(await service.prepareAsking(scope))).toEqual(before);
+  });
+});
+
+describe("thread worktrees", () => {
+  it("gives each destination its settled base and two threads two worktrees", async () => {
+    await fixtureGit(seed, "checkout", "-b", "fork_integration");
+    const integration = await commit("integration");
+    await fixtureGit(seed, "push", origin, "HEAD:refs/heads/fork_integration");
+    await fixtureGit(seed, "checkout", "main");
+    const main = await fixtureGit(origin, "rev-parse", "refs/heads/main");
+    const upstreamHead = await fixtureGit(upstream, "rev-parse", "HEAD");
+    const db = new DatabaseSync(":memory:");
+    const service = workspaces();
+    try {
+      const cases = [
+        ["main-thread", "fork-main", main],
+        ["integration-thread", "fork-integration", integration],
+        ["upstream-thread", "upstream", upstreamHead],
+      ] as const;
+      for (const [threadId, target, expected] of cases) {
+        const landed = await service.land(db, scope, threadId, { target });
+        expect(landed).toMatchObject({
+          ok: true,
+          landsIn: { target, branch: `spi/${threadId}`, head: expected },
+        });
+        if (!landed.ok || landed.landsIn.target === "asking")
+          throw new Error(landed.ok ? "Expected a worktree" : landed.error);
+        expect(await fixtureGit(landed.landsIn.worktree, "branch", "--show-current")).toBe(
+          `spi/${threadId}`,
+        );
+      }
+      expect(db.prepare("SELECT COUNT(*) AS count FROM thread_workspaces").get()?.count).toBe(3);
+      expect(new Set(cases.map(([id]) => `thread-${id}`)).size).toBe(3);
+      const clone = getClone(await service.prepareAsking(scope));
+      expect(await readFile(join(clone.gitDirectory, "config"))).toEqual(
+        await readFile(join(dirname(clone.cwd), "clone.config")),
+      );
+    } finally {
+      db.close();
+    }
+  }, 120_000);
+
+  it("fetches a fork request head, serializes its branch and reuses it after release", async () => {
+    await fixtureGit(seed, "checkout", "-b", "review/port-42");
+    const head = await commit("request");
+    await fixtureGit(seed, "push", origin, "HEAD:refs/pull/42/head");
+    await fixtureGit(seed, "checkout", "main");
+    const db = new DatabaseSync(":memory:");
+    const git = gitRunner();
+    const service = workspaces(git);
+    try {
+      const request = {
+        target: "request" as const,
+        forge: "github" as const,
+        repository: scope.origin.repo,
+        requestNumber: 42,
+        branch: "contributor/port-42",
+        head,
+      };
+      const [first, second] = await Promise.all([
+        service.land(db, scope, "request-one", request),
+        service.land(db, scope, "request-two", request),
+      ]);
+      expect(first).toMatchObject({
+        ok: true,
+        landsIn: {
+          target: "request",
+          branch: request.branch,
+          head,
+          forge: "github",
+          repository: scope.origin.repo,
+          requestNumber: 42,
+          sourceBranch: request.branch,
+        },
+      });
+      expect(second).toMatchObject({
+        ok: false,
+        error: expect.stringMatching(/contributor\/port-42.*request-one/u),
+      });
+      const firstResult = first;
+      if (!firstResult.ok || firstResult.landsIn.target === "asking")
+        throw new Error(firstResult.ok ? "Expected a worktree" : firstResult.error);
+      const clone = getClone(await service.prepareAsking(scope)).cwd;
+      expect(await fixtureGit(clone, "rev-parse", "refs/spi/requests/github/42")).toBe(head);
+      await git.rollbackWorktree({
+        clone,
+        worktree: { id: "thread-request-one", cwd: firstResult.landsIn.worktree },
+      });
+      db.prepare("DELETE FROM thread_workspaces WHERE thread_id = ?").run("request-one");
+      await fixtureGit(
+        clone,
+        "update-ref",
+        `refs/heads/${request.branch}`,
+        "refs/remotes/origin/main",
+      );
+      expect(await service.land(db, scope, "request-mismatch", request)).toMatchObject({
+        ok: false,
+        error: expect.stringMatching(/no longer points.*observed request head/u),
+      });
+      await fixtureGit(clone, "update-ref", `refs/heads/${request.branch}`, head);
+      expect(await service.land(db, scope, "request-three", request)).toMatchObject({
+        ok: true,
+        landsIn: { target: "request", branch: request.branch, head },
+      });
+    } finally {
+      db.close();
+    }
+  }, 120_000);
+
+  it("fetches a GitLab merge request ref and refuses an observed-head mismatch", async () => {
+    await fixtureGit(seed, "checkout", "-b", "review/gitlab-7");
+    const head = await commit("gitlab request");
+    await fixtureGit(seed, "push", upstream, "HEAD:refs/merge-requests/7/head");
+    await fixtureGit(seed, "checkout", "main");
+    const db = new DatabaseSync(":memory:");
+    const service = workspaces();
+    try {
+      const request = {
+        target: "request" as const,
+        forge: "gitlab" as const,
+        repository: scope.upstream?.repo ?? "",
+        requestNumber: 7,
+        branch: "review/gitlab-7",
+      };
+      expect(
+        await service.land(db, scope, "request-wrong-head", { ...request, head: "a".repeat(40) }),
+      ).toMatchObject({ ok: false, error: expect.stringMatching(/does not match/u) });
+      expect(
+        await service.land(db, scope, "request-right-head", { ...request, head }),
+      ).toMatchObject({
+        ok: true,
+        landsIn: {
+          target: "request",
+          forge: "gitlab",
+          repository: request.repository,
+          requestNumber: 7,
+          head,
+        },
+      });
+    } finally {
+      db.close();
+    }
+  }, 120_000);
+
+  it("leaves a failed writable landing without a worktree and says why", async () => {
+    const db = new DatabaseSync(":memory:");
+    const service = workspaces();
+    try {
+      const result = await service.land(db, scope, "missing-base", {
+        target: "fork-integration",
+      });
+      expect(result).toMatchObject({
+        ok: false,
+        error: expect.stringMatching(/fork_integration/u),
+      });
+      expect(db.prepare("SELECT COUNT(*) AS count FROM thread_workspaces").get()?.count).toBe(0);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("marks a deleted thread's worktree as kept without reading or removing it", async () => {
+    const db = new DatabaseSync(":memory:");
+    const git = gitRunner();
+    const service = workspaces(git);
+    try {
+      const landed = await service.land(db, scope, "delete-ignored", { target: "fork-main" });
+      if (!landed.ok || landed.landsIn.target === "asking")
+        throw new Error(landed.ok ? "Expected a worktree" : landed.error);
+      const path = landed.landsIn.worktree;
+      await writeFile(join(path, "local-only.txt"), "local");
+      const status = vi.spyOn(git, "statusAll");
+      const rollback = vi.spyOn(git, "rollbackWorktree");
+      expect(await service.keepWorktree(db, "delete-ignored")).toMatchObject({
+        worktree: "kept",
+        reason: expect.stringContaining("kept"),
+      });
+      expect(status).not.toHaveBeenCalled();
+      expect(rollback).not.toHaveBeenCalled();
+      expect(await readFile(join(path, "local-only.txt"), "utf8")).toBe("local");
+      expect(await fixtureGit(path, "branch", "--show-current")).toBe("spi/delete-ignored");
+      expect(service.keptWorktrees(db)).toEqual([
+        expect.objectContaining({
+          threadId: "delete-ignored",
+          branch: "spi/delete-ignored",
+          path,
+        }),
+      ]);
+      expect((await lstat(path)).isDirectory()).toBe(true);
+      expect(
+        db
+          .prepare("SELECT deleted_at, reason FROM thread_workspaces WHERE thread_id = ?")
+          .get("delete-ignored"),
+      ).toMatchObject({
+        deleted_at: expect.any(Number),
+        reason: expect.stringContaining("kept"),
+      });
+    } finally {
+      db.close();
+    }
+  });
+
+  it("rolls back a newly allocated landing when the journal cannot record it", async () => {
+    const db = new DatabaseSync(":memory:");
+    const service = workspaces();
+    try {
+      const landed = await service.land(db, scope, "rollback-journal", { target: "fork-main" });
+      if (!landed.ok || landed.landsIn.target === "asking")
+        throw new Error(landed.ok ? "Expected a worktree" : landed.error);
+      await service.rollbackLanding(db, "rollback-journal");
+      await expect(lstat(landed.landsIn.worktree)).rejects.toMatchObject({ code: "ENOENT" });
+      expect(db.prepare("SELECT COUNT(*) AS count FROM thread_workspaces").get()?.count).toBe(0);
+    } finally {
+      db.close();
+    }
   });
 });
 
@@ -695,7 +912,9 @@ describe("privileged Git", () => {
     expect(Object.getOwnPropertyNames(PrivilegedGit.prototype).sort()).toEqual(
       [
         "add",
+        "addBranchWorktree",
         "addWorktree",
+        "ahead",
         "checkoutDetached",
         "clone",
         "commit",
@@ -704,10 +923,14 @@ describe("privileged Git", () => {
         "diff",
         "fetch",
         "head",
+        "headIsAncestorOf",
         "listWorktrees",
         "push",
         "remoteUrl",
+        "resolveRef",
+        "rollbackWorktree",
         "status",
+        "statusAll",
       ].sort(),
     );
   });

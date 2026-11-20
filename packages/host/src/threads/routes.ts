@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { type Message, PROTOCOL_VERSION, ThreadEventSchema } from "@spi-code/contracts";
+import type { ThreadLanding } from "@spi-code/threads";
 import type { HostRoutes } from "../process/port.js";
 import type { ChipOutcome } from "./context/chip.js";
 import { CHIP_ATTACHMENT_PREFIX, snapshotChips } from "./context/draft.js";
@@ -66,6 +67,26 @@ export class ThreadRoutes {
     });
   }
 
+  private failed(
+    request: { id: string },
+    send: (message: Message) => void,
+    error: unknown,
+    code = "lands_in_failed",
+  ) {
+    send({
+      version: PROTOCOL_VERSION,
+      id: request.id,
+      kind: "response",
+      type: "error",
+      payload: {
+        code,
+        message: this.open().redact(
+          error instanceof Error ? error.message : "The worktree could not be prepared.",
+        ),
+      },
+    });
+  }
+
   remember(token: string) {
     if (this.host) this.host.remember(token);
     else this.known.add(token);
@@ -84,27 +105,85 @@ export class ThreadRoutes {
       this.publishThreads = publish;
       publish();
     },
-    "thread.start": (request, send) => {
+    "thread.start": async (request, send) => {
       if (request.type !== "thread.start") return;
-      const { scope, title, subject } = request.payload;
+      const { scope, title, subject, landsIn: requested } = request.payload;
       if (!this.options.scopes.lookup(scope)?.canStart)
         throw new Error("Thread scope is unavailable.");
       if (subject !== undefined) {
         const preview = this.previews.get(subject);
         if (!preview || !this.unchanged(preview)) return this.stale(request, send);
       }
+      const threadId = this.engine().create({
+        scope,
+        ...(title === undefined ? {} : { title }),
+        ...(subject === undefined ? {} : { subject }),
+      });
+      let landsIn: ThreadLanding = { target: "asking" };
+      let notice: string | undefined;
+      if (requested && requested.target !== "asking") {
+        try {
+          const landed = await this.open().land(threadId, requested);
+          if (landed.ok) landsIn = landed.landsIn;
+          else notice = landed.error;
+        } catch (error) {
+          notice = this.open().redact(
+            error instanceof Error ? error.message : "The worktree could not be prepared.",
+          );
+        }
+      }
       send({
         version: PROTOCOL_VERSION,
         id: request.id,
         kind: "response",
         type: "thread.started",
-        payload: {
-          threadId: this.engine().create({
-            scope,
-            ...(title === undefined ? {} : { title }),
-            ...(subject === undefined ? {} : { subject }),
-          }),
-        },
+        payload: { threadId, landsIn, ...(notice ? { notice } : {}) },
+      });
+    },
+    "thread.land": async (request, send) => {
+      if (request.type !== "thread.land") return;
+      const { threadId, landsIn } = request.payload;
+      try {
+        const result = await this.open().land(threadId, landsIn);
+        if (!result.ok) throw new Error(result.error);
+        send({
+          version: PROTOCOL_VERSION,
+          id: request.id,
+          kind: "response",
+          type: "thread.landed",
+          payload: { threadId, landsIn: result.landsIn },
+        });
+      } catch (error) {
+        this.failed(request, send, error);
+      }
+    },
+    "thread.delete": async (request, send) => {
+      if (request.type !== "thread.delete") return;
+      const { threadId } = request.payload;
+      try {
+        const kept = await this.open().delete(threadId);
+        send({
+          version: PROTOCOL_VERSION,
+          id: request.id,
+          kind: "response",
+          type: "thread.deleted",
+          payload: {
+            threadId,
+            deleted: true,
+            ...(kept ?? {}),
+          },
+        });
+      } catch (error) {
+        this.failed(request, send, error, "thread_delete_failed");
+      }
+    },
+    "thread.worktrees": async (request, send) => {
+      send({
+        version: PROTOCOL_VERSION,
+        id: request.id,
+        kind: "response",
+        type: "thread.worktrees.result",
+        payload: { worktrees: await this.open().worktrees() },
       });
     },
     "thread.chip": async (request, send) => {
@@ -123,34 +202,38 @@ export class ThreadRoutes {
     },
     "thread.send": async (request, send) => {
       if (request.type !== "thread.send") return;
-      const { threadId, message } = request.payload;
-      const previewed = (message.attachments ?? []).filter(({ name, content }) => {
-        const id = name.startsWith(CHIP_ATTACHMENT_PREFIX)
-          ? name.slice(CHIP_ATTACHMENT_PREFIX.length)
-          : undefined;
-        return id !== undefined && this.previews.get(id)?.content === content;
-      });
-      if (!previewed.every((attachment) => this.unchanged(attachment)))
-        return this.stale(request, send);
-      const engine = this.engine();
-      const previous = engine.read(threadId).messages.at(-1)?.message;
-      const model = message.model ?? previous?.model ?? "auto";
-      const effort =
-        message.reasoningEffort ??
-        (model === previous?.model ? previous.reasoningEffort : undefined);
-      const outcome = await engine.send(threadId, {
-        prompt: message.prompt,
-        model,
-        ...(message.attachments ? { attachments: message.attachments } : {}),
-        ...(effort ? { reasoningEffort: effort } : {}),
-      });
-      send({
-        version: PROTOCOL_VERSION,
-        id: request.id,
-        kind: "response",
-        type: "thread.sent",
-        payload: { threadId, outcome },
-      });
+      try {
+        const { threadId, message } = request.payload;
+        const previewed = (message.attachments ?? []).filter(({ name, content }) => {
+          const id = name.startsWith(CHIP_ATTACHMENT_PREFIX)
+            ? name.slice(CHIP_ATTACHMENT_PREFIX.length)
+            : undefined;
+          return id !== undefined && this.previews.get(id)?.content === content;
+        });
+        if (!previewed.every((attachment) => this.unchanged(attachment)))
+          return this.stale(request, send);
+        const engine = this.engine();
+        const previous = engine.read(threadId).messages.at(-1)?.message;
+        const model = message.model ?? previous?.model ?? "auto";
+        const effort =
+          message.reasoningEffort ??
+          (model === previous?.model ? previous.reasoningEffort : undefined);
+        const outcome = await engine.send(threadId, {
+          prompt: message.prompt,
+          model,
+          ...(message.attachments ? { attachments: message.attachments } : {}),
+          ...(effort ? { reasoningEffort: effort } : {}),
+        });
+        send({
+          version: PROTOCOL_VERSION,
+          id: request.id,
+          kind: "response",
+          type: "thread.sent",
+          payload: { threadId, outcome },
+        });
+      } catch (error) {
+        this.failed(request, send, error, "thread_send_failed");
+      }
     },
     "thread.stop": async (request, send) => {
       if (request.type !== "thread.stop") return;

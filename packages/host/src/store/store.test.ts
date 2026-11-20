@@ -53,7 +53,13 @@ describe("file-backed run store", () => {
     const store = open();
     const db = inspect();
     const migrations = db.prepare("SELECT * FROM schema_version").all();
-    expect(migrations).toEqual([{ version: 1 }, { version: 2 }, { version: 3 }, { version: 4 }]);
+    expect(migrations).toEqual([
+      { version: 1 },
+      { version: 2 },
+      { version: 3 },
+      { version: 4 },
+      { version: 5 },
+    ]);
     expect(db.prepare("PRAGMA journal_mode").get()).toEqual({ journal_mode: "wal" });
     const schema = db.prepare("SELECT name, sql FROM sqlite_schema ORDER BY name").all();
     store.close();
@@ -232,14 +238,15 @@ describe("file-backed run store", () => {
     ).toBeUndefined();
     db.exec("DROP TABLE run_events");
     open().close();
-    db.exec("INSERT INTO schema_version VALUES (5)");
-    expect(() => openRunStore(path)).toThrow("Unsupported schema version: 5");
+    db.exec("INSERT INTO schema_version VALUES (6)");
+    expect(() => openRunStore(path)).toThrow("Unsupported schema version: 6");
     expect(db.prepare("SELECT version FROM schema_version ORDER BY version").all()).toEqual([
       { version: 1 },
       { version: 2 },
       { version: 3 },
       { version: 4 },
       { version: 5 },
+      { version: 6 },
     ]);
   });
 

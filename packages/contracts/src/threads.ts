@@ -7,12 +7,47 @@ import { PROTOCOL_VERSION } from "./watch/messages.js";
 const id = z.string().min(1);
 const sequence = z.int().nonnegative();
 const threadId = z.object({ threadId: id });
+const landingTarget = z.enum(["fork-main", "fork-integration", "upstream"]);
+const landingRequest = z.discriminatedUnion("target", [
+  z.strictObject({ target: z.literal("asking") }),
+  z.strictObject({ target: landingTarget }),
+  z.strictObject({
+    target: z.literal("request"),
+    forge: z.enum(["github", "gitlab"]),
+    repository: id,
+    requestNumber: z.int().positive(),
+    branch: id,
+    head: z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u),
+  }),
+]);
+const landing = z.discriminatedUnion("target", [
+  z.strictObject({ target: z.literal("asking") }),
+  z.strictObject({
+    target: landingTarget,
+    branch: id,
+    baseRef: id,
+    worktree: id,
+    head: z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u),
+  }),
+  z.strictObject({
+    target: z.literal("request"),
+    branch: id,
+    baseRef: id,
+    worktree: id,
+    head: z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u),
+    forge: z.enum(["github", "gitlab"]),
+    repository: id,
+    requestNumber: z.int().positive(),
+    sourceBranch: id,
+  }),
+]);
 /** `subject`: the id of the row or popover the thread started from, which it then owns. */
-const definition = z.strictObject({
+const identity = {
   scope: id,
   title: z.string().optional(),
   subject: id.optional(),
-});
+};
+const definition = z.strictObject({ ...identity, landsIn: landing.optional() });
 export const ReasoningEffortSchema = z.enum(["low", "medium", "high", "xhigh", "max"]);
 const message = z.strictObject({
   prompt: z.string().trim().min(1),
@@ -53,6 +88,8 @@ export const ThreadEventSchema = z.discriminatedUnion("type", [
     restore: z.literal(true).optional(),
   }),
   z.strictObject({ ...event, type: z.literal("thread.seen"), seenSequence: sequence }),
+  z.strictObject({ ...event, type: z.literal("thread.landed"), landsIn: landing }),
+  z.strictObject({ ...event, type: z.literal("thread.deleted") }),
   z.strictObject({ ...event, type: z.literal("message.sent"), messageId: id, message }),
   z.strictObject({
     ...event,
@@ -136,8 +173,46 @@ function envelope<
 export const ThreadMessageSchema = z.discriminatedUnion("type", [
   envelope("threads.list", "request", z.strictObject({})),
   envelope("threads.result", "response", z.strictObject({ threads: z.array(summary) })),
-  envelope("thread.start", "request", definition),
-  envelope("thread.started", "response", threadId.strict()),
+  envelope(
+    "thread.start",
+    "request",
+    z.strictObject({ ...identity, landsIn: landingRequest.optional() }),
+  ),
+  envelope(
+    "thread.started",
+    "response",
+    threadId.extend({ landsIn: landing, notice: id.optional() }).strict(),
+  ),
+  envelope("thread.land", "request", threadId.extend({ landsIn: landingRequest }).strict()),
+  envelope("thread.landed", "response", threadId.extend({ landsIn: landing }).strict()),
+  envelope("thread.delete", "request", threadId.strict()),
+  envelope(
+    "thread.deleted",
+    "response",
+    threadId
+      .extend({
+        deleted: z.boolean(),
+        worktree: z.enum(["removed", "kept"]).optional(),
+        reason: id.optional(),
+      })
+      .strict(),
+  ),
+  envelope("thread.worktrees", "request", z.strictObject({})),
+  envelope(
+    "thread.worktrees.result",
+    "response",
+    z.strictObject({
+      worktrees: z.array(
+        z.strictObject({
+          threadId: id,
+          repository: id,
+          branch: id,
+          path: id,
+          reason: id,
+        }),
+      ),
+    }),
+  ),
   envelope("thread.send", "request", threadId.extend({ message }).strict()),
   envelope("thread.sent", "response", threadId.extend({ outcome }).strict()),
   envelope("thread.stop", "request", threadId.strict()),

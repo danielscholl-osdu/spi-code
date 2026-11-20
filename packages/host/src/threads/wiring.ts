@@ -108,7 +108,9 @@ export function openThreadHost(options: ThreadHostOptions) {
           if (!scope) throw new Error("Thread scope is unavailable.");
           const git = await options.git();
           workspaces ??= options.workspaces(git);
-          const prepared = await workspaces.prepareAsking(scope, { signal });
+          const prepared = await workspaces.prepareThread(db, scope, threadId, thread.landsIn, {
+            signal,
+          });
           if (!prepared.ok) throw new Error(prepared.error);
           signal.throwIfAborted();
           const temp = join(await git.dataRoot(), "thread-temp", threadId);
@@ -116,15 +118,36 @@ export function openThreadHost(options: ThreadHostOptions) {
           const tempPath = await realpath(temp);
           if (prepared.workspace.kind === "program")
             return { cwd: tempPath, sandbox: { tempPath } };
-          const { cwd, fetchError } = prepared.workspace;
-          const head = await git.head({ clone: cwd }, { signal });
+          const { cwd } = prepared.workspace;
+          const isWorktree = prepared.workspace.kind === "worktree";
+          const target = isWorktree
+            ? {
+                clone: prepared.workspace.clonePath,
+                worktree: {
+                  id: prepared.workspace.worktreeId,
+                  cwd,
+                },
+              }
+            : { clone: cwd };
+          const head = await git.head(target, { signal });
           const sha = head.ok ? head.data.trim() : "";
           return {
             cwd,
-            sandbox: { clonePath: cwd, tempPath },
+            sandbox: {
+              clonePath: isWorktree ? prepared.workspace.clonePath : cwd,
+              ...(isWorktree ? { worktreePath: cwd } : {}),
+              tempPath,
+            },
             reading: {
               head: /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u.test(sha) ? sha : "not known",
-              fetch: fetchError ? { state: "not fetched", ...fetchError } : { state: "fetched" },
+              ...(!isWorktree && prepared.workspace.fetchError
+                ? {
+                    fetch: {
+                      state: "not fetched",
+                      ...prepared.workspace.fetchError,
+                    },
+                  }
+                : { fetch: { state: "fetched" } }),
             },
           };
         },
@@ -159,12 +182,51 @@ export function openThreadHost(options: ThreadHostOptions) {
       60 * 60 * 1000,
     );
     settlement.unref();
+    const scopeFor = (id: string) => {
+      const scope = scopes.lookup(engine.read(id).thread.scope);
+      if (!scope) throw new Error("Thread scope is unavailable.");
+      return scope;
+    };
     let stopping: Promise<void> | undefined;
     return {
       engine,
       remember,
       chip: (id: string) => chipFromSweep(options.savedSweep, id, spiRedactor),
       redact: chipRedactor.text,
+      land: async (id: string, request: Parameters<ScopeWorkspaces["land"]>[3]) => {
+        return engine.transition(id, async () => {
+          const git = await options.git();
+          workspaces ??= options.workspaces(git);
+          const result = await workspaces.land(db, scopeFor(id), id, request);
+          if (!result.ok) return result;
+          try {
+            engine.land(id, result.landsIn);
+          } catch (error) {
+            await workspaces.rollbackLanding(db, id);
+            throw error;
+          }
+          return result;
+        });
+      },
+      delete: async (id: string) => {
+        return engine.transition(id, async () => {
+          const git = await options.git();
+          workspaces ??= options.workspaces(git);
+          const kept = await workspaces.keepWorktree(db, id);
+          try {
+            engine.delete(id);
+          } catch (error) {
+            if (kept) workspaces.restoreWorktree(db, id);
+            throw error;
+          }
+          return kept;
+        });
+      },
+      worktrees: async () => {
+        const git = await options.git();
+        workspaces ??= options.workspaces(git);
+        return workspaces.keptWorktrees(db);
+      },
       stop: () => {
         stopping ??= Promise.resolve()
           .then(() => {

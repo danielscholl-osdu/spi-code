@@ -18,7 +18,42 @@ export interface ThreadDefinition {
   title?: string;
   /** The item the thread started from. */
   subject?: string;
+  landsIn?: ThreadLanding;
 }
+
+export type LandingTarget = "fork-main" | "fork-integration" | "upstream";
+export type LandingRequest =
+  | { target: "asking" }
+  | { target: LandingTarget }
+  | {
+      target: "request";
+      forge: "github" | "gitlab";
+      repository: string;
+      requestNumber: number;
+      branch: string;
+      head: string;
+    };
+
+export type ThreadLanding =
+  | { target: "asking" }
+  | {
+      target: LandingTarget;
+      branch: string;
+      baseRef: string;
+      worktree: string;
+      head: string;
+    }
+  | {
+      target: "request";
+      branch: string;
+      baseRef: string;
+      worktree: string;
+      head: string;
+      forge: "github" | "gitlab";
+      repository: string;
+      requestNumber: number;
+      sourceBranch: string;
+    };
 
 export interface ThreadAttachment {
   name: string;
@@ -165,6 +200,8 @@ export type JournalEntry =
     }
   | { type: "thread.unsettled"; reason: "operator"; restore?: true }
   | { type: "thread.seen"; seenSequence: number }
+  | { type: "thread.landed"; landsIn: ThreadLanding }
+  | { type: "thread.deleted" }
   | { type: "message.sent"; messageId: string; message: ThreadMessage }
   | { type: "message.cancelled"; messageId: string; reason: InterruptionReason }
   | TurnEvent;

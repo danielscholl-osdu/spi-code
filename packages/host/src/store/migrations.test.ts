@@ -67,6 +67,7 @@ describe("store migrations", () => {
         "run_events",
         "runs",
         "seen_baselines",
+        "thread_workspaces",
         "threads",
         "waits",
         "worktrees",
@@ -85,6 +86,7 @@ describe("store migrations", () => {
         { version: 2 },
         { version: 3 },
         { version: 4 },
+        { version: 5 },
       ]);
     },
   );
@@ -93,7 +95,8 @@ describe("store migrations", () => {
     const db = open();
     migrate(db);
     db.exec("ALTER TABLE seen_baselines DROP COLUMN observed_at");
-    db.exec("DELETE FROM schema_version WHERE version = 4");
+    db.exec("DROP TABLE thread_workspaces");
+    db.exec("DELETE FROM schema_version WHERE version >= 4");
     db.prepare("INSERT INTO seen_baselines (fleet, cursor, items, at) VALUES (?, ?, ?, ?)").run(
       "osdu",
       7,
@@ -128,6 +131,6 @@ describe("store migrations", () => {
     expect(db.prepare("SELECT * FROM run_events").all()).toEqual(events);
     db.exec("DROP TABLE facts_snapshots");
     migrate(db);
-    expect(db.prepare("SELECT MAX(version) AS version FROM schema_version").get()?.version).toBe(4);
+    expect(db.prepare("SELECT MAX(version) AS version FROM schema_version").get()?.version).toBe(5);
   });
 });

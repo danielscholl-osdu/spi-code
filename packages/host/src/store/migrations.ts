@@ -105,6 +105,26 @@ const migrations = [
   `
     ALTER TABLE seen_baselines ADD COLUMN observed_at INTEGER;
   `,
+  `
+    CREATE TABLE thread_workspaces (
+      thread_id TEXT PRIMARY KEY NOT NULL,
+      repository TEXT NOT NULL,
+      clone_path TEXT NOT NULL,
+      path TEXT NOT NULL,
+      worktree_id TEXT NOT NULL,
+      branch TEXT NOT NULL,
+      base_ref TEXT NOT NULL,
+      head_sha TEXT NOT NULL,
+      target TEXT NOT NULL,
+      source_repository TEXT,
+      source_branch TEXT,
+      created_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      reason TEXT
+    ) STRICT;
+    CREATE UNIQUE INDEX thread_workspaces_branch
+      ON thread_workspaces(repository, branch) WHERE deleted_at IS NULL;
+  `,
 ];
 
 export function migrate(db: DatabaseSync): void {

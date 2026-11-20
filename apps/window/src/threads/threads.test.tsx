@@ -99,8 +99,12 @@ function fakeHost() {
       case "thread.start": {
         if (refuseStart) return send("error", request.id, refuseStart);
         const id = `t${started.length + 1}`;
-        started.push({ id, thread: request.payload });
-        return send("thread.started", request.id, { threadId: id });
+        const { landsIn: _, ...identity } = request.payload;
+        started.push({ id, thread: { ...identity, landsIn: { target: "asking" } } });
+        return send("thread.started", request.id, {
+          threadId: id,
+          landsIn: { target: "asking" },
+        });
       }
       case "thread.subscribe":
         subscriptions.set(request.payload.threadId, request.id);
