@@ -4,10 +4,10 @@
 .popover { position: fixed; z-index: 40; top: 0; left: 0; box-sizing: border-box; width: min(420px, calc(100vw - 24px)); overflow: auto; padding: 12px 14px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); box-shadow: 0 10px 30px rgb(0 0 0 / 0.18); text-align: left; }
 .popover, .popover:focus-visible { outline: none; }
 .popover .opened-body { padding-right: 18px; }
-.popover-close { position: absolute; top: 6px; right: 8px; padding: 0 4px; border: 0; background: transparent; color: var(--text-muted); font-size: 16px; line-height: 1; }
+.popover-close { position: absolute; top: 6px; right: 8px; padding: 0 4px; border: 0; background: transparent; color: var(--text-muted); font-size: var(--text-xl); line-height: 1; }
 .popover-close:hover { color: var(--text-strong); }
 .popover-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .popover-rows { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border-soft); }
-.popover-rows button { padding: 2px 4px; margin-left: -4px; border: 0; border-radius: 4px; background: transparent; color: var(--text); font-size: 12.5px; text-align: left; }
+.popover-rows button { padding: 2px 4px; margin-left: -4px; border: 0; border-radius: 4px; background: transparent; color: var(--text); font-size: var(--text-md); text-align: left; }
 .popover-rows button:hover { background: var(--hover); }
 .popover-rows button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }

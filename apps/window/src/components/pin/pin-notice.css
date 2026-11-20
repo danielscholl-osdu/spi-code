@@ -6,7 +6,7 @@
 .pin-notice[data-placement="sidebar"]:not(:empty) { padding: 6px 16px 8px; }
 .pin-notice[data-placement="window"] { position: fixed; left: 12px; bottom: 12px; z-index: 90; }
 .pin-notice[data-placement="window"]:not(:empty) { max-width: calc(100vw - 24px); box-sizing: border-box; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-raised); box-shadow: 0 8px 24px rgb(0 0 0 / 0.25); }
-.pin-notice-body { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12px; line-height: 1.4; white-space: nowrap; }
+.pin-notice-body { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--text-sm); line-height: 1.4; white-space: nowrap; }
 .pin-notice-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text-muted); }
 .pin-notice[data-placement="window"] .pin-notice-text { color: var(--text); }
 .pin-notice-dot { flex: none; color: var(--text-muted); }

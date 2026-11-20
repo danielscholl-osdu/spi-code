@@ -1,10 +1,10 @@
 /* Copyright 2026, Daniel Scholl */
 /* SPDX-License-Identifier: MIT */
 
-.opened-body { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; color: var(--text); font-size: 13px; line-height: 1.5; }
-.opened-body h3 { margin: 0; color: var(--text-strong); font-size: 15px; font-weight: 600; }
+.opened-body { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; color: var(--text); font-size: var(--text-md); line-height: 1.5; }
+.opened-body h3 { margin: 0; color: var(--text-strong); font-size: var(--text-lg); font-weight: 600; }
 .opened-body p { margin: 0; }
-.opened-body-evidence { color: var(--text-muted); font-size: 12px; text-decoration: none; }
+.opened-body-evidence { color: var(--text-muted); font-size: var(--text-sm); text-decoration: none; }
 .opened-body .opened-body-evidence:hover { color: var(--accent-text); text-decoration: underline; }
 .opened-body .opened-body-deadline { color: var(--warning-text); }
 .opened-body-effect { color: var(--text-muted); }
@@ -15,7 +15,7 @@
 .opened-body-sources { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .opened-body-evidence { margin-top: 2px; }
 .opened-body a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.ask-about { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 0 8px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--text); font: inherit; font-size: 12px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.ask-about { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 0 8px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--text); font: inherit; font-size: var(--text-sm); line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .ask-about:hover { border-color: var(--text-muted); }
 .ask-about:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .ask-about-mark { color: var(--agent-text); }

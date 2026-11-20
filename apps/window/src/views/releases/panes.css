@@ -9,9 +9,9 @@
 .watch-pane [data-muted="true"], .watch-pane [data-weight="quiet"], .watch-pane [data-weight="minor"], .watch-pane [data-upstream="true"] { color: var(--text-muted); }
 .pane-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin: 16px 0; }
 .pane-fact { padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-raised); }
-.pane-fact strong { display: block; font-size: 24px; font-variant-numeric: tabular-nums; }
-.pane-fact div { color: var(--text-muted); font-size: 12px; }
+.pane-fact strong { display: block; font-size: var(--text-2xl); font-variant-numeric: tabular-nums; }
+.pane-fact div { color: var(--text-muted); font-size: var(--text-sm); }
 .pane-fact[data-unread="true"] { border-style: dashed; }
 .watch-pane button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-surface); }
 .repo-section-title { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--border); font-weight: 600; }
-.notes-chip { display: inline-block; border: 1px solid currentColor; border-radius: 12px; padding: 1px 6px; font-size: 11px; }
+.notes-chip { display: inline-block; border: 1px solid currentColor; border-radius: 12px; padding: 1px 6px; font-size: var(--text-xs); }

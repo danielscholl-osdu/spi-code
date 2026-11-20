@@ -8,7 +8,7 @@
   --centre-content-padding-inline: 24px;
 }
 
-body { margin: 0; background: var(--surface); color: var(--text); font: 14px/1.5 var(--font-sans); }
+body { margin: 0; background: var(--surface); color: var(--text); font: var(--text-lg)/1.5 var(--font-sans); }
 .shell { position: relative; display: grid; grid-template-columns: var(--sidebar-col) minmax(0, 1fr) var(--panel-col); grid-template-rows: var(--pane-header-height) minmax(0, 1fr); height: 100dvh; --toggle-x: 12px; }
 /* Each pane draws its own part of one top row; the empty space in every part drags the window. */
 :is(.centre-row, .sidebar-top, .shell[data-right-presentation="inline"] .panel-tabs) { -webkit-app-region: drag; }
@@ -28,15 +28,15 @@ body { margin: 0; background: var(--surface); color: var(--text); font: 14px/1.5
 .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .middle-frame { display: flex; flex-direction: column; grid-column: 2; grid-row: 1 / -1; padding: 0; overflow: hidden; min-width: 0; min-height: 0; background: var(--surface); }
 .centre-bar { position: relative; z-index: 1; padding: 0; background: var(--surface); container-type: inline-size; }
-.centre-row { position: relative; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; height: 100%; white-space: nowrap; font-size: 13px; }
+.centre-row { position: relative; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; height: 100%; white-space: nowrap; font-size: var(--text-md); }
 /* The toggle's room sits in the title's padding, not in a column of its own. */
 .centre-row > .toggle-room { position: absolute; top: 0; bottom: 0; left: var(--toggle-x); }
 .centre-title { min-width: 0; display: flex; align-items: center; gap: 8px; overflow: hidden; padding-left: 16px; }
 .toggle-room + .centre-title { padding-left: calc(var(--toggle-x) + 36px); }
-.centre-title h1 { flex: 0 1 auto; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text-strong); font-size: 14px; font-weight: 600; }
+.centre-title h1 { flex: 0 1 auto; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text-strong); font-size: var(--text-lg); font-weight: 600; }
 .centre-title > :not(h1) { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.centre-title time { margin-left: 0; color: var(--text-muted); font-size: 12.5px; }
-.centre-title button { flex: none; height: 24px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; }
+.centre-title time { margin-left: 0; color: var(--text-muted); font-size: var(--text-md); }
+.centre-title button { flex: none; height: 24px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text-muted); font: inherit; font-size: var(--text-sm); }
 .centre-title button:hover { background: var(--hover); color: var(--text); }
 .centre-end { min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 6px; padding-right: 10px; }
 @container (width < 800px) {
@@ -56,8 +56,8 @@ body { margin: 0; background: var(--surface); color: var(--text); font: 14px/1.5
 .right-panel-frame { grid-column: 3; grid-row: 1 / -1; display: grid; min-width: 0; min-height: 0; }
 aside { padding: 16px; overflow: auto; min-width: 0; background: var(--chrome); border-left: 1px solid var(--border); }
 h1, h2 { margin: 0 0 8px; color: var(--text-strong); }
-h1 { font-size: 24px; }
-h2 { font-size: 16px; }
+h1 { font-size: var(--text-2xl); }
+h2 { font-size: var(--text-xl); }
 p { margin: 8px 0; }
 form { display: grid; gap: 6px; margin: 12px 0; }
 select, button { font: inherit; padding: 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); }

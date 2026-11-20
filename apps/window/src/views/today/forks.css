@@ -3,14 +3,14 @@
 
 .forks-scroll {
   --forks-toggle-width: 34px;
-  --forks-name-width: 124px;
+  --forks-name-width: 144px;
   overflow-x: auto;
   container-type: inline-size;
 }
 .today-section-box.forks-scroll { padding-inline: 0; }
 .forks-scroll table { width: 100%; min-width: 960px; table-layout: fixed; border-collapse: separate; border-spacing: 0; }
 .forks-scroll :is(th, td) { padding: 7px 6px; text-align: left; }
-.forks-scroll thead th { color: var(--text-muted); font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.forks-scroll thead th { color: var(--text-muted); font-size: var(--text-xs); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
 .forks-scroll tbody :is(th, td) { border-top: 1px solid var(--border-soft); }
 .forks-scroll tr { --forks-row-surface: var(--surface); }
 .forks-scroll tr[data-fork]:hover { --forks-row-surface: var(--hover); }
@@ -21,12 +21,12 @@
 .forks-toggle-cell { left: 0; width: var(--forks-toggle-width); }
 .forks-name-cell { left: var(--forks-toggle-width); width: var(--forks-name-width); }
 .forks-mark-cell { left: calc(var(--forks-toggle-width) + var(--forks-name-width)); width: 52px; }
-.forks-marks { display: flex; align-items: center; gap: 3px; color: var(--text-muted); font-size: 12px; }
+.forks-marks { display: flex; align-items: center; gap: 3px; color: var(--text-muted); font-size: var(--text-sm); }
 .forks-scroll :is(.today-fork-name, .forks-toggle) { padding: 0; border: 0; background: transparent; cursor: pointer; }
-.forks-scroll .today-fork-name { color: var(--text-strong); font-size: 13px; font-weight: 600; text-align: left; overflow-wrap: anywhere; }
+.forks-scroll .today-fork-name { color: var(--text-strong); font-size: var(--text-md); font-weight: 600; text-align: left; overflow-wrap: anywhere; }
 .forks-toggle { width: 22px; height: 22px; color: var(--text-muted); }
 .forks-scroll :is(.today-fork-name, .forks-fold):hover { text-decoration: underline; }
-.forks-reading { display: inline-flex; align-items: baseline; gap: 4px; padding: 1px 4px; border-radius: 4px; font-size: 12px; line-height: 1.4; }
+.forks-reading { display: inline-flex; align-items: baseline; gap: 4px; padding: 1px 4px; border-radius: 4px; font-size: var(--text-sm); line-height: 1.4; }
 .forks-glyph { font-family: var(--font-mono); font-weight: 700; }
 .forks-reading[data-state="stopped"] { color: var(--error-text); background: var(--error-surface); }
 .forks-reading[data-state="waiting-on-person"] { color: var(--warning-text); background: var(--warning-surface); }
@@ -35,9 +35,9 @@
 .forks-reading:is([data-state="unread"], [data-state="ready"]) { color: var(--text-muted); }
 .forks-scroll [data-dim] .forks-reading { color: var(--text-muted); background: none; }
 .forks-scroll thead [data-column]:not([data-dim]) { color: var(--text-strong); }
-.forks-fold { display: block; width: 100%; padding: 4px 0; border: 0; background: transparent; color: var(--text-muted); font-size: 12px; text-align: left; }
+.forks-fold { display: block; width: 100%; padding: 4px 0; border: 0; background: transparent; color: var(--text-muted); font-size: var(--text-sm); text-align: left; }
 .forks-scroll .forks-open > td { --forks-row-surface: var(--surface-raised); padding: 0; }
-.forks-open-body { position: sticky; left: 0; width: 100cqi; box-sizing: border-box; padding: 10px 14px; color: var(--text-muted); font-size: 12px; }
+.forks-open-body { position: sticky; left: 0; width: 100cqi; box-sizing: border-box; padding: 10px 14px; color: var(--text-muted); font-size: var(--text-sm); }
 .forks-open p { margin: 0 0 8px; }
 .forks-work { list-style: none; margin: 0 0 8px; padding: 0; }
 .forks-work li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; padding: 2px 0; }

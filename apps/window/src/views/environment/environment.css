@@ -2,12 +2,12 @@
  * SPDX-License-Identifier: MIT */
 
 .environment .env-lane-label {
-  font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  font-size: var(--text-sm); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--text-muted);
 }
 .environment .env-day { margin: 4px 0 16px; }
 .environment .env-section-label {
-  margin: 0; font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase;
+  margin: 0; font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase;
   color: var(--text-muted);
 }
 .environment .env-scroll { overflow-x: auto; margin-top: 4px; padding: 4px 0 2px; direction: rtl; }
@@ -20,7 +20,7 @@
 .environment .env-track { position: relative; min-height: 26px; container-type: inline-size; }
 .environment .env-axis .env-track { height: 20px; min-height: 0; }
 .environment .env-hour {
-  position: absolute; top: 1px; transform: translateX(-50%); font-size: 12px;
+  position: absolute; top: 1px; transform: translateX(-50%); font-size: var(--text-sm);
   color: var(--text-muted); white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 .environment .env-grid { position: absolute; inset: 0 0 0 var(--env-label-width); pointer-events: none; }
@@ -44,7 +44,7 @@
 }
 .environment .env-event-label {
   position: absolute; left: calc(100% + 9px); top: -3px;
-  font-size: 12px; line-height: 18px; color: var(--text); background: var(--surface); white-space: nowrap;
+  font-size: var(--text-sm); line-height: 18px; color: var(--text); background: var(--surface); white-space: nowrap;
 }
 .environment .env-event-label.flip { left: 0; }
 .environment .state-held .env-event-label { color: var(--text-muted); }
@@ -54,21 +54,21 @@
 .environment .env-event[aria-expanded="true"] .env-event-label {
   font-weight: 600; text-decoration: underline 2px var(--accent); text-underline-offset: 3px;
 }
-.environment .env-none { color: var(--text-muted); font-size: 12px; }
+.environment .env-none { color: var(--text-muted); font-size: var(--text-sm); }
 .environment .env-none { position: sticky; left: var(--env-after-label); display: inline-block; margin: 7px 0 0 6px; }
 .environment .env-last { padding: 0 4px; border-radius: 3px; background: var(--surface); }
 .environment .env-last-note[data-late] {
   padding: 0 3px; border-radius: 3px; color: var(--warning-text); background: var(--warning-surface);
 }
 .environment .env-cadence {
-  display: block; font-size: 11px; font-weight: 400; letter-spacing: normal; text-transform: none;
+  display: block; font-size: var(--text-xs); font-weight: 400; letter-spacing: normal; text-transform: none;
   white-space: nowrap;
 }
 .environment .env-by-hand {
   position: absolute; right: 0; bottom: 100%; font-size: 8px; line-height: 9px; color: var(--text);
 }
 .environment .env-activity-summary, .environment .env-legend {
-  color: var(--text-muted); font-size: 12px;
+  color: var(--text-muted); font-size: var(--text-sm);
 }
 .environment .env-activity-summary { margin: 4px 0 0; }
 .environment .env-activity .env-track { min-height: 32px; }
@@ -93,7 +93,7 @@
 }
 .environment .env-idle-label, .environment .env-hold-label {
   position: absolute; top: 50%; transform: translateY(-50%);
-  color: var(--text-muted); background: var(--surface); font-size: 11px; white-space: nowrap;
+  color: var(--text-muted); background: var(--surface); font-size: var(--text-xs); white-space: nowrap;
   padding: 0 4px; border-radius: 3px;
 }
 .environment .env-idle-label { transform: translate(-50%, -50%); pointer-events: none; }
@@ -124,7 +124,7 @@
 }
 .env-repository-pill, .centre-title > button.env-repository-pill {
   display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px;
-  border-radius: 12px; color: var(--text); font-size: 12px; white-space: nowrap;
+  border-radius: 12px; color: var(--text); font-size: var(--text-sm); white-space: nowrap;
 }
 .env-repository-dot {
   width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted);
@@ -134,9 +134,9 @@
 .environment .env-repo-section h3 small {
   color: var(--text-muted); font-weight: 400; margin-left: 8px;
 }
-.environment .env-muted { color: var(--text-muted); font-size: 12px; }
-.environment .env-trigger { margin: 8px 0 0; color: var(--text-muted); font-size: 12.5px; }
-.environment .env-repo-section h3 { font-size: 12px; margin: 16px 0 4px; }
+.environment .env-muted { color: var(--text-muted); font-size: var(--text-sm); }
+.environment .env-trigger { margin: 8px 0 0; color: var(--text-muted); font-size: var(--text-md); }
+.environment .env-repo-section h3 { font-size: var(--text-sm); margin: 16px 0 4px; }
 .environment .env-repo-line {
   display: flex; gap: 12px; width: 100%; padding: 8px;
   text-align: left; font: inherit; color: var(--text);
@@ -144,8 +144,8 @@
 }
 .environment button.env-repo-line { cursor: pointer; }
 .environment button.env-repo-line:hover { background: var(--accent-surface); }
-.environment .env-repo-line small { display: block; color: var(--text-muted); font-size: 12px; }
-.environment .env-repo-tag { min-width: 48px; font-size: 12px; }
+.environment .env-repo-line small { display: block; color: var(--text-muted); font-size: var(--text-sm); }
+.environment .env-repo-tag { min-width: 48px; font-size: var(--text-sm); }
 .environment .env-repository [data-tone="bad"] { color: var(--error-text); }
 .environment .env-repository [data-tone="warn"] { color: var(--warning-text); }
 .environment .env-repository [data-tone="ok"] { color: var(--success-text); }
@@ -153,7 +153,7 @@
 
 .environment .env-status {
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px;
-  margin: 0; font-size: 16px; font-weight: 600;
+  margin: 0; font-size: var(--text-lg); font-weight: 600;
 }
 .environment .env-status-label { padding: 2px 8px; border-radius: 5px; background: var(--surface-raised); }
 .environment .env-status[data-state="in-use"] .env-status-label {
@@ -163,7 +163,7 @@
   color: var(--error-text); background: var(--error-surface);
 }
 .environment .env-status small, .environment .env-status button, .environment .env-line {
-  color: var(--text-muted); font-size: 13px; font-weight: 400;
+  color: var(--text-muted); font-size: var(--text-md); font-weight: 400;
 }
 .environment .env-status button {
   padding: 0; border: 0; background: transparent; text-decoration: underline; cursor: pointer;
@@ -173,7 +173,7 @@
 .environment .env-fork-label { text-transform: none; letter-spacing: normal; }
 .environment .env-forks-note {
   position: sticky; left: var(--env-after-label); justify-self: start; margin: 7px 0 3px 6px;
-  background: var(--surface); color: var(--text-muted); font-size: 12px;
+  background: var(--surface); color: var(--text-muted); font-size: var(--text-sm);
 }
 .environment .env-borrow {
   --borrow-ink: var(--text-muted);
@@ -195,7 +195,7 @@
 .environment .env-range { display: inline-flex; margin: 0; padding: 2px; border: 1px solid var(--border); border-radius: 6px; }
 .environment .env-range button, .environment .env-back, .environment .env-more {
   padding: 2px 10px; border: 0; border-radius: 4px; background: transparent; color: var(--text-muted);
-  font: inherit; font-size: 12px; cursor: pointer;
+  font: inherit; font-size: var(--text-sm); cursor: pointer;
 }
 .environment .env-range button[aria-pressed="true"] { background: var(--surface-raised); color: var(--text-strong); font-weight: 600; }
 .environment .env-back { padding: 0 6px 0 0; color: var(--text); }
@@ -214,15 +214,15 @@
 .environment .env-day-cell[data-narrow] { justify-content: flex-end; padding-left: 0; }
 .environment .env-day-heading {
   padding: 0 2px; border: 0; background: var(--surface); color: var(--text-strong);
-  font: inherit; font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer;
+  font: inherit; font-size: var(--text-sm); font-weight: 600; white-space: nowrap; cursor: pointer;
 }
 .environment .env-day-heading small { margin-left: 4px; color: var(--text-muted); font-weight: 400; }
 .environment .env-pill {
   display: inline-flex; align-items: center; gap: 3px; padding: 0 8px; height: 18px;
   border: 1px solid var(--border); border-radius: 9px; background: var(--surface);
-  color: var(--text); font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer;
+  color: var(--text); font: inherit; font-size: var(--text-sm); white-space: nowrap; cursor: pointer;
 }
-.environment .env-pill small { color: var(--error-text); font-size: 12px; }
+.environment .env-pill small { color: var(--error-text); font-size: var(--text-sm); }
 .environment .env-pill-running { width: 6px; height: 6px; border-radius: 50%; background: var(--warning); }
 .environment .env-now { position: absolute; top: 20px; bottom: 0; right: 0; border-right: 2px solid var(--accent); }
 .environment .env-day-cell[data-narrow] { padding-right: 3px; box-sizing: border-box; }
