@@ -10,6 +10,7 @@
     "build": "tsc -b",
     "package:mac": "node scripts/package-mac.mjs",
     "package:win": "node scripts/package-win.mjs",
+    "smoke:threads": "pnpm build && node scripts/copilot-trace.ts",
     "lint": "biome check .",
     "typecheck": "tsc -b",
     "test": "vitest run",
