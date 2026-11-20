@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { SecurityLane, SecurityLaneId, SecurityPane } from "@spi-code/contracts";
+import type { SecurityLane, SecurityLaneId, SecurityPane } from "./contract.js";
 import { securityByRepository } from "./by-repo.js";
 import { securityByRule } from "./by-rule.js";
 import { classify, count, LANES, type SecurityInput, type SecuritySource, unreadList } from "./classify.js";

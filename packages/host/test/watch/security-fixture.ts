@@ -42,7 +42,7 @@ const json = <T>(path: string): T => JSON.parse(readFileSync(path, "utf8"));
 
 export const securityFixturePath = (name: SecurityFixture) =>
   fileURLToPath(
-    new URL(`../../../../fixtures/watch/generated/security-${name}.json`, import.meta.url),
+    new URL(`../../../../fixtures/watch/generated/security/${name}.json`, import.meta.url),
   );
 
 /** The 16 Nov sweep's pane, with core's security-cases.json edit of the same name applied. */

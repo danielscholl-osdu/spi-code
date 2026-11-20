@@ -7,7 +7,6 @@ import { z } from "zod";
 import { watchFixtures } from "../../../../scripts/watch-generated.mjs";
 import { LifecycleLaneSchema } from "./briefing.js";
 import { InspectResultSchema } from "./inspect.js";
-import { SecurityPaneSchema } from "./security.js";
 import { ViewSnapshotSchema } from "./snapshot.js";
 
 const dir = new URL("../../../../fixtures/watch/", import.meta.url);
@@ -500,11 +499,7 @@ describe("existing Watch fixtures", () => {
     expect(names.some((name) => name.startsWith("inspect-"))).toBe(true);
   });
   it.each(names)("still parse: %s", (name) => {
-    const schema = name.startsWith("inspect-")
-      ? z.array(InspectResultSchema)
-      : name.startsWith("security-")
-        ? SecurityPaneSchema
-        : ViewSnapshotSchema;
+    const schema = name.startsWith("inspect-") ? z.array(InspectResultSchema) : ViewSnapshotSchema;
     const { path } = fixtures.find((fixture) => fixture.name === name) ?? { path: "" };
     expect(schema.safeParse(JSON.parse(readFileSync(path, "utf8"))).error).toBeUndefined();
   });

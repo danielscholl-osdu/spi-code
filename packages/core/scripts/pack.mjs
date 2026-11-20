@@ -73,6 +73,13 @@ try {
       module: "fleet",
       typeOnly: true,
     },
+    { bindings: ["export type *"], source: "watch/security", module: "security", typeOnly: true },
+    ...["base", "by-repo", "by-rule", "opened-rule", "top"].map((name) => ({
+      bindings: [],
+      source: `watch/security/${name}`,
+      module: `security/${name}`,
+      typeOnly: true,
+    })),
   ];
   for (const { source, module, typeOnly } of sharedContracts) {
     const target = join(staging, "dist/contracts", module);

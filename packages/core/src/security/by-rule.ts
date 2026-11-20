@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { SecurityByRule, SecurityLaneId, SecurityRuleRow } from "@spi-code/contracts";
+import type { SecurityByRule, SecurityLaneId, SecurityRuleRow } from "./contract.js";
 import type { SecurityInput } from "./classify.js";
 
 export type SecurityRuleHead = Omit<SecurityRuleRow, "opened">;

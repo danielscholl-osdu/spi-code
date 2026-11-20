@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { SecurityOpenedRule } from "@spi-code/contracts";
+import type { SecurityOpenedRule } from "./contract.js";
 import type { SecurityInput } from "./classify.js";
 import type { SecurityRuleHead } from "./by-rule.js";
 

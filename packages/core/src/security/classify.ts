@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { SecurityCount, SecurityLaneId, SecurityList, SecurityUnread } from "@spi-code/contracts";
+import type { SecurityCount, SecurityLaneId, SecurityList, SecurityUnread } from "./contract.js";
 import { closedFix, groupOf, NO_FILE, readOf } from "../brief/service-upstream.js";
 import type { CoreContext } from "../context.js";
 import type {
