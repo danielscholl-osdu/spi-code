@@ -134,6 +134,18 @@ async function cleanupProcess(pid) {
   await facts("taskkill.exe", ["/PID", String(pid), "/T", "/F"]);
 }
 
+/** @param {import("node:child_process").ChildProcess} child */
+async function waitForExit(child) {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  await bounded(
+    new Promise((resolve) => {
+      child.once("exit", resolve);
+    }),
+    10_000,
+    "probe owner exit",
+  );
+}
+
 /** @param {import("@microsoft/mxc-sdk/v1").ExecutionResult} result */
 function summarizeResult(result) {
   return {
@@ -563,12 +575,9 @@ async function probeHostOwnership(root, report) {
         }
       });
       const pid = Number.parseInt(await readFile(pidFile, "utf8"), 10);
-      if (mode === "detached") {
-        await new Promise((resolve) => parent.once("exit", resolve));
-      } else {
-        parent.kill("SIGTERM");
-        await new Promise((resolve) => parent.once("exit", resolve));
-      }
+      const ownerExit = waitForExit(parent);
+      if (mode !== "detached") parent.kill("SIGTERM");
+      await ownerExit;
       const beforeRestart = await processAlive(pid);
       const restartedObserver = await facts("powershell.exe", [
         "-NoProfile",
