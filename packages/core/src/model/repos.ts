@@ -275,21 +275,25 @@ function dependencyGroups(alerts: readonly DependencyAlertFact[], p: Paths): Ale
 }
 
 function codeGroups(alerts: readonly CodeAlertFact[], p: Paths): AlertGroup[] {
-  const groups = new Map<string, AlertGroup>();
+  const groups = new Map<string, Map<string, AlertGroup>>();
   for (const a of alerts) {
     // A repository-level finding names no file; GitHub fills the path with a sentence.
     const path = a.path && !/\s/.test(a.path) ? a.path : undefined;
     const tree = treeOf(path, p);
-    const id = `code:${a.tool}:${a.rule}:${tree}`;
-    let g = groups.get(id);
+    const baseId = `code:${a.tool}:${a.rule}:${tree}`;
+    const owner = ownerOf(path ?? "", p);
+    const reach = path ? reachOf(path) : "settings";
+    const variants = groups.get(baseId) ?? new Map<string, AlertGroup>();
+    const variant = `${owner}:${reach}`;
+    let g = variants.get(variant);
     if (!g) {
       g = {
-        id,
+        id: baseId,
         source: "code",
         name: a.description,
         where: tree,
-        owner: ownerOf(path ?? "", p),
-        reach: path ? reachOf(path) : "settings",
+        owner,
+        reach,
         count: 0,
         counts: {},
         unfixed: 0,
@@ -298,13 +302,21 @@ function codeGroups(alerts: readonly CodeAlertFact[], p: Paths): AlertGroup[] {
         url: a.url,
         elsewhere: [],
       };
-      groups.set(id, g);
+      variants.set(variant, g);
+      groups.set(baseId, variants);
     }
     if (a.createdAt && (!g.since || Date.parse(a.createdAt) < Date.parse(g.since))) g.since = a.createdAt;
     g.count++;
     if (a.severity) g.counts[a.severity] = (g.counts[a.severity] ?? 0) + 1;
   }
-  return [...groups.values()].map((g) => ({ ...g, severity: worst(g.counts) }));
+  return [...groups.entries()].flatMap(([baseId, variants]) => {
+    const ordered = [...variants.values()].sort(groupRank);
+    return ordered.map((g, index) => ({
+      ...g,
+      id: index === 0 ? baseId : `${baseId}:${g.owner}:${g.reach}`,
+      severity: worst(g.counts),
+    }));
+  });
 }
 
 function severityRank(s: Severity | undefined): number {

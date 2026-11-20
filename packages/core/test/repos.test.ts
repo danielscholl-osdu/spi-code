@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, test } from "vitest";
+import { fleetOf } from "../src/config";
+import { type CoreContext, createContext } from "../src/context";
 import type { Facts, PrFact } from "../src/facts";
 import { buildModel } from "../src/model/index";
 import {
@@ -26,10 +28,10 @@ const FORK = {
   program: false,
 };
 
-function rows(edit?: (f: Facts) => void) {
+function rows(edit?: (f: Facts) => void, context: CoreContext = fixtureContext) {
   const f = fixtureFacts();
   edit?.(f);
-  return buildModel(f, FIXTURE_NOW, {}, fixtureContext).repositories.rows;
+  return buildModel(f, FIXTURE_NOW, {}, context).repositories.rows;
 }
 
 function pr(repo: string, number: number, title: string, extra: Partial<PrFact> = {}): PrFact {
@@ -175,6 +177,69 @@ describe("the repositories model", () => {
       severity: "high",
     });
     expect(legal?.codeScanning).toEqual({ ours: 2, upstream: 0 });
+  });
+
+  test("workflow code scanning counts each reach independently of alert order", () => {
+    const workflowRepo = "Azure/osdu-spi-workflow";
+    const context = createContext({
+      fleet: fleetOf([
+        ...fixtureContext.fleet.services,
+        {
+          id: "workflow",
+          repo: workflowRepo,
+          upstream: "osdu/platform/data-flow/ingestion/ingestion-workflow",
+          prefix: "workflow",
+        },
+      ]),
+    });
+    const workflow = rows((f) => {
+      const alerts = f.security.data;
+      if (!alerts) throw new Error("fixture has security data");
+      alerts[workflowRepo] = {
+        code: [
+          {
+            number: 5,
+            severity: "high",
+            ruleSeverity: "error",
+            rule: "java/spring-disabled-csrf-protection",
+            description: "Disabled Spring CSRF protection",
+            tool: "CodeQL",
+            path: "provider/workflow-azure/src/test/java/org/opengroup/osdu/workflow/provider/azure/CustomOperatorMvcTest.java",
+            url: `https://github.com/${workflowRepo}/security/code-scanning/5`,
+            createdAt: "2026-09-17T14:56:55Z",
+          },
+          {
+            number: 4,
+            severity: "high",
+            ruleSeverity: "error",
+            rule: "java/spring-disabled-csrf-protection",
+            description: "Disabled Spring CSRF protection",
+            tool: "CodeQL",
+            path: "provider/workflow-azure/src/main/java/org/opengroup/osdu/workflow/provider/azure/security/AzureIstioSecurityConfig.java",
+            url: `https://github.com/${workflowRepo}/security/code-scanning/4`,
+            createdAt: "2026-09-17T14:56:55Z",
+          },
+          {
+            number: 3,
+            severity: "high",
+            ruleSeverity: "error",
+            rule: "java/spring-disabled-csrf-protection",
+            description: "Disabled Spring CSRF protection",
+            tool: "CodeQL",
+            path: "provider/workflow-azure/src/main/java/org/opengroup/osdu/workflow/provider/azure/security/AadSecurityConfig.java",
+            url: `https://github.com/${workflowRepo}/security/code-scanning/3`,
+            createdAt: "2026-09-17T14:56:55Z",
+          },
+        ],
+      };
+    }, context).find((x) => x.name === "workflow");
+    const csrf = workflow?.alerts.filter((g) => g.name === "Disabled Spring CSRF protection");
+
+    expect(csrf?.map((g) => ({ reach: g.reach, count: g.count, counts: g.counts }))).toEqual([
+      { reach: "shipped", count: 2, counts: { high: 2 } },
+      { reach: "tests", count: 1, counts: { high: 1 } },
+    ]);
+    expect(workflow?.codeScanning).toEqual({ ours: 2, upstream: 0 });
   });
 
   test("schema's highs sit in tooling and tests, not in shipped code", () => {

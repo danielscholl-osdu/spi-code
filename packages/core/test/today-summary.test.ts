@@ -323,7 +323,7 @@ describe("Today's lower sections on the unchanged 16 Nov sweep", () => {
       ],
       [
         ["vulnerabilities", 6],
-        ["code-scanning", 22],
+        ["code-scanning", 24],
       ],
     ]);
     const issues = Object.values(facts.github.data?.repos ?? {}).flatMap((r) => r.issues);
