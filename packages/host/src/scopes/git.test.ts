@@ -551,7 +551,56 @@ async function plantConfig(config: string, script: string): Promise<void> {
   }
 }
 
+type Read = (git: PrivilegedGit, target: WorktreeTarget) => Promise<ExecResult<unknown>>;
+/** Every read the Thread tab makes, each with the guards of the commit beside it. */
+const reads: Record<string, Read> = {
+  status: (git, target) => git.status(target),
+  "status of all": (git, target) => git.statusAll(target),
+  diff: (git, target) => git.diff(target),
+  "diff of one path": (git, target) => git.diff(target, "HEAD", {}, "answer.txt"),
+  numstat: (git, target) => git.numstat(target, "HEAD"),
+};
+
 describe("privileged Git", () => {
+  it("runs no hook planted in the clone on a read or a commit", async ({ skip }) => {
+    const git = gitRunner();
+    const workspace = await checkout(git);
+    const target = await linkedWorktree(git, workspace.cwd);
+    const marker = join(root, "hook-ran");
+    const hooks = join(workspace.gitDirectory, "hooks");
+    await mkdir(hooks, { recursive: true });
+    for (const name of [
+      "pre-commit",
+      "prepare-commit-msg",
+      "commit-msg",
+      "post-commit",
+      "post-index-change",
+      "reference-transaction",
+    ])
+      await markerScript(join(hooks, name), marker);
+    await writeFile(join(target.worktree.cwd, "answer.txt"), "changed");
+    for (const [name, read] of Object.entries(reads)) {
+      expect(await read(git, target), name).toMatchObject({ ok: true });
+      expect(await markerRan(marker), name).toBe(false);
+    }
+    if (macOnly) return;
+    await plainGit(
+      target.worktree.cwd,
+      "-c",
+      "user.name=Fixture",
+      "-c",
+      "user.email=fixture@example.invalid",
+      "commit",
+      "-qam",
+      "Plain",
+    );
+    await expectCanary(marker, skip, "plain commit runs the hooks");
+    await writeFile(join(target.worktree.cwd, "answer.txt"), "changed again");
+    expect(await git.add(target, ["."])).toMatchObject({ ok: true });
+    expect(await git.commit(target, "Confined", identity)).toMatchObject({ ok: true });
+    expect(await markerRan(marker)).toBe(false);
+  });
+
   it("does not run a hook planted in the clone", async () => {
     const git = gitRunner();
     const workspace = await checkout(git);
@@ -579,6 +628,27 @@ describe("privileged Git", () => {
     const result = await git.status({ clone: workspace.cwd }).catch((error: unknown) => error);
     expect(await readdir(root)).not.toContain(basename(marker));
     expect(result).toEqual(new Error("Managed clone Git configuration changed."));
+  });
+
+  it("refuses every read and the commit on hostile clone config", async () => {
+    const git = gitRunner();
+    const workspace = await checkout(git);
+    const target = await linkedWorktree(git, workspace.cwd);
+    const script = join(root, "program.sh");
+    const marker = join(root, "config-ran");
+    await markerScript(script, marker);
+    await plantConfig(join(workspace.gitDirectory, "config"), script);
+
+    for (const [name, read] of Object.entries(reads)) {
+      await expect(read(git, target), name).rejects.toThrow(
+        "Managed clone Git configuration changed.",
+      );
+    }
+    expect(await git.commit(target, "Hostile", identity, { all: true })).toMatchObject({
+      ok: false,
+      refused: "workspace-not-trusted",
+    });
+    expect(await readdir(root)).not.toContain(basename(marker));
   });
 
   it("ignores hostile worktree config and refuses attempts to enable it", async () => {
@@ -620,9 +690,15 @@ describe("privileged Git", () => {
     await rm(dotGit);
     await writeFile(dotGit, repointed);
 
-    await expect(git.status(target)).rejects.toThrow(
-      "Worktree .git file does not point to its recorded Git directory.",
+    for (const [name, read] of Object.entries(reads)) {
+      await expect(read(git, target), name).rejects.toThrow(
+        "Worktree .git file does not point to its recorded Git directory.",
+      );
+    }
+    expect(await git.commit(target, "Repointed", identity, { all: true })).toEqual(
+      expect.objectContaining({ ok: false, refused: "workspace-not-trusted" }),
     );
+    expect(await fixtureGit(other.worktree.cwd, "log", "-1", "--format=%s")).toBe("Fixture change");
   });
 
   it("pins the common directory when a worktree's commondir is repointed", async ({ skip }) => {
@@ -642,8 +718,10 @@ describe("privileged Git", () => {
     await fixtureGit(target.worktree.cwd, "status", "--porcelain").catch(() => undefined);
     await expectCanary(marker, skip);
 
-    expect(await git.status(target)).toMatchObject({ ok: true, data: "" });
-    expect(await markerRan(marker)).toBe(false);
+    for (const [name, read] of Object.entries(reads)) {
+      expect(await read(git, target), name).toMatchObject({ ok: true });
+      expect(await markerRan(marker), name).toBe(false);
+    }
   });
 
   it("never looks inside a nested repository in a worktree", async ({ skip }) => {
@@ -680,6 +758,9 @@ describe("privileged Git", () => {
       status,
       "diff HEAD": (target) => git.diff(target),
       "diff a named ref": (target) => git.diff(target, "refs/spi/asking"),
+      "diff of the nested path": (target) => git.diff(target, "HEAD", {}, "sub"),
+      numstat: (target) => git.numstat(target, "HEAD"),
+      "status of all": () => git.statusAll(target),
     });
 
     const nested = join(sub, ".git");
@@ -695,7 +776,11 @@ describe("privileged Git", () => {
     await mkdir(join(nested, "info"), { recursive: true });
     await writeFile(join(nested, "info", "attributes"), "* filter=canary\n");
     await writeFile(join(sub, "f"), "y");
-    await quiet("clean filter", { status });
+    await quiet("clean filter", {
+      status,
+      numstat: (target) => git.numstat(target, "HEAD"),
+      "status of all": () => git.statusAll(target),
+    });
 
     const outside = join(root, "outside.git");
     await rename(nested, outside);
@@ -709,7 +794,11 @@ describe("privileged Git", () => {
     );
     await fixtureGit(root, "config", "--file", join(outside, "config"), "core.worktree", sub);
     await writeFile(join(sub, ".git"), `gitdir: ${outside}\n`);
-    await quiet(".git file outside the worktree", { status });
+    await quiet(".git file outside the worktree", {
+      status,
+      numstat: (target) => git.numstat(target, "HEAD"),
+      "status of all": () => git.statusAll(target),
+    });
   });
 
   it("never looks inside a nested repository the shared clone's tree links", async ({ skip }) => {
@@ -809,6 +898,7 @@ describe("privileged Git", () => {
       "abc123",
     ].flatMap((name) => [
       [`diff against ${name}`, ref, (git: PrivilegedGit) => git.diff(target, name)],
+      [`numstat against ${name}`, ref, (git: PrivilegedGit) => git.numstat(target, name)],
       [`checkout of ${name}`, ref, (git: PrivilegedGit) => git.checkoutDetached(target, name)],
       [
         `worktree at ${name}`,
@@ -854,10 +944,17 @@ describe("privileged Git", () => {
       "a/.git/config",
       "a\\b",
       "a\0b",
-    ].map((path) => [
-      `add of ${JSON.stringify(path)}`,
-      /^Invalid worktree path\.$/u,
-      (git: PrivilegedGit) => git.add(worktreeTarget, [path]),
+    ].flatMap((path) => [
+      [
+        `add of ${JSON.stringify(path)}`,
+        /^Invalid worktree path\.$/u,
+        (git: PrivilegedGit) => git.add(worktreeTarget, [path]),
+      ],
+      [
+        `diff of ${JSON.stringify(path)}`,
+        /^Invalid worktree path\.$/u,
+        (git: PrivilegedGit) => git.diff(target, "HEAD", {}, path),
+      ],
     ]),
     [
       "add of no paths",
@@ -934,6 +1031,7 @@ describe("privileged Git", () => {
         "head",
         "headIsAncestorOf",
         "listWorktrees",
+        "numstat",
         "push",
         "remoteUrl",
         "resolveRef",

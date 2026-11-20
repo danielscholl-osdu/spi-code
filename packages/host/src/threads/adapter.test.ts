@@ -530,6 +530,13 @@ it("refuses a landing and deletion when a turn is already running", async () => 
     landsIn: { target: "fork-main" },
   });
   const deletion = port.dispatch("thread.delete", { threadId: port.threadId });
+  const commit = port.dispatch("thread.commit", { threadId: port.threadId, message: "Mid-turn" });
+  await expect(port.response(commit)).resolves.toMatchObject({
+    type: "thread.committed",
+    payload: {
+      commit: { outcome: "refused", reason: "A turn is running. Commit when it finishes." },
+    },
+  });
   await expect(port.response(landing)).resolves.toMatchObject({
     type: "error",
     payload: { message: expect.stringMatching(/Stop the thread/u) },
@@ -541,6 +548,88 @@ it("refuses a landing and deletion when a turn is already running", async () => 
   session.begin("busy");
   session.finish("busy");
   expect(await port.response(turn)).toMatchObject({ payload: { outcome: "completed" } });
+});
+
+it("refuses a commit without the operator's identity and says why changes were not read", async () => {
+  const { runtime } = recordedRuntime();
+  const landsIn = {
+    target: "fork-main" as const,
+    branch: "spi/identity",
+    baseRef: "refs/remotes/origin/main",
+    worktree: join(root, "identity-worktree"),
+    head: "a".repeat(40),
+  };
+  const land = vi.spyOn(ScopeWorkspaces.prototype, "land").mockResolvedValue({ ok: true, landsIn });
+  const prepare = vi
+    .spyOn(ScopeWorkspaces.prototype, "prepareThread")
+    .mockResolvedValueOnce({
+      ok: true,
+      workspace: {
+        kind: "worktree",
+        cwd: landsIn.worktree,
+        gitDirectory: join(root, "clone", ".git"),
+        clonePath: join(root, "clone"),
+        worktreeId: "fixture",
+        readOnly: false,
+      },
+    })
+    .mockResolvedValueOnce({
+      ok: false,
+      operation: "fetch",
+      remote: "origin",
+      error: "The thread's recorded worktree was removed.",
+    });
+  const identity = vi.fn(async () => undefined);
+  try {
+    const options = dependencies(runtime);
+    const host = new ThreadRoutes({ ...options, identity });
+    hosts.push(host);
+    const output: Message[] = [];
+    let receive: (event: { data: unknown }) => void = () => {};
+    attachHostPort(
+      {
+        on: (_event, listener) => {
+          receive = listener;
+        },
+        postMessage: (data) => output.push(data as Message),
+        start() {},
+      },
+      1,
+      host.routes,
+    );
+    const reply = async (id: string, type: string, payload: unknown) => {
+      receive({ data: { version: PROTOCOL_VERSION, id, kind: "request", type, payload } });
+      return vi.waitFor(() => {
+        const found = output.find((entry) => entry.id === id && entry.kind === "response");
+        if (!found) throw new Error("Waiting for response");
+        return found;
+      });
+    };
+    const started = await reply("1", "thread.start", { scope: "program" });
+    if (started.type !== "thread.started") throw new Error("Thread did not start");
+    const { threadId } = started.payload;
+    expect(await reply("2", "thread.changes", { threadId })).toMatchObject({
+      payload: { changes: { state: "asking" } },
+    });
+    await reply("3", "thread.land", { threadId, landsIn: { target: "fork-main" } });
+    expect(await reply("4", "thread.commit", { threadId, message: "Change it" })).toMatchObject({
+      payload: {
+        commit: {
+          outcome: "refused",
+          reason: "Set user.name and user.email in your git config to commit.",
+        },
+      },
+    });
+    expect(identity).toHaveBeenCalledOnce();
+    expect(await reply("5", "thread.changes", { threadId })).toMatchObject({
+      payload: {
+        changes: { state: "not read", reason: "The thread's recorded worktree was removed." },
+      },
+    });
+  } finally {
+    land.mockRestore();
+    prepare.mockRestore();
+  }
 });
 
 it("reserves a thread for deletion and touches no worktree before journaling", async () => {

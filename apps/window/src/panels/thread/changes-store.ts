@@ -1,0 +1,132 @@
+// Copyright 2026, Daniel Scholl
+// SPDX-License-Identifier: MIT
+
+import { type Message, PROTOCOL_VERSION, parseMessage } from "@spi-code/contracts";
+import { createStore } from "zustand/vanilla";
+
+type Payload<T extends Message["type"]> = Extract<Message, { type: T }>["payload"];
+export type ThreadChanges = Payload<"thread.changes.result">["changes"];
+export type FileDiff = Payload<"thread.diff.result">["diff"];
+export type CommitResult = Payload<"thread.committed">["commit"];
+type Request = Extract<Message, { kind: "request" }>;
+
+const reading = { state: "reading" } as const;
+const diffKey = (threadId: string, path: string) => `${threadId}\0${path}`;
+
+type ChangesState = {
+  /** Absent until asked; "reading" while the host reads the worktree. */
+  changes: Readonly<Record<string, ThreadChanges | typeof reading>>;
+  diffs: Readonly<Record<string, FileDiff | typeof reading>>;
+  commits: Readonly<Record<string, CommitResult | { outcome: "committing" }>>;
+  refresh(threadId: string): void;
+  readDiff(threadId: string, path: string): void;
+  commit(threadId: string, message: string): void;
+  receive(input: unknown): void;
+};
+
+export function diffOf(state: ChangesState, threadId: string, path: string) {
+  return state.diffs[diffKey(threadId, path)];
+}
+
+export function createChangesStore(post: (message: Message) => void = postToHost) {
+  const waiting = new Map<string, (reply: Message) => void>();
+  const request = (
+    type: Request["type"],
+    payload: Request["payload"],
+    then: (reply: Message) => void,
+  ) => {
+    const id = crypto.randomUUID();
+    const parsed = parseMessage({ version: PROTOCOL_VERSION, id, kind: "request", type, payload });
+    if (!parsed.ok) throw new Error(`Window generated an invalid ${type}`);
+    waiting.set(id, then);
+    try {
+      post(parsed.message);
+    } catch {
+      waiting.delete(id);
+      then({
+        version: PROTOCOL_VERSION,
+        id,
+        kind: "response",
+        type: "error",
+        payload: { code: "host_unavailable", message: "The host is not connected." },
+      });
+    }
+  };
+  const failure = (reply: Message, fallback: string) =>
+    reply.type === "error" ? reply.payload.message : fallback;
+
+  return createStore<ChangesState>()((set, get) => {
+    const refresh = (threadId: string) => {
+      set(({ changes }) => ({ changes: { ...changes, [threadId]: reading } }));
+      request("thread.changes", { threadId }, (reply) => {
+        const changes: ThreadChanges =
+          reply.type === "thread.changes.result"
+            ? reply.payload.changes
+            : { state: "not read", reason: failure(reply, "The host did not read the worktree.") };
+        set((state) => ({ changes: { ...state.changes, [threadId]: changes } }));
+      });
+    };
+    /** The host went away: a commit in flight may or may not have run, so re-read. */
+    const lose = (reason: string) => {
+      waiting.clear();
+      const commits = { ...get().commits };
+      for (const [threadId, commit] of Object.entries(commits))
+        if (commit.outcome === "committing") commits[threadId] = { outcome: "not known", reason };
+      set({ commits, diffs: {} });
+      for (const threadId of Object.keys(get().changes)) refresh(threadId);
+    };
+    return {
+      changes: {},
+      diffs: {},
+      commits: {},
+      refresh,
+      readDiff(threadId, path) {
+        const key = diffKey(threadId, path);
+        set(({ diffs }) => ({ diffs: { ...diffs, [key]: reading } }));
+        request("thread.diff", { threadId, path }, (reply) => {
+          const diff: FileDiff =
+            reply.type === "thread.diff.result"
+              ? reply.payload.diff
+              : { state: "not read", reason: failure(reply, "The host did not read the diff.") };
+          set(({ diffs }) => ({ diffs: { ...diffs, [key]: diff } }));
+        });
+      },
+      commit(threadId, message) {
+        if (get().commits[threadId]?.outcome === "committing") return;
+        set(({ commits }) => ({ commits: { ...commits, [threadId]: { outcome: "committing" } } }));
+        request("thread.commit", { threadId, message }, (reply) => {
+          const commit: CommitResult =
+            reply.type === "thread.committed"
+              ? reply.payload.commit
+              : { outcome: "not known", reason: failure(reply, "The host gave no result.") };
+          set(({ commits, diffs }) => ({
+            commits: { ...commits, [threadId]: commit },
+            diffs: Object.fromEntries(
+              Object.entries(diffs).filter(([key]) => !key.startsWith(`${threadId}\0`)),
+            ),
+          }));
+          refresh(threadId);
+        });
+      },
+      receive(input) {
+        const parsed = parseMessage(input);
+        if (!parsed.ok) return;
+        const reply = parsed.message;
+        if (reply.type === "host.hello") return lose("The host restarted during the commit.");
+        if (reply.type === "error" && reply.payload.code === "host_unavailable")
+          return lose(reply.payload.message);
+        if (reply.kind !== "response") return;
+        const then = waiting.get(reply.id);
+        if (!then) return;
+        waiting.delete(reply.id);
+        then(reply);
+      },
+    };
+  });
+}
+
+function postToHost(message: Message) {
+  window.spi?.postMessage(message);
+}
+
+export const changesStore = createChangesStore();

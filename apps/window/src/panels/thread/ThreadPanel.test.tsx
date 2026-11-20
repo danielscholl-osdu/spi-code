@@ -1,7 +1,12 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { ThreadWireEvent, ViewSnapshot } from "@spi-code/contracts";
+import {
+  type Message,
+  PROTOCOL_VERSION,
+  type ThreadWireEvent,
+  type ViewSnapshot,
+} from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -12,6 +17,7 @@ import { watchStore } from "../../store/watch.js";
 import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import { type ThreadSummary, threadStore } from "../../threads/store.js";
 import { clockTime } from "../../time.js";
+import { changesStore } from "./changes-store.js";
 
 type HappyWindow = { happyDOM: { setViewport(viewport: { width: number; height: number }): void } };
 
@@ -19,6 +25,7 @@ const fixture = fixtureLoader(readFixture)("snapshot-1106.json");
 const cleanups: Array<() => Promise<void>> = [];
 const watched = watchStore.getState();
 const threads = threadStore.getState();
+const changed = changesStore.getState();
 
 function summary(thread: ThreadSummary["thread"]): ThreadSummary {
   return {
@@ -68,6 +75,7 @@ async function mountShell(
   return {
     $,
     layout,
+    posted: () => harness.spi.postMessage.mock.calls.map(([message]) => message as Message),
     panel: () => $("#app-right-panel"),
     column: () => layout.style.getPropertyValue("--panel-col"),
     toggles: () => [
@@ -122,6 +130,7 @@ afterEach(async () => {
   for (const cleanup of cleanups.splice(0)) await cleanup();
   watchStore.setState(watched, true);
   threadStore.setState(threads, true);
+  changesStore.setState(changed, true);
   window.location.hash = "";
 });
 
@@ -376,6 +385,143 @@ describe("Evidence", () => {
     );
     expect(body?.querySelector("[data-evidence-for=scope] [data-quiet=unread]")?.textContent).toBe(
       "⌀ This fork was not read.",
+    );
+  });
+});
+
+describe("Thread and Changes", () => {
+  const HEAD = "c".repeat(40);
+  const LANDED = summary({
+    scope: "partition",
+    title: "Fix the blob retry test",
+    landsIn: {
+      target: "fork-main",
+      branch: "spi/t1",
+      baseRef: "refs/remotes/origin/main",
+      worktree: "/app/worktrees/thread-t1",
+      head: HEAD,
+    },
+  });
+  const read = (uncommitted: boolean, files: unknown[] = []) => ({
+    state: "read",
+    head: HEAD,
+    ahead: 0,
+    uncommitted,
+    files,
+  });
+  type Shell = Awaited<ReturnType<typeof mountShell>>;
+  const answer = async (shell: Shell, request: string, type: string, payload: object) => {
+    const asked = [...shell.posted()].reverse().find((message) => message.type === request);
+    if (!asked) throw new Error(`No ${request} was posted`);
+    await act(async () =>
+      changesStore.getState().receive({
+        version: PROTOCOL_VERSION,
+        id: asked.id,
+        kind: "response",
+        type,
+        payload: { threadId: "t1", ...payload },
+      }),
+    );
+  };
+  const commitButton = (shell: Shell) =>
+    [...(shell.panel()?.querySelectorAll<HTMLButtonElement>("button") ?? [])].find((button) =>
+      button.textContent?.startsWith("Commit"),
+    );
+  async function typeMessage(shell: Shell, text: string) {
+    const area = shell.$<HTMLTextAreaElement>("textarea[aria-label='Commit message']");
+    if (!area) throw new Error("No commit message box");
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set?.call(
+        area,
+        text,
+      );
+      area.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  }
+
+  it("opens on the Thread tab, says an Asking program thread changes no code, and commits nothing", async () => {
+    savePanes({ open: { rightPanel: true } });
+    const shell = await mountShell("#thread/t1", [summary({ scope: "program" })]);
+    expect(shell.$("#app-right-panel [aria-selected=true]")?.textContent).toBe("Thread");
+    await answer(shell, "thread.changes", "thread.changes.result", {
+      changes: { state: "asking" },
+    });
+    const body = shell.$("#app-right-panel [role=tabpanel]");
+    expect(body?.querySelector("[data-field=lands-in] dd")?.textContent).toMatch(
+      /^Asking\. A program thread changes no code\./u,
+    );
+    expect(commitButton(shell)).toBeUndefined();
+    expect((await shell.tab("Changes"))?.textContent).toContain("has no worktree");
+  });
+
+  it("disables Commit while clean, lists both edits after Refresh with their diff, and commits", async () => {
+    savePanes({ open: { rightPanel: true } });
+    const shell = await mountShell("#thread/t1", [LANDED]);
+    await answer(shell, "thread.changes", "thread.changes.result", { changes: read(false) });
+    await typeMessage(shell, "Change the answer");
+    expect(commitButton(shell)?.disabled).toBe(true);
+    expect(shell.$("[data-field=git]")?.textContent).toContain("Nothing to commit.");
+
+    const changes = await shell.tab("Changes");
+    expect(changes?.querySelector("h3")?.textContent).toBe("Changes against main");
+    const refresh = [...(changes?.querySelectorAll("button") ?? [])].find(
+      (button) => button.textContent === "Refresh",
+    );
+    await act(async () => refresh?.click());
+    await answer(shell, "thread.changes", "thread.changes.result", {
+      changes: read(true, [
+        { path: "answer.txt", added: 2, removed: 1, untracked: false },
+        { path: "notes/new.txt", added: 2, removed: 0, untracked: true },
+      ]),
+    });
+    const rows = [...(changes?.querySelectorAll(".thread-change") ?? [])];
+    expect(rows.map((row) => row.textContent)).toEqual([
+      "answer.txt+2 −1",
+      "notes/new.txt" + "new · +2 −0",
+    ]);
+    await act(async () => (rows[0] as HTMLElement).click());
+    expect(shell.posted().at(-1)?.payload).toEqual({ threadId: "t1", path: "answer.txt" });
+    await answer(shell, "thread.diff", "thread.diff.result", {
+      path: "answer.txt",
+      diff: { state: "read", patch: "@@ -1,2 +1,3 @@\n-two\n+2\n+four\n", truncated: false },
+    });
+    expect(
+      [...(changes?.querySelectorAll(".thread-diff [data-line]") ?? [])].map((line) =>
+        line.getAttribute("data-line"),
+      ),
+    ).toEqual(["removed", "added", "added"]);
+
+    await shell.tab("Thread");
+    expect(shell.$("[data-field=lands-in] dd")?.textContent).toContain(
+      "spi/t1 · 0 commits · 2 files changed",
+    );
+    await typeMessage(shell, "Change the answer");
+    expect(commitButton(shell)?.disabled).toBe(false);
+    await act(async () => commitButton(shell)?.click());
+    expect(shell.posted().at(-1)).toMatchObject({
+      type: "thread.commit",
+      payload: { threadId: "t1", message: "Change the answer" },
+    });
+    expect(commitButton(shell)?.textContent).toBe("Committing…");
+    await answer(shell, "thread.commit", "thread.committed", {
+      commit: { outcome: "refused", reason: "A turn is running. Commit when it finishes." },
+    });
+    expect(shell.$(".thread-commit-outcome")?.textContent).toBe(
+      "A turn is running. Commit when it finishes.",
+    );
+    expect(shell.posted().at(-1)?.type).toBe("thread.changes");
+  });
+
+  it("says the worktree was not read and offers no commit", async () => {
+    savePanes({ open: { rightPanel: true } });
+    const shell = await mountShell("#thread/t1", [LANDED]);
+    await answer(shell, "thread.changes", "thread.changes.result", {
+      changes: { state: "not read", reason: "Git is unavailable." },
+    });
+    await typeMessage(shell, "Change it");
+    expect(commitButton(shell)?.disabled).toBe(true);
+    expect((await shell.tab("Changes"))?.querySelector("[data-quiet=not-read]")?.textContent).toBe(
+      "⌀ The worktree was not read. Git is unavailable.",
     );
   });
 });

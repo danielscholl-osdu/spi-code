@@ -107,6 +107,19 @@ function revision(name: string): string {
   return name === "HEAD" || /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(name) ? name : fullRef(name);
 }
 
+function diffArgs(against: string): string[] {
+  return [
+    submodulesOff,
+    "--no-renames",
+    "--no-ext-diff",
+    "--no-textconv",
+    "--no-color",
+    "--end-of-options",
+    revision(against),
+    "--",
+  ];
+}
+
 function worktreeId(id: string): string {
   if (!/^[\w.-]+$/u.test(id) || [".", ".."].includes(id)) {
     throw new Error("Worktree is outside its managed location.");
@@ -467,24 +480,34 @@ export class PrivilegedGit {
     return result.code === 1 ? { ok: true, data: false } : result;
   }
 
-  /** The working tree against HEAD or a named ref, as a patch. */
+  /** The working tree against HEAD or a named ref, as a patch; one worktree path narrows it. */
   async diff(
     target: GitTarget,
     against = "HEAD",
     options: GitOptions = {},
+    path?: string,
   ): Promise<ExecResult<string>> {
     return this.#run(
       target,
       [
+        "--literal-pathspecs",
         "diff",
-        submodulesOff,
-        "--no-ext-diff",
-        "--no-textconv",
-        "--no-color",
-        "--end-of-options",
-        revision(against),
-        "--",
+        ...diffArgs(against),
+        ...(path === undefined ? [] : [worktreePath(path)]),
       ],
+      options,
+    );
+  }
+
+  /** Added and removed lines per tracked file against a ref: `added\tremoved\tpath` NUL-separated. */
+  async numstat(
+    target: GitTarget,
+    against: string,
+    options: GitOptions = {},
+  ): Promise<ExecResult<string>> {
+    return this.#run(
+      target,
+      ["--literal-pathspecs", "diff", "--numstat", "-z", ...diffArgs(against)],
       options,
     );
   }
