@@ -132,6 +132,8 @@ export interface ApprovalRequest {
   path?: string;
   diff?: string;
   reason?: string;
+  /** Whether this request is waiting for the operator; false denotes a host decision. */
+  asked?: boolean;
 }
 
 export type AccessMode = "supervised" | "auto-accept-edits";

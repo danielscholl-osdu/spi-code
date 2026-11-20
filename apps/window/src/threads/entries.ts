@@ -120,13 +120,14 @@ export function threadEntries(
         break;
       }
       case "approval.requested": {
+        if (event.asked === false && !event.reason) break;
         const approval: Approval = {
           kind: "approval",
           id: event.approvalId,
           approvalId: event.approvalId,
           turnId: event.turnId,
           requestKind: event.kind,
-          status: "pending",
+          status: event.asked === false ? "refused" : "pending",
           detail: event.detail,
           ...(event.path ? { path: event.path } : {}),
           ...(event.diff ? { diff: event.diff } : {}),
@@ -139,7 +140,9 @@ export function threadEntries(
       case "approval.resolved": {
         const approval = approvals.get(event.approvalId);
         if (approval)
-          replaceApproval(approval, { status: event.approved ? "approved" : "declined" });
+          replaceApproval(approval, {
+            status: event.approved ? "approved" : approval.reason ? "refused" : "declined",
+          });
         break;
       }
       case "approval.cancelled": {

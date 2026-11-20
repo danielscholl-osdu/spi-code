@@ -587,17 +587,34 @@ export class ThreadEngine<Tool> {
         const approvalId = turn.approvals.some(({ request }) => request.approvalId === candidate)
           ? randomUUID()
           : candidate;
+        const redactedPath = path ? this.redactor.text(path) : undefined;
+        const redactedDiff = diff ? this.redactor.text(diff) : undefined;
+        const redactionChanged =
+          kind === "write" &&
+          decision === undefined &&
+          (redactedPath !== path || redactedDiff !== diff);
+        const refusal =
+          kind === "write" && decision === undefined && !diff
+            ? "This edit has no diff to show for approval."
+            : redactionChanged
+              ? "This edit contains text that looks like a secret, so it can't be shown for approval"
+              : undefined;
         recordAfterAssistant({
           type: "approval.requested",
           turnId,
           approvalId,
           kind: this.redactor.text(kind),
           detail: this.redactor.text(detail),
-          ...(path ? { path: this.redactor.text(path) } : {}),
-          ...(diff ? { diff: this.redactor.text(diff) } : {}),
-          ...(reason ? { reason: this.redactor.text(reason) } : {}),
+          ...(redactedPath ? { path: redactedPath } : {}),
+          ...(redactedDiff ? { diff: redactedDiff } : {}),
+          ...(reason || refusal ? { reason: this.redactor.text(refusal ?? reason ?? "") } : {}),
+          asked: decision === undefined && refusal === undefined,
         });
         requestedApprovals.add(runtimeId);
+        if (refusal !== undefined) {
+          this.record(id, [{ type: "approval.resolved", turnId, approvalId, approved: false }]);
+          return false;
+        }
         if (decision !== undefined) {
           this.record(id, [{ type: "approval.resolved", turnId, approvalId, approved: decision }]);
           return decision;

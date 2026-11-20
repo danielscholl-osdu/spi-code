@@ -1226,7 +1226,7 @@ it("routes one edit approval to only its thread turn", async () => {
       kind: "write",
       canOfferSessionApproval: false,
       diff: "--- a/src.ts\n+++ b/src.ts\n@@\n-old\n+new",
-      fileName: "/repo/src.ts",
+      fileName: join(root, "worktree", "src.ts"),
       intention: "Edit",
     },
     { sessionId: session.id },
@@ -1235,7 +1235,7 @@ it("routes one edit approval to only its thread turn", async () => {
     expect(port.events()).toContainEqual(
       expect.objectContaining({
         type: "approval.requested",
-        path: "/repo/src.ts",
+        path: join(root, "worktree", "src.ts"),
         diff: expect.stringContaining("+new"),
       }),
     ),
@@ -1303,7 +1303,7 @@ it("auto-accepts an edit in the thread's persisted access mode", async () => {
       kind: "write",
       canOfferSessionApproval: false,
       diff: "+new",
-      fileName: "/repo/src.ts",
+      fileName: join(root, "worktree", "src.ts"),
       intention: "Edit",
     },
     { sessionId: session.id },

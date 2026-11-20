@@ -130,6 +130,30 @@ it("shows an edit's exact path and diff with one-shot approval controls", () => 
   expect(onApprovalDecision).toHaveBeenCalledWith(approval, false);
 });
 
+it("labels a host refusal separately from an operator decline", () => {
+  render(
+    fixtureThread({
+      entries: [
+        {
+          kind: "approval",
+          id: "a1",
+          approvalId: "a1",
+          turnId: "u1",
+          requestKind: "shell",
+          status: "refused",
+          detail: "pnpm test",
+          reason: "Commands are not offered in threads yet. Use the host actions instead.",
+        },
+      ],
+    }),
+  );
+  expect(host.querySelector(".thread-approval-status")?.textContent).toBe("Refused");
+  expect(host.querySelector(".thread-approval-reason")?.textContent).toContain(
+    "Commands are not offered",
+  );
+  expect(() => button("Approve once")).toThrow();
+});
+
 it("mounts a 2,000-row thread and an open 2,000-call group under the row budget, at its end", () => {
   render(fixtureThread({ entries: longThread(2000), running: false }));
   const rows = all(".thread-row");

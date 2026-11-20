@@ -135,6 +135,7 @@ export const ThreadEventSchema = z.discriminatedUnion("type", [
     path: id.optional(),
     diff: z.string().optional(),
     reason: z.string().optional(),
+    asked: z.boolean().optional(),
   }),
   z.strictObject({
     ...turn,
