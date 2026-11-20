@@ -3,10 +3,12 @@
 
 import { THREAD_SECTIONS } from "./sections.js";
 import type { ThreadTab, ThreadTabProps } from "./tab.js";
+import { useRereadAfterTurn } from "./useChanges.js";
 import "./thread-tab.css";
 
 /** Where the thread lands, its git actions and its worktree, one field each. */
 function ThreadDetails(props: ThreadTabProps) {
+  useRereadAfterTurn(props.id);
   return (
     <dl className="thread-fields">
       {THREAD_SECTIONS.map(({ id, label, Field }) => (

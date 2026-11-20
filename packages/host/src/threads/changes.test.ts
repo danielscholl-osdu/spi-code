@@ -10,7 +10,8 @@ import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { KNOWN_SERVICES } from "@spi-code/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { PrivilegedGit, type WorktreeTarget } from "../scopes/git.js";
+import type { MxcApi } from "../scopes/confined.js";
+import { PrivilegedGit, type PrivilegedGitOptions, type WorktreeTarget } from "../scopes/git.js";
 import { ScopeRegistry } from "../scopes/registry.js";
 import { ScopeWorkspaces } from "../scopes/workspace.js";
 import { commitChanges, readChanges, readFileDiff } from "./changes.js";
@@ -187,6 +188,55 @@ describe("a thread's changes", { timeout: 120_000 }, () => {
       ],
     });
   });
+});
+
+it("shows a refused commit as refused, one that may have run as not known, and a git exit as failed", {
+  timeout: 120_000,
+}, async () => {
+  const { target, cwd } = await landed();
+  await writeFile(join(cwd, "answer.txt"), "changed\n");
+  const proof = (command: string) => `${/spi-confined-[\da-f-]{36}/u.exec(command)?.[0]}:EPERM\n`;
+  const result = (stdout: string, exitCode: number) => ({
+    stdout,
+    stderr: exitCode ? "error: pathspec did not match" : "",
+    exitCode,
+    timedOut: false,
+    warnings: [],
+  });
+  const sandbox = (run: MxcApi["run"]): Pick<PrivilegedGitOptions, "mxc" | "platform"> => ({
+    platform: "darwin",
+    mxc: async () => ({
+      getPlatformSupport: () => ({ isSupported: true, availableMethods: ["seatbelt"] }),
+      run,
+    }),
+  });
+  const rows: [string, Pick<PrivilegedGitOptions, "mxc" | "platform">, object][] = [
+    [
+      "Windows",
+      { platform: "win32" },
+      { outcome: "refused", reason: "Confined Git is not available on this platform yet." },
+    ],
+    [
+      "a sandbox that rejects after it was asked",
+      sandbox(() => Promise.reject(new Error("spawn mxc-exec-mac ENOENT"))),
+      { outcome: "not known" },
+    ],
+    ["a sandbox that proves nothing", sandbox(async () => result("", 0)), { outcome: "not known" }],
+    [
+      "git exiting with an error",
+      sandbox(async (request) => result(proof(request.command), 1)),
+      { outcome: "failed", reason: "error: pathspec did not match" },
+    ],
+  ];
+  for (const [label, confinement, expected] of rows) {
+    const git = new PrivilegedGit({
+      appData: join(root, "app data"),
+      capturedPath,
+      allowLocalRemotes: true,
+      ...confinement,
+    });
+    expect(await commitChanges(git, target, "Change it", identity), label).toMatchObject(expected);
+  }
 });
 
 describe("the operator's identity", () => {

@@ -55,9 +55,15 @@ export function createChangesStore(post: (message: Message) => void = postToHost
   const failure = (reply: Message, fallback: string) =>
     reply.type === "error" ? reply.payload.message : fallback;
 
+  const without = (diffs: ChangesState["diffs"], threadId: string) =>
+    Object.fromEntries(Object.entries(diffs).filter(([key]) => !key.startsWith(`${threadId}\0`)));
+
   return createStore<ChangesState>()((set, get) => {
     const refresh = (threadId: string) => {
-      set(({ changes }) => ({ changes: { ...changes, [threadId]: reading } }));
+      set(({ changes, diffs }) => ({
+        changes: { ...changes, [threadId]: reading },
+        diffs: without(diffs, threadId),
+      }));
       request("thread.changes", { threadId }, (reply) => {
         const changes: ThreadChanges =
           reply.type === "thread.changes.result"
@@ -66,14 +72,16 @@ export function createChangesStore(post: (message: Message) => void = postToHost
         set((state) => ({ changes: { ...state.changes, [threadId]: changes } }));
       });
     };
-    /** The host went away: a commit in flight may or may not have run, so re-read. */
-    const lose = (reason: string) => {
+    /** The host went away: a commit in flight may or may not have run. A new host is read again. */
+    const lose = (reason: string, restarted: boolean) => {
       waiting.clear();
       const commits = { ...get().commits };
       for (const [threadId, commit] of Object.entries(commits))
         if (commit.outcome === "committing") commits[threadId] = { outcome: "not known", reason };
-      set({ commits, diffs: {} });
-      for (const threadId of Object.keys(get().changes)) refresh(threadId);
+      const unread = { state: "not read", reason } as const;
+      const changes = Object.fromEntries(Object.keys(get().changes).map((id) => [id, unread]));
+      set({ commits, diffs: {}, ...(restarted ? {} : { changes }) });
+      if (restarted) for (const threadId of Object.keys(get().changes)) refresh(threadId);
     };
     return {
       changes: {},
@@ -99,12 +107,7 @@ export function createChangesStore(post: (message: Message) => void = postToHost
             reply.type === "thread.committed"
               ? reply.payload.commit
               : { outcome: "not known", reason: failure(reply, "The host gave no result.") };
-          set(({ commits, diffs }) => ({
-            commits: { ...commits, [threadId]: commit },
-            diffs: Object.fromEntries(
-              Object.entries(diffs).filter(([key]) => !key.startsWith(`${threadId}\0`)),
-            ),
-          }));
+          set(({ commits }) => ({ commits: { ...commits, [threadId]: commit } }));
           refresh(threadId);
         });
       },
@@ -112,9 +115,9 @@ export function createChangesStore(post: (message: Message) => void = postToHost
         const parsed = parseMessage(input);
         if (!parsed.ok) return;
         const reply = parsed.message;
-        if (reply.type === "host.hello") return lose("The host restarted during the commit.");
+        if (reply.type === "host.hello") return lose("The host restarted during the commit.", true);
         if (reply.type === "error" && reply.payload.code === "host_unavailable")
-          return lose(reply.payload.message);
+          return lose(reply.payload.message, false);
         if (reply.kind !== "response") return;
         const then = waiting.get(reply.id);
         if (!then) return;
