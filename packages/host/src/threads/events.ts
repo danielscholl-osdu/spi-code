@@ -51,6 +51,10 @@ export function trackTurn(
       case "assistant.message_start":
         if (turnId && !ended) replies.add(event.data.messageId);
         break;
+      case "assistant.reasoning_delta":
+      case "assistant.intent":
+        if (turnId && !ended) events.thinking();
+        break;
       case "assistant.message_delta":
         if (!ended && replies.has(event.data.messageId)) {
           streamed.add(event.data.messageId);

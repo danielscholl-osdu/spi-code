@@ -69,6 +69,11 @@ export type KeptWorktree = {
 interface PrepareOptions {
   readonly signal?: AbortSignal;
   readonly onProgress?: (event: WorkspaceProgress) => void;
+  /** When the repository is being cloned or fetched for a thread, from start to end. */
+  readonly onPrepare?: (event: {
+    readonly phase: "started" | "finished";
+    readonly operation: "clone" | "fetch";
+  }) => void;
 }
 
 function check(result: ExecResult<string>): string {
@@ -472,9 +477,25 @@ export class ScopeWorkspaces {
       origin: this.remoteUrl(scope.origin),
       ...(scope.upstream === undefined ? {} : { upstream: this.remoteUrl(scope.upstream) }),
     };
-    const signal = options.signal ? { signal: options.signal } : {};
     const target = { clone: join(directory, "checkout") };
     const existed = await exists(directory);
+    const operation = existed ? "fetch" : "clone";
+    options.onPrepare?.({ phase: "started", operation });
+    try {
+      return await this.prepareCheckout(directory, options, remotes, target, existed);
+    } finally {
+      options.onPrepare?.({ phase: "finished", operation });
+    }
+  }
+
+  private async prepareCheckout(
+    directory: string,
+    options: PrepareOptions,
+    remotes: CloneRemotes,
+    target: { clone: string },
+    existed: boolean,
+  ): Promise<WorkspaceResult> {
+    const signal = options.signal ? { signal: options.signal } : {};
     if (!existed) {
       const failed = await step({ operation: "clone" }, options, (onOutput) =>
         createClone(this.git, directory, remotes, { ...signal, onOutput }),

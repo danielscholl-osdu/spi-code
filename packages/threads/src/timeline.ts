@@ -155,6 +155,10 @@ export class Timeline {
     const turn = this.active;
     assert(turn?.id === event.turnId, "Journal event has no matching active turn");
     switch (event.type) {
+      case "workspace.started":
+      case "workspace.finished":
+      case "assistant.thinking":
+        break;
       case "assistant.delta":
         turn.text += event.text;
         break;

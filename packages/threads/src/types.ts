@@ -86,8 +86,15 @@ export interface ThreadContext {
 }
 
 type Prepared<T> = T | Promise<T>;
+/** How a workspace is being made ready: copied for the first time, or brought up to date. */
+export type WorkspaceOperation = "clone" | "fetch";
+/** Lets a provider journal when it is preparing the turn's workspace. */
+export interface WorkspacePreparation {
+  started(operation: WorkspaceOperation): void;
+  finished(): void;
+}
 export interface WorkspaceProvider {
-  resolve(request: TurnRequest): Prepared<ThreadWorkspace>;
+  resolve(request: TurnRequest, preparation: WorkspacePreparation): Prepared<ThreadWorkspace>;
 }
 export interface ContextProvider {
   prepare(request: TurnRequest): Prepared<ThreadContext>;
@@ -140,6 +147,8 @@ export type AccessMode = "supervised" | "auto-accept-edits";
 
 export interface RuntimeEvents {
   delta(text: string): void;
+  /** Copilot is reasoning. Carries no text: nothing it reasons is journaled. */
+  thinking(): void;
   toolStarted(call: ToolStart): void;
   toolFinished(result: ToolCompletion): void;
   requestApproval(request: ApprovalRequest, decision?: boolean): Promise<boolean>;
@@ -174,6 +183,9 @@ type CancelReason = InterruptionReason | StopReason | "turn-ended";
 
 type TurnEvent = { turnId: string } & (
   | { type: "turn.started"; messageId: string }
+  | { type: "workspace.started"; operation: WorkspaceOperation }
+  | { type: "workspace.finished" }
+  | { type: "assistant.thinking" }
   | { type: "assistant.delta"; text: string }
   | ({ type: "tool.started" } & ToolStart)
   | ({ type: "tool.finished"; resultBytes: number; durationMs: number } & ToolResult)

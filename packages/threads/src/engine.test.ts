@@ -4,15 +4,25 @@
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, expect, it, vi } from "vitest";
-import type { RuntimeEvents, RuntimeStop, RuntimeTurn, ThreadEvent } from "./index.js";
+import type {
+  RuntimeEvents,
+  RuntimeStop,
+  RuntimeTurn,
+  ThreadEvent,
+  WorkspacePreparation,
+} from "./index.js";
 import { ThreadEngine } from "./index.js";
 
 function harness(
   database = new DatabaseSync(":memory:"),
-  workspace: () => { cwd: string } = () => ({ cwd: "/workspace" }),
+  workspace: (
+    preparation: WorkspacePreparation,
+  ) => { cwd: string } | Promise<{ cwd: string }> = () => ({
+    cwd: "/workspace",
+  }),
 ) {
   const turns: {
     input: RuntimeTurn<string>;
@@ -28,7 +38,7 @@ function harness(
   };
   const engine = new ThreadEngine(database, {
     runtime,
-    workspace: { resolve: () => workspace() },
+    workspace: { resolve: (_request, preparation) => workspace(preparation) },
     context: {
       prepare: ({ message }) => ({
         instructions: "Scope instructions.",
@@ -120,6 +130,83 @@ it("passes the host's workspace, context and tools, journals deltas in order and
     done: false,
     turns: [{ text: "The sweep.", outcome: "completed" }],
   });
+  database.close();
+});
+
+it("journals workspace preparation and one textless thinking mark per stretch, and reopens them", async () => {
+  const path = join(mkdtempSync(join(tmpdir(), "spi-threads-")), "journal.sqlite");
+  try {
+    const { engine, turn, database } = harness(new DatabaseSync(path), (preparation) => {
+      preparation.started("clone");
+      preparation.finished();
+      return { cwd: "/workspace" };
+    });
+    const id = engine.create({ scope: "partition" });
+    const outcome = engine.send(id, { prompt: "Why?" });
+    const { events, finish } = await turn();
+    events.thinking();
+    events.thinking();
+    events.delta("Because.");
+    events.thinking();
+    events.toolStarted({ callId: "read", name: "view", kind: "tool", arguments: {} });
+    events.toolFinished({ callId: "read", outcome: "completed", result: "ok" });
+    events.thinking();
+    finish();
+    await outcome;
+    expect(engine.eventsSince(id, 0).map((event) => event.type)).toEqual([
+      "thread.created",
+      "message.sent",
+      "turn.started",
+      "workspace.started",
+      "workspace.finished",
+      "assistant.thinking",
+      "assistant.delta",
+      "assistant.thinking",
+      "tool.started",
+      "tool.finished",
+      "assistant.thinking",
+      "turn.finished",
+    ]);
+    expect(
+      engine.eventsSince(id, 0).find((event) => event.type === "workspace.started"),
+    ).toMatchObject({ operation: "clone" });
+    database.close();
+    const reopened = harness(new DatabaseSync(path));
+    expect(reopened.engine.read(id)).toMatchObject({
+      status: "Open",
+      turns: [{ text: "Because.", outcome: "completed" }],
+    });
+    reopened.database.close();
+  } finally {
+    rmSync(dirname(path), { recursive: true, force: true });
+  }
+});
+
+it("drops a preparation end that arrives after the operator stopped the turn", async () => {
+  let release: (() => void) | undefined;
+  let preparation: WorkspacePreparation | undefined;
+  const { engine, database } = harness(new DatabaseSync(":memory:"), (given) => {
+    preparation = given;
+    given.started("fetch");
+    return new Promise((resolve) => {
+      release = () => resolve({ cwd: "/workspace" });
+    });
+  });
+  const id = engine.create({ scope: "partition" });
+  const outcome = engine.send(id, { prompt: "Why?" });
+  await vi.waitFor(() => expect(release).toBeDefined());
+  const stopped = engine.stop(id);
+  expect(() => preparation?.finished()).not.toThrow();
+  release?.();
+  await stopped;
+  await expect(outcome).resolves.toBe("stopped");
+  expect(engine.eventsSince(id, 0).map((event) => event.type)).toEqual([
+    "thread.created",
+    "message.sent",
+    "turn.started",
+    "workspace.started",
+    "turn.finished",
+  ]);
   database.close();
 });
 

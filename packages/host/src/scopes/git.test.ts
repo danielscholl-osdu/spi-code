@@ -185,11 +185,14 @@ describe("Asking workspace", () => {
   it("clones once and fetches both remotes for concurrent threads", async () => {
     const first: WorkspaceProgress[] = [];
     const second: WorkspaceProgress[] = [];
+    const prepared: [string[], string[]] = [[], []];
     const service = workspaces();
-    const [a, b] = await Promise.all([
-      service.prepareAsking(scope, { onProgress: (event) => first.push(event) }),
-      service.prepareAsking(scope, { onProgress: (event) => second.push(event) }),
-    ]);
+    const prepare = (progress: WorkspaceProgress[], log: string[]) =>
+      service.prepareAsking(scope, {
+        onProgress: (event) => progress.push(event),
+        onPrepare: ({ operation, phase }) => log.push(`${operation}:${phase}`),
+      });
+    const [a, b] = await Promise.all([prepare(first, prepared[0]), prepare(second, prepared[1])]);
     const workspace = getClone(a);
     expect(workspace.readOnly).toBe(true);
     expect(getClone(b)).toEqual(workspace);
@@ -214,6 +217,12 @@ describe("Asking workspace", () => {
     );
     expect([...first, ...second]).toContainEqual(
       expect.objectContaining({ operation: "clone", phase: "output" }),
+    );
+    expect(prepared).toEqual(
+      expect.arrayContaining([
+        ["clone:started", "clone:finished"],
+        ["fetch:started", "fetch:finished"],
+      ]),
     );
   });
 

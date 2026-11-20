@@ -895,6 +895,68 @@ it("keeps model and effort on a warm session, and tells the thread when the SDK 
   );
 });
 
+it("journals reasoning and intent as one Thinking mark and keeps their text out of the journal", async () => {
+  const {
+    runtime,
+    sessions: [session],
+  } = recordedRuntime("thinking");
+  if (!session) throw new Error("Incomplete recording");
+  const port = await connect(runtime);
+  const id = port.send({ prompt: "Why?" });
+  await vi.waitFor(() => expect(session.send).toHaveBeenCalledOnce());
+  const secret = "reasoning-sentinel-7c1f";
+  session.begin("turn");
+  session.event("assistant.reasoning_delta", { reasoningId: "r", deltaContent: `${secret} one` });
+  session.event("assistant.intent", { intent: `${secret} intent` });
+  session.event("assistant.reasoning_delta", { reasoningId: "r", deltaContent: `${secret} two` });
+  session.event("assistant.reasoning", { reasoningId: "r", content: `${secret} whole` });
+  session.event("assistant.message_start", { messageId: "reply" });
+  session.event("assistant.message_delta", { messageId: "reply", deltaContent: "Because." });
+  session.finish("turn");
+  expect(await port.response(id)).toMatchObject({ payload: { outcome: "completed" } });
+  const journal = database
+    .prepare("SELECT payload FROM thread_engine_journal")
+    .all()
+    .map(({ payload }) => String(payload))
+    .join("\n");
+  expect(journal).toContain("Because.");
+  expect(journal).not.toContain(secret);
+  expect(JSON.stringify(port.output)).not.toContain(secret);
+  expect(port.events().filter(({ type }) => type === "assistant.thinking")).toHaveLength(1);
+});
+
+it("returns the new thread's summary from thread.start", async () => {
+  const { runtime } = recordedRuntime();
+  const port = await connect(runtime, undefined, undefined, undefined, false);
+  const started = await port.response(
+    port.dispatch("thread.start", { scope: "program", title: "Why did it stop?" }),
+  );
+  if (started.type !== "thread.started") throw new Error("Thread did not start");
+  expect(started.payload.thread).toEqual({
+    id: started.payload.threadId,
+    thread: { scope: "program", title: "Why did it stop?", landsIn: { target: "asking" } },
+    status: "Open",
+    sequence: 1,
+    updatedAt: expect.any(Number),
+    settledAt: null,
+    done: false,
+  });
+});
+
+it("stops a turn whose stop arrives right behind its send, before Copilot is asked", async () => {
+  const { runtime, open } = recordedRuntime("unused");
+  const port = await connect(runtime);
+  const sent = port.send({ prompt: "Why?" });
+  const stopped = port.stop();
+  expect(await port.response(stopped)).toMatchObject({ type: "thread.stopped" });
+  expect(await port.response(sent)).toMatchObject({ payload: { outcome: "stopped" } });
+  expect(port.events().filter(({ type }) => type.startsWith("turn."))).toEqual([
+    expect.objectContaining({ type: "turn.started" }),
+    expect.objectContaining({ type: "turn.finished", outcome: "stopped", reason: "operator" }),
+  ]);
+  expect(open).not.toHaveBeenCalled();
+});
+
 it("records unconfirmed Auto effort once and resumes with desired settings after a failed switch", async () => {
   const {
     runtime,
@@ -1336,7 +1398,13 @@ function askingFiles() {
   writeFileSync(outside, "Outside");
   writeFileSync(join(tempPath, "scratch.txt"), "Scratch");
   const requestApproval = vi.fn(async (_request, allowed: boolean | undefined) => allowed === true);
-  const events = { requestApproval, delta() {}, toolStarted() {}, toolFinished() {} };
+  const events = {
+    requestApproval,
+    delta() {},
+    thinking() {},
+    toolStarted() {},
+    toolFinished() {},
+  };
   function read(path: string, resolvedPath?: string, clonePath = clone) {
     return askingPermission({ clonePath, tempPath }, () => events)(
       {

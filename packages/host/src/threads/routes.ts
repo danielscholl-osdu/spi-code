@@ -133,12 +133,13 @@ export class ThreadRoutes {
           );
         }
       }
+      const { messages: _, turns: __, ...thread } = this.engine().read(threadId);
       send({
         version: PROTOCOL_VERSION,
         id: request.id,
         kind: "response",
         type: "thread.started",
-        payload: { threadId, landsIn, ...(notice ? { notice } : {}) },
+        payload: { threadId, landsIn, thread, ...(notice ? { notice } : {}) },
       });
     },
     "thread.land": async (request, send) => {

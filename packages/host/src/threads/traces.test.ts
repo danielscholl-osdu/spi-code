@@ -296,6 +296,7 @@ it.each<{
     [],
     {
       delta() {},
+      thinking() {},
       toolStarted() {},
       toolFinished() {},
       requestApproval: async () => false,

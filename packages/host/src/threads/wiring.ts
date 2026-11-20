@@ -103,13 +103,15 @@ export function openThreadHost(options: ThreadHostOptions) {
     const engine = new ThreadEngine<Tool>(db, {
       runtime: { run: async (input, events) => (await getAdapter()).run(input, events) },
       workspace: {
-        async resolve({ threadId, thread, signal }): Promise<AskingTurnWorkspace> {
+        async resolve({ threadId, thread, signal }, preparation): Promise<AskingTurnWorkspace> {
           const scope = scopes.lookup(thread.scope);
           if (!scope) throw new Error("Thread scope is unavailable.");
           const git = await options.git();
           workspaces ??= options.workspaces(git);
           const prepared = await workspaces.prepareThread(db, scope, threadId, thread.landsIn, {
             signal,
+            onPrepare: ({ phase, operation }) =>
+              phase === "started" ? preparation.started(operation) : preparation.finished(),
           });
           if (!prepared.ok) throw new Error(prepared.error);
           signal.throwIfAborted();

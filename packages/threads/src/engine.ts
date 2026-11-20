@@ -22,6 +22,7 @@ import type {
   TurnEnd,
   TurnOutcome,
   TurnRequest,
+  WorkspacePreparation,
 } from "./types.js";
 
 interface PendingMessage {
@@ -466,9 +467,24 @@ export class ThreadEngine<Tool> {
       signal,
     };
     let outcome: TurnEnd = { outcome: "completed" };
+    const turnId = running.turn.id;
+    const live = () => !this.closing && !signal.aborted && running.turn.outcome === "running";
+    let preparing = false;
+    const preparation: WorkspacePreparation = {
+      started: (operation) => {
+        if (!live() || preparing) return;
+        preparing = true;
+        this.record(threadId, [{ type: "workspace.started", turnId, operation }]);
+      },
+      finished: () => {
+        if (!live() || !preparing) return;
+        preparing = false;
+        this.record(threadId, [{ type: "workspace.finished", turnId }]);
+      },
+    };
     try {
       signal.throwIfAborted();
-      const workspace = await this.options.workspace.resolve(request);
+      const workspace = await this.options.workspace.resolve(request, preparation);
       signal.throwIfAborted();
       const context = await this.options.context.prepare(request);
       signal.throwIfAborted();
@@ -528,14 +544,21 @@ export class ThreadEngine<Tool> {
     const requestedApprovals = new Set<string>();
     const safeId = (runtimeId: string) =>
       this.redactor.text(runtimeId) === runtimeId ? runtimeId : randomUUID();
+    let thinking = false;
     const recordAfterAssistant = (entry: JournalEntry) => {
       const text = assistant.flush();
       const entries: JournalEntry[] = text ? [{ type: "assistant.delta", turnId, text }] : [];
+      thinking = entry.type === "assistant.thinking";
       this.record(id, [...entries, entry]);
     };
     return {
+      thinking: () => {
+        if (!live() || thinking) return;
+        recordAfterAssistant({ type: "assistant.thinking", turnId });
+      },
       delta: (delta) => {
         if (!live() || !delta) return;
+        thinking = false;
         const text = assistant.push(delta);
         if (text) this.record(id, [{ type: "assistant.delta", turnId, text }]);
       },
@@ -566,6 +589,7 @@ export class ThreadEngine<Tool> {
           "resultChunks" in completion
             ? this.redactor.chunks(completion.resultChunks)
             : this.redactor.value(completion.result);
+        thinking = false;
         this.record(id, [
           {
             type: "tool.finished",

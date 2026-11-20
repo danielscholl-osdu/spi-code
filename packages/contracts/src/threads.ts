@@ -99,6 +99,13 @@ export const ThreadEventSchema = z.discriminatedUnion("type", [
     reason: interruption,
   }),
   z.strictObject({ ...turn, type: z.literal("turn.started"), messageId: id }),
+  z.strictObject({
+    ...turn,
+    type: z.literal("workspace.started"),
+    operation: z.enum(["clone", "fetch"]),
+  }),
+  z.strictObject({ ...turn, type: z.literal("workspace.finished") }),
+  z.strictObject({ ...turn, type: z.literal("assistant.thinking") }),
   z.strictObject({ ...turn, type: z.literal("assistant.delta"), text: z.string() }),
   z.strictObject({
     ...turn,
@@ -186,7 +193,7 @@ export const ThreadMessageSchema = z.discriminatedUnion("type", [
   envelope(
     "thread.started",
     "response",
-    threadId.extend({ landsIn: landing, notice: id.optional() }).strict(),
+    threadId.extend({ landsIn: landing, thread: summary, notice: id.optional() }).strict(),
   ),
   envelope("thread.land", "request", threadId.extend({ landsIn: landingRequest }).strict()),
   envelope("thread.landed", "response", threadId.extend({ landsIn: landing }).strict()),
