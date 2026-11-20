@@ -59,6 +59,7 @@ ${directories.map((directory) => `\n  ${directory}: {}\n`).join("")}`;
       "apps/desktop/src/preload.cjs",
       "apps/window/build/index.html",
       "scripts/packaged-host.mjs",
+      "scripts/windows-sandbox-probe.mjs",
       ...["report", "messages", "listeners", "snapshot", "supervision"].map(
         (name) => `apps/desktop/dist/smoke-${name}.js`,
       ),

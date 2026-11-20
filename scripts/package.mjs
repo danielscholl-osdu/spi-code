@@ -245,6 +245,7 @@ export async function stageRuntimeFiles(root, stage) {
     "apps/desktop/src/preload.cjs",
     "apps/window/build",
     "scripts/packaged-host.mjs",
+    "scripts/windows-sandbox-probe.mjs",
   ]) {
     await mkdir(dirname(join(stage, path)), { recursive: true });
     await cp(join(root, path), join(stage, path), {
