@@ -29,10 +29,11 @@ Put the worktree path, the head and the CI run id in a bead note at each handoff
 
 | Role | Seat |
 |---|---|
-| Builder, standard reviewer | Claude Opus 5.5 or Codex Sol, high effort |
-| `risk:high` review | Two seats in parallel: Claude Fable 5.2 and Muse Wonder (Claude Opus 5.5 on Copilot when Muse is unavailable) |
+| Builder of a bead whose gate is rendered (captures, the packaged smoke's geometry), mostly `apps/window` | Claude Opus 5.5, high effort; Codex Sol reviews |
+| Builder of a bead whose gate is logic, and every `risk:high` build | MAI Code 2 on Copilot; Claude Opus 5.5 reviews a `risk:std` one |
+| `risk:high` review | Two seats in parallel: Claude Fable 5.2 and Muse Wonder (Codex Sol when Muse is busy) |
 
-The reviewer is always a different provider from the author. Alternate builders so the other provider is free to review. Change this table through a bead when the seats change.
+The reviewer is always a different provider from the author, so Opus never builds a `risk:high` bead: the Fable seat is the same provider. Change this table through a bead when the seats change.
 
 ## Dispatch
 
@@ -41,6 +42,9 @@ The reviewer is always a different provider from the author. Alternate builders 
 - Builders get their own worktree (`isolation: "worktree"`). A build dispatched without one damages the checkout it lands in. The harness cuts that worktree from your checkout, not from `main`; step 2 of the build skill has the builder prepare it.
 - A fix round, a review and a recheck work in or beside the bead's existing worktree, which the harness cannot start an agent in. Dispatch them without isolation and make the first line of the brief the worktree path, with: "Change directory there before anything else, and touch nothing where you start."
 - Before a wave, read every ready bead's files. Beads that edit the same file run one after another, or one owns the file and the others add their own files beside it. The breakdown should have said who owns what; where it didn't, rule and record it on the beads before you dispatch.
+- Name the land order at dispatch, on each bead, for beads that share a file. The later bead rebases onto the earlier one's head in its own fix round, not as a task after its pass.
+- A dependent bead may start once what it depends on is `stage:ready`: its brief names that passed head as the base. If the predecessor changes after its pass, its pass is void anyway, and the dependent rebases in its fix round.
+- A dependency edge stands for behaviour. Where two beads only share files, they start together from the same head, add their own files beside each other and land in the named order.
 - A review, a recheck and a fix round are each a new task. Don't reuse a finished agent's thread.
 - A wave is the beads you were given, by label or by list. `bd ready --parent <epic>` after a landing shows everything the epic has ready; dispatch only what is in the wave.
 - The sweep bead collects items of very different size. Before you dispatch it, rule on each: in, out, or its own bead when it changes what a user sees or leaves a contract unguarded.
@@ -73,7 +77,7 @@ A council seat's brief is the same with one more line: `Don't write to the bead;
 
 ### Fix and recheck briefs
 
-A fix brief lists the findings that stand, each with its file and line and the smallest fix, and says which you ruled out and why. After a recheck it lists blockers only. For `risk:high` it also names each seat's probe file: the builder adds those rows to the bead's tests and pushes only when every row passes, or stops and says so when a ruling makes a row fail. Only `risk:high` gets a recheck brief: it names the reviewed head, the new head, and the findings to confirm. Both follow the "Later rounds" section of the review skill.
+A fix brief lists the findings that stand, each with its file and line and the smallest fix, and says which you ruled out and why. When the land order puts another bead first, its first step is to rebase onto that bead's head; for `risk:high` that happens before the recheck, so the seat reads the rebased head. After a recheck it lists blockers only. For `risk:high` it also names each seat's probe file: the builder adds those rows to the bead's tests and pushes only when every row passes, or stops and says so when a ruling makes a row fail. Only `risk:high` gets a recheck brief: it names the reviewed head, the new head, and the findings to confirm. Both follow the "Later rounds" section of the review skill.
 
 ## Review rounds
 
@@ -92,6 +96,8 @@ A fix brief lists the findings that stand, each with its file and line and the s
 - If the `risk:high` recheck finds the same kind of failure, the cut the synthesis named lands with no further round: you confirm its diff removes or narrows only what the synthesis named and CI is green. With none named, stop and take the approach to the maintainer.
 
 ## Landing
+
+Read the package jobs about seven minutes into any branch run you are waiting on: they report well before the `check` jobs. Never call `scripts/land` on a head whose branch run is red, and don't hold a green bead behind one whose CI is not green.
 
 `scripts/land --wait <id>` once the bead is `stage:ready`. It queues on the merge slot, runs lint and typecheck here, and waits for CI on the exact commit, so several can wait at once without loading this machine. Run it the way your harness keeps a long command alive: in the foreground with a long timeout, or as a tracked background command you wait on, never one you walk away from. Each takes 10 to 15 minutes of CI once it holds the slot; land beads that are ready together in dependency order. After each landing, read `bd ready --parent <epic>`.
 

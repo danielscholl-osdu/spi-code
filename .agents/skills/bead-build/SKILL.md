@@ -66,8 +66,10 @@ Never edit files in the main checkout.
 ## 4. Check, push and show your evidence
 
 ```bash
+git fetch origin && git rebase origin/main   # or the base your brief names
 scripts/check --quick
 git push origin bead/<id>
+git log origin/main..HEAD --format=%s        # no empty line
 ```
 
 `--quick` runs lint, typecheck, license headers and, once, the tests your diff reaches: the ones that import what you changed, every package that depends on a package you changed, and every package when a fixture changed. Don't hand off while it fails.
@@ -94,7 +96,9 @@ Two kinds of line need a capture or command instead of a test:
 - a line about how a place looks or reads (copy, markup, layout, spacing), which the reviewer judges from a capture compared with the design: write "reviewer's: <what you looked at and saw>". Don't add a test for it;
 - a line only a command can show, such as a lint warning gone: write the command and its output.
 
-Don't wait for CI before handing off; give the run id. The reviewer checks once: red blocks a pass, running is fine. Reviewers don't wait; `scripts/land --wait` still lands only a commit CI passed.
+A bead that touches `apps/window/**` waits for both package jobs on its branch run, about seven minutes in, before it hands off, and after each fix push. A red packaged smoke is fixed first. A fix never hides or removes what a gate measures (a glyph, a label, a state); if the gate cannot pass otherwise, stop and say so.
+
+Otherwise don't wait for CI before handing off; give the run id. The reviewer checks once: red blocks a pass, running is fine. Reviewers don't wait; `scripts/land --wait` still lands only a commit CI passed.
 
 Only wrong behaviour against acceptance, a broken gate or red CI blocks a pass. Nits, test tidy-ups, evidence gaps and captures go as comments to the epic's sweep bead.
 

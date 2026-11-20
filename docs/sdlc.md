@@ -20,7 +20,7 @@ This file is the process and nothing else. What a builder learned about the prod
 | **`.agents/orchestration/rules.md`** | What every agent follows: where to work, secrets, commits, checks and load. |
 | **`scripts/check --quick`** | The builder's and reviewer's pass: lint, typecheck, license headers and, once, the tests the diff reaches. |
 | **`scripts/check`** | Everything: lint, a strict TypeScript build, every test twice (the second time 400 days ahead in another time zone), license headers and third-party notices. CI runs it. |
-| **CI** | The Packaged smoke workflow runs the full check and the packaged smoke on macOS and Windows for `main`, every pushed `bead/**` branch, and the `land/**` branch a landing waits on. |
+| **CI** | The Packaged smoke workflow runs the full check and the packaged smoke on macOS and Windows for every pushed `bead/**` branch and the `land/**` branch a landing waits on. A push to `main` starts no run; `main` only moves to a commit that passed on its `land/` branch. |
 | **`scripts/land`** | The only way onto `main`. It is deterministic, so it behaves the same whichever harness or model calls it. |
 | **Keelson** | The beads board shows the wave map and the decisions waiting on the maintainer. The `adversarial-review` workflow is an alternative to a two-seat review for `risk:high` beads. |
 
