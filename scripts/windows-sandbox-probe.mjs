@@ -132,13 +132,8 @@ async function createWorkspace(root) {
     .split(/\r?\n/u)
     .find(Boolean);
   if (!gitPath) throw new Error("Git executable was not found");
-  await Promise.all([
-    mkdir(clone),
-    mkdir(temp),
-    mkdir(appData),
-    mkdir(join(appData, "kube")),
-    mkdir(join(appData, "azure")),
-  ]);
+  await Promise.all([mkdir(clone), mkdir(temp), mkdir(appData)]);
+  await Promise.all([mkdir(join(appData, "kube")), mkdir(join(appData, "azure"))]);
   execFileSync("git", ["init", "-q", "--initial-branch", "main", clone]);
   execFileSync("git", ["-C", clone, "config", "user.name", "Probe"]);
   execFileSync("git", ["-C", clone, "config", "user.email", "probe@example.invalid"]);
