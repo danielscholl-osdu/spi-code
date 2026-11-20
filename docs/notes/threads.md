@@ -45,3 +45,9 @@ Decision 6 on `spicode-xia.1` accepts the SDK boundary for sandboxed built-ins. 
 - ⌘N inside a draft opens the picker in "change" mode, which moves the open draft rather than starting a new one; the composer stays mounted, so its typed text survives.
 - The Working line's phase comes only from journal events. Reasoning and intent journal as one `assistant.thinking` mark per stretch with no text; `workspace.started` (clone or fetch) and `workspace.finished` bracket only the repository's own preparation, so a turn waiting on another thread's prep, a worktree turn and Program journal none.
 - Stop pressed before a draft's thread starts is held in the window until `thread.send` is posted, then `thread.stop` follows it. The host port runs requests in arrival order and `engine.send` journals `turn.started` before it yields, so that stop finds the turn and ends it as stopped by the operator before Copilot is asked.
+
+## Thread and Changes tabs
+
+- Changes diffs against `landsIn.head`, the commit the thread's branch was cut from, not `baseRef`: any prepare in the same repository fetches and moves `origin/main`. The list is `numstat` against that commit (committed and uncommitted tracked files, `--no-renames`) joined with the untracked files from `statusAll`; the host reads an untracked file itself only when its realpath is its own path in the worktree, so no link is followed.
+- Commit stages `.` and commits, both confined (`PrivilegedGit.add` and `commit`), inside `engine.transition`, so no turn or tool call can write while it runs. The author is the `[user]` name and email from `~/.gitconfig`, then `$XDG_CONFIG_HOME/git/config`, read as files with no includes followed; without both, Commit is refused. Windows refuses with `unsupported-platform` until spicode-xia.17.
+- The Thread tab's fields are registered in `apps/window/src/panels/thread/sections.ts`; a later field is a file beside them and a line there.

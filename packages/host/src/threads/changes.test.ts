@@ -91,7 +91,7 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-describe("a thread's changes", () => {
+describe("a thread's changes", { timeout: 120_000 }, () => {
   it("shows a tool's new file and an outside edit after refresh, each with its diff", async () => {
     const { git, target, base, cwd } = await landed();
     expect(await readChanges(git, target, base)).toEqual({

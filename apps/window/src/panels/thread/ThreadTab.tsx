@@ -5,7 +5,7 @@ import { THREAD_SECTIONS } from "./sections.js";
 import type { ThreadTab, ThreadTabProps } from "./tab.js";
 import "./thread-tab.css";
 
-/** The thread's scope, where it lands, its git actions and its worktree, one field each. */
+/** Where the thread lands, its git actions and its worktree, one field each. */
 function ThreadDetails(props: ThreadTabProps) {
   return (
     <dl className="thread-fields">
