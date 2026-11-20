@@ -136,7 +136,7 @@ export const ThreadMessageSchema = z.discriminatedUnion("type", [
         id,
         sweptAt: id,
         trimmed: z.boolean(),
-        tokens: sequence,
+        bytes: sequence,
         attachment: z.strictObject({ name: id, content: z.string() }),
       }),
       z.strictObject({ ok: z.literal(false), id, reason: id }),

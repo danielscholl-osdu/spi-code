@@ -3,13 +3,13 @@
 
 import { readFileSync } from "node:fs";
 import type { InspectResult, ViewSnapshot } from "@spi-code/contracts";
-import type { JsonValue, ToolOutputRedactor } from "@spi-code/threads";
+import { journalOutputRedactor, type ToolOutputRedactor } from "@spi-code/threads";
 import { describe, expect, it } from "vitest";
 import { detailFeedPath, recordedSnapshotPath } from "../../../test/watch/snapshot-fixture.js";
-import { CHIP_TOKEN_BUDGET, type PackedChip, packChip, TRIMMED_CHIP_KEEPS } from "./chip.js";
+import { CHIP_BYTE_BUDGET, type PackedChip, packChip, TRIMMED_CHIP_KEEPS } from "./chip.js";
 import { addChip, chipFromSweep, MAX_CHIPS, refreshChip, snapshotChips } from "./draft.js";
+import { PLACES } from "./places.js";
 import type { SavedSweep } from "./sweep.js";
-import { estimateTokens } from "./tokens.js";
 
 const view: ViewSnapshot = JSON.parse(readFileSync(recordedSnapshotPath, "utf8"));
 const feed: InspectResult[] = JSON.parse(readFileSync(detailFeedPath, "utf8"));
@@ -38,7 +38,7 @@ describe("a context chip", () => {
   it("packs an inspect answer whole when it fits, with its sweep time and what was not read", () => {
     const chip = pack("conflict:entitlements:121");
     expect(chip.trimmed).toBe(false);
-    expect(chip.tokens).toBeLessThanOrEqual(CHIP_TOKEN_BUDGET);
+    expect(chip.bytes).toBeLessThanOrEqual(CHIP_BYTE_BUDGET);
     expect(chip.content).toBe(JSON.stringify(chip.chip));
     expect(chip.chip).toMatchObject({
       id: "conflict:entitlements:121",
@@ -52,19 +52,12 @@ describe("a context chip", () => {
   });
 
   it("trims an over-budget chip to PS-14's kept set, in its order, and says so", () => {
-    const partition = result("radar:partition");
-    const whole = {
-      ...partition,
-      evidence: partition.evidence.slice(0, 12),
-    };
-    expect(estimateTokens(JSON.stringify(whole))).toBeGreaterThan(CHIP_TOKEN_BUDGET);
-    const outcome = packChip({ kind: "queue item", result: whole }, at, plain);
-    if (!outcome.ok) throw new Error(outcome.reason);
-    const chip = outcome.chip;
+    const whole = result("radar:partition");
+    const chip = pack("radar:partition");
     expect(chip.trimmed).toBe(true);
-    expect(chip.tokens).toBeLessThanOrEqual(CHIP_TOKEN_BUDGET);
+    expect(chip.bytes).toBeLessThanOrEqual(CHIP_BYTE_BUDGET);
     expect(Object.keys(chip.chip)).toEqual([...TRIMMED_CHIP_KEEPS, "trimmed"]);
-    expect(chip.chip.trimmed).toMatch(/left out effect, why, related, areas;/);
+    expect(chip.chip.trimmed).toMatch(/left out effect, why, related, areas.*spi_inspect/);
     expect(chip.chip.evidence).toHaveLength(whole.evidence.length);
     expect(chip.chip.evidence).toContain(
       "Azure/osdu-spi-entitlements .github/upstream-filter.yml (failed)",
@@ -73,19 +66,57 @@ describe("a context chip", () => {
     expect(chip.chip).toMatchObject({ cause: whole.cause, next: whole.next, class: whole.class });
   });
 
-  it("refuses a chip whose kept set is still over budget, and never clips its text", () => {
-    const outcome = packChip({ kind: "queue item", result: result("radar:partition") }, at, plain);
-    expect(outcome).toEqual({
-      ok: false,
-      reason: `radar:partition is over ${CHIP_TOKEN_BUDGET} tokens even trimmed to identity, class, cause, next and evidence references.`,
-    });
+  it("keeps the evidence references that fit in UTF-8 bytes and counts those left out", () => {
+    const partition = result("radar:partition");
+    const record = partition.evidence[0];
+    if (!record) throw new Error("Fixture radar:partition has no evidence");
+    const evidence = Array.from({ length: 30 }, (_, i) => ({
+      ...record,
+      object: `${i} ${"🌍".repeat(500)}`,
+    }));
+    const outcome = packChip({ kind: "queue item", result: { ...partition, evidence } }, at, plain);
+    if (!outcome.ok) throw new Error(outcome.reason);
+    const { chip, content, bytes } = outcome.chip;
+    expect(chip.trimmed).toMatch(/spi_inspect/);
+    expect(chip.evidenceLeftOut).toEqual(28);
+    expect(chip.evidence).toEqual(
+      evidence.slice(0, 2).map(({ source, object }) => `${source} ${object} (failed)`),
+    );
+    expect(bytes).toEqual(Buffer.byteLength(content));
+    expect(bytes).toBeLessThanOrEqual(CHIP_BYTE_BUDGET);
+    expect(
+      Buffer.byteLength(content) + Buffer.byteLength(JSON.stringify(evidence[2]?.object)),
+    ).toBeGreaterThan(CHIP_BYTE_BUDGET);
+  });
+
+  it("keeps the whole reference list when it fills the budget without an omission count", () => {
+    const rollout = result("rollout");
+    const evidence = ["a", "b"].map((object) => ({
+      source: "s",
+      object,
+      observedAt: at.sweptAt,
+      completeness: { kind: "complete" as const },
+    }));
+    const packWithCause = (cause: string) =>
+      packChip(
+        { kind: "queue item", result: { ...rollout, evidence, cause, why: "a".repeat(6000) } },
+        at,
+        plain,
+      );
+    const short = packWithCause("");
+    if (!short.ok) throw new Error(short.reason);
+    const exact = packWithCause("a".repeat(CHIP_BYTE_BUDGET - short.chip.bytes));
+    if (!exact.ok) throw new Error(exact.reason);
+    expect(exact.chip.bytes).toBe(CHIP_BYTE_BUDGET);
+    expect(exact.chip.chip.evidence).toEqual(["s a", "s b"]);
+    expect(exact.chip.chip.evidenceLeftOut).toBeUndefined();
   });
 
   it("says when each retained read was first read", () => {
     const [first, ...rest] = result("radar:partition").evidence;
     if (!first) throw new Error("Fixture radar:partition has no evidence");
     const kept = { ...first, retainedFrom: "2026-11-05T09:00:00.000Z" };
-    const evidence = [kept, ...rest.slice(0, 3)];
+    const evidence = [kept, ...rest];
     const outcome = packChip(
       { kind: "queue item", result: { ...result("radar:partition"), evidence } },
       at,
@@ -96,18 +127,13 @@ describe("a context chip", () => {
     );
   });
 
-  it("is what the model redactor returned", () => {
-    const upper = (value: JsonValue): JsonValue =>
-      typeof value === "string"
-        ? value.toUpperCase()
-        : Array.isArray(value)
-          ? value.map(upper)
-          : value !== null && typeof value === "object"
-            ? Object.fromEntries(Object.entries(value).map(([key, field]) => [key, upper(field)]))
-            : value;
-    const chip = pack("rollout", { value: upper });
-    expect(chip.chip.cause).toBe(result("rollout").cause.toUpperCase());
-    expect(chip.content).toBe(JSON.stringify(chip.chip));
+  it("withholds the chip when its value cannot be redacted", () => {
+    const outcome = packChip({ kind: "queue item", result: result("rollout") }, at, {
+      value: () => {
+        throw new Error("fixture-private-value");
+      },
+    });
+    expect(outcome).toEqual({ ok: false, reason: "Context chip withheld." });
   });
 });
 
@@ -127,8 +153,7 @@ describe("a place chip", () => {
     const whole = view.readings.find(
       ({ anchor }) => anchor.kind === "service" && anchor.id === "legal",
     );
-    if (legal.chip.trimmed) expect(legal.chip.chip.trimmed).toMatch(/left out reading, areas;/);
-    else expect(legal.chip.chip.reading).toEqual(whole?.content);
+    expect(legal.chip.chip.reading).toEqual(whole?.content);
   });
 
   it("packs Security's own reading as not read, and refuses Environment and Program", async () => {
@@ -151,27 +176,26 @@ describe("a place chip", () => {
   });
 });
 
-describe("the token estimate", () => {
-  // cl100k_base and o200k_base each count 1,201 tokens in these 1,202 bytes.
-  const dense = JSON.stringify(
-    Array.from({ length: 600 }, (_, i) => `${i % 10}${"!#%&*+-/<=>?@^|~"[(i * 7) % 16]}`).join(""),
-  );
-
-  it("is at least the reference encodings' count on dense input", () => {
-    expect(Buffer.byteLength(dense)).toBe(1202);
-    expect(estimateTokens(dense)).toBeGreaterThanOrEqual(1201);
-  });
-
-  it("bounds every fixture chip, whole and trimmed, by its UTF-8 bytes", () => {
-    for (const entry of feed) {
-      for (const budget of [() => 0, (text: string) => (JSON.parse(text).trimmed ? 0 : Infinity)]) {
-        const outcome = packChip({ kind: "queue item", result: entry }, at, plain, budget);
-        if (!outcome.ok) throw new Error(outcome.reason);
-        const { content } = outcome.chip;
-        expect(estimateTokens(content)).toBeGreaterThanOrEqual(Buffer.byteLength(content));
-      }
+it("packs all 52 recorded chips within 6,000 UTF-8 bytes, trimming only two", async () => {
+  const ids = [
+    ...feed.map(({ id }) => id),
+    ...Object.keys(PLACES),
+    ...(view.services ?? []).map(({ service }) => `service:${service}`),
+  ];
+  const trimmed: string[] = [];
+  for (const id of ids) {
+    const outcome = await chipFromSweep(() => sweepAt(view.sweptAt), id, journalOutputRedactor);
+    if (!outcome.ok) throw new Error(`${id}: ${outcome.reason}`);
+    const { bytes, content, chip } = outcome.chip;
+    expect(bytes).toBe(Buffer.byteLength(content));
+    expect(bytes).toBeLessThanOrEqual(6000);
+    if (outcome.chip.trimmed) {
+      trimmed.push(id);
+      expect(chip.trimmed).toMatch(id === "place:upstream" ? /spi_radar/ : /spi_inspect/);
     }
-  });
+  }
+  expect(ids).toHaveLength(52);
+  expect(trimmed).toEqual(["radar:partition", "place:upstream"]);
 });
 
 describe("a draft's chips", () => {

@@ -161,8 +161,14 @@ function dependencies(runtime: CopilotRuntime, savedSweep: LatestSweep = () => u
   };
 }
 
-async function connect(runtime: CopilotRuntime, existing?: string, savedSweep?: LatestSweep) {
-  const host = new ThreadRoutes(dependencies(runtime, savedSweep));
+async function connect(
+  runtime: CopilotRuntime,
+  existing?: string,
+  savedSweep?: LatestSweep,
+  env?: NodeJS.ProcessEnv,
+) {
+  const options = dependencies(runtime, savedSweep);
+  const host = new ThreadRoutes({ ...options, env: { ...options.env, ...env } });
   hosts.push(host);
   const output: Message[] = [];
   let receive: (event: { data: unknown }) => void = () => {};
@@ -568,7 +574,7 @@ it("records unconfirmed Auto effort once and resumes with desired settings after
   });
 });
 
-function savedFixtureSweep() {
+function savedFixtureSweep(releaseObject = "password: readable fixture-copilot-value") {
   openStore(storePath).close();
   const input = appStyle(mixedFixtureInput());
   const now = input.context.clock.now().getTime();
@@ -577,9 +583,7 @@ function savedFixtureSweep() {
   const fence = createLeaseStore(database).acquire(fleet, owner, 60_000, now);
   if (fence === undefined) throw new Error("No sweep lease");
   const releaseRecords = input.releaseRecords.map((record) =>
-    record.source === "github-releases"
-      ? { ...record, object: "password: readable fixture-copilot-value" }
-      : record,
+    record.source === "github-releases" ? { ...record, object: releaseObject } : record,
   );
   const view = projectWatch(input);
   createSnapshotStore(database).writeSnapshot(
@@ -612,18 +616,28 @@ function savedFixtureSweep() {
   return { watch, view };
 }
 
-it("lets an Asking turn read model-redacted evidence from the saved sweep", async () => {
-  const { watch, view } = savedFixtureSweep();
+it("lets an Asking turn read journal-redacted SPI evidence using each host-known credential source", async () => {
+  const env = {
+    COPILOT_GITHUB_TOKEN: "fixture-copilot-env",
+    GH_TOKEN: "fixture-gh-env",
+    GITHUB_TOKEN: "fixture-github-env",
+    GITLAB_TOKEN: "fixture-glab-value",
+    GLAB_TOKEN: "fixture-glab-env",
+    GITLAB_ACCESS_TOKEN: "fixture-gitlab-access",
+  };
+  const known = [...Object.values(env), "fixture-copilot-value", "fixture-signin-value"];
+  const { watch, view } = savedFixtureSweep(known.join(" "));
   const {
     runtime,
     sessions: [session],
     open,
   } = recordedRuntime("spi-read");
   if (!session) throw new Error("Incomplete recording");
-  const port = await connect(runtime, undefined, watch.savedSweep);
+  const port = await connect(runtime, undefined, watch.savedSweep, env);
+  port.host.remember("fixture-signin-value");
   const id = port.send({
     prompt: "Question",
-    attachments: [{ name: "context:releases", content: "fixture-glab-value" }],
+    attachments: [{ name: "context:releases", content: '{"token":"fake-short"}' }],
   });
   await vi.waitFor(() => expect(session.send).toHaveBeenCalledOnce());
   session.begin("spi-read-turn");
@@ -634,7 +648,9 @@ it("lets an Asking turn read model-redacted evidence from the saved sweep", asyn
   expect(config.systemMessage).toMatchObject({
     content: expect.stringContaining("- spi_evidence: "),
   });
-  expect(session.send).toHaveBeenCalledWith({ prompt: "context:releases\n[redacted]\n\nQuestion" });
+  expect(session.send).toHaveBeenCalledWith({
+    prompt: 'context:releases\n{"token":"[redacted]"}\n\nQuestion',
+  });
   expect(tool.skipPermission).toBe(false);
   const readEvidence = async (path: string) => {
     const args = { path };
@@ -658,7 +674,7 @@ it("lets an Asking turn read model-redacted evidence from the saved sweep", asyn
       expect.objectContaining({
         collector: "releases",
         source: "github-releases",
-        object: "password: readable [redacted]",
+        object: known.map(() => "[redacted]").join(" "),
       }),
     ]),
   });
@@ -940,13 +956,27 @@ it("refuses a send whose bytes would differ from the preview, and sends the fres
     sessions: [session],
   } = recordedRuntime("fresh-preview");
   if (!session) throw new Error("Incomplete recording");
-  const port = await connect(runtime, undefined, watch.savedSweep);
   const member = todayMembers(view.briefing)[0]?.member;
   if (!member) throw new Error("Fixture has no Today member");
+  const credential = 'fixture"rotated';
+  const title = `Café · ${credential}`;
+  const savedSweep: LatestSweep = () => {
+    const saved = watch.savedSweep();
+    if (!saved) return;
+    return {
+      ...saved,
+      async inspect(id) {
+        const answer = await saved.inspect(id);
+        if (answer) return { ...answer, result: { ...answer.result, title } };
+      },
+    };
+  };
+  const port = await connect(runtime, undefined, savedSweep);
   const chip = async () => {
     const packed = await port.response(port.dispatch("thread.chip", { id: member.id }));
     if (packed.type !== "thread.chip.result" || !packed.payload.ok)
       throw new Error(`Chip refused: ${JSON.stringify(packed.payload)}`);
+    expect(packed.payload.bytes).toBe(Buffer.byteLength(packed.payload.attachment.content));
     return packed.payload.attachment;
   };
   const start = () =>
@@ -962,6 +992,7 @@ it("refuses a send whose bytes would differ from the preview, and sends the fres
   };
 
   const previewed = await chip();
+  expect(JSON.parse(previewed.content)).toMatchObject({ title });
   await expect(start()).resolves.toMatchObject({ type: "thread.started" });
   const listed = async () => {
     const result = await port.response(port.dispatch("threads.list", {}));
@@ -969,7 +1000,7 @@ it("refuses a send whose bytes would differ from the preview, and sends the fres
   };
   const threads = await listed();
 
-  port.host.remember(view.sweptAt);
+  port.host.remember(credential);
   await expect(start()).resolves.toMatchObject(stale);
   expect(await listed()).toBe(threads);
   await expect(
@@ -978,11 +1009,14 @@ it("refuses a send whose bytes would differ from the preview, and sends the fres
   expect(session.send).not.toHaveBeenCalled();
 
   const fresh = await chip();
-  expect(fresh.content).not.toContain(view.sweptAt);
+  expect(JSON.parse(fresh.content)).toMatchObject({ title: "Café · [redacted]" });
   await expect(start()).resolves.toMatchObject({ type: "thread.started" });
-  const sent = port.send({ prompt: "Why", attachments: [fresh] });
+  const attached = { name: "context:previous-reading", content: JSON.stringify({ title }) };
+  const sent = port.send({ prompt: "Why", attachments: [fresh, attached] });
   await vi.waitFor(() => expect(session.send).toHaveBeenCalledOnce());
-  expect(session.send).toHaveBeenCalledWith({ prompt: `${fresh.name}\n${fresh.content}\n\nWhy` });
+  expect(session.send).toHaveBeenCalledWith({
+    prompt: `${fresh.name}\n${fresh.content}\n\n${attached.name}\n{"title":"Café · [redacted]"}\n\nWhy`,
+  });
   session.begin("fresh-turn");
   session.finish("fresh-turn");
   await expect(port.response(sent)).resolves.toMatchObject({ payload: { outcome: "completed" } });

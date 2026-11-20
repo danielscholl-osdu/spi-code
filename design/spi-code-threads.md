@@ -77,6 +77,8 @@ The tag is a warning and blocks nothing: some fork changes touch an upstream-own
 
 The packed chip is what the host's inspect already returns for a row or popover. The SPI tools say when the snapshot was read. For anything deeper, Copilot reads the code in the thread's folder and runs git there, and the work log shows each call. A fresher read of GitHub or GitLab is an SPI tool the host answers (ruling T1).
 
+A message carries up to eight chips. Each is at most 6,000 UTF-8 bytes, about 2,000 tokens on the measured chips. A trimmed chip keeps its identity, what the sweep could say, and the evidence references that fit. It counts any references left out and names the SPI tool for the rest.
+
 SPI tools only read. Program operations that write (dispatch, re-run, merge) are not offered to a thread and arrive with M4 as typed tools that raise a card.
 
 ## Starting a thread
@@ -150,7 +152,7 @@ The sandbox has been observed on macOS only. Until the same checks pass on Windo
 | T3 | Program threads are Asking only. A change continues in a child thread in a service, the template or the environment. |
 | T4 | The hosts a build may reach from the sandbox are GitHub, the OSDU GitLab, Maven Central and the OSDU package registry, listed in Settings. |
 | T5 | The access modes are Supervised and Auto-accept edits. A command always asks. T3 Code's Auto and Full access are not offered. |
-| T6 | Redaction keeps EV-05 for the journal, for every custom tool and for every successful built-in result. A failed built-in tool's output inside the sandbox reaches Copilot as the runtime produced it, because the SDK lets the host replace only a successful result; the sandbox holds no credential store or token variable for that output to carry. |
+| T6 | The journal redacts results before writing them. SPI results, errors and chips go through those same rules before Copilot sees them. A horizon card keeps its theme name after the text is checked for credentials. The sandbox is the control for built-in tools. They read a fresh clone and have no sign-in, token variable, credential store or access to Azure hosts. The host masks GitHub and GitLab token prefixes, PEM blocks and known credential values on success. A failed built-in result reaches Copilot as the runtime produced it. |
 | T7 | The threads epic (spicode-xia) carries what the PRD split between M3 threads and M5 code threads. M3's Diagnose, Lane watch and campaigns stay in their epic (spicode-cp0) and build on it. |
 | T8 | `@microsoft/mxc-sdk` is a direct dependency for commands the host spawns itself, with Windows 11 as the minimum and its required Windows telemetry accepted. |
 | T9 | SPI Code's own `git add` and `git commit` run inside an `@microsoft/mxc-sdk` sandbox, so a program a nested repository's config names, such as `core.fsmonitor` or a filter driver, runs confined. `git add` and `git commit` have no switch to ignore a nested repository, so the host confines them instead of refusing commands one at a time. Status, diff and push stay outside the sandbox (CT-11). Decided 2026-11-19 on spicode-xia.13; built by spicode-xia.24. |
@@ -183,4 +185,4 @@ The sandbox has been observed on macOS only. Until the same checks pass on Windo
 | Today and places, Z7 | Ask about this is the one Copilot control on a row or popover. |
 | Service home | Still no subtree under a pinned service. The service page gains a Threads tab, and rows gain Ask about this. |
 
-Unchanged: the host drives Copilot through the SDK (CP-01 to CP-03), one runtime and no MCP server, the home and environment rules (CT-09), one right panel that exists only in a thread (PS-11), threads by status and the Settled shelf (PS-08, TH-07), the context chip's contents and budget (PS-14), the thread marker on an owned row (TH-05, PS-15), the model picker (CP-09), and M4's cards for program operations.
+Unchanged: the host drives Copilot through the SDK (CP-01 to CP-03), one runtime and no MCP server, the home and environment rules (CT-09), one right panel that exists only in a thread (PS-11), threads by status and the Settled shelf (PS-08, TH-07), the thread marker on an owned row (TH-05, PS-15), the model picker (CP-09), and M4's cards for program operations.
