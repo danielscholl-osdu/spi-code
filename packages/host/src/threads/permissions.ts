@@ -3,7 +3,7 @@
 
 import { randomUUID } from "node:crypto";
 import { realpath } from "node:fs";
-import { isAbsolute, parse, sep } from "node:path";
+import { isAbsolute, parse, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import type { PermissionHandler } from "@github/copilot-sdk";
 import type { RuntimeEvents } from "@spi-code/threads";
@@ -11,14 +11,23 @@ import type { SandboxWorkspace } from "../copilot/sandbox.js";
 
 const nativeRealpath = promisify(realpath.native);
 
-function canonicalReadPath(clone: string, path: string): Promise<string | undefined> {
-  if (!path) return Promise.resolve(undefined);
+async function canonicalReadPath(clone: string, path: string): Promise<string | undefined> {
+  if (!path) return undefined;
   const absolute = isAbsolute(path);
   if (process.platform === "win32") {
     const { root } = parse(path);
-    if (absolute ? root.length === 1 : root !== "") return Promise.resolve(undefined);
+    if (absolute ? root.length === 1 : root !== "") return undefined;
   }
-  return nativeRealpath(absolute ? path : `${clone}${sep}${path}`).catch(() => undefined);
+  const raw = absolute ? path : `${clone}${sep}${path}`;
+  try {
+    const [physical, lexical] = await Promise.all([
+      nativeRealpath(raw),
+      nativeRealpath(resolve(raw)),
+    ]);
+    return physical === lexical ? physical : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function inside(root: string, candidate: string): boolean {

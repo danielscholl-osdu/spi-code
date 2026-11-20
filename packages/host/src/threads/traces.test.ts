@@ -27,6 +27,7 @@ import { attachHostPort } from "../process/port.js";
 import { PrivilegedGit } from "../scopes/git.js";
 import { ScopeRegistry } from "../scopes/registry.js";
 import { ScopeWorkspaces } from "../scopes/workspace.js";
+import { trackTurn } from "./events.js";
 import { ThreadRoutes } from "./routes.js";
 
 const version = installedSdkVersion();
@@ -239,7 +240,6 @@ it.each<{
 }>([
   { scenario: "denied-read", omitted: "abort" },
   { scenario: "denied-read", omitted: "tool.execution_complete" },
-  { scenario: "denied-write", omitted: "assistant.turn_end" },
 ])("marks $scenario failed when $omitted is missing", async ({ scenario, omitted }) => {
   const ops = readTrace(version, scenario).filter(
     (op) => op.op !== "event" || op.event.type !== omitted,
@@ -251,7 +251,76 @@ it.each<{
   ]);
 });
 
-it("completes a refused-read turn if the runtime finishes with a reply after the refusal", async () => {
+it.each<{
+  name: string;
+  scenario: (typeof SCENARIOS)[number];
+  beforeIdle: SessionEvent["type"][];
+  afterIdle: SessionEvent["type"][];
+}>([
+  {
+    name: "refused, no abort, not ended",
+    scenario: "denied-read",
+    beforeIdle: [
+      "user.message",
+      "assistant.turn_start",
+      "assistant.message",
+      "tool.execution_start",
+      "tool.execution_complete",
+    ],
+    afterIdle: [],
+  },
+  {
+    name: "no refusal, idle before turn_end",
+    scenario: "denied-write",
+    beforeIdle: ["user.message", "assistant.turn_start", "assistant.message"],
+    afterIdle: [],
+  },
+  {
+    name: "no refusal, idle right after user.message",
+    scenario: "denied-write",
+    beforeIdle: ["user.message"],
+    afterIdle: [],
+  },
+  {
+    name: "two idles: early idle then real end",
+    scenario: "denied-write",
+    beforeIdle: ["user.message"],
+    afterIdle: ["assistant.turn_start", "assistant.message", "assistant.turn_end", "session.idle"],
+  },
+])("keeps waiting on early idle ($name)", ({ scenario, beforeIdle, afterIdle }) => {
+  const ops = readTrace(version, scenario);
+  const sent = ops.find((op) => op.op === "sent");
+  if (!sent) throw new Error(`The ${scenario} trace must include a send.`);
+  const finish = vi.fn();
+  const tracker = trackTurn(
+    [],
+    {
+      delta() {},
+      toolStarted() {},
+      toolFinished() {},
+      requestApproval: async () => false,
+    },
+    finish,
+  );
+  const observe = (type: SessionEvent["type"]) => {
+    const op = ops.find((op) => op.op === "event" && op.event.type === type);
+    if (op?.op !== "event") throw new Error(`The ${scenario} trace must include ${type}.`);
+    tracker.observe(op.event);
+  };
+  tracker.sent(sent.messageId);
+  for (const type of beforeIdle) observe(type);
+  observe("session.idle");
+  expect(finish).not.toHaveBeenCalled();
+
+  for (const type of afterIdle) observe(type);
+  expect(finish.mock.calls).toEqual(afterIdle.length ? [[]] : []);
+});
+
+it.each([
+  { ending: "plain idle", outcome: "completed" },
+  { ending: "abort", outcome: "failed" },
+  { ending: "aborted idle after a later successful tool", outcome: "failed" },
+])("marks a refused read with a reply as $outcome after $ending", async ({ ending, outcome }) => {
   const denied = readTrace(version, "denied-read");
   const sent = denied.find((op) => op.op === "sent");
   const reply = readTrace(version, "denied-write").find(
@@ -261,9 +330,26 @@ it("completes a refused-read turn if the runtime finishes with a reply after the
   if (!sent || replyEvent?.type !== "assistant.message") {
     throw new Error("The traces must include a sent message and a final reply.");
   }
+  const laterTool = readTrace(version, "cold-resume").filter(
+    (op) =>
+      op.op === "event" &&
+      (op.event.type === "assistant.turn_start" ||
+        op.event.type === "tool.execution_start" ||
+        op.event.type === "tool.execution_complete") &&
+      op.event.data.turnId === "1",
+  );
   const ops = denied.flatMap((op): TraceOp[] => {
     if (op.op !== "event") return [op];
-    if (op.event.type === "abort") return [];
+    if (op.event.type === "abort") return ending === "abort" ? [op] : [];
+    if (
+      op.event.type === "session.idle" &&
+      ending === "aborted idle after a later successful tool"
+    ) {
+      return [
+        ...laterTool.map((step) => ({ ...step, sessionId: op.sessionId })),
+        { ...op, event: { ...op.event, data: { ...op.event.data, aborted: true } } },
+      ];
+    }
     if (op.event.type !== "assistant.turn_end") return [op];
     return [
       {
@@ -282,7 +368,12 @@ it("completes a refused-read turn if the runtime finishes with a reply after the
     ];
   });
   const replayed = await replay(ops, "refused-then-replied");
-  expect(replayed.outcomes).toEqual(["completed"]);
+  expect(replayed.outcomes).toEqual([outcome]);
+  if (outcome === "failed") {
+    expect(replayed.events.filter(({ type }) => type === "turn.finished")).toEqual([
+      expect.objectContaining({ outcome, failure: "Copilot interrupted the turn." }),
+    ]);
+  }
 });
 
 it("has every field trackTurn reads in at least one recorded event of that type", () => {
