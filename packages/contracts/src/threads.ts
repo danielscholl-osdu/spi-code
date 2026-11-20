@@ -22,7 +22,7 @@ const message = z.strictObject({
 });
 const outcome = z.enum(["completed", "failed", "stopped", "cancelled"]);
 const interruption = z.enum(["restart", "shutdown"]);
-const cancellation = z.enum(["restart", "shutdown", "operator", "turn-ended"]);
+const cancellation = z.enum(["restart", "shutdown", "operator", "turn-ended", "refused-tool"]);
 const unknown = z.literal("not known");
 
 const summary = z.strictObject({

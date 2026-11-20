@@ -16,7 +16,7 @@ export function findLeaks(text: string): string[] {
   return LEAKS.flatMap(([name, pattern]) => (pattern.test(text) ? [name] : []));
 }
 
-const PROTECTED = /^(?:id|parentId|type|op|toolName|success|aborted)$|Id$/u;
+const PROTECTED = /^(?:id|parentId|type|op|toolName|success|aborted|code)$|Id$/u;
 
 /** Paths whose value the redactor changed although an id or a field the tracker branches on. */
 export function protectedChanges(before: unknown, after: unknown, path = ""): string[] {

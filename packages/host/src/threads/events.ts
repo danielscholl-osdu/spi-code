@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: MIT
 
 import type { SessionEvent } from "@github/copilot-sdk";
-import type { RuntimeEvents } from "@spi-code/threads";
+import type { RuntimeEvents, RuntimeStop } from "@spi-code/threads";
 
 export function trackTurn(
   history: readonly SessionEvent[],
   events: RuntimeEvents,
-  finish: (error?: Error) => void,
+  finish: (result?: Error | RuntimeStop) => void,
 ) {
   const oldCalls = new Set(
     history.flatMap((event) =>
@@ -22,6 +22,8 @@ export function trackTurn(
   let turnId: string | undefined;
   let consumed = false;
   let ended = false;
+  let aborted = false;
+  let refusal: "awaiting-reply" | "answered" | undefined;
 
   function observe(event: SessionEvent) {
     if (event.agentId) return;
@@ -58,6 +60,12 @@ export function trackTurn(
       case "assistant.message":
         if (event.data.originatingMessageId === messageId) {
           consumed = true;
+          if (
+            refusal === "awaiting-reply" &&
+            event.data.content.trim() &&
+            !event.data.toolRequests?.length
+          )
+            refusal = "answered";
           if (!streamed.has(event.data.messageId)) events.delta(event.data.content);
         }
         break;
@@ -84,6 +92,7 @@ export function trackTurn(
           )
         )
           break;
+        if (!success && error?.code === "rejected") refusal = "awaiting-reply";
         events.toolFinished({
           callId: toolCallId,
           outcome: success ? "completed" : "failed",
@@ -94,9 +103,22 @@ export function trackTurn(
       case "assistant.turn_end":
         if (turnId && event.data.turnId === turnId) ended = true;
         break;
+      case "abort":
+        if (consumed) aborted = true;
+        break;
       case "session.idle":
-        if (consumed && ended)
-          finish(event.data.aborted ? new Error("Copilot interrupted the turn.") : undefined);
+        if (!consumed) break;
+        if (aborted || event.data.aborted) {
+          finish(
+            refusal
+              ? { outcome: "stopped", reason: "refused-tool" }
+              : new Error("Copilot interrupted the turn."),
+          );
+        } else if (!ended || refusal === "awaiting-reply") {
+          finish(new Error("Copilot did not confirm how the turn ended."));
+        } else {
+          finish();
+        }
         break;
       case "session.error":
         if (

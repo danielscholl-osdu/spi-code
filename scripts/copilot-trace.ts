@@ -436,14 +436,23 @@ const scenarios: Record<Scenario, (live: Live) => Promise<string[]>> = {
   },
   async "denied-read"(live) {
     const thread = await live.start();
-    const [, owner = "", ...rest] = PIN;
-    const file = join(live.directory, "repos", owner.replace(/^a/u, "A"), ...rest);
-    return [
-      await live.send(
-        thread,
-        `View lines 1 to 3 of ${file} with your file view tool, using that path exactly as written. If the read is refused, reply with the exact text TRACE-REFUSED and nothing else.`,
-      ),
-    ];
+    const scratch = join(live.directory, "thread-temp", thread);
+    mkdirSync(scratch, { recursive: true, mode: 0o700 });
+    const file = join(scratch, "outside-clone.txt");
+    writeFileSync(file, "Synthetic trace fixture outside the clone.\n");
+    const outcome = await live.send(
+      thread,
+      `View ${file} with your file view tool, using that path exactly as written. If the read is refused, reply with the exact text TRACE-REFUSED and nothing else.`,
+    );
+    if (
+      outcome !== "stopped" ||
+      !live
+        .events()
+        .some((event) => event.type === "turn.finished" && event.reason === "refused-tool")
+    ) {
+      throw new Error("The outside read did not stop the turn after a refused tool call.");
+    }
+    return [outcome];
   },
   async "denied-write"(live) {
     const thread = await live.start();
@@ -483,6 +492,12 @@ function shorten(value: JsonValue): JsonValue {
 }
 
 let token = "";
+function diagnostic(error: unknown): string {
+  const message = error instanceof Error ? error.message : "unknown error";
+  const redacted = token ? message.replaceAll(token, "[redacted]") : message;
+  return findLeaks(redacted).length ? "[redacted]" : redacted;
+}
+
 let live: Live | undefined;
 let failed = false;
 try {
@@ -496,7 +511,7 @@ try {
       outcomes = await scenarios[scenario](live);
     } catch (error) {
       failed = true;
-      console.log(`${scenario}: failed (${error instanceof Error ? error.message : "unknown"})`);
+      console.log(`${scenario}: failed (${diagnostic(error)})`);
       continue;
     }
     await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -530,10 +545,7 @@ try {
   }
 } catch (error) {
   failed = true;
-  const message = error instanceof Error ? error.message : "unknown error";
-  console.error(
-    `Copilot trace failed: ${token ? message.replaceAll(token, "[redacted]") : message}`,
-  );
+  console.error(`Copilot trace failed: ${diagnostic(error)}`);
 } finally {
   try {
     await live?.close();

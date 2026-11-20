@@ -355,10 +355,11 @@ export class ThreadEngine<Tool> {
       signal.throwIfAborted();
       const recovery = timeline.instructions();
       const instructions = [context.instructions, recovery].filter(Boolean).join("\n\n");
-      await this.options.runtime.run(
+      const stopped = await this.options.runtime.run(
         { ...request, workspace, context: { ...context, instructions }, tools },
         this.runtimeEvents(threadId, running),
       );
+      if (stopped) outcome = stopped;
     } catch (error) {
       const message = error instanceof Error ? error.message : "The turn could not finish.";
       outcome = { outcome: "failed", failure: this.redactor.text(message).slice(0, 500) };
