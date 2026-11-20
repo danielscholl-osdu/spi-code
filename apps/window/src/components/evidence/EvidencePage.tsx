@@ -34,7 +34,7 @@ const count = (value: number) => value.toLocaleString("en-US");
 
 type ReadLine = { key: string; name: string; tone?: "warn" | "bad"; note?: string; time: string };
 
-function readLine(
+export function readLine(
   { fork, record }: ReadGroup["records"][number],
   several: boolean,
   now: number,
@@ -68,7 +68,7 @@ function gitlabLine({ source, records }: ReadGroup, now: number): ReadLine {
   };
 }
 
-function ReadLines({ label, lines }: { label: string; lines: readonly ReadLine[] }) {
+export function ReadLines({ label, lines }: { label: string; lines: readonly ReadLine[] }) {
   return (
     <ul className="evidence-reads" aria-label={label}>
       {lines.map(({ key, name, tone, note, time }) => (

@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { ViewSnapshot } from "@spi-code/contracts";
+import type { ThreadWireEvent, ViewSnapshot } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -11,6 +11,7 @@ import { Shell } from "../../app/Shell.js";
 import { watchStore } from "../../store/watch.js";
 import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import { type ThreadSummary, threadStore } from "../../threads/store.js";
+import { clockTime } from "../../time.js";
 
 type HappyWindow = { happyDOM: { setViewport(viewport: { width: number; height: number }): void } };
 
@@ -42,13 +43,14 @@ async function mountShell(
   hash: string,
   listed: readonly ThreadSummary[] | null,
   snapshot: ViewSnapshot | null = fixture,
+  events?: readonly ThreadWireEvent[],
 ) {
   window.location.hash = hash;
   watchStore.setState({
     snapshot: snapshot && { cursor: snapshot.cursor, body: snapshot },
     setup: null,
   });
-  threadStore.setState({ threads: listed });
+  threadStore.setState({ threads: listed, ...(events ? { events: { t1: events } } : {}) });
   const harness = installSpi();
   const container = document.createElement("div");
   document.body.append(container);
@@ -200,6 +202,45 @@ describe("a thread's right panel", () => {
   });
 
   it.each([
+    ["folds from inline at 1440 into a sheet at 900", 1440, "fold"],
+    ["is dismissed by Escape from the reply box after a fold", 1440, "escape"],
+    ["is dismissed by Escape from a centre control when opened at 900", 900, "escape"],
+  ] as const)("as a sheet, %s", async (_, width, step) => {
+    await resizeWindow(width);
+    const shell = await mountShell("#thread/t1", [PARTITION]);
+    await act(async () => shell.toggles()[0]?.click());
+    const evidence = [...shell.layout.querySelectorAll<HTMLElement>("[role=tab]")].find(
+      (tab) => tab.textContent === "Evidence",
+    );
+    await act(async () => evidence?.click());
+    const reply = shell.$<HTMLTextAreaElement>("textarea[aria-label='Message Copilot']");
+    if (!reply) throw new Error("Missing reply box");
+    reply.focus();
+    if (width !== 900) await resizeWindow(900);
+    expect(shell.panel()?.hasAttribute("data-sheet")).toBe(true);
+    if (step === "fold") {
+      expect(document.activeElement).toBe(shell.$("#app-right-panel [aria-selected=true]"));
+      expect(document.activeElement?.textContent).toBe("Evidence");
+      return;
+    }
+    reply.focus();
+    const pressEscape = () =>
+      act(async () => {
+        reply.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+        );
+      });
+    const handled = (event: Event) => event.preventDefault();
+    reply.addEventListener("keydown", handled);
+    await pressEscape();
+    reply.removeEventListener("keydown", handled);
+    expect(shell.panel()).not.toBeNull();
+    await pressEscape();
+    expect(shell.panel()).toBeNull();
+    expect(document.activeElement).toBe(shell.toggles()[0]);
+  });
+
+  it.each([
     [1440, true],
     [900, false],
   ])(
@@ -255,19 +296,69 @@ describe("Reading", () => {
 });
 
 describe("Evidence", () => {
-  it("shows what the thread started from, then its scope's reads", async () => {
+  const SENT_AT = "2026-11-02T09:15:00.000Z";
+  const sentChip = (id: string, title: string) => ({
+    name: `context:${id}`,
+    content: JSON.stringify({
+      id,
+      kind: "item",
+      title,
+      sweptAt: SENT_AT,
+      completeness: "complete",
+      notRead: [],
+      evidence: [
+        {
+          source: "github",
+          object: "pulls/121",
+          observedAt: "2026-11-02T09:10:00.000Z",
+          completeness: { kind: "complete" },
+        },
+        "gitlab entitlements (cut 3/5)",
+      ],
+    }),
+  });
+  const journal = (id: string, first: boolean): ThreadWireEvent[] => {
+    const base = { threadId: "t1", at: 1 };
+    const sent = (sequence: number, attachments: ReturnType<typeof sentChip>[]) => ({
+      ...base,
+      sequence,
+      type: "message.sent" as const,
+      messageId: `m${sequence}`,
+      message: { prompt: "Why?", ...(attachments.length ? { attachments } : {}) },
+    });
+    return [
+      { ...base, sequence: 1, type: "thread.created", thread: { scope: "entitlements" } },
+      sent(2, first ? [sentChip(id, "Saved when sent")] : []),
+      sent(3, [sentChip(id, "Refreshed later")]),
+    ];
+  };
+
+  it.each([
+    ["a row a later sweep dropped", "sync-run:gone", true],
+    ["a row that survives from an older sweep", "conflict:entitlements:121", true],
+    ["no matching attachment on the first message", "conflict:entitlements:121", false],
+  ])("draws the starting chip as sent for %s", async (_, subject, attached) => {
     savePanes({ open: { rightPanel: true } });
-    const thread = summary({ scope: "entitlements", subject: "conflict:entitlements:121" });
-    const shell = await mountShell("#thread/t1", [thread]);
+    const thread = summary({ scope: "entitlements", subject });
+    const shell = await mountShell("#thread/t1", [thread], fixture, journal(subject, attached));
     const body = await shell.tab("Evidence");
     const chip = body?.querySelector("[data-evidence-for=chip]");
-    expect(chip?.querySelector(".evidence-lede")?.textContent).toMatch(
-      /^entitlements · Sync has a merge conflict · sweep ended /,
-    );
-    expect(chip?.querySelector("[data-evidence-part=areas]")).not.toBeNull();
+    if (attached) {
+      expect(chip?.querySelector(".evidence-lede")?.textContent).toBe(
+        `Saved when sent · sweep ended ${clockTime(SENT_AT, { hint: false })}`,
+      );
+      expect(
+        [...(chip?.querySelectorAll("[data-evidence-part=references] li") ?? [])].map(
+          (item) => item.querySelector(".evidence-read-object")?.textContent,
+        ),
+      ).toEqual(["github · pulls/121", "gitlab entitlements (cut 3/5)"]);
+    } else {
+      expect(chip?.textContent).toBe("⌀ The chip this thread started from is not available.");
+    }
+    expect(chip?.querySelector("[data-evidence-part=areas]")).toBeNull();
     const scope = body?.querySelector("[data-evidence-for=scope]");
-    expect(scope?.querySelector(".evidence-lede")?.textContent).toMatch(
-      /^entitlements · sweep ended /,
+    expect(scope?.querySelector(".evidence-lede")?.textContent).toBe(
+      `entitlements · sweep ended ${clockTime(fixture.sweptAt, { hint: false })}`,
     );
     expect(scope?.querySelector("[aria-label=Areas]")?.querySelectorAll("tr").length).toBe(10);
   });
@@ -275,15 +366,14 @@ describe("Evidence", () => {
   it.each([
     ["sync-run:gone", "gone"],
     ["service:partition", "partition"],
-  ])("claims nothing for chip %s that Today does not hold", async (subject, scope) => {
+  ])("claims nothing for chip %s while its first message is not read", async (subject, scope) => {
     savePanes({ open: { rightPanel: true } });
     const unread = { ...fixture, services: [] };
     const shell = await mountShell("#thread/t1", [summary({ scope, subject })], unread);
     const body = await shell.tab("Evidence");
-    expect(body?.querySelector("[data-evidence-for=chip] .evidence-lede")?.textContent).toMatch(
-      /^Today holds nothing for the row this thread started from · sweep ended /,
+    expect(body?.querySelector("[data-evidence-for=chip]")?.textContent).toBe(
+      "⌀ The chip this thread started from is not available.",
     );
-    expect(body?.querySelector("[data-evidence-for=chip] [data-evidence-part]")).toBeNull();
     expect(body?.querySelector("[data-evidence-for=scope] [data-quiet=unread]")?.textContent).toBe(
       "⌀ This fork was not read.",
     );

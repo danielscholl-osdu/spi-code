@@ -27,15 +27,12 @@ export function RightPanelFrame({
     const active = document.activeElement;
     if (active instanceof HTMLElement && !frame.current?.contains(active))
       opener.current = active === document.body ? null : active;
-    if (currentPresentation.current === "sheet")
-      frame.current
-        ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
-        ?.focus({ preventScroll: true });
     const onEscape = (event: KeyboardEvent) => {
       if (
         event.key !== "Escape" ||
         event.defaultPrevented ||
-        !frame.current?.contains(document.activeElement)
+        (currentPresentation.current !== "sheet" &&
+          !frame.current?.contains(document.activeElement))
       )
         return;
       event.preventDefault();
@@ -50,6 +47,14 @@ export function RightPanelFrame({
       target?.focus({ preventScroll: true });
     };
   }, [open]);
+  useEffect(() => {
+    if (!open || presentation !== "sheet" || frame.current?.contains(document.activeElement))
+      return;
+    const target =
+      frame.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]') ??
+      frame.current?.querySelector<HTMLElement>("button:not(:disabled)");
+    target?.focus({ preventScroll: true });
+  }, [open, presentation]);
   if (!open) return null;
   return (
     <>
