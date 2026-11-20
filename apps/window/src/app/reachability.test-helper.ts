@@ -2039,6 +2039,8 @@ export const ROUTE_EXEMPTIONS: Readonly<Record<string, string>> = {
     "Evidence draws reads, areas and not-read lists about Briefing items, never a Briefing field as the home of one",
   service:
     "spicode-mw0.6: a service page draws its fork's home (services[].home), never a Briefing field",
+  thread:
+    "A thread draws the host's journal and a draft's packed chip, never a Briefing field as the home of one",
 };
 
 /** Every registry route, and the strip, less those a case or a named exemption covers. */

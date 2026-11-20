@@ -64,7 +64,13 @@ export function ModelPicker(props: ModelPickerProps) {
           <span aria-hidden="true">{model.favourite ? "★" : ""}</span>
           <span>
             {model.name}
-            {!enabled && <span className="thread-picker-off"> · not enabled for this account</span>}
+            {!enabled && (
+              <span className="thread-picker-off">
+                {model.policy === "not known"
+                  ? " · not known whether enabled"
+                  : " · not enabled for this account"}
+              </span>
+            )}
           </span>
           <small>{model.multiplier === undefined ? "" : `${model.multiplier}×`}</small>
           <small>{shortcut === undefined ? "" : `⌘${shortcut}`}</small>

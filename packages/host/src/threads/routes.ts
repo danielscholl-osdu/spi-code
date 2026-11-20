@@ -1,9 +1,24 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { PROTOCOL_VERSION, ThreadEventSchema } from "@spi-code/contracts";
+import { type Message, PROTOCOL_VERSION, ThreadEventSchema } from "@spi-code/contracts";
 import type { HostRoutes } from "../process/port.js";
+import type { ChipOutcome } from "./context/chip.js";
+import { snapshotChips } from "./context/draft.js";
 import { openThreadHost, type ThreadHostOptions } from "./wiring.js";
+
+type ThreadChipResult = Extract<Message, { type: "thread.chip.result" }>["payload"];
+
+/** What a draft shows and sends: the chip as Copilot receives it, or why it was refused. */
+function chipResult(id: string, packed: ChipOutcome): ThreadChipResult {
+  if (!packed.ok) return { ok: false, id, reason: packed.reason };
+  const snapshot = snapshotChips([packed.chip]);
+  if (!snapshot.ok) return { ok: false, id, reason: snapshot.reason };
+  const [attachment] = snapshot.attachments;
+  if (!attachment) return { ok: false, id, reason: `${id} was not packed.` };
+  const { sweptAt, trimmed, tokens } = packed.chip;
+  return { ok: true, id, sweptAt, trimmed, tokens, attachment };
+}
 
 export class ThreadRoutes {
   private host: ReturnType<typeof openThreadHost> | undefined;
@@ -12,13 +27,17 @@ export class ThreadRoutes {
 
   constructor(private readonly options: ThreadHostOptions) {}
 
-  private engine() {
+  private open() {
     if (!this.host) {
       this.host = openThreadHost(this.options);
       for (const token of this.known) this.host.remember(token);
       this.known.clear();
     }
-    return this.host.engine;
+    return this.host;
+  }
+
+  private engine() {
+    return this.open().engine;
   }
 
   remember(token: string) {
@@ -38,7 +57,7 @@ export class ThreadRoutes {
     },
     "thread.start": (request, send) => {
       if (request.type !== "thread.start") return;
-      const { scope, title } = request.payload;
+      const { scope, title, subject } = request.payload;
       if (!this.options.scopes.lookup(scope)?.canStart)
         throw new Error("Thread scope is unavailable.");
       send({
@@ -47,8 +66,23 @@ export class ThreadRoutes {
         kind: "response",
         type: "thread.started",
         payload: {
-          threadId: this.engine().create({ scope, ...(title === undefined ? {} : { title }) }),
+          threadId: this.engine().create({
+            scope,
+            ...(title === undefined ? {} : { title }),
+            ...(subject === undefined ? {} : { subject }),
+          }),
         },
+      });
+    },
+    "thread.chip": async (request, send) => {
+      if (request.type !== "thread.chip") return;
+      const { id } = request.payload;
+      send({
+        version: PROTOCOL_VERSION,
+        id: request.id,
+        kind: "response",
+        type: "thread.chip.result",
+        payload: chipResult(id, await this.open().chip(id)),
       });
     },
     "thread.send": async (request, send) => {

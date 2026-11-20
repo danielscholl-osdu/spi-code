@@ -398,6 +398,8 @@ export function routeSelectionIds(snapshot: ViewSnapshot, route: Route): string[
   const queue = [...briefing.focus, ...briefing.rest];
   const repos = briefing.repositories.rows;
   switch (route.kind) {
+    case "thread":
+      return [];
     case "today":
       return [
         ...queue.map(({ id }) => id),

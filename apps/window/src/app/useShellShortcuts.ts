@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 import { useEffect } from "react";
-import { FORKS, goBack, goForward, navigate, type Registry } from "./navigation.js";
+import { newThread } from "../threads/start.js";
+import { FORKS, goBack, goForward, navigate, parseRoute, type Registry } from "./navigation.js";
 import { historyShortcut, isTypingEvent, matchesShortcut } from "./shortcuts.js";
 
 /** `dialogOpen`: Find or Settings is open, so back and forward wait for it to close. */
@@ -29,11 +30,18 @@ export function useShellShortcuts(
         openSettings();
         return;
       }
+      if (registry.views.thread && matchesShortcut(event, "n")) {
+        if (dialogOpen) return;
+        event.preventDefault();
+        if (event.repeat) return;
+        newThread(parseRoute(window.location.hash) ?? registry.fallback);
+        return;
+      }
       if (!registry.views.today || !matchesShortcut(event, "l")) return;
       event.preventDefault();
       navigate(FORKS);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [registry.views.today, openSettings, dialogOpen]);
+  }, [registry.views.today, registry.views.thread, registry.fallback, openSettings, dialogOpen]);
 }

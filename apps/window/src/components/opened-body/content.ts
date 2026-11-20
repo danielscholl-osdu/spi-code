@@ -31,6 +31,8 @@ export type OpenedContent = {
   deadline?: TodayDeadline;
   primary?: Link;
   fork?: string;
+  /** The one fork the subject belongs to, which a thread about it is scoped to. */
+  scope?: string;
   links?: readonly Link[];
   notRead?: readonly string[];
 };
@@ -86,6 +88,7 @@ export function todayContent({
     ...(reading.deadline ? { deadline: reading.deadline } : {}),
     ...(primary ? { primary } : {}),
     ...(one && line.members.length > 1 ? { fork: one.fork } : {}),
+    ...(one ? { scope: one.fork } : {}),
     links: [...sources, ...companions, ...(rollout?.evidence ?? [])],
     notRead: [...new Set(members.flatMap((m) => m.evidence.notRead))],
   };

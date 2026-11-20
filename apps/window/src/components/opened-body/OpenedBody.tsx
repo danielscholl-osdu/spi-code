@@ -9,6 +9,8 @@ import {
   routeHash,
   setOpenSelection,
 } from "../../app/navigation.js";
+import { AskAboutThis, useAskAbout } from "../../threads/AskAboutThis.js";
+import { type AskTarget, threadStore } from "../../threads/store.js";
 import { TimedText } from "../../time.js";
 import { LinkPill, linkPillText } from "../kit/LinkPill.js";
 import { bodySources, type OpenedContent, restatesHeadline } from "./content.js";
@@ -22,6 +24,17 @@ export type OpenedBodyProps = {
   rowUrl?: string;
   onClose(): void;
 };
+
+/** What Ask about this and ⌘N carry from an opened row: its subject, title and fork. */
+function askTarget(content: OpenedContent): AskTarget | null {
+  if (!content.subject) return null;
+  return {
+    subject: content.subject.id,
+    label: content.title,
+    ...(content.scope ? { scope: content.scope } : {}),
+    origin: `Started from ${content.place.label} › ${content.title}`,
+  };
+}
 
 /** One body for an expanded Today row or a place's anchored popover; the caller owns its mount. */
 export function OpenedBody({ content, selection, origin, rowUrl, onClose }: OpenedBodyProps) {
@@ -59,6 +72,19 @@ export function OpenedBody({ content, selection, origin, rowUrl, onClose }: Open
     return () => window.removeEventListener("keydown", keydown);
   }, [primary, onClose]);
 
+  const target = askTarget(content);
+  const ask = useAskAbout(target);
+  const targetKey = target && JSON.stringify(target);
+  useEffect(() => {
+    if (!targetKey) return;
+    const registered: AskTarget = JSON.parse(targetKey);
+    threadStore.getState().setTarget(registered);
+    return () => {
+      const { target: current, setTarget } = threadStore.getState();
+      if (current?.subject === registered.subject) setTarget(null);
+    };
+  }, [targetKey]);
+
   const { subject, cause, effect, steps = [], deadline } = content;
   const notRead = new Set(content.notRead ?? []).size;
   return (
@@ -85,7 +111,7 @@ export function OpenedBody({ content, selection, origin, rowUrl, onClose }: Open
       ) : (
         steps[0] && <p className="opened-body-step">{steps[0]}</p>
       )}
-      {sources.length > 0 && (
+      {(sources.length > 0 || ask) && (
         <nav className="opened-body-sources" aria-label="Sources">
           {sources.map((link) => (
             <LinkPill
@@ -94,6 +120,7 @@ export function OpenedBody({ content, selection, origin, rowUrl, onClose }: Open
               {...(content.fork ? { label: `${content.fork} · ${linkPillText(link)}` } : {})}
             />
           ))}
+          {ask && <AskAboutThis ask={ask} />}
         </nav>
       )}
       {notRead > 0 && (

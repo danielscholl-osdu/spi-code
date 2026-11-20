@@ -71,6 +71,7 @@ import {
   statusRows,
   syncDeadline,
 } from "./status-marks.js";
+import { ThreadRows } from "./ThreadRows.js";
 import {
   CollapsibleSectionHeader,
   Sidebar,
@@ -516,6 +517,9 @@ export function ProgramSidebar({
               </SidebarMenu>
             )}
           </SidebarGroup>
+        )}
+        {isReachable({ kind: "thread", id: "new" }, registry) && (
+          <ThreadRows route={route} onNavigate={(target) => go(target)()} />
         )}
       </SidebarContent>
       <PinNotice placement="sidebar" />

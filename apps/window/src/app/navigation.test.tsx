@@ -50,6 +50,7 @@ const ALL_KINDS: readonly RouteKind[] = [
   "security",
   "service",
   "release",
+  "thread",
 ];
 const every = Object.fromEntries(ALL_KINDS.map((kind) => [kind, view])) as Registry["views"];
 const LAST_PLACE_KEY = "spi-code.last-place";

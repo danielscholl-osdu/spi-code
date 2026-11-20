@@ -87,6 +87,7 @@ export class ThreadEngine<Tool> {
         thread: {
           scope: text(thread.scope),
           ...(thread.title === undefined ? {} : { title: text(thread.title) }),
+          ...(thread.subject === undefined ? {} : { subject: text(thread.subject) }),
         },
       },
     ]);

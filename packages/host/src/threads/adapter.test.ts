@@ -7,7 +7,12 @@ import { basename, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { setTimeout } from "node:timers/promises";
 import type { SessionEvent } from "@github/copilot-sdk";
-import { type Message, PROTOCOL_VERSION, type ThreadWireEvent } from "@spi-code/contracts";
+import {
+  type Message,
+  PROTOCOL_VERSION,
+  type ThreadWireEvent,
+  todayMembers,
+} from "@spi-code/contracts";
 import { emptyCache } from "@spi-code/core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { appStyle, mixedFixtureInput } from "../../test/watch/snapshot-fixture.js";
@@ -204,6 +209,7 @@ async function connect(runtime: CopilotRuntime, existing?: string, savedSweep?: 
   return {
     host,
     threadId,
+    dispatch,
     response,
     send: (message: Extract<Message, { type: "thread.send" }>["payload"]["message"]) =>
       dispatch("thread.send", { threadId, message }),
@@ -562,7 +568,7 @@ it("records unconfirmed Auto effort once and resumes with desired settings after
   });
 });
 
-it("lets an Asking turn read model-redacted evidence from the saved sweep", async () => {
+function savedFixtureSweep() {
   openStore(storePath).close();
   const input = appStyle(mixedFixtureInput());
   const now = input.context.clock.now().getTime();
@@ -603,6 +609,11 @@ it("lets an Asking turn read model-redacted evidence from the saved sweep", asyn
       throw error;
     },
   });
+  return { watch, view };
+}
+
+it("lets an Asking turn read model-redacted evidence from the saved sweep", async () => {
+  const { watch, view } = savedFixtureSweep();
   const {
     runtime,
     sessions: [session],
@@ -870,4 +881,54 @@ it("gives the thread journal one writer and releases the lock on shutdown", asyn
     await first.stop();
     other.close();
   }
+});
+
+it("packs a row's chip from the saved sweep, says why it refuses one, and keeps the row a thread started from", async () => {
+  const { runtime } = recordedRuntime();
+  const unsaved = await connect(runtime);
+  await expect(
+    unsaved.response(unsaved.dispatch("thread.chip", { id: "anything" })),
+  ).resolves.toMatchObject({
+    type: "thread.chip.result",
+    payload: { ok: false, id: "anything", reason: "No sweep has been saved." },
+  });
+  await unsaved.host.stop();
+
+  const { watch, view } = savedFixtureSweep();
+  const port = await connect(runtime, undefined, watch.savedSweep);
+  const member = todayMembers(view.briefing)[0]?.member;
+  if (!member) throw new Error("Fixture has no Today member");
+  const packed = await port.response(port.dispatch("thread.chip", { id: member.id }));
+  if (packed.type !== "thread.chip.result" || !packed.payload.ok)
+    throw new Error(`Chip refused: ${JSON.stringify(packed.payload)}`);
+  expect(packed.payload).toMatchObject({
+    id: member.id,
+    sweptAt: view.sweptAt,
+    attachment: { name: `context:${member.id}` },
+  });
+  expect(JSON.parse(packed.payload.attachment.content)).toMatchObject({
+    id: member.id,
+    sweptAt: view.sweptAt,
+  });
+  await expect(
+    port.response(port.dispatch("thread.chip", { id: "place:environment" })),
+  ).resolves.toMatchObject({
+    payload: {
+      ok: false,
+      reason: expect.stringContaining("place:environment cannot be a chip yet"),
+    },
+  });
+
+  const started = await port.response(
+    port.dispatch("thread.start", { scope: "program", title: "Why", subject: member.id }),
+  );
+  if (started.type !== "thread.started") throw new Error("Thread did not start");
+  const listed = await port.response(port.dispatch("threads.list", {}));
+  if (listed.type !== "threads.result") throw new Error("Threads were not listed");
+  expect(listed.payload.threads).toContainEqual(
+    expect.objectContaining({
+      id: started.payload.threadId,
+      thread: { scope: "program", title: "Why", subject: member.id },
+    }),
+  );
 });

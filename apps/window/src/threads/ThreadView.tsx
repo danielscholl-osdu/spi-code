@@ -11,9 +11,12 @@ export function ThreadView({ entries, contextLine, origin, ...composer }: Thread
   return (
     <section className={composer.draft ? "thread-view thread-view--draft" : "thread-view"}>
       {composer.draft ? (
-        <p className="thread-origin">
-          {origin ? `${origin}. ` : ""}Nothing is sent until you press send.
-        </p>
+        <>
+          <p className="thread-origin">
+            {origin ? `${origin}. ` : ""}Nothing is sent until you press send.
+          </p>
+          {contextLine && <p className="thread-origin thread-context-line">{contextLine}</p>}
+        </>
       ) : (
         <Timeline
           entries={entries}
