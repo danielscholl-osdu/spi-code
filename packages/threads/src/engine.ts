@@ -108,6 +108,7 @@ export class ThreadEngine<Tool> {
           scope: text(thread.scope),
           ...(thread.title === undefined ? {} : { title: text(thread.title) }),
           ...(thread.subject === undefined ? {} : { subject: text(thread.subject) }),
+          ...(thread.accessMode === undefined ? {} : { accessMode: thread.accessMode }),
         },
       },
     ]);
@@ -577,7 +578,10 @@ export class ThreadEngine<Tool> {
           },
         ]);
       },
-      requestApproval: async ({ approvalId: runtimeId, kind, detail }, decision) => {
+      requestApproval: async (
+        { approvalId: runtimeId, kind, detail, path, diff, reason },
+        decision,
+      ) => {
         if (!live() || requestedApprovals.has(runtimeId)) return false;
         const candidate = safeId(runtimeId);
         const approvalId = turn.approvals.some(({ request }) => request.approvalId === candidate)
@@ -589,6 +593,9 @@ export class ThreadEngine<Tool> {
           approvalId,
           kind: this.redactor.text(kind),
           detail: this.redactor.text(detail),
+          ...(path ? { path: this.redactor.text(path) } : {}),
+          ...(diff ? { diff: this.redactor.text(diff) } : {}),
+          ...(reason ? { reason: this.redactor.text(reason) } : {}),
         });
         requestedApprovals.add(runtimeId);
         if (decision !== undefined) {

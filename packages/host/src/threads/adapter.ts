@@ -6,6 +6,7 @@ import { setTimeout } from "node:timers/promises";
 import type { Tool, ToolResultObject } from "@github/copilot-sdk";
 import { ReasoningEffortSchema } from "@spi-code/contracts";
 import type {
+  AccessMode,
   JsonValue,
   RuntimeEvents,
   RuntimeStop,
@@ -31,6 +32,7 @@ type Runtime = Pick<
 type Settings = {
   model: string;
   reasoningEffort?: NonNullable<ThreadSessionOptions["reasoningEffort"]>;
+  accessMode: AccessMode;
 };
 export type AskingTurnWorkspace = { cwd: string; sandbox: SandboxWorkspace; reading?: JsonValue };
 type Lease = {
@@ -96,6 +98,7 @@ export class CopilotThreadAdapter implements ThreadRuntime<Tool> {
     const settings: Settings = {
       model: message.model ?? "auto",
       ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
+      accessMode: input.thread.accessMode ?? "supervised",
     };
     const lease = await this.open(input, workspace.sandbox, settings, events);
     signal.throwIfAborted();
@@ -148,6 +151,7 @@ export class CopilotThreadAdapter implements ThreadRuntime<Tool> {
       existing?.session.connected &&
       !existing.releasing &&
       existing.instructions === instructions &&
+      existing.settings.accessMode === settings.accessMode &&
       existing.tools.map(({ name }) => name).join() === tools.map(({ name }) => name).join() &&
       JSON.stringify(existing.workspace) === JSON.stringify(workspace)
     ) {
@@ -179,7 +183,8 @@ export class CopilotThreadAdapter implements ThreadRuntime<Tool> {
     const current = () => (lease?.active?.signal.aborted ? undefined : lease?.active?.events);
     const spiReads = new Set(tools.map(({ name }) => name).filter(isSpiReadTool));
     const options: ThreadSessionOptions = {
-      ...settings,
+      model: settings.model,
+      ...(settings.reasoningEffort ? { reasoningEffort: settings.reasoningEffort } : {}),
       ...(instructions ? { systemMessage: { content: instructions } } : {}),
       tools: tools.map((tool) => ({
         ...tool,
@@ -211,8 +216,14 @@ export class CopilotThreadAdapter implements ThreadRuntime<Tool> {
           }
         },
       },
-      onPermissionRequest: askingPermission(workspace, current, { spiReads }),
-      onPermissionDenied: askingPermission(workspace, current, { gateDenied: true }),
+      onPermissionRequest: askingPermission(workspace, current, {
+        spiReads,
+        mode: settings.accessMode,
+      }),
+      onPermissionDenied: askingPermission(workspace, current, {
+        gateDenied: true,
+        mode: settings.accessMode,
+      }),
     };
     let session: ThreadCopilotSession;
     try {

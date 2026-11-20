@@ -306,6 +306,11 @@ describe("Copilot sandbox preflight", () => {
     const runtime = recordedRuntime("blocked", root);
     const thread = await runtime.open();
     expect(thread.sandbox).toEqual({ kind: "confined", backend: "seatbelt" });
+    expect(
+      runtime.session.rpc.options.update.mock.calls.some(([options]) =>
+        options.availableTools.includes("builtin:bash"),
+      ),
+    ).toBe(true);
     expect(runtime.session.rpc.options.update).toHaveBeenLastCalledWith({
       availableTools: [
         ...customOnly,
@@ -315,7 +320,6 @@ describe("Copilot sandbox preflight", () => {
         "builtin:create",
         "builtin:edit",
         "builtin:apply_patch",
-        "builtin:bash",
       ],
       toolFilterPrecedence: "excluded",
     });

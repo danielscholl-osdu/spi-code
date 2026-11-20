@@ -52,6 +52,19 @@ export interface TurnEnd {
   detail?: string;
 }
 
+export interface Approval {
+  kind: "approval";
+  id: string;
+  approvalId: string;
+  turnId: string;
+  requestKind: string;
+  status: "pending" | "approved" | "declined" | "cancelled";
+  detail: string;
+  path?: string;
+  diff?: string;
+  reason?: string;
+}
+
 export interface ModelSwitch {
   kind: "model-switch";
   id: string;
@@ -65,6 +78,7 @@ export type TimelineEntry =
   | ToolCall
   | SetupStep
   | TurnEnd
+  | Approval
   | ModelSwitch;
 
 export interface ContextChip {
@@ -140,4 +154,5 @@ export interface ThreadViewProps extends ComposerProps {
   onChangeScope?(): void;
   /** What a draft shows under its composer. */
   below?: ReactNode;
+  onApprovalDecision?(approval: Approval, approved: boolean): void;
 }

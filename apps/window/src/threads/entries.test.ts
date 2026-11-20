@@ -152,3 +152,37 @@ it("keeps a turn running until the journal ends it, and says a restart cancelled
     expect.objectContaining({ kind: "turn-end", state: "cancelled" }),
   ]);
 });
+
+it("keeps an approval's exact edit and says a restarted approval applied nothing", () => {
+  const { entries } = threadEntries(
+    [
+      created,
+      sent("m1", { prompt: "Edit it" }),
+      { ...turn("u1"), type: "turn.started", messageId: "m1" },
+      {
+        ...turn("u1"),
+        type: "approval.requested",
+        approvalId: "a1",
+        kind: "write",
+        detail: "/repo/src.ts",
+        path: "/repo/src.ts",
+        diff: "--- a/src.ts\n+++ b/src.ts\n@@\n-old\n+new",
+      },
+      { ...turn("u1"), type: "approval.cancelled", approvalId: "a1", reason: "restart" },
+      { ...turn("u1"), type: "turn.finished", outcome: "cancelled", reason: "restart" },
+    ],
+    models,
+  );
+  expect(entries).toContainEqual({
+    kind: "approval",
+    id: "a1",
+    approvalId: "a1",
+    turnId: "u1",
+    requestKind: "write",
+    status: "cancelled",
+    detail: "/repo/src.ts",
+    path: "/repo/src.ts",
+    diff: "--- a/src.ts\n+++ b/src.ts\n@@\n-old\n+new",
+    reason: "SPI Code restarted before the edit was approved. The edit was not applied.",
+  });
+});

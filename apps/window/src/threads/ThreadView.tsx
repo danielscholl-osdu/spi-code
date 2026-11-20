@@ -14,6 +14,7 @@ export function ThreadView({
   contextLine,
   onChangeScope,
   below,
+  onApprovalDecision,
   ...composer
 }: ThreadViewProps) {
   if (!composer.draft)
@@ -24,6 +25,7 @@ export function ThreadView({
           contextLine={contextLine}
           running={composer.running}
           onOpenLink={composer.onOpenLink}
+          onApprovalDecision={onApprovalDecision}
         />
         <Composer {...composer} />
       </section>

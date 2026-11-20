@@ -141,7 +141,7 @@ export const sandboxUnavailable = (reason: CopilotSandboxReason): CopilotSandbox
 });
 
 const fileReadTools = ["view", "glob", "grep"];
-const worktreeTools = ["create", "edit", "apply_patch", "bash"];
+const worktreeTools = ["create", "edit", "apply_patch"];
 
 export function sandboxToolList(
   customTools: readonly string[],

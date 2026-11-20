@@ -19,6 +19,7 @@ export interface ThreadDefinition {
   /** The item the thread started from. */
   subject?: string;
   landsIn?: ThreadLanding;
+  accessMode?: AccessMode;
 }
 
 export type LandingTarget = "fork-main" | "fork-integration" | "upstream";
@@ -128,7 +129,12 @@ export interface ApprovalRequest {
   approvalId: string;
   kind: string;
   detail: string;
+  path?: string;
+  diff?: string;
+  reason?: string;
 }
+
+export type AccessMode = "supervised" | "auto-accept-edits";
 
 export interface RuntimeEvents {
   delta(text: string): void;

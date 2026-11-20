@@ -216,6 +216,9 @@ export function ThreadPage({ id }: { id: string }) {
         }
         onSend={({ text }) => state.send(id, text)}
         onStop={() => state.stop(id)}
+        onApprovalDecision={(approval, approved) =>
+          state.decideApproval(id, approval.turnId, approval.approvalId, approved)
+        }
       />
     </>
   );

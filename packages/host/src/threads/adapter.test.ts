@@ -23,7 +23,7 @@ import {
   todayMembers,
 } from "@spi-code/contracts";
 import { emptyCache } from "@spi-code/core";
-import { ThreadEngine } from "@spi-code/threads";
+import { type AccessMode, ThreadEngine } from "@spi-code/threads";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { appStyle, mixedFixtureInput } from "../../test/watch/snapshot-fixture.js";
 import { CopilotRuntime, type ThreadCopilotSession } from "../copilot/runtime.js";
@@ -154,9 +154,34 @@ function recordedRuntime(...ids: string[]) {
   return { runtime, sessions, open, restart, order };
 }
 
-function dependencies(runtime: CopilotRuntime, savedSweep: LatestSweep = () => undefined) {
+function dependencies(
+  runtime: CopilotRuntime,
+  savedSweep: LatestSweep = () => undefined,
+  writable = false,
+) {
   const git = new PrivilegedGit({ appData: root, capturedPath: "" });
   const workspaces = new ScopeWorkspaces(git);
+  if (writable) {
+    const clone = join(root, "clone");
+    const worktree = join(root, "worktree");
+    mkdirSync(clone, { recursive: true });
+    mkdirSync(worktree, { recursive: true });
+    vi.spyOn(workspaces, "prepareThread").mockResolvedValue({
+      ok: true,
+      workspace: {
+        kind: "worktree",
+        cwd: worktree,
+        gitDirectory: join(clone, ".git"),
+        readOnly: false,
+        clonePath: clone,
+        worktreeId: "fixture-worktree",
+      },
+    });
+    vi.spyOn(git, "head").mockResolvedValue({
+      ok: true,
+      data: "b915dad14d64d8c00f99cb9c975695c8bf26ad70",
+    });
+  }
   return {
     db: database,
     storePath,
@@ -178,8 +203,10 @@ async function connect(
   savedSweep?: LatestSweep,
   env?: NodeJS.ProcessEnv,
   subscribe = true,
+  writable = false,
+  accessMode?: AccessMode,
 ) {
-  const options = dependencies(runtime, savedSweep);
+  const options = dependencies(runtime, savedSweep, writable);
   const host = new ThreadRoutes({ ...options, env: { ...options.env, ...env } });
   hosts.push(host);
   const output: Message[] = [];
@@ -218,7 +245,12 @@ async function connect(
   }
   const threadId =
     existing ??
-    (await response(dispatch("thread.start", { scope: "program" })).then((result) => {
+    (await response(
+      dispatch("thread.start", {
+        scope: "program",
+        ...(accessMode ? { accessMode } : {}),
+      }),
+    ).then((result) => {
       if (result.type !== "thread.started") throw new Error("Thread did not start");
       return result.payload.threadId;
     }));
@@ -1170,6 +1202,126 @@ it("denies and journals Asking permissions and redacts named model and journal f
   expect(JSON.stringify(events)).not.toMatch(
     /fixture-copilot-value|fixture-glab-value|do-not-journal/,
   );
+});
+
+it("routes one edit approval to only its thread turn", async () => {
+  const {
+    runtime,
+    sessions: [session],
+    open,
+  } = recordedRuntime("approval-route");
+  if (!session) throw new Error("Incomplete recording");
+  const port = await connect(runtime, undefined, undefined, undefined, true, true);
+  const send = port.send({ prompt: "Edit" });
+  await vi.waitFor(() => {
+    const error = port.output.find((entry) => entry.id === send && entry.type === "error");
+    if (error?.type === "error") throw new Error(error.payload.message);
+    expect(session.send).toHaveBeenCalledOnce();
+  });
+  session.begin("approval-route-turn");
+  const config = open.mock.calls[0]?.[1];
+  if (!config) throw new Error("Missing thread config");
+  const permission = config.onPermissionRequest(
+    {
+      kind: "write",
+      canOfferSessionApproval: false,
+      diff: "--- a/src.ts\n+++ b/src.ts\n@@\n-old\n+new",
+      fileName: "/repo/src.ts",
+      intention: "Edit",
+    },
+    { sessionId: session.id },
+  );
+  await vi.waitFor(() =>
+    expect(port.events()).toContainEqual(
+      expect.objectContaining({
+        type: "approval.requested",
+        path: "/repo/src.ts",
+        diff: expect.stringContaining("+new"),
+      }),
+    ),
+  );
+  const request = port
+    .events()
+    .find((event) => event.type === "approval.requested" && event.kind === "write");
+  if (request?.type !== "approval.requested") throw new Error("Missing approval");
+  const wrong = port.dispatch("thread.approval", {
+    threadId: `${port.threadId}-other`,
+    turnId: request.turnId,
+    approvalId: request.approvalId,
+    approved: true,
+  });
+  await expect(port.response(wrong)).resolves.toMatchObject({
+    type: "thread.approval.result",
+    payload: { decided: false },
+  });
+
+  const decision = port.dispatch("thread.approval", {
+    threadId: port.threadId,
+    turnId: request.turnId,
+    approvalId: request.approvalId,
+    approved: true,
+  });
+  await expect(port.response(decision)).resolves.toMatchObject({
+    type: "thread.approval.result",
+    payload: { decided: true },
+  });
+  await expect(permission).resolves.toEqual({ kind: "approve-once" });
+  session.finish("approval-route-turn");
+  await port.response(send);
+  expect(port.events()).toContainEqual(
+    expect.objectContaining({
+      type: "approval.resolved",
+      approvalId: request.approvalId,
+      approved: true,
+    }),
+  );
+});
+
+it("auto-accepts an edit in the thread's persisted access mode", async () => {
+  const {
+    runtime,
+    sessions: [session],
+    open,
+  } = recordedRuntime("auto-edit");
+  if (!session) throw new Error("Incomplete recording");
+  const port = await connect(
+    runtime,
+    undefined,
+    undefined,
+    undefined,
+    true,
+    true,
+    "auto-accept-edits",
+  );
+  const send = port.send({ prompt: "Edit" });
+  await vi.waitFor(() => expect(session.send).toHaveBeenCalledOnce());
+  session.begin("auto-edit-turn");
+  const config = open.mock.calls[0]?.[1];
+  if (!config) throw new Error("Missing thread config");
+  const permission = config.onPermissionRequest(
+    {
+      kind: "write",
+      canOfferSessionApproval: false,
+      diff: "+new",
+      fileName: "/repo/src.ts",
+      intention: "Edit",
+    },
+    { sessionId: session.id },
+  );
+  await vi.waitFor(() =>
+    expect(port.events()).toContainEqual(
+      expect.objectContaining({ type: "approval.requested", kind: "write" }),
+    ),
+  );
+  expect(port.events()).toContainEqual(
+    expect.objectContaining({
+      type: "approval.resolved",
+      approved: true,
+    }),
+  );
+  await expect(permission).resolves.toEqual({ kind: "approve-once" });
+  session.finish("auto-edit-turn");
+  await port.response(send);
 });
 
 function askingFiles() {

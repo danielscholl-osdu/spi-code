@@ -5,7 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Icon } from "../components/icons/Icon.js";
 import { Markdown } from "./Markdown.js";
 import { type TimelineRow, timelineRows, workSummary } from "./rows.js";
-import type { StepStatus, TimelineEntry, ToolCall } from "./types.js";
+import type { Approval, StepStatus, TimelineEntry, ToolCall } from "./types.js";
 import { VirtualList } from "./VirtualList.js";
 
 const STATUS_WORDS: Record<StepStatus, string> = {
@@ -78,9 +78,10 @@ interface RowProps {
   open: ReadonlySet<string>;
   toggle(id: string): void;
   onOpenLink?: (url: string) => void;
+  onApprovalDecision?(approval: Approval, approved: boolean): void;
 }
 
-function Row({ row, open, toggle, onOpenLink }: RowProps) {
+function Row({ row, open, toggle, onOpenLink, onApprovalDecision }: RowProps) {
   switch (row.kind) {
     case "user":
       return (
@@ -151,6 +152,44 @@ function Row({ row, open, toggle, onOpenLink }: RowProps) {
       );
     case "model-switch":
       return <p className="thread-turn-end">Switched to {row.to}</p>;
+    case "approval":
+      return (
+        <section className="thread-approval" data-status={row.status}>
+          <p className="thread-approval-head">
+            <span>{row.requestKind === "write" ? "Edit a file" : row.requestKind}</span>
+            <span className="thread-approval-status">
+              {row.status === "pending"
+                ? "Waiting on you"
+                : row.status === "approved"
+                  ? "Approved once"
+                  : row.status === "declined"
+                    ? "Declined"
+                    : "Cancelled"}
+            </span>
+          </p>
+          {row.path && <code className="thread-approval-path">{row.path}</code>}
+          {row.diff && <pre className="thread-approval-diff">{row.diff}</pre>}
+          {!row.path && !row.diff && <code className="thread-approval-path">{row.detail}</code>}
+          {row.reason && <p className="thread-approval-reason">{row.reason}</p>}
+          {row.status === "declined" && !row.reason && (
+            <p className="thread-approval-reason">Declined. No change was made.</p>
+          )}
+          {row.status === "pending" && (
+            <div className="thread-approval-actions">
+              <button type="button" onClick={() => onApprovalDecision?.(row, false)}>
+                Decline
+              </button>
+              <button
+                type="button"
+                className="thread-approval-primary"
+                onClick={() => onApprovalDecision?.(row, true)}
+              >
+                Approve once
+              </button>
+            </div>
+          )}
+        </section>
+      );
   }
 }
 
@@ -162,6 +201,7 @@ const ESTIMATES: Record<Item["kind"], number> = {
   setup: 40,
   "turn-end": 40,
   "model-switch": 40,
+  approval: 144,
 };
 
 export function Timeline({
@@ -169,11 +209,13 @@ export function Timeline({
   contextLine,
   running,
   onOpenLink,
+  onApprovalDecision,
 }: {
   entries: readonly TimelineEntry[];
   contextLine?: string | undefined;
   running: boolean;
   onOpenLink?: ((url: string) => void) | undefined;
+  onApprovalDecision?: ((approval: Approval, approved: boolean) => void) | undefined;
 }) {
   const rows = useMemo(() => timelineRows(entries), [entries]);
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
@@ -207,7 +249,13 @@ export function Timeline({
         busy={running}
       >
         {(row) => (
-          <Row row={row} open={open} toggle={toggle} {...(onOpenLink ? { onOpenLink } : {})} />
+          <Row
+            row={row}
+            open={open}
+            toggle={toggle}
+            {...(onOpenLink ? { onOpenLink } : {})}
+            {...(onApprovalDecision ? { onApprovalDecision } : {})}
+          />
         )}
       </VirtualList>
     </div>

@@ -70,6 +70,7 @@ type ThreadsState = {
   removeDraftChip(): void;
   sendDraft(text: string, onStarted: (threadId: string) => void): void;
   send(threadId: string, text: string): void;
+  decideApproval(threadId: string, turnId: string, approvalId: string, approved: boolean): void;
   stop(threadId: string): void;
   open(threadId: string): void;
   settle(thread: ThreadSummary, onSettled?: (threads: readonly ThreadSummary[]) => void): void;
@@ -86,6 +87,9 @@ const STATUS_EVENTS = new Set([
   "turn.started",
   "turn.finished",
   "message.cancelled",
+  "approval.requested",
+  "approval.resolved",
+  "approval.cancelled",
   "thread.settled",
   "thread.unsettled",
   "thread.seen",
@@ -317,6 +321,11 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
         });
       },
       send: (threadId, text) => sendMessage(threadId, message(threadId, text)),
+      decideApproval: (threadId, turnId, approvalId, approved) =>
+        request("thread.approval", { threadId, turnId, approvalId, approved }, (reply) => {
+          if (reply.type !== "thread.approval.result" || reply.payload.decided) return;
+          list();
+        }),
       stop: (threadId) => request("thread.stop", { threadId }, () => list()),
       open(threadId) {
         if (!get().catalog) get().listModels();

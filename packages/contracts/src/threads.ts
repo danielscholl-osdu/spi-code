@@ -46,6 +46,7 @@ const identity = {
   scope: id,
   title: z.string().optional(),
   subject: id.optional(),
+  accessMode: z.enum(["supervised", "auto-accept-edits"]).optional(),
 };
 const definition = z.strictObject({ ...identity, landsIn: landing.optional() });
 export const ReasoningEffortSchema = z.enum(["low", "medium", "high", "xhigh", "max"]);
@@ -131,6 +132,9 @@ export const ThreadEventSchema = z.discriminatedUnion("type", [
     approvalId: id,
     kind: z.string(),
     detail: z.string(),
+    path: id.optional(),
+    diff: z.string().optional(),
+    reason: z.string().optional(),
   }),
   z.strictObject({
     ...turn,
@@ -215,6 +219,16 @@ export const ThreadMessageSchema = z.discriminatedUnion("type", [
   ),
   envelope("thread.send", "request", threadId.extend({ message }).strict()),
   envelope("thread.sent", "response", threadId.extend({ outcome }).strict()),
+  envelope(
+    "thread.approval",
+    "request",
+    threadId.extend({ turnId: id, approvalId: id, approved: z.boolean() }).strict(),
+  ),
+  envelope(
+    "thread.approval.result",
+    "response",
+    threadId.extend({ approvalId: id, decided: z.boolean() }).strict(),
+  ),
   envelope("thread.stop", "request", threadId.strict()),
   envelope("thread.stopped", "response", threadId.strict()),
   envelope("thread.settle", "request", threadId.strict()),

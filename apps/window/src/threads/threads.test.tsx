@@ -115,6 +115,12 @@ function fakeHost() {
           threadId: request.payload.threadId,
           outcome: "completed",
         });
+      case "thread.approval":
+        return send("thread.approval.result", request.id, {
+          threadId: request.payload.threadId,
+          approvalId: request.payload.approvalId,
+          decided: true,
+        });
       case "thread.settle":
         if (["Working", "Waiting on you"].includes(statuses.get(request.payload.threadId) ?? "")) {
           return send("error", request.id, {
@@ -975,4 +981,16 @@ it("replaces an attached chip, and a late pack for an earlier choice changes not
   expect(notice()).toBe("Packing what you were looking at…");
   await reply(again, firstId);
   expect(threadStore.getState().draft?.chip?.state).toBe("done");
+});
+
+it("posts one approval decision with the thread, turn and approval ids", () => {
+  threadStore.getState().decideApproval("t1", "turn-1", "approval-1", false);
+  expect(host.sent("thread.approval").map(({ payload }) => payload)).toEqual([
+    {
+      threadId: "t1",
+      turnId: "turn-1",
+      approvalId: "approval-1",
+      approved: false,
+    },
+  ]);
 });
