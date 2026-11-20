@@ -51,16 +51,6 @@ ${directories.map((directory) => `\n  ${directory}: {}\n`).join("")}`;
     return { stage, lockfile };
   }
 
-  it("ships the Windows observation probe with the packaged host", async () => {
-    const manifest = JSON.parse(
-      await readFile(
-        fileURLToPath(new URL("../apps/desktop/package.json", import.meta.url)),
-        "utf8",
-      ),
-    );
-    expect(manifest.build.files).toContain("scripts/windows-sandbox-probe.mjs");
-  });
-
   it("stages no compiled tests, fixture builders or smoke launcher while retaining in-bundle smoke modules", async () => {
     const root = await mkdtemp(join(tmpdir(), "spi-package-runtime-"));
     fixtures.push(root);
@@ -69,7 +59,6 @@ ${directories.map((directory) => `\n  ${directory}: {}\n`).join("")}`;
       "apps/desktop/src/preload.cjs",
       "apps/window/build/index.html",
       "scripts/packaged-host.mjs",
-      "scripts/windows-sandbox-probe.mjs",
       ...["report", "messages", "listeners", "snapshot", "supervision"].map(
         (name) => `apps/desktop/dist/smoke-${name}.js`,
       ),

@@ -590,7 +590,10 @@ export async function probeWindowsSandbox(options = {}) {
 
 if (process.argv[1] && fileURLToPath(pathToFileURL(process.argv[1]).href) === scriptPath) {
   try {
-    const report = await probeWindowsSandbox();
+    const packagedBin = process.env.SPI_CODE_WINDOWS_MXC_BIN;
+    const report = await probeWindowsSandbox(
+      packagedBin ? { mxcBin: packagedBin, sdkPackage: "extracted packaged app" } : {},
+    );
     console.log(JSON.stringify(report, null, 2));
   } catch (error) {
     console.error(`Windows sandbox probe did not complete: ${message(error)}`);

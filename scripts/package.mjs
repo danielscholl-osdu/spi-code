@@ -245,7 +245,6 @@ export async function stageRuntimeFiles(root, stage) {
     "apps/desktop/src/preload.cjs",
     "apps/window/build",
     "scripts/packaged-host.mjs",
-    "scripts/windows-sandbox-probe.mjs",
   ]) {
     await mkdir(dirname(join(stage, path)), { recursive: true });
     await cp(join(root, path), join(stage, path), {
@@ -429,6 +428,19 @@ export async function packageDesktop(platform = process.platform) {
     const bundle = windows ? extracted : join(extracted, "SPI Code.app/Contents");
     const resources = join(bundle, windows ? "resources" : "Resources");
     await assertPackagedMxc(resources, platform);
+    if (windows) {
+      const unpackedMxcBin = join(resources, "app.asar.unpacked", mxcBin);
+      execFileSync(process.execPath, [join(root, "scripts/windows-sandbox-probe.mjs")], {
+        cwd: root,
+        env: {
+          ...env,
+          MXC_FFI_DIR: join(unpackedMxcBin, mxcTargets[platform].arch),
+          SPI_CODE_WINDOWS_MXC_BIN: unpackedMxcBin,
+        },
+        stdio: "inherit",
+        timeout: 180_000,
+      });
+    }
     const reportPath = join(output, "smoke.json");
     const runtimeReportPath = join(output, "runtime.json");
     for (const path of [reportPath, runtimeReportPath]) await rm(path, { force: true });

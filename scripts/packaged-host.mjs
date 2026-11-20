@@ -11,13 +11,12 @@ import { publishRuntimeProbe } from "../apps/desktop/dist/smoke-runtime-report.j
 import { buildClientOptions, resolveRuntimePath } from "../packages/host/dist/copilot/runtime.js";
 import { runConfined } from "../packages/host/dist/scopes/confined.js";
 
-const mxcNativeDir = fileURLToPath(
+process.env.MXC_FFI_DIR = fileURLToPath(
   new URL(
     `../../app.asar.unpacked/node_modules/@microsoft/mxc-sdk/bin/${process.arch}`,
     import.meta.url,
   ),
 );
-process.env.MXC_FFI_DIR = mxcNativeDir;
 
 /** @param {string} appDataDir */
 async function probeConfinement(appDataDir) {
@@ -105,16 +104,9 @@ if (process.argv.includes("--stub-model") && process.argv[3] === "write") {
       failure = error;
     }
     await stopProbe(client, failure);
-    const confinement = await probeConfinement(dirname(storePath));
-    if (process.platform !== "win32") return { listenerCheck, confinement };
-    const { probeWindowsSandbox } = await import("./windows-sandbox-probe.mjs");
     return {
       listenerCheck,
-      confinement,
-      windowsSandboxObservation: await probeWindowsSandbox({
-        mxcBin: dirname(mxcNativeDir),
-        sdkPackage: dirname(mxcNativeDir),
-      }),
+      confinement: await probeConfinement(dirname(storePath)),
     };
   }).catch((error) => {
     console.error(error);
