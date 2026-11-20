@@ -424,12 +424,16 @@ describe("TCP listener evidence", () => {
         expect(sleep.mock.calls).toEqual([[250]]);
       });
 
-      it.each(["listener", "missing host", "malformed JSON"])(
+      it.each(["listener", "missing main", "missing host", "malformed JSON"])(
         "does not retry invalid %s evidence",
         async (failure) => {
           const base = fixture(
             failure === "listener" ? 102 : undefined,
-            failure === "missing host" ? tree.filter(({ pid }) => pid !== 101) : tree,
+            failure === "missing main"
+              ? tree.filter(({ pid }) => pid !== 100)
+              : failure === "missing host"
+                ? tree.filter(({ pid }) => pid !== 101)
+                : tree,
           );
           const exec = vi.fn<Exec>((file, args, timeout) =>
             file === "powershell.exe" && failure === "malformed JSON"

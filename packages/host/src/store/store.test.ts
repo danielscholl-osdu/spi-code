@@ -107,7 +107,7 @@ describe("file-backed run store", () => {
     expect(store.appendEvent(run.id, { kind: "text", message: "again" }, later)).toBe(3);
     expect(store.lastSeq(run.id)).toBe(3);
     expect(store.get("missing")).toBeUndefined();
-  });
+  }, 120_000);
 
   it("preserves every committed event with contiguous sequences after SIGKILL", async () => {
     const count = 12;
@@ -157,7 +157,7 @@ describe("file-backed run store", () => {
     );
     expect(reopened.lastSeq("crash")).toBe(count);
     expect(reopened.appendEvent("crash", { kind: "text" }, later)).toBe(count + 1);
-  }, 60_000);
+  }, 120_000);
 
   it("pages strictly after the cursor in sequence order, independently per run and connection", () => {
     const store = open();

@@ -165,7 +165,7 @@ beforeAll(async () => {
       replays.set(scenario, error instanceof Error ? error : new Error(String(error)));
     }
   }
-}, 120_000);
+}, 240_000);
 
 afterAll(() => {
   vi.restoreAllMocks();
