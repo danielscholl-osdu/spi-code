@@ -158,7 +158,12 @@ export function ThreadPage({ id }: { id: string }) {
             draft.sending === undefined
           }
           onSend={({ text }) =>
-            state.sendDraft(text, (threadId) => replaceRoute({ kind: "thread", id: threadId }))
+            state.sendDraft(text, (threadId) => {
+              const thread = { kind: "thread", id: threadId } as const;
+              if (window.location.hash === routeHash({ kind: "thread", id: NEW_THREAD }))
+                replaceRoute(thread);
+              else navigate(thread);
+            })
           }
           onStop={() => {}}
           below={

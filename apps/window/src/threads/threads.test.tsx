@@ -462,6 +462,33 @@ it("goes Back from a sent draft to the page it started on, with no picker", asyn
   expect(window.location.hash).toBe("#service/partition");
 });
 
+it("keeps the page an operator left the draft for when the thread starts late", async () => {
+  host.silent.add("thread.start");
+  window.location.hash = "#service/partition";
+  await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
+  await click(buttonNamed("Ask Copilot about partition"));
+  await type("Why did the last sync stop?");
+  await click(buttonNamed("Send ⏎"));
+  window.location.hash = "#upstream";
+  await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
+  const [start] = host.sent("thread.start");
+  await act(async () =>
+    threadStore.getState().receive({
+      version: PROTOCOL_VERSION,
+      id: start?.id,
+      kind: "response",
+      type: "thread.started",
+      payload: { threadId: "t9", landsIn: { target: "asking" } },
+    }),
+  );
+  expect(window.location.hash).toBe("#thread/t9");
+  await act(async () => {
+    goBack();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(window.location.hash).toBe("#upstream");
+});
+
 it("leaves a draft route with no draft for the fallback, without a picker", async () => {
   window.location.hash = "#thread/new";
   await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
