@@ -191,6 +191,23 @@ export function order(ops: readonly TraceOp[]): string[][] {
   );
 }
 
+/** The part of two sequences between their common start and common end. */
+function span(recorded: readonly string[], live: readonly string[]): string {
+  let start = 0;
+  while (start < recorded.length && recorded[start] === live[start]) start += 1;
+  let end = 0;
+  while (
+    end < recorded.length - start &&
+    end < live.length - start &&
+    recorded[recorded.length - 1 - end] === live[live.length - 1 - end]
+  )
+    end += 1;
+  const after = recorded[start - 1] ?? "the start";
+  const show = (types: readonly string[]) =>
+    types.slice(start, types.length - end).join(" > ") || "nothing";
+  return `after ${after}: recorded ${show(recorded)}; live ${show(live)}`;
+}
+
 /** What differs between a recorded trace and a live run; only relations count as a failure. */
 export function compareTraces(recorded: readonly TraceOp[], live: readonly TraceOp[]) {
   const orderLines: string[] = [];
@@ -204,9 +221,7 @@ export function compareTraces(recorded: readonly TraceOp[], live: readonly Trace
   for (const [index, sequence] of was.entries()) {
     const current = now[index];
     if (current && current.join(" > ") !== sequence.join(" > "))
-      orderLines.push(
-        `turn ${index + 1}\n    recorded ${sequence.join(" > ")}\n    live     ${current.join(" > ")}`,
-      );
+      orderLines.push(`turn ${index + 1} ${span(sequence, current)}`);
     const left = wasRelations[index] ?? {};
     const right = nowRelations[index] ?? {};
     for (const [name, value] of Object.entries(left)) {
