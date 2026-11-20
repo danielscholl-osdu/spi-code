@@ -18,6 +18,53 @@ export interface ExecResult {
 
 export type Exec = (file: string, args: readonly string[], timeout: number) => Promise<ExecResult>;
 
+export async function queryWindowsProcesses(
+  exec: Exec,
+  script: string,
+  remaining: () => number,
+  sleep: (ms: number) => Promise<unknown> = (ms) => delay(ms),
+): Promise<ExecResult & { processQueryAttempts: number }> {
+  const errors: unknown[] = [];
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    let timeout: number;
+    try {
+      timeout = Math.min(15_000, remaining());
+    } catch (error) {
+      if (!errors.length) throw error;
+      break;
+    }
+    try {
+      const result = await exec(
+        "powershell.exe",
+        ["-NoProfile", "-NonInteractive", "-Command", script],
+        timeout,
+      );
+      if (result.status !== 0) throw new Error(`Process query failed: ${result.stderr.trim()}`);
+      return { ...result, processQueryAttempts: attempt };
+    } catch (error) {
+      errors.push(error);
+      if (attempt === 3) break;
+      try {
+        if (remaining() <= 250) break;
+      } catch {
+        break;
+      }
+      await sleep(250);
+    }
+  }
+  const details = errors
+    .map((error) => {
+      const signal =
+        error && typeof error === "object" && "signal" in error ? ` (signal ${error.signal})` : "";
+      return `${error instanceof Error ? error.message : String(error)}${signal}`;
+    })
+    .join("; ");
+  throw new AggregateError(
+    errors,
+    `Windows process query failed after ${errors.length} attempts: ${details}`,
+  );
+}
+
 function commandEnvironment(): NodeJS.ProcessEnv {
   const { LC_ALL: _, ...env } = process.env;
   // English lstart day and month names, with command text kept as UTF-8 rather than vis-encoded.
@@ -58,6 +105,7 @@ interface TreeOptions {
   platform?: NodeJS.Platform;
   exec?: Exec;
   now?(): number;
+  sleep?(ms: number): Promise<unknown>;
 }
 
 function pids(text: string): number[] {
@@ -92,6 +140,8 @@ const windowsIdentity = '"$($_.ProcessId):$($_.CreationDate.ToFileTimeUtc())"';
 export function identifyProcesses({
   platform = process.platform,
   exec = execText,
+  now = () => performance.now(),
+  sleep = (ms) => delay(ms),
 }: TreeOptions = {}): Identify {
   return async (targets, timeoutMs) => {
     if (!targets.length) return new Map();
@@ -101,12 +151,13 @@ export function identifyProcesses({
         '$ErrorActionPreference = "Stop"',
         `(@(Get-CimInstance Win32_Process -Filter "${filter}") | ForEach-Object { ${windowsIdentity} }) -join ","`,
       ].join("\n");
-      const result = await exec(
-        "powershell.exe",
-        ["-NoProfile", "-NonInteractive", "-Command", script],
-        timeoutMs,
-      );
-      if (result.status !== 0) throw new Error(`Process query failed: ${result.stderr.trim()}`);
+      const deadline = now() + timeoutMs;
+      const remaining = () => {
+        const left = Math.floor(deadline - now());
+        if (left <= 0) throw new Error(`Process query exceeded ${timeoutMs} ms`);
+        return left;
+      };
+      const result = await queryWindowsProcesses(exec, script, remaining, sleep);
       return new Map(windowsIdentities(result.stdout).map(({ pid, started }) => [pid, started]));
     }
     const result = await exec("ps", ["-o", "pid=,lstart=", "-p", targets.join(",")], timeoutMs);
@@ -123,6 +174,7 @@ export async function captureDescendants(
     platform = process.platform,
     exec = execText,
     now = () => performance.now(),
+    sleep = (ms) => delay(ms),
     timeoutMs = DESCENDANT_CAPTURE_MS,
   }: TreeOptions & { timeoutMs?: number } = {},
 ): Promise<ProcessIdentity[]> {
@@ -149,12 +201,7 @@ export async function captureDescendants(
       "}",
       `($found | ForEach-Object { ${windowsIdentity} }) -join ","`,
     ].join("\n");
-    const result = await exec(
-      "powershell.exe",
-      ["-NoProfile", "-NonInteractive", "-Command", script],
-      remaining(),
-    );
-    if (result.status !== 0) throw new Error(`Process query failed: ${result.stderr.trim()}`);
+    const result = await queryWindowsProcesses(exec, script, remaining, sleep);
     return windowsIdentities(result.stdout);
   }
   const found: number[] = [];

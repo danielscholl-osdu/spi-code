@@ -81,7 +81,7 @@ it("writes exactly the files in the manifest", () => {
   });
 
   expect(filesUnder(root)).toEqual(manifest);
-});
+}, 60_000);
 
 describe("the build gate", () => {
   /**

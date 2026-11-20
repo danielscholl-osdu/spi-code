@@ -3,7 +3,7 @@
 
 import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
-import { type Exec, execText } from "./host-tree.js";
+import { type Exec, execText, queryWindowsProcesses } from "./host-tree.js";
 
 export { type Exec, type ExecResult, execText } from "./host-tree.js";
 
@@ -112,57 +112,6 @@ interface ProcessTable {
   processQueryAttempts: number;
 }
 
-async function windowsProcessQuery(
-  exec: Exec,
-  remaining: () => number,
-  sleep: (ms: number) => Promise<unknown>,
-) {
-  const errors: unknown[] = [];
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    let timeout: number;
-    try {
-      timeout = Math.min(15000, remaining());
-    } catch (error) {
-      if (!errors.length) throw error;
-      break;
-    }
-    try {
-      const result = await runResult(
-        exec,
-        "powershell.exe",
-        [
-          "-NoProfile",
-          "-NonInteractive",
-          "-Command",
-          '$ErrorActionPreference = "Stop"; [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,CommandLine,CreationDate | Select-Object ProcessId,ParentProcessId,CommandLine,@{Name="StartedAt";Expression={if ($_.CreationDate) { ([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds() } else { $null }}} | ConvertTo-Json -Compress',
-        ],
-        timeout,
-      );
-      return { ...result, processQueryAttempts: attempt };
-    } catch (error) {
-      errors.push(error);
-      if (attempt === 3) break;
-      try {
-        if (remaining() <= 250) break;
-      } catch {
-        break;
-      }
-      await sleep(250);
-    }
-  }
-  const details = errors
-    .map((error) => {
-      const signal =
-        error && typeof error === "object" && "signal" in error ? ` (signal ${error.signal})` : "";
-      return `${error instanceof Error ? error.message : String(error)}${signal}`;
-    })
-    .join("; ");
-  throw new AggregateError(
-    errors,
-    `Windows process query failed after ${errors.length} attempts: ${details}`,
-  );
-}
-
 async function processTree(
   exec: Exec,
   remaining: () => number,
@@ -173,7 +122,12 @@ async function processTree(
       stdout: output,
       pid: scanPid,
       processQueryAttempts,
-    } = await windowsProcessQuery(exec, remaining, sleep);
+    } = await queryWindowsProcesses(
+      exec,
+      '$ErrorActionPreference = "Stop"; [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,CommandLine,CreationDate | Select-Object ProcessId,ParentProcessId,CommandLine,@{Name="StartedAt";Expression={if ($_.CreationDate) { ([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds() } else { $null }}} | ConvertTo-Json -Compress',
+      remaining,
+      sleep,
+    );
     const parsed: unknown = JSON.parse(output);
     const rows = (Array.isArray(parsed) ? parsed : [parsed]).map((row: unknown) => {
       assert(row && typeof row === "object", "Invalid Windows process row");
