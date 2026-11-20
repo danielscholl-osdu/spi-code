@@ -72,7 +72,7 @@ Only wrong behaviour against acceptance, a broken gate or red CI blocks a pass. 
 
 After a `risk:std` fix round, the orchestrator reads the fix diff, confirms CI green and records the pass citing the review, with the reviewer's `review.provider` and `review.model`. It pins the fixed head with `scripts/review-head`. `risk:high` keeps a recheck.
 
-After round 1, only a blocker buys another cycle, and a fix round adds no behaviour outside acceptance. A recheck finding graded `should` or follow-up goes to the epic's hardening bead, which the first `risk:high` synthesis files and which blocks the closing checkpoint; the passing head lands. A `risk:high` fix that changes only tests gets no recheck: the orchestrator confirms it when it removes or loosens no assertion or fixture row on a gate and CI is green on the platform that was red.
+After round 1, only a blocker buys another cycle, and a fix round adds no behaviour outside acceptance. A recheck finding graded `should` or follow-up goes to the epic's hardening bead, which the first such finding files and which blocks the closing checkpoint; the passing head lands. A `risk:high` fix that changes only tests gets no recheck: the orchestrator confirms it when it removes or loosens no assertion or fixture row on a gate and CI is green on the platform that was red.
 
 A pass is recorded as bead metadata, which `scripts/land` reads:
 

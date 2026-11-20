@@ -54,7 +54,7 @@ After a `risk:std` fix round, the orchestrator reads the fix diff, confirms CI g
 
 - Read `git diff <reviewed head> <new head>`, not the whole bead again.
 - For each finding, rerun the probe that found it. Confirm the new test fails without the fix only for stores, state machines, parsing and gates.
-- A finding holds up the pass only when it is a `blocker`. One graded `should` or follow-up goes as a comment to the epic's hardening bead, which the synthesis names, and you record the pass.
+- A finding holds up the pass only when it is a `blocker`. One graded `should` or follow-up goes as a comment to the epic's hardening bead, and you record the pass.
 - Without a pass, write your probe rows as in "Your own probes".
 - When the round changed only the bead's text and the head is the same, there is nothing to rerun: confirm the text and record the pass.
 - If this round's finding is the same kind as the last round's, say so plainly. The cut the synthesis named lands; with none named, the approach needs changing, and the orchestrator takes it to the maintainer.
