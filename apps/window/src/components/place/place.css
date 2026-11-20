@@ -39,7 +39,7 @@
   max-width: 70ch;
   margin: 0 0 4px;
   color: var(--text-strong);
-  font-size: var(--text-2xl);
+  font-size: var(--text-xl);
   font-weight: 600;
   line-height: 1.35;
   text-wrap: balance;
@@ -74,7 +74,7 @@
 }
 .place-tile-value {
   color: var(--text-strong);
-  font-size: var(--text-xl);
+  font-size: var(--text-2xl);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }

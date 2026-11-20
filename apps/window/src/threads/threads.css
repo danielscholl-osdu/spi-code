@@ -8,7 +8,7 @@
 .thread-origin { box-sizing: border-box; width: min(var(--thread-column), calc(100% - 44px)); margin: 0 auto 16px; font-size: var(--text-sm); color: var(--text-muted); }
 
 .thread-timeline { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 20px 0 0; }
-.thread-context-line { box-sizing: border-box; width: min(var(--thread-column), calc(100% - 44px)); flex: none; margin-inline: auto; padding-bottom: 8px; border-bottom: 1px dashed var(--border); }
+.thread-context-line { box-sizing: border-box; width: min(var(--thread-column), calc(100% - 44px)); flex: none; margin: 0 auto 16px; padding-bottom: 8px; border-bottom: 1px dashed var(--border); color: var(--text-muted); font-size: var(--text-sm); }
 .thread-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-anchor: none; scrollbar-gutter: stable both-edges; }
 .thread-row { box-sizing: border-box; width: min(var(--thread-column), calc(100% - 44px)); margin-inline: auto; padding-bottom: 18px; }
 
@@ -21,18 +21,20 @@
 .thread-md { font-size: var(--thread-read); line-height: 1.6; overflow-wrap: anywhere; }
 .thread-md > * { margin: 0 0 0.75em; }
 .thread-md > :last-child { margin-bottom: 0; }
-.thread-md-h { margin: 1.3em 0 0.45em; font-size: var(--text-xl); font-weight: 600; line-height: 1.3; color: var(--text-strong); }
+.thread-md-h { margin: 1.3em 0 0.45em; font-weight: 600; line-height: 1.3; color: var(--text-strong); }
 .thread-md > .thread-md-h:first-child { margin-top: 0; }
-.thread-md-h[data-level="1"], .thread-md-h[data-level="2"] { font-size: var(--text-xl); }
+.thread-md-h[data-level="1"] { font-size: var(--text-xl); }
+.thread-md-h[data-level="2"] { font-size: var(--text-lg); font-weight: 650; }
+.thread-md-h[data-level="3"] { font-size: var(--text-md); font-weight: 650; }
 .thread-md ul, .thread-md ol { padding-left: 1.4em; }
 .thread-md li + li { margin-top: 0.3em; }
 .thread-md li::marker { color: var(--text-muted); }
 .thread-md ol > li::marker { font-variant-numeric: tabular-nums; }
 .thread-md strong { font-weight: 650; color: var(--text-strong); }
-.thread-md code { font-family: var(--font-mono); font-size: var(--text-md); }
+.thread-md code { font-family: var(--font-mono); font-size: var(--text-sm); }
 .thread-md :not(pre) > code { padding: 0.1em 0.35em; border: 1px solid var(--border-soft); border-radius: 4px; background: var(--surface-raised); color: var(--text-strong); }
 .thread-md pre { padding: 10px 12px; border: 1px solid var(--border-soft); border-radius: 8px; background: var(--surface-raised); line-height: 1.5; overflow-x: auto; }
-.thread-md pre code { font-size: var(--text-md); }
+.thread-md pre code { font-size: var(--text-sm); }
 .thread-md a { color: var(--accent-text); text-underline-offset: 2px; }
 
 .thread-work { font-size: var(--thread-meta); color: var(--text-muted); }
@@ -54,10 +56,10 @@
 @keyframes thread-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .thread-mark--running svg { animation: none; } }
 
-.thread-setup { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; padding: 2px 4px; font-size: var(--text-sm); color: var(--text); }
+.thread-setup { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; padding: 2px 4px; font-size: var(--thread-meta); color: var(--text); }
 .thread-setup[data-status="failed"] .thread-call-status { color: var(--error-text); }
 .thread-setup-detail { flex-basis: 100%; padding-left: 18px; color: var(--text-muted); font-family: var(--font-mono); font-size: var(--text-xs); overflow-wrap: anywhere; }
-.thread-turn-end { margin: 0; padding: 2px 4px; font-size: var(--text-sm); color: var(--text-muted); }
+.thread-turn-end { margin: 0; padding: 2px 4px; font-size: var(--thread-meta); color: var(--text-muted); }
 .thread-turn-end[data-state="failed"] { color: var(--error-text); }
 
 .thread-composer { position: relative; flex: none; box-sizing: border-box; width: min(var(--thread-column), calc(100% - 44px)); display: flex; flex-direction: column; gap: 8px; margin: 4px auto 16px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); box-shadow: 0 1px 0 var(--border-soft); }
