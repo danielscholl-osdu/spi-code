@@ -27664,6 +27664,260 @@
       ]
     }
   ],
+  "security": {
+    "read": false,
+    "repositories": [
+      {
+        "name": "partition",
+        "program": false,
+        "url": "https://github.com/Azure/osdu-spi-partition"
+      },
+      {
+        "name": "entitlements",
+        "program": false,
+        "url": "https://github.com/Azure/osdu-spi-entitlements"
+      },
+      {
+        "name": "legal",
+        "program": false,
+        "url": "https://github.com/Azure/osdu-spi-legal"
+      },
+      {
+        "name": "schema",
+        "program": false,
+        "url": "https://github.com/Azure/osdu-spi-schema"
+      },
+      {
+        "name": "file",
+        "program": false,
+        "url": "https://github.com/Azure/osdu-spi-file"
+      },
+      {
+        "name": "storage",
+        "program": false,
+        "url": "https://github.com/Azure/osdu-spi-storage"
+      },
+      {
+        "name": "indexer",
+        "program": false,
+        "url": "https://github.com/Azure/osdu-spi-indexer"
+      },
+      {
+        "name": "search",
+        "program": false,
+        "url": "https://github.com/Azure/osdu-spi-search"
+      },
+      {
+        "name": "workflow",
+        "program": false,
+        "url": "https://github.com/Azure/osdu-spi-workflow"
+      },
+      {
+        "name": "indexer-queue",
+        "program": false,
+        "url": "https://github.com/Azure/osdu-spi-indexer-queue"
+      },
+      {
+        "name": "unit",
+        "program": false,
+        "url": "https://github.com/Azure/osdu-spi-unit"
+      },
+      {
+        "name": "crs-catalog",
+        "program": false,
+        "url": "https://github.com/Azure/osdu-spi-crs-catalog"
+      },
+      {
+        "name": "crs-conversion",
+        "program": false,
+        "url": "https://github.com/Azure/osdu-spi-crs-conversion"
+      },
+      {
+        "name": "osdu-spi",
+        "program": true,
+        "url": "https://github.com/Azure/osdu-spi"
+      },
+      {
+        "name": "osdu-spi-stack",
+        "program": true,
+        "url": "https://github.com/Azure/osdu-spi-stack"
+      }
+    ],
+    "unread": [
+      {
+        "repository": "partition",
+        "retained": false
+      },
+      {
+        "repository": "entitlements",
+        "retained": false
+      },
+      {
+        "repository": "legal",
+        "retained": false
+      },
+      {
+        "repository": "schema",
+        "retained": false
+      },
+      {
+        "repository": "file",
+        "retained": false
+      },
+      {
+        "repository": "storage",
+        "retained": false
+      },
+      {
+        "repository": "indexer",
+        "retained": false
+      },
+      {
+        "repository": "search",
+        "retained": false
+      },
+      {
+        "repository": "workflow",
+        "retained": false
+      },
+      {
+        "repository": "indexer-queue",
+        "retained": false
+      },
+      {
+        "repository": "unit",
+        "retained": false
+      },
+      {
+        "repository": "crs-catalog",
+        "retained": false
+      },
+      {
+        "repository": "crs-conversion",
+        "retained": false
+      },
+      {
+        "repository": "osdu-spi",
+        "retained": false
+      },
+      {
+        "repository": "osdu-spi-stack",
+        "retained": false
+      }
+    ],
+    "alerts": {
+      "total": {
+        "n": 0,
+        "atLeast": true
+      },
+      "dependabot": {
+        "n": 0,
+        "atLeast": true
+      },
+      "code": {
+        "n": 0,
+        "atLeast": true
+      }
+    },
+    "page": {
+      "totals": [],
+      "headline": [],
+      "banner": [],
+      "opens": "spi"
+    },
+    "lanes": [
+      {
+        "id": "spi",
+        "total": {
+          "n": 0,
+          "atLeast": true
+        },
+        "high": {
+          "n": 0,
+          "atLeast": true
+        },
+        "figure": {
+          "label": "",
+          "who": "",
+          "high": [],
+          "blocks": [],
+          "empty": []
+        },
+        "byRule": {
+          "summary": [],
+          "heading": [],
+          "tickMax": 0,
+          "barMax": 0,
+          "rules": []
+        },
+        "byRepository": {
+          "barMax": 0,
+          "rows": [],
+          "clean": []
+        }
+      },
+      {
+        "id": "upstream",
+        "total": {
+          "n": 0,
+          "atLeast": true
+        },
+        "high": {
+          "n": 0,
+          "atLeast": true
+        },
+        "figure": {
+          "label": "",
+          "who": "",
+          "high": [],
+          "blocks": [],
+          "empty": []
+        },
+        "byRule": {
+          "summary": [],
+          "heading": [],
+          "tickMax": 0,
+          "barMax": 0,
+          "rules": []
+        },
+        "byRepository": {
+          "barMax": 0,
+          "rows": [],
+          "clean": []
+        }
+      },
+      {
+        "id": "tests",
+        "total": {
+          "n": 0,
+          "atLeast": true
+        },
+        "high": {
+          "n": 0,
+          "atLeast": true
+        },
+        "figure": {
+          "label": "",
+          "who": "",
+          "high": [],
+          "blocks": [],
+          "empty": []
+        },
+        "byRule": {
+          "summary": [],
+          "heading": [],
+          "tickMax": 0,
+          "barMax": 0,
+          "rules": []
+        },
+        "byRepository": {
+          "barMax": 0,
+          "rows": [],
+          "clean": []
+        }
+      }
+    ]
+  },
   "tree": [
     {
       "id": "today",
@@ -38003,6 +38257,11 @@
         "source": "releases",
         "state": "unread"
       }
+    },
+    {
+      "path": "/security",
+      "areas": ["fleet", "github", "radar", "template", "security"],
+      "attributed": "sweep"
     }
   ],
   "selection": null

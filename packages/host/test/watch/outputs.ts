@@ -5,6 +5,7 @@ import { relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { projectWatch } from "../../src/watch/project.js";
 import { detailFeed, recordedDetailAnswers } from "./detail-feed.js";
+import { SECURITY_FIXTURES, securityFixture, securityFixturePath } from "./security-fixture.js";
 import {
   acknowledgedSnapshot,
   acknowledgedSnapshotPath,
@@ -56,5 +57,8 @@ export const watchOutputs: readonly WatchOutput[] = [
   output(unverifiedSnapshotPath, () => projectWatch(appStyle(unverifiedForkInput()))),
   output(detailFeedPath, async () =>
     detailFeed(projectWatch(appStyle(recordedInput())).briefing, await recordedDetailAnswers()),
+  ),
+  ...SECURITY_FIXTURES.map((name) =>
+    output(securityFixturePath(name), () => securityFixture(name)),
   ),
 ];

@@ -30,7 +30,7 @@ const PORT_READS =
   /^(merge_requests\?state=opened&target_branch=master|merged MRs|port PRs|pulls\/\d+\/commits|merge_requests\/\d+\/(diffs|changes)\b.*|\.github\/upstream-filter\.yml)$/;
 const GROUP_ORDER = Object.freeze({ spi: 0, upstream: 1, tests: 2 });
 
-const NO_FILE = "no file associated with this alert";
+export const NO_FILE = "no file associated with this alert";
 const VERSION = /^v?\d+(\.[0-9a-z]+)+([-+][0-9a-z.]+)*$/;
 
 type Read = { read: boolean; at?: string };
@@ -97,7 +97,7 @@ export function closedFix(
 }
 
 /** Settings (no file) and tooling paths join the tests group as tooling, whatever the dependency's scope. */
-function groupOf(path: string | undefined, paths: Paths, scope?: string): Pick<ServiceAlertRow, "group" | "tooling"> {
+export function groupOf(path: string | undefined, paths: Paths, scope?: string): Pick<ServiceAlertRow, "group" | "tooling"> {
   if (!path || reachOf(path) === "tooling") return { group: "tests", tooling: true };
   if (reachOf(path, scope) === "tests") return { group: "tests" };
   return { group: ownerOf(path, paths) === "upstream" ? "upstream" : "spi" };

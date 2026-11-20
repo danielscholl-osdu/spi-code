@@ -99,5 +99,10 @@ export function snapshotProvenance(
         envelope: readEnvelope("releases", input.releaseRecords, RELEASES_EVERY_MS, now),
       },
     ]),
+    {
+      path: "/security",
+      areas: ["fleet", "github", "radar", "template", "security"],
+      attributed: "sweep",
+    },
   ];
 }

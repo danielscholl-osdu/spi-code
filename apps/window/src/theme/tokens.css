@@ -189,3 +189,30 @@
   --chart-5: #387ba8;
   --chart-6: #566321;
 }
+
+/* Security lanes: whose move it is. */
+:root,
+:root[data-theme="dark"] {
+  --lane-spi: #3987e5;
+  --lane-upstream: #c463aa;
+  --lane-tests: #7d7666;
+}
+
+:root[data-theme="light"] {
+  --lane-spi: #2a78d6;
+  --lane-upstream: #a33182;
+  --lane-tests: #8f887a;
+}
+
+:root[data-palette="neutral"],
+:root[data-palette="neutral"][data-theme="dark"] {
+  --lane-spi: #3987e5;
+  --lane-upstream: #c463aa;
+  --lane-tests: #6b6b74;
+}
+
+:root[data-palette="neutral"][data-theme="light"] {
+  --lane-spi: #2a78d6;
+  --lane-upstream: #9a2680;
+  --lane-tests: #8b8b93;
+}

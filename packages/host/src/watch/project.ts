@@ -23,6 +23,7 @@ import { areaEnvelopes } from "./provenance.js";
 import { placeReadings } from "./readings.js";
 import { recordedRuns } from "./recorded-runs.js";
 import { projectReleases } from "./releases.js";
+import { projectSecurity } from "./security.js";
 import { type SeenBaseline, seenState } from "./seen.js";
 import { projectServices, projectStations } from "./services.js";
 import { snapshotProvenance } from "./snapshot-provenance.js";
@@ -110,6 +111,7 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
     },
     stations,
     services,
+    security: projectSecurity(model, input, now),
     tree: treeOf(input, now),
     reads: [
       ...Object.values(input.reads).flat(),

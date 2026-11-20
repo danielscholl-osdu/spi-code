@@ -14,6 +14,7 @@ import {
 } from "./evidence.js";
 import { FormingSchema, ReleaseLineSchema, ReleasesTodaySchema } from "./panes.js";
 import { CampaignSchema, ReadingSchema, SeenStateSchema } from "./reading.js";
+import { SecurityPaneSchema } from "./security.js";
 import { ServiceHomeSchema } from "./service-home.js";
 import { ServiceRunsSchema } from "./service-runs.js";
 import { ServiceUpstreamSecuritySchema } from "./service-upstream.js";
@@ -62,6 +63,7 @@ export const ViewSnapshotSchema = z
         }),
       )
       .optional(),
+    security: SecurityPaneSchema.optional(),
     tree: TreeStatusSchema,
     reads: z.array(ReadRecordSchema),
     areas: z.array(AreaEnvelopeSchema),

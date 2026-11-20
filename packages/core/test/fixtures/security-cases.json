@@ -1,0 +1,50 @@
+{
+  "partial": {
+    "absent": [["Azure/osdu-spi-workflow", "code"], ["Azure/osdu-spi-crs-conversion", "dependabot"]]
+  },
+  "retained": { "retained": ["Azure/osdu-spi-file"] },
+  "failed": { "failed": "HTTP 502: Bad Gateway" },
+  "clean": {
+    "remove": {
+      "Azure/osdu-spi": { "dependabot": [], "code": [69] },
+      "Azure/osdu-spi-entitlements": { "dependabot": [], "code": [4, 3] },
+      "Azure/osdu-spi-partition": { "dependabot": [], "code": [5, 3, 2] },
+      "Azure/osdu-spi-schema": { "dependabot": [], "code": [7, 6, 5, 4, 3] },
+      "Azure/osdu-spi-legal": { "dependabot": [], "code": [3, 2] },
+      "Azure/osdu-spi-storage": { "dependabot": [], "code": [5, 3, 2] },
+      "Azure/osdu-spi-file": { "dependabot": [], "code": [18, 17, 16, 15, 6, 5] },
+      "Azure/osdu-spi-indexer": { "dependabot": [], "code": [3, 2] },
+      "Azure/osdu-spi-search": { "dependabot": [], "code": [4, 3] },
+      "Azure/osdu-spi-indexer-queue": { "dependabot": [4, 3, 2, 1], "code": [3] },
+      "Azure/osdu-spi-workflow": {
+        "dependabot": [40],
+        "code": [22, 21, 20, 19, 18, 17, 16, 15, 9, 4, 3]
+      },
+      "Azure/osdu-spi-unit": { "dependabot": [19, 18, 17, 16], "code": [] },
+      "Azure/osdu-spi-crs-catalog": { "dependabot": [], "code": [2] },
+      "Azure/osdu-spi-crs-conversion": { "dependabot": [11, 10, 9, 8], "code": [85] }
+    }
+  },
+  "single": {
+    "only": {
+      "Azure/osdu-spi-partition": {
+        "dependabot": [
+          {
+            "number": 1,
+            "severity": "high",
+            "package": "com.example:widget",
+            "ecosystem": "maven",
+            "manifest": "provider/partition-azure/pom.xml",
+            "scope": "runtime",
+            "fixed": "2.0.1",
+            "advisory": "GHSA-0000-0000-0001",
+            "summary": "Made-up advisory for a single-alert fixture",
+            "url": "https://github.com/Azure/osdu-spi-partition/security/dependabot/1",
+            "createdAt": "2026-11-10T00:00:00Z"
+          }
+        ],
+        "code": []
+      }
+    }
+  }
+}
