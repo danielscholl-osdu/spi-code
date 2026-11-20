@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "zustand";
 import { type CommitResult, changesStore } from "./changes-store.js";
 import type { ThreadSection } from "./section.js";
@@ -31,6 +31,9 @@ function Commit({ id }: ThreadTabProps) {
   const commit = useStore(changesStore, (state) => state.commits[id]);
   const [message, setMessage] = useState("");
   const committing = commit?.outcome === "committing";
+  useEffect(() => {
+    if (commit?.outcome === "committed") setMessage("");
+  }, [commit]);
   const reason = blocked(changes);
   if (changes?.state === "asking") return <span data-quiet="asking">{reason}</span>;
   return (
@@ -40,7 +43,6 @@ function Commit({ id }: ThreadTabProps) {
         event.preventDefault();
         if (reason || committing || !message.trim()) return;
         changesStore.getState().commit(id, message);
-        setMessage("");
       }}
     >
       <textarea

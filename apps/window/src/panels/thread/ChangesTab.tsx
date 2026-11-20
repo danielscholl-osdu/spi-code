@@ -1,11 +1,11 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useStore } from "zustand";
 import { changesStore, diffOf } from "./changes-store.js";
 import type { ThreadTab, ThreadTabProps } from "./tab.js";
-import { useChanges } from "./useChanges.js";
+import { useChanges, useRereadAfterTurn } from "./useChanges.js";
 import "./thread-tab.css";
 
 type File = Extract<NonNullable<ReturnType<typeof useChanges>>, { state: "read" }>["files"][number];
@@ -26,6 +26,9 @@ const kind = (line: string) =>
 
 function Patch({ id, path }: { id: string; path: string }) {
   const diff = useStore(changesStore, (state) => diffOf(state, id, path));
+  useEffect(() => {
+    if (!diff) changesStore.getState().readDiff(id, path);
+  }, [diff, id, path]);
   if (!diff || diff.state === "reading") return <p className="thread-field-quiet">Reading…</p>;
   if (diff.state === "not read")
     return (
@@ -55,6 +58,7 @@ function Patch({ id, path }: { id: string; path: string }) {
 /** Each changed file against the commit the thread's branch was cut from, a unified diff when opened. */
 function Changes({ id, summary }: ThreadTabProps) {
   const changes = useChanges(id);
+  useRereadAfterTurn(id);
   const [open, setOpen] = useState<string | null>(null);
   const landsIn = summary?.thread.landsIn;
   const base =
@@ -92,11 +96,7 @@ function Changes({ id, summary }: ThreadTabProps) {
               type="button"
               className="thread-change"
               aria-expanded={open === file.path}
-              onClick={() => {
-                const next = open === file.path ? null : file.path;
-                setOpen(next);
-                if (next) changesStore.getState().readDiff(id, next);
-              }}
+              onClick={() => setOpen(open === file.path ? null : file.path)}
             >
               <span className="thread-change-path">{file.path}</span>
               <span className="thread-change-counts">{counts(file)}</span>

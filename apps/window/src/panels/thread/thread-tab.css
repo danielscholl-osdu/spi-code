@@ -11,7 +11,8 @@
 .thread-commit textarea::placeholder { color: var(--placeholder); }
 .thread-commit-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .thread-commit-outcome { margin: 0; color: var(--text); }
-.thread-commit-outcome:is([data-outcome="failed"], [data-outcome="not known"]) { color: var(--error-text); }
+.thread-commit-outcome[data-outcome="failed"] { color: var(--error-text); }
+.thread-commit-outcome[data-outcome="not known"] { color: var(--warning-text); }
 :is(.thread-commit, .thread-changes-head) button { padding: 2px 9px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
 :is(.thread-commit, .thread-changes-head) button:disabled { color: var(--text-muted); cursor: default; }
 :is(.thread-commit, .thread-changes-head, .thread-changes) :is(button, textarea):focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -19,7 +20,7 @@
 .thread-changes-head h3 { margin: 0; color: var(--text-muted); font-size: var(--text-xs); font-weight: 500; }
 .thread-changes { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .thread-change { display: flex; width: 100%; gap: 8px; align-items: baseline; padding: 4px 6px; border: 0; border-radius: 6px; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
-.thread-change:hover { background: var(--hover); }
+.thread-change:hover { background: var(--surface-raised); }
 .thread-change-path { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--text-xs); overflow-wrap: anywhere; }
 .thread-change-counts { flex: none; color: var(--text-muted); font-size: var(--text-xs); }
 .thread-diff { max-height: 360px; margin: 4px 0 8px; overflow: auto; padding: 8px; border: 1px solid var(--border-soft); border-radius: 6px; background: var(--surface); color: var(--text); font-family: var(--font-mono); font-size: var(--text-xs); white-space: pre-wrap; overflow-wrap: anywhere; }

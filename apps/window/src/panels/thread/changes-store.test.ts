@@ -29,10 +29,7 @@ it("re-reads the changes after a commit and keeps the host's outcome", () => {
   expect(store.getState().changes.t1).toEqual({ state: "reading" });
 });
 
-it.each([
-  ["the host restarts", { type: "host.hello", kind: "event" }],
-  ["the host goes away", { type: "error", kind: "response", code: "host_unavailable" }],
-])("calls a commit in flight not known when %s, and reads again", (_, event) => {
+it("calls a commit in flight not known when the host restarts, and reads again", () => {
   const { store, posted, reply } = host();
   store.getState().refresh("t1");
   reply("thread.changes.result", {
@@ -41,11 +38,7 @@ it.each([
   });
   store.getState().commit("t1", "Change it");
   const commit = posted.at(-1)?.id;
-  const payload =
-    event.type === "host.hello"
-      ? { pid: 2 }
-      : { code: "host_unavailable", message: "The host stopped." };
-  reply(event.type, payload, event.kind);
+  reply("host.hello", { pid: 2 }, "event");
   expect(store.getState().commits.t1).toMatchObject({ outcome: "not known" });
   expect(posted.at(-1)?.type).toBe("thread.changes");
   reply(
@@ -55,6 +48,22 @@ it.each([
     commit,
   );
   expect(store.getState().commits.t1).toMatchObject({ outcome: "not known" });
+});
+
+it("reads nothing more once the host has gone away, and says so", () => {
+  const { store, posted, reply } = host();
+  store.getState().refresh("t1");
+  store.getState().commit("t1", "Change it");
+  const asked = posted.length;
+  const gone = { code: "host_unavailable", message: "The host stopped." };
+  reply("error", gone);
+  reply("error", gone);
+  expect(posted).toHaveLength(asked);
+  expect(store.getState().commits.t1).toEqual({
+    outcome: "not known",
+    reason: "The host stopped.",
+  });
+  expect(store.getState().changes.t1).toEqual({ state: "not read", reason: "The host stopped." });
 });
 
 it("says why the worktree was not read when the host answers with an error", () => {
