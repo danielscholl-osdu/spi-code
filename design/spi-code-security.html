@@ -1,0 +1,1177 @@
+
+<title>Security Place Draft 10</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* layout: a short brief, then one app window (sidebar + centre) you can click through, then the build notes */
+:root{
+  --chrome:#f3efe4; --sidebar:#ece6d7; --surface:#fbf9f3; --raised:#f2ede1;
+  --border:#dcd3bf; --border-soft:#e8e1d0;
+  --text:#23211c; --strong:#15130f; --muted:#665f4f; --faint:#6c6557;
+  --accent:#1d7a6c; --accent-text:#1b7366; --accent-surface:#d9ece7;
+  --error:#bb4a2b; --error-text:#ac4428; --error-surface:#f4dfd6;
+  --warning:#a07b3a; --warning-text:#80622e; --warning-surface:#f3e8cf;
+  --success:#3a7633; --success-text:#356c2f; --success-surface:#e1eedb;
+  --work:#2060bc; --work-surface:#dcebf3;
+  --upstream:#a33182; --upstream-surface:#f5deee;
+  --hover:#e3dccb; --on-fill:#ffffff; --page:#e6dfcf;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --chrome:#0f1a1b; --sidebar:#132021; --surface:#162324; --raised:#1d2d2e;
+    --border:#2b3d3d; --border-soft:#213132;
+    --text:#e4dfd1; --strong:#f6f2e6; --muted:#a59d8a; --faint:#9a927f;
+    --accent:#5cc4b2; --accent-text:#5cc4b2; --accent-surface:#173b37;
+    --error:#ec8a6e; --error-text:#ec8a6e; --error-surface:#3a211b;
+    --warning:#e2b45c; --warning-text:#e2b45c; --warning-surface:#33291a;
+    --success:#8fcf86; --success-text:#8fcf86; --success-surface:#1b2e1d;
+    --work:#66aacc; --work-surface:#15293a;
+    --upstream:#fabce0; --upstream-surface:#302032;
+    --hover:#22393a; --on-fill:#0f1a1b; --page:#0b1314;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --chrome:#0f1a1b; --sidebar:#132021; --surface:#162324; --raised:#1d2d2e;
+  --border:#2b3d3d; --border-soft:#213132;
+  --text:#e4dfd1; --strong:#f6f2e6; --muted:#a59d8a; --faint:#9a927f;
+  --accent:#5cc4b2; --accent-text:#5cc4b2; --accent-surface:#173b37;
+  --error:#ec8a6e; --error-text:#ec8a6e; --error-surface:#3a211b;
+  --warning:#e2b45c; --warning-text:#e2b45c; --warning-surface:#33291a;
+  --success:#8fcf86; --success-text:#8fcf86; --success-surface:#1b2e1d;
+  --work:#66aacc; --work-surface:#15293a;
+  --upstream:#fabce0; --upstream-surface:#302032;
+  --hover:#22393a; --on-fill:#0f1a1b; --page:#0b1314;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.5}
+.wrap{max-width:1280px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-size:26px;font-weight:650;letter-spacing:-.01em;margin:0 0 8px;color:var(--strong);text-wrap:balance}
+h2{font-size:18px;font-weight:650;margin:0 0 8px;color:var(--strong)}
+p{margin:0 0 10px;max-width:74ch}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin:0 0 6px}
+.lead{font-size:16px;color:var(--strong);max-width:72ch}
+.muted{color:var(--muted)}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+a{color:var(--accent-text)}
+code{font-family:var(--mono);font-size:.92em}
+
+.bar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:22px 0 10px;font-size:13px}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;padding:5px 12px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent-surface);color:var(--accent-text);font-weight:600}
+
+/* the window */
+.win{display:grid;grid-template-columns:200px minmax(0,1fr);border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface);font-size:13px;min-height:760px}
+.side{background:var(--sidebar);border-right:1px solid var(--border);padding:10px 8px;display:flex;flex-direction:column;gap:2px}
+.find{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:6px 9px;color:var(--muted);margin-bottom:8px}
+.kbd{font-family:var(--mono);font-size:10.5px;border:1px solid var(--border);border-radius:4px;padding:0 4px;color:var(--faint)}
+.nav{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;color:var(--text);border:0;background:transparent;width:100%;text-align:left}
+.nav[aria-current="page"]{background:var(--surface);box-shadow:0 0 0 1px var(--border);color:var(--strong);font-weight:600}
+.nav.flash{box-shadow:0 0 0 2px var(--accent)}
+.n{font-size:11px;font-variant-numeric:tabular-nums;border-radius:999px;min-width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px;margin-left:auto}
+.n.bad{background:var(--error);color:var(--on-fill);font-weight:700}
+.n.warn{border:1.5px solid var(--warning);color:var(--warning-text)}
+.n.okring{border:1.5px solid var(--success);color:var(--success-text);font-size:10px;font-weight:700}
+.ic{width:15px;height:15px;flex:none;fill:none;stroke:currentColor;stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round;color:var(--muted)}
+.side h3{font-size:11.5px;font-weight:500;color:var(--faint);margin:14px 8px 4px}
+.side .foot{margin-top:auto;display:flex;justify-content:space-between;color:var(--faint);padding:8px;font-size:12px}
+
+.centre{min-width:0;display:flex;flex-direction:column;container-type:inline-size;container-name:centre}
+.top{display:flex;align-items:center;gap:10px;padding:9px 18px;border-bottom:1px solid var(--border)}
+.top h2{font-size:14px;margin:0}
+.top .read{color:var(--muted);font-size:12px}
+.top .sp{margin-left:auto}
+.pin{border:0;background:transparent;border-radius:6px;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;color:var(--accent-text)}
+.body{padding:18px 18px 28px;display:flex;flex-direction:column;gap:14px;min-width:0}
+
+.btn{border:1px solid var(--border);background:var(--surface);border-radius:6px;padding:3px 9px;font-size:12px;color:var(--text);display:inline-flex;align-items:center;gap:5px;text-decoration:none;white-space:nowrap}
+.btn:hover{background:var(--hover)}
+.pill{display:inline-flex;align-items:center;gap:4px;border:1px solid currentColor;border-radius:999px;padding:0 8px;font-size:11.5px;line-height:19px;height:21px;text-decoration:none;white-space:nowrap;font-variant-numeric:tabular-nums;background:transparent;color:var(--muted)}
+.pill.pr{color:var(--accent-text)}
+a.pill{max-width:100%;min-width:0}
+.pill .mid{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.pill[data-heavy]{color:var(--strong);font-weight:650;border-width:1.5px}
+.pill:hover{background:var(--hover)}
+.ex{font-size:11px;border:1px dashed var(--border);border-radius:4px;padding:0 5px;color:var(--faint);white-space:nowrap}
+
+/* headline and lanes */
+.headline{font-size:19px;font-weight:650;color:var(--strong);margin:0;letter-spacing:-.005em;text-wrap:balance}
+.notread{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;border:1px solid var(--border);border-left:3px solid var(--muted);border-radius:6px;padding:7px 10px;background:var(--raised);color:var(--text)}
+.lanes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.lane{border:0;border-right:1px solid var(--border);background:var(--surface);text-align:left;padding:10px 14px 11px;display:flex;flex-direction:column;gap:1px;min-width:0;position:relative}
+.lane:last-child{border-right:0}
+.lane:hover{background:var(--raised)}
+.lane[aria-selected="true"]{background:var(--raised)}
+.lane[aria-selected="true"]::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--accent)}
+.lane .lbl{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:600}
+.lane[aria-selected="true"] .lbl{color:var(--accent-text)}
+.lane .fig{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
+.lane .fig b{font-size:24px;font-weight:700;color:var(--strong);font-variant-numeric:tabular-nums;line-height:1.25}
+.lane .fig span{color:var(--text)}
+.lane .who{color:var(--muted);font-size:12px}
+
+.tools{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.tools .sum{color:var(--muted);margin-right:auto}
+.chip{border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:1px 10px;font-size:12px;color:var(--text)}
+.chip:hover{background:var(--hover)}
+.chip[aria-pressed="true"]{background:var(--accent-surface);border-color:transparent;color:var(--accent-text);font-weight:600}
+
+/* the map: one row per rule or package, one column per repository */
+.map{--cell:24px;--cols:15;display:flex;flex-direction:column;border-top:1px solid var(--border)}
+.mrow{display:grid;grid-template-columns:62px minmax(170px,1fr) calc(var(--cols)*var(--cell) + 10px) 44px 196px;column-gap:10px;align-items:center;min-width:0}
+.mhead{align-items:end;padding:6px 0 5px;border-bottom:1px solid var(--border);color:var(--faint);font-size:11px;position:sticky;top:0;background:var(--surface);z-index:2}
+.mhead .h{white-space:nowrap;letter-spacing:.06em;text-transform:uppercase;font-weight:600;font-size:10.5px}
+.cells{display:grid;grid-template-columns:repeat(13,var(--cell)) 10px var(--cell) var(--cell);align-items:center;justify-items:center}
+.cells .gap{width:1px;align-self:stretch;background:var(--border-soft)}
+.colh{border:0;background:transparent;padding:2px 0;writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;color:var(--muted);white-space:nowrap;border-radius:4px;width:20px;display:flex;align-items:center;gap:5px}
+.colh:hover{background:var(--hover);color:var(--strong)}
+.colh.hl,.colh.hov{color:var(--accent-text);font-weight:600;background:var(--accent-surface)}
+.colh i{font-style:normal;color:var(--faint)}
+.item{border-bottom:1px solid var(--border-soft)}
+.item[data-open]{background:var(--raised)}
+.rowbtn{padding:8px 0;cursor:pointer}
+.rowbtn:hover{background:var(--raised)}
+.what .t{border:0;background:transparent;padding:0;text-align:left;font:inherit}
+.sev{font-size:12px;color:var(--muted);padding-left:8px}
+.sev[data-heavy]{font-weight:700;color:var(--strong)}
+.what{min-width:0;display:flex;flex-direction:column}
+.what .t{color:var(--strong);font-weight:550;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.what .s{color:var(--muted);font-size:12px}
+.what .s code{color:var(--muted)}
+.c{width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;font-variant-numeric:tabular-nums;color:var(--text)}
+.c[data-n]{background:color-mix(in srgb,var(--text) 9%,transparent)}
+.c[data-heavy]{background:var(--strong);color:var(--surface);font-weight:700}
+.c[data-mixed]{background:color-mix(in srgb,var(--text) 9%,transparent);box-shadow:inset 0 0 0 2px var(--strong);color:var(--strong);font-weight:700}
+:root[data-theme="dark"] .c[data-mixed]{box-shadow:inset 0 0 0 2.5px var(--strong);background:transparent}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .c[data-mixed]{box-shadow:inset 0 0 0 2.5px var(--strong);background:transparent}}
+.c[data-wide]{font-size:9.5px;letter-spacing:-.03em}
+.c.none{color:color-mix(in srgb,var(--muted) 55%,transparent)}
+.c.unread{color:var(--muted)}
+.tot{text-align:right;font-variant-numeric:tabular-nums;color:var(--strong);font-weight:600}
+.fix{display:flex;flex-direction:column;align-items:flex-start;min-width:0;font-size:12px;color:var(--muted);padding-right:8px}
+.fix span{max-width:100%}
+.fix .v{color:var(--strong);font-size:12px;max-width:100%;overflow-wrap:anywhere}
+.fix .new{color:var(--accent-text);font-weight:600}
+.forks{display:none;font-size:12px;color:var(--text);min-width:0;overflow-wrap:anywhere}
+.narrowfix{display:none}
+.mfoot{padding:7px 0;color:var(--muted);font-size:12px;border-bottom:0}
+.mfoot .c{background:transparent;color:var(--muted);box-shadow:none;width:var(--cell);font-size:10.5px;letter-spacing:-.03em}
+.mfoot .c[data-heavy],.mfoot .c[data-mixed]{background:transparent;color:var(--strong)}
+.empty{padding:26px 8px;color:var(--muted);border-bottom:1px solid var(--border-soft)}
+.empty b{color:var(--strong);display:block;font-size:14px}
+
+/* an opened row */
+.open{padding:2px 8px 14px 72px;display:flex;flex-direction:column;gap:12px}
+.facts{display:grid;grid-template-columns:92px minmax(0,1fr);gap:5px 12px;margin:0}
+.facts dt{color:var(--faint);font-size:12px}
+.facts dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.facts dd .adv{display:block;margin-bottom:2px}
+.facts dd .adv .fx{color:var(--muted);white-space:nowrap}
+.linkbtn{border:0;background:transparent;padding:0;color:var(--accent-text);text-decoration:underline}
+.where{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:8px;background:var(--surface);overflow:hidden}
+.where .wh{display:grid;grid-template-columns:128px minmax(180px,1fr) minmax(0,360px);gap:4px 12px;align-items:baseline;padding:6px 10px;border-top:1px solid var(--border-soft)}
+.where .wh:first-child{border-top:0}
+.where .wh.cont{border-top:1px dashed var(--border-soft)}
+.where .wh.hl{box-shadow:inset 3px 0 0 var(--accent)}
+.where .svc{border:0;background:transparent;padding:0;color:var(--accent-text);text-align:left;font-weight:600}
+.where .svc:hover{text-decoration:underline}
+.where .svc small{color:var(--muted);font-weight:400;font-size:12px;margin-left:5px}
+.where .files{color:var(--muted);font-size:12px;font-family:var(--mono);min-width:0;overflow-wrap:anywhere}
+.where .pills{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end;min-width:0}
+.where .all{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px;padding:2px 0 4px}
+.where .needs{font-family:var(--sans);color:var(--text)}
+.where .needs code{font-size:11.5px}
+.acts{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--strong);color:var(--surface);padding:7px 14px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .15s}
+.toast.on{opacity:1}
+
+@container centre (max-width: 920px){
+  .map{--cell:20px}
+  .mrow{grid-template-columns:54px minmax(120px,1fr) calc(var(--cols)*var(--cell) + 10px) 52px}
+  .fix,.mhead .fixh{display:none}
+  .narrowfix{display:inline}
+  .what .t,.what .s{white-space:normal}
+  .tot{padding-right:8px}
+  .mhead .h:nth-last-child(2){padding-right:8px}
+  .c{width:18px;height:18px;font-size:10.5px}
+  .open{padding-left:62px}
+  .where .wh{grid-template-columns:128px minmax(0,1fr)}
+  .where .pills{grid-column:2;justify-content:flex-start}
+}
+@container centre (max-width: 500px){
+  .lanes{grid-template-columns:1fr}
+  .lane{border-right:0;border-bottom:1px solid var(--border)}
+  .lane:last-child{border-bottom:0}
+}
+@container centre (max-width: 620px){
+  .mrow{grid-template-columns:54px minmax(0,1.4fr) minmax(0,1fr) 52px}
+  .cells{display:none}
+  .forks{display:block}
+  .mhead .forks{color:var(--faint);font-size:10.5px}
+  .mfoot{display:none}
+  .open{padding-left:8px}
+  .where .wh{grid-template-columns:1fr}
+  .where .pills{grid-column:1;justify-content:flex-start}
+}
+@media (max-width:820px){.win{grid-template-columns:1fr}.side{display:none}}
+
+.notes{margin-top:34px;display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:22px 34px}
+.notes h2{font-size:15px}
+.notes ul{margin:0;padding-left:18px}
+.notes li{margin-bottom:6px;max-width:66ch}
+table.t{border-collapse:collapse;font-size:13px;width:100%}
+table.t th,table.t td{text-align:left;padding:5px 10px 5px 0;border-bottom:1px solid var(--border);vertical-align:top}
+table.t th{color:var(--faint);font-weight:600;font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+
+
+/* the app's default Neutral palette, from apps/window/src/theme/tokens.css; Warm (Shore) is the opt-in */
+:root[data-palette="neutral"]{--chrome:#f4f4f5; --sidebar:#efeff1; --surface:#ffffff; --raised:#f4f4f5; --border:#d4d4d8; --border-soft:#e4e4e7; --text:#27272a; --strong:#09090b; --muted:#52525b; --faint:#6b6b74; --accent:#1d7a6c; --accent-text:#1c796b; --accent-surface:#e3f1ed; --error:#b42318; --error-text:#b42318; --error-surface:#fde4e1; --warning:#94560a; --warning-text:#94560a; --warning-surface:#fdf0d5; --success:#15803d; --success-text:#157c3b; --success-surface:#e3f5e8; --work:#0369a1; --work-surface:#ddeefa; --upstream:#9a2680; --upstream-surface:#f8e3f0; --hover:#e9e9ec; --on-fill:#ffffff; --page:#e4e4e7;}
+@media (prefers-color-scheme: dark){ :root[data-palette="neutral"]:not([data-theme="light"]){color-scheme:dark;--chrome:#141416; --sidebar:#141416; --surface:#0d0d0f; --raised:#1a1a1d; --border:#27272a; --border-soft:#1d1d20; --text:#e4e4e7; --strong:#fafafa; --muted:#a1a1aa; --faint:#8b8b93; --accent:#5cc4b2; --accent-text:#5cc4b2; --accent-surface:#14302b; --error:#fca5a5; --error-text:#fca5a5; --error-surface:#311616; --warning:#fcd34d; --warning-text:#fcd34d; --warning-surface:#2b2410; --success:#6ee7a0; --success-text:#6ee7a0; --success-surface:#10291b; --work:#7dd3fc; --work-surface:#0f2533; --upstream:#c463aa; --upstream-surface:#2d1727; --hover:#232328; --on-fill:#0d0d0f; --page:#050506;} }
+:root[data-palette="neutral"][data-theme="dark"]{color-scheme:dark;--chrome:#141416; --sidebar:#141416; --surface:#0d0d0f; --raised:#1a1a1d; --border:#27272a; --border-soft:#1d1d20; --text:#e4e4e7; --strong:#fafafa; --muted:#a1a1aa; --faint:#8b8b93; --accent:#5cc4b2; --accent-text:#5cc4b2; --accent-surface:#14302b; --error:#fca5a5; --error-text:#fca5a5; --error-surface:#311616; --warning:#fcd34d; --warning-text:#fcd34d; --warning-surface:#2b2410; --success:#6ee7a0; --success-text:#6ee7a0; --success-surface:#10291b; --work:#7dd3fc; --work-surface:#0f2533; --upstream:#c463aa; --upstream-surface:#2d1727; --hover:#232328; --on-fill:#0d0d0f; --page:#050506;}
+
+/* colour says whose move it is: ours blue, upstream the upstream role, tests grey; solid is high or critical, the tint is lower */
+:root{--lane-spi:#2a78d6;--lane-upstream:#a33182;--lane-tests:#8f887a}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){--lane-spi:#3987e5;--lane-upstream:#c463aa;--lane-tests:#7d7666} }
+:root[data-theme="dark"]{--lane-spi:#3987e5;--lane-upstream:#c463aa;--lane-tests:#7d7666}
+:root[data-palette="neutral"]{--lane-spi:#2a78d6;--lane-upstream:#9a2680;--lane-tests:#8b8b93}
+@media (prefers-color-scheme: dark){ :root[data-palette="neutral"]:not([data-theme="light"]){--lane-spi:#3987e5;--lane-upstream:#c463aa;--lane-tests:#6b6b74} }
+:root[data-palette="neutral"][data-theme="dark"]{--lane-spi:#3987e5;--lane-upstream:#c463aa;--lane-tests:#6b6b74}
+.sw{display:none;width:10px;height:10px;border-radius:3px;background:var(--c);margin-right:6px;vertical-align:-1px}
+/* draft 7: one figure of the lanes, then the lane as rules or as repositories; nothing grows wider with the fleet */
+/* three ordered ink steps; the lightest keeps 3:1 against the surface in both palettes */
+:root{ --ink-heavy:var(--strong); --ink-mixed:color-mix(in srgb,var(--text) 75%,var(--surface)); --ink-light:color-mix(in srgb,var(--text) 50%,var(--surface)); --ink-light-label:var(--strong); }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --ink-light-label:var(--surface); } }
+:root[data-theme="dark"]{ --ink-light-label:var(--surface); }
+.synth{border-left-color:var(--work)}
+.fig{display:flex;flex-direction:column;gap:6px}
+.lrow{display:grid;grid-template-columns:196px minmax(0,1fr) 112px;column-gap:14px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border-soft)}
+.lrow:last-of-type{border-bottom:0}
+.lname{border:0;background:transparent;text-align:left;padding:4px 8px;border-radius:6px;display:flex;flex-direction:column;gap:0;min-width:0;position:relative}
+.lname:hover{background:var(--hover)}
+.lname .lbl{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:600}
+.lname .who{font-size:12px;color:var(--muted)}
+.track{display:flex;align-items:center;gap:6px;min-width:0;height:30px}
+.lbar{display:flex;gap:2px;height:28px;min-width:0}
+.sg:hover,.sg:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.sg[data-sel]{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--accent)}
+.stub{flex:none;height:28px;min-width:30px;padding:0 7px;border:1.5px dashed var(--muted);border-radius:4px;color:var(--muted);display:inline-flex;align-items:center;font-size:12px}
+.noneword{color:var(--muted)}
+.ltot{display:flex;flex-direction:column;align-items:flex-end;line-height:1.2}
+.ltot b{font-size:20px;font-weight:700;color:var(--strong)}
+.ltot span{font-size:12px;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12px;color:var(--muted);padding-left:210px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px}
+.story{margin:0;color:var(--text);max-width:none}
+.story code{font-size:12.5px}
+
+/* by rule */
+.list{display:flex;flex-direction:column;border-top:1px solid var(--border)}
+.rrow{display:grid;grid-template-columns:62px minmax(170px,1fr) 168px 132px 188px;column-gap:12px;align-items:center;min-width:0}
+.lhead{padding:6px 0 5px;border-bottom:1px solid var(--border);color:var(--faint);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;position:sticky;top:0;background:var(--surface);z-index:2}
+.lhead .hot{color:var(--accent-text);text-transform:none;letter-spacing:0;font-size:12px}
+.strip i.hot{outline:2px solid var(--accent);outline-offset:0}
+.spreadcol{display:flex;flex-direction:column;gap:2px;min-width:0}
+.spreadcol small{color:var(--muted);font-size:11.5px}
+.cbar{display:flex;align-items:center;gap:6px}
+.cbar .b{display:flex;gap:2px;height:12px}
+.cbar .b span{height:12px;border-radius:0 3px 3px 0;min-width:2px}
+.cbar .b .h:not(:last-child){border-radius:0}
+.rb{min-width:0}
+.rb .b{flex:none;min-width:2px}
+.rb .b span{min-width:2px}
+.cbar b{font-variant-numeric:tabular-nums;color:var(--strong);font-weight:600}
+.spreadword{display:none}
+
+/* by repository */
+.prow{display:grid;grid-template-columns:150px minmax(150px,1.2fr) minmax(0,1fr);column-gap:14px;align-items:center;min-width:0}
+.prow .nm{border:0;background:transparent;text-align:left;padding:0;font-weight:600;color:var(--strong)}
+.prow .nm small{display:block;font-weight:400;color:var(--muted);font-size:11.5px}
+.prow .tops{color:var(--muted);font-size:12px;min-width:0}
+.prow .tops b{color:var(--text);font-weight:550}
+.repopen{padding:2px 8px 14px 164px;display:flex;flex-direction:column;gap:6px}
+.quiet{padding:9px 0;color:var(--muted);font-size:12px}
+.prow .nm small.gh{color:var(--faint)}
+.headline .pre{display:block;font-size:13px;font-weight:500;color:var(--muted);letter-spacing:0;margin-bottom:2px}
+
+@container centre (max-width: 900px){
+  .rrow{grid-template-columns:54px minmax(0,1fr) 120px}
+  .rrow .spreadcol,.rrow .fix,.lhead .sp-h,.lhead .fixh{display:none}
+  .spreadword{display:inline}
+  .lrow{grid-template-columns:150px minmax(0,1fr) 84px}
+  .legend{padding-left:0}
+  .repopen{padding-left:8px}
+  .prow{grid-template-columns:130px minmax(0,1fr)}
+  .prow .tops{grid-column:2}
+  .prow.lhead span:nth-child(3){display:none}
+}
+@container centre (max-width: 560px){
+  .lrow{grid-template-columns:minmax(0,1fr) auto}
+  .lrow .track{grid-column:1/-1;grid-row:2}
+  .open{padding-left:8px}
+}
+
+/* draft 8: solid is high or critical, outlined is medium or low, hatched is not read; colour only says whose move it is */
+[data-lane]{--c:var(--strong);--c-on:var(--surface);--c-lo:color-mix(in srgb,var(--c) 16%,var(--surface))}
+:root[data-colour="lane"] [data-lane="spi"]{--c:var(--lane-spi);--c-on:var(--on-fill)}
+:root[data-colour="lane"] [data-lane="upstream"]{--c:var(--lane-upstream);--c-on:var(--on-fill)}
+:root[data-colour="lane"] [data-lane="tests"]{--c:var(--lane-tests);--c-on:var(--strong)}
+:root[data-colour="lane"] .sw{display:inline-block}
+:root{--hatch:repeating-linear-gradient(135deg,var(--muted) 0 1.5px,transparent 1.5px 4px)}
+.lname[aria-pressed="true"]{background:var(--raised);box-shadow:inset 3px 0 0 var(--c)}
+.lname[aria-pressed="true"] .lbl{color:var(--strong)}
+.sg{border:0;padding:0;margin:0;min-width:3px;height:28px;border-radius:4px;display:flex;align-items:center;overflow:hidden;font-size:11.5px;font-weight:600;text-align:left;background:linear-gradient(90deg,var(--c) 0 var(--hi),var(--c-lo) var(--hi) 100%);box-shadow:inset 0 0 0 1.5px var(--c)}
+.sg[data-sel]{box-shadow:inset 0 0 0 1.5px var(--c),0 0 0 2px var(--surface),0 0 0 4px var(--accent)}
+.sg .lab{flex:none;display:inline-flex;gap:5px;padding-left:7px;white-space:nowrap;color:var(--strong)}
+.sg .lab[data-on="hi"]{color:var(--c-on)}
+.sg .lab[data-hide]{visibility:hidden}
+.stub{background:var(--hatch);font-size:0;min-width:30px}
+.legend i[data-k="hi"]{background:var(--strong)}
+.legend i[data-k="lo"]{background:color-mix(in srgb,var(--strong) 16%,var(--surface));box-shadow:inset 0 0 0 1.5px var(--strong)}
+.legend i[data-k="un"]{background:var(--hatch);box-shadow:inset 0 0 0 1px var(--muted)}
+.strip{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:1px;height:18px;align-items:end;width:100%;cursor:pointer}
+.strip i{display:block;height:2px;border-radius:2px;background:var(--border);min-width:2px}
+.strip i[data-w]{height:var(--h)}
+.strip i[data-w="heavy"]{background:var(--c)}
+.strip i[data-w="mixed"]{background:linear-gradient(var(--c-lo) 0 50%,var(--c) 50% 100%);box-shadow:inset 0 0 0 1px var(--c)}
+.strip i[data-w="light"]{background:var(--c-lo);box-shadow:inset 0 0 0 1px var(--c)}
+.strip[data-dense] i[data-w="mixed"],.strip[data-dense] i[data-w="light"]{box-shadow:inset 0 2px 0 var(--c),inset 0 -2px 0 var(--c)}
+.strip i[data-u]{height:18px;border-radius:0;background:var(--hatch)}
+.strip i[data-gap]{margin-left:5px}
+.cbar .b .h{background:var(--c)} .cbar .b .l{background:var(--c-lo);box-shadow:inset 0 0 0 1px var(--c);min-width:5px}
+.fix code{font-size:11.5px;color:var(--strong)}
+.repopen .rl{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:4px 12px;align-items:start}
+.repopen .rl .pills{display:flex;flex-wrap:wrap;gap:4px}
+.pill.rule{color:var(--accent-text);max-width:100%;display:inline-block;overflow:hidden;text-overflow:ellipsis}
+.quiet .linkbtn{font-size:12px}
+@container centre (max-width: 920px){ .narrowfix{display:inline} }
+
+/* draft 9: a block's label is a chip on the block, so it reads the same over solid and outlined */
+.sg .lab,.sg .lab[data-on="hi"]{flex:none;display:inline-flex;align-items:center;gap:5px;margin-left:3px;padding:0 4px;height:18px;border-radius:3px;background:var(--surface);color:var(--strong);white-space:nowrap}
+.sg .ct{font-variant-numeric:tabular-nums}
+.strip[data-dense] i[data-w="mixed"],.strip[data-dense] i[data-w="light"]{box-shadow:inset 0 0 0 1px var(--c)}
+.strip:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+.spreadcol small.hot{color:var(--accent-text);font-weight:600}
+.repopen .files2{display:flex;flex-direction:column;gap:4px;min-width:0}
+.repopen .fl{display:grid;grid-template-columns:minmax(0,230px) minmax(0,1fr);gap:4px 10px;align-items:start}
+.repopen .fl code{color:var(--muted);font-size:12px;overflow-wrap:anywhere;padding-top:2px}
+.repopen .all{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px;padding:2px 0 4px}
+/* one breakpoint for the fix column: it is a column above 900px and a line under the rule's name below */
+@container centre (min-width: 901px){ .rrow .fix{display:flex} .rrow .narrowfix{display:none} }
+@container centre (max-width: 900px){ .rrow .narrowfix{display:block} .rrow .narrowfix code{color:var(--strong)} }
+/* draft 10: marks drawn from the data only */
+/* a block's label sits at its end, so it never covers the solid part, which starts at the left */
+.sg .lab,.sg .lab[data-on="hi"]{margin-left:auto;margin-right:3px}
+/* the block of a lane's small rules draws a divider at each rule's boundary */
+.sg[data-rest]{background:var(--cuts,none),linear-gradient(90deg,var(--c) 0 var(--hi),var(--c-lo) var(--hi) 100%)}
+/* a tick's solid part is its share of high or critical, from the baseline up */
+.strip i[data-w="mixed"]{background:linear-gradient(to top,var(--c) 0 var(--hi),var(--c-lo) var(--hi) 100%)}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">SPI Code · design proposal · draft 10</p>
+  <h1>Security at fleet scale: see where the alerts pile up before reading a row</h1>
+  <p class="lead">One figure leads: each lane is a bar on one scale, and a rule or package is a block in it sized by its alerts. Below it the chosen lane reads two ways, by rule or by repository, and both get longer as the fleet grows, never wider.</p>
+  <p class="muted">Draft 10 is draft 7 after two rounds of a four-seat council, a wording review and a render check; the notes below the window say what changed. Every count is from the sweep of 20 Nov 2026, 10:02; the paths, alert and PR numbers, advisories and versions are made up. Click a lane, a block, a row, a tick or a repository. Fleet size 40 adds 25 made-up forks to show how the layout holds; they are labelled as such.</p>
+
+  <div class="bar">
+    <span class="muted">Sweep</span>
+    <span class="seg" id="stateSeg">
+      <button data-v="live" aria-pressed="true">Today’s sweep</button>
+      <button data-v="partial" aria-pressed="false">Two lists not read</button>
+      <button data-v="clean" aria-pressed="false">SPI code clean</button>
+    </span>
+    <span class="muted">Fleet</span>
+    <span class="seg" id="fleetSeg">
+      <button data-v="15" aria-pressed="true">15 repositories</button>
+      <button data-v="40" aria-pressed="false">40 (layout test)</button>
+    </span>
+    <span class="muted">Palette</span>
+    <span class="seg" id="paletteSeg">
+      <button data-v="neutral" aria-pressed="true">Neutral (app default)</button>
+      <button data-v="warm" aria-pressed="false">Warm</button>
+    </span>
+    <span class="muted">Colour</span>
+    <span class="seg" id="colourSeg">
+      <button data-v="lane" aria-pressed="true">Lane colour</button>
+      <button data-v="ink" aria-pressed="false">Ink only</button>
+    </span>
+    <span class="muted">Theme</span>
+    <span class="seg" id="themeSeg">
+      <button data-v="" aria-pressed="true">System</button>
+      <button data-v="light" aria-pressed="false">Light</button>
+      <button data-v="dark" aria-pressed="false">Dark</button>
+    </span>
+  </div>
+
+  <div class="win">
+    <aside class="side" aria-label="Sidebar">
+      <div class="find"><span>Find or ask</span><span class="kbd">⌘K</span></div>
+      <div class="nav"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5"/></svg>Today<span class="n bad">2</span></div>
+      <div class="nav"><svg class="ic" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="4" rx="1"/><rect x="2" y="9" width="12" height="4" rx="1"/></svg>Environment<span class="n okring">✓</span></div>
+      <div class="nav"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2 2 5l6 3 6-3zM2 8l6 3 6-3M2 11l6 3 6-3"/></svg>Template</div>
+      <h3>Pinned</h3>
+      <div class="nav"><svg class="ic" viewBox="0 0 16 16"><path d="M2 2h6l6 6-6 6-6-6z"/></svg>Releases</div>
+      <div class="nav" aria-current="page"><svg class="ic" viewBox="0 0 16 16"><path d="M8 1.5 13 3.5v4c0 3.2-2.1 5.6-5 7-2.900-1.400-5-3.800-5-7v-4z"/></svg>Security</div>
+      <div class="nav"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2v9M4.500 7.500 8 11l3.500-3.500M3 14h10"/></svg>Upstream<span class="n warn">1</span></div>
+      <div id="sideSvcs"></div>
+      <div class="foot"><span>Settled 2</span><span>10:24</span></div>
+    </aside>
+    <section class="centre">
+      <div class="top">
+        <h2>Security</h2>
+        <span class="read">read 10:02</span>
+        <span class="sp"></span>
+        <span class="pin" title="Pinned"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M5 1.500h6l-1 5 2.500 2.500v1H9v4l-1 1.500L7 14v-4H3.500V9L6 6.500z"/></svg></span>
+      </div>
+      <div class="body" id="body"></div>
+    </section>
+  </div>
+
+  <div class="notes">
+    <div>
+      <h2>The design</h2>
+      <ul>
+        <li><b>One figure leads.</b> The three lanes are bars on one scale, so 141 upstream alerts look three and a half times the size of 40 of ours. Each block is a rule or package, widest first; a lane’s smallest share one “N more” block at its end. In Shipped SPI code every rule with a high or critical alert keeps its own block, however small.</li>
+        <li><b>The lane is the page’s one filter.</b> Clicking a lane name chooses it. Clicking a block chooses its lane and opens that row.</li>
+        <li><b>By rule and By repository are two views of the chosen lane.</b> A rule row carries a strip with one tick per repository; a repository row carries its bar, its count, its total across the whole page and its top rules. Repositories with nothing share one line.</li>
+        <li><b>Colour says whose move it is.</b> Ours is blue, upstream takes the upstream role’s magenta, and tests, tooling and settings are grey. Severity is never a hue, and amber and red still mean Waiting and Blocked only.</li>
+        <li><b>Every figure can be checked against GitHub.</b> The line above the headline counts everything open by scanner, and each repository shows its total across the page.</li>
+        <li><b>The opened row is draft 6’s,</b> unchanged.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>What changed in drafts 8 to 10</h2>
+      <ul>
+        <li><b>Severity is solid against outlined.</b> Draft 7 used a tint for medium and low, which measured about 1.8 to 2.1:1 against the surface. A lower-severity mark is now a pale fill with an outline in the lane’s own colour, and every lane colour is at least 3:1 on the surface and on a raised row in all four palette and theme pairs. Ink only is the same encoding in ink.</li>
+        <li><b>The bars are to scale.</b> A block had an 8px floor, so the 26 tests blocks filled their bar whatever their counts. A rule or package now gets its own block when it is at least 4% of the longest lane. The rest of a lane share one block, with a divider at each rule’s boundary, labelled with their alert count; its tooltip lists them, and clicking it chooses the lane.</li>
+        <li><b>A block’s label is its count, on a chip.</b> It reads the same over solid and outlined, in every palette. It sits at the block’s end, so it never covers the solid part, which starts at the left. It is the alert count alone, or nothing where it does not fit; on a block that is part solid it must fit in the outlined part. Names stay off the bars: a name that shows only where a block is wide enough says nothing, and the rows below name every rule. A block’s name is in its tooltip and accessible name. Every number in a bar is an alert count, so a bar’s numbers add up to its total.</li>
+        <li><b>A tick’s height grows with its alert count</b> (by square root, on one scale for the lane), and its solid part is that repository’s share of high or critical, from the baseline up, and the line under the strip names the repository that holds most of a rule: “3 forks · 79 in crs-conversion”. A rule in one repository names it. Pointing at a tick names its repository and count under that strip. The strip takes focus: arrow keys step through its repositories and Enter opens the rule with that one marked.</li>
+        <li><b>One name per rule.</b> The rows, By repository and each block’s tooltip all use the scanner’s own title. Draft 7’s short names came from a hand-written table the sweep cannot produce.</li>
+        <li><b>Fewer words above the first row.</b> The sentence under the figure is gone: the strip’s line now says what it said. The legend is two swatches, plus Not read when a list was not read. The summary line drops the lane name and total the figure already shows.</li>
+        <li><b>“Lane” is no longer on the screen.</b> It is this design’s word, not the operator’s.</li>
+        <li><b>Not read is hatched.</b> A hatched tick, a hatched stub and a hatched swatch; beside a repository’s name it is still ⌀. The stub keeps the same room in every lane, so the bars stay on one scale. </li>
+        <li><b>≥ sits only on a number an unread list could change.</b> A rule’s total, its fork count and its age carry it; a count from a list that was read does not. A row names its main repository only when every list the rule draws on was read.</li>
+        <li><b>By repository lists what drives the bar.</b> Top rules are ordered by alert count. In an opened repository a rule is a pill that opens it across the program. A rule with many alerts there is listed by file, each file with its own pills or a count pill that opens in place.</li>
+        <li><b>Narrow windows keep the fix.</b> Below 900px the fix, age and fix PR words move to a line under the rule’s name.</li>
+        <li><b>A clean lane says so once,</b> in its bar.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Considered</h2>
+      <table class="t">
+        <tr><th>Form</th><th>Why not</th></tr>
+        <tr><td>Treemap of every rule</td><td>Area is harder to compare than length across three lanes, and most of the 26 tests blocks are too small to label. The lane bars carry the same part-to-whole, laid end to end.</td></tr>
+        <tr><td>When alerts were opened, by week</td><td><code>createdAt</code> clusters by repository: 193 of 275 opened on 13 Oct. The chart would show when scanning reached each repository more than how risk moves. A trend needs closed alerts, which the sweep does not keep.</td></tr>
+        <tr><td>A colour per lane, from the app’s chart series</td><td>The series overlaps the semantic roles (<code>--chart-2</code> is the warning colour, <code>--chart-3</code> the agent colour, <code>--chart-1</code> sits by the accent), and <code>--chart-4</code> and <code>--chart-6</code> change hue between light and dark, so a lane would not keep its colour across themes. The lane colours are chosen instead.</td></tr>
+        <tr><td>Repositories as columns, made scrollable</td><td>It hides the right side of the map at exactly the size where the map matters.</td></tr>
+      </table>
+    </div>
+    <div>
+      <h2>Found in the data</h2>
+      <ul>
+        <li><b>59 of 82 dependency alerts sit beside a fix PR that was closed unmerged.</b> Only 2 Dependabot PRs are open, both in <code>crs-conversion</code>. Each rule row now says how many closed fix PRs it has.</li>
+        <li><b>The upstream lane is mostly one file.</b> 79 of the 93 User-controlled data in arithmetic alerts are in <code>crs-conversion</code>, 60 of them in <code>YARrowBramble.java</code>. Its block is the widest on the page and By repository shows it as one long bar, so nobody mistakes 141 for a fleet-wide problem.</li>
+        <li><b>One alert opened in the last seven days.</b> “New this week” stays a phrase on the row, not a chart.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Proposed palette change</h2>
+      <ul>
+        <li>Three lane tokens beside the chart series: <code>--lane-spi</code> blue (<code>#2a78d6</code> light, <code>#3987e5</code> dark), <code>--lane-upstream</code> equal to <code>--upstream</code>, and <code>--lane-tests</code> a mid grey per palette. The values are draft 7’s.</li>
+        <li>Each lane colour measures 3.0:1 or more against the surface and against a raised row in Neutral and Warm, light and dark (the lowest is the tests grey on a Warm light raised row). The pale fill inside an outline is the lane colour mixed 16% into the surface and carries no meaning by itself.</li>
+        <li>A label on a block is the palette’s strongest text colour on a chip of its surface colour, so no label depends on a lane colour for contrast.</li>
+        <li>Two visual-design rules change. “Severity stays weight, never colour” holds: severity is solid against outlined, never a hue. The upstream role widens from upstream origin marks to findings in upstream code, which arrive the same way.</li>
+        <li>The blue sits near the <code>work</code> role. Work only marks refreshes and running sweeps, which never share a mark with this page’s charts.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>For the build</h2>
+      <ul>
+        <li>No new sweep fields beyond draft 6’s: the figure, the strip and By repository all come from each alert’s repository, path, lane and severity. The one-line rule help and CWE still need <code>rule.full_description</code> and <code>rule.tags</code>.</li>
+        <li>Every mark splits the same way: the solid part is the share of high or critical alerts, from a block’s left, a tick’s baseline or a count bar’s start, and the rest is a 16% mix of the lane colour into the surface inside an outline of the lane colour. No mark has a fixed middle step.</li>
+        <li>The figure is on one scale across the three lanes. The Alerts column and the strip ticks are scaled to the chosen lane only, its largest rule and its largest repository count, because one lane’s rows show at a time.</li>
+        <li>The block order within a lane is by alert count; the rule list keeps draft 6’s order (worst severity, then how many are high, then count).</li>
+        <li>The figure and the strip have text equivalents: each block’s accessible name is its title, count and severity, and each strip’s is its repositories and counts.</li>
+        <li>Names on the screen are the scanner’s titles. There is no short-name table to maintain.</li>
+        <li>Draft 6’s other findings stand, including <code>spicode-asl</code> (core takes a code-scanning group’s reach from its first alert).</li>
+      </ul>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+document.documentElement.dataset.palette = "neutral";
+document.documentElement.dataset.colour = "lane";
+const BASE = {"at":"2026-11-20T16:02:47.921Z","services":["partition","entitlements","legal","schema","file","storage","indexer","search","workflow","indexer-queue","unit","crs-catalog","crs-conversion","osdu-spi","osdu-spi-stack"],"rules":[{"lane":"spi","source":"code","title":"Disabled Spring CSRF protection","tool":"CodeQL","rule":"java/spring-disabled-csrf-protection","pkg":null,"eco":null,"alerts":[{"s":"partition","n":17,"v":"high","p":"provider/alder-azure/src/main/java/org/birch/cedar/alder/provider/azure/security/AzureDunlinEmberFennel.java","u":"https://github.com/example-org/partition/security/code-scanning/17","c":"2026-02-27"},{"s":"partition","n":13,"v":"high","p":"provider/alder-azure/src/main/java/org/birch/cedar/alder/provider/azure/security/GARnetEmberFennel.java","u":"https://github.com/example-org/partition/security/code-scanning/13","c":"2026-02-27"},{"s":"entitlements","n":23,"v":"high","p":"provider/heron-ibex2-azure/src/main/java/org/birch/cedar/heron/ibex2/azure/security/AzureDunlinEmberFennel.java","u":"https://github.com/example-org/entitlements/security/code-scanning/23","c":"2026-09-17"},{"s":"entitlements","n":21,"v":"high","p":"provider/heron-ibex2-azure/src/main/java/org/birch/cedar/heron/ibex2/azure/security/GARnetEmberFennel.java","u":"https://github.com/example-org/entitlements/security/code-scanning/21","c":"2026-09-17"},{"s":"legal","n":17,"v":"high","p":"provider/juniper-azure/src/main/java/org/birch/cedar/juniper/azure/security/AzureDunlinEmberFennel.java","u":"https://github.com/example-org/legal/security/code-scanning/17","c":"2026-09-17"},{"s":"legal","n":14,"v":"high","p":"provider/juniper-azure/src/main/java/org/birch/cedar/juniper/azure/security/GARnetEmberFennel.java","u":"https://github.com/example-org/legal/security/code-scanning/14","c":"2026-09-17"},{"s":"schema","n":13,"v":"high","p":"provider/kestrel-azure/src/main/java/org/birch/cedar/kestrel/security/GARnetEmberFennelLarchMerlinNutmegOsprey.java","u":"https://github.com/example-org/schema/security/code-scanning/13","c":"2026-09-29"},{"s":"schema","n":10,"v":"high","p":"provider/kestrel-azure/src/main/java/org/birch/cedar/kestrel/security/GARnetEmberFennelLarchDunlinOsprey.java","u":"https://github.com/example-org/schema/security/code-scanning/10","c":"2026-09-29"},{"s":"schema","n":6,"v":"high","p":"provider/kestrel-azure/src/main/java/org/birch/cedar/kestrel/security/GARnetEmberFennel.java","u":"https://github.com/example-org/schema/security/code-scanning/6","c":"2026-09-29"},{"s":"file","n":21,"v":"high","p":"provider/plover-azure/src/main/java/org/birch/cedar/plover/provider/azure/security/AzureDunlinEmberFennel.java","u":"https://github.com/example-org/file/security/code-scanning/21","c":"2026-09-29"},{"s":"file","n":18,"v":"high","p":"provider/plover-azure/src/main/java/org/birch/cedar/plover/provider/azure/security/GARnetEmberFennel.java","u":"https://github.com/example-org/file/security/code-scanning/18","c":"2026-09-29"},{"s":"storage","n":18,"v":"high","p":"provider/quince-azure/src/main/java/org/birch/cedar/quince/provider/azure/security/GARnetEmberFennel.java","u":"https://github.com/example-org/storage/security/code-scanning/18","c":"2026-10-13"},{"s":"storage","n":15,"v":"high","p":"provider/quince-azure/src/main/java/org/birch/cedar/quince/provider/azure/security/AzureDunlinEmberFennel.java","u":"https://github.com/example-org/storage/security/code-scanning/15","c":"2026-10-13"},{"s":"indexer","n":14,"v":"high","p":"provider/rowan-azure/src/main/java/org/birch/cedar/rowan/azure/security/AzureDunlinEmberFennel.java","u":"https://github.com/example-org/indexer/security/code-scanning/14","c":"2026-10-13"},{"s":"indexer","n":10,"v":"high","p":"provider/rowan-azure/src/main/java/org/birch/cedar/rowan/azure/security/GARnetEmberFennel.java","u":"https://github.com/example-org/indexer/security/code-scanning/10","c":"2026-10-13"},{"s":"search","n":26,"v":"high","p":"provider/sorrel-azure/src/main/java/org/birch/cedar/sorrel/provider/azure/security/AzureDunlinEmberFennel.java","u":"https://github.com/example-org/search/security/code-scanning/26","c":"2026-10-13"},{"s":"search","n":23,"v":"high","p":"provider/sorrel-azure/src/main/java/org/birch/cedar/sorrel/provider/azure/security/GARnetEmberFennel.java","u":"https://github.com/example-org/search/security/code-scanning/23","c":"2026-10-13"},{"s":"workflow","n":13,"v":"high","p":"provider/tansy-azure/src/main/java/org/birch/cedar/tansy/provider/azure/security/AzureDunlinEmberFennel.java","u":"https://github.com/example-org/workflow/security/code-scanning/13","c":"2026-10-13"},{"s":"workflow","n":10,"v":"high","p":"provider/tansy-azure/src/main/java/org/birch/cedar/tansy/provider/azure/security/GarnetEmberFennel.java","u":"https://github.com/example-org/workflow/security/code-scanning/10","c":"2026-10-13"},{"s":"indexer-queue","n":11,"v":"high","p":"rowan-umber-azure-vetch/src/main/java/org/birch/cedar/wren/azure/security/AzureDunlinEmberFennel.java","u":"https://github.com/example-org/indexer-queue/security/code-scanning/11","c":"2026-10-13"},{"s":"crs-catalog","n":13,"v":"high","p":"provider/yarrow-zinnia-azure/yarrow-zinnia-aster/src/main/java/org/birch/cedar/yarrow/security/EmberFennel.java","u":"https://github.com/example-org/crs-catalog/security/code-scanning/13","c":"2026-10-13"},{"s":"crs-conversion","n":229,"v":"high","p":"provider/yarrow-bramble-azure/yarrow-bramble-aster/src/main/java/org/birch/cedar/yarrow/security/EmberFennel.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/229","c":"2026-11-07"}]},{"lane":"spi","source":"code","title":"Log Injection","tool":"CodeQL","rule":"java/log-injection","pkg":null,"eco":null,"alerts":[{"s":"partition","n":18,"v":"medium","p":"provider/alder-azure/src/main/java/org/birch/cedar/alder/provider/azure/security/AzureDunlinEmberClover.java","u":"https://github.com/example-org/partition/security/code-scanning/18","c":"2026-02-27"},{"s":"schema","n":18,"v":"medium","p":"provider/kestrel-azure/src/main/java/org/birch/cedar/kestrel/security/AzureMerlinNutmegEmberClover.java","u":"https://github.com/example-org/schema/security/code-scanning/18","c":"2026-09-29"},{"s":"schema","n":16,"v":"medium","p":"provider/kestrel-azure/src/main/java/org/birch/cedar/kestrel/security/AzureDunlinEmberClover.java","u":"https://github.com/example-org/schema/security/code-scanning/16","c":"2026-09-29"},{"s":"file","n":53,"v":"medium","p":"provider/plover-azure/src/main/java/org/birch/cedar/plover/provider/azure/dahlia/QuinceDahlia.java","u":"https://github.com/example-org/file/security/code-scanning/53","c":"2026-09-29"},{"s":"file","n":50,"v":"medium","p":"provider/plover-azure/src/main/java/org/birch/cedar/plover/provider/azure/dahlia/QuinceDahlia.java","u":"https://github.com/example-org/file/security/code-scanning/50","c":"2026-09-29"},{"s":"file","n":46,"v":"medium","p":"provider/plover-azure/src/main/java/org/birch/cedar/plover/provider/azure/dahlia/QuinceDahlia.java","u":"https://github.com/example-org/file/security/code-scanning/46","c":"2026-09-29"},{"s":"file","n":45,"v":"medium","p":"provider/plover-azure/src/main/java/org/birch/cedar/plover/provider/azure/dahlia/QuinceDahlia.java","u":"https://github.com/example-org/file/security/code-scanning/45","c":"2026-09-29"},{"s":"workflow","n":47,"v":"medium","p":"provider/tansy-azure/src/main/java/org/birch/cedar/tansy/provider/azure/service/TansyEgretFinchGorse.java","u":"https://github.com/example-org/workflow/security/code-scanning/47","c":"2026-10-13"},{"s":"workflow","n":44,"v":"medium","p":"provider/tansy-azure/src/main/java/org/birch/cedar/tansy/provider/azure/service/TansyEgretFinchGorse.java","u":"https://github.com/example-org/workflow/security/code-scanning/44","c":"2026-10-13"},{"s":"workflow","n":40,"v":"medium","p":"provider/tansy-azure/src/main/java/org/birch/cedar/tansy/provider/azure/service/TansyEgretFinchGorse.java","u":"https://github.com/example-org/workflow/security/code-scanning/40","c":"2026-10-13"},{"s":"workflow","n":39,"v":"medium","p":"provider/tansy-azure/src/main/java/org/birch/cedar/tansy/provider/azure/service/TansyEgretFinchGorse.java","u":"https://github.com/example-org/workflow/security/code-scanning/39","c":"2026-10-13"},{"s":"workflow","n":38,"v":"medium","p":"provider/tansy-azure/src/main/java/org/birch/cedar/tansy/provider/azure/service/TansyEgretFinchGorse.java","u":"https://github.com/example-org/workflow/security/code-scanning/38","c":"2026-10-13"},{"s":"workflow","n":34,"v":"medium","p":"provider/tansy-azure/src/main/java/org/birch/cedar/tansy/provider/azure/service/TansyEgretFinchGorse.java","u":"https://github.com/example-org/workflow/security/code-scanning/34","c":"2026-10-13"},{"s":"workflow","n":30,"v":"medium","p":"provider/tansy-azure/src/main/java/org/birch/cedar/tansy/provider/azure/security/AzureDunlinEmberClover.java","u":"https://github.com/example-org/workflow/security/code-scanning/30","c":"2026-10-13"},{"s":"workflow","n":29,"v":"medium","p":"provider/tansy-azure/src/main/java/org/birch/cedar/tansy/provider/azure/dahlia/TansyHazelDahlia.java","u":"https://github.com/example-org/workflow/security/code-scanning/29","c":"2026-10-13"}]},{"lane":"tests","source":"dependabot","title":"httpclient5","tool":null,"rule":null,"pkg":"org.apache.httpcomponents.client5:httpclient5","eco":"maven","alerts":[{"s":"partition","n":12,"v":"medium","p":"testing/alder-test-core/pom.xml","u":"https://github.com/example-org/partition/security/dependabot/12","c":"2026-08-13","cve":"CVE-2099-1001","sum":"Denial of service through crafted input","fx":"44.2.3","pr":{"number":31,"url":"https://github.com/example-org/partition/pull/31"}},{"s":"entitlements","n":32,"v":"medium","p":"testing/heron-ibex2-test-core/pom.xml","u":"https://github.com/example-org/entitlements/security/dependabot/32","c":"2026-09-17","cve":"CVE-2099-1001","sum":"Denial of service through crafted input","fx":"44.2.3","pr":{"number":30,"url":"https://github.com/example-org/entitlements/pull/30"}},{"s":"entitlements","n":16,"v":"medium","p":"heron-ibex2-acceptance-test/pom.xml","u":"https://github.com/example-org/entitlements/security/dependabot/16","c":"2026-09-17","cve":"CVE-2099-1001","sum":"Denial of service through crafted input","fx":"44.2.3"},{"s":"storage","n":22,"v":"medium","p":"testing/quince-test-core/pom.xml","u":"https://github.com/example-org/storage/security/dependabot/22","c":"2026-10-13","cve":"CVE-2099-1001","sum":"Denial of service through crafted input","fx":"44.2.3","pr":{"number":59,"url":"https://github.com/example-org/storage/pull/59"}}]},{"lane":"tests","source":"dependabot","title":"spring-web","tool":null,"rule":null,"pkg":"org.springframework:spring-web","eco":"maven","alerts":[{"s":"partition","n":9,"v":"medium","p":"testing/alder-test-core/pom.xml","u":"https://github.com/example-org/partition/security/dependabot/9","c":"2026-08-08","cve":"CVE-2099-1002","sum":"Unbounded memory use while parsing a request","fx":"47.3.0"},{"s":"entitlements","n":29,"v":"medium","p":"testing/heron-ibex2-test-core/pom.xml","u":"https://github.com/example-org/entitlements/security/dependabot/29","c":"2026-09-17","cve":"CVE-2099-1002","sum":"Unbounded memory use while parsing a request","fx":"47.3.0","pr":{"number":31,"url":"https://github.com/example-org/entitlements/pull/31"}},{"s":"file","n":11,"v":"medium","p":"testing/plover-test-core/pom.xml","u":"https://github.com/example-org/file/security/dependabot/11","c":"2026-09-29","cve":"CVE-2099-1002","sum":"Unbounded memory use while parsing a request","fx":"47.3.0","pr":{"number":35,"url":"https://github.com/example-org/file/pull/35"}}]},{"lane":"upstream","source":"code","title":"Information exposure through an error message","tool":"CodeQL","rule":"java/error-message-exposure","pkg":null,"eco":null,"alerts":[{"s":"entitlements","n":39,"v":"medium","p":"heron-ibex2-core/src/main/java/org/birch/cedar/heron/ibex2/iris/JasperKelpLupin.java","u":"https://github.com/example-org/entitlements/security/code-scanning/39","c":"2026-09-17"},{"s":"entitlements","n":36,"v":"medium","p":"heron-ibex2-core/src/main/java/org/birch/cedar/heron/ibex2/iris/JasperKelpLupin.java","u":"https://github.com/example-org/entitlements/security/code-scanning/36","c":"2026-09-17"},{"s":"entitlements","n":32,"v":"medium","p":"heron-ibex2-core/src/main/java/org/birch/cedar/heron/ibex2/iris/JasperKelpLupin.java","u":"https://github.com/example-org/entitlements/security/code-scanning/32","c":"2026-09-17"},{"s":"entitlements","n":28,"v":"medium","p":"heron-ibex2-core/src/main/java/org/birch/cedar/heron/ibex2/iris/JasperKelpLupin.java","u":"https://github.com/example-org/entitlements/security/code-scanning/28","c":"2026-09-17"},{"s":"entitlements","n":26,"v":"medium","p":"heron-ibex2-core/src/main/java/org/birch/cedar/heron/ibex2/iris/JasperKelpLupin.java","u":"https://github.com/example-org/entitlements/security/code-scanning/26","c":"2026-09-17"}]},{"lane":"upstream","source":"dependabot","title":"log4j-core","tool":null,"rule":null,"pkg":"org.apache.logging.log4j:log4j-core","eco":"maven","alerts":[{"s":"entitlements","n":36,"v":"medium","p":"pom.xml","u":"https://github.com/example-org/entitlements/security/dependabot/36","c":"2026-10-27","cve":"CVE-2099-1003","sum":"Path traversal when extracting an archive","fx":"40.3.7","pr":{"number":38,"url":"https://github.com/example-org/entitlements/pull/38"}},{"s":"entitlements","n":24,"v":"medium","p":"pom.xml","u":"https://github.com/example-org/entitlements/security/dependabot/24","c":"2026-09-17","cve":"CVE-2099-1004","sum":"Request smuggling through malformed headers","fx":"40.3.7","pr":{"number":38,"url":"https://github.com/example-org/entitlements/pull/38"}},{"s":"entitlements","n":21,"v":"medium","p":"pom.xml","u":"https://github.com/example-org/entitlements/security/dependabot/21","c":"2026-09-17","cve":"CVE-2099-1005","sum":"Information exposure in error responses","fx":"40.3.7","pr":{"number":38,"url":"https://github.com/example-org/entitlements/pull/38"}},{"s":"entitlements","n":18,"v":"medium","p":"pom.xml","u":"https://github.com/example-org/entitlements/security/dependabot/18","c":"2026-09-17","cve":"CVE-2099-1006","sum":"Improper certificate validation on outbound calls","fx":"40.3.7","pr":{"number":38,"url":"https://github.com/example-org/entitlements/pull/38"}}]},{"lane":"upstream","source":"dependabot","title":"log4j-api","tool":null,"rule":null,"pkg":"org.apache.logging.log4j:log4j-api","eco":"maven","alerts":[{"s":"entitlements","n":27,"v":"medium","p":"pom.xml","u":"https://github.com/example-org/entitlements/security/dependabot/27","c":"2026-09-17","cve":"CVE-2099-1007","sum":"Regular expression denial of service","fx":"46.1.8"}]},{"lane":"upstream","source":"dependabot","title":"json","tool":null,"rule":null,"pkg":"org.json:json","eco":"maven","alerts":[{"s":"legal","n":18,"v":"medium","p":"juniper-core/pom.xml","u":"https://github.com/example-org/legal/security/dependabot/18","c":"2026-11-09","cve":"CVE-2099-1008","sum":"Header injection in redirect handling","fx":"48.4.2"},{"s":"schema","n":18,"v":"medium","p":"kestrel-core/pom.xml","u":"https://github.com/example-org/schema/security/dependabot/18","c":"2026-11-09","cve":"CVE-2099-1008","sum":"Header injection in redirect handling","fx":"48.4.2"},{"s":"workflow","n":62,"v":"medium","p":"pom.xml","u":"https://github.com/example-org/workflow/security/dependabot/62","c":"2026-11-10","cve":"CVE-2099-1008","sum":"Header injection in redirect handling","fx":"48.4.2"}]},{"lane":"tests","source":"dependabot","title":"guava","tool":null,"rule":null,"pkg":"com.google.guava:guava","eco":"maven","alerts":[{"s":"legal","n":14,"v":"high","p":"testing/juniper-test-core/pom.xml","u":"https://github.com/example-org/legal/security/dependabot/14","c":"2026-10-27","cve":"CVE-2099-1009","sum":"Deserialization of untrusted data","fx":"43.3.5","pr":{"number":49,"url":"https://github.com/example-org/legal/pull/49"}},{"s":"legal","n":10,"v":"low","p":"testing/juniper-test-core/pom.xml","u":"https://github.com/example-org/legal/security/dependabot/10","c":"2026-09-17","cve":"CVE-2099-1010","sum":"Resource leak on a failed decode","fx":"43.1.7","pr":{"number":49,"url":"https://github.com/example-org/legal/pull/49"}},{"s":"legal","n":8,"v":"medium","p":"testing/juniper-test-core/pom.xml","u":"https://github.com/example-org/legal/security/dependabot/8","c":"2026-09-17","cve":"CVE-2099-1011","sum":"Cross-site scripting in a rendered message","fx":"43.1.7","pr":{"number":49,"url":"https://github.com/example-org/legal/pull/49"}},{"s":"indexer","n":17,"v":"high","p":"testing/rowan-test-core/pom.xml","u":"https://github.com/example-org/indexer/security/dependabot/17","c":"2026-10-27","cve":"CVE-2099-1009","sum":"Deserialization of untrusted data","fx":"43.3.5","pr":{"number":43,"url":"https://github.com/example-org/indexer/pull/43"}},{"s":"indexer","n":13,"v":"low","p":"testing/rowan-test-core/pom.xml","u":"https://github.com/example-org/indexer/security/dependabot/13","c":"2026-10-13","cve":"CVE-2099-1010","sum":"Resource leak on a failed decode","fx":"43.1.7","pr":{"number":43,"url":"https://github.com/example-org/indexer/pull/43"}},{"s":"indexer","n":10,"v":"medium","p":"testing/rowan-test-core/pom.xml","u":"https://github.com/example-org/indexer/security/dependabot/10","c":"2026-10-13","cve":"CVE-2099-1011","sum":"Cross-site scripting in a rendered message","fx":"43.1.7","pr":{"number":43,"url":"https://github.com/example-org/indexer/pull/43"}},{"s":"search","n":49,"v":"high","p":"testing/sorrel-test-core/pom.xml","u":"https://github.com/example-org/search/security/dependabot/49","c":"2026-10-27","cve":"CVE-2099-1009","sum":"Deserialization of untrusted data","fx":"43.3.5","pr":{"number":34,"url":"https://github.com/example-org/search/pull/34"}},{"s":"search","n":48,"v":"high","p":"testing/sorrel-test-azure/pom.xml","u":"https://github.com/example-org/search/security/dependabot/48","c":"2026-10-27","cve":"CVE-2099-1009","sum":"Deserialization of untrusted data","fx":"43.3.5","pr":{"number":49,"url":"https://github.com/example-org/search/pull/49"}},{"s":"search","n":37,"v":"low","p":"testing/sorrel-test-core/pom.xml","u":"https://github.com/example-org/search/security/dependabot/37","c":"2026-10-13","cve":"CVE-2099-1010","sum":"Resource leak on a failed decode","fx":"43.1.7","pr":{"number":34,"url":"https://github.com/example-org/search/pull/34"}},{"s":"search","n":34,"v":"medium","p":"testing/sorrel-test-core/pom.xml","u":"https://github.com/example-org/search/security/dependabot/34","c":"2026-10-13","cve":"CVE-2099-1011","sum":"Cross-site scripting in a rendered message","fx":"43.1.7","pr":{"number":34,"url":"https://github.com/example-org/search/pull/34"}},{"s":"indexer-queue","n":16,"v":"high","p":"testing/rowan-umber-azure-vetch/pom.xml","u":"https://github.com/example-org/indexer-queue/security/dependabot/16","c":"2026-10-27","cve":"CVE-2099-1009","sum":"Deserialization of untrusted data","fx":"43.3.5","pr":{"number":40,"url":"https://github.com/example-org/indexer-queue/pull/40"}}]},{"lane":"tests","source":"code","title":"`TrustManager` that accepts all certificates","tool":"CodeQL","rule":"java/insecure-trustmanager","pkg":null,"eco":null,"alerts":[{"s":"legal","n":20,"v":"high","p":"testing/juniper-test-core/src/main/java/org/birch/cedar/juniper/util/MyrtleNettle.java","u":"https://github.com/example-org/legal/security/code-scanning/20","c":"2026-09-17"},{"s":"file","n":13,"v":"high","p":"testing/plover-test-core/src/main/java/org/birch/cedar/plover/OriolePoppy.java","u":"https://github.com/example-org/file/security/code-scanning/13","c":"2026-09-29"},{"s":"search","n":20,"v":"high","p":"testing/sorrel-test-core/src/main/java/org/birch/cedar/util/ORIOlePoppy.java","u":"https://github.com/example-org/search/security/code-scanning/20","c":"2026-10-13"},{"s":"workflow","n":9,"v":"high","p":"testing/tansy-test-core/src/main/java/org/birch/cedar/tansy/util/ORIOlePoppy.java","u":"https://github.com/example-org/workflow/security/code-scanning/9","c":"2026-10-13"},{"s":"indexer-queue","n":8,"v":"high","p":"testing/rowan-umber-azure-vetch/src/test/java/azure/utils/MyrtleNettle.java","u":"https://github.com/example-org/indexer-queue/security/code-scanning/8","c":"2026-10-13"}]},{"lane":"tests","source":"dependabot","title":"commons-lang3","tool":null,"rule":null,"pkg":"org.apache.commons:commons-lang3","eco":"maven","alerts":[{"s":"legal","n":13,"v":"medium","p":"testing/juniper-test-core/pom.xml","u":"https://github.com/example-org/legal/security/dependabot/13","c":"2026-09-17","cve":"CVE-2099-1012","sum":"Integer overflow in a length calculation","fx":"42.4.8","pr":{"number":47,"url":"https://github.com/example-org/legal/pull/47"}},{"s":"storage","n":19,"v":"medium","p":"testing/quince-test-core/pom.xml","u":"https://github.com/example-org/storage/security/dependabot/19","c":"2026-10-13","cve":"CVE-2099-1012","sum":"Integer overflow in a length calculation","fx":"42.4.8","pr":{"number":50,"url":"https://github.com/example-org/storage/pull/50"}}]},{"lane":"tests","source":"dependabot","title":"pyasn1","tool":null,"rule":null,"pkg":"pyasn1","eco":"pip","alerts":[{"s":"schema","n":17,"v":"high","p":"deployments/scripts/kestrel-reed/requirements.txt","u":"https://github.com/example-org/schema/security/dependabot/17","c":"2026-10-31","cve":"CVE-2099-1013","sum":"Denial of service through crafted input (case 2)","fx":"44.4.7","pr":{"number":47,"url":"https://github.com/example-org/schema/pull/47"}},{"s":"schema","n":14,"v":"high","p":"deployments/scripts/kestrel-reed/requirements.txt","u":"https://github.com/example-org/schema/security/dependabot/14","c":"2026-10-31","cve":"CVE-2099-1014","sum":"Unbounded memory use while parsing a request (case 2)","fx":"44.4.7","pr":{"number":47,"url":"https://github.com/example-org/schema/pull/47"}},{"s":"schema","n":13,"v":"high","p":"deployments/scripts/kestrel-reed/requirements.txt","u":"https://github.com/example-org/schema/security/dependabot/13","c":"2026-10-31","cve":"CVE-2099-1015","sum":"Path traversal when extracting an archive (case 2)","fx":"44.4.7","pr":{"number":47,"url":"https://github.com/example-org/schema/pull/47"}},{"s":"schema","n":9,"v":"high","p":"deployments/scripts/kestrel-reed/requirements.txt","u":"https://github.com/example-org/schema/security/dependabot/9","c":"2026-10-31","cve":"CVE-2099-1016","sum":"Request smuggling through malformed headers (case 2)","fx":"44.4.7","pr":{"number":47,"url":"https://github.com/example-org/schema/pull/47"}}]},{"lane":"tests","source":"dependabot","title":"spring-retry","tool":null,"rule":null,"pkg":"org.springframework.retry:spring-retry","eco":"maven","alerts":[{"s":"schema","n":7,"v":"medium","p":"testing/kestrel-test-core/pom.xml","u":"https://github.com/example-org/schema/security/dependabot/7","c":"2026-09-29","cve":"CVE-2099-1017","sum":"Information exposure in error responses (case 2)","fx":null},{"s":"schema","n":6,"v":"medium","p":"testing/kestrel-test-azure/pom.xml","u":"https://github.com/example-org/schema/security/dependabot/6","c":"2026-09-29","cve":"CVE-2099-1017","sum":"Information exposure in error responses (case 2)","fx":null}]},{"lane":"tests","source":"dependabot","title":"opentelemetry-api","tool":null,"rule":null,"pkg":"opentelemetry-api","eco":"pip","alerts":[{"s":"schema","n":22,"v":"medium","p":"deployments/scripts/kestrel-reed/requirements.txt","u":"https://github.com/example-org/schema/security/dependabot/22","c":"2026-11-14","cve":"CVE-2099-1018","sum":"Improper certificate validation on outbound calls (case 2)","fx":"40.1.3","pr":{"number":49,"url":"https://github.com/example-org/schema/pull/49"}}]},{"lane":"upstream","source":"code","title":"Implicit narrowing conversion in compound assignment","tool":"CodeQL","rule":"java/implicit-cast-in-compound-assignment","pkg":null,"eco":null,"alerts":[{"s":"file","n":11,"v":"high","p":"plover-core/src/main/java/org/birch/cedar/plover/service/sage/SageSorrelFinchGorse.java","u":"https://github.com/example-org/file/security/code-scanning/11","c":"2026-09-29"}]},{"lane":"upstream","source":"code","title":"Log Injection","tool":"CodeQL","rule":"java/log-injection","pkg":null,"eco":null,"alerts":[{"s":"file","n":43,"v":"medium","p":"plover-core/src/main/java/org/birch/cedar/plover/service/PloverTeaselFinchGorse.java","u":"https://github.com/example-org/file/security/code-scanning/43","c":"2026-09-29"},{"s":"file","n":42,"v":"medium","p":"plover-core/src/main/java/org/birch/cedar/plover/api/PloverValeWisp.java","u":"https://github.com/example-org/file/security/code-scanning/42","c":"2026-09-29"},{"s":"file","n":39,"v":"medium","p":"plover-core/src/main/java/org/birch/cedar/plover/api/PloverValeWisp.java","u":"https://github.com/example-org/file/security/code-scanning/39","c":"2026-09-29"},{"s":"file","n":35,"v":"medium","p":"plover-core/src/main/java/org/birch/cedar/plover/api/PloverValeWisp.java","u":"https://github.com/example-org/file/security/code-scanning/35","c":"2026-09-29"},{"s":"file","n":32,"v":"medium","p":"plover-core/src/main/java/org/birch/cedar/plover/api/PloverTeaselWisp.java","u":"https://github.com/example-org/file/security/code-scanning/32","c":"2026-09-29"},{"s":"file","n":24,"v":"medium","p":"plover-core/src/main/java/org/birch/cedar/plover/service/ValeFinchGorse.java","u":"https://github.com/example-org/file/security/code-scanning/24","c":"2026-09-29"},{"s":"storage","n":25,"v":"medium","p":"quince-core/src/main/java/org/birch/cedar/quince/service/alder2/Alder2Finch.java","u":"https://github.com/example-org/storage/security/code-scanning/25","c":"2026-10-13"},{"s":"workflow","n":84,"v":"medium","p":"tansy-core/src/main/java/org/birch/cedar/tansy/service/TansyHazelBirch2Gorse.java","u":"https://github.com/example-org/workflow/security/code-scanning/84","c":"2026-10-13"},{"s":"workflow","n":82,"v":"medium","p":"tansy-core/src/main/java/org/birch/cedar/tansy/service/TansyHazelBirch2Gorse.java","u":"https://github.com/example-org/workflow/security/code-scanning/82","c":"2026-10-13"},{"s":"workflow","n":78,"v":"medium","p":"tansy-core/src/main/java/org/birch/cedar/tansy/service/Cedar2Dunlin2Ember2WispPoppy.java","u":"https://github.com/example-org/workflow/security/code-scanning/78","c":"2026-10-13"},{"s":"workflow","n":75,"v":"medium","p":"tansy-core/src/main/java/org/birch/cedar/tansy/service/Cedar2Dunlin2Ember2WispPoppy.java","u":"https://github.com/example-org/workflow/security/code-scanning/75","c":"2026-10-13"},{"s":"workflow","n":72,"v":"medium","p":"tansy-core/src/main/java/org/birch/cedar/tansy/service/Fennel2Dunlin2Ember2WispPoppy.java","u":"https://github.com/example-org/workflow/security/code-scanning/72","c":"2026-10-13"},{"s":"workflow","n":68,"v":"medium","p":"tansy-core/src/main/java/org/birch/cedar/tansy/service/Ember2Garnet2Gorse.java","u":"https://github.com/example-org/workflow/security/code-scanning/68","c":"2026-10-13"},{"s":"workflow","n":65,"v":"medium","p":"tansy-core/src/main/java/org/birch/cedar/tansy/service/Ember2Garnet2Gorse.java","u":"https://github.com/example-org/workflow/security/code-scanning/65","c":"2026-10-13"},{"s":"workflow","n":61,"v":"medium","p":"tansy-core/src/main/java/org/birch/cedar/tansy/service/Ember2Garnet2Gorse.java","u":"https://github.com/example-org/workflow/security/code-scanning/61","c":"2026-10-13"},{"s":"workflow","n":58,"v":"medium","p":"tansy-core/src/main/java/org/birch/cedar/tansy/service/Ember2Garnet2Gorse.java","u":"https://github.com/example-org/workflow/security/code-scanning/58","c":"2026-10-13"},{"s":"workflow","n":55,"v":"medium","p":"tansy-core/src/main/java/org/birch/cedar/tansy/service/Heron2Ember2TansyEgretBirch2.java","u":"https://github.com/example-org/workflow/security/code-scanning/55","c":"2026-10-13"},{"s":"workflow","n":51,"v":"medium","p":"tansy-core/src/main/java/org/birch/cedar/tansy/ibex2/TansyJuniper2Kestrel2.java","u":"https://github.com/example-org/workflow/security/code-scanning/51","c":"2026-10-13"},{"s":"workflow","n":48,"v":"medium","p":"tansy-core/src/main/java/org/birch/cedar/tansy/ibex2/TansyJuniper2Kestrel2.java","u":"https://github.com/example-org/workflow/security/code-scanning/48","c":"2026-10-13"},{"s":"unit","n":30,"v":"medium","p":"larch2-core/src/main/java/org/birch/cedar/merlin2/model/ZinniaGorse.java","u":"https://github.com/example-org/unit/security/code-scanning/30","c":"2026-10-13"},{"s":"unit","n":27,"v":"medium","p":"larch2-core/src/main/java/org/birch/cedar/merlin2/model/ZinniaGorse.java","u":"https://github.com/example-org/unit/security/code-scanning/27","c":"2026-10-13"},{"s":"unit","n":25,"v":"medium","p":"larch2-core/src/main/java/org/birch/cedar/merlin2/model/ZinniaGorse.java","u":"https://github.com/example-org/unit/security/code-scanning/25","c":"2026-10-13"},{"s":"unit","n":22,"v":"medium","p":"larch2-core/src/main/java/org/birch/cedar/merlin2/model/ZinniaGorse.java","u":"https://github.com/example-org/unit/security/code-scanning/22","c":"2026-10-13"},{"s":"unit","n":19,"v":"medium","p":"larch2-core/src/main/java/org/birch/cedar/merlin2/model/ZinniaGorse.java","u":"https://github.com/example-org/unit/security/code-scanning/19","c":"2026-10-13"},{"s":"crs-catalog","n":43,"v":"medium","p":"yarrow-zinnia-core/src/main/java/org/birch/cedar/yarrow/model/ZinniaGorse.java","u":"https://github.com/example-org/crs-catalog/security/code-scanning/43","c":"2026-10-13"}]},{"lane":"tests","source":"dependabot","title":"commons-io","tool":null,"rule":null,"pkg":"commons-io:commons-io","eco":"maven","alerts":[{"s":"file","n":7,"v":"high","p":"testing/plover-test-core/pom.xml","u":"https://github.com/example-org/file/security/dependabot/7","c":"2026-09-29","cve":"CVE-2099-1019","sum":"Regular expression denial of service (case 2)","fx":"47.7.2","pr":{"number":44,"url":"https://github.com/example-org/file/pull/44"}},{"s":"file","n":5,"v":"medium","p":"testing/plover-test-core/pom.xml","u":"https://github.com/example-org/file/security/dependabot/5","c":"2026-09-29","cve":"CVE-2099-1020","sum":"Header injection in redirect handling (case 2)","fx":"47.4.5","pr":{"number":44,"url":"https://github.com/example-org/file/pull/44"}}]},{"lane":"tests","source":"code","title":"Disabled Spring CSRF protection","tool":"CodeQL","rule":"java/spring-disabled-csrf-protection","pkg":null,"eco":null,"alerts":[{"s":"file","n":17,"v":"high","p":"plover-core/src/test/java/org/birch/cedar/plover/PloverNutmeg2Myrtle.java","u":"https://github.com/example-org/file/security/code-scanning/17","c":"2026-09-29"},{"s":"storage","n":20,"v":"high","p":"quince-core/src/test/java/org/birch/cedar/quince/EmberOsprey2.java","u":"https://github.com/example-org/storage/security/code-scanning/20","c":"2026-10-13"},{"s":"workflow","n":24,"v":"high","p":"tansy-core/src/test/java/org/birch/cedar/tansy/api/TansyPlover2Quince2Rowan2Myrtle.java","u":"https://github.com/example-org/workflow/security/code-scanning/24","c":"2026-10-13"},{"s":"workflow","n":20,"v":"high","p":"tansy-core/src/test/java/org/birch/cedar/tansy/api/TansyQuince2Rowan2Myrtle.java","u":"https://github.com/example-org/workflow/security/code-scanning/20","c":"2026-10-13"},{"s":"workflow","n":16,"v":"high","p":"tansy-core/src/test/java/org/birch/cedar/tansy/api/TansyHazelRowan2Myrtle.java","u":"https://github.com/example-org/workflow/security/code-scanning/16","c":"2026-10-13"},{"s":"workflow","n":15,"v":"high","p":"provider/tansy-azure/src/test/java/org/birch/cedar/tansy/provider/azure/Sorrel2Tansy2Rowan2Myrtle.java","u":"https://github.com/example-org/workflow/security/code-scanning/15","c":"2026-10-13"}]},{"lane":"tests","source":"code","title":"Log Injection","tool":"CodeQL","rule":"java/log-injection","pkg":null,"eco":null,"alerts":[{"s":"file","n":28,"v":"medium","p":"plover-acceptance-test/src/test/java/org/birch/cedar/plover/umber2/PloverVetch2Wren2_YARrow2.java","u":"https://github.com/example-org/file/security/code-scanning/28","c":"2026-09-29"},{"s":"indexer","n":16,"v":"medium","p":"testing/rowan-test-core/src/main/java/org/birch/cedar/util/KestrelFinchPoppy.java","u":"https://github.com/example-org/indexer/security/code-scanning/16","c":"2026-10-13"},{"s":"search","n":30,"v":"medium","p":"testing/sorrel-test-core/src/main/java/org/birch/cedar/util/KestrelFinchPoppy.java","u":"https://github.com/example-org/search/security/code-scanning/30","c":"2026-10-13"},{"s":"search","n":28,"v":"medium","p":"testing/sorrel-test-core/src/main/java/org/birch/cedar/util/KestrelFinchPoppy.java","u":"https://github.com/example-org/search/security/code-scanning/28","c":"2026-10-13"}]},{"lane":"spi","source":"code","title":"User-controlled data in arithmetic expression","tool":"CodeQL","rule":"java/tainted-arithmetic","pkg":null,"eco":null,"alerts":[{"s":"storage","n":21,"v":"high","p":"provider/quince-azure/src/main/java/org/birch/cedar/quince/provider/azure/dahlia/Zinnia2Dahlia.java","u":"https://github.com/example-org/storage/security/code-scanning/21","c":"2026-10-13"}]},{"lane":"tests","source":"dependabot","title":"log4j-api","tool":null,"rule":null,"pkg":"org.apache.logging.log4j:log4j-api","eco":"maven","alerts":[{"s":"storage","n":17,"v":"medium","p":"testing/pom.xml","u":"https://github.com/example-org/storage/security/dependabot/17","c":"2026-10-13","cve":"CVE-2099-1007","sum":"Regular expression denial of service","fx":"46.1.8","pr":{"number":42,"url":"https://github.com/example-org/storage/pull/42"}},{"s":"workflow","n":18,"v":"medium","p":"testing/pom.xml","u":"https://github.com/example-org/workflow/security/dependabot/18","c":"2026-10-13","cve":"CVE-2099-1007","sum":"Regular expression denial of service","fx":"46.1.8"}]},{"lane":"upstream","source":"dependabot","title":"commons-compress","tool":null,"rule":null,"pkg":"org.apache.commons:commons-compress","eco":"maven","alerts":[{"s":"search","n":28,"v":"medium","p":"pom.xml","u":"https://github.com/example-org/search/security/dependabot/28","c":"2026-10-13","cve":"CVE-2099-1021","sum":"Deserialization of untrusted data (case 2)","fx":"45.4.6","pr":{"number":58,"url":"https://github.com/example-org/search/pull/58"}},{"s":"search","n":24,"v":"medium","p":"pom.xml","u":"https://github.com/example-org/search/security/dependabot/24","c":"2026-10-13","cve":"CVE-2099-1022","sum":"Resource leak on a failed decode (case 2)","fx":"45.4.6","pr":{"number":58,"url":"https://github.com/example-org/search/pull/58"}}]},{"lane":"upstream","source":"dependabot","title":"woodstox-core","tool":null,"rule":null,"pkg":"com.fasterxml.woodstox:woodstox-core","eco":"maven","alerts":[{"s":"search","n":22,"v":"medium","p":"pom.xml","u":"https://github.com/example-org/search/security/dependabot/22","c":"2026-10-13","cve":"CVE-2099-1023","sum":"Cross-site scripting in a rendered message (case 2)","fx":"48.4.7"}]},{"lane":"upstream","source":"dependabot","title":"commons-lang3","tool":null,"rule":null,"pkg":"org.apache.commons:commons-lang3","eco":"maven","alerts":[{"s":"search","n":33,"v":"medium","p":"pom.xml","u":"https://github.com/example-org/search/security/dependabot/33","c":"2026-10-13","cve":"CVE-2099-1012","sum":"Integer overflow in a length calculation","fx":"42.4.8","pr":{"number":55,"url":"https://github.com/example-org/search/pull/55"}}]},{"lane":"upstream","source":"dependabot","title":"javax.el","tool":null,"rule":null,"pkg":"org.glassfish:javax.el","eco":"maven","alerts":[{"s":"search","n":30,"v":"medium","p":"pom.xml","u":"https://github.com/example-org/search/security/dependabot/30","c":"2026-10-13","cve":"CVE-2099-1024","sum":"Integer overflow in a length calculation (case 2)","fx":null}]},{"lane":"tests","source":"dependabot","title":"logback-core","tool":null,"rule":null,"pkg":"ch.qos.logback:logback-core","eco":"maven","alerts":[{"s":"search","n":45,"v":"low","p":"testing/sorrel-test-core/pom.xml","u":"https://github.com/example-org/search/security/dependabot/45","c":"2026-10-13","cve":"CVE-2099-1025","sum":"Denial of service through crafted input (case 3)","fx":"45.9.5","pr":{"number":40,"url":"https://github.com/example-org/search/pull/40"}},{"s":"search","n":43,"v":"low","p":"testing/sorrel-test-core/pom.xml","u":"https://github.com/example-org/search/security/dependabot/43","c":"2026-10-13","cve":"CVE-2099-1026","sum":"Unbounded memory use while parsing a request (case 3)","fx":"45.7.4","pr":{"number":40,"url":"https://github.com/example-org/search/pull/40"}},{"s":"search","n":41,"v":"low","p":"testing/sorrel-test-core/pom.xml","u":"https://github.com/example-org/search/security/dependabot/41","c":"2026-10-13","cve":"CVE-2099-1027","sum":"Path traversal when extracting an archive (case 3)","fx":"45.4.3","pr":{"number":40,"url":"https://github.com/example-org/search/pull/40"}},{"s":"search","n":38,"v":"medium","p":"testing/sorrel-test-core/pom.xml","u":"https://github.com/example-org/search/security/dependabot/38","c":"2026-10-13","cve":"CVE-2099-1028","sum":"Request smuggling through malformed headers (case 3)","fx":"45.1.4","pr":{"number":40,"url":"https://github.com/example-org/search/pull/40"}}]},{"lane":"spi","source":"code","title":"Insertion of sensitive information into log files","tool":"CodeQL","rule":"java/sensitive-log","pkg":null,"eco":null,"alerts":[{"s":"workflow","n":26,"v":"high","p":"provider/tansy-azure/src/main/java/org/birch/cedar/tansy/provider/azure/service/Aster2FinchGorse.java","u":"https://github.com/example-org/workflow/security/code-scanning/26","c":"2026-10-13"}]},{"lane":"spi","source":"dependabot","title":"json","tool":null,"rule":null,"pkg":"org.json:json","eco":"maven","alerts":[{"s":"workflow","n":61,"v":"medium","p":"provider/tansy-azure/pom.xml","u":"https://github.com/example-org/workflow/security/dependabot/61","c":"2026-11-10","cve":"CVE-2099-1008","sum":"Header injection in redirect handling","fx":"48.4.2"}]},{"lane":"tests","source":"dependabot","title":"jackson-databind","tool":null,"rule":null,"pkg":"com.fasterxml.jackson.core:jackson-databind","eco":"maven","alerts":[{"s":"workflow","n":59,"v":"medium","p":"testing/tansy-test-core/pom.xml","u":"https://github.com/example-org/workflow/security/dependabot/59","c":"2026-10-20","cve":"CVE-2099-1029","sum":"Information exposure in error responses (case 3)","fx":"45.9.2","pr":{"number":52,"url":"https://github.com/example-org/workflow/pull/52"}},{"s":"workflow","n":56,"v":"high","p":"testing/tansy-test-core/pom.xml","u":"https://github.com/example-org/workflow/security/dependabot/56","c":"2026-10-13","cve":"CVE-2099-1030","sum":"Improper certificate validation on outbound calls (case 3)","fx":"45.14.6","pr":{"number":52,"url":"https://github.com/example-org/workflow/pull/52"}},{"s":"workflow","n":54,"v":"high","p":"testing/tansy-test-core/pom.xml","u":"https://github.com/example-org/workflow/security/dependabot/54","c":"2026-10-13","cve":"CVE-2099-1031","sum":"Regular expression denial of service (case 3)","fx":"45.14.6","pr":{"number":52,"url":"https://github.com/example-org/workflow/pull/52"}},{"s":"workflow","n":52,"v":"medium","p":"testing/tansy-test-core/pom.xml","u":"https://github.com/example-org/workflow/security/dependabot/52","c":"2026-10-13","cve":"CVE-2099-1032","sum":"Header injection in redirect handling (case 3)","fx":"45.11.1","pr":{"number":52,"url":"https://github.com/example-org/workflow/pull/52"}},{"s":"workflow","n":49,"v":"medium","p":"testing/tansy-test-core/pom.xml","u":"https://github.com/example-org/workflow/security/dependabot/49","c":"2026-10-13","cve":"CVE-2099-1033","sum":"Deserialization of untrusted data (case 3)","fx":"45.11.1","pr":{"number":52,"url":"https://github.com/example-org/workflow/pull/52"}},{"s":"workflow","n":45,"v":"medium","p":"testing/tansy-test-core/pom.xml","u":"https://github.com/example-org/workflow/security/dependabot/45","c":"2026-10-13","cve":"CVE-2099-1034","sum":"Resource leak on a failed decode (case 3)","fx":"45.9.2","pr":{"number":52,"url":"https://github.com/example-org/workflow/pull/52"}},{"s":"workflow","n":40,"v":"medium","p":"testing/tansy-test-core/pom.xml","u":"https://github.com/example-org/workflow/security/dependabot/40","c":"2026-10-13","cve":"CVE-2099-1035","sum":"Cross-site scripting in a rendered message (case 3)","fx":"45.9.2","pr":{"number":52,"url":"https://github.com/example-org/workflow/pull/52"}},{"s":"workflow","n":38,"v":"medium","p":"testing/tansy-test-core/pom.xml","u":"https://github.com/example-org/workflow/security/dependabot/38","c":"2026-10-13","cve":"CVE-2099-1036","sum":"Integer overflow in a length calculation (case 3)","fx":"45.8.4","pr":{"number":52,"url":"https://github.com/example-org/workflow/pull/52"}},{"s":"workflow","n":35,"v":"high","p":"testing/tansy-test-core/pom.xml","u":"https://github.com/example-org/workflow/security/dependabot/35","c":"2026-10-13","cve":"CVE-2099-1037","sum":"Denial of service through crafted input (case 4)","fx":"45.8.4","pr":{"number":52,"url":"https://github.com/example-org/workflow/pull/52"}},{"s":"workflow","n":34,"v":"high","p":"testing/tansy-test-core/pom.xml","u":"https://github.com/example-org/workflow/security/dependabot/34","c":"2026-10-13","cve":"CVE-2099-1038","sum":"Unbounded memory use while parsing a request (case 4)","fx":"45.8.4","pr":{"number":52,"url":"https://github.com/example-org/workflow/pull/52"}},{"s":"workflow","n":31,"v":"medium","p":"testing/tansy-test-core/pom.xml","u":"https://github.com/example-org/workflow/security/dependabot/31","c":"2026-10-13","cve":"CVE-2099-1039","sum":"Path traversal when extracting an archive (case 4)","fx":"45.6.2","pr":{"number":52,"url":"https://github.com/example-org/workflow/pull/52"}},{"s":"workflow","n":29,"v":"high","p":"testing/tansy-test-core/pom.xml","u":"https://github.com/example-org/workflow/security/dependabot/29","c":"2026-10-13","cve":"CVE-2099-1040","sum":"Request smuggling through malformed headers (case 4)","fx":"45.5.0","pr":{"number":52,"url":"https://github.com/example-org/workflow/pull/52"}},{"s":"workflow","n":25,"v":"high","p":"testing/tansy-test-core/pom.xml","u":"https://github.com/example-org/workflow/security/dependabot/25","c":"2026-10-13","cve":"CVE-2099-1041","sum":"Information exposure in error responses (case 4)","fx":"45.3.7","pr":{"number":52,"url":"https://github.com/example-org/workflow/pull/52"}}]},{"lane":"tests","source":"dependabot","title":"jackson-core","tool":null,"rule":null,"pkg":"com.fasterxml.jackson.core:jackson-core","eco":"maven","alerts":[{"s":"workflow","n":58,"v":"high","p":"testing/tansy-test-core/pom.xml","u":"https://github.com/example-org/workflow/security/dependabot/58","c":"2026-10-13","cve":"CVE-2099-1042","sum":"Improper certificate validation on outbound calls (case 4)","fx":"46.7.7","pr":{"number":47,"url":"https://github.com/example-org/workflow/pull/47"}},{"s":"workflow","n":43,"v":"high","p":"testing/tansy-test-core/pom.xml","u":"https://github.com/example-org/workflow/security/dependabot/43","c":"2026-10-13","cve":"CVE-2099-1043","sum":"Regular expression denial of service (case 4)","fx":"46.4.0","pr":{"number":47,"url":"https://github.com/example-org/workflow/pull/47"}},{"s":"workflow","n":30,"v":"high","p":"testing/tansy-test-core/pom.xml","u":"https://github.com/example-org/workflow/security/dependabot/30","c":"2026-10-13","cve":"CVE-2099-1044","sum":"Header injection in redirect handling (case 4)","fx":"46.1.1","pr":{"number":47,"url":"https://github.com/example-org/workflow/pull/47"}}]},{"lane":"tests","source":"dependabot","title":"azure-storage-blob","tool":null,"rule":null,"pkg":"com.azure:azure-storage-blob","eco":"maven","alerts":[{"s":"workflow","n":22,"v":"medium","p":"testing/tansy-test-azure/pom.xml","u":"https://github.com/example-org/workflow/security/dependabot/22","c":"2026-10-13","cve":"CVE-2099-1045","sum":"Deserialization of untrusted data (case 4)","fx":"47.4.5"}]},{"lane":"upstream","source":"dependabot","title":"guava","tool":null,"rule":null,"pkg":"com.google.guava:guava","eco":"maven","alerts":[{"s":"indexer-queue","n":13,"v":"high","p":"pom.xml","u":"https://github.com/example-org/indexer-queue/security/dependabot/13","c":"2026-10-27","cve":"CVE-2099-1009","sum":"Deserialization of untrusted data","fx":"43.3.5","pr":{"number":39,"url":"https://github.com/example-org/indexer-queue/pull/39"}}]},{"lane":"upstream","source":"code","title":"User-controlled data in arithmetic expression","tool":"CodeQL","rule":"java/tainted-arithmetic","pkg":null,"eco":null,"alerts":[{"s":"unit","n":18,"v":"high","p":"larch2-core/src/main/java/org/birch/cedar/merlin2/model/Larch2Plover2Gorse.java","u":"https://github.com/example-org/unit/security/code-scanning/18","c":"2026-10-13"},{"s":"unit","n":15,"v":"high","p":"larch2-core/src/main/java/org/birch/cedar/merlin2/bramble2/Clover2.java","u":"https://github.com/example-org/unit/security/code-scanning/15","c":"2026-10-13"},{"s":"crs-catalog","n":41,"v":"high","p":"yarrow-zinnia-core/src/main/java/org/birch/cedar/yarrow/model/sorrel/Dahlia2.java","u":"https://github.com/example-org/crs-catalog/security/code-scanning/41","c":"2026-10-13"},{"s":"crs-catalog","n":37,"v":"high","p":"yarrow-zinnia-core/src/main/java/org/birch/cedar/yarrow/model/sorrel/Dahlia2.java","u":"https://github.com/example-org/crs-catalog/security/code-scanning/37","c":"2026-10-13"},{"s":"crs-catalog","n":35,"v":"high","p":"yarrow-zinnia-core/src/main/java/org/birch/cedar/yarrow/model/sorrel/Dahlia2.java","u":"https://github.com/example-org/crs-catalog/security/code-scanning/35","c":"2026-10-13"},{"s":"crs-catalog","n":34,"v":"high","p":"yarrow-zinnia-core/src/main/java/org/birch/cedar/yarrow/model/Clover2.java","u":"https://github.com/example-org/crs-catalog/security/code-scanning/34","c":"2026-10-13"},{"s":"crs-catalog","n":31,"v":"high","p":"yarrow-zinnia-core/src/main/java/org/birch/cedar/yarrow/api/YarrowZinniaWisp.java","u":"https://github.com/example-org/crs-catalog/security/code-scanning/31","c":"2026-10-13"},{"s":"crs-catalog","n":30,"v":"high","p":"yarrow-zinnia-core/src/main/java/org/birch/cedar/yarrow/api/YarrowZinniaWisp.java","u":"https://github.com/example-org/crs-catalog/security/code-scanning/30","c":"2026-10-13"},{"s":"crs-catalog","n":26,"v":"high","p":"yarrow-zinnia-core/src/main/java/org/birch/cedar/yarrow/api/YarrowZinniaWisp.java","u":"https://github.com/example-org/crs-catalog/security/code-scanning/26","c":"2026-10-13"},{"s":"crs-catalog","n":22,"v":"high","p":"yarrow-zinnia-core/src/main/java/org/birch/cedar/yarrow/api/YarrowZinniaWisp.java","u":"https://github.com/example-org/crs-catalog/security/code-scanning/22","c":"2026-10-13"},{"s":"crs-catalog","n":21,"v":"high","p":"yarrow-zinnia-core/src/main/java/org/birch/cedar/yarrow/api/YarrowZinniaWisp.java","u":"https://github.com/example-org/crs-catalog/security/code-scanning/21","c":"2026-10-13"},{"s":"crs-catalog","n":20,"v":"high","p":"yarrow-zinnia-core/src/main/java/org/birch/cedar/yarrow/api/YarrowZinniaWisp.java","u":"https://github.com/example-org/crs-catalog/security/code-scanning/20","c":"2026-10-13"},{"s":"crs-catalog","n":19,"v":"high","p":"yarrow-zinnia-core/src/main/java/org/birch/cedar/yarrow/api/YarrowZinniaWisp.java","u":"https://github.com/example-org/crs-catalog/security/code-scanning/19","c":"2026-10-13"},{"s":"crs-catalog","n":17,"v":"high","p":"yarrow-zinnia-core/src/main/java/org/birch/cedar/yarrow/api/YarrowZinniaWisp.java","u":"https://github.com/example-org/crs-catalog/security/code-scanning/17","c":"2026-10-13"},{"s":"crs-conversion","n":225,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/Egret2Bramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/225","c":"2026-10-13"},{"s":"crs-conversion","n":223,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/Egret2Bramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/223","c":"2026-10-13"},{"s":"crs-conversion","n":222,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/Egret2Bramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/222","c":"2026-10-13"},{"s":"crs-conversion","n":219,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/Egret2Bramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/219","c":"2026-10-13"},{"s":"crs-conversion","n":216,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/216","c":"2026-10-13"},{"s":"crs-conversion","n":214,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/214","c":"2026-10-13"},{"s":"crs-conversion","n":213,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/Egret2Bramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/213","c":"2026-10-13"},{"s":"crs-conversion","n":210,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/210","c":"2026-10-13"},{"s":"crs-conversion","n":206,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/206","c":"2026-10-13"},{"s":"crs-conversion","n":204,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/204","c":"2026-10-13"},{"s":"crs-conversion","n":202,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/202","c":"2026-10-13"},{"s":"crs-conversion","n":198,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/198","c":"2026-10-13"},{"s":"crs-conversion","n":194,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/194","c":"2026-10-13"},{"s":"crs-conversion","n":191,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/191","c":"2026-10-13"},{"s":"crs-conversion","n":188,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/188","c":"2026-10-13"},{"s":"crs-conversion","n":186,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/186","c":"2026-10-13"},{"s":"crs-conversion","n":185,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/185","c":"2026-10-13"},{"s":"crs-conversion","n":183,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/183","c":"2026-10-13"},{"s":"crs-conversion","n":179,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/179","c":"2026-10-13"},{"s":"crs-conversion","n":175,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/175","c":"2026-10-13"},{"s":"crs-conversion","n":173,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/173","c":"2026-10-13"},{"s":"crs-conversion","n":172,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/172","c":"2026-10-13"},{"s":"crs-conversion","n":168,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/168","c":"2026-10-13"},{"s":"crs-conversion","n":165,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/165","c":"2026-10-13"},{"s":"crs-conversion","n":163,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/163","c":"2026-10-13"},{"s":"crs-conversion","n":160,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/160","c":"2026-10-13"},{"s":"crs-conversion","n":159,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/159","c":"2026-10-13"},{"s":"crs-conversion","n":157,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/157","c":"2026-10-13"},{"s":"crs-conversion","n":153,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/153","c":"2026-10-13"},{"s":"crs-conversion","n":149,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/149","c":"2026-10-13"},{"s":"crs-conversion","n":146,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/146","c":"2026-10-13"},{"s":"crs-conversion","n":144,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/144","c":"2026-10-13"},{"s":"crs-conversion","n":140,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/140","c":"2026-10-13"},{"s":"crs-conversion","n":139,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/139","c":"2026-10-13"},{"s":"crs-conversion","n":135,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/135","c":"2026-10-13"},{"s":"crs-conversion","n":133,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/133","c":"2026-10-13"},{"s":"crs-conversion","n":129,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/129","c":"2026-10-13"},{"s":"crs-conversion","n":127,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/127","c":"2026-10-13"},{"s":"crs-conversion","n":126,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/126","c":"2026-10-13"},{"s":"crs-conversion","n":123,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/123","c":"2026-10-13"},{"s":"crs-conversion","n":120,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/120","c":"2026-10-13"},{"s":"crs-conversion","n":117,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/117","c":"2026-10-13"},{"s":"crs-conversion","n":113,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/113","c":"2026-10-13"},{"s":"crs-conversion","n":111,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/111","c":"2026-10-13"},{"s":"crs-conversion","n":107,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/107","c":"2026-10-13"},{"s":"crs-conversion","n":104,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/104","c":"2026-10-13"},{"s":"crs-conversion","n":100,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/100","c":"2026-10-13"},{"s":"crs-conversion","n":99,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/99","c":"2026-10-13"},{"s":"crs-conversion","n":96,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/96","c":"2026-10-13"},{"s":"crs-conversion","n":95,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/95","c":"2026-10-13"},{"s":"crs-conversion","n":93,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/93","c":"2026-10-13"},{"s":"crs-conversion","n":90,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/90","c":"2026-10-13"},{"s":"crs-conversion","n":88,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/88","c":"2026-10-13"},{"s":"crs-conversion","n":87,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/87","c":"2026-10-13"},{"s":"crs-conversion","n":84,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/84","c":"2026-10-13"},{"s":"crs-conversion","n":81,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/81","c":"2026-10-13"},{"s":"crs-conversion","n":78,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/78","c":"2026-10-13"},{"s":"crs-conversion","n":75,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/75","c":"2026-10-13"},{"s":"crs-conversion","n":71,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/71","c":"2026-10-13"},{"s":"crs-conversion","n":67,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/67","c":"2026-10-13"},{"s":"crs-conversion","n":64,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/64","c":"2026-10-13"},{"s":"crs-conversion","n":62,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/62","c":"2026-10-13"},{"s":"crs-conversion","n":60,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/60","c":"2026-10-13"},{"s":"crs-conversion","n":59,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/59","c":"2026-10-13"},{"s":"crs-conversion","n":57,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/YARrowBramble.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/57","c":"2026-10-13"},{"s":"crs-conversion","n":55,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/Finch2Gorse2.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/55","c":"2026-10-13"},{"s":"crs-conversion","n":51,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/bramble/Finch2Gorse2.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/51","c":"2026-10-13"},{"s":"crs-conversion","n":47,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/Hazel2Iris2/Hazel2Iris2Jasper2Kelp2.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/47","c":"2026-10-13"},{"s":"crs-conversion","n":44,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/Hazel2Iris2/Hazel2Iris2Jasper2Kelp2.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/44","c":"2026-10-13"},{"s":"crs-conversion","n":42,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/Hazel2Iris2/Hazel2Iris2Lupin2Myrtle2.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/42","c":"2026-10-13"},{"s":"crs-conversion","n":38,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/Hazel2Iris2/Hazel2Iris2Nettle2Myrtle2.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/38","c":"2026-10-13"},{"s":"crs-conversion","n":34,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/Hazel2Iris2/Hazel2Iris2Heron2.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/34","c":"2026-10-13"},{"s":"crs-conversion","n":33,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/Hazel2Iris2/Hazel2Iris2Heron2.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/33","c":"2026-10-13"},{"s":"crs-conversion","n":32,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/Hazel2Iris2/Hazel2Iris2Heron2.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/32","c":"2026-10-13"},{"s":"crs-conversion","n":29,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/Hazel2Iris2/Hazel2Iris2Heron2.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/29","c":"2026-10-13"},{"s":"crs-conversion","n":27,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/Hazel2Iris2/Hazel2Iris2Heron2.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/27","c":"2026-10-13"},{"s":"crs-conversion","n":26,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/Hazel2Iris2/Hazel2Iris2Heron2.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/26","c":"2026-10-13"},{"s":"crs-conversion","n":23,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/Hazel2Iris2/Hazel2Iris2Heron2.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/23","c":"2026-10-13"},{"s":"crs-conversion","n":20,"v":"high","p":"yarrow-bramble-core/src/main/java/org/birch/cedar/yarrow/Hazel2Iris2/Hazel2Iris2Heron2.java","u":"https://github.com/example-org/crs-conversion/security/code-scanning/20","c":"2026-10-13"}]},{"lane":"tests","source":"dependabot","title":"requests","tool":null,"rule":null,"pkg":"requests","eco":"pip","alerts":[{"s":"unit","n":9,"v":"medium","p":"larch2-acceptance-test/ibex3/requirements.txt","u":"https://github.com/example-org/unit/security/dependabot/9","c":"2026-10-13","cve":"CVE-2099-1046","sum":"Resource leak on a failed decode (case 4)","fx":"46.5.9","pr":{"number":48,"url":"https://github.com/example-org/unit/pull/48"}},{"s":"unit","n":8,"v":"medium","p":"larch2-acceptance-test/ibex3/requirements.txt","u":"https://github.com/example-org/unit/security/dependabot/8","c":"2026-10-13","cve":"CVE-2099-1047","sum":"Cross-site scripting in a rendered message (case 4)","fx":"46.3.1","pr":{"number":48,"url":"https://github.com/example-org/unit/pull/48"}},{"s":"crs-catalog","n":16,"v":"medium","p":"yarrow-zinnia_acceptance_test/ibex3/requirements.txt","u":"https://github.com/example-org/crs-catalog/security/dependabot/16","c":"2026-10-13","cve":"CVE-2099-1046","sum":"Resource leak on a failed decode (case 4)","fx":"46.5.9","pr":{"number":35,"url":"https://github.com/example-org/crs-catalog/pull/35"}},{"s":"crs-catalog","n":13,"v":"medium","p":"yarrow-zinnia_acceptance_test/ibex3/requirements.txt","u":"https://github.com/example-org/crs-catalog/security/dependabot/13","c":"2026-10-13","cve":"CVE-2099-1047","sum":"Cross-site scripting in a rendered message (case 4)","fx":"46.3.1","pr":{"number":35,"url":"https://github.com/example-org/crs-catalog/pull/35"}},{"s":"crs-catalog","n":9,"v":"medium","p":"yarrow-zinnia_acceptance_test/ibex2/requirements.txt","u":"https://github.com/example-org/crs-catalog/security/dependabot/9","c":"2026-10-13","cve":"CVE-2099-1046","sum":"Resource leak on a failed decode (case 4)","fx":"46.5.9"},{"s":"crs-catalog","n":6,"v":"medium","p":"yarrow-zinnia_acceptance_test/ibex2/requirements.txt","u":"https://github.com/example-org/crs-catalog/security/dependabot/6","c":"2026-10-13","cve":"CVE-2099-1047","sum":"Cross-site scripting in a rendered message (case 4)","fx":"46.3.1"},{"s":"crs-conversion","n":16,"v":"medium","p":"yarrow-bramble_acceptance_test/ibex4/requirements.txt","u":"https://github.com/example-org/crs-conversion/security/dependabot/16","c":"2026-10-13","cve":"CVE-2099-1046","sum":"Resource leak on a failed decode (case 4)","fx":"46.5.9"},{"s":"crs-conversion","n":14,"v":"medium","p":"yarrow-bramble_acceptance_test/ibex4/requirements.txt","u":"https://github.com/example-org/crs-conversion/security/dependabot/14","c":"2026-10-13","cve":"CVE-2099-1047","sum":"Cross-site scripting in a rendered message (case 4)","fx":"46.3.1"},{"s":"crs-conversion","n":12,"v":"medium","p":"yarrow-bramble_acceptance_test/ibex3/requirements.txt","u":"https://github.com/example-org/crs-conversion/security/dependabot/12","c":"2026-10-13","cve":"CVE-2099-1046","sum":"Resource leak on a failed decode (case 4)","fx":"46.5.9"},{"s":"crs-conversion","n":8,"v":"medium","p":"yarrow-bramble_acceptance_test/ibex3/requirements.txt","u":"https://github.com/example-org/crs-conversion/security/dependabot/8","c":"2026-10-13","cve":"CVE-2099-1047","sum":"Cross-site scripting in a rendered message (case 4)","fx":"46.3.1"},{"s":"crs-conversion","n":6,"v":"medium","p":"yarrow-bramble_acceptance_test/ibex2/requirements.txt","u":"https://github.com/example-org/crs-conversion/security/dependabot/6","c":"2026-10-13","cve":"CVE-2099-1046","sum":"Resource leak on a failed decode (case 4)","fx":"46.5.9"},{"s":"crs-conversion","n":5,"v":"medium","p":"yarrow-bramble_acceptance_test/ibex2/requirements.txt","u":"https://github.com/example-org/crs-conversion/security/dependabot/5","c":"2026-10-13","cve":"CVE-2099-1047","sum":"Cross-site scripting in a rendered message (case 4)","fx":"46.3.1"}]},{"lane":"upstream","source":"code","title":"Comparison of narrow type with wide type in loop condition","tool":"CodeQL","rule":"java/comparison-with-wider-type","pkg":null,"eco":null,"alerts":[{"s":"crs-catalog","n":15,"v":"high","p":"yarrow-zinnia-core/src/main/java/org/birch/cedar/yarrow/service/SorrelOriole2Finch.java","u":"https://github.com/example-org/crs-catalog/security/code-scanning/15","c":"2026-10-13"},{"s":"crs-catalog","n":14,"v":"high","p":"yarrow-zinnia-core/src/main/java/org/birch/cedar/yarrow/service/SorrelOriole2Finch.java","u":"https://github.com/example-org/crs-catalog/security/code-scanning/14","c":"2026-10-13"}]},{"lane":"upstream","source":"dependabot","title":"sis-metadata","tool":null,"rule":null,"pkg":"org.apache.sis.core:sis-metadata","eco":"maven","alerts":[{"s":"crs-conversion","n":3,"v":"medium","p":"yarrow-bramble-core/pom.xml","u":"https://github.com/example-org/crs-conversion/security/dependabot/3","c":"2026-10-13","cve":"CVE-2099-1048","sum":"Integer overflow in a length calculation (case 4)","fx":"49.3.4","pr":{"number":47,"url":"https://github.com/example-org/crs-conversion/pull/47"}}]},{"lane":"tests","source":"dependabot","title":"idna","tool":null,"rule":null,"pkg":"idna","eco":"pip","alerts":[{"s":"crs-conversion","n":23,"v":"medium","p":"testing/yarrow_bramble_test_azure/requirements.txt","u":"https://github.com/example-org/crs-conversion/security/dependabot/23","c":"2026-10-13","cve":"CVE-2099-1049","sum":"Denial of service through crafted input (case 5)","fx":"43.5.5"},{"s":"crs-conversion","n":19,"v":"medium","p":"testing/yarrow_bramble_test_azure/requirements.txt","u":"https://github.com/example-org/crs-conversion/security/dependabot/19","c":"2026-10-13","cve":"CVE-2099-1050","sum":"Unbounded memory use while parsing a request (case 5)","fx":"43.3.8"}]},{"lane":"tests","source":"code","title":"Scorecard: ci tests","tool":"Scorecard","rule":"CITestsID","pkg":null,"eco":null,"alerts":[{"s":"osdu-spi","n":45,"v":"low","p":null,"u":"https://github.com/example-org/osdu-spi/security/code-scanning/45","c":"2026-11-04"}]},{"lane":"tests","source":"code","title":"Scorecard: token permissions","tool":"Scorecard","rule":"TokenPermissionsID","pkg":null,"eco":null,"alerts":[{"s":"osdu-spi","n":44,"v":"high","p":".github/workflows/poppy2-reed2.yml","u":"https://github.com/example-org/osdu-spi/security/code-scanning/44","c":"2026-11-04"},{"s":"osdu-spi","n":37,"v":"high","p":".github/workflows/sage2-teasel2.yml","u":"https://github.com/example-org/osdu-spi/security/code-scanning/37","c":"2026-09-11"},{"s":"osdu-spi","n":35,"v":"high","p":".github/workflows/sage2-teasel2.yml","u":"https://github.com/example-org/osdu-spi/security/code-scanning/35","c":"2026-09-11"},{"s":"osdu-spi","n":34,"v":"high","p":".github/workflows/vale2.yml","u":"https://github.com/example-org/osdu-spi/security/code-scanning/34","c":"2026-08-29"},{"s":"osdu-spi","n":32,"v":"high","p":".github/workflows/wisp2.yml","u":"https://github.com/example-org/osdu-spi/security/code-scanning/32","c":"2026-08-29"},{"s":"osdu-spi","n":28,"v":"high","p":".github/workflows/alder3-reed2.yml","u":"https://github.com/example-org/osdu-spi/security/code-scanning/28","c":"2026-08-29"}]},{"lane":"tests","source":"code","title":"Scorecard: sast","tool":"Scorecard","rule":"SASTID","pkg":null,"eco":null,"alerts":[{"s":"osdu-spi","n":41,"v":"medium","p":null,"u":"https://github.com/example-org/osdu-spi/security/code-scanning/41","c":"2026-10-05"}]},{"lane":"tests","source":"code","title":"Scorecard: pinned dependencies","tool":"Scorecard","rule":"PinnedDependenciesID","pkg":null,"eco":null,"alerts":[{"s":"osdu-spi","n":38,"v":"medium","p":"build/birch3.Dockerfile","u":"https://github.com/example-org/osdu-spi/security/code-scanning/38","c":"2026-09-22"}]},{"lane":"tests","source":"code","title":"Scorecard: code review","tool":"Scorecard","rule":"CodeReviewID","pkg":null,"eco":null,"alerts":[{"s":"osdu-spi","n":27,"v":"high","p":null,"u":"https://github.com/example-org/osdu-spi/security/code-scanning/27","c":"2026-08-27"}]},{"lane":"tests","source":"code","title":"Scorecard: fuzzing","tool":"Scorecard","rule":"FuzzingID","pkg":null,"eco":null,"alerts":[{"s":"osdu-spi","n":25,"v":"medium","p":null,"u":"https://github.com/example-org/osdu-spi/security/code-scanning/25","c":"2025-10-20"}]},{"lane":"tests","source":"code","title":"Scorecard: cii best practices","tool":"Scorecard","rule":"CIIBestPracticesID","pkg":null,"eco":null,"alerts":[{"s":"osdu-spi","n":23,"v":"low","p":null,"u":"https://github.com/example-org/osdu-spi/security/code-scanning/23","c":"2025-10-20"}]},{"lane":"tests","source":"code","title":"Scorecard: branch protection","tool":"Scorecard","rule":"BranchProtectionID","pkg":null,"eco":null,"alerts":[{"s":"osdu-spi","n":21,"v":"high","p":null,"u":"https://github.com/example-org/osdu-spi/security/code-scanning/21","c":"2025-10-20"}]}],"campaigns":[{"id":"campaign:security:CodeQL%3A%20java%2Flog-injection","kind":"security","fact":"CodeQL: java/log-injection","forks":["file","partition","schema","workflow"]},{"id":"campaign:security:CodeQL%3A%20java%2Fspring-disabled-csrf-protection","kind":"security","fact":"CodeQL: java/spring-disabled-csrf-protection","forks":["crs-catalog","crs-conversion","entitlements","file","indexer","indexer-queue","legal","partition","schema","search","storage","workflow"]}],"openPrs":[{"s":"crs-conversion","pkg":"idna","n":54,"state":"needs review","dir":"testing/yarrow_bramble_test_azure","u":"https://github.com/example-org/crs-conversion/pull/54"},{"s":"crs-conversion","pkg":"requests","n":50,"state":"checks failing","dir":"yarrow-bramble_acceptance_test/ibex2","u":"https://github.com/example-org/crs-conversion/pull/50"}]};
+let D = BASE;
+const TODAY = new Date("2026-11-20T12:00:00Z");
+const LANES = [
+  { id: "spi", label: "Shipped SPI code", inWords: "shipped SPI code", who: "Ours to fix" },
+  { id: "upstream", label: "Shipped upstream code", inWords: "shipped upstream code", who: "Upstream’s to fix, the fix arrives by sync" },
+  { id: "tests", label: "Tests, tooling and settings", inWords: "tests, tooling and settings", who: "Not in the running service" },
+];
+const SEV = ["critical", "high", "medium", "low", "none"];
+const heavy = (v) => v === "critical" || v === "high";
+let REPOS = D.services;
+let FORKS = REPOS.filter((s) => !s.startsWith("osdu-spi"));
+let PROGRAM = REPOS.filter((s) => s.startsWith("osdu-spi"));
+const TOOL = (r) => (r.source === "code" ? r.tool : "Dependabot");
+const LIST = { code: "Code scanning", dependabot: "Dependabot alerts" };
+const LISTW = { code: "code scanning alerts", dependabot: "Dependabot alerts" };
+const plain = (t) => t.replace(/`/g, "");
+// The mock's not-read state: two lists the sweep could not read.
+const UNREAD = [{ s: "workflow", source: "code" }, { s: "crs-conversion", source: "dependabot" }];
+// A rule's published one-line help and CWE. The sweep must keep rule.full_description and rule.tags to show these.
+const HELP = {
+  "java/spring-disabled-csrf-protection": ["CWE-352", "Disabling CSRF protection makes the application vulnerable to a cross-site request forgery attack."],
+  "java/tainted-arithmetic": ["CWE-190, CWE-191", "Arithmetic on user-controlled data that is not validated can overflow."],
+  "java/sensitive-log": ["CWE-532", "Writing sensitive information to log files can leak it to an attacker."],
+  "java/log-injection": ["CWE-117", "Building log entries from user-controlled data may let a malicious user insert forged log entries."],
+  "java/comparison-with-wider-type": ["CWE-190, CWE-197", "Comparing types of different widths in a loop condition can make the loop behave unexpectedly."],
+  "java/implicit-cast-in-compound-assignment": ["CWE-190, CWE-681", "A compound assignment that implicitly casts a wider type to a narrower one may lose information or overflow."],
+  "java/error-message-exposure": ["CWE-209", "Information from an error message reaches an external user and can reveal implementation details useful to an attacker."],
+  "java/insecure-trustmanager": ["CWE-295", "Trusting all certificates allows an attacker to perform a machine-in-the-middle attack."],
+  TokenPermissionsID: ["", "Checks that the repository’s workflows follow the principle of least privilege."],
+  BranchProtectionID: ["", "Checks that the default and release branches are protected by GitHub’s branch protection settings."],
+  CodeReviewID: ["", "Checks that the project requires human code review before a pull request is merged."],
+  SASTID: ["", "Checks that the project uses static code analysis."],
+  PinnedDependenciesID: ["", "Checks that the project pins the dependencies of its build and release process."],
+  FuzzingID: ["", "Checks that the project uses fuzzing."],
+  CIIBestPracticesID: ["", "Checks that the project has an OpenSSF Best Practices badge."],
+  CITestsID: ["", "Checks that the project runs tests before pull requests are merged."],
+};
+
+// Whose path it is. Core's ownerOf decides this per path; the mock approximates it from the path.
+const ownerOf = (a) => (PROGRAM.includes(a.s) ? (a.p ? "SPI path" : "SPI setting") : /azure/i.test(a.p ?? "") ? "SPI path" : "upstream path");
+const dirOf = (p) => (p ?? "").split("/").slice(0, -1).join("/");
+const covers = (pr, a) => a.s === pr.s && dirOf(a.p) === pr.dir;
+
+const ui = { state: "live", lane: "spi", open: null, hl: null, allAdv: false, shown: new Set() };
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const tick = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+const plural = (n, one, many) => `${n} ${n === 1 ? one : (many ?? one + "s")}`;
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const age = (iso) => `${days(iso)}\u00A0d open`;
+const days = (iso) => Math.round((TODAY - new Date(iso + "T12:00:00Z")) / 864e5);
+const dayMonth = (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: iso.startsWith("2026") ? undefined : "numeric", timeZone: "UTC" });
+const ruleKey = (r) => `${r.lane}|${r.source}|${r.title}`;
+const partial = () => ui.state === "partial";
+const unread = (repo, source) => partial() && UNREAD.some((u) => u.s === repo && u.source === source);
+const anyUnread = (source) => partial() && UNREAD.some((u) => u.source === source);
+const ge = (short) => (short ? "≥" : "");
+
+function newer(a, b) {
+  const pa = a.split(/[.-]/).map((x) => parseInt(x, 10) || 0), pb = b.split(/[.-]/).map((x) => parseInt(x, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) if ((pa[i] ?? 0) !== (pb[i] ?? 0)) return (pa[i] ?? 0) > (pb[i] ?? 0);
+  return false;
+}
+
+// The rules as this sweep state read them. Everything on the page derives from this, so a list that was not read is missing everywhere.
+function rules() {
+  return D.rules
+    .map((r) => ({ ...r, alerts: r.alerts.filter((a) => !unread(a.s, r.source)) }))
+    .filter((r) => !(ui.state === "clean" && r.lane === "spi"))
+    .filter((r) => r.alerts.length > 0)
+    .map((r) => {
+      const sev = {};
+      for (const a of r.alerts) sev[a.v] = (sev[a.v] ?? 0) + 1;
+      const worst = SEV.find((v) => sev[v]) ?? "none";
+      const since = r.alerts.map((a) => a.c).filter(Boolean).sort()[0];
+      const versions = [...new Set(r.alerts.map((a) => a.fx).filter(Boolean))];
+      const nofix = r.alerts.filter((a) => r.source !== "code" && !a.fx).length;
+      const prs = (D.openPrs ?? []).filter((p) => p.pkg === r.title && r.alerts.some((a) => covers(p, a))).map((p) => ({ ...p, clears: r.alerts.filter((a) => covers(p, a)).length }));
+      const recent = r.alerts.filter((a) => a.c && days(a.c) <= 7).length;
+      const fresh = recent < r.alerts.length ? recent : 0;
+      const files = new Set(r.alerts.filter((a) => a.p).map((a) => `${a.s}:${a.p}`)).size;
+      const owners = [...new Set(r.alerts.map(ownerOf))].sort();
+      const count = (s) => r.alerts.filter((a) => a.s === s).length;
+      const repos = [...new Set(r.alerts.map((a) => a.s))];
+      const byWeight = [...repos].sort((a, b) => count(b) - count(a));
+      return { ...r, sev, worst, since, versions, nofix, prs, fresh, files, owners, repos, byWeight, short: anyUnread(r.source), crit: sev.critical ?? 0, high: sev.high ?? 0 };
+    })
+    .sort((a, b) => SEV.indexOf(a.worst) - SEV.indexOf(b.worst) || b.crit + b.high - (a.crit + a.high) || b.alerts.length - a.alerts.length);
+}
+
+function laneStats(all, lane) {
+  const rs = all.filter((r) => r.lane === lane);
+  const crit = rs.reduce((n, r) => n + r.crit, 0);
+  const high = rs.reduce((n, r) => n + r.high, 0);
+  const total = rs.reduce((n, r) => n + r.alerts.length, 0);
+  return { rs, crit, high, lower: total - high - crit, total };
+}
+
+const severe = (crit, high) => (crit && high ? `${crit} critical and ${high} high` : crit ? `${crit} critical` : `${high} high`);
+
+function headline(all) {
+  const spi = laneStats(all, "spi"), up = laneStats(all, "upstream");
+  const crit = spi.crit + up.crit, high = spi.high + up.high;
+  const g = ge(partial());
+  const read = partial() ? " in the lists read" : "";
+  if (spi.total + up.total === 0) return `Nothing open in shipped code${read}.`;
+  if (crit + high === 0) return `${g}${plural(spi.total + up.total, "alert")} in shipped code, none high${read}.`;
+  const lead = `${severe(crit, high).replace(/\d+/g, (n) => g + n)} ${crit + high === 1 ? "alert" : "alerts"} in shipped code`;
+  const ours = spi.crit + spi.high;
+  if (ours === 0) return `${lead}, none in SPI code${read}.`;
+  const top = spi.rs[0];
+  const topN = top.crit + top.high;
+  return topN > ours / 2 && spi.rs.length > 1 && topN > 1
+    ? `${lead}. ${g}${ours} are ours to fix, ${g}${topN} from one ${top.source === "code" ? "rule" : "package"} in ${g}${unitOf(top.repos)}.`
+    : `${lead}. ${g}${ours} ${ours === 1 ? "is" : "are"} ours to fix.`;
+}
+
+function cell(r, repo) {
+  if (unread(repo, r.source)) return `<span class="c unread" role="img" title="${esc(repo)}: ${LIST[r.source].toLowerCase()} not read" aria-label="${esc(repo)}: ${LIST[r.source].toLowerCase()} not read">⌀</span>`;
+  const mine = r.alerts.filter((a) => a.s === repo);
+  if (mine.length === 0) return `<span class="c none" aria-hidden="true">·</span>`;
+  const h = mine.filter((a) => heavy(a.v)).length;
+  const tip = `${r.title} in ${repo}: ${[h ? `${h} high or critical` : "", mine.length - h ? `${mine.length - h} lower` : ""].filter(Boolean).join(", ")}`;
+  const weight = h === mine.length ? "data-heavy" : h ? "data-mixed" : "";
+  return `<button class="c" data-n data-cell="${esc(repo)}" data-f="cell|${esc(ruleKey(r))}|${esc(repo)}" ${weight} ${mine.length > 9 ? "data-wide" : ""} title="${esc(tip)}" aria-label="${esc(tip)}" style="border:0;padding:0">${mine.length}</button>`;
+}
+
+function cells(inner) {
+  return `<span class="cells">${FORKS.map(inner).join("")}<span class="gap"></span>${PROGRAM.map(inner).join("")}</span>`;
+}
+
+function subOf(r) {
+  const g = ge(r.short);
+  const split = r.crit + r.high > 0 && r.crit + r.high < r.alerts.length ? ` · ${severe(r.crit, r.high).replace(/\d+/g, (n) => g + n)}, ${g}${r.alerts.length - r.crit - r.high} lower` : "";
+  // The third lane mixes owners, so each row there says whose paths it sits in.
+  const owner = r.lane === "tests" ? ` · ${r.owners.length > 1 ? "SPI and upstream paths" : r.owners[0] === "SPI setting" ? "SPI setting" : `${r.owners[0]}${r.files > 1 ? "s" : ""}`}` : "";
+  if (r.source === "code") return `${esc(r.tool)}${r.files ? ` · ${g}${plural(r.files, "file")}` : ""}${split}${owner}`;
+  const cves = [...new Set(r.alerts.map((a) => a.cve))];
+  return `Dependabot${split} · ${cves.length === 1 ? esc(cves[0]) : `${g}${cves.length} advisories`}${owner}`;
+}
+
+// A closed row never reads as an upgrade instruction: one version is stated; several are counted, with the latest named.
+function fixWord(r) {
+  if (r.source === "code") return "";
+  if (r.versions.length === 0) return "no patched version";
+  const v = [...r.versions].sort((a, b) => (newer(a, b) ? -1 : 1));
+  const without = r.nofix ? ", some without" : "";
+  if (v.length === 1) return `first patched ${v[0]}${without}`;
+  return `${ge(r.short)}${v.length} patched versions, latest ${v[0]}${without}`;
+}
+
+function fixLines(r) {
+  const a = r.since ? `${ge(r.short)}${age(r.since)}` : "";
+  // An open fix PR is not on the closed row: it sits on the one manifest it changes, inside the row.
+  const extra = r.fresh ? `${r.fresh} new this week` : "";
+  const fix = fixWord(r);
+  return fix ? { first: [fix], second: [a, extra].filter(Boolean).join(" · ") } : { first: [a], second: extra };
+}
+
+function row(r) {
+  const key = ruleKey(r);
+  const isOpen = ui.open === key;
+  const sevWord = r.worst === "none" ? "No severity" : cap(r.worst);
+  const { first, second } = fixLines(r);
+  const names = r.repos.length <= 2 ? r.byWeight.join(", ") : `${r.byWeight[0]} and ${r.repos.length - 1} more`;
+  return `<div class="item" ${isOpen ? "data-open" : ""} data-key="${esc(key)}">
+    <div class="rowbtn mrow" data-row="${esc(key)}">
+      <span class="sev" ${heavy(r.worst) ? "data-heavy" : ""}>${sevWord}</span>
+      <span class="what"><button class="t" data-f="row|${esc(key)}" aria-expanded="${isOpen}">${tick(r.title)}</button><span class="s">${subOf(r)}<span class="narrowfix"> · ${esc([...first, second].filter(Boolean).join(" · "))}</span></span></span>
+      ${cells((s) => cell(r, s))}<span class="forks">${esc(names)}${r.short ? " · some lists not read" : ""}</span>
+      <span class="tot">${ge(r.short)}${r.alerts.length}</span>
+      <span class="fix"><span class="v">${esc(first.join(" · "))}</span>${second ? `<span>${esc(second)}</span>` : ""}</span>
+    </div>
+    ${isOpen ? opened(r) : ""}
+  </div>`;
+}
+
+// When every alert on the line has its own pill, the pill names the file, so this column gives the directory instead.
+function dirsOf(alerts) {
+  const dirs = [...new Set(alerts.filter((a) => a.p).map((a) => dirOf(a.p)))];
+  if (dirs.length === 0) return "";
+  const short = (d) => { const p = d.split("/"); return p.length > 4 ? `${p.slice(0, 2).join("/")}/…/${p[p.length - 1]}/` : `${d}/`; };
+  return dirs.slice(0, 2).map((d) => `<span title="${esc(d)}">${esc(short(d))}</span>`).join(", ") + (dirs.length > 2 ? ` and ${plural(dirs.length - 2, "more directory", "more directories")}` : "");
+}
+
+function filesOf(alerts, full) {
+  const by = new Map();
+  for (const a of alerts) if (a.p) by.set(a.p, (by.get(a.p) ?? 0) + 1);
+  const list = [...by].sort((a, b) => b[1] - a[1]);
+  const name = (p) => (full || p.split("/").length < 3 ? p : "…/" + p.split("/").slice(-1)[0]);
+  if (list.length === 0) return "repository setting";
+  const shown = list.slice(0, 3).map(([p, n]) => `<span title="${esc(p)}">${esc(name(p))}${n > 1 ? ` ×${n}` : ""}</span>`).join(", ");
+  return shown + (list.length > 3 ? ` and ${plural(list.length - 3, "more file")}` : "");
+}
+
+// Every alert pill names what it opens: the file for a rule, the advisory for a package. High and critical are bold.
+// Every alert pill names what it opens: the file for a rule, the advisory for a package. High and critical are bold.
+function alertPill(r, a) {
+  const what = r.source === "code" ? (a.p ?? "setting").split("/").slice(-1)[0] : a.cve;
+  return `<a class="pill" ${heavy(a.v) ? "data-heavy" : ""} href="${a.u}" target="_blank" rel="noreferrer" title="${cap(a.v)} · ${esc(a.p ?? what)}"><span>${esc(TOOL(r))} #${a.n} ·</span><span class="mid">${esc(what)}</span><span>↗</span></a>`;
+}
+
+const bySeverity = (a, b) => SEV.indexOf(a.v) - SEV.indexOf(b.v) || b.n - a.n;
+
+function patched(alerts) {
+  const by = new Map();
+  let none = 0;
+  for (const a of alerts) { if (!a.fx) { none++; continue; } const e = by.get(a.fx) ?? { c: 0, h: 0, l: 0 }; if (a.v === "critical") e.c++; else if (a.v === "high") e.h++; else e.l++; by.set(a.fx, e); }
+  const parts = [...by].sort((a, b) => (newer(a[0], b[0]) ? -1 : 1)).map(([v, e]) => `<code>${esc(v)}</code> for ${[e.c + e.h ? severe(e.c, e.h) : "", e.l ? `${e.l} lower` : ""].filter(Boolean).join(" and ")}`);
+  if (none) parts.push(`none yet for ${none}`);
+  return `first patched in ${parts.join(", ")}`;
+}
+
+function opened(r) {
+  const all = rules();
+  const byRepo = REPOS.map((s) => [s, r.alerts.filter((a) => a.s === s)]).filter(([, a]) => a.length);
+  const base = new Map(), spot = new Map();
+  for (const a of r.alerts) if (a.p && r.source === "code") {
+    const b = a.p.split("/").slice(-1)[0];
+    const e = base.get(b.toLowerCase()) ?? { repos: new Set(), n: 0, names: new Map() };
+    e.repos.add(a.s); e.n++; e.names.set(b, (e.names.get(b) ?? 0) + 1); base.set(b.toLowerCase(), e);
+    spot.set(`${a.s}|${b}`, (spot.get(`${a.s}|${b}`) ?? 0) + 1);
+  }
+  const most = [...spot].sort((a, b) => b[1] - a[1]).filter(([, n]) => n >= 3 && n >= r.alerts.length / 5).slice(0, 2);
+  const repeats = [...base.values()].filter((e) => e.repos.size > 1 && e.n >= r.alerts.length / 10).sort((a, b) => b.n - a.n).slice(0, 2).map((e) => ({ ...e, name: [...e.names].sort((a, b) => b[1] - a[1])[0][0] }));
+  const unit = (set) => ([...set].every((x) => FORKS.includes(x)) ? plural(set.size, "fork") : plural(set.size, "repository", "repositories"));
+  const others = all.filter((x) => x.lane !== r.lane && x.source === r.source && x.title === r.title);
+  const campaign = r.lane === "spi" && r.source === "code" ? D.campaigns.find((c) => c.fact === `${r.tool}: ${r.rule}`) : null;
+  const newest = r.alerts.map((a) => a.c).filter(Boolean).sort().slice(-1)[0];
+  const facts = [];
+  if (r.source === "code") {
+    const [cwe, help] = HELP[r.rule] ?? ["", ""];
+    if (help) facts.push(["What it is", esc(help)]);
+    facts.push(["Rule", `<code>${esc(r.rule)}</code> · ${esc(r.tool)}${cwe ? ` · ${esc(cwe)}` : ""}`]);
+  } else {
+    facts.push(["Package", `<code>${esc(r.pkg)}</code> · ${esc(r.eco ?? "")}`]);
+    const adv = new Map();
+    for (const a of r.alerts) {
+      const e = adv.get(a.cve) ?? { cve: a.cve, sum: a.sum, fx: new Set(), n: 0, worst: a.v };
+      e.n++;
+      if (a.fx) e.fx.add(a.fx);
+      if (SEV.indexOf(a.v) < SEV.indexOf(e.worst)) e.worst = a.v;
+      adv.set(a.cve, e);
+    }
+    const list = [...adv.values()].sort((a, b) => SEV.indexOf(a.worst) - SEV.indexOf(b.worst) || b.n - a.n);
+    const shown = ui.allAdv ? list : list.slice(0, 4);
+    const toggle = list.length > 4 ? `<button class="linkbtn" data-adv data-f="adv" aria-expanded="${ui.allAdv}">${ui.allAdv ? "Fewer advisories" : `${list.length - 4} more advisories`}</button>` : "";
+    facts.push([list.length === 1 ? "Advisory" : "Advisories", shown.map((e) => {
+      const fx = e.fx.size === 0 ? "no patched version yet" : `first patched in <code>${[...e.fx].sort((a, b) => (newer(a, b) ? 1 : -1)).map(esc).join("</code> or <code>")}</code>`;
+      return `<span class="adv"><b>${esc(e.cve)}</b> ${cap(e.worst)}. ${esc(e.sum ?? "")} <span class="fx">· ${fx}${e.n > 1 ? `, ${ge(r.short)}${e.n} alerts` : ""}</span></span>`;
+    }).join("") + toggle]);
+  }
+  facts.push(["Open since", `${dayMonth(r.since)}${newest !== r.since ? `, newest ${dayMonth(newest)}` : ""}${r.short ? " in the lists read" : ""}`]);
+  if (most.length) facts.push([r.short ? "Most in lists read" : "Most in", most.map(([k, n]) => `<code>${esc(k.split("|")[1])}</code> in ${esc(k.split("|")[0])}, ${ge(r.short)}${n} alerts`).join(" · ")]);
+  if (repeats.length) facts.push(["Repeats in", repeats.map((e) => `<code>${esc(e.name)}</code>, ${ge(r.short)}${plural(e.n, "alert")} in ${ge(r.short)}${unit(e.repos)}`).join(" · ")]);
+  if (others.length) facts.push(["Also", others.map((x) => `<button class="btn" data-jump="${esc(ruleKey(x))}">${ge(x.short)}${x.alerts.length} in ${esc(LANES.find((l) => l.id === x.lane).inWords)}</button>`).join(" ")]);
+  const groups = r.source === "code" ? [] : byRepo.flatMap(([, alerts]) => [...new Set(alerts.map((a) => a.p))].map((m) => patched(alerts.filter((a) => a.p === m))));
+  const samePatch = new Set(groups).size <= 1;
+  const line = (s, alerts, first, k) => {
+    const h = alerts.filter((a) => heavy(a.v)).length;
+    const sorted = [...alerts].sort(bySeverity);
+    const expanded = ui.shown.has(k);
+    const pills = alerts.length > 4
+      ? `<button class="pill" data-show="${esc(k)}" data-f="show|${esc(k)}" aria-expanded="${expanded}">${alerts.length} ${esc(TOOL(r))} alerts ${expanded ? "⌃" : "⌄"}</button>`
+      : sorted.map((a) => alertPill(r, a)).join("");
+    const closed = [...new Map(alerts.filter((a) => a.pr).map((a) => [a.pr.number, a.pr])).values()].map((p) => `<a class="pill" href="${p.url}" target="_blank" rel="noreferrer">PR #${p.number} closed ↗</a>`).join("");
+    const openPr = r.prs.filter((p) => alerts.some((a) => covers(p, a))).map((p) => `<a class="pill" href="${p.u}" target="_blank" rel="noreferrer">PR #${p.n} ${p.state} ↗</a>`).join("");
+    const setting = alerts.every((a) => !a.p);
+    const owner = r.lane === "tests" ? ` <span class="needs">· ${ownerOf(alerts[0])}</span>` : "";
+    const needs = r.source === "code" || samePatch ? "" : ` <span class="needs">· ${patched(alerts)}</span>`;
+    const all = alerts.length;
+    const total = byRepo.find(([x]) => x === s)[1];
+    const th = total.filter((a) => heavy(a.v)).length;
+    return `<div class="wh ${ui.hl === s ? "hl" : ""} ${first ? "" : "cont"}" data-wh="${esc(s)}">
+      ${first ? `<button class="svc" data-svc="${esc(s)}" title="${FORKS.includes(s) ? `Open ${esc(s)} › Security` : s === "osdu-spi" ? "Open Template" : "Open Environment"}">${esc(s)}<small>${total.length}${th && th !== total.length ? `, ${th} high${total.some((a) => a.v === "critical") ? " or critical" : ""}` : ""}</small></button>` : `<span></span>`}
+      <span class="files">${setting ? "SPI setting" : r.source === "code" && alerts.length <= 4 ? dirsOf(alerts) : filesOf(alerts, r.source !== "code")}${setting ? "" : owner}${needs}</span>
+      <span class="pills">${openPr}${pills}${closed}</span>
+      ${expanded ? `<span class="all">${sorted.map((a) => alertPill(r, a)).join("")}</span>` : ""}
+    </div>`;
+  };
+  // A package's alerts are listed per manifest, so each pill sits beside the file it is in.
+  // In the third lane a repository's alerts for one rule are split by whose path they sit in.
+  const notRead = (s) => `<div class="wh ${ui.hl === s ? "hl" : ""}"><span class="muted" style="font-weight:600">${esc(s)} ⌀</span><span class="muted">${LIST[r.source]} not read at 10:02</span><span class="pills"><button class="btn" data-toast="Opens Evidence at this read">Evidence</button></span></div>`;
+  const where = REPOS.map((s) => [s, r.alerts.filter((a) => a.s === s)]).filter(([s, a]) => a.length || unread(s, r.source)).map(([s, alerts]) => {
+    if (unread(s, r.source)) return notRead(s);
+    const parts = r.source === "code"
+      ? (r.lane === "tests" ? [...new Set(alerts.map(ownerOf))].sort().map((o) => [o, alerts.filter((a) => ownerOf(a) === o)]) : [["", alerts]])
+      : [...new Set(alerts.map((a) => a.p))].map((m) => [m, alerts.filter((a) => a.p === m)]);
+    return parts.map(([k, part], i) => line(s, part, i === 0, `${ruleKey(r)}|${s}|${k}`)).join("");
+  }).join("");
+  return `<div class="open">
+    <dl class="facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>
+    <div class="where">${where}</div>
+    <div class="acts">
+      ${campaign ? `<button class="btn" data-toast="Opens the campaign place">Campaign</button>` : ""}
+      <button class="btn" data-toast="Starts a thread about this row. Nothing is sent.">Ask about this</button>
+    </div>
+  </div>`;
+}
+
+function laneFig(s) {
+  const p = ge(partial());
+  if (s.total === 0) return partial() ? `<b>None</b><span>in the lists read</span>` : `<b>None</b>`;
+  const lead = s.crit ? `<b>${p}${s.crit}</b><span>critical${s.high ? ` · ${p}${s.high} high` : ""}` : `<b>${p}${s.high}</b><span>high`;
+  return `${lead}${s.lower ? ` · ${p}${s.lower} lower` : ""}</span>`;
+}
+
+
+ui.view = "rule"; ui.fleet = 15; ui.allClean = false; ui.repoOpen = null; ui.hot = null;
+
+const shortName = (r) => plain(r.title);
+const weightOf = (alerts) => { const h = alerts.filter((a) => heavy(a.v)).length; return h === alerts.length ? "heavy" : h ? "mixed" : "light"; };
+const unitOf = (repos) => (repos.every((x) => FORKS.includes(x)) ? plural(repos.length, "fork") : plural(repos.length, "repository", "repositories"));
+const kind = (r) => (r.source === "code" ? "rule" : "package");
+
+// A layout test only: 25 made-up forks with alerts patterned on today's. Never shown as the sweep.
+function synth(base) {
+  const d = JSON.parse(JSON.stringify(base));
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const names = Array.from({ length: 25 }, (_, i) => `fork-${i + 16}`);
+  const at = d.services.indexOf("osdu-spi");
+  d.services.splice(at, 0, ...names);
+  const find = (lane, title) => d.rules.find((r) => r.lane === lane && r.title === title);
+  const add = (r, s, k) => { for (let i = 0; i < k; i++) { const t = r.alerts[i % r.alerts.length]; r.alerts.push({ ...t, s, n: 900 + Math.floor(rnd() * 99), u: "#synthetic", c: "2026-11-1" + Math.floor(rnd() * 9), pr: undefined }); } };
+  for (const s of names) {
+    add(find("spi", "Disabled Spring CSRF protection"), s, 1 + Math.floor(rnd() * 2));
+    if (rnd() < 0.3) add(find("spi", "Log Injection"), s, 1 + Math.floor(rnd() * 4));
+    if (rnd() < 0.5) add(find("tests", "guava"), s, 1 + Math.floor(rnd() * 3));
+    if (rnd() < 0.4) add(find("tests", "httpclient5"), s, 1);
+    if (rnd() < 0.3) add(find("tests", "`TrustManager` that accepts all certificates"), s, 1);
+    if (rnd() < 0.25) add(find("upstream", "Log Injection"), s, 1 + Math.floor(rnd() * 5));
+    if (rnd() < 0.3) add(find("upstream", "json"), s, 1);
+  }
+  return d;
+}
+const SYNTH = synth(BASE);
+function setFleet(n) {
+  ui.fleet = n;
+  D = n === 40 ? SYNTH : BASE;
+  REPOS = D.services;
+  FORKS = REPOS.filter((s) => !s.startsWith("osdu-spi"));
+  PROGRAM = REPOS.filter((s) => s.startsWith("osdu-spi"));
+}
+
+function notReadTitle() {
+  return UNREAD.map((u) => `${LISTW[u.source]} in ${u.s}`).join(", ");
+}
+
+// Counts in GitHub's own terms, so a repository's figure can be checked against its Security and quality tab.
+function ghTotals(all, s) {
+  const a = all.flatMap((r) => r.alerts.filter((x) => x.s === s).map((x) => r.source));
+  const dep = a.filter((x) => x === "dependabot").length;
+  return { total: a.length, dep, code: a.length - dep, short: ge(unread(s, "code") || unread(s, "dependabot")) };
+}
+function bySource(rs) {
+  const g = ge(partial());
+  const dep = rs.filter((r) => r.source === "dependabot").reduce((k, r) => k + r.alerts.length, 0);
+  const code = rs.filter((r) => r.source === "code").reduce((k, r) => k + r.alerts.length, 0);
+  return [dep ? `${g}${dep} Dependabot` : "", code ? `${g}${code} code scanning` : ""].filter(Boolean).join(", ");
+}
+function allOpen(all) {
+  const g = ge(partial());
+  const n = all.reduce((k, r) => k + r.alerts.length, 0);
+  const repos = new Set(all.flatMap((r) => r.repos)).size;
+  return `${g}${plural(n, "open alert")}: ${bySource(all)}.`;
+}
+
+// A rule or package gets its own block when it is at least this share of the longest lane; the rest of a lane share one block.
+const OWN_BLOCK = 0.04;
+function figure(all) {
+  const p = partial();
+  const stats = LANES.map((l) => ({ l, s: laneStats(all, l.id) }));
+  const max = Math.max(1, ...stats.map((x) => x.s.total));
+  const sevWords = (h, n) => (h === n ? "all high or critical" : h ? `${h} high or critical` : "none high");
+  const seg = (lane, n, hi, attrs, count, name, css = "") =>
+    `<button class="sg" data-lane="${lane}" ${attrs}${hi > 0 && hi < n ? " data-mix" : ""} data-hi="${(hi / n) * 100}" style="flex:${n} 1 0;--hi:${(hi / n) * 100}%${css}" title="${esc(name)}" aria-label="${esc(name)}"><span class="lab"><span class="ct">${count}</span></span></button>`;
+  const rows = stats.map(({ l, s }) => {
+    const sel = ui.lane === l.id;
+    const segs = [...s.rs].sort((a, b) => b.alerts.length - a.alerts.length || b.high - a.high);
+    // In the lane the operator fixes, a rule with a high or critical alert keeps its own block however small.
+    let own = segs.filter((r) => r.alerts.length / max >= OWN_BLOCK || (l.id === "spi" && r.crit + r.high > 0));
+    if (segs.length - own.length === 1) own = segs;
+    const share = (r) => (r.crit + r.high) / r.alerts.length;
+    const rest = segs.filter((r) => !own.includes(r)).sort((a, b) => share(b) - share(a) || b.alerts.length - a.alerts.length);
+    const blocks = own.map((r) => {
+      const k = ruleKey(r), n = r.alerts.length, g = ge(r.short);
+      const name = `${plain(r.title)}: ${g}${plural(n, "alert")}, ${sevWords(r.crit + r.high, n)}, in ${g}${unitOf(r.repos)}`;
+      return seg(r.lane, n, r.crit + r.high, `data-seg="${esc(k)}" ${ui.open === k ? "data-sel" : ""}`, `${g}${n}`, name);
+    });
+    if (rest.length) {
+      const n = rest.reduce((k, r) => k + r.alerts.length, 0), hi = rest.reduce((k, r) => k + r.crit + r.high, 0);
+      const name = `${ge(p)}${rest.length} more rules and packages: ${ge(p)}${plural(n, "alert")}, ${sevWords(hi, n)}. ${rest.map((r) => `${plain(r.title)} ${ge(r.short)}${r.alerts.length}`).join(", ")}`;
+      let at = 0;
+      const cuts = rest.slice(0, -1).map((r) => { at += r.alerts.length; const x = `${(at / n) * 100}%`; return `transparent calc(${x} - .75px),var(--surface) calc(${x} - .75px) calc(${x} + .75px),transparent calc(${x} + .75px)`; });
+      blocks.push(seg(l.id, n, hi, "data-rest", `${ge(p)}${n}`, name, cuts.length ? `;--cuts:linear-gradient(90deg,${cuts.join(",")})` : ""));
+    }
+    const stub = p ? `<span class="stub" title="Not read: ${esc(notReadTitle())}" aria-label="Some lists not read">⌀</span>` : "";
+    // Every lane keeps the same room for the not-read stub, so the bars stay on one scale.
+    const track = s.total
+      ? `<div class="lbar" style="width:calc((100% - ${p ? 40 : 0}px) * ${s.total / max})" role="group" aria-label="${esc(l.label)}">${blocks.join("")}</div>${stub}`
+      : `<span class="noneword">${p ? "Nothing open in the lists read" : "Nothing open"}</span>${stub}`;
+    const hi = s.crit + s.high;
+    const hiWord = hi ? severe(s.crit, s.high).replace(/\d+/g, (x) => ge(p) + x) : s.total ? "none high" : "";
+    return `<div class="lrow" data-lane="${l.id}">
+      <button class="lname" data-lane="${l.id}" aria-pressed="${sel}"><span class="lbl"><span class="sw"></span>${l.label}</span><span class="who">${l.who}</span></button>
+      <div class="track">${track}</div>
+      <div class="ltot"><b>${ge(p)}${s.total}</b><span>${hiWord}</span></div>
+    </div>`;
+  }).join("");
+  const legend = `<div class="legend"><span><i data-k="hi"></i>High or critical</span><span><i data-k="lo"></i>Medium or low</span>${p ? `<span><i data-k="un"></i>Not read</span>` : ""}</div>`;
+  return `<div class="fig">${rows}${legend}</div>`;
+}
+
+// What the strip says in words: how many repositories, and the one that holds most of the rule.
+function spreadWord(r) {
+  const top = r.byWeight[0], n = r.alerts.filter((a) => a.s === top).length;
+  if (r.repos.length === 1) return esc(top);
+  // A main repository is named only when every list the rule draws on was read: an unread list could hold more.
+  return `${ge(r.short)}${unitOf(r.repos)}${!r.short && n > r.alerts.length / 2 ? ` · ${n} in ${esc(top)}` : ""}`;
+}
+
+// One tick per repository; a tick's height is its alert count on the lane's scale.
+function spread(r, laneMax) {
+  const count = (s) => r.alerts.filter((a) => a.s === s);
+  const tick1 = (s) => {
+    const gap = s === PROGRAM[0] ? " data-gap" : "";
+    if (unread(s, r.source)) return `<i data-u${gap} data-tick="${esc(s)}" data-tip="${esc(s)}: not read" title="${esc(s)}: not read"></i>`;
+    const m = count(s), h = m.filter((a) => heavy(a.v)).length, tip = `${esc(s)} ${m.length}${h && h < m.length ? `, ${h} high` : ""}`;
+    return m.length ? `<i data-w="${weightOf(m)}" data-lane="${r.lane}"${gap} data-tick="${esc(s)}" data-tip="${tip}" style="--h:${Math.round(4 + 14 * Math.sqrt(m.length / laneMax))}px;--hi:${(h / m.length) * 100}%" title="${tip}"></i>` : `<i${gap} data-tick="${esc(s)}" data-tip="${esc(s)}: none" title="${esc(s)}: none"></i>`;
+  };
+  const un = REPOS.filter((s) => unread(s, r.source));
+  const name = `${plain(r.title)} by repository: ${r.byWeight.map((s) => `${s} ${count(s).length}`).join(", ")}${un.length ? `; not read: ${un.join(", ")}` : ""}`;
+  return `<span class="spreadcol"><span class="strip" ${REPOS.length > 24 ? "data-dense" : ""} style="--n:${REPOS.length}" role="group" tabindex="0" aria-label="${esc(name)}. Arrow keys name a repository; Enter opens it.">${REPOS.map(tick1).join("")}</span><small data-cap="${spreadWord(r)}">${spreadWord(r)}</small></span>`;
+}
+
+function countBar(r, max) {
+  const h = r.crit + r.high, lo = r.alerts.length - h, px = 92;
+  const hw = Math.max(h ? 2 : 0, (h / max) * px), lw = Math.max(lo ? 2 : 0, (lo / max) * px);
+  return `<span class="cbar" data-lane="${r.lane}"><span class="b">${h ? `<span class="h" style="width:${hw}px"></span>` : ""}${lo ? `<span class="l" style="width:${lw}px"></span>` : ""}</span><b>${ge(r.short)}${r.alerts.length}</b></span>`;
+}
+
+function closedPrs(r) {
+  return new Set(r.alerts.filter((a) => a.pr).map((a) => a.pr.url)).size;
+}
+
+function fixHtml(r) {
+  const a = r.since ? `${ge(r.short)}${age(r.since)}` : "";
+  const extra = r.fresh ? `${ge(r.short)}${r.fresh} new this week` : "";
+  const fix = esc(fixWord(r)).replace(/(first patched |latest )([^,\s]+)/, "$1<code>$2</code>");
+  return fix ? { first: fix, second: [a, extra].filter(Boolean).join(" · ") } : { first: a, second: extra };
+}
+
+function ruleRow(r, max, laneMax) {
+  const key = ruleKey(r);
+  const isOpen = ui.open === key;
+  const { first, second } = fixHtml(r);
+  const cp = closedPrs(r);
+  const prWord = [r.prs.length ? `${plural(r.prs.length, "fix PR")} open` : "", cp ? `${ge(r.short)}${plural(cp, "fix PR")} closed unmerged` : ""].filter(Boolean).join(" · ");
+  const narrow = [first, esc(second), esc(prWord)].filter(Boolean).join(" · ");
+  return `<div class="item" ${isOpen ? "data-open" : ""} data-key="${esc(key)}">
+    <div class="rowbtn rrow" data-row="${esc(key)}">
+      <span class="sev" ${heavy(r.worst) ? "data-heavy" : ""}>${r.worst === "none" ? "None" : cap(r.worst)}</span>
+      <span class="what"><button class="t" data-row="${esc(key)}" aria-expanded="${isOpen}">${tick(r.title)}</button><span class="s">${r.source === "code" ? "Code scanning · " : ""}${subOf(r)}<span class="spreadword"> · ${spreadWord(r)}</span>${narrow ? `<span class="narrowfix">${narrow}</span>` : ""}</span></span>
+      ${spread(r, laneMax)}
+      ${countBar(r, max)}
+      <span class="fix"><span class="v">${first}</span>${second ? `<span>${esc(second)}</span>` : ""}${prWord ? `<span>${esc(prWord)}</span>` : ""}</span>
+    </div>
+    ${isOpen ? opened(r) : ""}
+  </div>`;
+}
+
+function ruleView(all) {
+  const rs = all.filter((r) => r.lane === ui.lane);
+  if (!rs.length) return "";
+  const max = Math.max(...rs.map((r) => r.alerts.length));
+  const laneMax = Math.max(...rs.flatMap((r) => r.repos.map((s) => r.alerts.filter((a) => a.s === s).length)));
+  return `<div class="list">
+    <div class="rrow lhead"><span style="padding-left:8px">Worst</span><span>Rule or package</span><span class="sp-h" id="spreadHead">${spreadHead()}</span><span>Alerts</span><span class="fixh">Fix and age</span></div>
+    ${rs.map((r) => ruleRow(r, max, laneMax)).join("")}
+  </div>`;
+}
+const spreadHead = () => `${REPOS.length} repositories`;
+
+function repoView(all) {
+  const rs = all.filter((r) => r.lane === ui.lane);
+  if (!rs.length) return "";
+  const lane = LANES.find((l) => l.id === ui.lane);
+  const heavyN = (a) => a.filter((x) => heavy(x.v)).length;
+  const rows = REPOS.map((s) => {
+    // The rules that drive a repository's bar come first: most alerts, then most high.
+    const items = rs.map((r) => ({ r, a: r.alerts.filter((x) => x.s === s) })).filter((x) => x.a.length)
+      .sort((x, y) => y.a.length - x.a.length || heavyN(y.a) - heavyN(x.a));
+    const alerts = items.flatMap((x) => x.a);
+    const un = ["code", "dependabot"].filter((src) => unread(s, src));
+    return { s, items, alerts, high: heavyN(alerts), crit: alerts.filter((a) => a.v === "critical").length, un };
+  });
+  const shown = rows.filter((x) => x.alerts.length || x.un.length).sort((a, b) => b.high - a.high || b.alerts.length - a.alerts.length);
+  const clean = rows.filter((x) => !x.alerts.length && !x.un.length).map((x) => x.s);
+  const max = Math.max(1, ...shown.map((x) => x.alerts.length));
+  const line = (x) => {
+    const isOpen = ui.repoOpen === x.s;
+    const lo = x.alerts.length - x.high;
+    const g2 = x.un.length ? "≥" : "";
+    const unWord = x.un.length ? `${x.un.map((u) => LISTW[u]).join(" and ")} not read` : "";
+    const bar = `<span class="cbar rb" data-lane="${ui.lane}"><span class="b" style="width:${(x.alerts.length / max) * 78}%">${x.high ? `<span class="h" style="flex:${x.high} 1 0"></span>` : ""}${lo ? `<span class="l" style="flex:${lo} 1 0"></span>` : ""}</span><b>${g2}${x.alerts.length}</b>${x.un.length ? `<span class="stub" style="height:18px" title="${esc(cap(unWord))}">⌀</span>` : ""}</span>`;
+    // A listed rule's count is exact: it came from a list that was read. Only "more rules" can grow.
+    const more = x.items.length - 2;
+    const tops = x.items.slice(0, 2).map((i) => `<b>${tick(i.r.title)}</b>&nbsp;${i.a.length}`).join(" · ") + (more > 0 ? ` · ${g2}${more}&nbsp;more&nbsp;${more === 1 ? "rule" : "rules"}` : "");
+    const sub = x.high ? severe(x.crit, x.high - x.crit).replace(/\d+/g, (n) => g2 + n) : "";
+    const gh = ghTotals(all, x.s);
+    const ghWord = `${gh.short}${gh.total} open overall: ${gh.short}${gh.dep} Dependabot, ${gh.short}${gh.code} code scanning`;
+    const rule = (i) => {
+      const sorted = [...i.a].sort(bySeverity);
+      const head = `<span><button class="pill rule" data-jump="${esc(ruleKey(i.r))}" title="Open this ${kind(i.r)} across the program">${tick(i.r.title)}</button></span>`;
+      const pills = (as) => as.map((a) => alertPill(i.r, a)).join("");
+      // Many alerts of one rule are listed by file, as the opened rule lists them.
+      if (i.r.source === "code" && sorted.length > 6) {
+        const by = new Map();
+        for (const a of sorted) by.set(a.p ?? "", [...(by.get(a.p ?? "") ?? []), a]);
+        const files = [...by].sort((a, b) => b[1].length - a[1].length).map(([p, as]) => {
+          const k = `repo|${x.s}|${ruleKey(i.r)}|${p}`, ex = ui.shown.has(k);
+          const body = as.length > 4
+            ? `<button class="pill" data-show="${esc(k)}" aria-expanded="${ex}">${as.length} ${esc(TOOL(i.r))} alerts ${ex ? "⌃" : "⌄"}</button>`
+            : pills(as);
+          return `<div class="fl"><code title="${esc(p)}">${esc(p.split("/").slice(-1)[0] || "setting")}</code><span class="pills">${body}</span>${ex && as.length > 4 ? `<span class="all">${pills(as)}</span>` : ""}</div>`;
+        }).join("");
+        return `<div class="rl">${head}<span class="files2">${files}</span></div>`;
+      }
+      return `<div class="rl">${head}<span class="pills">${pills(sorted)}</span></div>`;
+    };
+    const body = isOpen ? `<div class="repopen">${x.items.map(rule).join("")}${x.un.length ? `<div class="muted">${esc(cap(unWord))} at 10:02. <button class="linkbtn" data-toast="Opens Evidence at this read">Evidence</button></div>` : ""}<div class="acts"><button class="btn" data-toast="Opens ${esc(x.s)} › Security">Open ${esc(x.s)}</button></div></div>` : "";
+    return `<div class="item" ${isOpen ? "data-open" : ""}>
+      <div class="rowbtn prow" data-repo="${esc(x.s)}" style="padding-left:8px">
+        <button class="nm" data-repo="${esc(x.s)}" aria-expanded="${isOpen}">${esc(x.s)}<small>${esc([sub, unWord].filter(Boolean).join(" · "))}</small><small class="gh" title="${esc(ghWord)}">${gh.short}${gh.total} open overall</small></button>
+        ${bar}
+        <span class="tops">${tops || "—"}</span>
+      </div>${body}</div>`;
+  };
+  const names = ui.allClean || clean.length <= 8 ? esc(clean.join(", ")) : `${esc(clean.slice(0, 6).join(", "))} and <button class="linkbtn" data-clean aria-expanded="false">${clean.length - 6} more</button>`;
+  const cleanLine = clean.length ? `<div class="quiet">${partial() ? "Nothing open in the lists read" : `Nothing open in ${lane.inWords}`}: ${names}</div>` : "";
+  return `<div class="list">
+    <div class="prow lhead" style="padding-left:8px"><span>Repository</span><span>Alerts</span><span>Top rules and packages</span></div>
+    ${shown.map(line).join("")}${cleanLine}
+  </div>`;
+}
+
+function render() {
+  const all = rules();
+  const p = partial();
+  const g = ge(p);
+  const rs = all.filter((r) => r.lane === ui.lane);
+  const repos = [...new Set(rs.flatMap((r) => r.repos))];
+  const banner = ui.fleet === 40 ? `<div class="notread synth"><b>Layout test.</b> <span>25 made-up forks, fork-16 to fork-40, with alerts patterned on today’s. Switch Fleet back to 15 for the sweep.</span></div>` : "";
+  const nr = p ? `<div class="notread"><b>${plural(UNREAD.length, "list")} not read at 10:02:</b> <span>${esc(notReadTitle())}. Counts marked ≥ may be higher.</span> <button class="linkbtn" data-toast="Opens Evidence at this read">Evidence</button></div>` : "";
+  // The figure already gives the lane's name and total; this line adds only what it cannot show.
+  const tools = rs.length ? `<div class="tools">
+      <span class="sum">${bySource(rs)} · ${g}${plural(rs.length, "rule or package", "rules and packages")} in ${g}${unitOf(repos)}</span>
+      <span class="seg" id="viewSeg"><button data-view="rule" aria-pressed="${ui.view === "rule"}">By rule</button><button data-view="repo" aria-pressed="${ui.view === "repo"}">By repository</button></span>
+    </div>` : "";
+  $("body").innerHTML = `
+    ${banner}
+    <p class="headline"><span class="pre">${allOpen(all)}</span>${headline(all)}</p>
+    ${nr}
+    ${figure(all)}
+    ${tools}
+    ${ui.view === "rule" ? ruleView(all) : repoView(all)}`;
+  fitLabels();
+}
+
+// A block's label is its alert count, shown only where it fits; the block's name is in its tooltip and the rows below.
+function fitLabels() {
+  document.querySelectorAll(".sg").forEach((b) => {
+    const lab = b.firstElementChild;
+    lab.removeAttribute("data-hide");
+    // On a block that is part solid the label must fit in the outlined part, so it never covers the solid.
+    const W = b.hasAttribute("data-mix") ? b.clientWidth * (1 - b.dataset.hi / 100) - 3 : b.clientWidth - 6, fits = () => lab.offsetWidth <= W;
+    if (!fits()) lab.setAttribute("data-hide", "");
+  });
+}
+
+let tt;
+function toast(text) {
+  const t = $("toast");
+  t.textContent = text; t.classList.add("on");
+  clearTimeout(tt); tt = setTimeout(() => t.classList.remove("on"), 1800);
+}
+
+function openRule(key) {
+  ui.view = "rule";
+  ui.lane = key.split("|")[0];
+  ui.open = key;
+  render();
+  const el = document.querySelector(`.item[data-key="${CSS.escape(key)}"]`);
+  if (el) el.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  const b = el && el.querySelector(".t");
+  if (b) b.focus({ preventScroll: true });
+}
+
+document.addEventListener("click", (e) => {
+  // A tick opens its rule with that repository's line marked.
+  const tk = e.target.closest(".strip i[data-w],.strip i[data-u]");
+  if (tk) { ui.hl = tk.dataset.tick; return openRule(tk.closest("[data-row]").dataset.row); }
+  const t = e.target.closest("button,[data-row],[data-repo],a");
+  if (!t || t.tagName === "A") return;
+  const d = t.dataset;
+  if (t.closest("#stateSeg")) { ui.state = d.v; ui.open = null; ui.repoOpen = null; pressed("stateSeg", d.v); return render(); }
+  if (t.closest("#fleetSeg")) { setFleet(Number(d.v)); pressed("fleetSeg", d.v); return render(); }
+  if (t.closest("#colourSeg")) { document.documentElement.dataset.colour = d.v; pressed("colourSeg", d.v); return; }
+  if (t.closest("#paletteSeg")) { document.documentElement.dataset.palette = d.v; pressed("paletteSeg", d.v); return; }
+  if (t.closest("#themeSeg")) { if (d.v) document.documentElement.dataset.theme = d.v; else delete document.documentElement.dataset.theme; pressed("themeSeg", d.v); return; }
+  if (d.view) { ui.view = d.view; return render(); }
+  if (d.seg) { ui.hl = null; return openRule(d.seg); }
+  if (d.lane) { ui.lane = d.lane; ui.open = null; ui.repoOpen = null; ui.hl = null; return render(); }
+  if (d.clean !== undefined) { ui.allClean = true; return render(); }
+  if (d.jump) { return openRule(d.jump); }
+  if (d.toast) { return toast(d.toast); }
+  if (d.svc) { return toast(`Opens ${d.svc} › Security`); }
+  if (d.show !== undefined && d.show) { ui.shown.has(d.show) ? ui.shown.delete(d.show) : ui.shown.add(d.show); return render(); }
+  if (d.adv !== undefined) { ui.allAdv = !ui.allAdv; return render(); }
+  if (d.repo) { ui.repoOpen = ui.repoOpen === d.repo ? null : d.repo; return render(); }
+  if (d.row) { ui.open = ui.open === d.row ? null : d.row; ui.hl = null; return render(); }
+});
+
+function pressed(id, v) {
+  document.querySelectorAll(`#${id} button`).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === v)));
+}
+
+// Pointing at a tick, or arrowing onto it, names its repository under that strip and lights the same repository in every strip.
+function hotTick(i) {
+  document.querySelectorAll(".strip i.hot").forEach((x) => x.classList.remove("hot"));
+  document.querySelectorAll("small[data-cap]").forEach((c) => { c.textContent = c.dataset.cap; c.classList.remove("hot"); });
+  ui.hot = i ? i.dataset.tick : null;
+  if (!i) return;
+  document.querySelectorAll(`.strip i[data-tick="${CSS.escape(ui.hot)}"]`).forEach((x) => x.classList.add("hot"));
+  const cap = i.closest(".spreadcol").querySelector("small");
+  cap.textContent = i.dataset.tip; cap.classList.add("hot");
+}
+document.addEventListener("mouseover", (e) => {
+  const i = e.target.closest(".strip i");
+  if (!i && !ui.hot) return;
+  if (!i || i.dataset.tick !== ui.hot || !i.closest(".spreadcol").querySelector("small.hot")) hotTick(i);
+});
+document.addEventListener("keydown", (e) => {
+  const st = e.target.closest && e.target.closest(".strip");
+  if (!st) return;
+  const ticks = [...st.querySelectorAll("i[data-w],i[data-u]")];
+  let at = ticks.findIndex((x) => x.classList.contains("hot"));
+  if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+    e.preventDefault();
+    const step = e.key === "ArrowRight" ? 1 : -1;
+    at = at < 0 ? (step > 0 ? 0 : ticks.length - 1) : Math.max(0, Math.min(ticks.length - 1, at + step));
+    hotTick(ticks[at]);
+  } else if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    ui.hl = at >= 0 ? ticks[at].dataset.tick : null;
+    openRule(st.closest("[data-row]").dataset.row);
+  }
+});
+document.addEventListener("focusout", (e) => { if (e.target.classList && e.target.classList.contains("strip")) hotTick(null); });
+
+addEventListener("resize", fitLabels);
+$("sideSvcs").innerHTML = ["storage", "search", "indexer", "partition", "entitlements", "legal", "schema", "workflow"].map((s) => `<div class="nav"><svg class="ic" viewBox="0 0 16 16"><path d="M8 1.5 14 5v6l-6 3.5L2 11V5zM2 5l6 3.5L14 5M8 8.5v6"/></svg>${s}<span class="n okring">✓</span></div>`).join("");
+render();
+</script>
+
+
