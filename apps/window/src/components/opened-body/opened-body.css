@@ -15,3 +15,8 @@
 .opened-body-sources { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .opened-body-evidence { margin-top: 2px; }
 .opened-body a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.ask-about { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 0 8px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--text); font: inherit; font-size: 12px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.ask-about:hover { border-color: var(--text-muted); }
+.ask-about:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ask-about-mark { color: var(--agent-text); }
+.ask-about--owned { color: var(--text-muted); }

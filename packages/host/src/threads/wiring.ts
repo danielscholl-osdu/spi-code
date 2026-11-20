@@ -14,6 +14,7 @@ import type { ScopeRegistry } from "../scopes/registry.js";
 import type { ScopeWorkspaces } from "../scopes/workspace.js";
 import { offeredTools, spiReadTools, spiToolProvider } from "../tools/spi-reads.js";
 import { type AskingTurnWorkspace, CopilotThreadAdapter } from "./adapter.js";
+import { chipFromSweep } from "./context/draft.js";
 import { threadContext } from "./context/provider.js";
 import type { LatestSweep } from "./context/sweep.js";
 
@@ -139,6 +140,7 @@ export function openThreadHost(options: ThreadHostOptions) {
     return {
       engine,
       remember,
+      chip: (id: string) => chipFromSweep(options.savedSweep, id, modelRedactor),
       stop: () => {
         stopping ??= engine.shutdown().finally(async () => {
           try {

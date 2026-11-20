@@ -16,6 +16,8 @@ export type JsonValue =
 export interface ThreadDefinition {
   scope: string;
   title?: string;
+  /** The item the thread started from. */
+  subject?: string;
 }
 
 export interface ThreadAttachment {

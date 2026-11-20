@@ -55,3 +55,10 @@
 .sidebar-status-dot[data-tone="error"], .sidebar-toggle-dot[data-tone="error"] { background: var(--error); }
 .sidebar-status-dot { margin-right: 2px; }
 .sidebar-toggle-dot { position: absolute; top: 4px; right: 3px; box-shadow: 0 0 0 2px var(--surface); }
+.sidebar-thread-group .section-header { margin: 0; cursor: default; }
+.sidebar-thread-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); }
+.sidebar-thread-dot[data-status="Waiting on you"] { background: var(--warning); }
+.sidebar-thread-dot[data-status="Working"] { background: var(--work); }
+.sidebar-thread-scope { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: 12px; font-weight: 400; }
+.sidebar-thread-key { font: 11px var(--font-sans); color: var(--text-muted); }
+.sidebar-thread-count { margin-left: 4px; font-variant-numeric: tabular-nums; }

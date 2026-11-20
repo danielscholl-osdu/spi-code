@@ -7,7 +7,12 @@ import { PROTOCOL_VERSION } from "./watch/messages.js";
 const id = z.string().min(1);
 const sequence = z.int().nonnegative();
 const threadId = z.object({ threadId: id });
-const definition = z.strictObject({ scope: id, title: z.string().optional() });
+/** `subject`: the id of the row or popover the thread started from, which it then owns. */
+const definition = z.strictObject({
+  scope: id,
+  title: z.string().optional(),
+  subject: id.optional(),
+});
 export const ReasoningEffortSchema = z.enum(["low", "medium", "high", "xhigh", "max"]);
 const message = z.strictObject({
   prompt: z.string().trim().min(1),
@@ -121,6 +126,22 @@ export const ThreadMessageSchema = z.discriminatedUnion("type", [
   envelope("thread.sent", "response", threadId.extend({ outcome }).strict()),
   envelope("thread.stop", "request", threadId.strict()),
   envelope("thread.stopped", "response", threadId.strict()),
+  envelope("thread.chip", "request", z.strictObject({ id })),
+  envelope(
+    "thread.chip.result",
+    "response",
+    z.discriminatedUnion("ok", [
+      z.strictObject({
+        ok: z.literal(true),
+        id,
+        sweptAt: id,
+        trimmed: z.boolean(),
+        tokens: sequence,
+        attachment: z.strictObject({ name: id, content: z.string() }),
+      }),
+      z.strictObject({ ok: z.literal(false), id, reason: id }),
+    ]),
+  ),
   envelope("thread.subscribe", "request", threadId.extend({ fromSequence: sequence }).strict()),
   envelope(
     "thread.events",

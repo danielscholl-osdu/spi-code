@@ -55,6 +55,10 @@ export type TodayTab = (typeof TODAY_TABS)[number];
 /** Today, on one of its tabs, with an optional station filter. */
 export type TodayRoute = { kind: "today"; tab?: TodayTab; station?: TodayMemberStation };
 
+/** A thread in the centre, or the draft (`new`) that starts one. */
+export type ThreadRoute = { kind: "thread"; id: string };
+const THREAD_ID = /^[A-Za-z0-9-]+$/;
+
 /** What Evidence was opened for: a Today item, or a Today line with each of its members. */
 export type EvidenceSelection = { kind: "item" | "line"; id: string };
 
@@ -68,14 +72,14 @@ export type OpenSelection = { kind: string; id: string };
  */
 export type EvidenceRoute = {
   kind: "evidence";
-  from?: TodayRoute | PlaceRoute;
+  from?: TodayRoute | PlaceRoute | ThreadRoute;
   selection?: EvidenceSelection;
   open?: OpenSelection;
   about?: EvidenceSelection;
 };
 
 /** What the centre can hold. */
-export type Route = TodayRoute | PlaceRoute | EvidenceRoute;
+export type Route = TodayRoute | PlaceRoute | ThreadRoute | EvidenceRoute;
 
 export type RouteKind = Route["kind"];
 export type RouteOf<K extends RouteKind> = Extract<Route, { kind: K }>;
@@ -205,6 +209,8 @@ export function parseRoute(hash: string): Route | undefined {
     (rest === FORMING_RELEASES_ANCHOR || rest === SHARED_COMPONENTS_ANCHOR)
   )
     return { kind: "releases", section: rest };
+  if (head === "thread")
+    return rest !== undefined && THREAD_ID.test(rest) ? { kind: "thread", id: rest } : undefined;
   if (head === "environment" && rest !== undefined)
     return ENVIRONMENT_RANGE.test(rest) ? { kind: "environment", range: rest } : undefined;
   if (PLAIN.has(head)) return rest === undefined ? ({ kind: head } as Route) : undefined;
@@ -228,6 +234,8 @@ export function routeHash(route: Route): string {
           : "#today";
     case "release":
       return `#release/${route.month}`;
+    case "thread":
+      return `#thread/${encodeURIComponent(route.id)}`;
     case "releases":
       return route.section ? `#releases/${route.section}` : "#releases";
     case "environment":
@@ -267,6 +275,8 @@ export function routeLabel(route: Route): string {
       return `Release ${route.month}`;
     case "evidence":
       return "Evidence";
+    case "thread":
+      return route.id === "new" ? "New thread" : "Thread";
   }
 }
 
@@ -536,6 +546,7 @@ function restoreLastPlace(registry: Registry) {
 }
 
 function saveLastPlace(route: Route) {
+  if (route.kind === "thread") return;
   try {
     const place = route.kind === "environment" ? { kind: route.kind } : route;
     window.localStorage.setItem(LAST_PLACE_KEY, routeHash(place));

@@ -8,6 +8,7 @@ import { EvidencePage } from "../components/evidence/EvidencePage.js";
 import { BeforeFirstSweep } from "../components/sweep/BeforeFirstSweep.js";
 import { OPEN_READINESS_EVENT, openReadiness } from "../settings/readiness.js";
 import { watchStore } from "../store/watch.js";
+import { ThreadPage } from "../threads/ThreadPage.js";
 import Environment from "../views/environment/index.js";
 import Releases, { ReleaseMonth } from "../views/releases/index.js";
 import Security from "../views/security/index.js";
@@ -22,6 +23,7 @@ import {
   type Route,
   renderRoute,
   routeLabel,
+  type ThreadRoute,
   useRegistryOr,
 } from "./navigation.js";
 
@@ -31,7 +33,7 @@ export * from "./navigation.js";
  * Watch pages wait behind the Watch gate, which names the place while it holds them; a place
  * other than Today opens one line until the first snapshot.
  */
-function gated(route: Exclude<Route, EvidenceRoute>, page: ReactNode) {
+function gated(route: Exclude<Route, EvidenceRoute | ThreadRoute>, page: ReactNode) {
   return (
     <WatchGate label={routeLabel(route)}>
       {route.kind === "today" ? page : <BeforeFirstSweep route={route}>{page}</BeforeFirstSweep>}
@@ -65,6 +67,7 @@ export const DEFAULT_REGISTRY: Registry = {
     service: (route) => gated(route, <ServicePage id={route.id} tab={route.tab} row={route.row} />),
     release: (route) => gated(route, <ReleaseMonth month={route.month} />),
     evidence: (route) => <Evidence route={route} />,
+    thread: (route) => <ThreadPage key={route.id} id={route.id} />,
   },
   strip: () => <SidebarSweep />,
   fallback: { kind: "today" },

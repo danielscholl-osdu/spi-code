@@ -89,7 +89,7 @@ export interface ModelOption {
   multiplier?: number;
   favourite?: boolean;
   /** From `policy.state`; a model not enabled is shown greyed and cannot be chosen. */
-  policy: "enabled" | "disabled" | "unconfigured";
+  policy: "enabled" | "disabled" | "unconfigured" | "not known";
   reasoningEfforts?: readonly string[];
   defaultReasoningEffort?: string;
 }
@@ -122,6 +122,10 @@ export interface ComposerProps {
   onOpenLink?(url: string): void;
   running: boolean;
   draft: boolean;
+  /** Why the message cannot go yet, or why the last send failed. A draft keeps its words on send. */
+  notice?: string | undefined;
+  /** False holds send, as while a chip is packing or no scope can start. */
+  canSend?: boolean;
   onSend(message: { text: string; places: readonly PlaceOption[] }): void;
   onStop(): void;
 }
@@ -129,7 +133,7 @@ export interface ComposerProps {
 export interface ThreadViewProps extends ComposerProps {
   entries: readonly TimelineEntry[];
   /** The first context's line: scope, sweep time and size ("Context · partition · from the sweep at 13:50 · 1 item"). */
-  contextLine?: string;
+  contextLine?: string | undefined;
   /** Where a draft started from ("Started from Today › Blocked › Sync halted"). */
   origin?: string;
 }

@@ -70,10 +70,11 @@ export function Composer(props: ComposerProps) {
     input.current?.focus();
   };
 
-  const canSend = !props.running && text.trim().length > 0;
+  const canSend = props.canSend !== false && !props.running && text.trim().length > 0;
   const send = () => {
     if (!canSend) return;
     props.onSend({ text: text.trim(), places: added });
+    if (props.draft) return;
     setText("");
     setCaret(0);
     setAdded([]);
@@ -195,9 +196,9 @@ export function Composer(props: ComposerProps) {
           ))}
         </ul>
       )}
-      {notice && (
+      {(notice || props.notice) && (
         <p className="thread-notice" role="status">
-          {notice}
+          {notice || props.notice}
         </p>
       )}
       <div className="thread-composer-row">

@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { selectionStore } from "../panels/index.js";
 import { watchStore } from "../store/watch.js";
+import { threadStore } from "../threads/store.js";
 import { type Appearance, createAppearance } from "./appearance.js";
 import { openDestination, parseDestination } from "./destination.js";
 
@@ -52,6 +53,7 @@ export function useHostConnection({
     setTheme(controller.pin);
     const unsubscribe = window.spi.onMessage((message) => {
       selectionStore.getState().receive(message);
+      threadStore.getState().receive(message);
       try {
         watchStore.getState().receive(message);
       } catch (reason) {

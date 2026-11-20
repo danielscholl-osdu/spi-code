@@ -138,6 +138,7 @@ it.each([false, true])(
         service: snapshot.stations.map(({ service }) => ({ kind: "service", id: service })),
         release: snapshot.releases.lines.map(({ month }) => ({ kind: "release", month })),
         evidence: [{ kind: "evidence" }],
+        thread: [],
       };
       const reachable = Object.values(routes)
         .flat()
