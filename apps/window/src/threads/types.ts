@@ -155,7 +155,13 @@ export interface ComposerProps {
   notice?: string | undefined;
   /** False holds send, as while a chip is packing or no scope can start. */
   canSend?: boolean;
-  onSend(message: { text: string; places: readonly PlaceOption[] }): void;
+  /** The text to send, and the words as typed with whether the send asks only about the chips. */
+  onSend(message: {
+    text: string;
+    words: string;
+    chipOnly: boolean;
+    places: readonly PlaceOption[];
+  }): void;
   onStop(): void;
 }
 

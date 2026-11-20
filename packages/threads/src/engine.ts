@@ -28,6 +28,7 @@ import type {
 interface PendingMessage {
   id: string;
   message: ThreadMessage;
+  stopped?: true;
   resolve(outcome: TurnOutcome): void;
   reject(error: unknown): void;
 }
@@ -210,6 +211,8 @@ export class ThreadEngine<Tool> {
     this.get(id);
     const running = this.running.get(id);
     if (!running) return;
+    const next = this.queues.get(id)?.[0];
+    if (running.turn.outcome !== "running" && next) next.stopped = true;
     if (running.turn.outcome === "running") {
       try {
         this.finish(id, running, { outcome: "stopped", reason: "operator" });
@@ -431,6 +434,7 @@ export class ThreadEngine<Tool> {
       done,
     };
     this.running.set(id, running);
+    if (pending.stopped) this.abort(running, "operator");
     void done.then(
       (outcome) => {
         this.running.delete(id);
@@ -548,13 +552,14 @@ export class ThreadEngine<Tool> {
     const recordAfterAssistant = (entry: JournalEntry) => {
       const text = assistant.flush();
       const entries: JournalEntry[] = text ? [{ type: "assistant.delta", turnId, text }] : [];
-      thinking = entry.type === "assistant.thinking";
+      thinking = false;
       this.record(id, [...entries, entry]);
     };
     return {
       thinking: () => {
         if (!live() || thinking) return;
-        recordAfterAssistant({ type: "assistant.thinking", turnId });
+        thinking = true;
+        this.record(id, [{ type: "assistant.thinking", turnId }]);
       },
       delta: (delta) => {
         if (!live() || !delta) return;

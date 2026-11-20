@@ -75,7 +75,12 @@ export function Composer(props: ComposerProps) {
   const canSend = props.canSend !== false && !props.running && (text.trim().length > 0 || chipOnly);
   const send = () => {
     if (!canSend) return;
-    props.onSend({ text: chipOnly ? CHIP_ONLY_PROMPT : text.trim(), places: added });
+    props.onSend({
+      text: chipOnly ? CHIP_ONLY_PROMPT : text.trim(),
+      words: text,
+      chipOnly,
+      places: added,
+    });
     if (props.draft) return;
     setText("");
     setCaret(0);

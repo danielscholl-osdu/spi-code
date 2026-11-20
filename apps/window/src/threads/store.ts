@@ -77,7 +77,11 @@ type ThreadsState = {
   /** Attaches a row as the draft's one chip, in place of any chip there. */
   attachDraftChip(target: AskTarget): void;
   removeDraftChip(): void;
-  sendDraft(text: string, onStarted: (threadId: string) => void): void;
+  /** Sends the draft's first message: the words as typed, and whether it asks only about the chip. */
+  sendDraft(
+    send: { words: string; chipOnly: boolean },
+    onStarted: (threadId: string) => void,
+  ): void;
   send(threadId: string, text: string): void;
   decideApproval(threadId: string, turnId: string, approvalId: string, approved: boolean): void;
   stop(threadId: string): void;
@@ -152,26 +156,39 @@ const STALE_PREVIEW = "stale_preview";
 
 export function createThreadStore(post: (message: Message) => void = postToHost) {
   const waiting = new Map<string, (message: Message) => void>();
-  /** Requests made before the host port arrived, posted after the next hello. */
-  let held: { message: Message; then?: (message: Message) => void }[] = [];
-  const deliver = (message: Message, then?: (message: Message) => void) => {
+  /** Requests made before the host port arrived, posted after the next hello; a start keeps its draft's serial. */
+  type Held = { message: Message; then?: (message: Message) => void; serial?: number };
+  let held: Held[] = [];
+  const deliver = ({ message, then, serial }: Held) => {
     if (then) waiting.set(message.id, then);
     try {
       post(message);
     } catch {
       waiting.delete(message.id);
-      held.push({ message, ...(then ? { then } : {}) });
+      held.push({
+        message,
+        ...(then ? { then } : {}),
+        ...(serial === undefined ? {} : { serial }),
+      });
     }
   };
+  /** The drafts whose held start the next hello will post. */
+  const heldStarts = () =>
+    new Set(held.flatMap(({ serial }) => (serial === undefined ? [] : [serial])));
   const request = (
     type: Request["type"],
     payload: Request["payload"],
     then?: (message: Message) => void,
+    serial?: number,
   ) => {
     const id = crypto.randomUUID();
     const parsed = parseMessage({ version: PROTOCOL_VERSION, id, kind: "request", type, payload });
     if (!parsed.ok) throw new Error(`Window generated an invalid ${type}`);
-    deliver(parsed.message, then);
+    deliver({
+      message: parsed.message,
+      ...(then ? { then } : {}),
+      ...(serial === undefined ? {} : { serial }),
+    });
   };
 
   /** Bumped by each new draft and each pack, so a reply only lands on the request it answers. */
@@ -288,14 +305,14 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
     };
 
     /** The host went away: its threads are not known, and what it was doing ends or starts again. */
-    const lose = (gone: string | null) => {
+    const lose = (gone: string | null, replayed: ReadonlySet<number> = new Set()) => {
       const { draft } = get();
       let next = draft;
       if (next?.sending !== undefined)
         next = failDraft(next, gone ?? "The host restarted before the thread started.");
       if (gone && next?.chip?.state === "packing" && next.subject)
         next = { ...next, chip: { state: "done", ok: false, id: next.subject.id, reason: gone } };
-      stopAsked.clear();
+      for (const serial of stopAsked) if (!replayed.has(serial)) stopAsked.delete(serial);
       set({
         threads: null,
         listed: null,
@@ -361,14 +378,16 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
         const { chip: _, subject: __, ...rest } = draft;
         set({ draft: rest });
       },
-      sendDraft(text, onStarted) {
+      sendDraft({ words, chipOnly: asked }, onStarted) {
         const { draft } = get();
         if (!draft || draft.sending !== undefined || draft.chip?.state === "packing") return;
         const choice = get().choices.draft;
         const chip = draft.chip?.state === "done" && draft.chip.ok ? draft.chip : undefined;
+        const chipOnly = asked && chip !== undefined;
+        const text = asked ? CHIP_ONLY_PROMPT : words.trim();
         const { failure: _, ...rest } = draft;
         const sending = {
-          words: chip && text === CHIP_ONLY_PROMPT ? "" : text,
+          words,
           message: {
             prompt: text,
             ...(chip ? { attachments: [chip.attachment.name] } : {}),
@@ -379,13 +398,11 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
         set({ draft: { ...rest, sending } });
         const definition = {
           scope: draft.scope,
-          title: threadTitle(
-            chip && draft.subject && text === CHIP_ONLY_PROMPT ? draft.subject.label : text,
-          ),
+          title: threadTitle(chipOnly && draft.subject ? draft.subject.label : text),
           ...(draft.subject && chip ? { subject: draft.subject.id } : {}),
         };
         const serial = draftSerial;
-        request("thread.start", definition, (reply) => {
+        const onReply = (reply: Message) => {
           const current = serial === draftSerial ? get().draft : null;
           const stopNow = stopAsked.delete(serial);
           if (reply.type !== "thread.started") {
@@ -412,7 +429,8 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
           }
           sendMessage(threadId, payload, sending.message.at);
           if (stopNow) get().stop(threadId);
-        });
+        };
+        request("thread.start", definition, onReply, serial);
       },
       stopDraft() {
         const { draft } = get();
@@ -486,18 +504,19 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
         if (reply.kind === "request") return;
         if (reply.type === "host.hello") {
           const queued = held;
+          const replayed = heldStarts();
           held = [];
           waiting.clear();
-          lose(null);
+          lose(null, replayed);
           list();
           for (const threadId of Object.keys(get().events)) subscribe(threadId);
-          for (const { message, then } of queued)
-            if (!REDONE_AT_HELLO.has(message.type as Request["type"])) deliver(message, then);
+          for (const entry of queued)
+            if (!REDONE_AT_HELLO.has(entry.message.type as Request["type"])) deliver(entry);
           return;
         }
         if (reply.type === "error" && reply.payload.code === "host_unavailable") {
           waiting.clear();
-          lose(reply.payload.message);
+          lose(reply.payload.message, heldStarts());
           return;
         }
         const then = waiting.get(reply.id);

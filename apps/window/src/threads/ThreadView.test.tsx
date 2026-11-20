@@ -242,6 +242,8 @@ it("lists places after @ and adds the chosen one as a chip", () => {
   click(button(/^Send/));
   expect(onSend).toHaveBeenCalledWith({
     text: "Compare with",
+    words: "Compare with ",
+    chipOnly: false,
     places: [{ id: "partition", label: "partition" }],
   });
 });
@@ -261,7 +263,12 @@ it("refuses a ninth chip and says why", () => {
   );
   expect(() => button("Remove legal")).toThrow();
   click(button(/^Send/));
-  expect(onSend).toHaveBeenCalledWith({ text: "Also @leg", places: [] });
+  expect(onSend).toHaveBeenCalledWith({
+    text: "Also @leg",
+    words: "Also @leg",
+    chipOnly: false,
+    places: [],
+  });
 
   render(fixtureThread({ context: context.slice(1), onSend, running: false }));
   type("Also @par");

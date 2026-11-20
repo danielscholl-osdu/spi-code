@@ -160,8 +160,8 @@ it("journals workspace preparation and one textless thinking mark per stretch, a
       "workspace.started",
       "workspace.finished",
       "assistant.thinking",
-      "assistant.delta",
       "assistant.thinking",
+      "assistant.delta",
       "tool.started",
       "tool.finished",
       "assistant.thinking",
@@ -288,6 +288,27 @@ it.each([
   database.close();
 });
 
+it("keeps a secret split by a thinking mark out of the journal", async () => {
+  const { engine, turn, database } = harness();
+  const id = engine.create({ scope: "partition" });
+  const outcome = engine.send(id, { prompt: "Show it" });
+  const { events, finish } = await turn();
+  const secret = `ghp_${"x".repeat(36)}`;
+  events.delta(`Token ${secret.slice(0, 20)}`);
+  events.thinking();
+  events.delta(`${secret.slice(20)} found.`);
+  finish();
+  await expect(outcome).resolves.toBe("completed");
+  const journal = engine.eventsSince(id, 0);
+  expect(journal.map(({ type }) => type)).toContain("assistant.thinking");
+  const written = JSON.stringify(journal);
+  expect([secret.slice(0, 20), secret.slice(20)].filter((half) => written.includes(half))).toEqual(
+    [],
+  );
+  expect(engine.read(id).turns[0]?.text).toBe("Token [redacted] found.");
+  database.close();
+});
+
 it("will not delete a thread while a command or turn is running", async () => {
   const { engine, turn, database } = harness();
   const id = engine.create({ scope: "partition" });
@@ -365,6 +386,33 @@ it("keeps approvals in different threads isolated and applies no declined edit",
   first.finish();
   second.finish();
   await Promise.all([firstOutcome, secondOutcome]);
+  database.close();
+});
+
+it("stops a queued message sent while the stopped turn is still releasing its session", async () => {
+  let resolved = 0;
+  const { engine, runtime, turn, database } = harness(new DatabaseSync(":memory:"), () => {
+    resolved++;
+    return { cwd: "/workspace" };
+  });
+  const id = engine.create({ scope: "partition" });
+  const first = engine.send(id, { prompt: "First" });
+  const running = await turn();
+  const stopped = engine.stop(id);
+  expect(engine.eventsSince(id, 0).at(-1)).toMatchObject({ type: "turn.finished" });
+  const second = engine.send(id, { prompt: "Second" });
+  const stoppedAgain = engine.stop(id);
+  running.finish();
+  await Promise.all([stopped, stoppedAgain]);
+  await expect(first).resolves.toBe("stopped");
+  await expect(second).resolves.toBe("stopped");
+  expect(runtime.run).toHaveBeenCalledTimes(1);
+  expect(resolved).toBe(1);
+  expect(engine.eventsSince(id, 0).slice(-2)).toMatchObject([
+    { type: "turn.started" },
+    { type: "turn.finished", outcome: "stopped", reason: "operator" },
+  ]);
+  expect(engine.read(id).turns.map(({ outcome }) => outcome)).toEqual(["stopped", "stopped"]);
   database.close();
 });
 

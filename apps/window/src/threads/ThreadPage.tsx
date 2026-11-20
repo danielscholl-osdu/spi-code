@@ -181,8 +181,8 @@ export function ThreadPage({ id }: { id: string }) {
               draft.chip?.state !== "packing" &&
               draft.sending === undefined
             }
-            onSend={({ text }) =>
-              state.sendDraft(text, (threadId) => {
+            onSend={({ words, chipOnly }) =>
+              state.sendDraft({ words, chipOnly }, (threadId) => {
                 const thread = { kind: "thread", id: threadId } as const;
                 if (window.location.hash === routeHash({ kind: "thread", id: NEW_THREAD }))
                   replaceRoute(thread);

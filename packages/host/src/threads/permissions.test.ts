@@ -146,7 +146,13 @@ it.each(["supervised", "auto-accept-edits"] as const)(
     roots.push(root);
     writeFileSync(join(root, "src.ts"), "before");
     const requestApproval = vi.fn(async (_request, decision?: boolean) => decision !== false);
-    const events = { requestApproval, delta() {}, toolStarted() {}, toolFinished() {} };
+    const events = {
+      requestApproval,
+      thinking() {},
+      delta() {},
+      toolStarted() {},
+      toolFinished() {},
+    };
     const handler = askingPermission({ tempPath: root, worktreePath: root }, () => events, {
       mode,
     });
@@ -169,7 +175,13 @@ it.each(["supervised", "auto-accept-edits"] as const)(
   async (mode) => {
     const paths = workspace();
     const requestApproval = vi.fn(async (_request: object, _decision?: boolean) => false);
-    const events = { requestApproval, delta() {}, toolStarted() {}, toolFinished() {} };
+    const events = {
+      requestApproval,
+      thinking() {},
+      delta() {},
+      toolStarted() {},
+      toolFinished() {},
+    };
     const handler = askingPermission(paths, () => events, { mode });
     const write = request("write") as Extract<PermissionRequest, { kind: "write" }>;
     await expect(
@@ -194,7 +206,13 @@ it.each(["supervised", "auto-accept-edits"] as const)(
 it("shows and journals the exact edit path and diff before a supervised approval", async () => {
   const paths = workspace();
   const requestApproval = vi.fn(async () => true);
-  const events = { requestApproval, delta() {}, toolStarted() {}, toolFinished() {} };
+  const events = {
+    requestApproval,
+    thinking() {},
+    delta() {},
+    toolStarted() {},
+    toolFinished() {},
+  };
   const edit = {
     ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
     fileName: join(paths.worktreePath, "src.ts"),
@@ -213,7 +231,13 @@ it("refuses a redacted write without applying it", async () => {
   const paths = workspace();
   let applied = false;
   const requestApproval = vi.fn(async (_request: object, _decision?: boolean) => false);
-  const events = { requestApproval, delta() {}, toolStarted() {}, toolFinished() {} };
+  const events = {
+    requestApproval,
+    thinking() {},
+    delta() {},
+    toolStarted() {},
+    toolFinished() {},
+  };
   const edit = request("write") as Extract<PermissionRequest, { kind: "write" }>;
   const result = await askingPermission(paths, () => events, { mode: "auto-accept-edits" })(
     {
@@ -402,7 +426,13 @@ it.each(boundaryRows.flatMap((row) => modes.map((mode) => ({ ...row, mode }))))(
     const requestApproval = vi.fn(
       async (_request: object, decision?: boolean) => decision !== false,
     );
-    const events = { requestApproval, delta() {}, toolStarted() {}, toolFinished() {} };
+    const events = {
+      requestApproval,
+      thinking() {},
+      delta() {},
+      toolStarted() {},
+      toolFinished() {},
+    };
     const result = await askingPermission(paths, () => events, { mode, gateDenied })(
       makeRequest(paths),
       { sessionId: "fixture" },
@@ -415,7 +445,13 @@ it.each(boundaryRows.flatMap((row) => modes.map((mode) => ({ ...row, mode }))))(
 it("draws new file contents as an all-added diff", async () => {
   const paths = workspace();
   const requestApproval = vi.fn(async () => true);
-  const events = { requestApproval, delta() {}, toolStarted() {}, toolFinished() {} };
+  const events = {
+    requestApproval,
+    thinking() {},
+    delta() {},
+    toolStarted() {},
+    toolFinished() {},
+  };
   await askingPermission(paths, () => events)(
     {
       ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
@@ -434,7 +470,13 @@ it("draws new file contents as an all-added diff", async () => {
 it.each(modes)("denies an empty write in %s mode", async (mode) => {
   const paths = workspace();
   const requestApproval = vi.fn(async () => false);
-  const events = { requestApproval, delta() {}, toolStarted() {}, toolFinished() {} };
+  const events = {
+    requestApproval,
+    thinking() {},
+    delta() {},
+    toolStarted() {},
+    toolFinished() {},
+  };
   const result = await askingPermission(paths, () => events, { mode })(
     {
       ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
@@ -454,7 +496,13 @@ it.each(modes)("denies an empty write in %s mode", async (mode) => {
 it("asks for a managed write in Auto-accept edits mode", async () => {
   const paths = workspace();
   const requestApproval = vi.fn(async () => true);
-  const events = { requestApproval, delta() {}, toolStarted() {}, toolFinished() {} };
+  const events = {
+    requestApproval,
+    thinking() {},
+    delta() {},
+    toolStarted() {},
+    toolFinished() {},
+  };
   await askingPermission(paths, () => events, { mode: "auto-accept-edits" })(
     {
       ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
@@ -529,7 +577,13 @@ it.each([
 it("denies an unknown kind with a visible reason", async () => {
   const paths = workspace();
   const requestApproval = vi.fn(async (_request: object, _decision?: boolean) => false);
-  const events = { requestApproval, delta() {}, toolStarted() {}, toolFinished() {} };
+  const events = {
+    requestApproval,
+    thinking() {},
+    delta() {},
+    toolStarted() {},
+    toolFinished() {},
+  };
   await askingPermission(paths, () => events)(request("sdk-added-later"), { sessionId: "fixture" });
   expect(requestApproval.mock.calls[0]).toEqual([
     expect.objectContaining({
@@ -545,7 +599,13 @@ it.each(["supervised", "auto-accept-edits"] as const)(
   async (mode: AccessMode) => {
     const paths = workspace();
     const requestApproval = vi.fn(async (_request: object, _decision?: boolean) => false);
-    const events = { requestApproval, delta() {}, toolStarted() {}, toolFinished() {} };
+    const events = {
+      requestApproval,
+      thinking() {},
+      delta() {},
+      toolStarted() {},
+      toolFinished() {},
+    };
     await askingPermission(paths, () => events, { mode })(request("shell"), {
       sessionId: "fixture",
     });

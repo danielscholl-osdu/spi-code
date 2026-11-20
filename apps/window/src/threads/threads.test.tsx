@@ -797,6 +797,31 @@ it("shows a sent message at once, stops a draft's turn once it begins, and reads
   expect(all(".thread-user p")).toHaveLength(1);
 });
 
+it.each([
+  ["a reconnect", false],
+  ["an unavailable host and then a reconnect", true],
+])("keeps an early Stop across %s that replays the held start", async (_, unavailable) => {
+  window.location.hash = "#service/partition";
+  await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
+  await click(buttonNamed("Ask Copilot about partition"));
+  await type("Why did the last sync stop?");
+  host.disconnect();
+  await click(buttonNamed("Send"));
+  await click(buttonNamed("Stop"));
+  expect(host.posted.filter(({ type }) => type === "thread.start")).toEqual([]);
+  if (unavailable) await act(async () => host.unavailable("Host stopped after repeated crashes."));
+
+  await act(async () => host.hello());
+  const order = host.posted
+    .filter(({ type }) => ["thread.start", "thread.send", "thread.stop"].includes(type))
+    .map(({ type, payload }) => [type, "threadId" in payload ? payload.threadId : ""]);
+  expect(order).toEqual([
+    ["thread.start", ""],
+    ["thread.send", "t1"],
+    ["thread.stop", "t1"],
+  ]);
+});
+
 it("marks an Open thread's sidebar row Working as soon as a message is sent", async () => {
   host.addThread("t1", { scope: "indexer", title: "First" }, "Open");
   host.silent.add("thread.send");
@@ -846,6 +871,25 @@ it("keeps the operator's words in the draft when the thread does not start, or t
   );
   expect(container.querySelector("textarea")?.value).toBe("Why is the sync halted?");
   expect(buttonNamed("Send").hasAttribute("disabled")).toBe(false);
+});
+
+it("brings back the typed words after a failed start when they match the chip-only sentence", async () => {
+  host.silent.add("thread.start");
+  await askAndSend(CHIP_ONLY_PROMPT);
+  expect(container.querySelector(".thread-working-phase")?.textContent).toBe("Waiting to start");
+  const [start] = host.sent("thread.start");
+  await act(async () =>
+    threadStore.getState().receive({
+      version: PROTOCOL_VERSION,
+      id: start?.id,
+      kind: "response",
+      type: "error",
+      payload: { code: "host_failed", message: "Host request failed" },
+    }),
+  );
+  expect(notice()).toBe("Host request failed");
+  expect(container.querySelector("textarea")?.value).toBe(CHIP_ONLY_PROMPT);
+  expect(host.sent("thread.send")).toEqual([]);
 });
 
 it("lists again and resubscribes an open thread from its last event when the host says hello", async () => {
