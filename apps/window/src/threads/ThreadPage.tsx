@@ -132,16 +132,18 @@ export function ThreadPage({ id }: { id: string }) {
     return (
       <>
         <PaneTitle>
-          <a
-            className="thread-back"
-            href={routeHash(back.route)}
-            onClick={(event) => {
-              event.preventDefault();
-              navigate(back.route);
-            }}
-          >
-            ← {back.label}
-          </a>
+          <h1 className="thread-back-title">
+            <a
+              className="thread-back"
+              href={routeHash(back.route)}
+              onClick={(event) => {
+                event.preventDefault();
+                navigate(back.route);
+              }}
+            >
+              ← {back.label}
+            </a>
+          </h1>
         </PaneTitle>
         <ThreadView
           {...shared}

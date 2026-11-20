@@ -15,7 +15,8 @@
 .thread-draft > .thread-composer { width: 100%; margin: 0; }
 .thread-composer[data-draft] > .thread-menu, .thread-composer[data-draft] > .thread-picker { top: calc(100% + 6px); bottom: auto; }
 .thread-asking { margin: 0; padding: 0 4px; font-size: var(--text-sm); color: var(--text-muted); }
-.thread-back { color: var(--text-muted); font-size: var(--text-md); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.centre-title h1.thread-back-title { font-size: var(--text-md); font-weight: 400; }
+.thread-back { color: var(--text-muted); text-decoration: none; }
 .thread-back:hover { color: var(--text); }
 .thread-back:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 4px; }
 
