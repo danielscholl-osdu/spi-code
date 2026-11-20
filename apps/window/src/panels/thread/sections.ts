@@ -3,13 +3,11 @@
 
 import { COMMIT_SECTION } from "./CommitSection.js";
 import { LANDS_IN_SECTION } from "./LandsInSection.js";
-import { SCOPE_SECTION } from "./ScopeSection.js";
 import type { ThreadSection } from "./section.js";
 import { WORKTREE_SECTION } from "./WorktreeSection.js";
 
 /** The Thread tab's fields, in order. */
 export const THREAD_SECTIONS: readonly ThreadSection[] = [
-  SCOPE_SECTION,
   LANDS_IN_SECTION,
   COMMIT_SECTION,
   WORKTREE_SECTION,
