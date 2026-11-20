@@ -24,7 +24,7 @@ const colours: Record<EnvelopeTone, string> = {
 
 export const chipStyle: CSSProperties = {
   display: "inline-block",
-  fontSize: "10.5px",
+  fontSize: "var(--text-xs)",
   fontWeight: 600,
   borderRadius: 4,
   padding: "0 6px",

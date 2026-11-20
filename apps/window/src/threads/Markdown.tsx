@@ -122,7 +122,7 @@ export function Markdown({
           );
         if (block.kind === "h")
           return (
-            <p key={key} className="thread-md-h">
+            <p key={key} className="thread-md-h" data-level={Math.min(block.level, 3)}>
               {inline(block.text, onOpenLink)}
             </p>
           );

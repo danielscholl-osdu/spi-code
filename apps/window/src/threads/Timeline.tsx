@@ -155,13 +155,13 @@ function Row({ row, open, toggle, onOpenLink }: RowProps) {
 }
 
 const ESTIMATES: Record<Item["kind"], number> = {
-  user: 64,
-  assistant: 96,
-  work: 24,
-  call: 22,
-  setup: 32,
-  "turn-end": 32,
-  "model-switch": 32,
+  user: 72,
+  assistant: 120,
+  work: 30,
+  call: 26,
+  setup: 40,
+  "turn-end": 40,
+  "model-switch": 40,
 };
 
 export function Timeline({
