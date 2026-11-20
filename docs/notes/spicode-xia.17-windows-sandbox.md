@@ -1,7 +1,7 @@
 # spicode-xia.17 Windows sandbox on Windows Server 2025
 
-Observed in CI run `44803811270` on `windows-latest` x64, at head
-`7409728c53293308cd26efbe2e703bd60feb849e`, with the
+Observed in CI run `44826417487` on `windows-latest` x64, at head
+`19302f56910f0c61280de85f52e5ad8c68315e7a`, with the
 `windows-2025-vs2026` image (Windows Server 2025, 10.0.26100.0), Node 22.22.0
 and `@microsoft/mxc-sdk` 1.1.0. The Windows 11 client is unobserved. The
 Windows package and packaged smoke passed. No Copilot seat or model turn was
