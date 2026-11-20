@@ -7,17 +7,20 @@ import {
   PROTOCOL_VERSION,
   type ThreadWireEvent,
   TodayLineSchema,
+  ViewSnapshotSchema,
 } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { readFixture } from "../../../../scripts/watch-generated.mjs";
+import { routeHash } from "../app/navigation.js";
 import { Shell } from "../app/Shell.js";
 import { todayContent } from "../components/opened-body/content.js";
 import { OpenedBody } from "../components/opened-body/OpenedBody.js";
 import recorded from "../components/opened-body/sweep-1116.json?raw";
 import { watchStore } from "../store/watch.js";
 import { fixtureLoader, installSpi } from "../test-utils/harness.js";
+import nov16 from "../views/today/snapshot-1116.json?raw";
 import { type ChipResult, type ThreadSummary, threadStore } from "./store.js";
 
 type Request = Extract<Message, { kind: "request" }>;
@@ -58,6 +61,9 @@ function fakeHost() {
   const subscriptions = new Map<string, string>();
   const failing = new Set<Request["type"]>();
   const silent = new Set<Request["type"]>();
+  /** No port yet: the preload throws, as it does before the host port arrives. */
+  let offline = false;
+  let refuseStart: { code: string; message: string } | undefined;
   const send = (type: string, id: string, payload: unknown, kind = "response") =>
     deliver({ version: PROTOCOL_VERSION, id, kind, type, payload });
   const summaries = () =>
@@ -69,6 +75,7 @@ function fakeHost() {
       updatedAt: 1,
     }));
   const answer = (request: Request) => {
+    if (offline) throw new Error("Host port is not connected");
     posted.push(request);
     if (silent.has(request.type)) return;
     if (failing.has(request.type))
@@ -87,6 +94,7 @@ function fakeHost() {
           },
         );
       case "thread.start": {
+        if (refuseStart) return send("error", request.id, refuseStart);
         const id = `t${started.length + 1}`;
         started.push({ id, thread: request.payload });
         return send("thread.started", request.id, { threadId: id });
@@ -122,7 +130,18 @@ function fakeHost() {
     statuses,
     failing,
     silent,
-    hello: () => send("host.hello", "hello", { pid: 1 }, "event"),
+    hello: () => {
+      offline = false;
+      send("host.hello", "hello", { pid: 1 }, "event");
+    },
+    disconnect: () => {
+      offline = true;
+    },
+    refuseStart: (refusal?: { code: string; message: string }) => {
+      refuseStart = refusal;
+    },
+    unavailable: (message: string) =>
+      send("error", "host-supervisor", { code: "host_unavailable", message }),
     connect: (listener: (message: unknown) => void) => {
       deliver = listener;
       return () => {};
@@ -248,7 +267,7 @@ it("offers no Ask about this on a row with no fork, and ⌘N there drafts Progra
   });
   expect(window.location.hash).toBe("#thread/new");
   expect(container.querySelector(".thread-notice")?.textContent).toBe(
-    "Program threads come with a later build. Choose a service to ask in.",
+    "No sweep has been saved. Program threads come with a later build. Choose a service to ask in.",
   );
   await type("Which forks are on 8.4?");
   expect(buttonNamed("Send ⏎").hasAttribute("disabled")).toBe(true);
@@ -373,5 +392,127 @@ it("lists again and resubscribes an open thread from its last event when the hos
   expect(host.sent("thread.subscribe").map(({ payload }) => payload)).toEqual([
     { threadId: "t1", fromSequence: 0 },
     { threadId: "t1", fromSequence: 2 },
+  ]);
+});
+
+const status = () => container.querySelector(".thread-title-status")?.textContent;
+const notice = () => container.querySelector(".thread-notice")?.textContent ?? null;
+const chipLabels = () =>
+  all(".thread-chip > button[aria-expanded]").map((chip) => chip.textContent);
+
+it("opens a thread route before the host port arrives, and asks for it once the host says hello", async () => {
+  for (const root of roots.splice(0)) await act(async () => root.unmount());
+  threadStore.setState(initialThreads, true);
+  host.disconnect();
+  window.location.hash = "#thread/t1";
+  const root = createRoot(container);
+  roots.push(root);
+  await act(async () => root.render(<Shell />));
+  expect(host.posted).toEqual([]);
+
+  await act(async () => host.hello());
+  expect(host.sent("thread.subscribe").map(({ payload }) => payload)).toEqual([
+    { threadId: "t1", fromSequence: 0 },
+  ]);
+  expect(host.sent("threads.list")).toHaveLength(1);
+  expect(host.sent("models.list")).toHaveLength(1);
+});
+
+it("says not known when a replacement host cannot list its threads, or the host is unavailable", async () => {
+  await askAndSend("Why is the sync halted?");
+  const base = { threadId: "t1", at: 1 };
+  await act(async () =>
+    host.events("t1", [
+      { ...base, sequence: 1, type: "thread.created", thread: { scope: "indexer" } },
+      { ...base, sequence: 2, type: "message.sent", messageId: "m1", message: { prompt: "Why?" } },
+      { ...base, sequence: 3, type: "turn.started", turnId: "u1", messageId: "m1" },
+    ]),
+  );
+  expect(status()).toBe("Working");
+  expect(buttonNamed("Stop")).toBeDefined();
+
+  host.failing.add("threads.list");
+  host.failing.add("thread.subscribe");
+  await act(async () => host.hello());
+  expect(status()).toBe("not known");
+  expect(all('#app-sidebar [data-thread-row="t1"]')).toEqual([]);
+  expect(all("button").some((button) => button.textContent === "Stop")).toBe(false);
+
+  host.failing.clear();
+  await act(async () => host.hello());
+  expect(status()).toBe("Working");
+  await act(async () => host.unavailable("Host stopped after repeated crashes."));
+  expect(status()).toBe("not known");
+  expect(all('#app-sidebar [data-thread-row="t1"]')).toEqual([]);
+});
+
+it("finishes a pack the host was interrupted in: a restart packs again, an unavailable host says why", async () => {
+  host.silent.add("thread.chip");
+  await openRow(halted);
+  await click(askAbout() as HTMLElement);
+  await type("Why is the sync halted?");
+  expect(notice()).toBe("Packing what you were looking at…");
+
+  host.silent.delete("thread.chip");
+  host.chips.set(PACKED.id, PACKED);
+  await act(async () => host.hello());
+  expect(host.sent("thread.chip")).toHaveLength(2);
+  expect(chipLabels()).toEqual([`${halted.title} · trimmed`]);
+  expect(notice()).toBeNull();
+  expect(container.querySelector("textarea")?.value).toBe("Why is the sync halted?");
+  expect(buttonNamed("Send ⏎").hasAttribute("disabled")).toBe(false);
+
+  host.silent.add("thread.chip");
+  await click(askAbout() as HTMLElement);
+  expect(notice()).toBe("Packing what you were looking at…");
+  await act(async () => host.unavailable("Host stopped after repeated crashes."));
+  expect(notice()).toBe("Host stopped after repeated crashes.");
+  expect(chipLabels()).toEqual([]);
+});
+
+it("offers Ask about this on a service Overview fork row, scoped to that fork", async () => {
+  const body = ViewSnapshotSchema.parse(JSON.parse(nov16));
+  watchStore.setState({ snapshot: { cursor: body.cursor, body } });
+  const row = "sync-run:search";
+  window.location.hash = routeHash({ kind: "service", id: "search", tab: "overview", row });
+  await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
+  const ask = container.querySelector<HTMLElement>(`li[data-row="${row}"] .ask-about`);
+  expect(ask?.textContent).toBe("✦Ask about this");
+
+  await click(ask as HTMLElement);
+  expect(host.sent("thread.chip").map(({ payload }) => payload)).toEqual([{ id: row }]);
+  expect(buttonNamed("Scope: search")).toBeDefined();
+});
+
+it("refuses a send whose preview went stale, keeps the words and shows the fresh preview", async () => {
+  const fresh: ChipResult = {
+    ...PACKED,
+    attachment: { ...PACKED.attachment, content: '{"id":"sync-run:indexer","cause":"[redacted]"}' },
+  };
+  host.chips.set(PACKED.id, PACKED);
+  await openRow(halted);
+  await click(askAbout() as HTMLElement);
+  await type("Why is the sync halted?");
+  host.chips.set(PACKED.id, fresh);
+  const reason = "What Copilot would receive changed since its preview.";
+  host.refuseStart({ code: "stale_preview", message: reason });
+  await click(buttonNamed("Send ⏎"));
+
+  expect(window.location.hash).toBe("#thread/new");
+  expect(notice()).toBe(reason);
+  expect(host.sent("thread.send")).toEqual([]);
+  expect(container.querySelector("textarea")?.value).toBe("Why is the sync halted?");
+  await click(all(".thread-chip > button[aria-expanded]")[0] as HTMLElement);
+  expect(container.querySelector(".thread-chip-preview")?.textContent).toBe(
+    fresh.attachment.content,
+  );
+
+  host.refuseStart();
+  await click(buttonNamed("Send ⏎"));
+  expect(host.sent("thread.send").map(({ payload }) => payload)).toEqual([
+    {
+      threadId: "t1",
+      message: { prompt: "Why is the sync halted?", attachments: [fresh.attachment] },
+    },
   ]);
 });

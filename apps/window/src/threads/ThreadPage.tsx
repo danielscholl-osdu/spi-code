@@ -66,10 +66,10 @@ function draftChips(draft: Draft): ContextChip[] {
 
 function draftNotice(draft: Draft): string | undefined {
   if (draft.failure) return draft.failure.reason;
-  if (!draft.scope) return PROGRAM_NOT_BUILT;
+  const refused = draft.chip?.state === "done" && !draft.chip.ok ? draft.chip.reason : undefined;
+  if (!draft.scope) return refused ? `${refused} ${PROGRAM_NOT_BUILT}` : PROGRAM_NOT_BUILT;
   if (draft.chip?.state === "packing") return "Packing what you were looking at…";
-  if (draft.chip?.state === "done" && !draft.chip.ok) return draft.chip.reason;
-  return undefined;
+  return refused;
 }
 
 function draftContextLine(draft: Draft): string | undefined {
@@ -157,7 +157,7 @@ export function ThreadPage({ id }: { id: string }) {
       <ThreadView
         {...shared}
         draft={false}
-        running={running}
+        running={running && summary !== undefined}
         scope={scope ? { id: scope, label: scopeLabel(scope) } : { id: "", label: NOT_KNOWN }}
         context={[]}
         onRemoveContext={() => {}}

@@ -546,7 +546,7 @@ function restoreLastPlace(registry: Registry) {
 }
 
 function saveLastPlace(route: Route) {
-  if (route.kind === "thread") return;
+  if (route.kind === "thread" && route.id === "new") return;
   try {
     const place = route.kind === "environment" ? { kind: route.kind } : route;
     window.localStorage.setItem(LAST_PLACE_KEY, routeHash(place));

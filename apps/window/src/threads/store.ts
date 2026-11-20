@@ -96,8 +96,28 @@ export function threadTitle(text: string): string {
   return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), 40)).trimEnd()}…`;
 }
 
+/** Requests a hello makes again, so one posted before the port arrived is not held for it. */
+const REDONE_AT_HELLO = new Set<Request["type"]>([
+  "threads.list",
+  "thread.subscribe",
+  "thread.chip",
+]);
+/** The thread.start refusal that means the chip's preview is no longer what Copilot would get. */
+const STALE_PREVIEW = "stale_preview";
+
 export function createThreadStore(post: (message: Message) => void = postToHost) {
   const waiting = new Map<string, (message: Message) => void>();
+  /** Requests made before the host port arrived, posted after the next hello. */
+  let held: { message: Message; then?: (message: Message) => void }[] = [];
+  const deliver = (message: Message, then?: (message: Message) => void) => {
+    if (then) waiting.set(message.id, then);
+    try {
+      post(message);
+    } catch {
+      waiting.delete(message.id);
+      held.push({ message, ...(then ? { then } : {}) });
+    }
+  };
   const request = (
     type: Request["type"],
     payload: Request["payload"],
@@ -106,12 +126,14 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
     const id = crypto.randomUUID();
     const parsed = parseMessage({ version: PROTOCOL_VERSION, id, kind: "request", type, payload });
     if (!parsed.ok) throw new Error(`Window generated an invalid ${type}`);
-    if (then) waiting.set(id, then);
-    post(parsed.message);
+    deliver(parsed.message, then);
   };
 
   return createStore<ThreadsState>()((set, get) => {
-    const list = () => request("threads.list", {});
+    const list = () =>
+      request("threads.list", {}, (reply) => {
+        if (reply.type !== "threads.result") set({ threads: null });
+      });
     const subscribe = (threadId: string) => {
       const fromSequence = get().events[threadId]?.at(-1)?.sequence ?? 0;
       request("thread.subscribe", { threadId, fromSequence });
@@ -157,6 +179,20 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
               } as const);
         set({ draft: { ...draft, chip } });
       });
+
+    /** The host went away: its threads are not known, and what it was doing ends or starts again. */
+    const lose = (gone: string | null) => {
+      const { draft } = get();
+      let next = draft;
+      if (next?.sending !== undefined) {
+        const reason = gone ?? "The host restarted before the thread started.";
+        next = { ...withoutSending(next), failure: { reason } };
+      }
+      if (gone && next?.chip?.state === "packing" && next.subject)
+        next = { ...next, chip: { state: "done", ok: false, id: next.subject.id, reason: gone } };
+      set({ threads: null, ...(next === draft ? {} : { draft: next }) });
+      if (next?.chip?.state === "packing" && next.subject) pack(next.subject.id);
+    };
 
     return {
       threads: null,
@@ -206,13 +242,17 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
         request("thread.start", definition, (reply) => {
           const current = get().draft;
           if (reply.type !== "thread.started") {
+            const stale =
+              reply.type === "error" && reply.payload.code === STALE_PREVIEW && current?.subject;
             if (current)
               set({
                 draft: {
                   ...withoutSending(current),
+                  ...(stale ? { chip: { state: "packing" } as const } : {}),
                   failure: { reason: failed(reply) ?? "The thread did not start." },
                 },
               });
+            if (stale) pack(stale.id);
             return;
           }
           const { threadId } = reply.payload;
@@ -240,17 +280,19 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
         const reply = parsed.message;
         if (reply.kind === "request") return;
         if (reply.type === "host.hello") {
+          const queued = held;
+          held = [];
           waiting.clear();
-          const { draft } = get();
-          if (draft?.sending !== undefined)
-            set({
-              draft: {
-                ...withoutSending(draft),
-                failure: { reason: "The host restarted before the thread started." },
-              },
-            });
+          lose(null);
           list();
           for (const threadId of Object.keys(get().events)) subscribe(threadId);
+          for (const { message, then } of queued)
+            if (!REDONE_AT_HELLO.has(message.type as Request["type"])) deliver(message, then);
+          return;
+        }
+        if (reply.type === "error" && reply.payload.code === "host_unavailable") {
+          waiting.clear();
+          lose(reply.payload.message);
           return;
         }
         const then = waiting.get(reply.id);

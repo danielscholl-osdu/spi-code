@@ -243,6 +243,24 @@ describe("landing", () => {
     },
   );
 
+  it("restores the last thread when no Interrupt arrived, and the unsent draft keeps the last place", async () => {
+    await launch("#upstream");
+    await go({ kind: "thread", id: "new" });
+    expect(localStorage.getItem(LAST_PLACE_KEY)).toBe("#upstream");
+    await go({ kind: "thread", id: "t1" });
+
+    await restart();
+    await launch();
+    expect(shown()).toBe("#thread/t1");
+    await arrive(5, { cursor: 4, since: [] });
+    expect(shown()).toBe("#thread/t1");
+
+    await restart();
+    await launch();
+    await arrive(6, { cursor: 5, since: ["halt:legal"] });
+    expect(shown()).toBe("#today");
+  });
+
   it("lands on the last place after Today was acknowledged and the sweep brought nothing new", async () => {
     await launch("#upstream");
     await arrive(4, { cursor: 3, since: ["halt:legal"] });
