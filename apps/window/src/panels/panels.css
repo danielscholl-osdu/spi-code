@@ -18,3 +18,4 @@
 .panel-body .work-row { grid-template-columns: auto minmax(0, 1fr) auto; }
 .panel-body .work-status { grid-column: 2; grid-row: 2; }
 .panel-body .work-row .service-row-age { grid-column: 3; grid-row: 1; }
+.panel-body :is(.flow-direct-label, .service-home .flow-door[data-door="unread"]) { background: var(--chrome); }

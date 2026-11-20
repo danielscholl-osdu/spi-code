@@ -45,7 +45,7 @@ function EvidenceTab({ summary }: ThreadTabProps) {
       {subject && (
         <section aria-label="Started from" data-evidence-for="chip">
           <p className="evidence-lede">
-            {(item ?? line)?.title ?? "This selection is no longer on Today"}
+            {(item ?? line)?.title ?? "Today holds nothing for the row this thread started from"}
             {ended}
           </p>
           {item && <SelectionPage evidence={item} subject="item" {...page} />}

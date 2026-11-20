@@ -272,14 +272,18 @@ describe("Evidence", () => {
     expect(scope?.querySelector("[aria-label=Areas]")?.querySelectorAll("tr").length).toBe(10);
   });
 
-  it("names a chip no longer on Today and a scope the sweep did not read", async () => {
+  it.each([
+    ["sync-run:gone", "gone"],
+    ["service:partition", "partition"],
+  ])("claims nothing for chip %s that Today does not hold", async (subject, scope) => {
     savePanes({ open: { rightPanel: true } });
-    const thread = summary({ scope: "gone", subject: "sync-run:gone" });
-    const shell = await mountShell("#thread/t1", [thread]);
+    const unread = { ...fixture, services: [] };
+    const shell = await mountShell("#thread/t1", [summary({ scope, subject })], unread);
     const body = await shell.tab("Evidence");
     expect(body?.querySelector("[data-evidence-for=chip] .evidence-lede")?.textContent).toMatch(
-      /^This selection is no longer on Today · sweep ended /,
+      /^Today holds nothing for the row this thread started from · sweep ended /,
     );
+    expect(body?.querySelector("[data-evidence-for=chip] [data-evidence-part]")).toBeNull();
     expect(body?.querySelector("[data-evidence-for=scope] [data-quiet=unread]")?.textContent).toBe(
       "⌀ This fork was not read.",
     );
