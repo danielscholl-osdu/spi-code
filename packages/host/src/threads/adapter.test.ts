@@ -21,6 +21,7 @@ import { createLeaseStore } from "../store/leases.js";
 import { openStore } from "../store/open.js";
 import { createSnapshotStore } from "../store/snapshots.js";
 import { projectWatch } from "../watch/project.js";
+import { CopilotThreadAdapter } from "./adapter.js";
 import type { LatestSweep } from "./context/sweep.js";
 import { ThreadRoutes } from "./routes.js";
 import { openThreadHost } from "./wiring.js";
@@ -108,7 +109,7 @@ let database: DatabaseSync;
 let storePath: string;
 const hosts: ThreadRoutes[] = [];
 beforeEach(() => {
-  root = mkdtempSync(join(realpathSync(tmpdir()), "spi-thread-adapter-"));
+  root = realpathSync.native(mkdtempSync(join(tmpdir(), "spi-thread-adapter-")));
   storePath = join(root, "runs.sqlite");
   database = new DatabaseSync(storePath);
 });
@@ -304,6 +305,8 @@ it("waits for a stopped session open to release before starting the queued turn"
     order,
   } = recordedRuntime("slow-open", "queued");
   if (!first || !second) throw new Error("Incomplete recording");
+  const adapter = CopilotThreadAdapter.prototype as unknown as { open(): Promise<unknown> };
+  using enterOpen = vi.spyOn(adapter, "open");
   let unblock = () => {};
   const held = new Promise<void>((resolve) => {
     unblock = resolve;
@@ -320,9 +323,7 @@ it("waits for a stopped session open to release before starting the queued turn"
   const next = port.send({ prompt: "Run after stop" });
   try {
     expect(await port.response(stopping)).toMatchObject({ type: "thread.stopped" });
-    await vi.waitFor(() =>
-      expect(port.events().filter(({ type }) => type === "turn.started")).toHaveLength(2),
-    );
+    await vi.waitFor(() => expect(enterOpen).toHaveBeenCalledTimes(2));
     expect(open).toHaveBeenCalledOnce();
   } finally {
     unblock();
@@ -657,7 +658,7 @@ it("lets an Asking turn read model-redacted evidence from the saved sweep", asyn
   await expect(port.response(id)).resolves.toMatchObject({ payload: { outcome: "completed" } });
 });
 
-it("denies a non-read custom tool while an Asking turn can use SPI read tools", async () => {
+it("lets Asking use SPI read tools only through the permission request handler", async () => {
   const {
     runtime,
     sessions: [session],
@@ -669,7 +670,7 @@ it("denies a non-read custom tool while an Asking turn can use SPI read tools", 
   await vi.waitFor(() => expect(session.send).toHaveBeenCalledOnce());
   session.begin("spi-change-turn");
   const config = open.mock.calls[0]?.[1];
-  if (!config) throw new Error("Missing session configuration");
+  if (!config?.onPermissionDenied) throw new Error("Missing sandbox denial observer");
   const invocation = { sessionId: session.id };
   await expect(
     config.onPermissionRequest(
@@ -682,17 +683,21 @@ it("denies a non-read custom tool while an Asking turn can use SPI read tools", 
       invocation,
     ),
   ).resolves.toEqual({ kind: "reject" });
-  await expect(
-    config.onPermissionRequest(
-      { kind: "custom-tool", toolName: "spi_brief", toolDescription: "Read Today" },
-      invocation,
-    ),
-  ).resolves.toEqual({ kind: "approve-once" });
+  const spiRead = {
+    kind: "custom-tool",
+    toolName: "spi_brief",
+    toolDescription: "Read Today",
+  } as const;
+  await expect(config.onPermissionRequest(spiRead, invocation)).resolves.toEqual({
+    kind: "approve-once",
+  });
+  await expect(config.onPermissionDenied(spiRead, invocation)).resolves.toEqual({ kind: "reject" });
   session.finish("spi-change-turn");
   await port.response(id);
   expect(port.events().filter(({ type }) => type === "approval.resolved")).toMatchObject([
     { approved: false },
     { approved: true },
+    { approved: false },
   ]);
 });
 
