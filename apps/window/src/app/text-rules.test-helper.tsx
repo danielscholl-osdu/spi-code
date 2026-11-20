@@ -17,7 +17,7 @@ vi.hoisted(() => {
   vi.useFakeTimers({ toFake: ["Date"], now: Date.parse("2026-11-06T14:02:00Z") });
 });
 
-const internal = /\bfork_upstream\b|\bgate\s+\d+\b|\bpresses\b|\bcut\b/i;
+const internal = /\bfork_upstream\b|\bgate\s+\d+\b|\bpresses\b|\bcut\b|\bclones?\b/i;
 const machineTime = /\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}|\bUTC\b/;
 const placeholder = /not available yet|No settled threads yet|ships in M[3-9]/i;
 const headlines = '.place-headline, [data-pointer$="/headline"], .release-months td:nth-child(3)';

@@ -13,16 +13,17 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { readFixture } from "../../../../scripts/watch-generated.mjs";
-import { routeHash } from "../app/navigation.js";
+import { goBack, routeHash } from "../app/navigation.js";
 import { Shell } from "../app/Shell.js";
 import { todayContent } from "../components/opened-body/content.js";
 import { OpenedBody } from "../components/opened-body/OpenedBody.js";
 import recorded from "../components/opened-body/sweep-1116.json?raw";
-import { pin } from "../store/pins.js";
+import { pin, readPins, unpin } from "../store/pins.js";
 import { watchStore } from "../store/watch.js";
 import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import nov16 from "../views/today/snapshot-1116.json?raw";
-import { type ChipResult, type ThreadSummary, threadStore } from "./store.js";
+import { scopePickerStore } from "./picker.js";
+import { CHIP_ONLY_PROMPT, type ChipResult, type ThreadSummary, threadStore } from "./store.js";
 
 type Request = Extract<Message, { kind: "request" }>;
 type Status = ThreadSummary["status"];
@@ -198,6 +199,7 @@ beforeEach(async () => {
     postMessage: (message) => host.answer(message as Request),
   });
   threadStore.setState(initialThreads, true);
+  scopePickerStore.setState({ picking: null });
   const body = loadFixture("snapshot-1106.json");
   watchStore.setState({ snapshot: { cursor: body.cursor, body }, setup: null });
   window.location.hash = "#today";
@@ -270,15 +272,12 @@ it("drafts one chip the host packed, scoped to the row's fork, and sends nothing
   expect(host.sent("thread.chip").map(({ payload }) => payload)).toEqual([{ id: PACKED.id }]);
   expect(host.sent("thread.start")).toEqual([]);
   expect(host.sent("thread.send")).toEqual([]);
-  expect(buttonNamed("Scope: indexer")).toBeDefined();
+  expect(buttonNamed("Ask in indexer, change")).toBeDefined();
   const chips = all(".thread-chip > button[aria-expanded]");
   expect(chips.map((chip) => chip.textContent)).toEqual([`${halted.title} · trimmed`]);
   await click(chips[0] as HTMLElement);
   expect(container.querySelector(".thread-chip-preview")?.textContent).toBe(
     PACKED.attachment.content,
-  );
-  expect(container.querySelector(".thread-context-line")?.textContent).toMatch(
-    /^Context · indexer · from the sweep at .+ · 1 item, 1,234 bytes$/,
   );
 });
 
@@ -289,19 +288,199 @@ it("shows the host's refusal in the draft and drafts no chip", async () => {
   expect(all(".thread-chip > button[aria-expanded]")).toEqual([]);
 });
 
-it("offers no Ask about this on a row with no fork, and ⌘N there drafts Program, which cannot send yet", async () => {
+it("offers no Ask about this on a row with no fork", async () => {
   const row = await openRow(blocker);
   expect(row.querySelector(".ask-about")).toBeNull();
-  await act(async () => {
+});
+
+const picker = () =>
+  document.querySelector<HTMLElement>('[role="dialog"][aria-label="Choose where to ask"]');
+const pickerRows = () =>
+  [...(picker()?.querySelectorAll<HTMLElement>(".scope-picker-label") ?? [])].map(
+    (row) => row.textContent,
+  );
+const scopeOf = (row: Element | null | undefined) =>
+  row?.querySelector(".scope-picker-label")?.textContent;
+const newKey = () =>
+  act(async () => {
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "n", ctrlKey: true, bubbles: true }));
   });
-  expect(window.location.hash).toBe("#thread/new");
-  expect(container.querySelector(".thread-notice")?.textContent).toBe(
-    "No sweep has been saved. Program threads come with a later build. Choose a service to ask in.",
+const pickerKey = (key: string) =>
+  act(async () => {
+    picker()
+      ?.querySelector("input")
+      ?.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+  });
+async function filterPicker(text: string) {
+  const field = picker()?.querySelector("input");
+  if (!field) throw new Error("No picker");
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(field, text);
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+const heading = () => container.querySelector(".thread-draft-heading")?.textContent;
+const services = [
+  "partition",
+  "entitlements",
+  "legal",
+  "schema",
+  "file",
+  "storage",
+  "indexer",
+  "search",
+  "workflow",
+  "indexer-queue",
+  "unit",
+  "crs-catalog",
+  "crs-conversion",
+];
+
+it("opens the scope picker over the page from ⌘N and the compose icon, in sidebar order, and ↵ opens the draft", async () => {
+  for (const id of readPins()) if (services.includes(id)) unpin(id);
+  pin("search");
+  pin("legal");
+  expect(all("[data-thread-row='new']")).toEqual([]);
+  expect(all("#app-sidebar button").some((button) => button.textContent === "New thread")).toBe(
+    false,
   );
-  await type("Which forks are on 8.4?");
-  expect(buttonNamed("Send ⏎").hasAttribute("disabled")).toBe(true);
+  await newKey();
+  expect(window.location.hash).toBe("#today");
+  expect(pickerRows()).toEqual([
+    "search",
+    "legal",
+    ...services.filter((service) => !["search", "legal"].includes(service)),
+  ]);
+  expect(
+    [...(picker()?.querySelectorAll("li[data-divider]") ?? [])].map((li) => li.textContent),
+  ).toEqual(["partition2"]);
+  expect(picker()?.textContent).not.toMatch(/Program|Template|Environment|Azure\//);
+
+  await filterPicker("ind");
+  expect(pickerRows()).toEqual(["indexer", "indexer-queue"]);
+  await pickerKey("ArrowDown");
+  await pickerKey("Enter");
+  expect(picker()).toBeNull();
+  expect(window.location.hash).toBe("#thread/new");
+  expect(heading()).toBe("Ask in indexer-queue▾");
+  expect(container.querySelector("textarea")?.getAttribute("placeholder")).toBe(
+    "Ask about indexer-queue…",
+  );
+  expect(document.activeElement).toBe(container.querySelector("textarea"));
+  expect(container.querySelector(".thread-asking")?.textContent).toBe("Asking · changes nothing");
+  expect(container.querySelector(".thread-back")?.textContent).toBe("← Today");
+  expect(document.body.textContent).not.toMatch(/\bclone\b/i);
   expect(host.sent("thread.start")).toEqual([]);
+
+  window.location.hash = "#upstream";
+  await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
+  const compose = buttonNamed("New thread");
+  expect(compose.getAttribute("title")).toBe("New thread Ctrl+N");
+  await click(compose);
+  expect(window.location.hash).toBe("#upstream");
+  expect(pickerRows()[0]).toBe("search");
+  await pickerKey("Escape");
+  expect(picker()).toBeNull();
+  expect(window.location.hash).toBe("#upstream");
+});
+
+it("closes the scope picker when Find opens, and Find when the picker opens", async () => {
+  await newKey();
+  expect(picker()).not.toBeNull();
+  await act(async () => {
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }));
+  });
+  expect(document.querySelector('[role="dialog"][aria-label="Find or ask"]')).not.toBeNull();
+  expect(picker()).toBeNull();
+  await newKey();
+  expect(picker()).not.toBeNull();
+  expect(document.querySelector('[role="dialog"][aria-label="Find or ask"]')).toBeNull();
+});
+
+it("starts from a service's Ask, and ⌘N in the draft moves its scope and keeps the words", async () => {
+  window.location.hash = "#service/partition";
+  await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
+  const ask = buttonNamed("Ask Copilot about partition");
+  expect(ask.getAttribute("title")).toBe("Ask Copilot about partition");
+  await click(ask);
+  expect(window.location.hash).toBe("#thread/new");
+  expect(heading()).toBe("Ask in partition▾");
+  expect(container.querySelector(".thread-back")?.textContent).toBe("← partition");
+  expect(document.activeElement).toBe(container.querySelector("textarea"));
+  await type("Why did the last sync stop?");
+
+  await newKey();
+  const current = picker()?.querySelector("[data-highlighted]");
+  expect(scopeOf(current)).toBe("partition");
+  expect(current?.getAttribute("aria-current")).toBe("true");
+  await pickerKey("ArrowDown");
+  await pickerKey("Enter");
+  expect(heading()).toBe("Ask in entitlements▾");
+  expect(container.querySelector("textarea")?.value).toBe("Why did the last sync stop?");
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 50)));
+  expect(document.activeElement).toBe(container.querySelector("textarea"));
+
+  await click(buttonNamed("Ask in entitlements, change"));
+  expect(scopeOf(picker()?.querySelector("[data-highlighted]"))).toBe("entitlements");
+  await pickerKey("Escape");
+  expect(heading()).toBe("Ask in entitlements▾");
+  expect(container.querySelector("textarea")?.value).toBe("Why did the last sync stop?");
+});
+
+it("keeps the current scope in view when the picker's list scrolls", async () => {
+  const seen: string[] = [];
+  const scroll = Element.prototype.scrollIntoView;
+  Element.prototype.scrollIntoView = function (this: Element) {
+    seen.push(scopeOf(this) ?? "");
+  };
+  try {
+    window.location.hash = "#service/crs-conversion";
+    await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
+    await click(buttonNamed("Ask Copilot about crs-conversion"));
+    await click(buttonNamed("Ask in crs-conversion, change"));
+    expect(seen.at(-1)).toBe("crs-conversion");
+  } finally {
+    Element.prototype.scrollIntoView = scroll;
+  }
+});
+
+it("goes Back from a sent draft to the page it started on, with no picker", async () => {
+  window.location.hash = "#service/partition";
+  await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
+  await click(buttonNamed("Ask Copilot about partition"));
+  await type("Why did the last sync stop?");
+  await click(buttonNamed("Send ⏎"));
+  expect(window.location.hash).toBe("#thread/t1");
+
+  await act(async () => {
+    goBack();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(window.location.hash).toBe("#service/partition");
+  expect(picker()).toBeNull();
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
+  expect(window.location.hash).toBe("#service/partition");
+});
+
+it("leaves a draft route with no draft for the fallback, without a picker", async () => {
+  window.location.hash = "#thread/new";
+  await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
+  expect(window.location.hash).toBe("#today");
+  expect(picker()).toBeNull();
+});
+
+it("sends a chip with no words as the fixed sentence, titled by its row", async () => {
+  host.chips.set(PACKED.id, PACKED);
+  await openRow(halted);
+  await click(askAbout() as HTMLElement);
+  expect(container.querySelector("textarea")?.getAttribute("placeholder")).toBe(CHIP_ONLY_PROMPT);
+  await click(buttonNamed("Send ⏎"));
+  expect(host.sent("thread.start").map(({ payload }) => payload)).toEqual([
+    { scope: "indexer", title: halted.title, subject: PACKED.id },
+  ]);
+  expect(host.sent("thread.send").map(({ payload }) => payload)).toEqual([
+    { threadId: "t1", message: { prompt: CHIP_ONLY_PROMPT, attachments: [PACKED.attachment] } },
+  ]);
 });
 
 it("starts a thread from the row through the routes, and the row then opens that thread", async () => {
@@ -613,7 +792,7 @@ it("offers Ask about this on a service Overview fork row, scoped to that fork", 
 
   await click(ask as HTMLElement);
   expect(host.sent("thread.chip").map(({ payload }) => payload)).toEqual([{ id: row }]);
-  expect(buttonNamed("Scope: search")).toBeDefined();
+  expect(buttonNamed("Ask in search, change")).toBeDefined();
 });
 
 it("refuses a send whose preview went stale, keeps the words and shows the fresh preview", async () => {
@@ -647,4 +826,87 @@ it("refuses a send whose preview went stale, keeps the words and shows the fresh
       message: { prompt: "Why is the sync halted?", attachments: [fresh.attachment] },
     },
   ]);
+});
+
+const needs = () =>
+  all('[aria-label="Needs you"] button').map((button) => [
+    button.querySelector(".thread-needs-label")?.textContent,
+    button.querySelector("small")?.textContent,
+  ]);
+
+it("lists up to three of the scope's rows that need the operator, attaches one as the chip, and opens an owned one's thread", async () => {
+  const body = watchStore.getState().snapshot?.body;
+  if (!body) throw new Error("No snapshot");
+  const lines = body.briefing.lines ?? [];
+  const conflict = lines.find(({ id }) => id === "blocked:conflict:entitlements:121");
+  if (!conflict) throw new Error("Missing fixture line");
+  const extra = {
+    ...conflict,
+    id: "blocked:conflict:entitlements:122",
+    headline: "A fourth row",
+    members: conflict.members.map((member) => ({ ...member, id: "conflict:entitlements:122" })),
+  };
+  watchStore.setState({
+    snapshot: {
+      cursor: body.cursor,
+      body: { ...body, briefing: { ...body.briefing, lines: [...lines, extra] } },
+    },
+  });
+  window.location.hash = "#service/entitlements";
+  await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
+  await click(buttonNamed("Ask Copilot about entitlements"));
+  expect(needs()).toEqual([
+    ["Sync has a merge conflict", "21h"],
+    ["Release PR #89 fails 📊 Code Coverage", "16d"],
+    ["Template 7d269b5 not synced yet", "5h"],
+  ]);
+
+  const first = "conflict:entitlements:121";
+  host.chips.set(first, { ...PACKED, id: first, trimmed: false });
+  await click(all('[aria-label="Needs you"] button')[0] as HTMLElement);
+  expect(host.sent("thread.chip").map(({ payload }) => payload)).toEqual([{ id: first }]);
+  expect(chipLabels()).toEqual(["entitlements · Sync has a merge conflict"]);
+  expect(needs().map(([label]) => label)).toEqual([
+    "Release PR #89 fails 📊 Code Coverage",
+    "Template 7d269b5 not synced yet",
+    "A fourth row",
+  ]);
+
+  await type("What now?");
+  await click(buttonNamed("Send ⏎"));
+  expect(host.sent("thread.start").map(({ payload }) => payload)).toEqual([
+    { scope: "entitlements", title: "What now?", subject: first },
+  ]);
+
+  window.location.hash = "#service/entitlements";
+  await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
+  await click(buttonNamed("Ask Copilot about entitlements"));
+  expect(needs()[0]).toEqual(["Sync has a merge conflict", "✦ What now? · Working"]);
+  await click(all('[aria-label="Needs you"] button')[0] as HTMLElement);
+  expect(window.location.hash).toBe("#thread/t1");
+  expect(host.sent("thread.chip")).toHaveLength(1);
+});
+
+it("replaces an attached chip, and a late pack for the replaced row changes nothing", async () => {
+  host.silent.add("thread.chip");
+  window.location.hash = "#service/entitlements";
+  await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
+  await click(buttonNamed("Ask Copilot about entitlements"));
+  await click(all('[aria-label="Needs you"] button')[0] as HTMLElement);
+  await click(all('[aria-label="Needs you"] button')[0] as HTMLElement);
+  const [early, late] = host.sent("thread.chip");
+  const lateId = "release-red:Azure/osdu-spi-entitlements#89";
+  expect(late?.payload).toEqual({ id: lateId });
+  await act(async () =>
+    threadStore.getState().receive({
+      version: PROTOCOL_VERSION,
+      id: early?.id,
+      kind: "response",
+      type: "thread.chip.result",
+      payload: { ...PACKED, id: "conflict:entitlements:121" },
+    }),
+  );
+  expect(threadStore.getState().draft?.subject?.id).toBe(lateId);
+  expect(threadStore.getState().draft?.chip).toEqual({ state: "packing" });
+  expect(notice()).toBe("Packing what you were looking at…");
 });

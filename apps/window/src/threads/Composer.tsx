@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ModelPicker, modelChipLabel } from "./ModelPicker.js";
+import { CHIP_ONLY_PROMPT } from "./store.js";
 import type { ComposerProps, PlaceOption } from "./types.js";
 
 /** The most context chips one message carries. */
@@ -26,7 +27,6 @@ export function Composer(props: ComposerProps) {
   const [notice, setNotice] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
   const [picker, setPicker] = useState(false);
-  const [scopeMenu, setScopeMenu] = useState(false);
   const [highlight, setHighlight] = useState(0);
   const [dismissed, setDismissed] = useState<string | null>(null);
   const box = useRef<HTMLDivElement>(null);
@@ -43,16 +43,16 @@ export function Composer(props: ComposerProps) {
   const chips = props.context.length + added.length;
 
   useEffect(() => {
-    if (!picker && !scopeMenu) return;
+    if (!picker) return;
     const close = (event: MouseEvent) => {
-      if (!box.current?.contains(event.target as Node)) {
-        setPicker(false);
-        setScopeMenu(false);
-      }
+      if (!box.current?.contains(event.target as Node)) setPicker(false);
     };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
-  }, [picker, scopeMenu]);
+  }, [picker]);
+  useEffect(() => {
+    if (props.draft) input.current?.focus();
+  }, [props.draft]);
 
   const addPlace = (place: PlaceOption) => {
     if (!mention) return;
@@ -70,10 +70,11 @@ export function Composer(props: ComposerProps) {
     input.current?.focus();
   };
 
-  const canSend = props.canSend !== false && !props.running && text.trim().length > 0;
+  const chipOnly = text.trim().length === 0 && props.context.length > 0;
+  const canSend = props.canSend !== false && !props.running && (text.trim().length > 0 || chipOnly);
   const send = () => {
     if (!canSend) return;
-    props.onSend({ text: text.trim(), places: added });
+    props.onSend({ text: chipOnly ? CHIP_ONLY_PROMPT : text.trim(), places: added });
     if (props.draft) return;
     setText("");
     setCaret(0);
@@ -141,7 +142,11 @@ export function Composer(props: ComposerProps) {
         rows={props.draft ? 3 : 2}
         value={text}
         placeholder={
-          props.draft ? "Ask about this, or say what to change…" : "Reply, or @ a place…"
+          props.context.length > 0
+            ? CHIP_ONLY_PROMPT
+            : props.draft
+              ? `Ask about ${props.scope.label}…`
+              : "Reply, or @ a place…"
         }
         onChange={(event) => {
           const value = event.target.value;
@@ -202,17 +207,7 @@ export function Composer(props: ComposerProps) {
         </p>
       )}
       <div className="thread-composer-row">
-        {props.draft && props.scopes && props.onScopeChange ? (
-          <button
-            type="button"
-            className="thread-chip thread-chip--scope"
-            aria-expanded={scopeMenu}
-            aria-label={`Scope: ${props.scope.label}`}
-            onClick={() => setScopeMenu((open) => !open)}
-          >
-            {props.scope.label} ▾
-          </button>
-        ) : (
+        {!props.draft && (
           <span className="thread-chip thread-chip--scope">{props.scope.label}</span>
         )}
         <button
@@ -234,24 +229,6 @@ export function Composer(props: ComposerProps) {
           </button>
         )}
       </div>
-      {scopeMenu && props.scopes && (
-        <ul className="thread-menu thread-menu--scopes" aria-label="Scopes">
-          {props.scopes.map((scope) => (
-            <li key={scope.id}>
-              <button
-                type="button"
-                aria-pressed={scope.id === props.scope.id}
-                onClick={() => {
-                  props.onScopeChange?.(scope.id);
-                  setScopeMenu(false);
-                }}
-              >
-                {scope.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
       {picker && (
         <ModelPicker
           models={props.models}

@@ -332,6 +332,14 @@ export function navigate(destination: Destination) {
   emit();
 }
 
+/** Shows a route in place of the current history entry, as a sent draft becomes its thread. */
+export function replaceRoute(destination: Destination) {
+  const hash = routeHash(destination);
+  if (window.location.hash === hash) return;
+  window.history.replaceState(window.history.state, "", hash);
+  emit();
+}
+
 /**
  * Where the window is among the history entries this launch stamped, and the newest of them;
  * entries from before a reload belong to another document, so back and forward stay inside these.

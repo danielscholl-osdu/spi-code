@@ -10,6 +10,7 @@ import {
   type ThreadWireEvent,
 } from "@spi-code/contracts";
 import { createStore } from "zustand/vanilla";
+import type { Route } from "../app/navigation.js";
 import type { ModelChoice } from "./types.js";
 
 type Request = Extract<Message, { kind: "request" }>;
@@ -31,9 +32,15 @@ export interface AskTarget {
   origin?: string;
 }
 
+/** Where a draft was opened from, which its back link returns to. */
+export interface DraftFrom {
+  label: string;
+  route: Route;
+}
+
 export interface Draft {
-  /** null is Program, which the window does not start yet. */
-  scope: string | null;
+  scope: string;
+  from?: DraftFrom;
   subject?: { id: string; label: string };
   origin?: string;
   chip?: { state: "packing" } | ({ state: "done" } & ChipResult);
@@ -56,8 +63,10 @@ type ThreadsState = {
   target: AskTarget | null;
   undo: { id: string; title: string } | null;
   setTarget(target: AskTarget | null): void;
-  startDraft(scope: string | null, target?: AskTarget | null): void;
+  startDraft(scope: string, target?: AskTarget | null, from?: DraftFrom): void;
   setDraftScope(scope: string): void;
+  /** Attaches a row as the draft's one chip, in place of any chip there. */
+  attachDraftChip(target: AskTarget): void;
   removeDraftChip(): void;
   sendDraft(text: string, onStarted: (threadId: string) => void): void;
   send(threadId: string, text: string): void;
@@ -93,6 +102,10 @@ export function lastChoice(events: readonly ThreadWireEvent[] | undefined): Mode
     ...(last.message.reasoningEffort ? { effort: last.message.reasoningEffort } : {}),
   };
 }
+
+/** What a send with a chip and no words asks; the empty composer shows it as its placeholder. */
+export const CHIP_ONLY_PROMPT =
+  "Look at what's attached and tell me what stands out and what I should do next.";
 
 const withoutSending = ({ sending: _, ...draft }: Draft): Draft => draft;
 
@@ -216,9 +229,10 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
       target: null,
       undo: null,
       setTarget: (target) => set({ target }),
-      startDraft(scope, target) {
+      startDraft(scope, target, from) {
         const draft: Draft = {
           scope,
+          ...(from ? { from } : {}),
           ...(target ? { subject: { id: target.subject, label: target.label } } : {}),
           ...(target?.origin ? { origin: target.origin } : {}),
           ...(target ? { chip: { state: "packing" } as const } : {}),
@@ -234,6 +248,20 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
         const { draft } = get();
         if (draft) set({ draft: { ...draft, scope } });
       },
+      attachDraftChip(target) {
+        const { draft } = get();
+        if (!draft || draft.sending !== undefined) return;
+        const { failure: _, origin: __, ...rest } = draft;
+        set({
+          draft: {
+            ...rest,
+            subject: { id: target.subject, label: target.label },
+            ...(target.origin ? { origin: target.origin } : {}),
+            chip: { state: "packing" },
+          },
+        });
+        pack(target.subject);
+      },
       removeDraftChip() {
         const { draft } = get();
         if (!draft) return;
@@ -242,14 +270,16 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
       },
       sendDraft(text, onStarted) {
         const { draft } = get();
-        if (!draft?.scope || draft.sending !== undefined || draft.chip?.state === "packing") return;
+        if (!draft || draft.sending !== undefined || draft.chip?.state === "packing") return;
         const choice = get().choices.draft;
         const chip = draft.chip?.state === "done" && draft.chip.ok ? draft.chip : undefined;
         const { failure: _, ...rest } = draft;
         set({ draft: { ...rest, sending: text } });
         const definition = {
           scope: draft.scope,
-          title: threadTitle(text),
+          title: threadTitle(
+            chip && draft.subject && text === CHIP_ONLY_PROMPT ? draft.subject.label : text,
+          ),
           ...(draft.subject && chip ? { subject: draft.subject.id } : {}),
         };
         request("thread.start", definition, (reply) => {

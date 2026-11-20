@@ -9,8 +9,8 @@ import type { SmokeGeometry } from "./smoke-geometry.js";
 
 const PINS_KEY = "spi-code.sidebar.pins.v3";
 const STATES = [
-  { route: "upstream", place: "Upstream", pinned: true },
-  { route: "service/partition", place: "partition", pinned: false },
+  { route: "upstream", place: "Upstream", pinned: true, ask: false },
+  { route: "service/partition", place: "partition", pinned: false, ask: true },
 ] as const;
 
 /** Each broken rule the pin-end geometry must reject, and the width it is shown at. */
@@ -35,12 +35,14 @@ export const PIN_END_PROBE = `(() => {
   const bar = document.querySelector(".centre-bar").getBoundingClientRect();
   const end = document.querySelector(".centre-end");
   const pin = end.querySelector(":scope > .pin-control");
+  const ask = end.querySelector(":scope > .ask-in");
   const overlay = navigator.windowControlsOverlay;
   const area = document.querySelector(".shell").dataset.windowControls === "overlay" && overlay?.visible ? overlay.getTitlebarAreaRect() : null;
   return { rule: "pin-end", end: bar.right - parseFloat(getComputedStyle(end).paddingRight),
     clear: area ? area.x + area.width : innerWidth,
     title: rect(document.querySelector(".centre-title h1")),
     pin: pin && getComputedStyle(pin).display !== "none" && pin.getBoundingClientRect().width > 0 ? rect(pin) : null,
+    ask: ask && getComputedStyle(ask).display !== "none" ? rect(ask) : null,
     toggle: rect(end.querySelector("[aria-label='Toggle right panel']")) };
 })()`;
 
@@ -72,11 +74,13 @@ export async function captureTopRowPins(
   let rejected: string[] = [];
   await store(JSON.stringify(["place:upstream"]));
   try {
-    for (const { route, place, pinned } of STATES) {
+    for (const { route, place, pinned, ask } of STATES) {
       await js(`location.hash = ${JSON.stringify(`#${route}`)}`);
       await rendered(
         `document.querySelector("[data-place]")?.textContent === ${JSON.stringify(place)} && document.querySelector(".centre-end > .pin-control[data-pinned=${pinned}]")`,
       );
+      const asks = await js<number>(`document.querySelectorAll(".centre-end > .ask-in").length`);
+      assert.equal(asks, ask ? 1 : 0, `${place} top row ${ask ? "lacks" : "has"} Ask`);
       assert.equal(
         await js(
           `document.querySelectorAll("#app-right-panel, [aria-controls=app-right-panel]").length`,
@@ -112,7 +116,7 @@ export async function captureTopRowPins(
   if (captured)
     writeFileSync(
       join(output, `top-row-pins-${width}-${appearance}.html`),
-      `<!doctype html><meta charset="utf-8"><title>Top-row pin control</title><style>body{font:14px system-ui;padding:24px}figure{margin:16px 0}img{max-width:100%;border:1px solid #888}</style><h1>Top-row pin control / ${width} px / ${appearance}</h1><p>Design: epic spicode-1l9, PS-11 and PS-17. Upstream pinned (filled), partition unpinned (hollow); the control sits at the end of the top row.</p>${figures.join("")}`,
+      `<!doctype html><meta charset="utf-8"><title>Top-row pin control</title><style>body{font:14px system-ui;padding:24px}figure{margin:16px 0}img{max-width:100%;border:1px solid #888}</style><h1>Top-row pin control / ${width} px / ${appearance}</h1><p>Design: epic spicode-1l9, PS-11 and PS-17. Upstream pinned (filled), partition unpinned (hollow) with Ask after it; the pin control sits at the end of the top row, or 6 px before Ask.</p>${figures.join("")}`,
     );
 }
 

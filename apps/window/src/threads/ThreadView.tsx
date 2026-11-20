@@ -1,31 +1,58 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { Icon } from "../components/icons/Icon.js";
+import { AskingLine } from "./AskingLine.js";
 import { Composer } from "./Composer.js";
 import { Timeline } from "./Timeline.js";
 import type { ThreadViewProps } from "./types.js";
 import "./threads.css";
 
 /** A thread in the centre: its timeline and composer, or a draft with nothing sent. */
-export function ThreadView({ entries, contextLine, origin, ...composer }: ThreadViewProps) {
-  return (
-    <section className={composer.draft ? "thread-view thread-view--draft" : "thread-view"}>
-      {composer.draft ? (
-        <>
-          <p className="thread-origin">
-            {origin ? `${origin}. ` : ""}Nothing is sent until you press send.
-          </p>
-          {contextLine && <p className="thread-origin thread-context-line">{contextLine}</p>}
-        </>
-      ) : (
+export function ThreadView({
+  entries,
+  contextLine,
+  onChangeScope,
+  below,
+  ...composer
+}: ThreadViewProps) {
+  if (!composer.draft)
+    return (
+      <section className="thread-view">
         <Timeline
           entries={entries}
           contextLine={contextLine}
           running={composer.running}
           onOpenLink={composer.onOpenLink}
         />
-      )}
-      <Composer {...composer} />
+        <Composer {...composer} />
+      </section>
+    );
+  const { scope } = composer;
+  return (
+    <section className="thread-view thread-view--draft">
+      <div className="thread-draft">
+        <h2 className="thread-draft-heading">
+          Ask in{" "}
+          <button
+            type="button"
+            className="thread-scope"
+            aria-haspopup="dialog"
+            aria-label={`Ask in ${scope.label}, change`}
+            disabled={!onChangeScope}
+            onClick={onChangeScope}
+          >
+            <Icon name={scope.icon ?? "box"} size={18} className="thread-scope-icon" />
+            {scope.label}
+            <span className="thread-scope-caret" aria-hidden>
+              ▾
+            </span>
+          </button>
+        </h2>
+        <Composer {...composer} />
+        <AskingLine />
+        {below}
+      </div>
     </section>
   );
 }

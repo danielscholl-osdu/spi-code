@@ -4,22 +4,23 @@
 import type { ModelCatalogResult } from "@spi-code/contracts";
 import { useCallback, useEffect, useMemo } from "react";
 import { useStore } from "zustand";
-import { navigate } from "../app/navigation.js";
+import { navigate, replaceRoute, routeHash, routeLabel } from "../app/navigation.js";
 import { treeServices } from "../app/queue.js";
+import { useRegistry } from "../app/routes.js";
 import { matchesShiftShortcut, shiftShortcutLabel } from "../app/shortcuts.js";
 import { PaneTitle } from "../app/title-row.js";
 import { Icon } from "../components/icons/Icon.js";
 import { routeAfterSettle } from "../components/sidebar/ThreadRows.js";
 import { watchStore } from "../store/watch.js";
-import { clockTime } from "../time.js";
 import { threadEntries } from "./entries.js";
 import { AUTO } from "./ModelPicker.js";
+import { NeedsYou } from "./NeedsYou.js";
+import { openScopePicker } from "./picker.js";
 import { type Draft, lastChoice, NEW_THREAD, threadStore } from "./store.js";
 import { ThreadView } from "./ThreadView.js";
-import type { ContextChip, CopilotAccount, ModelOption, ScopeOption } from "./types.js";
+import type { ContextChip, CopilotAccount, ModelOption } from "./types.js";
 
 export const NOT_KNOWN = "not known";
-const PROGRAM_NOT_BUILT = "Program threads come with a later build. Choose a service to ask in.";
 
 const number = (value: unknown) => (typeof value === "number" ? value : undefined);
 
@@ -69,17 +70,8 @@ function draftChips(draft: Draft): ContextChip[] {
 
 function draftNotice(draft: Draft): string | undefined {
   if (draft.failure) return draft.failure.reason;
-  const refused = draft.chip?.state === "done" && !draft.chip.ok ? draft.chip.reason : undefined;
-  if (!draft.scope) return refused ? `${refused} ${PROGRAM_NOT_BUILT}` : PROGRAM_NOT_BUILT;
   if (draft.chip?.state === "packing") return "Packing what you were looking at…";
-  return refused;
-}
-
-function draftContextLine(draft: Draft): string | undefined {
-  const { chip } = draft;
-  if (chip?.state !== "done" || !chip.ok || !draft.scope) return undefined;
-  const bytes = chip.bytes.toLocaleString("en-US");
-  return `Context · ${draft.scope} · from the sweep at ${clockTime(chip.sweptAt)} · 1 item, ${bytes} bytes`;
+  return draft.chip?.state === "done" && !draft.chip.ok ? draft.chip.reason : undefined;
 }
 
 /** The centre on a thread route: a draft, or a thread the host journals. */
@@ -87,9 +79,10 @@ export function ThreadPage({ id }: { id: string }) {
   const state = useStore(threadStore);
   const tree = useStore(watchStore, (watch) => watch.snapshot?.body.tree);
   const services = treeServices(tree);
+  const registry = useRegistry();
   const { models, account } = useMemo(() => catalogModels(state.catalog), [state.catalog]);
   const isDraft = id === NEW_THREAD;
-  const { draft, open, startDraft } = state;
+  const { draft, open } = state;
   const summary = isDraft ? undefined : state.threads?.find((thread) => thread.id === id);
   const status = summary?.status ?? NOT_KNOWN;
   const settled = status === "Settled";
@@ -102,9 +95,10 @@ export function ThreadPage({ id }: { id: string }) {
   }, [state, summary]);
 
   useEffect(() => {
-    if (isDraft && !draft) startDraft(null);
+    if (isDraft && !draft && window.location.hash === routeHash({ kind: "thread", id: NEW_THREAD }))
+      replaceRoute(registry.fallback);
     if (!isDraft && summary?.status !== "Can't be read") open(id);
-  }, [isDraft, draft, id, open, startDraft, summary?.status]);
+  }, [isDraft, draft, id, open, registry.fallback, summary?.status]);
   useEffect(() => {
     if (!summary || (status !== "Open" && !settled)) return;
     const onKey = (event: KeyboardEvent) => {
@@ -133,34 +127,43 @@ export function ThreadPage({ id }: { id: string }) {
 
   if (isDraft) {
     if (!draft) return null;
-    const scopes: ScopeOption[] = services.map((service) => ({ id: service, label: service }));
     const scope = draft.scope;
+    const back = draft.from ?? { label: routeLabel(registry.fallback), route: registry.fallback };
     return (
       <>
         <PaneTitle>
-          <h1 data-place>New thread</h1>
+          <a
+            className="thread-back"
+            href={routeHash(back.route)}
+            onClick={(event) => {
+              event.preventDefault();
+              navigate(back.route);
+            }}
+          >
+            ← {back.label}
+          </a>
         </PaneTitle>
         <ThreadView
           {...shared}
           draft
           running={false}
-          scope={scope ? { id: scope, label: scope } : { id: "program", label: "Program" }}
-          scopes={scopes}
-          onScopeChange={state.setDraftScope}
+          scope={{ id: scope, label: scope, icon: "box" }}
+          onChangeScope={() => openScopePicker({ mode: "change", current: scope })}
           context={draftChips(draft)}
           onRemoveContext={state.removeDraftChip}
-          {...(draft.origin ? { origin: draft.origin } : {})}
-          contextLine={draftContextLine(draft)}
           notice={draftNotice(draft)}
           canSend={
-            Boolean(scope && services.includes(scope)) &&
+            services.includes(scope) &&
             draft.chip?.state !== "packing" &&
             draft.sending === undefined
           }
           onSend={({ text }) =>
-            state.sendDraft(text, (threadId) => navigate({ kind: "thread", id: threadId }))
+            state.sendDraft(text, (threadId) => replaceRoute({ kind: "thread", id: threadId }))
           }
           onStop={() => {}}
+          below={
+            <NeedsYou scope={scope} attached={draft.subject?.id} onAttach={state.attachDraftChip} />
+          }
         />
       </>
     );

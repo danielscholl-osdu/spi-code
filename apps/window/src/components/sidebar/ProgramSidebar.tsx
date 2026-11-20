@@ -57,6 +57,7 @@ import {
 } from "../../store/pins.js";
 import { selectStrip } from "../../store/strip.js";
 import type { createWatchStore } from "../../store/watch.js";
+import { newThread } from "../../threads/start.js";
 import { useNow } from "../evidence/useNow.js";
 import { Icon, type IconName } from "../icons/Icon.js";
 import { isContextMenuKey } from "../pin/PinMenu.js";
@@ -72,13 +73,7 @@ import {
   statusRows,
   syncDeadline,
 } from "./status-marks.js";
-import {
-  NewThreadRow,
-  OtherThreads,
-  SettledFooter,
-  ThreadRow,
-  useSidebarThreads,
-} from "./ThreadRows.js";
+import { OtherThreads, SettledFooter, ThreadRow, useSidebarThreads } from "./ThreadRows.js";
 import {
   CollapsibleSectionHeader,
   Sidebar,
@@ -442,20 +437,38 @@ export function ProgramSidebar({
         <span className="toggle-room" aria-hidden />
       </div>
       <SidebarHeader>
-        <button
-          type="button"
-          className="find-or-ask"
-          aria-haspopup="dialog"
-          aria-keyshortcuts={ariaShortcut("k")}
-          onClick={() => {
-            closeMobile();
-            onFind?.();
-          }}
-        >
-          <Icon name="search" size={15} />
-          <span className="find-or-ask-label">Find or ask</span>
-          <kbd>{shortcutLabel("k")}</kbd>
-        </button>
+        <div className="find-or-ask-row">
+          <button
+            type="button"
+            className="find-or-ask"
+            aria-haspopup="dialog"
+            aria-keyshortcuts={ariaShortcut("k")}
+            onClick={() => {
+              closeMobile();
+              onFind?.();
+            }}
+          >
+            <Icon name="search" size={15} />
+            <span className="find-or-ask-label">Find or ask</span>
+            <kbd>{shortcutLabel("k")}</kbd>
+          </button>
+          {threadsOn && (
+            <button
+              type="button"
+              className="sidebar-compose"
+              aria-label="New thread"
+              aria-haspopup="dialog"
+              aria-keyshortcuts={ariaShortcut("n")}
+              title={`New thread ${shortcutLabel("n")}`}
+              onClick={() => {
+                closeMobile();
+                newThread();
+              }}
+            >
+              <Icon name="squarePen" size={15} />
+            </button>
+          )}
+        </div>
         <SidebarMenu aria-label="Program" data-group="fixed">
           {todayReachable && (
             <SidebarMenuItem>
@@ -544,19 +557,16 @@ export function ProgramSidebar({
           </SidebarGroup>
         )}
         {threadsOn && (
-          <>
-            <NewThreadRow route={route} />
-            <OtherThreads
-              threads={threadRows}
-              nestedScopes={
-                collapsed("pinned")
-                  ? []
-                  : rows.filter((row) => row.key.startsWith("service/")).map((row) => row.pin)
-              }
-              route={route}
-              onNavigate={(target) => go(target)()}
-            />
-          </>
+          <OtherThreads
+            threads={threadRows}
+            nestedScopes={
+              collapsed("pinned")
+                ? []
+                : rows.filter((row) => row.key.startsWith("service/")).map((row) => row.pin)
+            }
+            route={route}
+            onNavigate={(target) => go(target)()}
+          />
         )}
       </SidebarContent>
       {threadsOn && (

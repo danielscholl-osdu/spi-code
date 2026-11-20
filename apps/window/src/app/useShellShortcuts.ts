@@ -3,14 +3,18 @@
 
 import { useEffect } from "react";
 import { newThread } from "../threads/start.js";
-import { FORKS, goBack, goForward, navigate, parseRoute, type Registry } from "./navigation.js";
+import { FORKS, goBack, goForward, navigate, type Registry } from "./navigation.js";
 import { historyShortcut, isTypingEvent, matchesShortcut } from "./shortcuts.js";
 
-/** `dialogOpen`: Find or Settings is open, so back and forward wait for it to close. */
+/**
+ * `dialogOpen`: Find, Settings or the scope picker is open, so back and forward wait for it to
+ * close. `settingsOpen`: only Settings holds ⌘N, which opens the scope picker in Find's place.
+ */
 export function useShellShortcuts(
   registry: Registry,
   openSettings: () => void,
   dialogOpen: boolean,
+  settingsOpen: boolean,
 ) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -31,10 +35,10 @@ export function useShellShortcuts(
         return;
       }
       if (registry.views.thread && matchesShortcut(event, "n")) {
-        if (dialogOpen) return;
+        if (settingsOpen) return;
         event.preventDefault();
         if (event.repeat) return;
-        newThread(parseRoute(window.location.hash) ?? registry.fallback);
+        newThread();
         return;
       }
       if (!registry.views.today || !matchesShortcut(event, "l")) return;
@@ -43,5 +47,5 @@ export function useShellShortcuts(
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [registry.views.today, registry.views.thread, registry.fallback, openSettings, dialogOpen]);
+  }, [registry.views.today, registry.views.thread, openSettings, dialogOpen, settingsOpen]);
 }

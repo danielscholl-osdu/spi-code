@@ -13,6 +13,8 @@ import { CommandPalette } from "../palette/CommandPalette.js";
 import { ThreadPanel } from "../panels/thread/ThreadPanel.js";
 import { SettingsDialog, type SettingsSection } from "../settings/SettingsDialog.js";
 import { watchStore } from "../store/watch.js";
+import { scopePickerStore } from "../threads/picker.js";
+import { ScopePicker } from "../threads/ScopePicker.js";
 import { SettleToast } from "../threads/SettleToast.js";
 import { NEW_THREAD } from "../threads/store.js";
 import { PaneEdges } from "./PaneEdges.js";
@@ -76,8 +78,10 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
   }, []);
   const openReadiness = useCallback(() => openSettings("readiness"), [openSettings]);
   useSetupLanding(openReadiness);
-  useShellShortcuts(registry, openSettings, settingsOpen || findOpen);
-  usePinShortcut(route, settingsOpen || findOpen);
+  const picking = useStore(scopePickerStore, (state) => state.picking !== null);
+  const closeFind = useCallback(() => setFindOpen(false), []);
+  useShellShortcuts(registry, openSettings, settingsOpen || findOpen || picking, settingsOpen);
+  usePinShortcut(route, settingsOpen || findOpen || picking);
   useDocumentTitle(route);
   const { middle, onScrollCapture } = useRouteScroll(route, snapshot);
   const { theme, pinTheme, error } = useHostConnection({
@@ -140,6 +144,7 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
             onNavigate={navigate}
             onSettings={openReadiness}
           />
+          {registry.views.thread && <ScopePicker findOpen={findOpen} closeFind={closeFind} />}
           <SettingsDialog
             open={settingsOpen}
             onOpenChange={setSettingsOpen}

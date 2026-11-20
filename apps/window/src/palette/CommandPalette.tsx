@@ -23,7 +23,7 @@
 
 import { Autocomplete } from "@base-ui/react/autocomplete";
 import { Dialog } from "@base-ui/react/dialog";
-import { useMemo, useRef, useState } from "react";
+import { type ComponentProps, type ReactNode, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 import {
   type Destination,
@@ -78,23 +78,49 @@ export function CommandPalette({
   /** Opens Settings on Readiness. */
   onSettings(): void;
 }) {
+  return (
+    <PaletteFrame open={open} onOpenChange={onOpenChange} label="Find or ask">
+      <PaletteContent
+        store={store}
+        onNavigate={onNavigate}
+        onSettings={onSettings}
+        onClose={() => onOpenChange(false)}
+      />
+    </PaletteFrame>
+  );
+}
+
+/** Find's modal window over the dimmed page, focus on its first input; the scope picker shares it. */
+export function PaletteFrame({
+  open,
+  onOpenChange,
+  label,
+  className,
+  finalFocus,
+  children,
+}: {
+  open: boolean;
+  onOpenChange(open: boolean): void;
+  label: string;
+  className?: string;
+  finalFocus?: ComponentProps<typeof Dialog.Popup>["finalFocus"];
+  children: ReactNode;
+}) {
   const popupRef = useRef<HTMLDivElement>(null);
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="palette-backdrop" />
+        <Dialog.Backdrop
+          className={className ? `palette-backdrop ${className}` : "palette-backdrop"}
+        />
         <Dialog.Popup
-          className="palette"
-          aria-label="Find or ask"
+          className={className ? `palette ${className}` : "palette"}
+          aria-label={label}
           ref={popupRef}
           initialFocus={() => popupRef.current?.querySelector("input") ?? true}
+          {...(finalFocus === undefined ? {} : { finalFocus })}
         >
-          <PaletteContent
-            store={store}
-            onNavigate={onNavigate}
-            onSettings={onSettings}
-            onClose={() => onOpenChange(false)}
-          />
+          {children}
         </Dialog.Popup>
       </Dialog.Portal>
     </Dialog.Root>

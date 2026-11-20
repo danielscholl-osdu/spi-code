@@ -1,18 +1,40 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { navigate, type Route } from "../app/navigation.js";
-import { type AskTarget, NEW_THREAD, threadStore } from "./store.js";
+import { navigate, parseRoute, type Route, routeLabel } from "../app/navigation.js";
+import { openScopePicker } from "./picker.js";
+import { type AskTarget, type DraftFrom, NEW_THREAD, threadStore } from "./store.js";
 
-/** ⌘N and New thread: the open service's scope, else Program, with the open row as its chip. */
-export function newThread(route: Route) {
-  const { target, startDraft } = threadStore.getState();
-  startDraft(route.kind === "service" ? route.id : null, target);
+const isDraftRoute = (route: Route | undefined) =>
+  route?.kind === "thread" && route.id === NEW_THREAD;
+
+/** Where a new draft's back link returns to: the page it was opened from, kept from draft to draft. */
+function from(): DraftFrom | undefined {
+  const route = parseRoute(window.location.hash);
+  const { draft, threads } = threadStore.getState();
+  if (!route || isDraftRoute(route)) return draft?.from;
+  if (route.kind === "thread") {
+    const title = threads?.find((thread) => thread.id === route.id)?.thread.title;
+    return { label: title ?? "Thread", route };
+  }
+  return { label: routeLabel(route), route };
+}
+
+/** ⌘N and the compose icon: the scope picker over the page. Inside a draft it moves that draft. */
+export function newThread() {
+  const { draft } = threadStore.getState();
+  if (draft && isDraftRoute(parseRoute(window.location.hash)))
+    openScopePicker({ mode: "change", current: draft.scope });
+  else openScopePicker({ mode: "new" });
+}
+
+/** A draft in one scope, cursor in its text box, carrying a row as its chip when given one. */
+export function askIn(scope: string, target?: AskTarget | null) {
+  threadStore.getState().startDraft(scope, target ?? null, from());
   navigate({ kind: "thread", id: NEW_THREAD });
 }
 
 /** Ask about this: a draft in the row's fork with the row as its one chip. Nothing is sent. */
 export function askAbout(target: AskTarget & { scope: string }) {
-  threadStore.getState().startDraft(target.scope, target);
-  navigate({ kind: "thread", id: NEW_THREAD });
+  askIn(target.scope, target);
 }
