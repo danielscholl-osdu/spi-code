@@ -168,6 +168,31 @@ export const ThreadEventSchema = z.discriminatedUnion("type", [
 
 export type ThreadWireEvent = z.infer<typeof ThreadEventSchema>;
 
+const sha = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u);
+const count = z.int().nonnegative().nullable();
+const changes = z.discriminatedUnion("state", [
+  z.strictObject({ state: z.literal("asking") }),
+  z.strictObject({
+    state: z.literal("read"),
+    head: sha,
+    ahead: z.int().nonnegative(),
+    uncommitted: z.boolean(),
+    files: z.array(
+      z.strictObject({ path: id, added: count, removed: count, untracked: z.boolean() }),
+    ),
+  }),
+  z.strictObject({ state: z.literal("not read"), reason: id }),
+]);
+const diff = z.discriminatedUnion("state", [
+  z.strictObject({ state: z.literal("read"), patch: z.string(), truncated: z.boolean() }),
+  z.strictObject({ state: z.literal("not read"), reason: id }),
+]);
+const commit = z.discriminatedUnion("outcome", [
+  z.strictObject({ outcome: z.literal("committed"), head: sha }),
+  z.strictObject({ outcome: z.enum(["refused", "failed"]), reason: id }),
+  z.strictObject({ outcome: unknown, reason: id }),
+]);
+
 function envelope<
   T extends string,
   K extends "request" | "response" | "event",
@@ -237,6 +262,16 @@ export const ThreadMessageSchema = z.discriminatedUnion("type", [
     "response",
     threadId.extend({ approvalId: id, decided: z.boolean() }).strict(),
   ),
+  envelope("thread.changes", "request", threadId.strict()),
+  envelope("thread.changes.result", "response", threadId.extend({ changes }).strict()),
+  envelope("thread.diff", "request", threadId.extend({ path: id }).strict()),
+  envelope("thread.diff.result", "response", threadId.extend({ path: id, diff }).strict()),
+  envelope(
+    "thread.commit",
+    "request",
+    threadId.extend({ message: z.string().trim().min(1).max(10_000) }).strict(),
+  ),
+  envelope("thread.committed", "response", threadId.extend({ commit }).strict()),
   envelope("thread.stop", "request", threadId.strict()),
   envelope("thread.stopped", "response", threadId.strict()),
   envelope("thread.settle", "request", threadId.strict()),

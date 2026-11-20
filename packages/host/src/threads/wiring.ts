@@ -9,15 +9,24 @@ import { setTimeout } from "node:timers/promises";
 import type { Tool } from "@github/copilot-sdk";
 import { createToolOutputRedactor, ThreadEngine, type ToolOutputRedactor } from "@spi-code/threads";
 import type { CopilotRuntime } from "../copilot/runtime.js";
-import type { PrivilegedGit } from "../scopes/git.js";
+import type { CommitIdentity, PrivilegedGit } from "../scopes/git.js";
 import type { ScopeRegistry } from "../scopes/registry.js";
 import type { ScopeWorkspaces } from "../scopes/workspace.js";
 import { offeredTools, spiReadTools, spiToolProvider } from "../tools/spi-reads.js";
 import { type AskingTurnWorkspace, CopilotThreadAdapter } from "./adapter.js";
+import {
+  type CommitOutcome,
+  commitChanges,
+  type FileDiff,
+  readChanges,
+  readFileDiff,
+  type ThreadChanges,
+} from "./changes.js";
 import { chipFromSweep } from "./context/draft.js";
 import { threadContext } from "./context/provider.js";
 import { redactSpiText, type SpiRedactor } from "./context/redaction.js";
 import type { LatestSweep } from "./context/sweep.js";
+import { operatorIdentity } from "./identity.js";
 
 export interface ThreadHostOptions {
   db: DatabaseSync;
@@ -28,8 +37,13 @@ export interface ThreadHostOptions {
   workspaces: (git: PrivilegedGit) => ScopeWorkspaces;
   runtime: (onCredential: (token: string) => void) => Promise<CopilotRuntime>;
   env: NodeJS.ProcessEnv;
+  /** The operator's name and email for a commit; undefined when they are not known. */
+  identity?: () => Promise<CommitIdentity | undefined>;
   onThreadsChanged?: () => void;
 }
+
+const reason = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
 
 export function openThreadHost(options: ThreadHostOptions) {
   const { db, storePath, scopes } = options;
@@ -189,8 +203,63 @@ export function openThreadHost(options: ThreadHostOptions) {
       if (!scope) throw new Error("Thread scope is unavailable.");
       return scope;
     };
+    /** The thread's own worktree and the commit its branch was cut from; undefined while Asking. */
+    const worktreeOf = async (id: string) => {
+      const { landsIn } = engine.read(id).thread;
+      if (!landsIn || landsIn.target === "asking") return undefined;
+      const git = await options.git();
+      workspaces ??= options.workspaces(git);
+      const prepared = await workspaces.prepareThread(db, scopeFor(id), id, landsIn);
+      if (!prepared.ok) throw new Error(prepared.error);
+      const { workspace } = prepared;
+      if (workspace.kind !== "worktree") throw new Error("The thread has no worktree.");
+      const target = {
+        clone: workspace.clonePath,
+        worktree: { id: workspace.worktreeId, cwd: workspace.cwd },
+      };
+      return { git, target, base: landsIn.head };
+    };
+    const identity = options.identity ?? (() => operatorIdentity(options.env));
     let stopping: Promise<void> | undefined;
     return {
+      changes: async (id: string): Promise<ThreadChanges> => {
+        try {
+          const at = await worktreeOf(id);
+          if (!at) return { state: "asking" };
+          return await readChanges(at.git, at.target, at.base);
+        } catch (error) {
+          return { state: "not read", reason: chipRedactor.text(reason(error, "Git failed.")) };
+        }
+      },
+      diff: async (id: string, path: string): Promise<FileDiff> => {
+        try {
+          const at = await worktreeOf(id);
+          if (!at) return { state: "not read", reason: "An Asking thread has no worktree." };
+          return await readFileDiff(at.git, at.target, at.base, path);
+        } catch (error) {
+          return { state: "not read", reason: chipRedactor.text(reason(error, "Git failed.")) };
+        }
+      },
+      commit: async (id: string, message: string): Promise<CommitOutcome> => {
+        if (engine.isRunning(id))
+          return { outcome: "refused", reason: "A turn is running. Commit when it finishes." };
+        try {
+          return await engine.transition(id, async (): Promise<CommitOutcome> => {
+            const at = await worktreeOf(id);
+            if (!at)
+              return { outcome: "refused", reason: "An Asking thread has nothing to commit." };
+            const operator = await identity();
+            if (!operator)
+              return {
+                outcome: "refused",
+                reason: "Set user.name and user.email in your git config to commit.",
+              };
+            return commitChanges(at.git, at.target, message, operator);
+          });
+        } catch (error) {
+          return { outcome: "refused", reason: chipRedactor.text(reason(error, "Git failed.")) };
+        }
+      },
       engine,
       remember,
       chip: (id: string) => chipFromSweep(options.savedSweep, id, spiRedactor),

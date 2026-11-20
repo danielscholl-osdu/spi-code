@@ -249,6 +249,39 @@ export class ThreadRoutes {
         payload: { threadId, approvalId, decided },
       });
     },
+    "thread.changes": async (request, send) => {
+      if (request.type !== "thread.changes") return;
+      const { threadId } = request.payload;
+      send({
+        version: PROTOCOL_VERSION,
+        id: request.id,
+        kind: "response",
+        type: "thread.changes.result",
+        payload: { threadId, changes: await this.open().changes(threadId) },
+      });
+    },
+    "thread.diff": async (request, send) => {
+      if (request.type !== "thread.diff") return;
+      const { threadId, path } = request.payload;
+      send({
+        version: PROTOCOL_VERSION,
+        id: request.id,
+        kind: "response",
+        type: "thread.diff.result",
+        payload: { threadId, path, diff: await this.open().diff(threadId, path) },
+      });
+    },
+    "thread.commit": async (request, send) => {
+      if (request.type !== "thread.commit") return;
+      const { threadId, message } = request.payload;
+      send({
+        version: PROTOCOL_VERSION,
+        id: request.id,
+        kind: "response",
+        type: "thread.committed",
+        payload: { threadId, commit: await this.open().commit(threadId, message) },
+      });
+    },
     "thread.stop": async (request, send) => {
       if (request.type !== "thread.stop") return;
       await this.engine().stop(request.payload.threadId);
