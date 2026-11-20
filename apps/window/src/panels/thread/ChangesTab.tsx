@@ -15,6 +15,15 @@ function counts({ added, removed, untracked }: File): string {
   return `${untracked ? "new · " : ""}+${added} −${removed}`;
 }
 
+const kind = (line: string) =>
+  /^(?:\+\+\+|---) /u.test(line)
+    ? undefined
+    : line.startsWith("+")
+      ? "added"
+      : line.startsWith("-")
+        ? "removed"
+        : undefined;
+
 function Patch({ id, path }: { id: string; path: string }) {
   const diff = useStore(changesStore, (state) => diffOf(state, id, path));
   if (!diff || diff.state === "reading") return <p className="thread-field-quiet">Reading…</p>;
@@ -26,15 +35,18 @@ function Patch({ id, path }: { id: string; path: string }) {
     );
   return (
     <pre className="thread-diff" data-diff={path}>
-      {diff.patch.split("\n").map((line, index) => (
-        <span
-          // biome-ignore lint/suspicious/noArrayIndexKey: a patch's lines are fixed once read.
-          key={index}
-          data-line={line.startsWith("+") ? "added" : line.startsWith("-") ? "removed" : undefined}
-        >
-          {`${line}\n`}
-        </span>
-      ))}
+      {diff.patch
+        .replace(/\n$/u, "")
+        .split("\n")
+        .map((line, index) => (
+          <span
+            // biome-ignore lint/suspicious/noArrayIndexKey: a patch's lines are fixed once read.
+            key={index}
+            data-line={kind(line)}
+          >
+            {line || " "}
+          </span>
+        ))}
       {diff.truncated && <span data-line="cut">The rest of this diff is too large to show.</span>}
     </pre>
   );
