@@ -395,6 +395,8 @@ export function assertSmokeGeometry(
         ["right-panel toggle", value.toggle],
       ] as const) {
         if (item === null || item === undefined) continue;
+        const drawn = item as Partial<SmokeRect>;
+        assert(Number(drawn.width) > 0 && Number(drawn.height) > 0, `Top-row ${name} is not drawn`);
         rect(item);
         assert(item.y >= -0.02 && item.y + item.height <= 44.02, `Top-row ${name} off the row`);
         assert(

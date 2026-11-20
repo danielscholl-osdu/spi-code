@@ -489,6 +489,35 @@ it("keeps the page an operator left the draft for when the thread starts late", 
   expect(window.location.hash).toBe("#upstream");
 });
 
+it("sends a late-started thread its words, and leaves a newer draft and its words alone", async () => {
+  host.silent.add("thread.start");
+  window.location.hash = "#service/partition";
+  await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
+  await click(buttonNamed("Ask Copilot about partition"));
+  await type("Why did the last sync stop?");
+  await click(buttonNamed("Send ⏎"));
+  window.location.hash = "#service/entitlements";
+  await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
+  await click(buttonNamed("Ask Copilot about entitlements"));
+  await type("A second question");
+  const [start] = host.sent("thread.start");
+  await act(async () =>
+    threadStore.getState().receive({
+      version: PROTOCOL_VERSION,
+      id: start?.id,
+      kind: "response",
+      type: "thread.started",
+      payload: { threadId: "t9", landsIn: { target: "asking" } },
+    }),
+  );
+  expect(host.sent("thread.send").map(({ payload }) => payload)).toEqual([
+    { threadId: "t9", message: { prompt: "Why did the last sync stop?" } },
+  ]);
+  expect(window.location.hash).toBe("#thread/new");
+  expect(threadStore.getState().draft?.scope).toBe("entitlements");
+  expect(container.querySelector("textarea")?.value).toBe("A second question");
+});
+
 it("leaves a draft route with no draft for the fallback, without a picker", async () => {
   window.location.hash = "#thread/new";
   await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
@@ -914,26 +943,36 @@ it("lists up to three of the scope's rows that need the operator, attaches one a
   expect(host.sent("thread.chip")).toHaveLength(1);
 });
 
-it("replaces an attached chip, and a late pack for the replaced row changes nothing", async () => {
+it("replaces an attached chip, and a late pack for an earlier choice changes nothing", async () => {
   host.silent.add("thread.chip");
   window.location.hash = "#service/entitlements";
   await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
   await click(buttonNamed("Ask Copilot about entitlements"));
-  await click(all('[aria-label="Needs you"] button')[0] as HTMLElement);
-  await click(all('[aria-label="Needs you"] button')[0] as HTMLElement);
-  const [early, late] = host.sent("thread.chip");
+  const firstId = "conflict:entitlements:121";
   const lateId = "release-red:Azure/osdu-spi-entitlements#89";
-  expect(late?.payload).toEqual({ id: lateId });
-  await act(async () =>
-    threadStore.getState().receive({
-      version: PROTOCOL_VERSION,
-      id: early?.id,
-      kind: "response",
-      type: "thread.chip.result",
-      payload: { ...PACKED, id: "conflict:entitlements:121" },
-    }),
-  );
-  expect(threadStore.getState().draft?.subject?.id).toBe(lateId);
+  for (let n = 0; n < 3; n += 1)
+    await click(all('[aria-label="Needs you"] button')[0] as HTMLElement);
+  const [first, late, again] = host.sent("thread.chip");
+  expect([first, late, again].map((request) => request?.payload)).toEqual([
+    { id: firstId },
+    { id: lateId },
+    { id: firstId },
+  ]);
+  const reply = (request: typeof first, id: string) =>
+    act(async () =>
+      threadStore.getState().receive({
+        version: PROTOCOL_VERSION,
+        id: request?.id,
+        kind: "response",
+        type: "thread.chip.result",
+        payload: { ...PACKED, id },
+      }),
+    );
+  await reply(late, lateId);
+  await reply(first, firstId);
+  expect(threadStore.getState().draft?.subject?.id).toBe(firstId);
   expect(threadStore.getState().draft?.chip).toEqual({ state: "packing" });
   expect(notice()).toBe("Packing what you were looking at…");
+  await reply(again, firstId);
+  expect(threadStore.getState().draft?.chip?.state).toBe("done");
 });
