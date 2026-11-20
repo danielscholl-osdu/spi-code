@@ -62,7 +62,7 @@
 }
 @container (max-width: 640px) {
   .today-col-fork {
-    width: 112px;
+    width: 132px;
   }
   .today-col-open {
     width: 194px;
