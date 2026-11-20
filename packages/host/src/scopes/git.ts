@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { constants } from "node:fs";
-import { access, copyFile, lstat, mkdir, readFile, realpath } from "node:fs/promises";
+import { access, copyFile, lstat, mkdir, readFile, realpath, rm } from "node:fs/promises";
 import { homedir } from "node:os";
 import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { type ExecOptions, type ExecResult, textResult } from "@spi-code/core";
@@ -458,9 +458,18 @@ export class PrivilegedGit {
     descendant: string,
     options: GitOptions = {},
   ): Promise<ExecResult<boolean>> {
+    return this.isAncestorOf(target, "HEAD", descendant, options);
+  }
+
+  async isAncestorOf(
+    target: GitTarget,
+    ancestor: string,
+    descendant: string,
+    options: GitOptions = {},
+  ): Promise<ExecResult<boolean>> {
     const result = await this.#run(
       target,
-      ["merge-base", "--is-ancestor", "HEAD", revision(descendant)],
+      ["merge-base", "--is-ancestor", revision(ancestor), revision(descendant)],
       options,
     );
     if (result.ok) return { ok: true, data: true };
@@ -591,6 +600,66 @@ export class PrivilegedGit {
         submodulesOff,
       ],
       options,
+    );
+  }
+
+  /** A fresh, exact branch read; the destination is private to one worktree inspection. */
+  async fetchRef(
+    target: GitTarget,
+    remote: string,
+    source: string,
+    destination: string,
+    options: GitOptions = {},
+  ): Promise<ExecResult<string>> {
+    return this.#run(
+      target,
+      [
+        "fetch",
+        "--no-tags",
+        "--no-recurse-submodules",
+        "--",
+        remoteName(remote),
+        `+${fullRef(source)}:${fullRef(destination)}`,
+      ],
+      options,
+    );
+  }
+
+  /** Reads every request head the forge exposes, without consulting a cached ref. */
+  async requestRefs(
+    target: GitTarget,
+    remote: string,
+    forge: "github" | "gitlab",
+    options: GitOptions = {},
+  ): Promise<ExecResult<string>> {
+    const pattern = forge === "github" ? "refs/pull/*/head" : "refs/merge-requests/*/head";
+    const result = await this.#run(
+      target,
+      ["ls-remote", "--refs", "--exit-code", "--", remoteName(remote), pattern],
+      options,
+    );
+    return !result.ok && result.code === 2 ? { ok: true, data: "" } : result;
+  }
+
+  /** Removes only a validated managed directory, then prunes its admin entry from the clone. */
+  async removeWorktree(
+    target: WorktreeTarget,
+    options: GitOptions = {},
+  ): Promise<ExecResult<string>> {
+    const runtime = await this.#getRuntime();
+    const { common } = await this.#resolve(runtime, target);
+    const root = join(runtime.appData, "worktrees");
+    await directDirectory(root);
+    if (relative(root, target.worktree.cwd) !== target.worktree.id)
+      throw new Error("Worktree is outside its managed location.");
+    await directDirectory(target.worktree.cwd);
+    await rm(target.worktree.cwd, { recursive: true, force: false });
+    return execGit(
+      runtime,
+      [`--git-dir=${common}`, `--work-tree=${target.clone}`],
+      ["worktree", "prune", "--expire=now"],
+      options,
+      common,
     );
   }
 

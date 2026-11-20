@@ -64,7 +64,11 @@ export type KeptWorktree = {
   readonly branch: string;
   readonly path: string;
   readonly reason: string;
+  readonly files?: string[];
 };
+export type WorktreeDisposition =
+  | { readonly worktree: "removed"; readonly reason: string }
+  | { readonly worktree: "kept"; readonly reason: string; readonly files?: string[] };
 
 interface PrepareOptions {
   readonly signal?: AbortSignal;
@@ -102,6 +106,28 @@ async function exists(directory: string): Promise<boolean> {
     if (error instanceof Error && "code" in error && error.code === "ENOENT") return false;
     throw error;
   }
+}
+
+function statusPaths(value: string): string[] {
+  const records = value.split("\0").filter(Boolean);
+  const files: string[] = [];
+  for (let index = 0; index < records.length; index++) {
+    const record = records[index] ?? "";
+    const path = record.slice(3);
+    if (path) files.push(path);
+    if (/[CR]/u.test(record.slice(0, 2))) {
+      const renamed = records[++index];
+      if (renamed) files.push(renamed);
+    }
+  }
+  return [...new Set(files)].sort();
+}
+
+function requestHeads(value: string): { readonly ref: string; readonly sha: string }[] {
+  return value.split(/[\r\n]+/u).flatMap((line) => {
+    const [sha, ref] = line.split(/\s+/u, 2);
+    return sha && ref ? [{ sha, ref }] : [];
+  });
 }
 
 async function createClone(
@@ -360,8 +386,8 @@ export class ScopeWorkspaces {
     try {
       db.prepare(
         `INSERT INTO thread_workspaces
-             (thread_id, repository, clone_path, path, worktree_id, branch, base_ref, head_sha, target, source_repository, source_branch, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             (thread_id, repository, clone_path, path, worktree_id, branch, base_ref, head_sha, target, source_repository, source_branch, forge, request_number, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         threadId,
         repository,
@@ -374,6 +400,8 @@ export class ScopeWorkspaces {
         request.target,
         sourceRepository ?? null,
         sourceBranch ?? null,
+        request.target === "request" ? request.forge : null,
+        request.target === "request" ? request.requestNumber : null,
         Date.now(),
       );
     } catch (error) {
@@ -413,18 +441,150 @@ export class ScopeWorkspaces {
     const stored = this.storedWorktree(db, threadId);
     if (!stored) return undefined;
     const reason = "The thread was deleted; its worktree and branch were kept.";
-    db.prepare("UPDATE thread_workspaces SET deleted_at = ?, reason = ? WHERE thread_id = ?").run(
-      Date.now(),
-      reason,
-      threadId,
-    );
+    db.prepare(
+      "UPDATE thread_workspaces SET deleted_at = ?, reason = ?, files = NULL WHERE thread_id = ?",
+    ).run(Date.now(), reason, threadId);
     return { worktree: "kept", reason };
+  }
+
+  async reclaimWorktree(
+    db: DatabaseSync,
+    threadId: string,
+    confirmedFiles: readonly string[] = [],
+  ): Promise<WorktreeDisposition | undefined> {
+    return this.claim(`reclaim\0${threadId}`, async () => {
+      const stored = this.keptStoredWorktree(db, threadId);
+      if (!stored) return undefined;
+      const target: {
+        readonly clone: string;
+        readonly worktree: { readonly id: string; readonly cwd: string };
+      } = {
+        clone: stored.clonePath,
+        worktree: { id: stored.worktreeId, cwd: stored.path },
+      };
+      try {
+        const status = await this.git.statusAll(target);
+        if (!status.ok)
+          return this.keepFor(db, stored, `Its files could not be read: ${status.error}`);
+        const files = statusPaths(status.data);
+        const confirmation = [...confirmedFiles].sort();
+        const expected = [...files].sort();
+        if (
+          files.length > 0 &&
+          (confirmation.length !== expected.length ||
+            confirmation.some((file, index) => file !== expected[index]))
+        ) {
+          return this.keepFor(
+            db,
+            stored,
+            "Uncommitted, untracked or ignored files would be lost.",
+            files,
+          );
+        }
+
+        const remote =
+          stored.target === "upstream" ||
+          (stored.target === "request" && stored.sourceRepository !== stored.repository)
+            ? "upstream"
+            : "origin";
+        const refRoot = `refs/spi/reclaim/${stored.worktreeId}`;
+        const remoteBranch = `${refRoot}/branch`;
+        const branch = `refs/heads/${stored.branch}`;
+        const fetched = await this.git.fetchRef(target, remote, branch, remoteBranch);
+        if (!fetched.ok)
+          return this.keepFor(
+            db,
+            stored,
+            `Its pushed branch could not be read fresh from ${remote}: ${fetched.error}`,
+          );
+        const ancestor = await this.git.headIsAncestorOf(target, remoteBranch);
+        if (!ancestor.ok)
+          return this.keepFor(
+            db,
+            stored,
+            `Its pushed branch could not be compared: ${ancestor.error}`,
+          );
+        if (!ancestor.data)
+          return this.keepFor(
+            db,
+            stored,
+            "Local commits have not been proven on the pushed branch.",
+          );
+
+        const forge =
+          stored.forge === "github" || stored.forge === "gitlab"
+            ? stored.forge
+            : remote === "origin"
+              ? "github"
+              : "gitlab";
+        const requests = await this.git.requestRefs(target, remote, forge);
+        if (!requests.ok)
+          return this.keepFor(
+            db,
+            stored,
+            `Open requests for its branch could not be read: ${requests.error}`,
+          );
+        const remoteHead = await this.git.resolveRef(target, remoteBranch);
+        if (!remoteHead.ok)
+          return this.keepFor(
+            db,
+            stored,
+            `The fresh pushed branch could not be resolved: ${remoteHead.error}`,
+          );
+        const requestedHead = remoteHead.data.trim();
+        const matchingRequests = requestHeads(requests.data).filter(
+          ({ sha }) => sha === requestedHead,
+        );
+        if (matchingRequests.length > 0) {
+          const defaultBranch = `${refRoot}/default`;
+          const freshDefault = await this.git.fetch(target, {
+            remote,
+            tags: false,
+            head: defaultBranch,
+          });
+          if (!freshDefault.ok)
+            return this.keepFor(
+              db,
+              stored,
+              `The request's target branch could not be read fresh: ${freshDefault.error}`,
+            );
+          const merged = await this.git.isAncestorOf(target, remoteBranch, defaultBranch);
+          if (!merged.ok)
+            return this.keepFor(
+              db,
+              stored,
+              `The request's merge state could not be proved: ${merged.error}`,
+            );
+          if (!merged.data)
+            return this.keepFor(
+              db,
+              stored,
+              "An open request still names the pushed branch and is not proven merged.",
+            );
+        }
+
+        const removed = await this.git.removeWorktree(target);
+        if (!removed.ok)
+          return this.keepFor(db, stored, `The worktree could not be removed: ${removed.error}`);
+        db.prepare("DELETE FROM thread_workspaces WHERE thread_id = ?").run(threadId);
+        return {
+          worktree: "removed",
+          reason: "The worktree was removed; its pushed branch was retained.",
+        };
+      } catch (error) {
+        return this.keepFor(
+          db,
+          stored,
+          `The worktree could not be read safely: ${redactError(String(error))}`,
+        );
+      }
+    });
   }
 
   restoreWorktree(db: DatabaseSync, threadId: string): void {
     this.storage(db);
     db.prepare(
-      "UPDATE thread_workspaces SET deleted_at = NULL, reason = NULL WHERE thread_id = ?",
+      "UPDATE thread_workspaces SET deleted_at = NULL, reason = NULL, files = NULL WHERE thread_id = ?",
     ).run(threadId);
   }
 
@@ -450,7 +610,7 @@ export class ScopeWorkspaces {
     this.storage(db);
     return db
       .prepare(
-        `SELECT thread_id, repository, branch, path, reason
+        `SELECT thread_id, repository, branch, path, reason, files
            FROM thread_workspaces WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC`,
       )
       .all()
@@ -460,6 +620,7 @@ export class ScopeWorkspaces {
         branch: String(row.branch),
         path: String(row.path),
         reason: String(row.reason ?? "The worktree was kept for review."),
+        ...(row.files === null ? {} : { files: JSON.parse(String(row.files)) as string[] }),
       }));
   }
 
@@ -543,13 +704,29 @@ export class ScopeWorkspaces {
         target TEXT NOT NULL,
         source_repository TEXT,
         source_branch TEXT,
+        forge TEXT,
+        request_number INTEGER,
         created_at INTEGER NOT NULL,
         deleted_at INTEGER,
-        reason TEXT
+        reason TEXT,
+        files TEXT
       ) STRICT;
       CREATE UNIQUE INDEX IF NOT EXISTS thread_workspaces_branch
         ON thread_workspaces(repository, branch) WHERE deleted_at IS NULL;
     `);
+    const columns = new Set(
+      db
+        .prepare("PRAGMA table_info(thread_workspaces)")
+        .all()
+        .map((row) => String(row.name)),
+    );
+    for (const [name, type] of [
+      ["forge", "TEXT"],
+      ["request_number", "INTEGER"],
+      ["files", "TEXT"],
+    ] as const) {
+      if (!columns.has(name)) db.exec(`ALTER TABLE thread_workspaces ADD COLUMN ${name} ${type}`);
+    }
   }
 
   private storedWorktree(db: DatabaseSync, threadId: string) {
@@ -569,6 +746,43 @@ export class ScopeWorkspaces {
       branch: String(row.branch),
       baseRef: String(row.base_ref),
     };
+  }
+
+  private keptStoredWorktree(db: DatabaseSync, threadId: string) {
+    this.storage(db);
+    const row = db
+      .prepare(
+        `SELECT repository, clone_path, path, worktree_id, branch, base_ref, target,
+                source_repository, forge, request_number, deleted_at
+         FROM thread_workspaces WHERE thread_id = ?`,
+      )
+      .get(threadId);
+    if (!row || row.deleted_at === null) return undefined;
+    return {
+      repository: String(row.repository),
+      clonePath: String(row.clone_path),
+      path: String(row.path),
+      worktreeId: String(row.worktree_id),
+      branch: String(row.branch),
+      baseRef: String(row.base_ref),
+      target: String(row.target),
+      sourceRepository: row.source_repository === null ? undefined : String(row.source_repository),
+      forge: row.forge === null ? undefined : String(row.forge),
+      requestNumber: row.request_number === null ? undefined : Number(row.request_number),
+    };
+  }
+
+  private keepFor(
+    db: DatabaseSync,
+    stored: { readonly worktreeId: string },
+    reason: string,
+    files?: readonly string[],
+  ): Extract<WorktreeDisposition, { readonly worktree: "kept" }> {
+    db.prepare(
+      `UPDATE thread_workspaces
+       SET reason = ?, files = ? WHERE worktree_id = ? AND deleted_at IS NOT NULL`,
+    ).run(reason, files === undefined ? null : JSON.stringify(files), stored.worktreeId);
+    return { worktree: "kept", reason, ...(files === undefined ? {} : { files: [...files] }) };
   }
 
   private async claim<T>(key: string, action: () => Promise<T>): Promise<T> {

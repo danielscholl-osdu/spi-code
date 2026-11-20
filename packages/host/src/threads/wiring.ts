@@ -219,13 +219,19 @@ export function openThreadHost(options: ThreadHostOptions) {
             if (kept) workspaces.restoreWorktree(db, id);
             throw error;
           }
-          return kept;
+          if (!kept) return undefined;
+          return (await workspaces.reclaimWorktree(db, id)) ?? kept;
         });
       },
       worktrees: async () => {
         const git = await options.git();
         workspaces ??= options.workspaces(git);
         return workspaces.keptWorktrees(db);
+      },
+      reclaim: async (id: string, confirmedFiles: readonly string[] = []) => {
+        const git = await options.git();
+        workspaces ??= options.workspaces(git);
+        return workspaces.reclaimWorktree(db, id, confirmedFiles);
       },
       stop: () => {
         stopping ??= Promise.resolve()

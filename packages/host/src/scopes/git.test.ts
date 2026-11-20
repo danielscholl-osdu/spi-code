@@ -13,6 +13,7 @@ import {
   realpath,
   rename,
   rm,
+  symlink,
   writeFile,
 } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
@@ -434,46 +435,271 @@ describe("thread worktrees", () => {
     }
   });
 
-  it("marks a deleted thread's worktree as kept without reading or removing it", async () => {
+  it("removes a clean pushed worktree and prunes only its admin entry", async () => {
     const db = new DatabaseSync(":memory:");
     const git = gitRunner();
     const service = workspaces(git);
     try {
-      const landed = await service.land(db, scope, "delete-ignored", { target: "fork-main" });
+      const landed = await service.land(db, scope, "reclaim-clean", { target: "fork-main" });
       if (!landed.ok || landed.landsIn.target === "asking")
         throw new Error(landed.ok ? "Expected a worktree" : landed.error);
       const path = landed.landsIn.worktree;
-      await writeFile(join(path, "local-only.txt"), "local");
-      const status = vi.spyOn(git, "statusAll");
-      const rollback = vi.spyOn(git, "rollbackWorktree");
-      expect(await service.keepWorktree(db, "delete-ignored")).toMatchObject({
-        worktree: "kept",
-        reason: expect.stringContaining("kept"),
+      const branch = landed.landsIn.branch;
+      await fixtureGit(path, "push", origin, `HEAD:refs/heads/${branch}`);
+      const clone = getClone(await service.prepareAsking(scope)).cwd;
+      await service.keepWorktree(db, "reclaim-clean");
+      expect(await service.reclaimWorktree(db, "reclaim-clean")).toEqual({
+        worktree: "removed",
+        reason: expect.stringContaining("retained"),
       });
-      expect(status).not.toHaveBeenCalled();
-      expect(rollback).not.toHaveBeenCalled();
+      await expect(lstat(path)).rejects.toMatchObject({ code: "ENOENT" });
+      expect(db.prepare("SELECT COUNT(*) AS count FROM thread_workspaces").get()?.count).toBe(0);
+      await expect(
+        lstat(join(clone, ".git", "worktrees", "thread-reclaim-clean")),
+      ).rejects.toMatchObject({ code: "ENOENT" });
+      expect(
+        await fixtureGit(clone, "show-ref", "--hash", "--verify", `refs/heads/${branch}`),
+      ).toMatch(/^[0-9a-f]{40}$/u);
+    } finally {
+      db.close();
+    }
+  }, 120_000);
+
+  it("keeps dirty files unless the operator confirms the exact guarded list", async () => {
+    const db = new DatabaseSync(":memory:");
+    const service = workspaces();
+    try {
+      const landed = await service.land(db, scope, "reclaim-dirty", { target: "fork-main" });
+      if (!landed.ok || landed.landsIn.target === "asking")
+        throw new Error(landed.ok ? "Expected a worktree" : landed.error);
+      const path = landed.landsIn.worktree;
+      await fixtureGit(path, "push", origin, `HEAD:refs/heads/${landed.landsIn.branch}`);
+      await writeFile(join(path, "local-only.txt"), "local");
+      await writeFile(join(path, "answer.txt"), "modified");
+      const clone = getClone(await service.prepareAsking(scope)).cwd;
+      await mkdir(join(clone, ".git", "info"), { recursive: true });
+      await writeFile(join(clone, ".git", "info", "exclude"), "ignored-only.txt\n");
+      await writeFile(join(path, "ignored-only.txt"), "ignored");
+      await service.keepWorktree(db, "reclaim-dirty");
+      expect(await service.reclaimWorktree(db, "reclaim-dirty")).toEqual({
+        worktree: "kept",
+        reason: expect.stringMatching(/files would be lost/u),
+        files: ["answer.txt", "ignored-only.txt", "local-only.txt"],
+      });
       expect(await readFile(join(path, "local-only.txt"), "utf8")).toBe("local");
-      expect(await fixtureGit(path, "branch", "--show-current")).toBe("spi/delete-ignored");
       expect(service.keptWorktrees(db)).toEqual([
         expect.objectContaining({
-          threadId: "delete-ignored",
-          branch: "spi/delete-ignored",
-          path,
+          threadId: "reclaim-dirty",
+          files: ["answer.txt", "ignored-only.txt", "local-only.txt"],
         }),
       ]);
-      expect((await lstat(path)).isDirectory()).toBe(true);
+      expect(await service.reclaimWorktree(db, "reclaim-dirty", ["different.txt"])).toMatchObject({
+        worktree: "kept",
+      });
       expect(
-        db
-          .prepare("SELECT deleted_at, reason FROM thread_workspaces WHERE thread_id = ?")
-          .get("delete-ignored"),
-      ).toMatchObject({
-        deleted_at: expect.any(Number),
-        reason: expect.stringContaining("kept"),
+        await service.reclaimWorktree(db, "reclaim-dirty", [
+          "local-only.txt",
+          "ignored-only.txt",
+          "answer.txt",
+        ]),
+      ).toEqual({
+        worktree: "removed",
+        reason: expect.stringContaining("retained"),
       });
     } finally {
       db.close();
     }
-  });
+  }, 120_000);
+
+  it("keeps a branch whose local commits are missing from the fresh remote ref", async () => {
+    const db = new DatabaseSync(":memory:");
+    const service = workspaces();
+    try {
+      const landed = await service.land(db, scope, "reclaim-unpushed", { target: "fork-main" });
+      if (!landed.ok || landed.landsIn.target === "asking")
+        throw new Error(landed.ok ? "Expected a worktree" : landed.error);
+      const path = landed.landsIn.worktree;
+      await fixtureGit(path, "push", origin, `HEAD:refs/heads/${landed.landsIn.branch}`);
+      await writeFile(join(path, "answer.txt"), "local commit\n");
+      await fixtureGit(path, "add", "--", "answer.txt");
+      await fixtureGit(
+        path,
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "-m",
+        "Unpushed",
+      );
+      await service.keepWorktree(db, "reclaim-unpushed");
+      expect(await service.reclaimWorktree(db, "reclaim-unpushed")).toMatchObject({
+        worktree: "kept",
+        reason: expect.stringMatching(/commits.*not.*proven/u),
+      });
+    } finally {
+      db.close();
+    }
+  }, 120_000);
+
+  it("fails closed when a cached pushed ref is all that remains while offline", async () => {
+    const db = new DatabaseSync(":memory:");
+    const git = gitRunner();
+    const service = workspaces(git);
+    try {
+      const landed = await service.land(db, scope, "reclaim-offline", { target: "fork-main" });
+      if (!landed.ok || landed.landsIn.target === "asking")
+        throw new Error(landed.ok ? "Expected a worktree" : landed.error);
+      await fixtureGit(
+        landed.landsIn.worktree,
+        "push",
+        origin,
+        `HEAD:refs/heads/${landed.landsIn.branch}`,
+      );
+      const clone = getClone(await service.prepareAsking(scope)).cwd;
+      const target = {
+        clone,
+        worktree: { id: "thread-reclaim-offline", cwd: landed.landsIn.worktree },
+      };
+      await git.fetchRef(
+        target,
+        "origin",
+        `refs/heads/${landed.landsIn.branch}`,
+        "refs/spi/cached",
+      );
+      await rename(origin, `${origin}.offline`);
+      await service.keepWorktree(db, "reclaim-offline");
+      expect(await service.reclaimWorktree(db, "reclaim-offline")).toMatchObject({
+        worktree: "kept",
+        reason: expect.stringMatching(/read fresh/u),
+      });
+      expect((await lstat(landed.landsIn.worktree)).isDirectory()).toBe(true);
+    } finally {
+      db.close();
+    }
+  }, 120_000);
+
+  it("keeps an open request, then removes it once the head is proven merged", async () => {
+    const db = new DatabaseSync(":memory:");
+    const service = workspaces();
+    try {
+      const landed = await service.land(db, scope, "reclaim-request", { target: "fork-main" });
+      if (!landed.ok || landed.landsIn.target === "asking")
+        throw new Error(landed.ok ? "Expected a worktree" : landed.error);
+      const path = landed.landsIn.worktree;
+      await writeFile(join(path, "answer.txt"), "request commit\n");
+      await fixtureGit(path, "add", "--", "answer.txt");
+      await fixtureGit(
+        path,
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "-m",
+        "Request",
+      );
+      await fixtureGit(path, "push", origin, `HEAD:refs/heads/${landed.landsIn.branch}`);
+      await fixtureGit(path, "push", origin, "HEAD:refs/pull/42/head");
+      await service.keepWorktree(db, "reclaim-request");
+      expect(await service.reclaimWorktree(db, "reclaim-request")).toMatchObject({
+        worktree: "kept",
+        reason: expect.stringMatching(/open request.*not proven merged/u),
+      });
+      await fixtureGit(path, "push", origin, "HEAD:refs/heads/main");
+      expect(await service.reclaimWorktree(db, "reclaim-request")).toEqual({
+        worktree: "removed",
+        reason: expect.stringContaining("retained"),
+      });
+    } finally {
+      db.close();
+    }
+  }, 120_000);
+
+  it("removes a closed request after its exposed request ref is gone", async () => {
+    const db = new DatabaseSync(":memory:");
+    const service = workspaces();
+    try {
+      const landed = await service.land(db, scope, "reclaim-closed", { target: "fork-main" });
+      if (!landed.ok || landed.landsIn.target === "asking")
+        throw new Error(landed.ok ? "Expected a worktree" : landed.error);
+      const path = landed.landsIn.worktree;
+      await writeFile(join(path, "answer.txt"), "request commit\n");
+      await fixtureGit(path, "add", "--", "answer.txt");
+      await fixtureGit(
+        path,
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "-m",
+        "Closed request",
+      );
+      await fixtureGit(path, "push", origin, `HEAD:refs/heads/${landed.landsIn.branch}`);
+      await fixtureGit(path, "push", origin, "HEAD:refs/pull/43/head");
+      await fixtureGit(root, "--git-dir", origin, "update-ref", "-d", "refs/pull/43/head");
+      await service.keepWorktree(db, "reclaim-closed");
+      expect(await service.reclaimWorktree(db, "reclaim-closed")).toMatchObject({
+        worktree: "removed",
+      });
+    } finally {
+      db.close();
+    }
+  }, 120_000);
+
+  it("keeps the worktree and outside data when its path resolves through a symlink", async () => {
+    const db = new DatabaseSync(":memory:");
+    const service = workspaces();
+    try {
+      const landed = await service.land(db, scope, "reclaim-symlink", { target: "fork-main" });
+      if (!landed.ok || landed.landsIn.target === "asking")
+        throw new Error(landed.ok ? "Expected a worktree" : landed.error);
+      const path = landed.landsIn.worktree;
+      await fixtureGit(path, "push", origin, `HEAD:refs/heads/${landed.landsIn.branch}`);
+      await service.keepWorktree(db, "reclaim-symlink");
+      const outside = join(root, "outside");
+      await mkdir(outside);
+      const marker = join(outside, "outside.txt");
+      await writeFile(marker, "outside");
+      await rm(path, { recursive: true });
+      await symlink(outside, path, "dir");
+      expect(await service.reclaimWorktree(db, "reclaim-symlink")).toMatchObject({
+        worktree: "kept",
+        reason: expect.stringMatching(/could not be read safely/u),
+      });
+      expect(await readFile(marker, "utf8")).toBe("outside");
+    } finally {
+      db.close();
+    }
+  }, 120_000);
+
+  it("keeps the worktree when its guarded status cannot be read", async () => {
+    const db = new DatabaseSync(":memory:");
+    const git = gitRunner();
+    const service = workspaces(git);
+    try {
+      const landed = await service.land(db, scope, "reclaim-unreadable", {
+        target: "fork-main",
+      });
+      if (!landed.ok || landed.landsIn.target === "asking")
+        throw new Error(landed.ok ? "Expected a worktree" : landed.error);
+      await fixtureGit(
+        landed.landsIn.worktree,
+        "push",
+        origin,
+        `HEAD:refs/heads/${landed.landsIn.branch}`,
+      );
+      await service.keepWorktree(db, "reclaim-unreadable");
+      vi.spyOn(git, "statusAll").mockResolvedValue({ ok: false, error: "status failed", code: 1 });
+      expect(await service.reclaimWorktree(db, "reclaim-unreadable")).toMatchObject({
+        worktree: "kept",
+        reason: expect.stringMatching(/files could not be read/u),
+      });
+    } finally {
+      db.close();
+    }
+  }, 120_000);
 
   it("rolls back a newly allocated landing when the journal cannot record it", async () => {
     const db = new DatabaseSync(":memory:");
@@ -922,11 +1148,15 @@ describe("privileged Git", () => {
         "dataRoot",
         "diff",
         "fetch",
+        "fetchRef",
         "head",
         "headIsAncestorOf",
+        "isAncestorOf",
         "listWorktrees",
         "push",
         "remoteUrl",
+        "removeWorktree",
+        "requestRefs",
         "resolveRef",
         "rollbackWorktree",
         "status",

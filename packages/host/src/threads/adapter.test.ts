@@ -644,6 +644,34 @@ it("restores a retained worktree row when the delete journal entry fails", async
   }
 });
 
+it("reclaims a kept worktree with the operator's exact confirmation", async () => {
+  const { runtime } = recordedRuntime();
+  const reclaim = vi.spyOn(ScopeWorkspaces.prototype, "reclaimWorktree").mockResolvedValue({
+    worktree: "removed",
+    reason: "The worktree was removed; its pushed branch was retained.",
+  });
+  try {
+    const port = await connect(runtime);
+    expect(
+      await port.response(
+        port.dispatch("thread.worktree.reclaim", {
+          threadId: port.threadId,
+          confirmedFiles: ["local-only.txt"],
+        }),
+      ),
+    ).toMatchObject({
+      type: "thread.worktree.reclaimed",
+      payload: {
+        threadId: port.threadId,
+        worktree: "removed",
+      },
+    });
+    expect(reclaim).toHaveBeenCalledWith(database, port.threadId, ["local-only.txt"]);
+  } finally {
+    reclaim.mockRestore();
+  }
+});
+
 it("waits for a stopped session open to release before starting the queued turn", async () => {
   const {
     runtime,

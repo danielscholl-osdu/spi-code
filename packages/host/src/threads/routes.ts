@@ -186,6 +186,23 @@ export class ThreadRoutes {
         payload: { worktrees: await this.open().worktrees() },
       });
     },
+    "thread.worktree.reclaim": async (request, send) => {
+      if (request.type !== "thread.worktree.reclaim") return;
+      const { threadId, confirmedFiles } = request.payload;
+      try {
+        const disposition = await this.open().reclaim(threadId, confirmedFiles);
+        if (!disposition) throw new Error("The worktree is not in the kept list.");
+        send({
+          version: PROTOCOL_VERSION,
+          id: request.id,
+          kind: "response",
+          type: "thread.worktree.reclaimed",
+          payload: { threadId, ...disposition },
+        });
+      } catch (error) {
+        this.failed(request, send, error, "worktree_reclaim_failed");
+      }
+    },
     "thread.chip": async (request, send) => {
       if (request.type !== "thread.chip") return;
       const { id } = request.payload;

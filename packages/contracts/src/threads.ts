@@ -209,9 +209,26 @@ export const ThreadMessageSchema = z.discriminatedUnion("type", [
           branch: id,
           path: id,
           reason: id,
+          files: z.array(id).optional(),
         }),
       ),
     }),
+  ),
+  envelope(
+    "thread.worktree.reclaim",
+    "request",
+    threadId.extend({ confirmedFiles: z.array(id).optional() }).strict(),
+  ),
+  envelope(
+    "thread.worktree.reclaimed",
+    "response",
+    threadId
+      .extend({
+        worktree: z.enum(["removed", "kept"]),
+        reason: id,
+        files: z.array(id).optional(),
+      })
+      .strict(),
   ),
   envelope("thread.send", "request", threadId.extend({ message }).strict()),
   envelope("thread.sent", "response", threadId.extend({ outcome }).strict()),
