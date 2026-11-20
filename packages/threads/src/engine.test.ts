@@ -146,6 +146,61 @@ it("journals text through the redactor before a tool call and an approval reques
   database.close();
 });
 
+it.each([
+  {
+    name: "a YAML password",
+    path: "/wt/app.yaml",
+    diff: "@@ -1 +1 @@\n-password: oldSyntheticValue1\n+password: newSyntheticValue2\n",
+  },
+  {
+    name: "a token assignment",
+    path: "/wt/Auth.java",
+    diff: "@@ -1 +1 @@\n-    String token = request.getHeader(name);\n+    String token = request.getParameter(name);\n",
+  },
+  {
+    name: "an API key lookup",
+    path: "/wt/client.ts",
+    diff: "@@ -1 +1 @@\n-const apiKey = process.env.OLD_NAME;\n+const api_key = settings.lookup;\n",
+  },
+  {
+    name: "an env example",
+    path: "/wt/.env.example",
+    diff: "@@ -0,0 +1 @@\n+CLIENT_SECRET=replace-me-synthetic\n",
+  },
+  {
+    name: "an assignment-shaped path",
+    path: "/wt/token=abcdefghijklmnop/file.ts",
+    diff: "+x\n",
+  },
+  {
+    name: "an empty diff",
+    path: "/wt/new.ts",
+    diff: "",
+  },
+])("refuses an asking write with $name", async ({ path, diff }) => {
+  const { engine, turn, database } = harness();
+  const id = engine.create({ scope: "partition" });
+  const outcome = engine.send(id, { prompt: "Edit" });
+  const { events, finish } = await turn();
+  await expect(
+    events.requestApproval({ approvalId: "edit", kind: "write", detail: path, path, diff }),
+  ).resolves.toBe(false);
+  expect(engine.decideApproval(id, engine.read(id).turns[0]?.id ?? "", "edit", true)).toBe(false);
+  const approval = engine
+    .eventsSince(id, 0)
+    .find((event) => event.type === "approval.requested" && event.approvalId === "edit");
+  expect(approval).toMatchObject({
+    type: "approval.requested",
+    asked: false,
+    reason: expect.stringMatching(
+      /secret, so it can't be shown for approval|no diff to show for approval/,
+    ),
+  });
+  finish();
+  await outcome;
+  database.close();
+});
+
 it("will not delete a thread while a command or turn is running", async () => {
   const { engine, turn, database } = harness();
   const id = engine.create({ scope: "partition" });

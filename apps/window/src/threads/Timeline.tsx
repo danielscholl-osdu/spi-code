@@ -164,7 +164,9 @@ function Row({ row, open, toggle, onOpenLink, onApprovalDecision }: RowProps) {
                   ? "Approved once"
                   : row.status === "declined"
                     ? "Declined"
-                    : "Cancelled"}
+                    : row.status === "refused"
+                      ? "Refused"
+                      : "Cancelled"}
             </span>
           </p>
           {row.path && <code className="thread-approval-path">{row.path}</code>}

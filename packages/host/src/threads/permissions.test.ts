@@ -1,10 +1,12 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import type { PermissionRequest } from "@github/copilot-sdk";
+import { ThreadEngine } from "@spi-code/threads";
 import { afterEach, expect, it, vi } from "vitest";
 import {
   type AccessMode,
@@ -24,8 +26,18 @@ function workspace() {
   const clonePath = join(root, "clone");
   const worktreePath = join(root, "worktree");
   const tempPath = join(root, "temp");
+  const outsidePath = join(root, "outside");
+  const cloneGitPath = join(clonePath, ".git");
   for (const path of [clonePath, worktreePath, tempPath]) mkdirSync(path);
-  return { root, clonePath, worktreePath, tempPath };
+  mkdirSync(cloneGitPath);
+  mkdirSync(outsidePath);
+  writeFileSync(join(cloneGitPath, "HEAD"), "ref: refs/heads/main\n");
+  writeFileSync(join(worktreePath, ".git"), "gitdir: ../clone/.git/worktrees/thread\n");
+  writeFileSync(join(worktreePath, "src.ts"), "before");
+  writeFileSync(join(worktreePath, "other.ts"), "other");
+  writeFileSync(join(outsidePath, "secret.txt"), "outside");
+  symlinkSync(outsidePath, join(worktreePath, "outside-link"), "dir");
+  return { root, clonePath, worktreePath, tempPath, outsidePath, cloneGitPath };
 }
 
 function request(kind: string): PermissionRequest {
@@ -139,7 +151,10 @@ it.each(["supervised", "auto-accept-edits"] as const)(
       mode,
     });
     for (const kind of Object.keys(PERMISSION_POLICY)) {
-      await handler(request(kind), { sessionId: "fixture" });
+      const probe = request(kind);
+      await handler(probe.kind === "write" ? { ...probe, fileName: join(root, "src.ts") } : probe, {
+        sessionId: "fixture",
+      });
       const expected = permissionDecision(kind, mode);
       const recorded = requestApproval.mock.calls.at(-1)?.[1];
       expect(recorded, kind).toBe(
@@ -180,12 +195,15 @@ it("shows and journals the exact edit path and diff before a supervised approval
   const paths = workspace();
   const requestApproval = vi.fn(async () => true);
   const events = { requestApproval, delta() {}, toolStarted() {}, toolFinished() {} };
-  const edit = request("write");
+  const edit = {
+    ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+    fileName: join(paths.worktreePath, "src.ts"),
+  };
   await askingPermission(paths, () => events)(edit, { sessionId: "fixture" });
   expect(requestApproval).toHaveBeenCalledWith(
     expect.objectContaining({
-      path: edit.kind === "write" ? edit.fileName : "",
-      diff: edit.kind === "write" ? edit.diff : "",
+      path: edit.fileName,
+      diff: edit.diff,
     }),
     undefined,
   );
@@ -198,7 +216,11 @@ it("refuses a redacted write without applying it", async () => {
   const events = { requestApproval, delta() {}, toolStarted() {}, toolFinished() {} };
   const edit = request("write") as Extract<PermissionRequest, { kind: "write" }>;
   const result = await askingPermission(paths, () => events, { mode: "auto-accept-edits" })(
-    { ...edit, diff: `${edit.diff}\n+[redacted]` },
+    {
+      ...edit,
+      fileName: join(paths.worktreePath, "src.ts"),
+      diff: `${edit.diff}\n+[redacted]`,
+    },
     { sessionId: "fixture" },
   );
   if (result.kind === "approve-once") applied = true;
@@ -208,6 +230,301 @@ it("refuses a redacted write without applying it", async () => {
     reason: "This edit contains redacted text and cannot be written back.",
   });
 });
+
+const modes = ["supervised", "auto-accept-edits"] as const;
+const boundaryRows = [
+  {
+    name: "the clone's .git",
+    request: (paths: ReturnType<typeof workspace>) =>
+      ({
+        ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+        fileName: join(paths.cloneGitPath, "HEAD"),
+      }) as PermissionRequest,
+    gateDenied: false,
+    reason: "This thread is not allowed to edit this path.",
+  },
+  {
+    name: "a relative path through dot-dot to the clone's .git",
+    request: (paths: ReturnType<typeof workspace>) =>
+      ({
+        ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+        fileName: join(paths.worktreePath, "..", "clone", ".git", "HEAD"),
+      }) as PermissionRequest,
+    gateDenied: false,
+    reason: "This thread is not allowed to edit this path.",
+  },
+  {
+    name: "a clone file",
+    request: (paths: ReturnType<typeof workspace>) =>
+      ({
+        ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+        fileName: join(paths.clonePath, "README.md"),
+      }) as PermissionRequest,
+    gateDenied: false,
+    reason: "This thread is not allowed to edit this path.",
+  },
+  {
+    name: "the worktree .git pointer",
+    request: (paths: ReturnType<typeof workspace>) =>
+      ({
+        ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+        fileName: join(paths.worktreePath, ".git"),
+      }) as PermissionRequest,
+    gateDenied: false,
+    reason: "This thread is not allowed to edit this path.",
+  },
+  {
+    name: "a relative dot-dot path",
+    request: (_paths: ReturnType<typeof workspace>) =>
+      ({
+        ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+        fileName: "../outside/secret.txt",
+      }) as PermissionRequest,
+    gateDenied: false,
+    reason: "This thread is not allowed to edit this path.",
+  },
+  {
+    name: "an absolute outside path",
+    request: (paths: ReturnType<typeof workspace>) =>
+      ({
+        ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+        fileName: join(paths.outsidePath, "secret.txt"),
+      }) as PermissionRequest,
+    gateDenied: false,
+    reason: "This thread is not allowed to edit this path.",
+  },
+  {
+    name: "a symlink to outside",
+    request: (paths: ReturnType<typeof workspace>) =>
+      ({
+        ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+        fileName: join(paths.worktreePath, "outside-link", "secret.txt"),
+      }) as PermissionRequest,
+    gateDenied: false,
+    reason: "This thread is not allowed to edit this path.",
+  },
+  {
+    name: "a symlink to the clone's .git",
+    request: (paths: ReturnType<typeof workspace>) => {
+      symlinkSync(paths.cloneGitPath, join(paths.worktreePath, "git-link"), "dir");
+      return {
+        ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+        fileName: join(paths.worktreePath, "git-link", "HEAD"),
+      } as PermissionRequest;
+    },
+    gateDenied: false,
+    reason: "This thread is not allowed to edit this path.",
+  },
+  {
+    name: "a mismatched resolvedPath",
+    request: (paths: ReturnType<typeof workspace>) =>
+      ({
+        ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+        fileName: join(paths.worktreePath, "src.ts"),
+        resolvedPath: join(paths.worktreePath, "other.ts"),
+      }) as PermissionRequest,
+    gateDenied: false,
+    reason: "This thread is not allowed to edit this path.",
+  },
+  {
+    name: "an outside fileEdits path",
+    request: (paths: ReturnType<typeof workspace>) =>
+      ({
+        ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+        fileName: join(paths.worktreePath, "src.ts"),
+        fileEdits: [
+          {
+            before: { path: join(paths.worktreePath, "src.ts"), content: "before" },
+            after: { path: join(paths.outsidePath, "secret.txt"), content: "after" },
+          },
+        ],
+      }) as PermissionRequest,
+    gateDenied: false,
+    reason: "This thread is not allowed to edit this path.",
+  },
+  {
+    name: "a fileEdits move outside",
+    request: (paths: ReturnType<typeof workspace>) =>
+      ({
+        ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+        fileName: join(paths.worktreePath, "src.ts"),
+        fileEdits: [
+          {
+            before: { path: join(paths.worktreePath, "src.ts"), content: "before" },
+            after: { path: join(paths.outsidePath, "moved.ts"), content: "after" },
+          },
+        ],
+      }) as PermissionRequest,
+    gateDenied: false,
+    reason: "This thread is not allowed to edit this path.",
+  },
+  {
+    name: "a read with only sandboxPathGrant",
+    request: (paths: ReturnType<typeof workspace>) =>
+      ({
+        kind: "read",
+        intention: "Read",
+        path: join(paths.worktreePath, "src.ts"),
+        sandboxPathGrant: { access: "readWrite", path: paths.outsidePath },
+      }) as PermissionRequest,
+    gateDenied: false,
+    reason: "Sandbox bypasses and path grants are not allowed.",
+  },
+  {
+    name: "a permissive-only read",
+    request: (paths: ReturnType<typeof workspace>) =>
+      ({
+        kind: "read",
+        intention: "Read",
+        path: join(paths.worktreePath, "src.ts"),
+        requestSandboxPermissive: true,
+      }) as PermissionRequest,
+    gateDenied: false,
+    reason: "Sandbox bypasses and path grants are not allowed.",
+  },
+  {
+    name: "a gate-denied read",
+    request: (paths: ReturnType<typeof workspace>) =>
+      ({
+        kind: "read",
+        intention: "Read",
+        path: join(paths.worktreePath, "src.ts"),
+      }) as PermissionRequest,
+    gateDenied: true,
+    reason: "The sandbox denied this request.",
+  },
+] as const;
+
+it.each(boundaryRows.flatMap((row) => modes.map((mode) => ({ ...row, mode }))))(
+  "denies $name in $mode mode",
+  async ({ request: makeRequest, gateDenied, mode, reason }) => {
+    const paths = workspace();
+    const requestApproval = vi.fn(
+      async (_request: object, decision?: boolean) => decision !== false,
+    );
+    const events = { requestApproval, delta() {}, toolStarted() {}, toolFinished() {} };
+    const result = await askingPermission(paths, () => events, { mode, gateDenied })(
+      makeRequest(paths),
+      { sessionId: "fixture" },
+    );
+    expect(result).toEqual({ kind: "reject" });
+    expect(requestApproval).toHaveBeenCalledWith(expect.objectContaining({ reason }), false);
+  },
+);
+
+it("draws new file contents as an all-added diff", async () => {
+  const paths = workspace();
+  const requestApproval = vi.fn(async () => true);
+  const events = { requestApproval, delta() {}, toolStarted() {}, toolFinished() {} };
+  await askingPermission(paths, () => events)(
+    {
+      ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+      fileName: join(paths.worktreePath, "new.ts"),
+      diff: "",
+      newFileContents: "export const value = 1;\n",
+    },
+    { sessionId: "fixture" },
+  );
+  expect(requestApproval).toHaveBeenCalledWith(
+    expect.objectContaining({ diff: "+export const value = 1;\n" }),
+    undefined,
+  );
+});
+
+it.each(modes)("denies an empty write in %s mode", async (mode) => {
+  const paths = workspace();
+  const requestApproval = vi.fn(async () => false);
+  const events = { requestApproval, delta() {}, toolStarted() {}, toolFinished() {} };
+  const result = await askingPermission(paths, () => events, { mode })(
+    {
+      ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+      fileName: join(paths.worktreePath, "src.ts"),
+      diff: "",
+      newFileContents: "",
+    },
+    { sessionId: "fixture" },
+  );
+  expect(result).toEqual({ kind: "reject" });
+  expect(requestApproval).toHaveBeenCalledWith(
+    expect.objectContaining({ reason: "This edit has no diff to show for approval." }),
+    false,
+  );
+});
+
+it("asks for a managed write in Auto-accept edits mode", async () => {
+  const paths = workspace();
+  const requestApproval = vi.fn(async () => true);
+  const events = { requestApproval, delta() {}, toolStarted() {}, toolFinished() {} };
+  await askingPermission(paths, () => events, { mode: "auto-accept-edits" })(
+    {
+      ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+      fileName: join(paths.worktreePath, "src.ts"),
+      managedApprovalRequired: true,
+    },
+    { sessionId: "fixture" },
+  );
+  expect(requestApproval).toHaveBeenCalledWith(expect.any(Object), undefined);
+});
+
+it.each([
+  {
+    mode: "supervised",
+    result: { kind: "reject" },
+    resolved: false,
+  },
+  {
+    mode: "auto-accept-edits",
+    result: { kind: "approve-once" },
+    resolved: true,
+  },
+] as const)(
+  "handles a secret-shaped Supervised diff according to $mode mode",
+  async ({ mode, result, resolved }) => {
+    const paths = workspace();
+    const database = new DatabaseSync(":memory:");
+    const secret = "probe-secret-12345";
+    let permission: Awaited<ReturnType<ReturnType<typeof askingPermission>>> | undefined;
+    const engine = new ThreadEngine(database, {
+      workspace: { resolve: () => ({ cwd: paths.worktreePath }) },
+      context: { prepare: () => ({ instructions: "", attachments: [] }) },
+      tools: { offer: () => [] },
+      runtime: {
+        async run(_input, events) {
+          permission = await askingPermission(paths, () => events, { mode })(
+            {
+              ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+              fileName: join(paths.worktreePath, "app.yaml"),
+              diff: `@@ -1 +1 @@\n-old\n+password: ${secret}\n`,
+            },
+            { sessionId: "fixture" },
+          );
+        },
+      },
+    });
+    try {
+      const id = engine.create({ scope: "partition" });
+      await engine.send(id, { prompt: "Edit" });
+      expect(permission).toEqual(result);
+      expect(engine.eventsSince(id, 0)).toContainEqual(
+        expect.objectContaining({
+          type: "approval.resolved",
+          approved: resolved,
+        }),
+      );
+      if (mode === "supervised")
+        expect(engine.eventsSince(id, 0)).toContainEqual(
+          expect.objectContaining({
+            type: "approval.requested",
+            asked: false,
+            reason:
+              "This edit contains text that looks like a secret, so it can't be shown for approval",
+          }),
+        );
+    } finally {
+      database.close();
+    }
+  },
+);
 
 it("denies an unknown kind with a visible reason", async () => {
   const paths = workspace();

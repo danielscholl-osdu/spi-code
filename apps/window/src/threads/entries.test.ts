@@ -186,3 +186,42 @@ it("keeps an approval's exact edit and says a restarted approval applied nothing
     reason: "SPI Code restarted before the edit was approved. The edit was not applied.",
   });
 });
+
+it("omits host-passed approvals and labels host refusals", () => {
+  const { entries } = threadEntries(
+    [
+      created,
+      { ...turn("u1"), type: "turn.started", messageId: "m1" },
+      {
+        ...turn("u1"),
+        type: "approval.requested",
+        approvalId: "pass",
+        kind: "read",
+        detail: "/repo/src.ts",
+        path: "/repo/src.ts",
+        asked: false,
+      },
+      { ...turn("u1"), type: "approval.resolved", approvalId: "pass", approved: true },
+      {
+        ...turn("u1"),
+        type: "approval.requested",
+        approvalId: "deny",
+        kind: "write",
+        detail: "/repo/src.ts",
+        path: "/repo/src.ts",
+        reason: "This thread is not allowed to edit this path.",
+        asked: false,
+      },
+      { ...turn("u1"), type: "approval.resolved", approvalId: "deny", approved: false },
+    ],
+    models,
+  );
+  expect(entries).toEqual([
+    expect.objectContaining({
+      kind: "approval",
+      id: "deny",
+      status: "refused",
+      reason: "This thread is not allowed to edit this path.",
+    }),
+  ]);
+});

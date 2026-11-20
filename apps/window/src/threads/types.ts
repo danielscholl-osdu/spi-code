@@ -58,7 +58,7 @@ export interface Approval {
   approvalId: string;
   turnId: string;
   requestKind: string;
-  status: "pending" | "approved" | "declined" | "cancelled";
+  status: "pending" | "approved" | "declined" | "refused" | "cancelled";
   detail: string;
   path?: string;
   diff?: string;
