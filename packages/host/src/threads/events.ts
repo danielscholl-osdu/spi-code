@@ -110,11 +110,13 @@ export function trackTurn(
         if (!consumed) break;
         if (aborted || event.data.aborted) {
           finish(
-            refusal
+            refusal === "awaiting-reply"
               ? { outcome: "stopped", reason: "refused-tool" }
               : new Error("Copilot interrupted the turn."),
           );
-        } else if (!ended || refusal === "awaiting-reply") {
+        } else if (!ended) {
+          break;
+        } else if (refusal === "awaiting-reply") {
           finish(new Error("Copilot did not confirm how the turn ended."));
         } else {
           finish();

@@ -903,6 +903,29 @@ it("refuses a read whose .. follows a symlink outside the clone on POSIX", async
   await expect(read(traversal)).resolves.toEqual({ kind: "reject" });
 });
 
+it.skipIf(process.platform === "win32").each([
+  { label: "absolute", relative: false, depth: 2, target: "secret.txt" },
+  { label: "relative", relative: true, depth: 2, target: "secret.txt" },
+  { label: "absolute into scratch", relative: false, depth: 3, target: "scratch.txt" },
+])("refuses a $label read when symlink traversal and lexical resolution disagree", async (row) => {
+  const { clone, managed, read, tempPath } = askingFiles();
+  const tail = row.target === "scratch.txt" ? ["scratch", row.target] : [row.target];
+  const physical = join(clone, "inside", ...tail);
+  const lexical =
+    row.target === "scratch.txt" ? join(tempPath, row.target) : join(managed, row.target);
+  const linked = join(clone, "inside", ...Array.from({ length: row.depth }, () => "child"));
+  mkdirSync(linked, { recursive: true });
+  mkdirSync(dirname(physical), { recursive: true });
+  symlinkSync(linked, join(clone, "linked"), "dir");
+  writeFileSync(physical, "Inside");
+  writeFileSync(lexical, "Outside");
+  const traversal = ["linked", ...Array.from({ length: row.depth }, () => ".."), ...tail].join(sep);
+  const absolute = `${clone}${sep}${traversal}`;
+  expect(realpathSync.native(absolute)).toBe(physical);
+  expect(realpathSync.native(join(clone, traversal))).toBe(lexical);
+  await expect(read(row.relative ? traversal : absolute)).resolves.toEqual({ kind: "reject" });
+});
+
 it("approves an inside read when a parent of the clone is symlinked", async () => {
   const { file, managed, read } = askingFiles();
   const alias = join(root, "alias");
@@ -946,6 +969,21 @@ function shortName(path: string, alias: string): string {
   expect(realpathSync.native(short)).toBe(realpathSync.native(path));
   return short;
 }
+
+it("refuses a Windows rooted read without a drive", async ({ skip }) => {
+  if (process.platform !== "win32") skip("A Windows drive root is required");
+  const { read } = askingFiles();
+  const clone = mkdtempSync(join(process.cwd(), ".asking-drive-"));
+  try {
+    const file = join(clone, "ReadMe.md");
+    writeFileSync(file, "Inside");
+    const driveLess = file.slice(2);
+    expect(realpathSync.native(driveLess)).toBe(realpathSync.native(file));
+    await expect(read(driveLess, undefined, clone)).resolves.toEqual({ kind: "reject" });
+  } finally {
+    rmSync(clone, { recursive: true, force: true });
+  }
+});
 
 it("approves a Windows 8.3 spelling of an inside path", async ({ skip }) => {
   if (process.platform !== "win32") skip("Windows NTFS 8.3 names are required");
