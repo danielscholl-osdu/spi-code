@@ -436,6 +436,7 @@ export async function packageDesktop(platform = process.platform) {
           ...env,
           MXC_FFI_DIR: join(unpackedMxcBin, mxcTargets[platform].arch),
           SPI_CODE_WINDOWS_MXC_BIN: unpackedMxcBin,
+          PATH: `${process.env.SystemRoot ?? String.raw`C:\Windows`}\\System32;${process.env.PATH ?? ""}`,
         },
         stdio: "inherit",
         timeout: 180_000,
