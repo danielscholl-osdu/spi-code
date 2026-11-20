@@ -54,6 +54,8 @@ export type SmokeGeometry =
       clear: number;
       title: SmokeRect;
       pin: SmokeRect | null;
+      /** A service's Ask, after the pin control. */
+      ask?: SmokeRect | null;
       toggle: SmokeRect | null;
     }
   | {
@@ -387,20 +389,35 @@ export function assertSmokeGeometry(
       assert(y >= -0.02 && y + height <= 44.02, `Top-row pin control off the row at y ${y}`);
       assert(x + width <= value.clear + 0.02, "Top-row pin control under the window controls");
       assert(x >= value.title.x + value.title.width, "Top-row pin control overlaps the title");
-      let toggle: SmokeRect | null = null;
-      if (value.toggle !== null && value.toggle !== undefined) {
-        rect(value.toggle);
-        toggle = value.toggle;
+      const after: [string, SmokeRect][] = [];
+      for (const [name, item] of [
+        ["Ask", value.ask],
+        ["right-panel toggle", value.toggle],
+      ] as const) {
+        if (item === null || item === undefined) continue;
+        rect(item);
+        assert(item.y >= -0.02 && item.y + item.height <= 44.02, `Top-row ${name} off the row`);
+        assert(
+          item.x + item.width <= value.clear + 0.02,
+          `Top-row ${name} under the window controls`,
+        );
+        after.push([name, item]);
       }
-      const expected = toggle ? value.end - toggle.width - 6 : value.end;
+      const expected = after.reduce((edge, [, item]) => edge - item.width - 6, value.end);
       assert(
         Math.abs(x + width - expected) <= 1,
         `Top-row pin control ends at ${x + width}, not ${expected}`,
       );
-      assert(
-        !toggle || Math.abs(toggle.x - 6 - (x + width)) <= 1,
-        "Top-row pin control is not 6 px before the right-panel toggle",
-      );
+      let edge = x + width;
+      let before = "pin control";
+      for (const [name, item] of after) {
+        assert(
+          Math.abs(item.x - 6 - edge) <= 1,
+          `Top-row ${before} is not 6 px before the ${name}`,
+        );
+        edge = item.x + item.width;
+        before = name;
+      }
       break;
     }
     case "overlay-drag": {

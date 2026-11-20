@@ -1,6 +1,9 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import type { ReactNode } from "react";
+import type { IconName } from "../components/icons/Icon.js";
+
 /** How a call or a setup step ended. `unknown` is a step whose end the host never saw. */
 export type StepStatus = "running" | "done" | "failed" | "unknown";
 
@@ -80,6 +83,8 @@ export interface PlaceOption {
 export interface ScopeOption {
   id: string;
   label: string;
+  /** Its sidebar icon. */
+  icon?: IconName;
 }
 
 export interface ModelOption {
@@ -108,9 +113,6 @@ export interface CopilotAccount {
 
 export interface ComposerProps {
   scope: ScopeOption;
-  /** Offered while the thread is a draft; once sent the scope is fixed. */
-  scopes?: readonly ScopeOption[];
-  onScopeChange?(id: string): void;
   context: readonly ContextChip[];
   onRemoveContext(id: string): void;
   places: readonly PlaceOption[];
@@ -134,6 +136,8 @@ export interface ThreadViewProps extends ComposerProps {
   entries: readonly TimelineEntry[];
   /** The first context's line: scope, sweep time and size ("Context · partition · from the sweep at 13:50 · 1 item"). */
   contextLine?: string | undefined;
-  /** Where a draft started from ("Started from Today › Blocked › Sync halted"). */
-  origin?: string;
+  /** A draft's scope control, which opens the scope picker; once sent the scope is fixed. */
+  onChangeScope?(): void;
+  /** What a draft shows under its composer. */
+  below?: ReactNode;
 }

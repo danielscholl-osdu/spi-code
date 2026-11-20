@@ -11,6 +11,7 @@ import { Icon } from "../../components/icons/Icon.js";
 import { LinkPill } from "../../components/kit/LinkPill.js";
 import { PinControl } from "../../components/pin/PinControl.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
+import { AskButton } from "../../threads/AskButton.js";
 import { TABS } from "./tabs.js";
 import "./service.css";
 
@@ -71,7 +72,14 @@ export default function ServicePage({
 
 function TopBar({ id, home }: { id: string; home: ServiceHome | undefined }) {
   return (
-    <PaneTitle end={<PinControl pin={id} name={id} />}>
+    <PaneTitle
+      end={
+        <>
+          <PinControl pin={id} name={id} />
+          <AskButton scope={id} />
+        </>
+      }
+    >
       <h1 data-place>{id}</h1>
       {home && (
         <span className="service-top">

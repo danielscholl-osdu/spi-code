@@ -26,7 +26,7 @@ export type OpenedBodyProps = {
 };
 
 /** What Ask about this and ⌘N carry from an opened row: its subject, title and fork. */
-function askTarget(content: OpenedContent): AskTarget | null {
+export function askTarget(content: OpenedContent): AskTarget | null {
   if (!content.subject) return null;
   return {
     subject: content.subject.id,

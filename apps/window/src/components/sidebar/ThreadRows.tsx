@@ -5,8 +5,7 @@ import { ContextMenu } from "@base-ui/react/context-menu";
 import { useEffect, useState } from "react";
 import { useStore } from "zustand";
 import { parseRoute, type Route } from "../../app/navigation.js";
-import { ariaShortcut, shiftShortcutLabel, shortcutLabel } from "../../app/shortcuts.js";
-import { newThread } from "../../threads/start.js";
+import { shiftShortcutLabel } from "../../app/shortcuts.js";
 import { type ThreadSummary, threadStore } from "../../threads/store.js";
 import { useNow } from "../evidence/useNow.js";
 import { Icon } from "../icons/Icon.js";
@@ -253,24 +252,5 @@ export function SettledFooter({
         </button>
       </div>
     </div>
-  );
-}
-
-export function NewThreadRow({ route }: { route: Route }) {
-  return (
-    <SidebarGroup data-group="threads">
-      <SidebarMenu aria-label="Threads">
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            data-thread-row="new"
-            aria-keyshortcuts={ariaShortcut("n")}
-            onClick={() => newThread(route)}
-          >
-            <span className="sidebar-row-label">New thread</span>
-            <kbd className="sidebar-thread-key">{shortcutLabel("n")}</kbd>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
-    </SidebarGroup>
   );
 }

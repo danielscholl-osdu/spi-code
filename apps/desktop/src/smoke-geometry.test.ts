@@ -154,6 +154,33 @@ it("puts the top row's pin control 6 px before the panel toggle, or at the part'
   expect(() => assertSmokeGeometry({ ...pinEnd, clear: 1390 })).toThrow("window controls");
 });
 
+it("puts a service's Ask after the pin control, 6 px apart, at the part's end", () => {
+  const service = {
+    ...pinEnd,
+    toggle: null,
+    pin: rect(1376, 10, 24, 24),
+    ask: rect(1406, 10, 24, 24),
+  };
+  expect(() => assertSmokeGeometry(service)).not.toThrow();
+  expect(() =>
+    assertSmokeGeometry({ ...service, pin: rect(1406, 10, 24, 24), ask: rect(1376, 10, 24, 24) }),
+  ).toThrow("Top-row pin control ends at 1430, not 1400");
+  expect(() => assertSmokeGeometry({ ...service, pin: rect(1372, 10, 24, 24) })).toThrow(
+    "Top-row pin control ends at 1396, not 1400",
+  );
+  expect(() => assertSmokeGeometry({ ...service, ask: rect(1406, 30, 24, 24) })).toThrow(
+    "Top-row Ask off the row",
+  );
+  expect(() =>
+    assertSmokeGeometry({
+      ...service,
+      pin: rect(1342, 10, 24, 24),
+      ask: rect(1372, 10, 24, 24),
+      toggle: rect(1404, 8, 28, 28),
+    }),
+  ).toThrow("Top-row Ask is not 6 px before the right-panel toggle");
+});
+
 it.each([window, related, headers, settings, drag, failedReads, overlayDrag])(
   "accepts measured $rule geometry",
   (value) => {
