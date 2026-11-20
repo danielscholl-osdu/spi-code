@@ -221,38 +221,58 @@ export class ThreadEngine<Tool> {
     if (summary.status === "Waiting on you" || summary.status === "Working") return false;
     if (summary.status !== "Settled")
       this.record(id, [
-        { type: "thread.settled", reason: "operator", settledAt: summary.updatedAt },
+        {
+          type: "thread.settled",
+          reason: "operator",
+          settledAt: summary.updatedAt,
+          held: timeline.heldByOperator,
+        },
       ]);
     return true;
   }
 
-  unsettle(id: string): void {
+  unsettle(id: string, options: { restore?: boolean } = {}): void {
     this.assertOpen();
     const timeline = this.get(id);
     if (timeline.summary().status === "Settled")
-      this.record(id, [{ type: "thread.unsettled", reason: "operator" }]);
+      this.record(id, [
+        {
+          type: "thread.unsettled",
+          reason: "operator",
+          ...(options.restore ? { restore: true as const } : {}),
+        },
+      ]);
   }
 
-  seen(id: string): void {
+  seen(id: string, sequence: number): void {
     this.assertOpen();
     const timeline = this.get(id);
-    if (timeline.needsSeen)
-      this.record(id, [{ type: "thread.seen", seenSequence: timeline.summary().sequence }]);
+    if (timeline.canSee(sequence))
+      this.record(id, [{ type: "thread.seen", seenSequence: sequence }]);
   }
 
-  autoSettle(now = Date.now()): void {
+  autoSettle(now = Date.now()): number {
     this.assertOpen();
+    let settled = 0;
     for (const [id, timeline] of this.threads) {
       const summary = timeline.summary();
       if (
         summary.status === "Open" &&
         !timeline.heldByOperator &&
         now - summary.updatedAt >= 7 * 24 * 60 * 60 * 1000
-      )
+      ) {
         this.record(id, [
-          { type: "thread.settled", reason: "inactivity", settledAt: summary.updatedAt },
+          {
+            type: "thread.settled",
+            reason: "inactivity",
+            settledAt: summary.updatedAt,
+            held: false,
+          },
         ]);
+        settled++;
+      }
     }
+    return settled;
   }
 
   decideApproval(id: string, turnId: string, approvalId: string, approved: boolean): boolean {

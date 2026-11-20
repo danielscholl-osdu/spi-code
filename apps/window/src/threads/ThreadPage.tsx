@@ -9,7 +9,7 @@ import { treeServices } from "../app/queue.js";
 import { matchesShiftShortcut, shiftShortcutLabel } from "../app/shortcuts.js";
 import { PaneTitle } from "../app/title-row.js";
 import { Icon } from "../components/icons/Icon.js";
-import { nextThread } from "../components/sidebar/ThreadRows.js";
+import { routeAfterSettle } from "../components/sidebar/ThreadRows.js";
 import { watchStore } from "../store/watch.js";
 import { clockTime } from "../time.js";
 import { threadEntries } from "./entries.js";
@@ -95,9 +95,9 @@ export function ThreadPage({ id }: { id: string }) {
   const settled = status === "Settled";
   const settle = useCallback(() => {
     if (!summary) return;
-    state.toggle(summary, () => {
-      const next = nextThread(state.threads ?? [], summary.id);
-      navigate(next ? { kind: "thread", id: next } : { kind: "today" });
+    state.toggle(summary, (threads) => {
+      const next = routeAfterSettle(threads, summary.id);
+      if (next) navigate(next);
     });
   }, [state, summary]);
 

@@ -44,8 +44,14 @@ export const ThreadEventSchema = z.discriminatedUnion("type", [
     type: z.literal("thread.settled"),
     reason: z.enum(["operator", "inactivity"]),
     settledAt: sequence,
+    held: z.boolean().optional(),
   }),
-  z.strictObject({ ...event, type: z.literal("thread.unsettled"), reason: z.literal("operator") }),
+  z.strictObject({
+    ...event,
+    type: z.literal("thread.unsettled"),
+    reason: z.literal("operator"),
+    restore: z.literal(true).optional(),
+  }),
   z.strictObject({ ...event, type: z.literal("thread.seen"), seenSequence: sequence }),
   z.strictObject({ ...event, type: z.literal("message.sent"), messageId: id, message }),
   z.strictObject({
@@ -138,9 +144,13 @@ export const ThreadMessageSchema = z.discriminatedUnion("type", [
   envelope("thread.stopped", "response", threadId.strict()),
   envelope("thread.settle", "request", threadId.strict()),
   envelope("thread.settled", "response", threadId.strict()),
-  envelope("thread.unsettle", "request", threadId.strict()),
+  envelope(
+    "thread.unsettle",
+    "request",
+    threadId.extend({ restore: z.literal(true).optional() }).strict(),
+  ),
   envelope("thread.unsettled", "response", threadId.strict()),
-  envelope("thread.seen", "request", threadId.strict()),
+  envelope("thread.seen", "request", threadId.extend({ sequence }).strict()),
   envelope("thread.seen.result", "response", threadId.strict()),
   envelope("thread.chip", "request", z.strictObject({ id })),
   envelope(

@@ -63,9 +63,9 @@ type ThreadsState = {
   send(threadId: string, text: string): void;
   stop(threadId: string): void;
   open(threadId: string): void;
-  settle(thread: ThreadSummary, onSettled?: () => void): void;
-  unsettle(threadId: string): void;
-  toggle(thread: ThreadSummary, onSettled?: () => void): void;
+  settle(thread: ThreadSummary, onSettled?: (threads: readonly ThreadSummary[]) => void): void;
+  unsettle(threadId: string, options?: { restore?: boolean }): void;
+  toggle(thread: ThreadSummary, onSettled?: (threads: readonly ThreadSummary[]) => void): void;
   dismissUndo(): void;
   choose(key: string, choice: ModelChoice): void;
   listModels(): void;
@@ -138,9 +138,13 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
   };
 
   return createStore<ThreadsState>()((set, get) => {
-    const list = () =>
+    const list = (onListed?: (threads: readonly ThreadSummary[]) => void) =>
       request("threads.list", {}, (reply) => {
-        if (reply.type !== "threads.result") set({ threads: null });
+        if (reply.type !== "threads.result") {
+          set({ threads: null });
+          return;
+        }
+        onListed?.(reply.payload.threads);
       });
     const subscribe = (threadId: string) => {
       const fromSequence = get().events[threadId]?.at(-1)?.sequence ?? 0;
@@ -274,12 +278,16 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
         });
       },
       send: (threadId, text) => sendMessage(threadId, message(threadId, text)),
-      stop: (threadId) => request("thread.stop", { threadId }, list),
+      stop: (threadId) => request("thread.stop", { threadId }, () => list()),
       open(threadId) {
         if (!get().catalog) get().listModels();
         const summary = get().threads?.find((thread) => thread.id === threadId);
         if (summary?.status === "Can't be read") return;
-        request("thread.seen", { threadId });
+        const sequence = Math.max(
+          summary?.sequence ?? 0,
+          get().events[threadId]?.at(-1)?.sequence ?? 0,
+        );
+        request("thread.seen", { threadId, sequence });
         if (get().events[threadId]) return;
         set(({ events }) => ({ events: { ...events, [threadId]: [] } }));
         subscribe(threadId);
@@ -292,20 +300,23 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
             return;
           }
           set({ undo: { id: thread.id, title: thread.thread.title ?? "Untitled thread" } });
-          list();
-          onSettled?.();
+          list(onSettled);
         });
       },
-      unsettle(threadId) {
-        request("thread.unsettle", { threadId }, (reply) => {
-          const reason = failed(reply);
-          if (reason) {
-            set(({ failures }) => ({ failures: { ...failures, [threadId]: reason } }));
-            return;
-          }
-          set((state) => ({ undo: state.undo?.id === threadId ? null : state.undo }));
-          list();
-        });
+      unsettle(threadId, options = {}) {
+        request(
+          "thread.unsettle",
+          { threadId, ...(options.restore ? { restore: true as const } : {}) },
+          (reply) => {
+            const reason = failed(reply);
+            if (reason) {
+              set(({ failures }) => ({ failures: { ...failures, [threadId]: reason } }));
+              return;
+            }
+            set((state) => ({ undo: state.undo?.id === threadId ? null : state.undo }));
+            list();
+          },
+        );
       },
       toggle(thread, onSettled) {
         if (thread.status === "Settled") get().unsettle(thread.id);

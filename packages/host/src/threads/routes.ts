@@ -30,12 +30,16 @@ export class ThreadRoutes {
   /** The attachment each chip id last previewed, which a send must still match byte for byte. */
   private readonly previews = new Map<string, Attachment>();
   private readonly known = new Set<string>();
+  private publishThreads: (() => void) | undefined;
 
   constructor(private readonly options: ThreadHostOptions) {}
 
   private open() {
     if (!this.host) {
-      this.host = openThreadHost(this.options);
+      this.host = openThreadHost({
+        ...this.options,
+        onThreadsChanged: () => this.publishThreads?.(),
+      });
       for (const token of this.known) this.host.remember(token);
       this.known.clear();
     }
@@ -69,13 +73,16 @@ export class ThreadRoutes {
 
   readonly routes: HostRoutes = {
     "threads.list": (request, send) => {
-      send({
-        version: PROTOCOL_VERSION,
-        id: request.id,
-        kind: "response",
-        type: "threads.result",
-        payload: { threads: this.engine().list() },
-      });
+      const publish = () =>
+        send({
+          version: PROTOCOL_VERSION,
+          id: request.id,
+          kind: "response",
+          type: "threads.result",
+          payload: { threads: this.engine().list() },
+        });
+      this.publishThreads = publish;
+      publish();
     },
     "thread.start": (request, send) => {
       if (request.type !== "thread.start") return;
@@ -181,24 +188,27 @@ export class ThreadRoutes {
     },
     "thread.unsettle": (request, send) => {
       if (request.type !== "thread.unsettle") return;
-      this.engine().unsettle(request.payload.threadId);
+      this.engine().unsettle(
+        request.payload.threadId,
+        request.payload.restore ? { restore: true } : {},
+      );
       send({
         version: PROTOCOL_VERSION,
         id: request.id,
         kind: "response",
         type: "thread.unsettled",
-        payload: request.payload,
+        payload: { threadId: request.payload.threadId },
       });
     },
     "thread.seen": (request, send) => {
       if (request.type !== "thread.seen") return;
-      this.engine().seen(request.payload.threadId);
+      this.engine().seen(request.payload.threadId, request.payload.sequence);
       send({
         version: PROTOCOL_VERSION,
         id: request.id,
         kind: "response",
         type: "thread.seen.result",
-        payload: request.payload,
+        payload: { threadId: request.payload.threadId },
       });
     },
     "thread.subscribe": (request, send) => {
@@ -220,6 +230,7 @@ export class ThreadRoutes {
   };
 
   disconnect() {
+    this.publishThreads = undefined;
     for (const unsubscribe of this.subscriptions.values()) unsubscribe();
     this.subscriptions.clear();
   }

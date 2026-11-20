@@ -25,7 +25,7 @@ export function SettleToast() {
           <button
             type="button"
             className="pin-notice-undo"
-            onClick={() => threadStore.getState().unsettle(undo.id)}
+            onClick={() => threadStore.getState().unsettle(undo.id, { restore: true })}
           >
             Undo
           </button>

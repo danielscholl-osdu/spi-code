@@ -4,7 +4,7 @@
 import { ContextMenu } from "@base-ui/react/context-menu";
 import { useEffect, useState } from "react";
 import { useStore } from "zustand";
-import type { Route } from "../../app/navigation.js";
+import { parseRoute, type Route } from "../../app/navigation.js";
 import { ariaShortcut, shiftShortcutLabel, shortcutLabel } from "../../app/shortcuts.js";
 import { newThread } from "../../threads/start.js";
 import { type ThreadSummary, threadStore } from "../../threads/store.js";
@@ -34,12 +34,23 @@ export function nextThread(threads: readonly ThreadSummary[], settledId: string)
   );
 }
 
+export function routeAfterSettle(
+  threads: readonly ThreadSummary[],
+  settledId: string,
+): Route | null {
+  const current = parseRoute(window.location.hash);
+  if (current?.kind !== "thread" || current.id !== settledId) return null;
+  const next = nextThread(threads, settledId);
+  return next ? { kind: "thread", id: next } : { kind: "today" };
+}
+
 export function useSidebarThreads(): ThreadSummary[] {
   const threads = useStore(threadStore, (state) => state.threads) ?? [];
   return [...threads].sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 function EndMark({ thread, now }: { thread: ThreadSummary; now: number }) {
+  if (thread.status === "Can't be read") return null;
   if (thread.status === "Working")
     return (
       <span className="sidebar-thread-end" data-end="working" title="Working">
@@ -58,7 +69,6 @@ function EndMark({ thread, now }: { thread: ThreadSummary; now: number }) {
         <Icon name="check" size={14} stroke={2} />
       </span>
     );
-  if (thread.status === "Can't be read") return null;
   return (
     <span className="sidebar-thread-end" data-end="age">
       {age(thread.updatedAt, now)}
@@ -79,10 +89,9 @@ export function ThreadRow({
 }) {
   const now = useNow(60_000);
   const settle = () =>
-    threadStore.getState().settle(thread, () => {
-      if (current !== thread.id) return;
-      const next = nextThread(threadStore.getState().threads ?? [], thread.id);
-      onNavigate(next ? { kind: "thread", id: next } : { kind: "today" });
+    threadStore.getState().settle(thread, (threads) => {
+      const next = routeAfterSettle(threads, thread.id);
+      if (next) onNavigate(next);
     });
   const unreadable = thread.status === "Can't be read";
   const open = () => {

@@ -22,6 +22,7 @@ export class Timeline {
   private updatedAt: number;
   private settledAt: number | null = null;
   private handUnsettled = false;
+  private settledFromHold = false;
   private seenSequence: number | null = null;
   private lastTurnEnd: { sequence: number; outcome: TimelineTurn["outcome"] } | null = null;
 
@@ -60,8 +61,13 @@ export class Timeline {
     return this.handUnsettled;
   }
 
-  get needsSeen(): boolean {
-    return this.seenSequence !== this.sequence;
+  canSee(sequence: number): boolean {
+    return (
+      Number.isSafeInteger(sequence) &&
+      sequence >= 0 &&
+      sequence <= this.sequence &&
+      (this.seenSequence === null || sequence > this.seenSequence)
+    );
   }
 
   snapshot(): ThreadTimeline {
@@ -93,19 +99,26 @@ export class Timeline {
         assert(!this.active, "A running thread cannot be settled");
         assert(event.settledAt === this.updatedAt, "Settled time must be the last activity");
         this.settledAt = event.settledAt;
+        this.settledFromHold = event.held ?? false;
         this.handUnsettled = false;
         return;
       case "thread.unsettled":
         this.settledAt = null;
-        this.handUnsettled = true;
+        this.handUnsettled = event.restore === true ? this.settledFromHold : true;
+        this.settledFromHold = false;
         return;
       case "thread.seen":
         assert(event.seenSequence <= this.sequence - 1, "Seen sequence is ahead of the journal");
+        assert(
+          this.seenSequence === null || event.seenSequence > this.seenSequence,
+          "Seen sequence moved backwards",
+        );
         this.seenSequence = event.seenSequence;
         return;
       case "message.sent": {
         this.settledAt = null;
         this.handUnsettled = false;
+        this.settledFromHold = false;
         const message: TimelineMessage = {
           id: event.messageId,
           message: event.message,

@@ -157,8 +157,13 @@ export type TurnOutcome = TurnEnd["outcome"];
 
 export type JournalEntry =
   | { type: "thread.created"; thread: ThreadDefinition }
-  | { type: "thread.settled"; reason: "operator" | "inactivity"; settledAt: number }
-  | { type: "thread.unsettled"; reason: "operator" }
+  | {
+      type: "thread.settled";
+      reason: "operator" | "inactivity";
+      settledAt: number;
+      held?: boolean;
+    }
+  | { type: "thread.unsettled"; reason: "operator"; restore?: true }
   | { type: "thread.seen"; seenSequence: number }
   | { type: "message.sent"; messageId: string; message: ThreadMessage }
   | { type: "message.cancelled"; messageId: string; reason: InterruptionReason }

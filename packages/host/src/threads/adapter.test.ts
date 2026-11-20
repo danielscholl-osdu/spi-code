@@ -176,6 +176,7 @@ async function connect(
   existing?: string,
   savedSweep?: LatestSweep,
   env?: NodeJS.ProcessEnv,
+  subscribe = true,
 ) {
   const options = dependencies(runtime, savedSweep);
   const host = new ThreadRoutes({ ...options, env: { ...options.env, ...env } });
@@ -221,7 +222,7 @@ async function connect(
       return result.payload.threadId;
     }));
   if (!threadId) throw new Error("Missing thread ID");
-  dispatch("thread.subscribe", { threadId, fromSequence: 0 });
+  if (subscribe) dispatch("thread.subscribe", { threadId, fromSequence: 0 });
   return {
     host,
     threadId,
@@ -234,6 +235,7 @@ async function connect(
       output.flatMap((entry): ThreadWireEvent[] =>
         entry.type === "thread.events" ? entry.payload.events : [],
       ),
+    output,
   };
 }
 
@@ -1100,18 +1102,42 @@ it("stores settle, un-settle and seen through the thread routes", async () => {
   });
 
   await expect(
-    port.response(port.dispatch("thread.unsettle", { threadId: port.threadId })),
+    port.response(port.dispatch("thread.unsettle", { threadId: port.threadId, restore: true })),
   ).resolves.toMatchObject({ type: "thread.unsettled", payload: { threadId: port.threadId } });
   await expect(
-    port.response(port.dispatch("thread.seen", { threadId: port.threadId })),
+    port.response(port.dispatch("thread.seen", { threadId: port.threadId, sequence: 1 })),
   ).resolves.toMatchObject({ type: "thread.seen.result", payload: { threadId: port.threadId } });
   expect(port.events().filter(({ threadId }) => threadId === port.threadId)).toEqual(
     expect.arrayContaining([
       expect.objectContaining({ type: "thread.settled", reason: "operator" }),
-      expect.objectContaining({ type: "thread.unsettled", reason: "operator" }),
-      expect.objectContaining({ type: "thread.seen" }),
+      expect.objectContaining({ type: "thread.unsettled", reason: "operator", restore: true }),
+      expect.objectContaining({ type: "thread.seen", seenSequence: 1 }),
     ]),
   );
+});
+
+it("publishes an hourly auto-settlement as a thread list update without a subscriber", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-11-01T10:00:00Z"));
+  const { runtime } = recordedRuntime();
+  const port = await connect(runtime, undefined, undefined, undefined, false);
+  try {
+    await port.response(port.dispatch("threads.list", {}));
+    const before = port.output.filter(({ type }) => type === "threads.result").length;
+    vi.setSystemTime(new Date("2026-11-09T10:00:00Z"));
+    await vi.advanceTimersByTimeAsync(60 * 60 * 1000);
+    expect(port.output.filter(({ type }) => type === "threads.result")).toHaveLength(before + 1);
+    const update = port.output.filter((entry) => entry.type === "threads.result").at(-1);
+    expect(update).toMatchObject({
+      type: "threads.result",
+      payload: {
+        threads: [expect.objectContaining({ id: port.threadId, status: "Settled" })],
+      },
+    });
+  } finally {
+    await port.host.stop();
+    vi.useRealTimers();
+  }
 });
 
 it("refuses a send whose bytes would differ from the preview, and sends the fresh preview's bytes", async () => {

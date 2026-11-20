@@ -28,6 +28,7 @@ export interface ThreadHostOptions {
   workspaces: (git: PrivilegedGit) => ScopeWorkspaces;
   runtime: (onCredential: (token: string) => void) => Promise<CopilotRuntime>;
   env: NodeJS.ProcessEnv;
+  onThreadsChanged?: () => void;
 }
 
 export function openThreadHost(options: ThreadHostOptions) {
@@ -150,7 +151,7 @@ export function openThreadHost(options: ThreadHostOptions) {
     const settlement = setInterval(
       () => {
         try {
-          engine.autoSettle();
+          if (engine.autoSettle() > 0) options.onThreadsChanged?.();
         } catch (error) {
           console.error("Automatic thread settlement could not finish.", error);
         }

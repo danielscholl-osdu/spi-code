@@ -403,20 +403,47 @@ it("stores manual settlement and a hand-unsettled hold, and refuses both running
   database.close();
 });
 
+it("restores the hand-unsettled state from before an ordinary Undo", () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-11-01T10:00:00Z"));
+  const { engine, database } = harness();
+  const id = engine.create({ scope: "partition" });
+
+  expect(engine.settle(id)).toBe(true);
+  engine.unsettle(id, { restore: true });
+  vi.setSystemTime(new Date("2026-11-09T10:00:00Z"));
+  engine.autoSettle();
+  expect(engine.read(id).status).toBe("Settled");
+
+  engine.unsettle(id);
+  expect(engine.settle(id)).toBe(true);
+  engine.unsettle(id, { restore: true });
+  vi.setSystemTime(new Date("2026-11-17T10:00:00Z"));
+  engine.autoSettle();
+  expect(engine.read(id).status).toBe("Open");
+  database.close();
+});
+
 it("marks only completed turns after the thread's seen sequence as Done", async () => {
   const { engine, turn, database } = harness();
   const id = engine.create({ scope: "partition" });
   const first = engine.send(id, { prompt: "First" });
   (await turn()).finish();
   await first;
-  engine.seen(id);
+  engine.seen(id, 1);
+  expect(engine.read(id).done).toBe(true);
+  engine.seen(id, engine.read(id).sequence);
   expect(engine.read(id).done).toBe(false);
 
   const second = engine.send(id, { prompt: "Second" });
   (await turn(1)).finish();
   await second;
   expect(engine.read(id).done).toBe(true);
-  engine.seen(id);
+  const writes = engine.eventsSince(id, 0).length;
+  engine.seen(id, 1);
+  engine.seen(id, engine.read(id).sequence + 1);
+  expect(engine.eventsSince(id, 0)).toHaveLength(writes);
+  engine.seen(id, engine.read(id).sequence);
 
   const stopped = engine.send(id, { prompt: "Third" });
   const third = await turn(2);
@@ -479,6 +506,49 @@ it("keeps an unreadable journal visible without claiming its state or definition
     done: false,
   });
   expect(() => reopened.read(id)).toThrow("Unknown thread");
+  database.close();
+});
+
+it.each([
+  {
+    name: "unknown settlement reason",
+    payload: (at: number) =>
+      JSON.stringify({ type: "thread.settled", reason: "mystery", settledAt: at }),
+  },
+  {
+    name: "negative settlement time",
+    payload: () => JSON.stringify({ type: "thread.settled", reason: "operator", settledAt: -1 }),
+  },
+  {
+    name: "unknown un-settlement reason",
+    payload: () => JSON.stringify({ type: "thread.unsettled", reason: "mystery" }),
+  },
+  {
+    name: "negative seen sequence",
+    payload: () => JSON.stringify({ type: "thread.seen", seenSequence: -1 }),
+  },
+  {
+    name: "extra settlement field",
+    payload: (at: number) =>
+      JSON.stringify({ type: "thread.settled", reason: "operator", settledAt: at, extra: true }),
+  },
+])("lists a journal with $name as unreadable", ({ payload }) => {
+  const database = new DatabaseSync(":memory:");
+  const { engine } = harness(database);
+  const id = engine.create({ scope: "partition" });
+  const at = engine.list().find((thread) => thread.id === id)?.updatedAt;
+  if (at === undefined) throw new Error("Created thread is missing");
+  database
+    .prepare(
+      "INSERT INTO thread_engine_journal (thread_id, sequence, at, payload) VALUES (?, 2, ?, ?)",
+    )
+    .run(id, at, payload(at));
+
+  const reopened = harness(database).engine;
+  expect(reopened.list().find((thread) => thread.id === id)).toMatchObject({
+    status: "Can't be read",
+    done: false,
+  });
   database.close();
 });
 

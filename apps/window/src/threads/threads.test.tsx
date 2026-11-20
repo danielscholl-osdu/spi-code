@@ -121,9 +121,9 @@ function fakeHost() {
         return send("thread.settled", request.id, request.payload);
       case "thread.unsettle":
         statuses.set(request.payload.threadId, "Open");
-        return send("thread.unsettled", request.id, request.payload);
+        return send("thread.unsettled", request.id, { threadId: request.payload.threadId });
       case "thread.seen":
-        return send("thread.seen.result", request.id, request.payload);
+        return send("thread.seen.result", request.id, { threadId: request.payload.threadId });
       case "models.list":
         return send("models.result", request.id, {
           models: [
@@ -164,6 +164,15 @@ function fakeHost() {
       return () => {};
     },
     answer,
+    addThread: (id: string, thread: ThreadSummary["thread"], status: Status) => {
+      if (!started.some((entry) => entry.id === id)) started.push({ id, thread });
+      statuses.set(id, status);
+    },
+    replyToLatest: (type: Request["type"], payload: unknown) => {
+      const request = [...posted].reverse().find((entry) => entry.type === type);
+      if (!request) throw new Error(`No posted ${type}`);
+      send(type === "thread.settle" ? "thread.settled" : "thread.unsettled", request.id, payload);
+    },
     sent: (type: Request["type"]) => posted.filter((request) => request.type === type),
     relist: () => send("threads.result", "push", { threads: summaries() }),
     events: (threadId: string, events: ThreadWireEvent[]) =>
@@ -335,11 +344,79 @@ it("settles with Undo, keeps settled threads in the footer, and nests below a pi
   expect(group("Settled")).toEqual(["t1"]);
 
   await click(buttonNamed("Undo"));
+  expect(host.sent("thread.unsettle").at(-1)?.payload).toEqual({
+    threadId: "t1",
+    restore: true,
+  });
   expect(group("Settled")).toEqual([]);
   expect(group("Other threads")).toEqual(["t1"]);
   await act(async () => pin("indexer"));
   expect(group("Other threads")).toEqual([]);
   expect(all('#app-sidebar [data-nested] [data-thread-row="t1"]')).toHaveLength(1);
+});
+
+it("chooses from the refreshed list after settling and does not override newer navigation", async () => {
+  host.addThread("t1", { scope: "indexer", title: "First" }, "Open");
+  host.addThread("t2", { scope: "storage", title: "Second" }, "Open");
+  host.addThread("t3", { scope: "legal", title: "Third" }, "Open");
+  await act(async () => {
+    host.relist();
+    window.location.hash = "#thread/t1";
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+  });
+  host.silent.add("thread.settle");
+  const titleSettle = container.querySelector<HTMLElement>(".thread-settle");
+  if (!titleSettle) throw new Error("Missing title settle action");
+  await click(titleSettle);
+  host.statuses.set("t1", "Settled");
+  host.statuses.set("t2", "Settled");
+  await act(async () => host.replyToLatest("thread.settle", { threadId: "t1" }));
+  expect(window.location.hash).toBe("#thread/t3");
+
+  host.silent.add("thread.settle");
+  const mac = /Mac|iPhone|iPad/u.test(navigator.userAgent);
+  await act(async () =>
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "s",
+        shiftKey: true,
+        metaKey: mac,
+        ctrlKey: !mac,
+        bubbles: true,
+      }),
+    ),
+  );
+  await act(async () => {
+    window.location.hash = "#today";
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+    host.replyToLatest("thread.settle", { threadId: "t3" });
+  });
+  expect(window.location.hash).toBe("#today");
+});
+
+it("reports the largest thread sequence already observed by the window", () => {
+  const base = { threadId: "t1", at: 1 };
+  threadStore.setState({
+    threads: [
+      {
+        id: "t1",
+        thread: { scope: "indexer" },
+        status: "Open",
+        sequence: 3,
+        updatedAt: 1,
+        settledAt: null,
+        done: false,
+      },
+    ],
+    events: {
+      t1: [
+        { ...base, sequence: 5, type: "thread.seen", seenSequence: 3 },
+        { ...base, sequence: 6, type: "thread.settled", reason: "operator", settledAt: 1 },
+      ],
+    },
+  });
+  threadStore.getState().open("t1");
+  expect(host.sent("thread.seen").at(-1)?.payload).toEqual({ threadId: "t1", sequence: 6 });
 });
 
 it("keeps an unreadable thread muted in place and does not open it", async () => {
@@ -350,7 +427,7 @@ it("keeps an unreadable thread muted in place and does not open it", async () =>
     sequence: 4,
     updatedAt: 1,
     settledAt: null,
-    done: false,
+    done: true,
   };
   await act(async () => threadStore.setState({ threads: [thread] }));
   const row = all('[data-thread-row="damaged"]');
@@ -358,6 +435,9 @@ it("keeps an unreadable thread muted in place and does not open it", async () =>
   const muted = container.querySelector<HTMLElement>(
     `#app-sidebar .thread-item[data-state="Can't be read"]`,
   );
+  expect(
+    (muted?.querySelector(".sidebar-thread-end") as HTMLElement | null)?.dataset.end,
+  ).toBeUndefined();
   expect(muted?.textContent).toContain("Can't be read");
   expect(muted?.getAttribute("title")).toBe("damaged");
   expect(muted?.querySelector("button")?.hasAttribute("disabled")).toBe(true);
