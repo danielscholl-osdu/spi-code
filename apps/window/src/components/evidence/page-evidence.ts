@@ -1,7 +1,13 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { AreaName, ReadRecord, TodayLine, TodayMember } from "@spi-code/contracts";
+import type {
+  AreaName,
+  ReadRecord,
+  TodayLine,
+  TodayMember,
+  ValueSource,
+} from "@spi-code/contracts";
 import { AREAS } from "@spi-code/contracts";
 import type { EvidenceSelection } from "../../app/navigation.js";
 import { readFork } from "./FailedReads.js";
@@ -25,11 +31,11 @@ export type PageEvidence = {
 };
 
 /** Upstream work: core says the item was read from GitLab's master or its open merge requests. */
-const upstreamWork = (member: TodayMember) =>
+const upstreamWork = (member: Pick<TodayMember, "evidence">) =>
   member.evidence.areas.includes("upstream") || member.evidence.areas.includes("radar");
 
 function forkReads(
-  members: readonly TodayMember[],
+  members: readonly Pick<TodayMember, "fork" | "evidence">[],
   reads: readonly ReadRecord[],
 ): Pick<PageEvidence, "reads" | "unread"> {
   const owned = (forge: ReadGroup["forge"], fork: string) =>
@@ -96,5 +102,30 @@ export function pageEvidence(
     ...forkReads(members, reads),
     areas: ordered(members.flatMap(({ evidence }) => evidence.areas)),
     attributed: members.some(({ evidence }) => evidence.attributed === "sweep") ? "sweep" : "item",
+  };
+}
+
+/**
+ * What a service's home was read from: its fork's reads, its GitLab project's when the home reads
+ * upstream, and the areas its provenance names. Null when the sweep holds no home for it.
+ */
+export function serviceEvidence(
+  service: string,
+  snapshot: {
+    services?: readonly { service: string }[] | undefined;
+    provenance: readonly ValueSource[];
+    reads: readonly ReadRecord[];
+  },
+): PageEvidence | null {
+  const index = snapshot.services?.findIndex((entry) => entry.service === service) ?? -1;
+  const source = snapshot.provenance.find(({ path }) => path === `/services/${index}/home`);
+  if (index < 0 || !source) return null;
+  const evidence = { areas: source.areas, notRead: [], attributed: source.attributed ?? "sweep" };
+  return {
+    title: service,
+    notRead: [],
+    ...forkReads([{ fork: service, evidence }], snapshot.reads),
+    areas: ordered(source.areas),
+    attributed: evidence.attributed,
   };
 }

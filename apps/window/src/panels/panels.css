@@ -3,3 +3,18 @@
 
 .right-panel { padding: 0; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .panel-body { flex: 1; min-height: 0; padding: 12px 16px; overflow: auto; font-size: var(--text-sm); }
+.panel-tabs { gap: 2px; padding: 0 10px; }
+.panel-tabs [role="tab"] { min-width: 0; height: 28px; padding: 0 10px; overflow: hidden; text-overflow: ellipsis; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); font-size: var(--text-sm); }
+.panel-tabs [role="tab"]:hover { background: var(--hover); color: var(--text); }
+.panel-tabs [role="tab"][aria-selected="true"] { background: var(--active); box-shadow: var(--active-shadow); color: var(--text-strong); font-weight: 500; }
+.panel-tabs > .panel-toggle { flex: none; margin-left: auto; }
+.right-panel .panel-empty { margin: 0; color: var(--text-muted); }
+.panel-body .service-page { font-size: var(--text-sm); }
+.thread-evidence > section + section { margin-top: 20px; }
+/* A place drawn in the panel: its row's source drops under its words, beside the age. */
+.panel-body .service-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 4px; }
+.panel-body .service-row-open { grid-column: 1; grid-row: 2; justify-self: start; }
+.panel-body .service-row-age { grid-column: 2; grid-row: 1; }
+.panel-body .work-row { grid-template-columns: auto minmax(0, 1fr) auto; }
+.panel-body .work-status { grid-column: 2; grid-row: 2; }
+.panel-body .work-row .service-row-age { grid-column: 3; grid-row: 1; }

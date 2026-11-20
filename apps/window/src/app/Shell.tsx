@@ -10,11 +10,13 @@ import { ProgramSidebar } from "../components/sidebar/ProgramSidebar.js";
 import { SidebarProvider } from "../components/sidebar/ui-sidebar.js";
 import { openFreshness } from "../components/sweep/reveal.js";
 import { CommandPalette } from "../palette/CommandPalette.js";
+import { ThreadPanel } from "../panels/thread/ThreadPanel.js";
 import { SettingsDialog, type SettingsSection } from "../settings/SettingsDialog.js";
 import { watchStore } from "../store/watch.js";
 import { SettleToast } from "../threads/SettleToast.js";
+import { NEW_THREAD } from "../threads/store.js";
 import { PaneEdges } from "./PaneEdges.js";
-import { PanelShortcuts, SidebarToggle } from "./PanelControls.js";
+import { PanelShortcuts, RightPanelToggle, SidebarToggle } from "./PanelControls.js";
 import {
   DEFAULT_REGISTRY,
   type Registry,
@@ -40,7 +42,7 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
   const sweep = useStore(watchStore, (state) => state.sweep);
   const progress = useStore(watchStore, (state) => state.progress);
   const { route, navigate } = useNavigation(registry);
-  const rightPanelOpen = false;
+  const thread = route.kind === "thread" && route.id !== NEW_THREAD ? route.id : undefined;
   const {
     sidebarStore,
     sidebarPresentation,
@@ -50,7 +52,16 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
     settled,
     resizeLive,
     commitWidth,
-  } = usePaneLayout(rightPanelOpen);
+    rightPanelOpen,
+    setRightPanelOpen,
+  } = usePaneLayout(thread !== undefined);
+  const toggleRightPanel = useCallback(
+    () => setRightPanelOpen(!rightPanelOpen),
+    [rightPanelOpen, setRightPanelOpen],
+  );
+  const panelControls = thread
+    ? { rightPanelOpen, onToggleRightPanel: toggleRightPanel }
+    : { rightPanelOpen };
   const openSweepLine = useCallback(() => openFreshness(watchStore.getState().snapshot), []);
   const [titles] = useState(createTitleStore);
   const [findOpen, setFindOpen] = useState(false);
@@ -98,10 +109,10 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
             } as CSSProperties
           }
         >
-          <PanelShortcuts onToggleFind={toggleFind} />
+          <PanelShortcuts {...panelControls} onToggleFind={toggleFind} />
           <WindowPinNotice />
           <SettleToast />
-          <SidebarToggle />
+          <SidebarToggle {...panelControls} />
           <ProgramSidebar
             store={watchStore}
             route={route}
@@ -148,6 +159,9 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
                 </div>
                 <div className="centre-end">
                   <TitleEnd store={titles} />
+                  {thread && !rightPanelOpen && (
+                    <RightPanelToggle open={false} onToggleRightPanel={toggleRightPanel} />
+                  )}
                 </div>
               </div>
             </header>
@@ -156,6 +170,14 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
               <RouteView route={route} />
             </div>
           </main>
+          {thread && (
+            <ThreadPanel
+              id={thread}
+              open={rightPanelOpen}
+              presentation={budget.rightPanel.presentation}
+              onToggle={toggleRightPanel}
+            />
+          )}
           <PaneEdges
             budget={budget}
             settled={settled}

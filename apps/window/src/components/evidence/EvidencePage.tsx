@@ -91,12 +91,15 @@ const groupTitle = ({ forge, source }: ReadGroup) =>
       ? `Reads of GitLab ${source}`
       : `Reads of ${source}`;
 
-const areaNote = (attributed: PageEvidence["attributed"], subject: "item" | "row") =>
+type Subject = "item" | "row" | "service";
+
+const areaNote = (attributed: PageEvidence["attributed"], subject: Subject) =>
   attributed === "item"
     ? `SPI Code read this ${subject} from these areas.`
     : `SPI Code read this ${subject} from these areas. It does not yet narrow them per item, so this is the sweep's list.`;
 
-function SelectionPage({
+/** Not read, the reads behind a subject with their times, then the areas core attributes. */
+export function SelectionPage({
   evidence,
   subject,
   areas,
@@ -105,7 +108,7 @@ function SelectionPage({
   now,
 }: {
   evidence: PageEvidence;
-  subject: "item" | "row";
+  subject: Subject;
   areas: readonly AreaEnvelope[];
   sweptAt: string;
   logged: readonly string[];

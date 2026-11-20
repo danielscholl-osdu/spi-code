@@ -123,3 +123,31 @@ export function SidebarToggle({
     </SidebarTrigger>
   );
 }
+
+/**
+ * A thread's right-panel toggle: at the end of the centre's part while the panel is closed, and at
+ * the end of the panel's tabs while it is open.
+ */
+export function RightPanelToggle({
+  open,
+  onToggleRightPanel,
+}: {
+  open: boolean;
+  onToggleRightPanel(): void;
+}) {
+  const { toggleDetail } = usePanelToggles(open, onToggleRightPanel);
+  return (
+    <button
+      type="button"
+      className="panel-toggle"
+      aria-label="Toggle right panel"
+      aria-expanded={open}
+      aria-controls="app-right-panel"
+      aria-keyshortcuts={ariaShortcut("i")}
+      title={`${open ? "Hide" : "Show"} right panel (${shortcutLabel("i")})`}
+      onClick={toggleDetail}
+    >
+      <Icon name="panelRight" />
+    </button>
+  );
+}

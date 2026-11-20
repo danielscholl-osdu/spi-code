@@ -7,7 +7,8 @@ import { edgePanes } from "./PaneEdges.js";
 import { budgetPreferred, loadPanes, type ResizablePane, savePanes } from "./pane-layout.js";
 import { type PaneWidths, widthBudget } from "./width-budget.js";
 
-export function usePaneLayout(rightPanelOpen: boolean) {
+/** The panes' widths and open states; the right panel opens only in a thread. */
+export function usePaneLayout(inThread: boolean) {
   const [saved] = useState(loadPanes);
   const [sidebarStore] = useState(() => createSidebarOpenStore(saved.open.sidebar));
   const sidebarOpen = useSyncExternalStore(
@@ -24,8 +25,25 @@ export function usePaneLayout(rightPanelOpen: boolean) {
   const [widths, setWidths] = useState<PaneWidths>(saved.widths);
   const [live, setLive] = useState<Partial<PaneWidths>>({});
   const budgetWidth = Math.max(740, windowWidth);
+  /** A saved open panel comes back at launch only where it would sit inline, never as a sheet. */
+  const [panelOpen, setPanelOpen] = useState(
+    () =>
+      saved.open.rightPanel &&
+      widthBudget({
+        windowWidth: budgetWidth,
+        context: "thread",
+        preferred: budgetPreferred(saved.widths, budgetWidth),
+        open: { sidebar: saved.open.sidebar, rightPanel: true },
+      }).rightPanel.presentation === "inline",
+  );
+  const rightPanelOpen = inThread && panelOpen;
+  const setRightPanelOpen = useCallback((open: boolean) => {
+    setPanelOpen(open);
+    savePanes({ open: { rightPanel: open } });
+  }, []);
   const budgetInput = {
     windowWidth: budgetWidth,
+    ...(inThread ? { context: "thread" as const } : {}),
     preferred: budgetPreferred({ ...widths, ...live }, budgetWidth),
     open: { sidebar: sidebarOpen, rightPanel: rightPanelOpen },
   };
@@ -80,5 +98,7 @@ export function usePaneLayout(rightPanelOpen: boolean) {
     settled,
     resizeLive,
     commitWidth,
+    rightPanelOpen,
+    setRightPanelOpen,
   };
 }
