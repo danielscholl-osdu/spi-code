@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { useEffect, useRef, useState } from "react";
+import { Icon } from "../components/icons/Icon.js";
 import { ModelPicker, modelChipLabel } from "./ModelPicker.js";
 import { CHIP_ONLY_PROMPT } from "./store.js";
 import type { ComposerProps, PlaceOption } from "./types.js";
@@ -21,8 +22,8 @@ const mentionKey = (mention: { from: number; query: string } | null) =>
   mention ? `${mention.from}:${mention.query}` : null;
 
 export function Composer(props: ComposerProps) {
-  const [text, setText] = useState("");
-  const [caret, setCaret] = useState(0);
+  const [text, setText] = useState(props.initialText ?? "");
+  const [caret, setCaret] = useState(props.initialText?.length ?? 0);
   const [added, setAdded] = useState<PlaceOption[]>([]);
   const [notice, setNotice] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
@@ -220,12 +221,26 @@ export function Composer(props: ComposerProps) {
           ✦ {modelChipLabel(props.models, props.choice)}
         </button>
         {props.running ? (
-          <button type="button" className="thread-send thread-send--stop" onClick={props.onStop}>
-            Stop
+          <button
+            type="button"
+            className="thread-send thread-send--stop"
+            aria-label="Stop"
+            title={props.stopping ? "Stopping…" : "Stop"}
+            disabled={props.stopping}
+            onClick={props.onStop}
+          >
+            <Icon name="square" size={12} stroke={2.5} filled />
           </button>
         ) : (
-          <button type="button" className="thread-send" disabled={!canSend} onClick={send}>
-            Send ⏎
+          <button
+            type="button"
+            className="thread-send"
+            aria-label="Send"
+            title="Send ⏎"
+            disabled={!canSend}
+            onClick={send}
+          >
+            <Icon name="arrowUp" size={15} stroke={2.25} />
           </button>
         )}
       </div>

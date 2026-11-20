@@ -48,7 +48,7 @@ export interface TurnEnd {
   kind: "turn-end";
   id: string;
   /** `unknown`: the host lost the turn and cannot say how it ended. */
-  state: "cancelled" | "failed" | "unknown";
+  state: "stopped" | "cancelled" | "failed" | "unknown";
   detail?: string;
 }
 
@@ -63,6 +63,14 @@ export interface Approval {
   path?: string;
   diff?: string;
   reason?: string;
+}
+
+/** A turn under way, or a message waiting for one: what the Working line shows. */
+export interface Activity {
+  /** When the message was sent. */
+  since: number;
+  /** What the journal says is happening now; absent when it names nothing. */
+  phase?: string;
 }
 
 export interface ModelSwitch {
@@ -136,7 +144,12 @@ export interface ComposerProps {
   account?: CopilotAccount;
   onRefreshModels?(): void;
   onOpenLink?(url: string): void;
+  /** A turn runs or a message waits for one: send is held and Stop shows. */
   running: boolean;
+  /** Stop was pressed and the turn has not ended. */
+  stopping?: boolean;
+  /** Words to put back in the box, as after a send that started no thread. */
+  initialText?: string | undefined;
   draft: boolean;
   /** Why the message cannot go yet, or why the last send failed. A draft keeps its words on send. */
   notice?: string | undefined;
@@ -148,6 +161,7 @@ export interface ComposerProps {
 
 export interface ThreadViewProps extends ComposerProps {
   entries: readonly TimelineEntry[];
+  activity?: Activity | undefined;
   /** The first context's line: scope, sweep time and size ("Context · partition · from the sweep at 13:50 · 1 item"). */
   contextLine?: string | undefined;
   /** A draft's scope control, which opens the scope picker; once sent the scope is fixed. */

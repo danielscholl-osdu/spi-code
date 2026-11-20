@@ -11,6 +11,7 @@ import "./threads.css";
 /** A thread in the centre: its timeline and composer, or a draft with nothing sent. */
 export function ThreadView({
   entries,
+  activity,
   contextLine,
   onChangeScope,
   below,
@@ -24,6 +25,7 @@ export function ThreadView({
           entries={entries}
           contextLine={contextLine}
           running={composer.running}
+          activity={activity}
           onOpenLink={composer.onOpenLink}
           onApprovalDecision={onApprovalDecision}
         />

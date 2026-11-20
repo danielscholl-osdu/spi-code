@@ -12,7 +12,7 @@ import { PaneTitle } from "../app/title-row.js";
 import { Icon } from "../components/icons/Icon.js";
 import { routeAfterSettle } from "../components/sidebar/ThreadRows.js";
 import { watchStore } from "../store/watch.js";
-import { threadEntries } from "./entries.js";
+import { scopeLabel, threadEntries } from "./entries.js";
 import { AUTO } from "./ModelPicker.js";
 import { NeedsYou } from "./NeedsYou.js";
 import { openScopePicker } from "./picker.js";
@@ -58,8 +58,6 @@ export function catalogModels(catalog: ModelCatalogResult | null): {
     },
   };
 }
-
-const scopeLabel = (scope: string) => (scope === "program" ? "Program" : scope);
 
 function draftChips(draft: Draft): ContextChip[] {
   const { chip, subject } = draft;
@@ -111,7 +109,14 @@ export function ThreadPage({ id }: { id: string }) {
   }, [summary, status, settled, settle]);
 
   const events = isDraft ? undefined : state.events[id];
-  const { entries, running } = useMemo(() => threadEntries(events ?? [], models), [events, models]);
+  const pending = isDraft ? draft?.sending?.message : state.pending[id];
+  const knownScope = isDraft ? draft?.scope : summary?.thread.scope;
+  const { entries, running, activity } = useMemo(
+    () => threadEntries(events ?? [], models, { scope: knownScope, pending }),
+    [events, models, knownScope, pending],
+  );
+  const stopping = isDraft ? draft?.sending?.stopping === true : state.stopping[id] === true;
+  const shown = activity && (stopping ? { ...activity, phase: "Stopping" } : activity);
   const key = isDraft ? "draft" : id;
   const choice = state.choices[key] ?? lastChoice(events) ?? { model: AUTO };
   const shared = {
@@ -145,33 +150,55 @@ export function ThreadPage({ id }: { id: string }) {
             </a>
           </h1>
         </PaneTitle>
-        <ThreadView
-          {...shared}
-          draft
-          running={false}
-          scope={{ id: scope, label: scope, icon: "box" }}
-          onChangeScope={() => openScopePicker({ mode: "change", current: scope })}
-          context={draftChips(draft)}
-          onRemoveContext={state.removeDraftChip}
-          notice={draftNotice(draft)}
-          canSend={
-            services.includes(scope) &&
-            draft.chip?.state !== "packing" &&
-            draft.sending === undefined
-          }
-          onSend={({ text }) =>
-            state.sendDraft(text, (threadId) => {
-              const thread = { kind: "thread", id: threadId } as const;
-              if (window.location.hash === routeHash({ kind: "thread", id: NEW_THREAD }))
-                replaceRoute(thread);
-              else navigate(thread);
-            })
-          }
-          onStop={() => {}}
-          below={
-            <NeedsYou scope={scope} attached={draft.subject?.id} onAttach={state.attachDraftChip} />
-          }
-        />
+        {draft.sending ? (
+          <ThreadView
+            key="sending"
+            {...shared}
+            activity={shown}
+            draft={false}
+            running
+            stopping={stopping}
+            scope={{ id: scope, label: scope, icon: "box" }}
+            context={[]}
+            onRemoveContext={() => {}}
+            onSend={() => {}}
+            onStop={state.stopDraft}
+          />
+        ) : (
+          <ThreadView
+            key="draft"
+            {...shared}
+            initialText={draft.failure?.words}
+            draft
+            running={false}
+            scope={{ id: scope, label: scope, icon: "box" }}
+            onChangeScope={() => openScopePicker({ mode: "change", current: scope })}
+            context={draftChips(draft)}
+            onRemoveContext={state.removeDraftChip}
+            notice={draftNotice(draft)}
+            canSend={
+              services.includes(scope) &&
+              draft.chip?.state !== "packing" &&
+              draft.sending === undefined
+            }
+            onSend={({ text }) =>
+              state.sendDraft(text, (threadId) => {
+                const thread = { kind: "thread", id: threadId } as const;
+                if (window.location.hash === routeHash({ kind: "thread", id: NEW_THREAD }))
+                  replaceRoute(thread);
+                else navigate(thread);
+              })
+            }
+            onStop={() => {}}
+            below={
+              <NeedsYou
+                scope={scope}
+                attached={draft.subject?.id}
+                onAttach={state.attachDraftChip}
+              />
+            }
+          />
+        )}
       </>
     );
   }
@@ -206,7 +233,9 @@ export function ThreadPage({ id }: { id: string }) {
       <ThreadView
         {...shared}
         draft={false}
-        running={running && summary !== undefined}
+        activity={summary && shown}
+        running={(running || activity !== undefined) && summary !== undefined}
+        stopping={stopping}
         scope={scope ? { id: scope, label: scopeLabel(scope) } : { id: "", label: NOT_KNOWN }}
         context={[]}
         onRemoveContext={() => {}}

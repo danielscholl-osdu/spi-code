@@ -105,6 +105,7 @@ function fakeHost() {
         return send("thread.started", request.id, {
           threadId: id,
           landsIn: { target: "asking" },
+          thread: summaries().find((summary) => summary.id === id),
         });
       }
       case "thread.subscribe":
@@ -191,6 +192,16 @@ function fakeHost() {
   };
 }
 
+const summary = (id: string): ThreadSummary => ({
+  id,
+  thread: { scope: "partition", landsIn: { target: "asking" } },
+  status: "Open",
+  sequence: 1,
+  updatedAt: 1,
+  settledAt: null,
+  done: false,
+});
+
 const loadFixture = fixtureLoader(readFixture);
 const initialThreads = threadStore.getState();
 let host: ReturnType<typeof fakeHost>;
@@ -266,7 +277,7 @@ async function askAndSend(text: string) {
   await openRow(halted);
   await click(askAbout() as HTMLElement);
   await type(text);
-  await click(buttonNamed("Send ⏎"));
+  await click(buttonNamed("Send"));
 }
 
 it("drafts one chip the host packed, scoped to the row's fork, and sends nothing", async () => {
@@ -455,7 +466,7 @@ it("goes Back from a sent draft to the page it started on, with no picker", asyn
   await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
   await click(buttonNamed("Ask Copilot about partition"));
   await type("Why did the last sync stop?");
-  await click(buttonNamed("Send ⏎"));
+  await click(buttonNamed("Send"));
   expect(window.location.hash).toBe("#thread/t1");
 
   await act(async () => {
@@ -474,7 +485,7 @@ it("keeps the page an operator left the draft for when the thread starts late", 
   await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
   await click(buttonNamed("Ask Copilot about partition"));
   await type("Why did the last sync stop?");
-  await click(buttonNamed("Send ⏎"));
+  await click(buttonNamed("Send"));
   window.location.hash = "#upstream";
   await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
   const [start] = host.sent("thread.start");
@@ -484,7 +495,7 @@ it("keeps the page an operator left the draft for when the thread starts late", 
       id: start?.id,
       kind: "response",
       type: "thread.started",
-      payload: { threadId: "t9", landsIn: { target: "asking" } },
+      payload: { threadId: "t9", landsIn: { target: "asking" }, thread: summary("t9") },
     }),
   );
   expect(window.location.hash).toBe("#thread/t9");
@@ -501,7 +512,7 @@ it("sends a late-started thread its words, and leaves a newer draft and its word
   await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
   await click(buttonNamed("Ask Copilot about partition"));
   await type("Why did the last sync stop?");
-  await click(buttonNamed("Send ⏎"));
+  await click(buttonNamed("Send"));
   window.location.hash = "#service/entitlements";
   await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
   await click(buttonNamed("Ask Copilot about entitlements"));
@@ -513,7 +524,7 @@ it("sends a late-started thread its words, and leaves a newer draft and its word
       id: start?.id,
       kind: "response",
       type: "thread.started",
-      payload: { threadId: "t9", landsIn: { target: "asking" } },
+      payload: { threadId: "t9", landsIn: { target: "asking" }, thread: summary("t9") },
     }),
   );
   expect(host.sent("thread.send").map(({ payload }) => payload)).toEqual([
@@ -536,7 +547,7 @@ it("sends a chip with no words as the fixed sentence, titled by its row", async 
   await openRow(halted);
   await click(askAbout() as HTMLElement);
   expect(container.querySelector("textarea")?.getAttribute("placeholder")).toBe(CHIP_ONLY_PROMPT);
-  await click(buttonNamed("Send ⏎"));
+  await click(buttonNamed("Send"));
   expect(host.sent("thread.start").map(({ payload }) => payload)).toEqual([
     { scope: "indexer", title: halted.title, subject: PACKED.id },
   ]);
@@ -695,7 +706,7 @@ it("sends a model chosen in a thread to the host route and leaves one line in th
   await click(buttonNamed(/^Model: /));
   await click(buttonNamed(/^Opus/));
   await type("Look again.");
-  await click(buttonNamed("Send ⏎"));
+  await click(buttonNamed("Send"));
   expect(host.sent("thread.send").at(-1)?.payload).toEqual({
     threadId: "t1",
     message: { prompt: "Look again.", model: "opus", reasoningEffort: "high" },
@@ -720,6 +731,90 @@ it("sends a model chosen in a thread to the host route and leaves one line in th
   ]);
 });
 
+it("shows a sent message at once, stops a draft's turn once it begins, and reads it as stopped", async () => {
+  host.silent.add("thread.start");
+  host.silent.add("thread.send");
+  window.location.hash = "#service/partition";
+  await act(async () => window.dispatchEvent(new HashChangeEvent("hashchange")));
+  await click(buttonNamed("Ask Copilot about partition"));
+  await type("Why did the last sync stop?");
+  await click(buttonNamed("Send"));
+  expect(all(".thread-user p").map((row) => row.textContent)).toEqual([
+    "Why did the last sync stop?",
+  ]);
+  expect(container.querySelector(".thread-working-phase")?.textContent).toBe("Waiting to start");
+
+  await click(buttonNamed("Stop"));
+  expect(container.querySelector(".thread-working-phase")?.textContent).toBe("Stopping");
+  expect(host.sent("thread.stop")).toEqual([]);
+  const [start] = host.sent("thread.start");
+  await act(async () =>
+    threadStore.getState().receive({
+      version: PROTOCOL_VERSION,
+      id: start?.id,
+      kind: "response",
+      type: "thread.started",
+      payload: { threadId: "t9", landsIn: { target: "asking" }, thread: summary("t9") },
+    }),
+  );
+  expect(window.location.hash).toBe("#thread/t9");
+  const order = host.posted
+    .filter(({ type }) => type === "thread.send" || type === "thread.stop")
+    .map(({ type, payload }) => [type, "threadId" in payload ? payload.threadId : ""]);
+  expect(order).toEqual([
+    ["thread.send", "t9"],
+    ["thread.stop", "t9"],
+  ]);
+  expect(all('#app-sidebar [data-thread-row="t9"]')).toHaveLength(1);
+  expect(container.querySelector(".thread-working-phase")?.textContent).toBe("Stopping");
+
+  const base = { threadId: "t9", at: Date.now() };
+  await act(async () =>
+    host.events("t9", [
+      { ...base, sequence: 1, type: "thread.created", thread: { scope: "partition" } },
+      {
+        ...base,
+        sequence: 2,
+        type: "message.sent",
+        messageId: "m1",
+        message: { prompt: "Why did the last sync stop?" },
+      },
+      { ...base, sequence: 3, type: "turn.started", turnId: "u1", messageId: "m1" },
+      {
+        ...base,
+        sequence: 4,
+        type: "turn.finished",
+        turnId: "u1",
+        outcome: "stopped",
+        reason: "operator",
+      },
+    ]),
+  );
+  expect(container.querySelector(".thread-turn-end")?.textContent).toMatch(
+    /^You stopped this turn after \d+s\.$/,
+  );
+  expect(container.querySelector(".thread-working")).toBeNull();
+  expect(all(".thread-user p")).toHaveLength(1);
+});
+
+it("marks an Open thread's sidebar row Working as soon as a message is sent", async () => {
+  host.addThread("t1", { scope: "indexer", title: "First" }, "Open");
+  host.silent.add("thread.send");
+  await act(async () => {
+    host.relist();
+    window.location.hash = "#thread/t1";
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+  });
+  const row = () => container.querySelector<HTMLElement>('#app-sidebar [data-thread-row="t1"]');
+  expect(row()?.closest("[data-state]")?.getAttribute("data-state")).toBe("Open");
+  await type("Look again.");
+  await click(buttonNamed("Send"));
+  expect(row()?.closest("[data-state]")?.getAttribute("data-state")).toBe("Working");
+  expect(status()).toBe("Working");
+  await act(async () => host.relist());
+  expect(row()?.closest("[data-state]")?.getAttribute("data-state")).toBe("Working");
+});
+
 it("says not known for a thread the host does not list", async () => {
   await act(async () => host.relist());
   window.location.hash = "#thread/gone";
@@ -740,14 +835,17 @@ it("keeps the operator's words in the draft when the thread does not start, or t
 
   host.failing.delete("thread.start");
   host.silent.add("thread.start");
-  await click(buttonNamed("Send ⏎"));
-  expect(buttonNamed("Send ⏎").hasAttribute("disabled")).toBe(true);
+  await click(buttonNamed("Send"));
+  expect(all(".thread-user p").map((row) => row.textContent)).toEqual(["Why is the sync halted?"]);
+  expect(container.querySelector("textarea")?.value).toBe("");
+  expect(container.querySelector(".thread-working-phase")?.textContent).toBe("Waiting to start");
+  expect(buttonNamed("Stop")).toBeDefined();
   await act(async () => host.hello());
   expect(container.querySelector(".thread-notice")?.textContent).toBe(
     "The host restarted before the thread started.",
   );
   expect(container.querySelector("textarea")?.value).toBe("Why is the sync halted?");
-  expect(buttonNamed("Send ⏎").hasAttribute("disabled")).toBe(false);
+  expect(buttonNamed("Send").hasAttribute("disabled")).toBe(false);
 });
 
 it("lists again and resubscribes an open thread from its last event when the host says hello", async () => {
@@ -809,7 +907,7 @@ it("says not known when a replacement host cannot list its threads, or the host 
   await act(async () => host.hello());
   expect(status()).toBe("not known");
   expect(all('#app-sidebar [data-thread-row="t1"]')).toEqual([]);
-  expect(all("button").some((button) => button.textContent === "Stop")).toBe(false);
+  expect(all('button[aria-label="Stop"]')).toEqual([]);
 
   host.failing.clear();
   await act(async () => host.hello());
@@ -833,7 +931,7 @@ it("finishes a pack the host was interrupted in: a restart packs again, an unava
   expect(chipLabels()).toEqual([`${halted.title} · trimmed`]);
   expect(notice()).toBeNull();
   expect(container.querySelector("textarea")?.value).toBe("Why is the sync halted?");
-  expect(buttonNamed("Send ⏎").hasAttribute("disabled")).toBe(false);
+  expect(buttonNamed("Send").hasAttribute("disabled")).toBe(false);
 
   host.silent.add("thread.chip");
   await click(askAbout() as HTMLElement);
@@ -869,7 +967,7 @@ it("refuses a send whose preview went stale, keeps the words and shows the fresh
   host.chips.set(PACKED.id, fresh);
   const reason = "What Copilot would receive changed since its preview.";
   host.refuseStart({ code: "stale_preview", message: reason });
-  await click(buttonNamed("Send ⏎"));
+  await click(buttonNamed("Send"));
 
   expect(window.location.hash).toBe("#thread/new");
   expect(notice()).toBe(reason);
@@ -881,7 +979,7 @@ it("refuses a send whose preview went stale, keeps the words and shows the fresh
   );
 
   host.refuseStart();
-  await click(buttonNamed("Send ⏎"));
+  await click(buttonNamed("Send"));
   expect(host.sent("thread.send").map(({ payload }) => payload)).toEqual([
     {
       threadId: "t1",
@@ -935,7 +1033,7 @@ it("lists up to three of the scope's rows that need the operator, attaches one a
   ]);
 
   await type("What now?");
-  await click(buttonNamed("Send ⏎"));
+  await click(buttonNamed("Send"));
   expect(host.sent("thread.start").map(({ payload }) => payload)).toEqual([
     { scope: "entitlements", title: "What now?", subject: first },
   ]);

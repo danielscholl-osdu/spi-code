@@ -1,11 +1,12 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "../components/icons/Icon.js";
+import { elapsed } from "./entries.js";
 import { Markdown } from "./Markdown.js";
 import { type TimelineRow, timelineRows, workSummary } from "./rows.js";
-import type { Approval, StepStatus, TimelineEntry, ToolCall } from "./types.js";
+import type { Activity, Approval, StepStatus, TimelineEntry, ToolCall } from "./types.js";
 import { VirtualList } from "./VirtualList.js";
 
 const STATUS_WORDS: Record<StepStatus, string> = {
@@ -16,6 +17,7 @@ const STATUS_WORDS: Record<StepStatus, string> = {
 };
 
 const TURN_END_WORDS = {
+  stopped: "You stopped this turn.",
   cancelled: "Cancelled. Copilot stopped before it finished.",
   failed: "The turn failed.",
   unknown: "This turn's end is not known. The host lost it before it finished.",
@@ -71,7 +73,34 @@ function Call({ call, open, onToggle }: { call: ToolCall; open: boolean; onToggl
   );
 }
 
-type Item = TimelineRow | ToolCall;
+/** The live line under the newest turn; it ticks on its own so the rows above do not re-render. */
+function WorkingLine({ since, phase }: Activity) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  return (
+    <div className="thread-working">
+      <span className="thread-mark thread-mark--running" aria-hidden="true">
+        <Icon name="loader" size={12} />
+      </span>
+      <span className="thread-working-time">Working for {elapsed(now - since)}</span>
+      {phase && (
+        <span className="thread-working-phase" role="status">
+          {phase}
+        </span>
+      )}
+    </div>
+  );
+}
+
+interface WorkingRow extends Activity {
+  kind: "working";
+  id: string;
+}
+
+type Item = TimelineRow | ToolCall | WorkingRow;
 
 interface RowProps {
   row: Item;
@@ -103,11 +132,6 @@ function Row({ row, open, toggle, onOpenLink, onApprovalDecision }: RowProps) {
         <article className="thread-assistant" aria-busy={row.streaming || undefined}>
           <p className="thread-who">Copilot</p>
           <Markdown text={row.text} {...(onOpenLink ? { onOpenLink } : {})} />
-          {row.streaming && (
-            <span className="thread-streaming" role="status">
-              Writing…
-            </span>
-          )}
         </article>
       );
     case "work": {
@@ -137,13 +161,20 @@ function Row({ row, open, toggle, onOpenLink, onApprovalDecision }: RowProps) {
         <div className="thread-setup" data-status={row.status}>
           <StatusMark status={row.status} />
           <span>{row.label}</span>
-          {row.status !== "done" && (
+          {row.status !== "done" && row.status !== "running" && (
             <span className="thread-call-status">{STATUS_WORDS[row.status]}</span>
           )}
           {row.detail && <span className="thread-setup-detail">{row.detail}</span>}
         </div>
       );
     case "turn-end":
+      if (row.state === "stopped")
+        return (
+          <p className="thread-turn-end" data-state="stopped">
+            <Icon name="square" size={10} stroke={2.5} filled />
+            {row.detail ? `You stopped this turn ${row.detail}.` : TURN_END_WORDS.stopped}
+          </p>
+        );
       return (
         <p className="thread-turn-end" data-state={row.state}>
           {TURN_END_WORDS[row.state]}
@@ -192,6 +223,8 @@ function Row({ row, open, toggle, onOpenLink, onApprovalDecision }: RowProps) {
           )}
         </section>
       );
+    case "working":
+      return <WorkingLine since={row.since} {...(row.phase ? { phase: row.phase } : {})} />;
   }
 }
 
@@ -204,18 +237,21 @@ const ESTIMATES: Record<Item["kind"], number> = {
   "turn-end": 40,
   "model-switch": 40,
   approval: 144,
+  working: 32,
 };
 
 export function Timeline({
   entries,
   contextLine,
   running,
+  activity,
   onOpenLink,
   onApprovalDecision,
 }: {
   entries: readonly TimelineEntry[];
   contextLine?: string | undefined;
   running: boolean;
+  activity?: Activity | undefined;
   onOpenLink?: ((url: string) => void) | undefined;
   onApprovalDecision?: ((approval: Approval, approved: boolean) => void) | undefined;
 }) {
@@ -230,13 +266,13 @@ export function Timeline({
       }),
     [],
   );
-  const items = useMemo(
-    () =>
-      rows.flatMap((row): Item[] =>
-        row.kind === "work" && !open.has(`${row.id}:closed`) ? [row, ...row.calls] : [row],
-      ),
-    [rows, open],
-  );
+  const items = useMemo(() => {
+    const list = rows.flatMap((row): Item[] =>
+      row.kind === "work" && !open.has(`${row.id}:closed`) ? [row, ...row.calls] : [row],
+    );
+    if (activity) list.push({ kind: "working", id: "working", ...activity });
+    return list;
+  }, [rows, open, activity]);
   const itemKey = useCallback((row: Item) => row.id, []);
   const estimate = useCallback((row: Item) => ESTIMATES[row.kind], []);
   return (
@@ -248,7 +284,7 @@ export function Timeline({
         estimate={estimate}
         className="thread-scroll"
         label="Thread timeline"
-        busy={running}
+        busy={running || activity !== undefined}
       >
         {(row) => (
           <Row

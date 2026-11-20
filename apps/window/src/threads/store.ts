@@ -11,6 +11,7 @@ import {
 } from "@spi-code/contracts";
 import { createStore } from "zustand/vanilla";
 import type { Route } from "../app/navigation.js";
+import type { PendingSend } from "./entries.js";
 import type { ModelChoice } from "./types.js";
 
 type Request = Extract<Message, { kind: "request" }>;
@@ -44,10 +45,10 @@ export interface Draft {
   subject?: { id: string; label: string };
   origin?: string;
   chip?: { state: "packing" } | ({ state: "done" } & ChipResult);
-  /** The words being sent while the host starts the thread. */
-  sending?: string;
-  /** Why the last send started no thread; the composer keeps the operator's words. */
-  failure?: { reason: string };
+  /** The message on its way while the host starts the thread, and the words the operator typed. */
+  sending?: { words: string; message: PendingSend; stopping?: true };
+  /** Why the last send started no thread, and the words to put back in the composer. */
+  failure?: { reason: string; words?: string };
 }
 
 type ThreadsState = {
@@ -56,6 +57,14 @@ type ThreadsState = {
   /** Each subscribed thread's journal so far; a hello resubscribes every key. */
   events: Readonly<Record<string, readonly ThreadWireEvent[]>>;
   failures: Readonly<Record<string, string>>;
+  /** Messages sent from this window whose turn has not ended. */
+  pending: Readonly<Record<string, PendingSend>>;
+  /** Threads whose Stop was pressed and whose turn has not ended. */
+  stopping: Readonly<Record<string, true>>;
+  /** The host's last list, which `threads` shows with what this window knows sooner. */
+  listed: readonly ThreadSummary[] | null;
+  /** Threads the host started for this window that its list does not hold yet. */
+  started: Readonly<Record<string, ThreadSummary>>;
   catalog: ModelCatalogResult | null;
   choices: Readonly<Record<string, ModelChoice>>;
   draft: Draft | null;
@@ -72,6 +81,8 @@ type ThreadsState = {
   send(threadId: string, text: string): void;
   decideApproval(threadId: string, turnId: string, approvalId: string, approved: boolean): void;
   stop(threadId: string): void;
+  /** Stop pressed while the host starts the draft's thread: its turn is stopped once it begins. */
+  stopDraft(): void;
   open(threadId: string): void;
   settle(thread: ThreadSummary, onSettled?: (threads: readonly ThreadSummary[]) => void): void;
   unsettle(threadId: string, options?: { restore?: boolean }): void;
@@ -112,6 +123,15 @@ export const CHIP_ONLY_PROMPT =
   "Look at what's attached and tell me what stands out and what I should do next.";
 
 const withoutSending = ({ sending: _, ...draft }: Draft): Draft => draft;
+/** The draft as it was before a send that started no thread, its words put back. */
+const failDraft = (draft: Draft, reason: string): Draft => ({
+  ...withoutSending(draft),
+  failure: { reason, ...(draft.sending?.words ? { words: draft.sending.words } : {}) },
+});
+const without = <T>(record: Readonly<Record<string, T>>, key: string) => {
+  const { [key]: _, ...rest } = record;
+  return rest;
+};
 
 /** A short title from the operator's first words. */
 export function threadTitle(text: string): string {
@@ -157,11 +177,46 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
   /** Bumped by each new draft and each pack, so a reply only lands on the request it answers. */
   let draftSerial = 0;
   let packSerial = 0;
+  /** Drafts whose Stop was pressed before the host started their thread, by serial. */
+  const stopAsked = new Set<number>();
   return createStore<ThreadsState>()((set, get) => {
+    /** The host's threads, with what this window knows sooner: threads it started and messages it sent. */
+    const showThreads = () => {
+      const { pending, listed, started } = get();
+      const own = Object.values(started).filter(({ id }) => !listed?.some((t) => t.id === id));
+      if (!listed && own.length === 0) {
+        set({ threads: null });
+        return;
+      }
+      set({
+        threads: [...own, ...(listed ?? [])].map((thread) => {
+          const sent = pending[thread.id];
+          return sent && (thread.status === "Open" || thread.status === "Settled")
+            ? {
+                ...thread,
+                status: "Working",
+                settledAt: null,
+                updatedAt: Math.max(thread.updatedAt, sent.at),
+              }
+            : thread;
+        }),
+      });
+    };
+    const setListed = (threads: readonly ThreadSummary[] | null) => {
+      set(({ started }) => ({
+        listed: threads,
+        started: threads
+          ? Object.fromEntries(
+              Object.entries(started).filter(([id]) => !threads.some((t) => t.id === id)),
+            )
+          : started,
+      }));
+      showThreads();
+    };
     const list = (onListed?: (threads: readonly ThreadSummary[]) => void) =>
       request("threads.list", {}, (reply) => {
         if (reply.type !== "threads.result") {
-          set({ threads: null });
+          setListed(null);
           return;
         }
         onListed?.(reply.payload.threads);
@@ -185,14 +240,32 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
           : {}),
       } as Extract<Request, { type: "thread.send" }>["payload"]["message"];
     };
-    const sendMessage = (threadId: string, payload: ReturnType<typeof message>) => {
-      set(({ failures }) => {
-        const { [threadId]: _, ...rest } = failures;
-        return { failures: rest };
-      });
+    const sendMessage = (
+      threadId: string,
+      payload: ReturnType<typeof message>,
+      at: number = Date.now(),
+    ) => {
+      const echo: PendingSend = {
+        prompt: payload.prompt,
+        ...(payload.attachments
+          ? { attachments: payload.attachments.map(({ name }) => name) }
+          : {}),
+        at,
+        after: get().events[threadId]?.at(-1)?.sequence ?? 0,
+      };
+      set(({ failures, pending }) => ({
+        failures: without(failures, threadId),
+        pending: { ...pending, [threadId]: echo },
+      }));
+      showThreads();
+      // The host answers when the turn ends, so the journal, not this reply, usually ends the echo.
       request("thread.send", { threadId, message: payload }, (reply) => {
         const reason = failed(reply);
-        if (reason) set(({ failures }) => ({ failures: { ...failures, [threadId]: reason } }));
+        set(({ failures, pending }) => ({
+          pending: pending[threadId] === echo ? without(pending, threadId) : pending,
+          ...(reason ? { failures: { ...failures, [threadId]: reason } } : {}),
+        }));
+        showThreads();
         list();
       });
     };
@@ -218,13 +291,19 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
     const lose = (gone: string | null) => {
       const { draft } = get();
       let next = draft;
-      if (next?.sending !== undefined) {
-        const reason = gone ?? "The host restarted before the thread started.";
-        next = { ...withoutSending(next), failure: { reason } };
-      }
+      if (next?.sending !== undefined)
+        next = failDraft(next, gone ?? "The host restarted before the thread started.");
       if (gone && next?.chip?.state === "packing" && next.subject)
         next = { ...next, chip: { state: "done", ok: false, id: next.subject.id, reason: gone } };
-      set({ threads: null, ...(next === draft ? {} : { draft: next }) });
+      stopAsked.clear();
+      set({
+        threads: null,
+        listed: null,
+        started: {},
+        pending: {},
+        stopping: {},
+        ...(next === draft ? {} : { draft: next }),
+      });
       if (next?.chip?.state === "packing" && next.subject) pack(next.subject.id);
     };
 
@@ -232,6 +311,10 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
       threads: null,
       events: {},
       failures: {},
+      pending: {},
+      stopping: {},
+      listed: null,
+      started: {},
       catalog: null,
       choices: {},
       draft: null,
@@ -284,7 +367,16 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
         const choice = get().choices.draft;
         const chip = draft.chip?.state === "done" && draft.chip.ok ? draft.chip : undefined;
         const { failure: _, ...rest } = draft;
-        set({ draft: { ...rest, sending: text } });
+        const sending = {
+          words: chip && text === CHIP_ONLY_PROMPT ? "" : text,
+          message: {
+            prompt: text,
+            ...(chip ? { attachments: [chip.attachment.name] } : {}),
+            at: Date.now(),
+            after: 0,
+          },
+        };
+        set({ draft: { ...rest, sending } });
         const definition = {
           scope: draft.scope,
           title: threadTitle(
@@ -295,21 +387,22 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
         const serial = draftSerial;
         request("thread.start", definition, (reply) => {
           const current = serial === draftSerial ? get().draft : null;
+          const stopNow = stopAsked.delete(serial);
           if (reply.type !== "thread.started") {
             const stale =
               reply.type === "error" && reply.payload.code === STALE_PREVIEW && current?.subject;
             if (current)
               set({
                 draft: {
-                  ...withoutSending(current),
+                  ...failDraft(current, failed(reply) ?? "The thread did not start."),
                   ...(stale ? { chip: { state: "packing" } as const } : {}),
-                  failure: { reason: failed(reply) ?? "The thread did not start." },
                 },
               });
             if (stale) pack(stale.id);
             return;
           }
-          const { threadId } = reply.payload;
+          const { threadId, thread } = reply.payload;
+          set(({ started }) => ({ started: { ...started, [threadId]: thread } }));
           if (choice) set(({ choices }) => ({ choices: { ...choices, [threadId]: choice } }));
           const payload = message(threadId, text, chip?.attachment);
           if (current) {
@@ -317,8 +410,15 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
             set({ draft: null, events: { ...get().events, [threadId]: [] } });
             subscribe(threadId);
           }
-          sendMessage(threadId, payload);
+          sendMessage(threadId, payload, sending.message.at);
+          if (stopNow) get().stop(threadId);
         });
+      },
+      stopDraft() {
+        const { draft } = get();
+        if (!draft?.sending) return;
+        stopAsked.add(draftSerial);
+        set({ draft: { ...draft, sending: { ...draft.sending, stopping: true } } });
       },
       send: (threadId, text) => sendMessage(threadId, message(threadId, text)),
       decideApproval: (threadId, turnId, approvalId, approved) =>
@@ -326,7 +426,13 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
           if (reply.type !== "thread.approval.result" || reply.payload.decided) return;
           list();
         }),
-      stop: (threadId) => request("thread.stop", { threadId }, () => list()),
+      stop(threadId) {
+        set(({ stopping }) => ({ stopping: { ...stopping, [threadId]: true } }));
+        request("thread.stop", { threadId }, () => {
+          set(({ stopping }) => ({ stopping: without(stopping, threadId) }));
+          list();
+        });
+      },
       open(threadId) {
         if (!get().catalog) get().listModels();
         const summary = get().threads?.find((thread) => thread.id === threadId);
@@ -399,7 +505,7 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
           waiting.delete(reply.id);
           then(reply);
         }
-        if (reply.type === "threads.result") set({ threads: reply.payload.threads });
+        if (reply.type === "threads.result") setListed(reply.payload.threads);
         else if (reply.type === "models.result") set({ catalog: reply.payload });
         else if (reply.type === "thread.events") {
           const { threadId, events } = reply.payload;
@@ -407,7 +513,18 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
           const after = known.at(-1)?.sequence ?? 0;
           const fresh = events.filter(({ sequence }) => sequence > after);
           if (fresh.length === 0) return;
-          set(({ events: all }) => ({ events: { ...all, [threadId]: [...known, ...fresh] } }));
+          const echo = get().pending[threadId];
+          const begun = (type: ThreadWireEvent["type"]) =>
+            fresh.some((event) => event.type === type && (!echo || event.sequence > echo.after));
+          const answered = echo && (begun("turn.finished") || begun("message.cancelled"));
+          set(({ events: all, pending, stopping }) => ({
+            events: { ...all, [threadId]: [...known, ...fresh] },
+            ...(answered ? { pending: without(pending, threadId) } : {}),
+            ...(stopping[threadId] && begun("turn.finished")
+              ? { stopping: without(stopping, threadId) }
+              : {}),
+          }));
+          if (answered) showThreads();
           if (fresh.some(({ type }) => STATUS_EVENTS.has(type))) list();
         }
       },

@@ -59,7 +59,6 @@ it("streams an assistant message, then settles it", () => {
   const streaming = all("article[aria-busy='true']");
   expect(streaming).toHaveLength(1);
   expect(streaming[0]?.textContent).toContain("The first module");
-  expect(streaming[0]?.querySelector("[role='status']")).not.toBeNull();
 
   const entries = fixtureThread().entries.map((entry) =>
     entry.id === "a2" && entry.kind === "assistant"
