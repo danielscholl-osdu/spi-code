@@ -92,7 +92,7 @@ export const noop = () => {};
 export function fixtureThread(overrides: Partial<ThreadViewProps> = {}): ThreadViewProps {
   return {
     entries: FIXTURE_ENTRIES,
-    contextLine: "Context · partition · from the sweep at 13:50 · 1 item, 1,300 tokens",
+    contextLine: "Context · partition · from the sweep at 13:50 · 1 item, 1,300 bytes",
     scope: { id: "partition", label: "partition" },
     context: [],
     onRemoveContext: noop,

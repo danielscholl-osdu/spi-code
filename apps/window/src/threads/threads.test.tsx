@@ -44,10 +44,10 @@ const PACKED: ChipResult = {
   id: "sync-run:indexer",
   sweptAt: "2026-11-16T13:50:00Z",
   trimmed: true,
-  tokens: 1234,
+  bytes: 1234,
   attachment: {
     name: "context:sync-run:indexer",
-    content: '{"id":"sync-run:indexer","trimmed":"Over 2000 tokens: left out why."}',
+    content: '{"id":"sync-run:indexer","trimmed":"Over 6000 UTF-8 bytes: left out why."}',
   },
 };
 
@@ -248,7 +248,7 @@ it("drafts one chip the host packed, scoped to the row's fork, and sends nothing
     PACKED.attachment.content,
   );
   expect(container.querySelector(".thread-context-line")?.textContent).toMatch(
-    /^Context · indexer · from the sweep at .+ · 1 item, 1,234 tokens$/,
+    /^Context · indexer · from the sweep at .+ · 1 item, 1,234 bytes$/,
   );
 });
 

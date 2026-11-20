@@ -16,6 +16,7 @@ import { offeredTools, spiReadTools, spiToolProvider } from "../tools/spi-reads.
 import { type AskingTurnWorkspace, CopilotThreadAdapter } from "./adapter.js";
 import { chipFromSweep } from "./context/draft.js";
 import { threadContext } from "./context/provider.js";
+import { redactSpiText, type SpiRedactor } from "./context/redaction.js";
 import type { LatestSweep } from "./context/sweep.js";
 
 export interface ThreadHostOptions {
@@ -58,6 +59,16 @@ export function openThreadHost(options: ThreadHostOptions) {
       value: (value) => profiles.model.value(value),
       chunks: (value) => profiles.model.chunks(value),
     };
+    const spiRedactor: SpiRedactor = { value: (value) => profiles.journal.value(value) };
+    const chipRedactor = {
+      text(value: string) {
+        try {
+          return redactSpiText(value, spiRedactor);
+        } catch {
+          return "Context chip withheld.";
+        }
+      },
+    };
     const remember = (token: string) => {
       if (secrets.has(token)) return;
       secrets.add(token);
@@ -87,7 +98,7 @@ export function openThreadHost(options: ThreadHostOptions) {
       return adapter;
     };
     let workspaces: ScopeWorkspaces | undefined;
-    const tools = spiReadTools(options.savedSweep, modelRedactor);
+    const tools = spiReadTools(options.savedSweep, spiRedactor);
     const engine = new ThreadEngine<Tool>(db, {
       runtime: { run: async (input, events) => (await getAdapter()).run(input, events) },
       workspace: {
@@ -117,7 +128,7 @@ export function openThreadHost(options: ThreadHostOptions) {
           };
         },
       },
-      context: threadContext({ scopes, tools: offeredTools(tools), redactor: modelRedactor }),
+      context: threadContext({ scopes, tools: offeredTools(tools), redactor: chipRedactor }),
       tools: spiToolProvider(tools),
       redactor: {
         text: (value) => profiles.journal.text(value),
@@ -140,8 +151,8 @@ export function openThreadHost(options: ThreadHostOptions) {
     return {
       engine,
       remember,
-      chip: (id: string) => chipFromSweep(options.savedSweep, id, modelRedactor),
-      redact: (text: string) => modelRedactor.text(text),
+      chip: (id: string) => chipFromSweep(options.savedSweep, id, spiRedactor),
+      redact: chipRedactor.text,
       stop: () => {
         stopping ??= engine.shutdown().finally(async () => {
           try {

@@ -75,8 +75,8 @@ function draftNotice(draft: Draft): string | undefined {
 function draftContextLine(draft: Draft): string | undefined {
   const { chip } = draft;
   if (chip?.state !== "done" || !chip.ok || !draft.scope) return undefined;
-  const tokens = chip.tokens.toLocaleString("en-US");
-  return `Context · ${draft.scope} · from the sweep at ${clockTime(chip.sweptAt)} · 1 item, ${tokens} tokens`;
+  const bytes = chip.bytes.toLocaleString("en-US");
+  return `Context · ${draft.scope} · from the sweep at ${clockTime(chip.sweptAt)} · 1 item, ${bytes} bytes`;
 }
 
 /** The centre on a thread route: a draft, or a thread the host journals. */

@@ -20,8 +20,8 @@ function chipResult(id: string, packed: ChipOutcome): ThreadChipResult {
   if (!snapshot.ok) return { ok: false, id, reason: snapshot.reason };
   const [attachment] = snapshot.attachments;
   if (!attachment) return { ok: false, id, reason: `${id} was not packed.` };
-  const { sweptAt, trimmed, tokens } = packed.chip;
-  return { ok: true, id, sweptAt, trimmed, tokens, attachment };
+  const { sweptAt, trimmed, bytes } = packed.chip;
+  return { ok: true, id, sweptAt, trimmed, bytes, attachment };
 }
 
 export class ThreadRoutes {

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 
 import { resolvePointer, type ViewSnapshot } from "@spi-code/contracts";
-import type { JsonValue, ToolOutputRedactor } from "@spi-code/threads";
 import { z } from "zod";
 import { readPlace } from "../threads/context/places.js";
+import { redactSpiText, redactSpiValue, type SpiRedactor } from "../threads/context/redaction.js";
 import {
   areaEnvelopes,
   governedBy,
@@ -17,7 +17,6 @@ import {
   sourcesAt,
   withRecords,
 } from "../threads/context/sweep.js";
-import { estimateTokens, type TokenEstimate } from "../threads/context/tokens.js";
 import {
   buildGatedTool,
   checkStubTier,
@@ -27,7 +26,7 @@ import {
 } from "./registry.js";
 import { APPENDIX_A_TOOLS, type ToolMetadata } from "./tool-names.js";
 
-export const SPI_RESULT_TOKEN_BUDGET = 12_000;
+export const SPI_RESULT_BYTE_BUDGET = 12_000;
 
 type Fields = Record<string, unknown>;
 type Answer =
@@ -260,7 +259,7 @@ export function isSpiReadTool(name: string): boolean {
 }
 
 /** Whole items only: each named list (`key` or `key.list`) keeps what fits, in order, and says what it left out. */
-function fit(value: Fields, lists: readonly string[], estimate: TokenEstimate): Fields {
+function fit(value: Fields, lists: readonly string[]): Fields {
   const result: Fields = { ...value };
   const slots = lists.flatMap((path) => {
     const [head = "", name] = path.split(".");
@@ -277,13 +276,13 @@ function fit(value: Fields, lists: readonly string[], estimate: TokenEstimate): 
     return [{ path, parent, key, items }];
   });
   const room = Object.fromEntries(slots.map(({ path, items }) => [path, items.length]));
-  let used = estimate(JSON.stringify({ ...result, leftOut: room }));
+  let used = Buffer.byteLength(JSON.stringify({ ...result, leftOut: room }));
   const leftOut: Record<string, number> = {};
   for (const { path, parent, key, items } of slots) {
     const kept: unknown[] = [];
     for (const item of items) {
-      const cost = estimate(JSON.stringify(item)) + 1;
-      if (used + cost > SPI_RESULT_TOKEN_BUDGET) break;
+      const cost = Buffer.byteLength(JSON.stringify(item)) + 1;
+      if (used + cost > SPI_RESULT_BYTE_BUDGET) break;
       kept.push(item);
       used += cost;
     }
@@ -293,55 +292,66 @@ function fit(value: Fields, lists: readonly string[], estimate: TokenEstimate): 
   return Object.keys(leftOut).length ? { ...result, leftOut } : result;
 }
 
-export function answerFor(
+const WITHHELD = "SPI tool output withheld.";
+
+function resultJson(value: Fields, lists: readonly string[], journal: SpiRedactor): string {
+  try {
+    const safe = redactSpiValue(value, journal);
+    if (safe === null || typeof safe !== "object" || Array.isArray(safe)) {
+      throw new Error(WITHHELD);
+    }
+    return JSON.stringify(lists.length ? fit(safe as Fields, lists) : safe);
+  } catch {
+    throw new Error(WITHHELD);
+  }
+}
+
+async function answerFor(
   sweep: SavedSweep | undefined,
   answer: (sweep: SavedSweep) => Answer | Promise<Answer>,
-  estimate: TokenEstimate = estimateTokens,
-): Promise<Fields> | Fields {
-  if (!sweep) return { read: NOT_READ, reason: "No sweep has been saved." };
-  const shape = (found: Answer): Fields => {
-    if ("found" in found)
-      return { sweptAt: sweep.view.sweptAt, found: false, reason: found.reason };
-    const { place: name, at, state, value, lists, always } = found;
-    const head = {
-      place: name,
-      sweptAt: sweep.view.sweptAt,
-      ...(at === undefined ? {} : { at }),
-      read: state.read,
-      areas: withRecords(state.areas, sweep.reads),
-      ...(state.notRead.length ? { notRead: state.notRead } : {}),
-      ...(state.failed.length ? { failed: state.failed } : {}),
-    };
-    return state.read === NOT_READ && !always
-      ? head
-      : fit({ ...head, ...value }, lists ?? [], estimate);
+  journal: SpiRedactor,
+): Promise<string> {
+  const render = (value: Fields, lists: readonly string[] = []) =>
+    resultJson(value, lists, journal);
+  if (!sweep) return render({ read: NOT_READ, reason: "No sweep has been saved." });
+  const found = await answer(sweep);
+  if ("found" in found)
+    return render({ sweptAt: sweep.view.sweptAt, found: false, reason: found.reason });
+  const { place: name, at, state, value, lists, always } = found;
+  const head = {
+    place: name,
+    sweptAt: sweep.view.sweptAt,
+    ...(at === undefined ? {} : { at }),
+    read: state.read,
+    areas: withRecords(state.areas, sweep.reads),
+    ...(state.notRead.length ? { notRead: state.notRead } : {}),
+    ...(state.failed.length ? { failed: state.failed } : {}),
   };
-  const found = answer(sweep);
-  return found instanceof Promise ? found.then(shape) : shape(found);
+  return state.read === NOT_READ && !always ? render(head) : render({ ...head, ...value }, lists);
 }
 
-/** The SDK forwards a thrown message to the model, so it leaves through the model profile too. */
-function redacted(error: unknown, redactor: Pick<ToolOutputRedactor, "text">): Error {
-  const message = redactor.text(error instanceof Error ? error.message : String(error));
-  return error instanceof ToolRefusedError ? new ToolRefusedError(message) : new Error(message);
+/** The SDK forwards thrown messages to the model. */
+function redacted(error: unknown, journal: SpiRedactor): Error {
+  try {
+    const message = redactSpiText(error instanceof Error ? error.message : String(error), journal);
+    return error instanceof ToolRefusedError ? new ToolRefusedError(message) : new Error(message);
+  } catch {
+    return new Error(WITHHELD);
+  }
 }
 
-/** The SPI read tools over the latest saved sweep, each result and error through the model profile. */
+/** The SPI read tools over the latest saved sweep, with journal redaction on results and errors. */
 export function spiReadTools(
   latest: LatestSweep,
-  redactor: Pick<ToolOutputRedactor, "text" | "value">,
+  journal: SpiRedactor,
   check: TierCheck = checkStubTier,
-  estimate: TokenEstimate = estimateTokens,
 ): GatedTool[] {
   return READS.map(({ metadata: meta, description, args, read }) => {
     const gated = buildGatedTool(
       meta,
       args,
       check,
-      async (parsed) => {
-        const result = await answerFor(latest(), (sweep) => read(sweep, parsed), estimate);
-        return JSON.stringify(redactor.value(result as JsonValue));
-      },
+      (parsed) => answerFor(latest(), (sweep) => read(sweep, parsed), journal),
       description,
     );
     const { handler } = gated.tool;
@@ -353,7 +363,7 @@ export function spiReadTools(
           try {
             return await handler(args, invocation);
           } catch (error) {
-            throw redacted(error, redactor);
+            throw redacted(error, journal);
           }
         },
       },

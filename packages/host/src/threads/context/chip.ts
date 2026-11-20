@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: MIT
 
 import type { ReadRecord } from "@spi-code/contracts";
-import type { JsonValue, ToolOutputRedactor } from "@spi-code/threads";
-import type { PlaceRead } from "./places.js";
+import type { JsonValue } from "@spi-code/threads";
+import { type PlaceRead, SERVICE_PLACE } from "./places.js";
+import { redactSpiValue, type SpiRedactor } from "./redaction.js";
 import {
   type CollectorReads,
   type InspectAnswer,
@@ -11,9 +12,7 @@ import {
   readState,
   withRecords,
 } from "./sweep.js";
-import { estimateTokens, type TokenEstimate } from "./tokens.js";
-
-export const CHIP_TOKEN_BUDGET = 2000;
+export const CHIP_BYTE_BUDGET = 6000;
 
 /** PS-14: an over-budget chip keeps only these, in this order, and says so. */
 export const TRIMMED_CHIP_KEEPS = [
@@ -33,7 +32,7 @@ export interface PackedChip {
   readonly id: string;
   readonly sweptAt: string;
   readonly trimmed: boolean;
-  readonly tokens: number;
+  readonly bytes: number;
   /** The redacted chip as Copilot receives it; a draft previews it and a message snapshots it. */
   readonly chip: { readonly [key: string]: JsonValue };
   readonly content: string;
@@ -100,64 +99,92 @@ function placeFull(id: string, found: PlaceRead, { sweptAt, reads }: ChipSweep) 
   };
 }
 
-type Draft = { readonly id: string; readonly evidence: readonly (ReadRecord | string)[] } & Record<
-  string,
-  unknown
->;
+type Draft = {
+  readonly id: string;
+  readonly sweptAt: string;
+  readonly evidence: readonly (ReadRecord | string)[];
+} & PackedChip["chip"];
 
-function trim(chip: Draft) {
-  const kept: Record<string, unknown> = {};
+const PLACE_TOOLS: Readonly<Record<string, string>> = {
+  "place:upstream": "spi_radar",
+  "place:engineering-system": "spi_template",
+  "place:security": "spi_security",
+  "place:releases": "spi_release_notes",
+};
+
+function trim(chip: Draft, journal: SpiRedactor): PackedChip["chip"] {
+  const kept: Record<string, JsonValue> = {};
+  const evidence: string[] = [];
   for (const key of TRIMMED_CHIP_KEEPS) {
-    if (key === "evidence") {
-      kept.evidence = chip.evidence.map((entry) =>
-        typeof entry === "string" ? entry : reference(entry),
-      );
-    } else if (chip[key] !== undefined) kept[key] = chip[key];
+    if (key === "evidence") kept.evidence = evidence;
+    else if (chip[key] !== undefined) kept[key] = chip[key];
   }
-  const left = Object.keys(chip).filter((key) => !(key in kept));
-  kept.trimmed = `Over ${CHIP_TOKEN_BUDGET} tokens: left out ${left.join(", ")}; read records kept as references.`;
-  return kept;
+  const left = Object.keys(chip).filter((key) => !Object.hasOwn(kept, key));
+  const tool =
+    chip.kind === "place"
+      ? chip.id.startsWith(SERVICE_PLACE)
+        ? "spi_line"
+        : PLACE_TOOLS[chip.id]
+      : "spi_inspect";
+  kept.trimmed = `Over ${CHIP_BYTE_BUDGET} UTF-8 bytes, so this chip left out ${left.join(", ")}. Read records are kept as references. Use ${tool ?? "spi_inspect"} for the rest.`;
+
+  let used = Buffer.byteLength(JSON.stringify(kept));
+  let count = 0;
+  for (const entry of chip.evidence) {
+    const safe = typeof entry === "string" ? entry : journal.value(reference(entry));
+    if (typeof safe !== "string") throw new Error("Invalid evidence reference.");
+    used += Buffer.byteLength(JSON.stringify(safe)) + Number(evidence.length > 0);
+    if (used > CHIP_BYTE_BUDGET) break;
+    evidence.push(safe);
+    const evidenceLeftOut = chip.evidence.length - evidence.length;
+    const countBytes = evidenceLeftOut
+      ? Buffer.byteLength(JSON.stringify({ evidenceLeftOut })) - 1
+      : 0;
+    if (used + countBytes <= CHIP_BYTE_BUDGET) count = evidence.length;
+  }
+  evidence.length = count;
+  const evidenceLeftOut = chip.evidence.length - count;
+  return evidenceLeftOut ? { ...kept, evidenceLeftOut } : kept;
 }
 
-/** Packs one inspect answer within PS-14's budget, or refuses it. Never clips text. */
+/** Packs one inspect answer within PS-14's budget, keeping whole evidence references. */
 export function packChip(
   answer: InspectAnswer,
   sweep: ChipSweep,
-  redactor: Pick<ToolOutputRedactor, "value">,
-  estimate: TokenEstimate = estimateTokens,
+  redactor: SpiRedactor,
 ): ChipOutcome {
-  return pack(full(answer, sweep), sweep.sweptAt, redactor, estimate);
+  return pack(full(answer, sweep), redactor);
 }
 
 export function packPlace(
   id: string,
   found: PlaceRead,
   sweep: ChipSweep,
-  redactor: Pick<ToolOutputRedactor, "value">,
-  estimate: TokenEstimate = estimateTokens,
+  redactor: SpiRedactor,
 ): ChipOutcome {
-  return pack(placeFull(id, found, sweep), sweep.sweptAt, redactor, estimate);
+  return pack(placeFull(id, found, sweep), redactor);
 }
 
-function pack(
-  whole: Draft,
-  sweptAt: string,
-  redactor: Pick<ToolOutputRedactor, "value">,
-  estimate: TokenEstimate,
-): ChipOutcome {
-  for (const [trimmed, draft] of [
-    [false, whole],
-    [true, trim(whole)],
-  ] as const) {
-    const chip = redactor.value(draft as JsonValue) as PackedChip["chip"];
-    const content = JSON.stringify(chip);
-    const tokens = estimate(content);
-    if (tokens <= CHIP_TOKEN_BUDGET) {
-      return { ok: true, chip: { id: whole.id, sweptAt, trimmed, tokens, chip, content } };
+function pack(draft: Record<string, unknown>, redactor: SpiRedactor): ChipOutcome {
+  try {
+    const whole = redactSpiValue(draft, redactor) as Draft;
+    const { id, sweptAt } = whole;
+    if (typeof id !== "string" || typeof sweptAt !== "string" || !Array.isArray(whole.evidence)) {
+      return { ok: false, reason: "Context chip withheld." };
     }
+    const fullContent = JSON.stringify(whole);
+    const trimmed = Buffer.byteLength(fullContent) > CHIP_BYTE_BUDGET;
+    const chip = trimmed ? trim(whole, redactor) : whole;
+    const content = trimmed ? JSON.stringify(chip) : fullContent;
+    const bytes = Buffer.byteLength(content);
+    if (bytes <= CHIP_BYTE_BUDGET) {
+      return { ok: true, chip: { id, sweptAt, trimmed, bytes, chip, content } };
+    }
+    return {
+      ok: false,
+      reason: `The context for ${id} is over ${CHIP_BYTE_BUDGET} UTF-8 bytes even without evidence references.`,
+    };
+  } catch {
+    return { ok: false, reason: "Context chip withheld." };
   }
-  return {
-    ok: false,
-    reason: `${whole.id} is over ${CHIP_TOKEN_BUDGET} tokens even trimmed to identity, class, cause, next and evidence references.`,
-  };
 }

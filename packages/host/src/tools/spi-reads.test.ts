@@ -4,7 +4,7 @@
 import { readFileSync } from "node:fs";
 import type { InspectResult, ViewSnapshot } from "@spi-code/contracts";
 import { emptyFacts } from "@spi-code/core";
-import type { ToolOutputRedactor } from "@spi-code/threads";
+import { journalOutputRedactor, type ToolOutputRedactor } from "@spi-code/threads";
 import { describe, expect, it } from "vitest";
 import {
   appStyle,
@@ -15,16 +15,14 @@ import {
 } from "../../test/watch/snapshot-fixture.js";
 import { FakeSession } from "../testing/fake-session.js";
 import type { CollectorReads, SavedSweep } from "../threads/context/sweep.js";
-import { estimateTokens } from "../threads/context/tokens.js";
 import { projectWatch, type WatchInput } from "../watch/project.js";
 import { buildPermissionGate } from "./permission-gate.js";
 import type { TierCheck } from "./registry.js";
-import { SPI_RESULT_TOKEN_BUDGET, spiReadTools, spiToolProvider } from "./spi-reads.js";
+import { SPI_RESULT_BYTE_BUDGET, spiReadTools, spiToolProvider } from "./spi-reads.js";
 
 const view: ViewSnapshot = JSON.parse(readFileSync(recordedSnapshotPath, "utf8"));
 const feed: InspectResult[] = JSON.parse(readFileSync(detailFeedPath, "utf8"));
-const plain: Pick<ToolOutputRedactor, "text" | "value"> = {
-  text: (text) => text,
+const plain: Pick<ToolOutputRedactor, "value"> = {
   value: (value) => value,
 };
 const recorded = appStyle(recordedInput());
@@ -42,7 +40,11 @@ const saved = (snapshot: ViewSnapshot = view, reads = collected(recorded)): Save
 });
 const projected = (input: WatchInput) => saved(projectWatch(input), collected(input));
 
-function session(sweep: SavedSweep | undefined, redactor = plain, check?: TierCheck) {
+function session(
+  sweep: SavedSweep | undefined,
+  redactor: typeof plain = journalOutputRedactor,
+  check?: TierCheck,
+) {
   const tools = spiToolProvider(spiReadTools(() => sweep, redactor, check)).offer();
   return new FakeSession({
     tools,
@@ -227,7 +229,7 @@ describe("SPI read tools over the saved sweep", () => {
   it("bounds a result by whole items and names what it left out", async () => {
     const output = await session(saved()).callTool("spi_line", { service: "legal" });
     const out = JSON.parse(String(output));
-    expect(estimateTokens(String(output))).toBeLessThanOrEqual(SPI_RESULT_TOKEN_BUDGET);
+    expect(Buffer.byteLength(String(output))).toBeLessThanOrEqual(SPI_RESULT_BYTE_BUDGET);
     const rows = legal?.work?.pulls.rows ?? [];
     expect(out.leftOut["pulls.rows"]).toBe(rows.length - out.pulls.rows.length);
     expect(out.pulls.rows).toEqual(rows.slice(0, out.pulls.rows.length));
@@ -235,8 +237,7 @@ describe("SPI read tools over the saved sweep", () => {
 
   const fake = ["gh", "p_", "FAKE".repeat(9)].join("");
   const masking: typeof plain = {
-    text: (text) => text.replaceAll(fake, "[redacted]"),
-    value: (value) => value,
+    value: (value) => (typeof value === "string" ? value.replaceAll(fake, "[redacted]") : value),
   };
   const failing: SavedSweep = {
     ...saved(),
@@ -246,13 +247,27 @@ describe("SPI read tools over the saved sweep", () => {
   it.each([
     ["an inspection error", failing, undefined, "token [redacted] leaked"],
     ["a policy refusal", saved(), refusing, "spi_inspect: refused: held [redacted]"],
-  ] as const)("sends %s through the model redactor", async (_name, sweep, check, message) => {
+  ] as const)("sends %s through the SPI redactor", async (_name, sweep, check, message) => {
     const run = session(sweep, masking, check).callTool("spi_inspect", { id: "rollout" });
     await expect(run).rejects.toThrow(message);
   });
 
-  it.each(ALL)("%s returns what the model redactor returned", async (name) => {
-    const marked: typeof plain = { text: () => "marked", value: () => ({ marked: name }) };
+  it.each([
+    ["result", saved()],
+    ["error", failing],
+  ] as const)("withholds a %s when the redactor throws", async (_name, sweep) => {
+    const redactor = {
+      value: () => {
+        throw new Error("fixture-private-value");
+      },
+    };
+    const run = session(sweep, redactor).callTool("spi_inspect", { id: "rollout" });
+    await expect(run).rejects.toThrow("SPI tool output withheld.");
+    await expect(run).rejects.not.toThrow("fixture-private-value");
+  });
+
+  it.each(ALL)("%s returns what the SPI redactor returned", async (name) => {
+    const marked: typeof plain = { value: () => ({ marked: name }) };
     expect(await session(saved(), marked).callTool(name, ARGS[name] ?? {})).toBe(
       JSON.stringify({ marked: name }),
     );
