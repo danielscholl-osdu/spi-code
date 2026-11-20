@@ -122,6 +122,14 @@ describe("securityPane over the 16 Nov sweep", () => {
 });
 
 describe("a list not read", () => {
+  it.each(["partial", "retained", "failed", "clean", "single"] as const)(
+    "parses as a pane: %s",
+    (name) => {
+      const pane = securityPane(securityCase(name));
+      expect(SecurityPaneSchema.parse(pane)).toEqual(pane);
+    },
+  );
+
   it("contributes no alert when absent, is named with its repository, and leaves every total at least", () => {
     const source = securityCase("partial");
     const pane = securityPane(source);
