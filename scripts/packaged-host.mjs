@@ -104,10 +104,7 @@ if (process.argv.includes("--stub-model") && process.argv[3] === "write") {
       failure = error;
     }
     await stopProbe(client, failure);
-    return {
-      listenerCheck,
-      confinement: await probeConfinement(dirname(storePath)),
-    };
+    return { listenerCheck, confinement: await probeConfinement(dirname(storePath)) };
   }).catch((error) => {
     console.error(error);
     process.exit(1);

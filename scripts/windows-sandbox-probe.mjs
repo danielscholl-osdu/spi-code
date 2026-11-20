@@ -37,6 +37,45 @@ function message(error) {
   return value.replace(/\s+/gu, " ").trim().slice(0, 700);
 }
 
+/**
+ * @param {string} value
+ * @returns {number | undefined}
+ */
+export function parseProbePid(value) {
+  const parsed = Number(value.trim());
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+/**
+ * @param {Observation[]} rows
+ * @param {readonly string[]} checks
+ * @param {string} how
+ * @param {unknown} error
+ */
+export function recordProbeFailure(rows, checks, how, error) {
+  for (const check of checks) {
+    if (rows.some((row) => row.check === check)) continue;
+    rows.push({ check, observation: "not run", how, error: message(error) });
+  }
+}
+
+/**
+ * @template T
+ * @param {Observation[]} rows
+ * @param {readonly string[]} checks
+ * @param {string} how
+ * @param {() => Promise<T>} operation
+ * @returns {Promise<T | undefined>}
+ */
+export async function runProbeSection(rows, checks, how, operation) {
+  try {
+    return await operation();
+  } catch (error) {
+    recordProbeFailure(rows, checks, how, error);
+    return undefined;
+  }
+}
+
 /** @param {string} command @param {string[]} args @returns {Promise<Fact>} */
 async function facts(command, args) {
   try {
@@ -63,7 +102,7 @@ async function fileFact(path) {
  * @param {number} [timeoutMs]
  * @returns {Promise<T>}
  */
-async function waitFor(check, timeoutMs = 5_000) {
+export async function waitFor(check, timeoutMs = 5_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const value = await check();
@@ -170,13 +209,15 @@ async function createWorkspace(root) {
   if (!gitPath) throw new Error("Git executable was not found");
   await Promise.all([mkdir(clone), mkdir(temp), mkdir(appData)]);
   await Promise.all([mkdir(join(appData, "kube")), mkdir(join(appData, "azure"))]);
-  execFileSync("git", ["init", "-q", "--initial-branch", "main", clone]);
-  execFileSync("git", ["-C", clone, "config", "user.name", "Probe"]);
-  execFileSync("git", ["-C", clone, "config", "user.email", "probe@example.invalid"]);
+  const git = (args) =>
+    execFileSync("git", ["-c", "commit.gpgsign=false", ...args], { stdio: "ignore" });
+  git(["init", "-q", "--initial-branch", "main", clone]);
+  git(["-C", clone, "config", "user.name", "Probe"]);
+  git(["-C", clone, "config", "user.email", "probe@example.invalid"]);
   await writeFile(join(clone, "seed.txt"), "seed\n");
-  execFileSync("git", ["-C", clone, "add", "seed.txt"]);
-  execFileSync("git", ["-C", clone, "commit", "-qm", "Seed"]);
-  execFileSync("git", ["-C", clone, "worktree", "add", "-q", "-b", "probe", worktree]);
+  git(["-C", clone, "add", "seed.txt"]);
+  git(["-C", clone, "commit", "-qm", "Seed"]);
+  git(["-C", clone, "worktree", "add", "-q", "-b", "probe", worktree]);
   await Promise.all([
     writeFile(sibling, "sibling\n"),
     writeFile(join(appData, "kube", "config"), "kube\n"),
@@ -298,8 +339,8 @@ async function probeMxc(root, workspace, report, sdkPackage, mxcBin) {
       "  'read-outside' { try { [void](Get-Content -LiteralPath $Target -Raw); Write-Output 'read' } catch { Write-Output 'blocked' } }",
       "  'environment' { $names = [Environment]::GetEnvironmentVariables().Keys | Sort-Object; $unsafe = @($names | Where-Object { $_ -eq 'SPI_CODE_WINDOWS_PROBE_CANARY' }); Write-Output (\"names:\" + ($names -join ',')); Write-Output (\"canary:\" + $unsafe.Count) }",
       "  'network' { try { [void](Invoke-WebRequest -UseBasicParsing -Uri $Target -TimeoutSec 5); Write-Output 'reached' } catch { Write-Output 'blocked' } }",
-      "  'git-config' { try { & $Source -C $Target config probe.value changed *> $null; if ($LASTEXITCODE) { throw 'git failed' }; Write-Output 'wrote' } catch { Write-Output 'blocked' } }",
-      "  'git-commit' { & $Source -C $Target add seed.txt; & $Source -C $Target commit --allow-empty -qm 'MXC probe'; Write-Output (\"head:\" + (& $Source -C $Target rev-parse --short HEAD)) }",
+      "  'git-config' { try { & $Source -c commit.gpgsign=false -C $Target config probe.value changed *> $null; if ($LASTEXITCODE) { throw 'git failed' }; Write-Output 'wrote' } catch { Write-Output 'blocked' } }",
+      "  'git-commit' { & $Source -c commit.gpgsign=false -C $Target add seed.txt; & $Source -c commit.gpgsign=false -C $Target commit --allow-empty -qm 'MXC probe'; Write-Output (\"head:\" + (& $Source -c commit.gpgsign=false -C $Target rev-parse --short HEAD)) }",
       "  'sleep' { Set-Content -LiteralPath $PidFile -Value $PID; Write-Output \"pid:$PID\"; Start-Sleep -Seconds 120 }",
       '  default { throw "Unknown scenario: $Scenario" }',
       "}",
@@ -480,7 +521,8 @@ async function probeMxc(root, workspace, report, sdkPackage, mxcBin) {
   try {
     if (mxcRunsFailed) throw new Error("An earlier packaged MXC execution did not complete");
     const timed = await mxcRun("sleep", "", 500);
-    const pid = Number.parseInt(await readFile(sleepPid, "utf8"), 10);
+    const pid = parseProbePid(await readFile(sleepPid, "utf8"));
+    if (pid === undefined) throw new Error("Probe PID file did not contain a valid PID");
     confinement.push({
       check: "timed-out command",
       observation: timed.timedOut ? "timed out" : "unexpected",
@@ -512,9 +554,8 @@ async function probeMxc(root, workspace, report, sdkPackage, mxcBin) {
     );
     child.standardOutput?.resume();
     child.standardError?.resume();
-    const pid = Number.parseInt(
-      await waitFor(async () => readFile(killPid, "utf8").catch(() => undefined)),
-      10,
+    const pid = await waitFor(async () =>
+      parseProbePid(await readFile(killPid, "utf8").catch(() => "")),
     );
     child.kill();
     const waited = await bounded(child.wait(), 15_000, "MXC process wait");
@@ -558,54 +599,51 @@ async function probeHostOwnership(root, report) {
   await writeFile(ownerFile, script);
 
   for (const mode of ["foreground", "redirected", "detached"]) {
-    const pidFile = join(root, `${mode}.pid`);
-    const [command, ...args] = powershell(
-      `& ${psLiteral(ownerFile)} -Mode ${psLiteral(mode)} -PidFile ${psLiteral(pidFile)} -Output ${psLiteral(outputFile)}`,
-    );
-    if (!command) throw new Error("PowerShell command was not constructed");
-    const parent = /** @type {import("node:child_process").ChildProcess} */ (
-      spawn(command, args, { stdio: "ignore", windowsHide: true })
-    );
-    try {
-      await waitFor(async () => {
-        try {
-          return Number.parseInt(await readFile(pidFile, "utf8"), 10);
-        } catch {
-          return undefined;
-        }
-      });
-      const pid = Number.parseInt(await readFile(pidFile, "utf8"), 10);
-      const ownerExit = waitForExit(parent);
-      if (mode !== "detached") parent.kill("SIGTERM");
-      await ownerExit;
-      const beforeRestart = await processAlive(pid);
-      const restartedObserver = await facts("powershell.exe", [
-        "-NoProfile",
-        "-NonInteractive",
-        "-Command",
-        `[bool](Get-CimInstance Win32_Process -Filter ${psLiteral(`ProcessId = ${pid}`)})`,
-      ]);
-      report.ownership.push({
-        check: `${mode} descendant after owner ${mode === "detached" ? "exit" : "kill"}`,
-        observation: beforeRestart ? "survived" : "ended",
-        restartObservation:
-          restartedObserver.ok && restartedObserver.value.toLowerCase() === "true"
-            ? "survived"
-            : "not found",
-        how: "host PowerShell owner; PID checked by host and a fresh observer",
-        pid,
-      });
-      await cleanupProcess(pid);
-    } finally {
-      if (parent.exitCode === null) parent.kill("SIGTERM");
-    }
+    const check = `${mode} descendant after owner ${mode === "detached" ? "exit" : "kill"}`;
+    await runProbeSection(report.ownership, [check], "host ownership probe failed", async () => {
+      const pidFile = join(root, `${mode}.pid`);
+      const [command, ...args] = powershell(
+        `& ${psLiteral(ownerFile)} -Mode ${psLiteral(mode)} -PidFile ${psLiteral(pidFile)} -Output ${psLiteral(outputFile)}`,
+      );
+      if (!command) throw new Error("PowerShell command was not constructed");
+      const parent = /** @type {import("node:child_process").ChildProcess} */ (
+        spawn(command, args, { stdio: "ignore", windowsHide: true })
+      );
+      try {
+        const pid = await waitFor(async () =>
+          parseProbePid(await readFile(pidFile, "utf8").catch(() => "")),
+        );
+        const ownerExit = waitForExit(parent);
+        if (mode !== "detached") parent.kill("SIGTERM");
+        await ownerExit;
+        const beforeRestart = await processAlive(pid);
+        const restartedObserver = await facts("powershell.exe", [
+          "-NoProfile",
+          "-NonInteractive",
+          "-Command",
+          `[bool](Get-CimInstance Win32_Process -Filter ${psLiteral(`ProcessId = ${pid}`)})`,
+        ]);
+        report.ownership.push({
+          check,
+          observation: beforeRestart ? "survived" : "ended",
+          restartObservation:
+            restartedObserver.ok && restartedObserver.value.toLowerCase() === "true"
+              ? "survived"
+              : "not found",
+          how: "host PowerShell owner; PID checked by host and a fresh observer",
+          pid,
+        });
+        await cleanupProcess(pid);
+      } finally {
+        if (parent.exitCode === null) parent.kill("SIGTERM");
+      }
+    });
   }
 }
 
 /** @param {ProbeOptions} [options] @returns {Promise<ProbeReport>} */
 export async function probeWindowsSandbox(options = {}) {
   if (process.platform !== "win32") throw new Error("Windows sandbox probe requires Windows");
-  const root = await mkdtemp(join(tmpdir(), "spi-code-windows-probe-"));
   /** @type {ProbeReport} */
   const report = {
     platform: process.platform,
@@ -624,6 +662,44 @@ export async function probeWindowsSandbox(options = {}) {
       "The production host remains ask-and-read unless its own sandbox preflight attests confinement.",
     ],
   };
+  const confinementChecks = [
+    "sandbox attestation",
+    "write: worktree",
+    "write: thread temp",
+    "write: outside",
+    "read: sibling",
+    "read: appData/kube/config",
+    "read: appData/azure/probe",
+    "environment",
+    "network",
+    "git: commit",
+    "git: clone config write",
+    "git: worktree pointer write",
+    "git: clone hooks write",
+    "timed-out command",
+    "stopped model command output",
+    "cold resume",
+  ];
+  const hostOwnershipChecks = [
+    "foreground descendant after owner kill",
+    "redirected descendant after owner kill",
+    "detached descendant after owner exit",
+  ];
+  const root = await runProbeSection(
+    report.confinement,
+    confinementChecks,
+    "probe workspace setup failed",
+    async () => mkdtemp(join(tmpdir(), "spi-code-windows-probe-")),
+  );
+  if (!root) {
+    recordProbeFailure(
+      report.ownership,
+      ["MxcProcess.kill", ...hostOwnershipChecks],
+      "probe workspace setup failed",
+      "Temporary workspace was not created",
+    );
+    return report;
+  }
   try {
     report.host.windows = await facts("powershell.exe", [
       "-NoProfile",
@@ -632,12 +708,58 @@ export async function probeWindowsSandbox(options = {}) {
       "[Environment]::OSVersion.VersionString",
     ]);
     report.host.build = await facts("cmd.exe", ["/d", "/s", "/c", "ver"]);
-    const workspace = await createWorkspace(root);
-    await probeMxc(root, workspace, report, options.sdkPackage ?? "source package", options.mxcBin);
-    await probeHostOwnership(root, report);
+    const workspace = await runProbeSection(
+      report.confinement,
+      confinementChecks,
+      "probe workspace setup failed",
+      async () => createWorkspace(root),
+    );
+    if (workspace) {
+      await runProbeSection(
+        report.confinement,
+        confinementChecks,
+        "packaged MXC section failed",
+        async () => {
+          try {
+            await probeMxc(
+              root,
+              workspace,
+              report,
+              options.sdkPackage ?? "source package",
+              options.mxcBin,
+            );
+          } catch (error) {
+            recordProbeFailure(
+              report.ownership,
+              ["MxcProcess.kill"],
+              "packaged MXC section failed",
+              error,
+            );
+            throw error;
+          }
+        },
+      );
+    } else {
+      recordProbeFailure(
+        report.ownership,
+        ["MxcProcess.kill"],
+        "probe workspace setup failed",
+        "Workspace was not created",
+      );
+    }
+    await runProbeSection(
+      report.ownership,
+      hostOwnershipChecks,
+      "host ownership section failed",
+      async () => probeHostOwnership(root, report),
+    );
     return report;
   } finally {
-    await rm(root, { recursive: true, force: true });
+    try {
+      await rm(root, { recursive: true, force: true });
+    } catch (error) {
+      report.notes.push(`Probe workspace cleanup did not complete: ${message(error)}`);
+    }
   }
 }
 
