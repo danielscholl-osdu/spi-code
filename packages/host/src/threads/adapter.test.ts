@@ -1,9 +1,18 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { dirname, join, sep } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { setTimeout } from "node:timers/promises";
 import type { SessionEvent } from "@github/copilot-sdk";
@@ -23,6 +32,7 @@ import { createSnapshotStore } from "../store/snapshots.js";
 import { projectWatch } from "../watch/project.js";
 import { CopilotThreadAdapter } from "./adapter.js";
 import type { LatestSweep } from "./context/sweep.js";
+import { askingPermission } from "./permissions.js";
 import { ThreadRoutes } from "./routes.js";
 import { openThreadHost } from "./wiring.js";
 
@@ -810,48 +820,137 @@ it("denies and journals Asking permissions and redacts named model and journal f
   );
 });
 
-it("allows an attested read inside the clone and denies outside and unresolved paths", async () => {
-  const { askingPermission } = await import("./permissions.js");
-  const managed = mkdtempSync(join(root, "managed-"));
-  const clone = mkdtempSync(join(managed, "clone-"));
-  const file = join(clone, "README.md");
-  const outside = join(root, "private");
+function askingFiles() {
+  const managed = join(root, "ManagedRepos");
+  const clone = join(managed, "CloneCheckout");
+  const tempPath = join(root, "scratch");
+  const outsideDir = join(managed, "CloneCheckoutOutside");
+  for (const directory of [clone, tempPath, outsideDir]) mkdirSync(directory, { recursive: true });
+  const file = join(clone, "ReadMe.md");
+  const outside = join(outsideDir, "OutsideReadme.md");
   writeFileSync(file, "Public");
   writeFileSync(outside, "Outside");
+  writeFileSync(join(tempPath, "scratch.txt"), "Scratch");
   const requestApproval = vi.fn(async (_request, allowed: boolean | undefined) => allowed === true);
   const events = { requestApproval, delta() {}, toolStarted() {}, toolFinished() {} };
-  const tempPath = mkdtempSync(join(root, "temp-"));
-  const decide = askingPermission({ clonePath: clone, tempPath }, () => events);
-  const invoke = { sessionId: "sdk" };
-  await expect(
-    decide({ kind: "read", intention: "read", path: "README.md" }, invoke),
-  ).resolves.toEqual({ kind: "approve-once" });
-  for (const path of [outside, "missing", "../../private"]) {
-    await expect(decide({ kind: "read", intention: "read", path }, invoke)).resolves.toEqual({
-      kind: "reject",
-    });
+  function read(path: string, resolvedPath?: string, clonePath = clone) {
+    return askingPermission({ clonePath, tempPath }, () => events)(
+      {
+        kind: "read",
+        intention: "read",
+        path,
+        ...(resolvedPath === undefined ? {} : { resolvedPath }),
+      },
+      { sessionId: "sdk" },
+    );
   }
-  const prefix = join(root, "alias");
-  symlinkSync(managed, prefix, "junction");
-  const decideFromAlias = askingPermission(
-    { clonePath: join(prefix, basename(clone)), tempPath },
-    () => events,
-  );
-  await expect(
-    decideFromAlias(
-      { kind: "read", intention: "read", path: "README.md", resolvedPath: file },
-      invoke,
-    ),
-  ).resolves.toEqual({ kind: "approve-once" });
-  await expect(
-    decideFromAlias({ kind: "read", intention: "read", path: file }, invoke),
-  ).resolves.toEqual({ kind: "approve-once" });
-  if (process.platform !== "win32") {
-    symlinkSync(outside, join(clone, "linked"), "file");
-    await expect(
-      decide({ kind: "read", intention: "read", path: "linked" }, invoke),
-    ).resolves.toEqual({ kind: "reject" });
-  }
+  return { clone, file, managed, outside, outsideDir, read, tempPath };
+}
+
+it("approves an inside read with a matching attested path", async () => {
+  const { file, read } = askingFiles();
+  await expect(read("ReadMe.md", file)).resolves.toEqual({ kind: "approve-once" });
+});
+
+it("approves an inside read with a case variant on a case-insensitive disk", async ({ skip }) => {
+  const { file, read } = askingFiles();
+  const variant = join(root, "managedrepos", "clonecheckout", "readme.md");
+  if (!existsSync(variant)) skip("The fixture volume is case-sensitive");
+  expect(realpathSync.native(variant)).toBe(realpathSync.native(file));
+  await expect(read(variant, file)).resolves.toEqual({ kind: "approve-once" });
+});
+
+it("approves an attested case variant of the same inside file", async ({ skip }) => {
+  const { file, read } = askingFiles();
+  const variant = join(root, "managedrepos", "clonecheckout", "readme.md");
+  if (!existsSync(variant)) skip("The fixture volume is case-sensitive");
+  await expect(read(file, variant)).resolves.toEqual({ kind: "approve-once" });
+});
+
+it("refuses a read that walks out of the clone with ..", async () => {
+  const { clone, outside, read } = askingFiles();
+  const traversal = ["..", "CloneCheckoutOutside", "OutsideReadme.md"].join(sep);
+  expect(realpathSync.native(`${clone}${sep}${traversal}`)).toBe(outside);
+  await expect(read(traversal)).resolves.toEqual({ kind: "reject" });
+});
+
+it("refuses a read through a symlink inside the clone that points outside", async () => {
+  const { clone, outsideDir, read } = askingFiles();
+  symlinkSync(outsideDir, join(clone, "linked"), "junction");
+  await expect(read(join("linked", "OutsideReadme.md"))).resolves.toEqual({ kind: "reject" });
+});
+
+it("refuses a read whose .. follows a symlink outside the clone on POSIX", async ({ skip }) => {
+  if (process.platform === "win32") skip("Win32 normalizes .. before traversing the path");
+  const { clone, outsideDir, read } = askingFiles();
+  const child = join(outsideDir, "child");
+  mkdirSync(child);
+  writeFileSync(join(outsideDir, "ReadMe.md"), "Outside");
+  symlinkSync(child, join(clone, "linked"), "dir");
+  const traversal = ["linked", "..", "ReadMe.md"].join(sep);
+  expect(realpathSync.native(`${clone}${sep}${traversal}`)).toBe(join(outsideDir, "ReadMe.md"));
+  await expect(read(traversal)).resolves.toEqual({ kind: "reject" });
+});
+
+it("approves an inside read when a parent of the clone is symlinked", async () => {
+  const { file, managed, read } = askingFiles();
+  const alias = join(root, "alias");
+  symlinkSync(managed, alias, "junction");
+  const throughAlias = join(alias, "CloneCheckout");
+  await expect(read(file, join(throughAlias, "ReadMe.md"), throughAlias)).resolves.toEqual({
+    kind: "approve-once",
+  });
+});
+
+it("refuses a missing requested path", async () => {
+  const { read } = askingFiles();
+  await expect(read("Missing.md")).resolves.toEqual({ kind: "reject" });
+});
+
+it("refuses a missing attested path", async () => {
+  const { clone, file, read } = askingFiles();
+  await expect(read(file, join(clone, "Missing.md"))).resolves.toEqual({ kind: "reject" });
+});
+
+it("refuses an attested resolvedPath outside the clone", async () => {
+  const { file, outside, read } = askingFiles();
+  await expect(read(file, outside)).resolves.toEqual({ kind: "reject" });
+});
+
+it("refuses an attested resolvedPath that names a different file inside the clone", async () => {
+  const { clone, file, read } = askingFiles();
+  const other = join(clone, "Other.md");
+  writeFileSync(other, "Different file");
+  await expect(read(file, other)).resolves.toEqual({ kind: "reject" });
+});
+
+it("refuses a read in sandbox scratch space outside the clone", async () => {
+  const { read, tempPath } = askingFiles();
+  await expect(read(join(tempPath, "scratch.txt"))).resolves.toEqual({ kind: "reject" });
+});
+
+function shortName(path: string, alias: string): string {
+  execFileSync("fsutil.exe", ["file", "setshortname", path, alias]);
+  const short = join(dirname(path), alias);
+  expect(realpathSync.native(short)).toBe(realpathSync.native(path));
+  return short;
+}
+
+it("approves a Windows 8.3 spelling of an inside path", async ({ skip }) => {
+  if (process.platform !== "win32") skip("Windows NTFS 8.3 names are required");
+  const { clone, file, read } = askingFiles();
+  const alias = join(shortName(clone, "CLONEC~9"), "ReadMe.md");
+  await expect(read(alias, file)).resolves.toEqual({ kind: "approve-once" });
+});
+
+it("refuses a Windows 8.3 spelling of an outside path", async ({ skip }) => {
+  if (process.platform !== "win32") skip("Windows NTFS 8.3 names are required");
+  const { clone, outside, outsideDir, read } = askingFiles();
+  shortName(outside, "OUTSID~9.MD");
+  symlinkSync(outsideDir, join(clone, "linked"), "junction");
+  const alias = join(clone, "linked", "OUTSID~9.MD");
+  expect(realpathSync.native(alias)).toBe(realpathSync.native(outside));
+  await expect(read(alias)).resolves.toEqual({ kind: "reject" });
 });
 
 it("gives the thread journal one writer and releases the lock on shutdown", async () => {

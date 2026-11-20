@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, expect, it, vi } from "vitest";
-import type { RuntimeEvents, RuntimeTurn, ThreadEvent } from "./index.js";
+import type { RuntimeEvents, RuntimeStop, RuntimeTurn, ThreadEvent } from "./index.js";
 import { ThreadEngine } from "./index.js";
 
 function harness(database = new DatabaseSync(":memory:")) {
@@ -18,8 +18,8 @@ function harness(database = new DatabaseSync(":memory:")) {
   }[] = [];
   const runtime = {
     run: vi.fn((input: RuntimeTurn<string>, events: RuntimeEvents) => {
-      return new Promise<void>((resolve) => {
-        turns.push({ input, events, finish: resolve });
+      return new Promise<RuntimeStop | undefined>((resolve) => {
+        turns.push({ input, events, finish: () => resolve(undefined) });
       });
     }),
   };
@@ -126,6 +126,29 @@ it("stops by operator request, releases approvals and ignores callbacks from the
     status: "Settled",
     turns: [{ text: "", approvals: [{ end: { type: "approval.cancelled" } }] }],
   });
+  database.close();
+});
+
+it("retains the runtime stop reason in the journal and timeline and settles open effects", async () => {
+  const { engine, runtime, turn, database } = harness();
+  runtime.run.mockImplementationOnce(async (_input, events) => {
+    events.toolStarted({ callId: "read", name: "view", kind: "tool", arguments: null });
+    void events.requestApproval({ approvalId: "pending", kind: "read", detail: "Another read" });
+    return { outcome: "stopped", reason: "refused-tool" };
+  });
+  const id = engine.create({ scope: "partition" });
+  await expect(engine.send(id, { prompt: "Read a file" })).resolves.toBe("stopped");
+  expect(engine.eventsSince(id, 0).slice(-3)).toMatchObject([
+    { type: "tool.cancelled", reason: "refused-tool", effectState: "not known" },
+    { type: "approval.cancelled", reason: "refused-tool" },
+    { type: "turn.finished", outcome: "stopped", reason: "refused-tool" },
+  ]);
+  expect(engine.read(id).turns).toMatchObject([{ outcome: "stopped", stopReason: "refused-tool" }]);
+  const followUp = engine.send(id, { prompt: "Continue" });
+  const next = await turn();
+  expect(next.input.context.instructions).toContain("Copilot stopped after a refused tool call.");
+  next.finish();
+  await followUp;
   database.close();
 });
 

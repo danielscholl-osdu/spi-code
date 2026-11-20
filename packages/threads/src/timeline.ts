@@ -123,6 +123,7 @@ export class Timeline {
       case "turn.finished":
         turn.outcome = event.outcome;
         if (event.outcome === "failed" && event.failure !== undefined) turn.failure = event.failure;
+        if (event.outcome === "stopped") turn.stopReason = event.reason;
         if (event.partialTextSeen !== undefined) turn.partialTextSeen = event.partialTextSeen;
         if (event.outcome === "completed") this.recovery.length = 0;
         else this.reportInterruption(turn);
@@ -142,7 +143,11 @@ export class Timeline {
     const partial = turn.partialTextSeen
       ? " Whether Copilot saw the partial reply is not known."
       : "";
-    this.recovery.push(`Turn ${turn.id}: ${turn.outcome}.${partial}`);
+    const outcome =
+      turn.stopReason === "refused-tool"
+        ? "Copilot stopped after a refused tool call."
+        : `${turn.outcome}.`;
+    this.recovery.push(`Turn ${turn.id}: ${outcome}${partial}`);
     for (const { start, end } of turn.tools) {
       if (end?.type !== "tool.cancelled") continue;
       this.recovery.push(`Tool call ${start.callId}: cancelled. Effects are not known.`);

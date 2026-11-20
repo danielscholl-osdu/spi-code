@@ -100,12 +100,17 @@ export interface RuntimeEvents {
   requestApproval(request: ApprovalRequest, decision?: boolean): Promise<boolean>;
 }
 
+export type RuntimeStop = { outcome: "stopped"; reason: "refused-tool" };
+
 export interface ThreadRuntime<Tool> {
   /**
    * Run only the supplied turn. Resume sessions with pending-work continuation disabled
    * and forward only this turn's events. On abort, settle once the session can accept another turn.
    */
-  run(input: RuntimeTurn<Tool>, events: RuntimeEvents): Promise<void>;
+  run(
+    input: RuntimeTurn<Tool>,
+    events: RuntimeEvents,
+  ): Promise<void> | Promise<RuntimeStop | undefined>;
 }
 
 export interface ThreadEngineOptions<Tool> {
@@ -119,7 +124,8 @@ export interface ThreadEngineOptions<Tool> {
 }
 
 type InterruptionReason = "restart" | "shutdown";
-type CancelReason = InterruptionReason | "operator" | "turn-ended";
+type StopReason = "operator" | RuntimeStop["reason"];
+type CancelReason = InterruptionReason | StopReason | "turn-ended";
 
 type TurnEvent = { turnId: string } & (
   | { type: "turn.started"; messageId: string }
@@ -143,7 +149,7 @@ type TurnEvent = { turnId: string } & (
 export type TurnEnd =
   | { outcome: "completed" }
   | { outcome: "failed"; failure?: string }
-  | { outcome: "stopped"; reason: "operator" }
+  | { outcome: "stopped"; reason: StopReason }
   | { outcome: "cancelled"; reason: InterruptionReason };
 export type TurnOutcome = TurnEnd["outcome"];
 
@@ -169,6 +175,7 @@ export interface TimelineTurn {
   messageId: string;
   text: string;
   outcome: "running" | TurnOutcome;
+  stopReason?: StopReason;
   failure?: string;
   partialTextSeen?: "not known";
   tools: TimelineTool[];

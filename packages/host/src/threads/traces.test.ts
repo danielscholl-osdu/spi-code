@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { setTimeout } from "node:timers/promises";
+import type { SessionEvent } from "@github/copilot-sdk";
 import { type Message, PROTOCOL_VERSION, type ThreadWireEvent } from "@spi-code/contracts";
 import { type JsonValue, journalOutputRedactor } from "@spi-code/threads";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
@@ -212,6 +213,77 @@ it.each(SCENARIOS)(
     expect(journaled).toEqual(sent.map(ownedToolStarts));
   },
 );
+
+it("records a refused read outside the clone and replays the runtime abort as stopped", () => {
+  const replayed = replays.get("denied-read");
+  if (replayed instanceof Error) throw replayed;
+  if (!replayed) throw new Error("denied-read was not replayed");
+  expect(replayed.ops.filter(({ op }) => op === "permission")).toEqual([
+    expect.objectContaining({
+      request: expect.objectContaining({
+        kind: "read",
+        path: expect.stringMatching(/^\$APP_DATA\/thread-temp\/[^/]+\/outside-clone\.txt$/u),
+      }),
+      result: { kind: "reject" },
+    }),
+  ]);
+  expect(replayed.outcomes).toEqual(["stopped"]);
+  expect(replayed.events.filter(({ type }) => type === "turn.finished")).toEqual([
+    expect.objectContaining({ outcome: "stopped", reason: "refused-tool" }),
+  ]);
+});
+
+it.each<{
+  scenario: (typeof SCENARIOS)[number];
+  omitted: SessionEvent["type"];
+}>([
+  { scenario: "denied-read", omitted: "abort" },
+  { scenario: "denied-read", omitted: "tool.execution_complete" },
+  { scenario: "denied-write", omitted: "assistant.turn_end" },
+])("marks $scenario failed when $omitted is missing", async ({ scenario, omitted }) => {
+  const ops = readTrace(version, scenario).filter(
+    (op) => op.op !== "event" || op.event.type !== omitted,
+  );
+  const replayed = await replay(ops, `missing-${omitted}`);
+  expect(replayed.outcomes).toEqual(["failed"]);
+  expect(replayed.events.filter(({ type }) => type === "turn.finished")).toEqual([
+    expect.objectContaining({ outcome: "failed" }),
+  ]);
+});
+
+it("completes a refused-read turn if the runtime finishes with a reply after the refusal", async () => {
+  const denied = readTrace(version, "denied-read");
+  const sent = denied.find((op) => op.op === "sent");
+  const reply = readTrace(version, "denied-write").find(
+    (op) => op.op === "event" && op.event.type === "assistant.message",
+  );
+  const replyEvent = reply?.op === "event" ? reply.event : undefined;
+  if (!sent || replyEvent?.type !== "assistant.message") {
+    throw new Error("The traces must include a sent message and a final reply.");
+  }
+  const ops = denied.flatMap((op): TraceOp[] => {
+    if (op.op !== "event") return [op];
+    if (op.event.type === "abort") return [];
+    if (op.event.type !== "assistant.turn_end") return [op];
+    return [
+      {
+        op: "event",
+        sessionId: op.sessionId,
+        event: {
+          ...replyEvent,
+          data: {
+            ...replyEvent.data,
+            originatingMessageId: sent.messageId,
+            turnId: op.event.data.turnId,
+          },
+        },
+      },
+      op,
+    ];
+  });
+  const replayed = await replay(ops, "refused-then-replied");
+  expect(replayed.outcomes).toEqual(["completed"]);
+});
 
 it("has every field trackTurn reads in at least one recorded event of that type", () => {
   const traces = [...replays.values()].filter(

@@ -8,6 +8,7 @@ import { ReasoningEffortSchema } from "@spi-code/contracts";
 import type {
   JsonValue,
   RuntimeEvents,
+  RuntimeStop,
   RuntimeTurn,
   ThreadRuntime,
   ToolOutputRedactor,
@@ -86,7 +87,7 @@ export class CopilotThreadAdapter implements ThreadRuntime<Tool> {
     private readonly modelRedactor: ToolOutputRedactor,
   ) {}
 
-  async run(input: RuntimeTurn<Tool>, events: RuntimeEvents): Promise<void> {
+  async run(input: RuntimeTurn<Tool>, events: RuntimeEvents): Promise<RuntimeStop | undefined> {
     const { threadId, message, signal } = input;
     const workspace = input.workspace as AskingTurnWorkspace;
     if (workspace.reading !== undefined) record(events, "workspace.reading", workspace.reading);
@@ -100,7 +101,7 @@ export class CopilotThreadAdapter implements ThreadRuntime<Tool> {
     const { session } = lease;
     lease.active = { events, signal };
     try {
-      await this.send(input, session, events);
+      return await this.send(input, session, events);
     } catch (error) {
       const disconnected = !session.connected;
       await this.release(threadId, lease, disconnected && !this.closed).catch(() => {});
@@ -253,15 +254,17 @@ export class CopilotThreadAdapter implements ThreadRuntime<Tool> {
     { message, context, signal }: RuntimeTurn<Tool>,
     session: ThreadCopilotSession,
     events: RuntimeEvents,
-  ): Promise<void> {
-    let finish: (error?: unknown) => void = () => {};
-    const promise = new Promise<void>((resolve, reject) => {
-      finish = (error) => (error === undefined ? resolve() : reject(error));
+  ): Promise<RuntimeStop | undefined> {
+    let finish: (result?: Error | RuntimeStop) => void = () => {};
+    let interrupt: (reason: unknown) => void = () => {};
+    const promise = new Promise<RuntimeStop | undefined>((resolve, reject) => {
+      finish = (result) => (result instanceof Error ? reject(result) : resolve(result));
+      interrupt = reject;
     });
     let unsubscribe: (() => void) | undefined;
     const abort = () => {
       void releaseWithin(session.abort(), 700)
-        .finally(() => finish(signal.reason))
+        .finally(() => interrupt(signal.reason))
         .catch(() => {});
     };
     signal.addEventListener("abort", abort, { once: true });
@@ -287,7 +290,7 @@ export class CopilotThreadAdapter implements ThreadRuntime<Tool> {
         })(),
         promise,
       ]);
-      await promise;
+      return await promise;
     } finally {
       unsubscribe?.();
       clearInterval(check);

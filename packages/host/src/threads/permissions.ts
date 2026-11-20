@@ -2,15 +2,27 @@
 // SPDX-License-Identifier: MIT
 
 import { randomUUID } from "node:crypto";
-import { realpath } from "node:fs/promises";
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { realpath } from "node:fs";
+import { isAbsolute, parse, sep } from "node:path";
+import { promisify } from "node:util";
 import type { PermissionHandler } from "@github/copilot-sdk";
 import type { RuntimeEvents } from "@spi-code/threads";
 import type { SandboxWorkspace } from "../copilot/sandbox.js";
 
+const nativeRealpath = promisify(realpath.native);
+
+function canonicalReadPath(clone: string, path: string): Promise<string | undefined> {
+  if (!path) return Promise.resolve(undefined);
+  const absolute = isAbsolute(path);
+  if (process.platform === "win32") {
+    const { root } = parse(path);
+    if (absolute ? root.length === 1 : root !== "") return Promise.resolve(undefined);
+  }
+  return nativeRealpath(absolute ? path : `${clone}${sep}${path}`).catch(() => undefined);
+}
+
 function inside(root: string, candidate: string): boolean {
-  const path = relative(root, candidate);
-  return !isAbsolute(path) && path !== ".." && !path.startsWith(`..${sep}`);
+  return candidate === root || candidate.startsWith(root.endsWith(sep) ? root : root + sep);
 }
 
 export function askingPermission(
@@ -40,22 +52,19 @@ export function askingPermission(
       !request.requestSandboxBypass &&
       !request.managedApprovalRequired
     ) {
-      const path = resolve(workspace.clonePath, request.path);
-      const roots = [workspace.clonePath, workspace.tempPath, ...(workspace.toolchainPaths ?? [])];
-      const [canonical, ...canonicalRoots] = await Promise.all(
-        [path, ...roots].map((entry) => realpath(entry).catch(() => undefined)),
-      );
+      const clone = workspace.clonePath;
+      const [root, path, attested] = await Promise.all([
+        nativeRealpath(clone).catch(() => undefined),
+        canonicalReadPath(clone, request.path),
+        request.resolvedPath === undefined
+          ? undefined
+          : canonicalReadPath(clone, request.resolvedPath),
+      ]);
       allow =
-        canonical !== undefined &&
-        roots.some((root, index) => {
-          const canonicalRoot = canonicalRoots[index];
-          return (
-            canonicalRoot !== undefined &&
-            (inside(root, path) || inside(canonicalRoot, path)) &&
-            inside(canonicalRoot, canonical)
-          );
-        }) &&
-        (request.resolvedPath === undefined || relative(canonical, request.resolvedPath) === "");
+        root !== undefined &&
+        path !== undefined &&
+        inside(root, path) &&
+        (request.resolvedPath === undefined || path === attested);
     }
     if (events !== current()) return { kind: "reject" };
     return (await events.requestApproval(
