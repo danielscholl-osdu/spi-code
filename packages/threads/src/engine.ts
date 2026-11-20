@@ -46,6 +46,7 @@ export class ThreadEngine<Tool> {
   private readonly queues = new Map<string, PendingMessage[]>();
   private readonly running = new Map<string, RunningTurn>();
   private readonly subscriptions = new Map<string, Set<() => void>>();
+  private readonly unreadable = new Map<string, ThreadSummary>();
   private closing?: Promise<void>;
 
   constructor(
@@ -54,27 +55,44 @@ export class ThreadEngine<Tool> {
   ) {
     this.journal = new ThreadJournal(db);
     this.redactor = options.redactor ?? journalOutputRedactor;
-    const unreadable = new Set<string>();
-    const setAside = (id: string) => {
+    const setAside = (id: string, sequence: number, at: number) => {
       this.threads.delete(id);
-      unreadable.add(id);
+      this.unreadable.set(id, {
+        id,
+        thread: { scope: "not known" },
+        status: "Can't be read",
+        sequence,
+        updatedAt: at,
+        settledAt: null,
+        done: false,
+      });
       options.onUnreadableThread?.(id);
     };
     for (const row of this.journal.load()) {
-      if (unreadable.has(row.id)) continue;
+      const unavailable = this.unreadable.get(row.id);
+      if (unavailable) {
+        this.unreadable.set(row.id, {
+          ...unavailable,
+          sequence: row.sequence,
+          updatedAt: Math.max(unavailable.updatedAt, row.at),
+        });
+        continue;
+      }
       try {
         this.apply(row.decode());
       } catch {
-        setAside(row.id);
+        setAside(row.id, row.sequence, row.at);
       }
     }
     for (const [id, timeline] of this.threads) {
       try {
         this.cancelInterrupted(timeline, "restart");
       } catch {
-        setAside(id);
+        const summary = timeline.summary();
+        setAside(id, summary.sequence, summary.updatedAt);
       }
     }
+    this.autoSettle();
   }
 
   create(thread: ThreadDefinition): string {
@@ -95,9 +113,10 @@ export class ThreadEngine<Tool> {
   }
 
   list(): ThreadSummary[] {
-    return [...this.threads.values()]
-      .map((timeline) => timeline.summary())
-      .sort((a, b) => b.updatedAt - a.updatedAt);
+    return [
+      ...[...this.threads.values()].map((timeline) => timeline.summary()),
+      ...this.unreadable.values(),
+    ].sort((a, b) => b.updatedAt - a.updatedAt);
   }
 
   read(id: string): ThreadTimeline {
@@ -193,6 +212,47 @@ export class ThreadEngine<Tool> {
       }
     }
     await running.done;
+  }
+
+  settle(id: string): boolean {
+    this.assertOpen();
+    const timeline = this.get(id);
+    const summary = timeline.summary();
+    if (summary.status === "Waiting on you" || summary.status === "Working") return false;
+    if (summary.status !== "Settled")
+      this.record(id, [
+        { type: "thread.settled", reason: "operator", settledAt: summary.updatedAt },
+      ]);
+    return true;
+  }
+
+  unsettle(id: string): void {
+    this.assertOpen();
+    const timeline = this.get(id);
+    if (timeline.summary().status === "Settled")
+      this.record(id, [{ type: "thread.unsettled", reason: "operator" }]);
+  }
+
+  seen(id: string): void {
+    this.assertOpen();
+    const timeline = this.get(id);
+    if (timeline.needsSeen)
+      this.record(id, [{ type: "thread.seen", seenSequence: timeline.summary().sequence }]);
+  }
+
+  autoSettle(now = Date.now()): void {
+    this.assertOpen();
+    for (const [id, timeline] of this.threads) {
+      const summary = timeline.summary();
+      if (
+        summary.status === "Open" &&
+        !timeline.heldByOperator &&
+        now - summary.updatedAt >= 7 * 24 * 60 * 60 * 1000
+      )
+        this.record(id, [
+          { type: "thread.settled", reason: "inactivity", settledAt: summary.updatedAt },
+        ]);
+    }
   }
 
   decideApproval(id: string, turnId: string, approvalId: string, approved: boolean): boolean {

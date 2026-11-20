@@ -24,6 +24,7 @@
 import { ContextMenu } from "@base-ui/react/context-menu";
 import { todayMembers } from "@spi-code/contracts";
 import {
+  Fragment,
   type KeyboardEvent,
   type ReactNode,
   type Ref,
@@ -71,7 +72,13 @@ import {
   statusRows,
   syncDeadline,
 } from "./status-marks.js";
-import { ThreadRows } from "./ThreadRows.js";
+import {
+  NewThreadRow,
+  OtherThreads,
+  SettledFooter,
+  ThreadRow,
+  useSidebarThreads,
+} from "./ThreadRows.js";
 import {
   CollapsibleSectionHeader,
   Sidebar,
@@ -426,6 +433,8 @@ export function ProgramSidebar({
     rows.flatMap((row) => [row.status?.mark, row.mark?.kind === "count" ? row.mark : undefined]),
   );
   const todayReachable = isReachable({ kind: "today" }, registry);
+  const threadsOn = isReachable({ kind: "thread", id: "new" }, registry);
+  const threadRows = useSidebarThreads();
 
   return (
     <Sidebar id="app-sidebar" aria-label="Sidebar" className="app-sidebar">
@@ -496,32 +505,63 @@ export function ProgramSidebar({
             {!collapsed("pinned") && (
               <SidebarMenu id={pinnedId} aria-label="Pinned">
                 {rows.map((row, index) => (
-                  <PinItem
-                    key={row.pin}
-                    row={row}
-                    ariaCurrent={ariaCurrent(row)}
-                    prev={rows[index - 1]?.pin}
-                    next={rows[index + 1]?.pin}
-                    dragging={dragging}
-                    buttonRef={(button) => {
-                      if (button) rowRefs.current.set(row.pin, button);
-                      else rowRefs.current.delete(row.pin);
-                    }}
-                    onDrag={setDragging}
-                    onMoved={() => setFocusPin({ pin: row.pin })}
-                    onUnpinned={() =>
-                      setFocusPin({ pin: rows[index + 1]?.pin ?? rows[index - 1]?.pin })
-                    }
-                  />
+                  <Fragment key={row.pin}>
+                    <PinItem
+                      row={row}
+                      ariaCurrent={ariaCurrent(row)}
+                      prev={rows[index - 1]?.pin}
+                      next={rows[index + 1]?.pin}
+                      dragging={dragging}
+                      buttonRef={(button) => {
+                        if (button) rowRefs.current.set(row.pin, button);
+                        else rowRefs.current.delete(row.pin);
+                      }}
+                      onDrag={setDragging}
+                      onMoved={() => setFocusPin({ pin: row.pin })}
+                      onUnpinned={() =>
+                        setFocusPin({ pin: rows[index + 1]?.pin ?? rows[index - 1]?.pin })
+                      }
+                    />
+                    {row.key.startsWith("service/") &&
+                      threadRows
+                        .filter(
+                          (thread) =>
+                            thread.status !== "Settled" && thread.thread.scope === row.pin,
+                        )
+                        .map((thread) => (
+                          <ThreadRow
+                            key={thread.id}
+                            thread={thread}
+                            nested
+                            current={route.kind === "thread" ? route.id : null}
+                            onNavigate={(target) => go(target)()}
+                          />
+                        ))}
+                  </Fragment>
                 ))}
               </SidebarMenu>
             )}
           </SidebarGroup>
         )}
-        {isReachable({ kind: "thread", id: "new" }, registry) && (
-          <ThreadRows route={route} onNavigate={(target) => go(target)()} />
+        {threadsOn && (
+          <>
+            <NewThreadRow route={route} />
+            <OtherThreads
+              threads={threadRows}
+              nestedScopes={
+                collapsed("pinned")
+                  ? []
+                  : rows.filter((row) => row.key.startsWith("service/")).map((row) => row.pin)
+              }
+              route={route}
+              onNavigate={(target) => go(target)()}
+            />
+          </>
         )}
       </SidebarContent>
+      {threadsOn && (
+        <SettledFooter threads={threadRows} route={route} onNavigate={(target) => go(target)()} />
+      )}
       <PinNotice placement="sidebar" />
       {onSettings && (
         <SidebarFooter>

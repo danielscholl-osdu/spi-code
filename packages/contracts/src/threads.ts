@@ -28,15 +28,25 @@ const unknown = z.literal("not known");
 const summary = z.strictObject({
   id,
   thread: definition,
-  status: z.enum(["Waiting on you", "Working", "Settled"]),
+  status: z.enum(["Waiting on you", "Working", "Open", "Settled", "Can't be read"]),
   sequence,
   updatedAt: sequence,
+  settledAt: sequence.nullable(),
+  done: z.boolean(),
 });
 
 const event = { threadId: id, sequence: z.int().positive(), at: sequence };
 const turn = { ...event, turnId: id };
 export const ThreadEventSchema = z.discriminatedUnion("type", [
   z.strictObject({ ...event, type: z.literal("thread.created"), thread: definition }),
+  z.strictObject({
+    ...event,
+    type: z.literal("thread.settled"),
+    reason: z.enum(["operator", "inactivity"]),
+    settledAt: sequence,
+  }),
+  z.strictObject({ ...event, type: z.literal("thread.unsettled"), reason: z.literal("operator") }),
+  z.strictObject({ ...event, type: z.literal("thread.seen"), seenSequence: sequence }),
   z.strictObject({ ...event, type: z.literal("message.sent"), messageId: id, message }),
   z.strictObject({
     ...event,
@@ -126,6 +136,12 @@ export const ThreadMessageSchema = z.discriminatedUnion("type", [
   envelope("thread.sent", "response", threadId.extend({ outcome }).strict()),
   envelope("thread.stop", "request", threadId.strict()),
   envelope("thread.stopped", "response", threadId.strict()),
+  envelope("thread.settle", "request", threadId.strict()),
+  envelope("thread.settled", "response", threadId.strict()),
+  envelope("thread.unsettle", "request", threadId.strict()),
+  envelope("thread.unsettled", "response", threadId.strict()),
+  envelope("thread.seen", "request", threadId.strict()),
+  envelope("thread.seen.result", "response", threadId.strict()),
   envelope("thread.chip", "request", z.strictObject({ id })),
   envelope(
     "thread.chip.result",

@@ -54,6 +54,7 @@ type ThreadsState = {
   draft: Draft | null;
   /** The row or popover open now, which ⌘N carries. */
   target: AskTarget | null;
+  undo: { id: string; title: string } | null;
   setTarget(target: AskTarget | null): void;
   startDraft(scope: string | null, target?: AskTarget | null): void;
   setDraftScope(scope: string): void;
@@ -62,6 +63,10 @@ type ThreadsState = {
   send(threadId: string, text: string): void;
   stop(threadId: string): void;
   open(threadId: string): void;
+  settle(thread: ThreadSummary, onSettled?: () => void): void;
+  unsettle(threadId: string): void;
+  toggle(thread: ThreadSummary, onSettled?: () => void): void;
+  dismissUndo(): void;
   choose(key: string, choice: ModelChoice): void;
   listModels(): void;
   receive(input: unknown): void;
@@ -72,6 +77,9 @@ const STATUS_EVENTS = new Set([
   "turn.started",
   "turn.finished",
   "message.cancelled",
+  "thread.settled",
+  "thread.unsettled",
+  "thread.seen",
 ]);
 const failed = (message: Message) =>
   message.type === "error" ? message.payload.message : undefined;
@@ -202,6 +210,7 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
       choices: {},
       draft: null,
       target: null,
+      undo: null,
       setTarget: (target) => set({ target }),
       startDraft(scope, target) {
         const draft: Draft = {
@@ -268,10 +277,41 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
       stop: (threadId) => request("thread.stop", { threadId }, list),
       open(threadId) {
         if (!get().catalog) get().listModels();
+        const summary = get().threads?.find((thread) => thread.id === threadId);
+        if (summary?.status === "Can't be read") return;
+        request("thread.seen", { threadId });
         if (get().events[threadId]) return;
         set(({ events }) => ({ events: { ...events, [threadId]: [] } }));
         subscribe(threadId);
       },
+      settle(thread, onSettled) {
+        request("thread.settle", { threadId: thread.id }, (reply) => {
+          const reason = failed(reply);
+          if (reason) {
+            set(({ failures }) => ({ failures: { ...failures, [thread.id]: reason } }));
+            return;
+          }
+          set({ undo: { id: thread.id, title: thread.thread.title ?? "Untitled thread" } });
+          list();
+          onSettled?.();
+        });
+      },
+      unsettle(threadId) {
+        request("thread.unsettle", { threadId }, (reply) => {
+          const reason = failed(reply);
+          if (reason) {
+            set(({ failures }) => ({ failures: { ...failures, [threadId]: reason } }));
+            return;
+          }
+          set((state) => ({ undo: state.undo?.id === threadId ? null : state.undo }));
+          list();
+        });
+      },
+      toggle(thread, onSettled) {
+        if (thread.status === "Settled") get().unsettle(thread.id);
+        else get().settle(thread, onSettled);
+      },
+      dismissUndo: () => set({ undo: null }),
       choose: (key, choice) => set(({ choices }) => ({ choices: { ...choices, [key]: choice } })),
       listModels: () => request("models.list", {}),
       receive(input) {

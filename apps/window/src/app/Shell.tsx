@@ -12,6 +12,7 @@ import { openFreshness } from "../components/sweep/reveal.js";
 import { CommandPalette } from "../palette/CommandPalette.js";
 import { SettingsDialog, type SettingsSection } from "../settings/SettingsDialog.js";
 import { watchStore } from "../store/watch.js";
+import { SettleToast } from "../threads/SettleToast.js";
 import { PaneEdges } from "./PaneEdges.js";
 import { PanelShortcuts, SidebarToggle } from "./PanelControls.js";
 import {
@@ -99,6 +100,7 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
         >
           <PanelShortcuts onToggleFind={toggleFind} />
           <WindowPinNotice />
+          <SettleToast />
           <SidebarToggle />
           <ProgramSidebar
             store={watchStore}

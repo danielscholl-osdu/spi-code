@@ -56,9 +56,33 @@
 .sidebar-status-dot { margin-right: 2px; }
 .sidebar-toggle-dot { position: absolute; top: 4px; right: 3px; box-shadow: 0 0 0 2px var(--surface); }
 .sidebar-thread-group .section-header { margin: 0; cursor: default; }
-.sidebar-thread-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); }
-.sidebar-thread-dot[data-status="Waiting on you"] { background: var(--warning); }
-.sidebar-thread-dot[data-status="Working"] { background: var(--work); }
-.sidebar-thread-scope { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: 12px; font-weight: 400; }
-.sidebar-thread-key { font: 11px var(--font-sans); color: var(--text-muted); }
 .sidebar-thread-count { margin-left: 4px; font-variant-numeric: tabular-nums; }
+.thread-item { position: relative; }
+.app-sidebar [data-slot="sidebar-menu-button"].sidebar-thread { height: auto; min-height: 38px; padding-top: 4px; padding-bottom: 4px; }
+.thread-item[data-nested] .sidebar-thread { padding-left: 33px; }
+.sidebar-thread-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.sidebar-thread-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: var(--text-xs); font-weight: 400; }
+.sidebar-thread-end { flex: none; display: grid; place-items: center; min-width: 18px; color: var(--text-muted); font-size: var(--text-xs); font-weight: 400; font-variant-numeric: tabular-nums; }
+.sidebar-thread-end[data-end="working"] { color: var(--work); }
+.sidebar-thread-end[data-end="working"] svg { animation: thread-row-spin 1s linear infinite; }
+.sidebar-thread-end[data-end="waiting"] { color: var(--warning-text); }
+.sidebar-thread-end[data-end="done"] { color: var(--success-text); }
+.sidebar-thread-key { font: var(--text-xs) var(--font-sans); color: var(--text-muted); }
+.thread-item[data-state="Settled"] .sidebar-row-label,
+.thread-item[data-state="Can't be read"] .sidebar-row-label { color: var(--text-muted); }
+.thread-item[data-state="Can't be read"] { opacity: 0.75; }
+@keyframes thread-row-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .sidebar-thread-end[data-end="working"] svg { animation: none; } }
+.sidebar-thread-settle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); display: none; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: default; }
+.sidebar-thread-settle:hover { background: var(--active); color: var(--success-text); }
+.sidebar-thread-settle[data-settled]:hover { color: var(--text); }
+.thread-item:is(:hover, :focus-within) .sidebar-thread-settle { display: grid; }
+.thread-item:is(:hover, :focus-within):has(.sidebar-thread-settle) .sidebar-thread-end { visibility: hidden; }
+.sidebar-settled { flex: none; display: flex; flex-direction: column; min-height: 0; padding: 4px 8px; border-top: 1px solid var(--border-soft); }
+.sidebar-settled-list { max-height: 40vh; overflow-y: auto; padding-bottom: 4px !important; }
+.sidebar-settled-row { display: flex; align-items: center; gap: 6px; }
+.sidebar-settled-toggle { flex: 1; display: flex; align-items: center; gap: 2px; height: 28px; padding: 0 8px; border: 0; border-radius: 7px; background: transparent; color: var(--text-muted); font: inherit; font-size: var(--text-sm); text-align: left; cursor: default; }
+.sidebar-settled-toggle:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+.sidebar-settled-toggle:disabled { opacity: 0.7; }
+.sidebar-settled-chevron { margin-left: 2px; transition: transform .12s ease-out; }
+.sidebar-settled[data-open] .sidebar-settled-chevron { transform: rotate(-90deg); }

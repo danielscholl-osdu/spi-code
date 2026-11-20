@@ -70,7 +70,9 @@ it("passes the host's workspace, context and tools, journals deltas in order and
       .map((event) => event.text),
   ).toEqual(["The sweep."]);
   expect(engine.read(id)).toMatchObject({
-    status: "Settled",
+    status: "Open",
+    settledAt: null,
+    done: false,
     turns: [{ text: "The sweep.", outcome: "completed" }],
   });
   database.close();
@@ -123,7 +125,8 @@ it("stops by operator request, releases approvals and ignores callbacks from the
     reason: "operator",
   });
   expect(engine.read(id)).toMatchObject({
-    status: "Settled",
+    status: "Open",
+    done: false,
     turns: [{ text: "", approvals: [{ end: { type: "approval.cancelled" } }] }],
   });
   database.close();
@@ -272,7 +275,7 @@ it("cancels interrupted work on disk once, leaves process fate unknown and start
     const events = second.engine.eventsSince(id, 0);
     expect(second.runtime.run).not.toHaveBeenCalled();
     expect(second.engine.read(id)).toMatchObject({
-      status: "Settled",
+      status: "Open",
       messages: [{ status: "started" }, { status: "cancelled" }],
       turns: [
         {
@@ -348,14 +351,146 @@ it("subscribes after a sequence and delivers only that thread's later events acr
   database.close();
 });
 
-it("sets an unreadable thread aside and recovers the rest of the journal", () => {
+it("stores manual settlement and a hand-unsettled hold, and refuses both running states", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-11-01T10:00:00Z"));
+  const { engine, turn, database } = harness();
+  const id = engine.create({ scope: "partition" });
+  const waiting = engine.send(id, { prompt: "Inspect" });
+  const first = await turn();
+  expect(engine.settle(id)).toBe(false);
+  const approval = first.events.requestApproval({
+    approvalId: "approval",
+    kind: "read",
+    detail: "Read the tree",
+  });
+  expect(engine.settle(id)).toBe(false);
+  expect(engine.read(id).status).toBe("Waiting on you");
+  engine.decideApproval(id, first.input.turnId, "approval", true);
+  await approval;
+  first.finish();
+  await waiting;
+
+  const activity = engine.read(id).updatedAt;
+  expect(engine.settle(id)).toBe(true);
+  expect(engine.read(id)).toMatchObject({
+    status: "Settled",
+    settledAt: activity,
+    updatedAt: activity,
+  });
+  expect(engine.eventsSince(id, 0).at(-1)).toMatchObject({
+    type: "thread.settled",
+    reason: "operator",
+    settledAt: activity,
+  });
+
+  engine.unsettle(id);
+  vi.setSystemTime(new Date("2026-11-09T10:00:00Z"));
+  engine.autoSettle();
+  expect(engine.read(id).status).toBe("Open");
+
+  const followUp = engine.send(id, { prompt: "Continue" });
+  const second = await turn(1);
+  second.finish();
+  await followUp;
+  vi.setSystemTime(new Date("2026-11-17T10:00:00Z"));
+  engine.autoSettle();
+  expect(engine.read(id).status).toBe("Settled");
+  expect(engine.eventsSince(id, 0).at(-1)).toMatchObject({
+    type: "thread.settled",
+    reason: "inactivity",
+  });
+  database.close();
+});
+
+it("marks only completed turns after the thread's seen sequence as Done", async () => {
+  const { engine, turn, database } = harness();
+  const id = engine.create({ scope: "partition" });
+  const first = engine.send(id, { prompt: "First" });
+  (await turn()).finish();
+  await first;
+  engine.seen(id);
+  expect(engine.read(id).done).toBe(false);
+
+  const second = engine.send(id, { prompt: "Second" });
+  (await turn(1)).finish();
+  await second;
+  expect(engine.read(id).done).toBe(true);
+  engine.seen(id);
+
+  const stopped = engine.send(id, { prompt: "Third" });
+  const third = await turn(2);
+  await engine.stop(id);
+  third.finish();
+  await stopped;
+  expect(engine.read(id)).toMatchObject({ status: "Open", done: false });
+  database.close();
+});
+
+it("auto-settles an old idle journal while reopening it", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-11-01T10:00:00Z"));
+  const directory = mkdtempSync(join(tmpdir(), "spi-thread-settlement-"));
+  const path = join(directory, "threads.db");
+  const database = new DatabaseSync(path);
+  const { engine, turn } = harness(database);
+  const id = engine.create({ scope: "partition" });
+  const sent = engine.send(id, { prompt: "Inspect" });
+  (await turn()).finish();
+  await sent;
+  await engine.shutdown();
+  database.close();
+
+  vi.setSystemTime(new Date("2026-11-09T10:00:00Z"));
+  const reopened = harness(new DatabaseSync(path));
+  expect(reopened.engine.read(id)).toMatchObject({
+    status: "Settled",
+    updatedAt: Date.parse("2026-11-01T10:00:00Z"),
+  });
+  await reopened.engine.shutdown();
+  reopened.database.close();
+  rmSync(directory, { recursive: true, force: true });
+});
+
+it("keeps an unreadable journal visible without claiming its state or definition", () => {
+  const { engine, database } = harness();
+  const id = engine.create({ scope: "partition", title: "Inspect" });
+  database
+    .prepare(
+      "INSERT INTO thread_engine_journal (thread_id, sequence, at, payload) VALUES (?, 2, ?, ?)",
+    )
+    .run(id, Date.now() + 1000, "{not json");
+  const unreadable: string[] = [];
+  const reopened = new ThreadEngine(database, {
+    runtime: { run: async () => undefined },
+    workspace: { resolve: () => ({ cwd: "/workspace" }) },
+    context: { prepare: () => ({ instructions: "", attachments: [] }) },
+    tools: { offer: () => [] },
+    onUnreadableThread: (threadId) => unreadable.push(threadId),
+  });
+  expect(unreadable).toEqual([id]);
+  expect(reopened.list()).toContainEqual({
+    id,
+    thread: { scope: "not known" },
+    status: "Can't be read",
+    sequence: 2,
+    updatedAt: expect.any(Number),
+    settledAt: null,
+    done: false,
+  });
+  expect(() => reopened.read(id)).toThrow("Unknown thread");
+  database.close();
+});
+
+it("keeps an unreadable thread in the list and recovers the rest of the journal", () => {
   const database = new DatabaseSync(":memory:");
   const first = harness(database).engine;
   const healthy = first.create({ scope: "storage" });
   const damaged = first.create({ scope: "partition" });
   database.prepare("INSERT INTO thread_engine_journal VALUES (?, 2, 0, '{')").run(damaged);
   const reopened = harness(database).engine;
-  expect(reopened.list().map(({ id }) => id)).toEqual([healthy]);
+  expect(reopened.list().map(({ id }) => id)).toEqual([healthy, damaged]);
+  expect(reopened.list().find(({ id }) => id === damaged)?.status).toBe("Can't be read");
   expect(() => reopened.read(damaged)).toThrow("Unknown thread");
   database.close();
 });

@@ -1086,6 +1086,34 @@ it("packs a row's chip from the saved sweep, says why it refuses one, and keeps 
   );
 });
 
+it("stores settle, un-settle and seen through the thread routes", async () => {
+  const { runtime } = recordedRuntime();
+  const port = await connect(runtime);
+  await expect(
+    port.response(port.dispatch("thread.settle", { threadId: port.threadId })),
+  ).resolves.toMatchObject({ type: "thread.settled", payload: { threadId: port.threadId } });
+  const settled = await port.response(port.dispatch("threads.list", {}));
+  if (settled.type !== "threads.result") throw new Error("Threads were not listed");
+  expect(settled.payload.threads.find(({ id }) => id === port.threadId)).toMatchObject({
+    status: "Settled",
+    done: false,
+  });
+
+  await expect(
+    port.response(port.dispatch("thread.unsettle", { threadId: port.threadId })),
+  ).resolves.toMatchObject({ type: "thread.unsettled", payload: { threadId: port.threadId } });
+  await expect(
+    port.response(port.dispatch("thread.seen", { threadId: port.threadId })),
+  ).resolves.toMatchObject({ type: "thread.seen.result", payload: { threadId: port.threadId } });
+  expect(port.events().filter(({ threadId }) => threadId === port.threadId)).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ type: "thread.settled", reason: "operator" }),
+      expect.objectContaining({ type: "thread.unsettled", reason: "operator" }),
+      expect.objectContaining({ type: "thread.seen" }),
+    ]),
+  );
+});
+
 it("refuses a send whose bytes would differ from the preview, and sends the fresh preview's bytes", async () => {
   const { watch, view } = savedFixtureSweep();
   const {

@@ -20,6 +20,10 @@ export class Timeline {
   private readonly recovery: string[] = [];
   private sequence: number;
   private updatedAt: number;
+  private settledAt: number | null = null;
+  private handUnsettled = false;
+  private seenSequence: number | null = null;
+  private lastTurnEnd: { sequence: number; outcome: TimelineTurn["outcome"] } | null = null;
 
   constructor(readonly created: EventOf<"thread.created">) {
     this.sequence = created.sequence;
@@ -39,10 +43,25 @@ export class Timeline {
         ? "Waiting on you"
         : this.active
           ? "Working"
-          : "Settled",
+          : this.settledAt === null
+            ? "Open"
+            : "Settled",
       sequence: this.sequence,
       updatedAt: this.updatedAt,
+      settledAt: this.settledAt,
+      done:
+        this.lastTurnEnd?.outcome === "completed" &&
+        this.seenSequence !== null &&
+        this.lastTurnEnd.sequence > this.seenSequence,
     };
+  }
+
+  get heldByOperator(): boolean {
+    return this.handUnsettled;
+  }
+
+  get needsSeen(): boolean {
+    return this.seenSequence !== this.sequence;
   }
 
   snapshot(): ThreadTimeline {
@@ -63,9 +82,30 @@ export class Timeline {
   apply(event: Exclude<ThreadEvent, { type: "thread.created" }>): void {
     assert(event.sequence === this.sequence + 1, "Journal sequence has a gap");
     this.sequence = event.sequence;
-    this.updatedAt = event.at;
+    if (
+      event.type !== "thread.settled" &&
+      event.type !== "thread.unsettled" &&
+      event.type !== "thread.seen"
+    )
+      this.updatedAt = event.at;
     switch (event.type) {
+      case "thread.settled":
+        assert(!this.active, "A running thread cannot be settled");
+        assert(event.settledAt === this.updatedAt, "Settled time must be the last activity");
+        this.settledAt = event.settledAt;
+        this.handUnsettled = false;
+        return;
+      case "thread.unsettled":
+        this.settledAt = null;
+        this.handUnsettled = true;
+        return;
+      case "thread.seen":
+        assert(event.seenSequence <= this.sequence - 1, "Seen sequence is ahead of the journal");
+        this.seenSequence = event.seenSequence;
+        return;
       case "message.sent": {
+        this.settledAt = null;
+        this.handUnsettled = false;
         const message: TimelineMessage = {
           id: event.messageId,
           message: event.message,
@@ -122,6 +162,7 @@ export class Timeline {
       }
       case "turn.finished":
         turn.outcome = event.outcome;
+        this.lastTurnEnd = { sequence: event.sequence, outcome: event.outcome };
         if (event.outcome === "failed" && event.failure !== undefined) turn.failure = event.failure;
         if (event.outcome === "stopped") turn.stopReason = event.reason;
         if (event.partialTextSeen !== undefined) turn.partialTextSeen = event.partialTextSeen;

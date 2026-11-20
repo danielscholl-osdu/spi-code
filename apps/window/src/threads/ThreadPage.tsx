@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: MIT
 
 import type { ModelCatalogResult } from "@spi-code/contracts";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useStore } from "zustand";
 import { navigate } from "../app/navigation.js";
 import { treeServices } from "../app/queue.js";
+import { matchesShiftShortcut, shiftShortcutLabel } from "../app/shortcuts.js";
 import { PaneTitle } from "../app/title-row.js";
+import { Icon } from "../components/icons/Icon.js";
+import { nextThread } from "../components/sidebar/ThreadRows.js";
 import { watchStore } from "../store/watch.js";
 import { clockTime } from "../time.js";
 import { threadEntries } from "./entries.js";
@@ -87,11 +90,31 @@ export function ThreadPage({ id }: { id: string }) {
   const { models, account } = useMemo(() => catalogModels(state.catalog), [state.catalog]);
   const isDraft = id === NEW_THREAD;
   const { draft, open, startDraft } = state;
+  const summary = isDraft ? undefined : state.threads?.find((thread) => thread.id === id);
+  const status = summary?.status ?? NOT_KNOWN;
+  const settled = status === "Settled";
+  const settle = useCallback(() => {
+    if (!summary) return;
+    state.toggle(summary, () => {
+      const next = nextThread(state.threads ?? [], summary.id);
+      navigate(next ? { kind: "thread", id: next } : { kind: "today" });
+    });
+  }, [state, summary]);
 
   useEffect(() => {
     if (isDraft && !draft) startDraft(null);
-    if (!isDraft) open(id);
-  }, [isDraft, draft, id, open, startDraft]);
+    if (!isDraft && summary?.status !== "Can't be read") open(id);
+  }, [isDraft, draft, id, open, startDraft, summary?.status]);
+  useEffect(() => {
+    if (!summary || (status !== "Open" && !settled)) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || !matchesShiftShortcut(event, "s")) return;
+      event.preventDefault();
+      if (!event.repeat) settle();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [summary, status, settled, settle]);
 
   const events = isDraft ? undefined : state.events[id];
   const { entries, running } = useMemo(() => threadEntries(events ?? [], models), [events, models]);
@@ -143,12 +166,28 @@ export function ThreadPage({ id }: { id: string }) {
     );
   }
 
-  const summary = state.threads?.find((thread) => thread.id === id);
-  const status = summary?.status ?? NOT_KNOWN;
   const scope = summary?.thread.scope;
   return (
     <>
-      <PaneTitle>
+      <PaneTitle
+        end={
+          summary && (
+            <button
+              type="button"
+              className="thread-settle"
+              data-settled={settled || undefined}
+              disabled={status !== "Open" && !settled}
+              title={`${settled ? "Un-settle" : "Settle"} ${shiftShortcutLabel("s")}${
+                status !== "Open" && !settled ? ` · not while ${status}` : ""
+              }`}
+              onClick={settle}
+            >
+              <Icon name={settled ? "refresh" : "check"} size={13} stroke={2} />
+              {settled ? "Un-settle" : "Settle"}
+            </button>
+          )
+        }
+      >
         <h1 data-place>{summary?.thread.title ?? "Thread"}</h1>
         <span className="thread-title-status" data-status={status}>
           {status}

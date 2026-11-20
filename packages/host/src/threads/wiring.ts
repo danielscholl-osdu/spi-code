@@ -147,6 +147,17 @@ export function openThreadHost(options: ThreadHostOptions) {
       },
       onUnreadableThread: () => console.error("A damaged thread journal was set aside."),
     });
+    const settlement = setInterval(
+      () => {
+        try {
+          engine.autoSettle();
+        } catch (error) {
+          console.error("Automatic thread settlement could not finish.", error);
+        }
+      },
+      60 * 60 * 1000,
+    );
+    settlement.unref();
     let stopping: Promise<void> | undefined;
     return {
       engine,
@@ -154,23 +165,28 @@ export function openThreadHost(options: ThreadHostOptions) {
       chip: (id: string) => chipFromSweep(options.savedSweep, id, spiRedactor),
       redact: chipRedactor.text,
       stop: () => {
-        stopping ??= engine.shutdown().finally(async () => {
-          try {
-            if (adapter) {
-              const controller = new AbortController();
-              try {
-                await Promise.race([
-                  adapter.then((instance) => instance.stop()),
-                  setTimeout(1500, undefined, { signal: controller.signal }),
-                ]);
-              } finally {
-                controller.abort();
+        stopping ??= Promise.resolve()
+          .then(() => {
+            clearInterval(settlement);
+            return engine.shutdown();
+          })
+          .finally(async () => {
+            try {
+              if (adapter) {
+                const controller = new AbortController();
+                try {
+                  await Promise.race([
+                    adapter.then((instance) => instance.stop()),
+                    setTimeout(1500, undefined, { signal: controller.signal }),
+                  ]);
+                } finally {
+                  controller.abort();
+                }
               }
+            } finally {
+              lock.close();
             }
-          } finally {
-            lock.close();
-          }
-        });
+          });
         return stopping;
       },
     };

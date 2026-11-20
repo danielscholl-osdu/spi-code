@@ -157,6 +157,9 @@ export type TurnOutcome = TurnEnd["outcome"];
 
 export type JournalEntry =
   | { type: "thread.created"; thread: ThreadDefinition }
+  | { type: "thread.settled"; reason: "operator" | "inactivity"; settledAt: number }
+  | { type: "thread.unsettled"; reason: "operator" }
+  | { type: "thread.seen"; seenSequence: number }
   | { type: "message.sent"; messageId: string; message: ThreadMessage }
   | { type: "message.cancelled"; messageId: string; reason: InterruptionReason }
   | TurnEvent;
@@ -164,7 +167,7 @@ export type JournalEntry =
 export type ThreadEvent = JournalEntry & { threadId: string; sequence: number; at: number };
 export type EventOf<Type extends ThreadEvent["type"]> = Extract<ThreadEvent, { type: Type }>;
 
-export type ThreadStatus = "Waiting on you" | "Working" | "Settled";
+export type ThreadStatus = "Waiting on you" | "Working" | "Open" | "Settled" | "Can't be read";
 
 export interface TimelineMessage {
   id: string;
@@ -200,6 +203,8 @@ export interface ThreadSummary {
   status: ThreadStatus;
   sequence: number;
   updatedAt: number;
+  settledAt: number | null;
+  done: boolean;
 }
 
 export interface ThreadTimeline extends ThreadSummary {

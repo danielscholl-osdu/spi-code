@@ -18,6 +18,7 @@ import { Shell } from "../app/Shell.js";
 import { todayContent } from "../components/opened-body/content.js";
 import { OpenedBody } from "../components/opened-body/OpenedBody.js";
 import recorded from "../components/opened-body/sweep-1116.json?raw";
+import { pin } from "../store/pins.js";
 import { watchStore } from "../store/watch.js";
 import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import nov16 from "../views/today/snapshot-1116.json?raw";
@@ -73,6 +74,8 @@ function fakeHost() {
       status: statuses.get(id) ?? "Working",
       sequence: 1,
       updatedAt: 1,
+      settledAt: statuses.get(id) === "Settled" ? 1 : null,
+      done: false,
     }));
   const answer = (request: Request) => {
     if (offline) throw new Error("Host port is not connected");
@@ -107,6 +110,20 @@ function fakeHost() {
           threadId: request.payload.threadId,
           outcome: "completed",
         });
+      case "thread.settle":
+        if (["Working", "Waiting on you"].includes(statuses.get(request.payload.threadId) ?? "")) {
+          return send("error", request.id, {
+            code: "thread_busy",
+            message: "The thread is still running.",
+          });
+        }
+        statuses.set(request.payload.threadId, "Settled");
+        return send("thread.settled", request.id, request.payload);
+      case "thread.unsettle":
+        statuses.set(request.payload.threadId, "Open");
+        return send("thread.unsettled", request.id, request.payload);
+      case "thread.seen":
+        return send("thread.seen.result", request.id, request.payload);
       case "models.list":
         return send("models.result", request.id, {
           models: [
@@ -297,7 +314,7 @@ it("starts a thread from the row through the routes, and the row then opens that
   expect(window.location.hash).toBe("#thread/t1");
 });
 
-it("groups the sidebar by status and moves a settled thread to the shelf", async () => {
+it("settles with Undo, keeps settled threads in the footer, and nests below a pinned service", async () => {
   await askAndSend("Why is the sync halted?");
   host.statuses.set("t1", "Waiting on you");
   await act(async () => host.relist());
@@ -305,16 +322,47 @@ it("groups the sidebar by status and moves a settled thread to the shelf", async
     all(`#app-sidebar [aria-label="${name}"] [data-thread-row]`).map(
       (row) => row.dataset.threadRow,
     );
-  expect(group("Waiting on you")).toEqual(["t1"]);
-  expect(group("Working")).toEqual([]);
+  expect(group("Other threads")).toEqual(["t1"]);
+  expect(all("#app-sidebar .sidebar-thread-settle")).toEqual([]);
 
-  host.statuses.set("t1", "Settled");
+  host.statuses.set("t1", "Open");
   await act(async () => host.relist());
-  expect(group("Waiting on you")).toEqual([]);
+  expect(group("Other threads")).toEqual(["t1"]);
+  await click(buttonNamed("Settle"));
+  expect(document.querySelector(".settle-toast")?.textContent).toMatch(/^Settled /);
   expect(group("Settled")).toEqual([]);
-  const shelf = buttonNamed(/^Settled 1/);
-  await click(shelf);
+  await click(buttonNamed(/^Settled 1/));
   expect(group("Settled")).toEqual(["t1"]);
+
+  await click(buttonNamed("Undo"));
+  expect(group("Settled")).toEqual([]);
+  expect(group("Other threads")).toEqual(["t1"]);
+  await act(async () => pin("indexer"));
+  expect(group("Other threads")).toEqual([]);
+  expect(all('#app-sidebar [data-nested] [data-thread-row="t1"]')).toHaveLength(1);
+});
+
+it("keeps an unreadable thread muted in place and does not open it", async () => {
+  const thread: ThreadSummary = {
+    id: "damaged",
+    thread: { scope: "not known" },
+    status: "Can't be read",
+    sequence: 4,
+    updatedAt: 1,
+    settledAt: null,
+    done: false,
+  };
+  await act(async () => threadStore.setState({ threads: [thread] }));
+  const row = all('[data-thread-row="damaged"]');
+  expect(row).toHaveLength(0);
+  const muted = container.querySelector<HTMLElement>(
+    `#app-sidebar .thread-item[data-state="Can't be read"]`,
+  );
+  expect(muted?.textContent).toContain("Can't be read");
+  expect(muted?.getAttribute("title")).toBe("damaged");
+  expect(muted?.querySelector("button")?.hasAttribute("disabled")).toBe(true);
+  await click(muted?.querySelector<HTMLElement>("button") as HTMLElement);
+  expect(window.location.hash).toBe("#today");
 });
 
 it("sends a model chosen in a thread to the host route and leaves one line in the timeline", async () => {

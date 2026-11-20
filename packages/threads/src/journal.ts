@@ -42,10 +42,15 @@ export class ThreadJournal {
     this.all = db.prepare("SELECT * FROM thread_engine_journal ORDER BY thread_id, sequence");
   }
 
-  *load(): Iterable<{ id: string; decode(): ThreadEvent }> {
+  *load(): Iterable<{ id: string; sequence: number; at: number; decode(): ThreadEvent }> {
     for (const entry of this.all.iterate()) {
       const row = entry as Row;
-      yield { id: row.thread_id, decode: () => decode(row) };
+      yield {
+        id: row.thread_id,
+        sequence: row.sequence,
+        at: row.at,
+        decode: () => decode(row),
+      };
     }
   }
 

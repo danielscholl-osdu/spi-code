@@ -156,6 +156,51 @@ export class ThreadRoutes {
         payload: request.payload,
       });
     },
+    "thread.settle": (request, send) => {
+      if (request.type !== "thread.settle") return;
+      if (!this.engine().settle(request.payload.threadId)) {
+        send({
+          version: PROTOCOL_VERSION,
+          id: request.id,
+          kind: "response",
+          type: "error",
+          payload: {
+            code: "thread_busy",
+            message: "A Working or Waiting on you thread cannot be settled.",
+          },
+        });
+        return;
+      }
+      send({
+        version: PROTOCOL_VERSION,
+        id: request.id,
+        kind: "response",
+        type: "thread.settled",
+        payload: request.payload,
+      });
+    },
+    "thread.unsettle": (request, send) => {
+      if (request.type !== "thread.unsettle") return;
+      this.engine().unsettle(request.payload.threadId);
+      send({
+        version: PROTOCOL_VERSION,
+        id: request.id,
+        kind: "response",
+        type: "thread.unsettled",
+        payload: request.payload,
+      });
+    },
+    "thread.seen": (request, send) => {
+      if (request.type !== "thread.seen") return;
+      this.engine().seen(request.payload.threadId);
+      send({
+        version: PROTOCOL_VERSION,
+        id: request.id,
+        kind: "response",
+        type: "thread.seen.result",
+        payload: request.payload,
+      });
+    },
     "thread.subscribe": (request, send) => {
       if (request.type !== "thread.subscribe") return;
       const { threadId, fromSequence } = request.payload;
