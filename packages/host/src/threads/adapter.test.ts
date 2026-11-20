@@ -932,3 +932,58 @@ it("packs a row's chip from the saved sweep, says why it refuses one, and keeps 
     }),
   );
 });
+
+it("refuses a send whose bytes would differ from the preview, and sends the fresh preview's bytes", async () => {
+  const { watch, view } = savedFixtureSweep();
+  const {
+    runtime,
+    sessions: [session],
+  } = recordedRuntime("fresh-preview");
+  if (!session) throw new Error("Incomplete recording");
+  const port = await connect(runtime, undefined, watch.savedSweep);
+  const member = todayMembers(view.briefing)[0]?.member;
+  if (!member) throw new Error("Fixture has no Today member");
+  const chip = async () => {
+    const packed = await port.response(port.dispatch("thread.chip", { id: member.id }));
+    if (packed.type !== "thread.chip.result" || !packed.payload.ok)
+      throw new Error(`Chip refused: ${JSON.stringify(packed.payload)}`);
+    return packed.payload.attachment;
+  };
+  const start = () =>
+    port.response(
+      port.dispatch("thread.start", { scope: "program", title: "Why", subject: member.id }),
+    );
+  const stale = {
+    type: "error",
+    payload: {
+      code: "stale_preview",
+      message: expect.stringContaining("changed since its preview"),
+    },
+  };
+
+  const previewed = await chip();
+  await expect(start()).resolves.toMatchObject({ type: "thread.started" });
+  const listed = async () => {
+    const result = await port.response(port.dispatch("threads.list", {}));
+    return result.type === "threads.result" ? result.payload.threads.length : -1;
+  };
+  const threads = await listed();
+
+  port.host.remember(view.sweptAt);
+  await expect(start()).resolves.toMatchObject(stale);
+  expect(await listed()).toBe(threads);
+  await expect(
+    port.response(port.send({ prompt: "Why", attachments: [previewed] })),
+  ).resolves.toMatchObject(stale);
+  expect(session.send).not.toHaveBeenCalled();
+
+  const fresh = await chip();
+  expect(fresh.content).not.toContain(view.sweptAt);
+  await expect(start()).resolves.toMatchObject({ type: "thread.started" });
+  const sent = port.send({ prompt: "Why", attachments: [fresh] });
+  await vi.waitFor(() => expect(session.send).toHaveBeenCalledOnce());
+  expect(session.send).toHaveBeenCalledWith({ prompt: `${fresh.name}\n${fresh.content}\n\nWhy` });
+  session.begin("fresh-turn");
+  session.finish("fresh-turn");
+  await expect(port.response(sent)).resolves.toMatchObject({ payload: { outcome: "completed" } });
+});

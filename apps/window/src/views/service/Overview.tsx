@@ -22,14 +22,14 @@ const SECTIONS = [
 
 const TODAY = { label: "Today", destination: { kind: "today" } } satisfies BodyPlace;
 
-function contentOf(row: ServiceHomeRow, place: BodyPlace): OpenedContent {
+function contentOf(row: ServiceHomeRow, place: BodyPlace, fork: string): OpenedContent {
   const section = row.section === "blocked" || row.section === "waiting" ? row.section : undefined;
   const [primary] = row.links;
   return {
     title: row.headline,
     place,
     subject: section ? { kind: "item", id: row.id } : null,
-    ...(section ? { section } : {}),
+    ...(section ? { section, scope: fork } : {}),
     cause: row.cause,
     ...(row.effect ? { effect: row.effect } : {}),
     steps: row.steps,
@@ -129,7 +129,7 @@ export function Overview({ id, home, snapshot, row: open, focus }: TabProps) {
                   {opened && (
                     <div className="service-row-body">
                       <OpenedBody
-                        content={contentOf(row, placeOf(row))}
+                        content={contentOf(row, placeOf(row), id)}
                         selection={{ kind: "row", id: row.id }}
                         origin="today"
                         {...(pill ? { rowUrl: pill.url } : {})}

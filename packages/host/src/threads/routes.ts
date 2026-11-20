@@ -4,10 +4,14 @@
 import { type Message, PROTOCOL_VERSION, ThreadEventSchema } from "@spi-code/contracts";
 import type { HostRoutes } from "../process/port.js";
 import type { ChipOutcome } from "./context/chip.js";
-import { snapshotChips } from "./context/draft.js";
+import { CHIP_ATTACHMENT_PREFIX, snapshotChips } from "./context/draft.js";
 import { openThreadHost, type ThreadHostOptions } from "./wiring.js";
 
 type ThreadChipResult = Extract<Message, { type: "thread.chip.result" }>["payload"];
+type Attachment = { name: string; content: string };
+
+const STALE_PREVIEW =
+  "What Copilot would receive changed since its preview. Check the fresh preview and send again.";
 
 /** What a draft shows and sends: the chip as Copilot receives it, or why it was refused. */
 function chipResult(id: string, packed: ChipOutcome): ThreadChipResult {
@@ -23,6 +27,8 @@ function chipResult(id: string, packed: ChipOutcome): ThreadChipResult {
 export class ThreadRoutes {
   private host: ReturnType<typeof openThreadHost> | undefined;
   private readonly subscriptions = new Map<string, () => void>();
+  /** The attachment each chip id last previewed, which a send must still match byte for byte. */
+  private readonly previews = new Map<string, Attachment>();
   private readonly known = new Set<string>();
 
   constructor(private readonly options: ThreadHostOptions) {}
@@ -38,6 +44,22 @@ export class ThreadRoutes {
 
   private engine() {
     return this.open().engine;
+  }
+
+  /** Whether Copilot would receive these bytes unchanged once the send-time redactor runs. */
+  private unchanged({ name, content }: Attachment) {
+    const { redact } = this.open();
+    return redact(name) === name && redact(content) === content;
+  }
+
+  private stale(request: { id: string }, send: (message: Message) => void) {
+    send({
+      version: PROTOCOL_VERSION,
+      id: request.id,
+      kind: "response",
+      type: "error",
+      payload: { code: "stale_preview", message: STALE_PREVIEW },
+    });
   }
 
   remember(token: string) {
@@ -60,6 +82,10 @@ export class ThreadRoutes {
       const { scope, title, subject } = request.payload;
       if (!this.options.scopes.lookup(scope)?.canStart)
         throw new Error("Thread scope is unavailable.");
+      if (subject !== undefined) {
+        const preview = this.previews.get(subject);
+        if (!preview || !this.unchanged(preview)) return this.stale(request, send);
+      }
       send({
         version: PROTOCOL_VERSION,
         id: request.id,
@@ -77,17 +103,28 @@ export class ThreadRoutes {
     "thread.chip": async (request, send) => {
       if (request.type !== "thread.chip") return;
       const { id } = request.payload;
+      const payload = chipResult(id, await this.open().chip(id));
+      if (payload.ok) this.previews.set(id, payload.attachment);
+      else this.previews.delete(id);
       send({
         version: PROTOCOL_VERSION,
         id: request.id,
         kind: "response",
         type: "thread.chip.result",
-        payload: chipResult(id, await this.open().chip(id)),
+        payload,
       });
     },
     "thread.send": async (request, send) => {
       if (request.type !== "thread.send") return;
       const { threadId, message } = request.payload;
+      const previewed = (message.attachments ?? []).filter(({ name, content }) => {
+        const id = name.startsWith(CHIP_ATTACHMENT_PREFIX)
+          ? name.slice(CHIP_ATTACHMENT_PREFIX.length)
+          : undefined;
+        return id !== undefined && this.previews.get(id)?.content === content;
+      });
+      if (!previewed.every((attachment) => this.unchanged(attachment)))
+        return this.stale(request, send);
       const engine = this.engine();
       const previous = engine.read(threadId).messages.at(-1)?.message;
       const model = message.model ?? previous?.model ?? "auto";

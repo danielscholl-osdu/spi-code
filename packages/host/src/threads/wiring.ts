@@ -141,6 +141,7 @@ export function openThreadHost(options: ThreadHostOptions) {
       engine,
       remember,
       chip: (id: string) => chipFromSweep(options.savedSweep, id, modelRedactor),
+      redact: (text: string) => modelRedactor.text(text),
       stop: () => {
         stopping ??= engine.shutdown().finally(async () => {
           try {
