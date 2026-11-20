@@ -8,13 +8,14 @@ import { join, posix, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { listenerScanBudget } from "../apps/desktop/src/smoke-listeners.js";
-import { stageMxcBinaries, stageRuntimeFiles } from "./package.mjs";
+import { runWindowsSandboxProbe, stageMxcBinaries, stageRuntimeFiles } from "./package.mjs";
 import {
   assertRuntimeEvidence,
   installProductionDependencies,
   packagingEnvironment,
   stageWorkspace,
 } from "./package-mac.mjs";
+import { parseProbePid, runProbeSection, waitFor } from "./windows-sandbox-probe.mjs";
 
 describe("production staging", () => {
   const fixtures: string[] = [];
@@ -182,6 +183,44 @@ describe("packaged smoke gate", () => {
     expect(result.stderr).toContain(
       "Packaging requires macOS arm64 or Windows x64 on the target OS",
     );
+  });
+
+  it("continues to the packaged smoke when the Windows sandbox probe throws", () => {
+    const output: string[] = [];
+    let smokeStarted = false;
+    expect(() => {
+      runWindowsSandboxProbe(
+        () => {
+          throw new Error("probe timed out");
+        },
+        (result) => output.push(result),
+      );
+      smokeStarted = true;
+    }).not.toThrow();
+    expect(smokeStarted).toBe(true);
+    expect(output.join("\n")).toContain('"check": "Windows sandbox probe"');
+    expect(output.join("\n")).toContain('"observation": "not run"');
+    expect(output.join("\n")).toContain('"error": "probe timed out"');
+  });
+
+  it("waits for a PID value instead of accepting an empty file", async () => {
+    const values = ["", "4242"];
+    await expect(waitFor(async () => parseProbePid(values.shift() ?? ""), 500)).resolves.toBe(4242);
+  });
+
+  it("records a thrown probe section as not run", async () => {
+    const rows: { check: string; observation: string; how: string; error?: unknown }[] = [];
+    await runProbeSection(rows, ["PID wait"], "owner probe failed", async () =>
+      waitFor(async () => undefined, 10),
+    );
+    expect(rows).toEqual([
+      {
+        check: "PID wait",
+        observation: "not run",
+        how: "owner probe failed",
+        error: "Timed out waiting for probe state",
+      },
+    ]);
   });
 
   const resources = "/artifacts/SPI Code.app/Contents/Resources";

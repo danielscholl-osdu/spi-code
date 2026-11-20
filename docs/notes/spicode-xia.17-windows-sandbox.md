@@ -1,10 +1,11 @@
-# spicode-xia.17 Windows sandbox on Windows 11
+# spicode-xia.17 Windows sandbox on Windows Server 2025
 
-Observed in CI run `44795945897` on `windows-latest` x64, at head
-`ec637e1cd3a2b7bd676f99c6b8d84c8c1b47c9e2`, with Windows 10.0.26100.0,
-Node 22.22.0 and `@microsoft/mxc-sdk` 1.1.0. The Windows package and packaged
-smoke passed. No Copilot seat or model turn was available, so checks that
-require the Copilot session were not attempted.
+Observed in CI run `44803811270` on `windows-latest` x64, at head
+`7409728c53293308cd26efbe2e703bd60feb849e`, with the
+`windows-2025-vs2026` image (Windows Server 2025, 10.0.26100.0), Node 22.22.0
+and `@microsoft/mxc-sdk` 1.1.0. The Windows 11 client is unobserved. The
+Windows package and packaged smoke passed. No Copilot seat or model turn was
+available, so checks that require the Copilot session were not attempted.
 
 `package:win` now runs `scripts/windows-sandbox-probe.mjs` after extracting the
 ZIP and passes it the exact binaries below
@@ -36,27 +37,27 @@ inside a sandbox. “Not run” is not a pass.
 | Staged `dotnet` directory | Absent. | Direct `readdir` of the extracted x64 payload. |
 | Packaged executor resolution | The extracted `wxc-exec.exe` existed, but an explicit resolver attempt with that `app.asar.unpacked` bin fell back to the source-package executable. `verifyExecutable` rejects every path containing `.asar`, including `.asar.unpacked`. | The probe compared the packaged candidate with `findWxcExecutable` before and after setting `MXC_BIN_DIR`. |
 | Backend and tier | No ProcessContainer tier. MXC reported only Hyperlight and WSLC; the request probe said `PSEC is not enabled`. | Packaged `mxc_ffi.dll`, through `getPlatformSupport`, `getAvailableBackends` and `probe`. |
-| Telemetry consent and required telemetry | Consent was `undetermined`, prompting was allowed and `telemetry: { enabled: false }` could not disable the four Required events. MXC's installed binary describes their data as diagnostic product usage, performance and reliability plus a random session ID; it says commands, full paths, credentials and other customer content are not sent. The package does not expose the four event names or field schema to JavaScript, and PSEC prevented a ProcessContainer run on which to intercept an event. | `getTelemetryConsentStatus`, the installed 1.1.0 README/binary consent text, and the failed request-aware probe. No telemetry values or credentials were printed. |
+| Telemetry consent and required telemetry | Consent was `undetermined`, prompting was allowed and `telemetry: { enabled: false }` could not disable the four Required events. The consent string describes consented telemetry; the package does not document what the four Required events carry. PSEC prevented a ProcessContainer run on which to intercept an event. | `getTelemetryConsentStatus`, the installed 1.1.0 README/binary consent text, and the failed request-aware probe. No telemetry values or credentials were printed. |
 
 ## Confinement checks
 
 | Check | Observed | How |
 | --- | --- | --- |
 | `sandboxConfig` resolution | Resolved with bypass, developer access, Git auth and gh auth off; read/write grants only for thread temp, linked worktree and clone `.git`; read-only grants for toolchain/clone/Git control files; app data denied; outbound restricted to the configured SPI hosts and local network denied. | The built host's `buildSandboxConfig` with disposable Windows clone, worktree, app-data and temp paths. |
-| Sandbox attestation | Did not engage: `unsupported-platform`. | The host's Windows preflight result. No preflight was treated as a pass. |
+| Sandbox attestation | Did not engage: `unsupported-platform`. | `runSandboxPreflight` returns `unsupported-platform` off Darwin; the probe's own constant is not an observation. |
 | Worktree write | Not run. | MXC ProcessContainer refused before the PowerShell positive control: PSEC disabled. |
-| Thread-temp write | Not run. | Same failed ProcessContainer request; no later check was re-labelled as a pass. |
-| Outside write | Not run. | Same failed ProcessContainer request. The host did not infer denial from an unavailable backend. |
-| Sibling read | Not run. | Same failed ProcessContainer request. |
-| `appData/kube/config` read | Not run. The .4/.12 live row cannot be repeated on Windows until MXC ProcessContainer starts. | Disposable public fixture; request was refused before PowerShell ran. |
-| `appData/azure/probe` read | Not run. The list/read row cannot be repeated until ProcessContainer starts. | Disposable public fixture; request was refused before PowerShell ran. |
-| Environment and credentials | Not run inside MXC. No credential values were requested or printed; the probe config intentionally passed only `SystemRoot`, `PATH`, app temp and temp directories. | A parent-only environment canary was to be checked by name inside ProcessContainer, but PSEC refused launch. |
-| Network | Not run. Hyperlight/WSLC availability was not substituted for the requested ProcessContainer policy. | The request denied egress and asked for a five-second GitHub request, but PSEC refused launch. |
-| Git commit | Not run. | Disposable linked worktree and a clean Git binary path; ProcessContainer refused launch before commit. |
-| Clone config write | Not run. | Disposable clone; ProcessContainer refused launch before the append. |
-| Worktree `.git` pointer write | Not run. | Disposable linked worktree; ProcessContainer refused launch before the write. |
-| Clone `.git/hooks` write | Not run. | Disposable clone; ProcessContainer refused launch before directory creation. |
-| Timed-out command output | Not run. | The 500 ms MXC workload was not launched because ProcessContainer was unavailable. |
+| Thread-temp write | Not run. Skipped after the first ProcessContainer refusal. | No later request was made. |
+| Outside write | Not run. Skipped after the first ProcessContainer refusal. | No later request was made. |
+| Sibling read | Not run. Skipped after the first ProcessContainer refusal. | No later request was made. |
+| `appData/kube/config` read | Not run. Skipped after the first ProcessContainer refusal. | The .4/.12 live row cannot be repeated on Windows until MXC ProcessContainer starts. |
+| `appData/azure/probe` read | Not run. Skipped after the first ProcessContainer refusal. | The list/read row cannot be repeated until ProcessContainer starts. |
+| Environment and credentials | Not run. Skipped after the first ProcessContainer refusal. No credential values were requested or printed; the probe config intentionally passed only `SystemRoot`, `PATH`, app temp and temp directories. | No later request was made. |
+| Network | Not run. Skipped after the first ProcessContainer refusal. Hyperlight/WSLC availability was not substituted for the requested ProcessContainer policy. | No later request was made. |
+| Git commit | Not run. Skipped after the first ProcessContainer refusal. | No later request was made. |
+| Clone config write | Not run. Skipped after the first ProcessContainer refusal. | No later request was made. |
+| Worktree `.git` pointer write | Not run. Skipped after the first ProcessContainer refusal. | No later request was made. |
+| Clone `.git/hooks` write | Not run. Skipped after the first ProcessContainer refusal. | No later request was made. |
+| Timed-out command output | Not run. Skipped after the first ProcessContainer refusal. | The 500 ms MXC workload was not launched. |
 | Stopped model command output | Not run. | Requires a signed-in Copilot model turn; CI has no seat. |
 | Cold resume | Not run. | Requires a signed-in Copilot session and model catalog; CI has no seat. |
 

@@ -62,6 +62,23 @@ export function packagingEnvironment(inherited) {
 }
 
 /**
+ * @param {() => void} run
+ * @param {(result: string) => void} [print]
+ */
+export function runWindowsSandboxProbe(run, print = (result) => console.log(result)) {
+  try {
+    run();
+  } catch (error) {
+    const result = {
+      check: "Windows sandbox probe",
+      observation: "not run",
+      error: error instanceof Error ? error.message : String(error),
+    };
+    print(`Windows sandbox probe result:\n${JSON.stringify(result, null, 2)}`);
+  }
+}
+
+/**
  * @param {{mainPid: number, hostPid: number}} report
  * @param {unknown} evidence
  * @param {string} resources
@@ -430,17 +447,19 @@ export async function packageDesktop(platform = process.platform) {
     await assertPackagedMxc(resources, platform);
     if (windows) {
       const unpackedMxcBin = join(resources, "app.asar.unpacked", mxcBin);
-      execFileSync(process.execPath, [join(root, "scripts/windows-sandbox-probe.mjs")], {
-        cwd: root,
-        env: {
-          ...env,
-          MXC_FFI_DIR: join(unpackedMxcBin, mxcTargets[platform].arch),
-          SPI_CODE_WINDOWS_MXC_BIN: unpackedMxcBin,
-          PATH: `${process.env.SystemRoot ?? String.raw`C:\Windows`}\\System32;${process.env.PATH ?? ""}`,
-        },
-        stdio: "inherit",
-        timeout: 180_000,
-      });
+      runWindowsSandboxProbe(() =>
+        execFileSync(process.execPath, [join(root, "scripts/windows-sandbox-probe.mjs")], {
+          cwd: root,
+          env: {
+            ...env,
+            MXC_FFI_DIR: join(unpackedMxcBin, mxcTargets[platform].arch),
+            SPI_CODE_WINDOWS_MXC_BIN: unpackedMxcBin,
+            PATH: `${process.env.SystemRoot ?? String.raw`C:\Windows`}\\System32;${process.env.PATH ?? ""}`,
+          },
+          stdio: "inherit",
+          timeout: 180_000,
+        }),
+      );
     }
     const reportPath = join(output, "smoke.json");
     const runtimeReportPath = join(output, "runtime.json");
