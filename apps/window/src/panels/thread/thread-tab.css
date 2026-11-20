@@ -23,6 +23,7 @@
 .thread-change-path { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--text-xs); overflow-wrap: anywhere; }
 .thread-change-counts { flex: none; color: var(--text-muted); font-size: var(--text-xs); }
 .thread-diff { max-height: 360px; margin: 4px 0 8px; overflow: auto; padding: 8px; border: 1px solid var(--border-soft); border-radius: 6px; background: var(--surface); color: var(--text); font-family: var(--font-mono); font-size: var(--text-xs); white-space: pre-wrap; overflow-wrap: anywhere; }
+.thread-diff > span { display: block; }
 .thread-diff [data-line="added"] { background: var(--success-surface); color: var(--success-text); }
 .thread-diff [data-line="removed"] { background: var(--error-surface); color: var(--error-text); }
 .thread-diff [data-line="cut"] { color: var(--text-muted); }
