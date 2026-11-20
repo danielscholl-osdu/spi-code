@@ -7,6 +7,7 @@ export {
   type JournalOutputRedactor,
   journalOutputRedactor,
   modelOutputRedactor,
+  REDACTION_MARKER,
   type ToolOutputRedactor,
 } from "./redaction.js";
 export type * from "./types.js";

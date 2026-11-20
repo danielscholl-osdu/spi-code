@@ -192,6 +192,40 @@ it("stops by operator request, releases approvals and ignores callbacks from the
   database.close();
 });
 
+it("keeps approvals in different threads isolated and applies no declined edit", async () => {
+  const { engine, turn, database } = harness();
+  const firstId = engine.create({ scope: "partition" });
+  const secondId = engine.create({ scope: "storage" });
+  const firstOutcome = engine.send(firstId, { prompt: "Edit partition" });
+  const first = await turn();
+  const secondOutcome = engine.send(secondId, { prompt: "Edit storage" });
+  const second = await turn(1);
+  let file = "before";
+  const firstApproval = first.events
+    .requestApproval({ approvalId: "edit", kind: "edit", detail: "partition.ts" })
+    .then((approved) => {
+      if (approved) file = "partition";
+    });
+  const secondApproval = second.events
+    .requestApproval({ approvalId: "edit", kind: "edit", detail: "storage.ts" })
+    .then((approved) => {
+      if (approved) file = "storage";
+    });
+
+  expect(engine.decideApproval(secondId, first.input.turnId, "edit", true)).toBe(false);
+  expect(engine.decideApproval(firstId, first.input.turnId, "edit", false)).toBe(true);
+  await firstApproval;
+  expect(file).toBe("before");
+  expect(engine.read(secondId).status).toBe("Waiting on you");
+  expect(engine.decideApproval(secondId, second.input.turnId, "edit", true)).toBe(true);
+  await secondApproval;
+  expect(file).toBe("storage");
+  first.finish();
+  second.finish();
+  await Promise.all([firstOutcome, secondOutcome]);
+  database.close();
+});
+
 it("retains the runtime stop reason in the journal and timeline and settles open effects", async () => {
   const { engine, runtime, turn, database } = harness();
   runtime.run.mockImplementationOnce(async (_input, events) => {
@@ -316,11 +350,16 @@ it("cancels interrupted work on disk once, leaves process fate unknown and start
       kind: "command",
       arguments: {},
     });
-    void running.events.requestApproval({
-      approvalId: "ap-crash",
-      kind: "edit",
-      detail: "edit file",
-    });
+    let editApplied = false;
+    void running.events
+      .requestApproval({
+        approvalId: "ap-crash",
+        kind: "edit",
+        detail: "edit file",
+      })
+      .then((approved) => {
+        if (approved) editApplied = true;
+      });
     const fakeBlock = `  ${"fixture".repeat(2400)}\n`;
     running.events.delta("client-key-data: |\n");
     running.events.delta(fakeBlock);
@@ -351,6 +390,7 @@ it("cancels interrupted work on disk once, leaves process fate unknown and start
     });
     expect(events.filter((event) => event.type === "turn.started")).toHaveLength(1);
     expect(events.some((event) => event.type === "tool.finished")).toBe(false);
+    expect(editApplied).toBe(false);
     second.database.close();
 
     const third = harness(new DatabaseSync(path));

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { ThreadWireEvent } from "@spi-code/contracts";
-import type { ModelOption, TimelineEntry, ToolCall } from "./types.js";
+import type { Approval, ModelOption, TimelineEntry, ToolCall } from "./types.js";
 
 const CHIP_PREFIX = "context:";
 const CANCELLED: Record<string, string> = {
@@ -32,6 +32,7 @@ export function threadEntries(
 ): { entries: TimelineEntry[]; running: boolean } {
   const entries: TimelineEntry[] = [];
   const calls = new Map<string, ToolCall>();
+  const approvals = new Map<string, Approval>();
   let previous: { model?: string; effort?: string } | null = null;
   let running = false;
   const replace = (call: ToolCall, next: Partial<ToolCall>) => {
@@ -39,6 +40,12 @@ export function threadEntries(
     const updated = { ...call, ...next };
     entries[at] = updated;
     calls.set(call.id, updated);
+  };
+  const replaceApproval = (approval: Approval, next: Partial<Approval>) => {
+    const at = entries.indexOf(approval);
+    const updated = { ...approval, ...next };
+    entries[at] = updated;
+    approvals.set(approval.id, updated);
   };
   for (const event of events) {
     switch (event.type) {
@@ -110,6 +117,43 @@ export function threadEntries(
       case "tool.cancelled": {
         const call = calls.get(event.callId);
         if (call) replace(call, { status: "unknown", result: ENDED[event.reason] ?? "Ended." });
+        break;
+      }
+      case "approval.requested": {
+        const approval: Approval = {
+          kind: "approval",
+          id: event.approvalId,
+          approvalId: event.approvalId,
+          turnId: event.turnId,
+          requestKind: event.kind,
+          status: "pending",
+          detail: event.detail,
+          ...(event.path ? { path: event.path } : {}),
+          ...(event.diff ? { diff: event.diff } : {}),
+          ...(event.reason ? { reason: event.reason } : {}),
+        };
+        entries.push(approval);
+        approvals.set(approval.id, approval);
+        break;
+      }
+      case "approval.resolved": {
+        const approval = approvals.get(event.approvalId);
+        if (approval)
+          replaceApproval(approval, { status: event.approved ? "approved" : "declined" });
+        break;
+      }
+      case "approval.cancelled": {
+        const approval = approvals.get(event.approvalId);
+        if (approval)
+          replaceApproval(approval, {
+            status: "cancelled",
+            reason:
+              event.reason === "restart"
+                ? "SPI Code restarted before the edit was approved. The edit was not applied."
+                : event.reason === "shutdown"
+                  ? "SPI Code quit before the edit was approved. The edit was not applied."
+                  : "The approval ended before the edit was applied.",
+          });
         break;
       }
       case "turn.finished": {

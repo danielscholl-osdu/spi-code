@@ -108,6 +108,28 @@ it("ends a cancelled turn with a cancelled line and offers Send again", () => {
   expect(button(/^Send/)).toBeTruthy();
 });
 
+it("shows an edit's exact path and diff with one-shot approval controls", () => {
+  const onApprovalDecision = vi.fn();
+  const approval = {
+    kind: "approval",
+    id: "a1",
+    approvalId: "a1",
+    turnId: "u1",
+    requestKind: "write",
+    status: "pending",
+    detail: "/repo/src.ts",
+    path: "/repo/src.ts",
+    diff: "--- a/src.ts\n+++ b/src.ts\n@@\n-old\n+new",
+  } as const;
+  render(fixtureThread({ entries: [approval], onApprovalDecision }));
+  expect(host.querySelector(".thread-approval-path")?.textContent).toBe("/repo/src.ts");
+  expect(host.querySelector(".thread-approval-diff")?.textContent).toBe(approval.diff);
+  click(button("Approve once"));
+  expect(onApprovalDecision).toHaveBeenCalledWith(approval, true);
+  click(button("Decline"));
+  expect(onApprovalDecision).toHaveBeenCalledWith(approval, false);
+});
+
 it("mounts a 2,000-row thread and an open 2,000-call group under the row budget, at its end", () => {
   render(fixtureThread({ entries: longThread(2000), running: false }));
   const rows = all(".thread-row");

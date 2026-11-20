@@ -19,7 +19,8 @@ export interface JournalOutputRedactor extends ToolOutputRedactor {
   assistantText(): AssistantText;
 }
 
-const marker = "[redacted]";
+export const REDACTION_MARKER = "[redacted]";
+const marker = REDACTION_MARKER;
 const fields = [
   "AccountKey",
   "SharedAccessKey",

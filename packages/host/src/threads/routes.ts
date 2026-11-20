@@ -107,7 +107,7 @@ export class ThreadRoutes {
     },
     "thread.start": async (request, send) => {
       if (request.type !== "thread.start") return;
-      const { scope, title, subject, landsIn: requested } = request.payload;
+      const { scope, title, subject, accessMode, landsIn: requested } = request.payload;
       if (!this.options.scopes.lookup(scope)?.canStart)
         throw new Error("Thread scope is unavailable.");
       if (subject !== undefined) {
@@ -118,6 +118,7 @@ export class ThreadRoutes {
         scope,
         ...(title === undefined ? {} : { title }),
         ...(subject === undefined ? {} : { subject }),
+        ...(accessMode === undefined ? {} : { accessMode }),
       });
       let landsIn: ThreadLanding = { target: "asking" };
       let notice: string | undefined;
@@ -234,6 +235,18 @@ export class ThreadRoutes {
       } catch (error) {
         this.failed(request, send, error, "thread_send_failed");
       }
+    },
+    "thread.approval": (request, send) => {
+      if (request.type !== "thread.approval") return;
+      const { threadId, turnId, approvalId, approved } = request.payload;
+      const decided = this.engine().decideApproval(threadId, turnId, approvalId, approved);
+      send({
+        version: PROTOCOL_VERSION,
+        id: request.id,
+        kind: "response",
+        type: "thread.approval.result",
+        payload: { threadId, approvalId, decided },
+      });
     },
     "thread.stop": async (request, send) => {
       if (request.type !== "thread.stop") return;
