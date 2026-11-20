@@ -150,6 +150,9 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
     deliver(parsed.message, then);
   };
 
+  /** Bumped by each new draft and each pack, so a reply only lands on the request it answers. */
+  let draftSerial = 0;
+  let packSerial = 0;
   return createStore<ThreadsState>()((set, get) => {
     const list = (onListed?: (threads: readonly ThreadSummary[]) => void) =>
       request("threads.list", {}, (reply) => {
@@ -189,10 +192,11 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
         list();
       });
     };
-    const pack = (subject: string) =>
+    const pack = (subject: string) => {
+      const serial = ++packSerial;
       request("thread.chip", { id: subject }, (reply) => {
         const { draft } = get();
-        if (draft?.subject?.id !== subject) return;
+        if (serial !== packSerial || draft?.subject?.id !== subject) return;
         const chip =
           reply.type === "thread.chip.result"
             ? ({ state: "done", ...reply.payload } as const)
@@ -204,6 +208,7 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
               } as const);
         set({ draft: { ...draft, chip } });
       });
+    };
 
     /** The host went away: its threads are not known, and what it was doing ends or starts again. */
     const lose = (gone: string | null) => {
@@ -237,6 +242,7 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
           ...(target?.origin ? { origin: target.origin } : {}),
           ...(target ? { chip: { state: "packing" } as const } : {}),
         };
+        draftSerial += 1;
         set(({ choices }) => {
           const { draft: _, ...rest } = choices;
           return { draft, choices: rest };
@@ -282,8 +288,9 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
           ),
           ...(draft.subject && chip ? { subject: draft.subject.id } : {}),
         };
+        const serial = draftSerial;
         request("thread.start", definition, (reply) => {
-          const current = get().draft;
+          const current = serial === draftSerial ? get().draft : null;
           if (reply.type !== "thread.started") {
             const stale =
               reply.type === "error" && reply.payload.code === STALE_PREVIEW && current?.subject;
@@ -301,9 +308,11 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
           const { threadId } = reply.payload;
           if (choice) set(({ choices }) => ({ choices: { ...choices, [threadId]: choice } }));
           const payload = message(threadId, text, chip?.attachment);
-          onStarted(threadId);
-          set({ draft: null, events: { ...get().events, [threadId]: [] } });
-          subscribe(threadId);
+          if (current) {
+            onStarted(threadId);
+            set({ draft: null, events: { ...get().events, [threadId]: [] } });
+            subscribe(threadId);
+          }
           sendMessage(threadId, payload);
         });
       },

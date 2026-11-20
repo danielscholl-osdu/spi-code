@@ -42,7 +42,7 @@ export const PIN_END_PROBE = `(() => {
     clear: area ? area.x + area.width : innerWidth,
     title: rect(document.querySelector(".centre-title h1")),
     pin: pin && getComputedStyle(pin).display !== "none" && pin.getBoundingClientRect().width > 0 ? rect(pin) : null,
-    ask: ask && getComputedStyle(ask).display !== "none" ? rect(ask) : null,
+    ask: ask && (ask.checkVisibility({ visibilityProperty: true, opacityProperty: true }) ? rect(ask) : { x: 0, y: 0, width: 0, height: 0 }),
     toggle: rect(end.querySelector("[aria-label='Toggle right panel']")) };
 })()`;
 
@@ -91,6 +91,10 @@ export async function captureTopRowPins(
       await rendered("true");
       const state = `${pinned ? "pinned" : "unpinned"}`;
       const geometry = await measure();
+      assert(
+        !ask || (geometry.rule === "pin-end" && geometry.ask),
+        `${place} top row measured no Ask`,
+      );
       measured.push({ state, geometry });
       if (captured) {
         const file = `top-row-${state}-${width}-${appearance}.png`;
