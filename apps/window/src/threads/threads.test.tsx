@@ -1227,9 +1227,9 @@ it("continues a program answer in a scope it names, carrying the finding and its
     subject: "finding:p1",
     parent: "p1",
   });
-  expect(host.sent("thread.send").at(-1)?.payload.message.attachments).toEqual([
-    finding.attachment,
-  ]);
+  const sent = host.sent("thread.send").at(-1);
+  if (sent?.type !== "thread.send") throw new Error("Nothing was sent");
+  expect(sent.payload.message.attachments).toEqual([finding.attachment]);
 });
 
 it("counts a service's Waiting and Working threads on its Threads tab as the sidebar shows them", async () => {
