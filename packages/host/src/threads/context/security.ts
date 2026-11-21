@@ -106,6 +106,15 @@ export function ruleReading(view: ViewSnapshot, key: string) {
   }
   const { lane, rule, at } = found;
   const { facts, where, also, help, cwe } = rule.opened;
+  const advisories = facts.flatMap(({ advisories }) =>
+    advisories
+      ? [...advisories.preview, ...advisories.rest].map((advisory) => ({
+          id: advisory.id,
+          words: wordsText(advisory.words),
+          fix: wordsText(advisory.fix),
+        }))
+      : [],
+  );
   return {
     title: rule.title,
     at,
@@ -114,19 +123,7 @@ export function ruleReading(view: ViewSnapshot, key: string) {
       label: lane.figure.label,
       who: lane.figure.who,
       ...ruleLine(rule, true),
-      facts: facts.map(({ label, words, advisories }) => ({
-        label,
-        words: wordsText(words),
-        ...(advisories
-          ? {
-              advisories: [...advisories.preview, ...advisories.rest].map((advisory) => ({
-                id: advisory.id,
-                words: wordsText(advisory.words),
-                fix: wordsText(advisory.fix),
-              })),
-            }
-          : {}),
-      })),
+      facts: facts.map(({ label, words }) => ({ label, words: wordsText(words) })),
       ...(help === undefined ? {} : { help }),
       ...(cwe === undefined ? {} : { cwe }),
       ...(also.length > 0 ? { also: also.map(({ words }) => wordsText(words)) } : {}),
@@ -138,6 +135,7 @@ export function ruleReading(view: ViewSnapshot, key: string) {
         ...said("needs", line.needs),
         ...(line.prs.length > 0 ? { prs: line.prs.map(({ label }) => label) } : {}),
       })),
+      ...(advisories.length > 0 ? { advisories } : {}),
     },
   };
 }

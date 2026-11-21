@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { readFileSync } from "node:fs";
-import type { SecurityPane, ViewSnapshot } from "@spi-code/contracts";
+import type { InspectResult, SecurityPane, ViewSnapshot } from "@spi-code/contracts";
 import { createToolOutputRedactor, journalOutputRedactor } from "@spi-code/threads";
 import { describe, expect, it } from "vitest";
 import {
@@ -10,14 +10,15 @@ import {
   type SecurityFixture,
   securitySweep,
 } from "../../../test/watch/security-fixture.js";
-import { recordedSnapshotPath } from "../../../test/watch/snapshot-fixture.js";
+import { detailFeedPath, recordedSnapshotPath } from "../../../test/watch/snapshot-fixture.js";
 import { FakeSession } from "../../testing/fake-session.js";
 import { buildPermissionGate } from "../../tools/permission-gate.js";
 import { SPI_RESULT_BYTE_BUDGET, spiReadTools, spiToolProvider } from "../../tools/spi-reads.js";
 import { areaEnvelopes } from "../../watch/provenance.js";
 import { chipFromSweep } from "./draft.js";
+import { readPlace } from "./places.js";
 import type { SpiRedactor } from "./redaction.js";
-import { SECURITY_CHIP_BYTE_BUDGET, wordsText } from "./security.js";
+import { findRule, SECURITY_CHIP_BYTE_BUDGET, wordsText } from "./security.js";
 import type { SavedSweep } from "./sweep.js";
 
 const recorded: ViewSnapshot = JSON.parse(readFileSync(recordedSnapshotPath, "utf8"));
@@ -78,6 +79,15 @@ describe.each(SECURITY_FIXTURES)("Security's context on the %s scenario", (name)
     const detail = await tool(sweep, { rule: rule.key });
     expect(Buffer.byteLength(detail.text)).toBeLessThanOrEqual(SPI_RESULT_BYTE_BUDGET);
     expect(detail.value).toMatchObject({ rule: rule.key, title: rule.title });
+  });
+
+  it("packs every rule's chip within 2,000 UTF-8 bytes", async () => {
+    for (const rule of rulesOf(pane)) {
+      const one = await chip(sweep, `security-rule:${rule.key}`);
+      expect(one.bytes, rule.key).toBeLessThanOrEqual(SECURITY_CHIP_BYTE_BUDGET);
+      if (one.trimmed) expect(one.chip.reading, rule.key).toHaveProperty("leftOut");
+      expect(one.chip.evidence, rule.key).toEqual([findRule(pane, rule.key)?.at]);
+    }
   });
 
   it("tells Copilot the page's counts and lane words, with ≥ where the page has it", async () => {
@@ -248,5 +258,27 @@ describe("a Security subject the latest sweep cannot show", () => {
       expect(packed.content).not.toContain("SPI fixes");
     }
     expect((await tool(bare)).value).toMatchObject({ reading: "not read" });
+  });
+
+  it("sends a subject saved from an old Security row to the inspector, which reads no reading", async () => {
+    const asked: string[] = [];
+    const feed: InspectResult[] = JSON.parse(readFileSync(detailFeedPath, "utf8"));
+    const sample = feed[0] as InspectResult;
+    const inspecting: SavedSweep = {
+      ...sweep,
+      inspect: async (id) => {
+        asked.push(id);
+        return { kind: "queue item", result: { ...sample, id } };
+      },
+    };
+    const old = ["alert:osdu-spi-storage:dependabot:12", "campaign:cve:CVE-2026-0001"];
+    for (const id of old) {
+      expect(readPlace(view, id)).toBeUndefined();
+      expect(await chipFromSweep(() => inspecting, id, journalOutputRedactor)).toMatchObject({
+        ok: true,
+        chip: { id, chip: { id, kind: "queue item", title: sample.title } },
+      });
+    }
+    expect(asked).toEqual(old);
   });
 });

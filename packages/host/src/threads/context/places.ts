@@ -146,7 +146,11 @@ export function readPlace(view: ViewSnapshot, id: string): PlaceRead | undefined
       state: areas("security")(view),
       reading,
       notRead: unreadLists(view.security),
-      fit: { budget: SECURITY_CHIP_BYTE_BUDGET, lists: ["where"], tool: SECURITY_TOOL },
+      fit: {
+        budget: SECURITY_CHIP_BYTE_BUDGET,
+        lists: ["where", "advisories"],
+        tool: SECURITY_TOOL,
+      },
     };
   }
   const place = Object.hasOwn(PLACES, id) ? PLACES[id] : undefined;
