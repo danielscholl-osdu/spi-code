@@ -3,6 +3,7 @@
 
 import { readFileSync } from "node:fs";
 import type { InspectResult, SecurityPane, ViewSnapshot } from "@spi-code/contracts";
+import type { CodeAlertFact } from "@spi-code/core";
 import { createToolOutputRedactor, journalOutputRedactor } from "@spi-code/threads";
 import { describe, expect, it } from "vitest";
 import {
@@ -24,20 +25,20 @@ import type { SavedSweep } from "./sweep.js";
 const recorded: ViewSnapshot = JSON.parse(readFileSync(recordedSnapshotPath, "utf8"));
 
 /** The recorded snapshot carrying a scenario's pane, with the security area its records give. */
-function scenario(name: SecurityFixture, edit: (pane: SecurityPane) => SecurityPane = (p) => p) {
-  const { pane, records, now } = securitySweep(name);
+function scenario(name: SecurityFixture, scanned?: (alert: CodeAlertFact) => CodeAlertFact) {
+  const { pane, records, now } = securitySweep(name, scanned);
   const security = areaEnvelopes({ security: records }, () => 3_600_000, now).find(
     ({ area }) => area === "security",
   );
   const view: ViewSnapshot = {
     ...recorded,
-    security: edit(pane),
+    security: pane,
     areas: recorded.areas.map((entry) =>
       entry.area === "security" && security ? security : entry,
     ),
   };
   const sweep: SavedSweep = { view, reads: { security: records }, inspect: async () => undefined };
-  return { pane: edit(pane), view, sweep };
+  return { pane, view, sweep };
 }
 
 async function chip(sweep: SavedSweep, id: string, redactor: SpiRedactor = journalOutputRedactor) {
@@ -46,7 +47,11 @@ async function chip(sweep: SavedSweep, id: string, redactor: SpiRedactor = journ
   return outcome.chip;
 }
 
-async function tool(sweep: SavedSweep, args: object = {}, redactor = journalOutputRedactor) {
+async function tool(
+  sweep: SavedSweep,
+  args: object = {},
+  redactor: SpiRedactor = journalOutputRedactor,
+) {
   const tools = spiToolProvider(spiReadTools(() => sweep, redactor)).offer();
   const session = new FakeSession({
     tools,
@@ -57,6 +62,25 @@ async function tool(sweep: SavedSweep, args: object = {}, redactor = journalOutp
   if (typeof output !== "string") throw new Error("spi_security answered no text");
   return { text: output, value: JSON.parse(output) };
 }
+
+/** Help as long as a sweep keeps it, in one-byte and three-byte characters, and five CWEs. */
+const HELP = {
+  none: "",
+  ascii: `${"Untrusted input reaches a sink without being checked first, so a caller can change what the call does. ".repeat(3).slice(0, 299).trimEnd()}…`,
+  wide: "安全".repeat(150),
+} as const;
+const CWES = ["cwe-079", "cwe-116", "cwe-020", "cwe-1333", "cwe-400"];
+const withHelp =
+  (help: string) =>
+  (alert: CodeAlertFact): CodeAlertFact =>
+    help
+      ? {
+          ...alert,
+          fullDescription: help,
+          tags: ["security", ...CWES.map((id) => `external/cwe/${id}`)],
+        }
+      : alert;
+const times = (text: string, part: string) => text.split(part).length - 1;
 
 const rulesOf = (pane: SecurityPane) => pane.lanes.flatMap(({ byRule }) => byRule.rules);
 const mostWhere = (pane: SecurityPane) =>
@@ -81,14 +105,45 @@ describe.each(SECURITY_FIXTURES)("Security's context on the %s scenario", (name)
     expect(detail.value).toMatchObject({ rule: rule.key, title: rule.title });
   });
 
-  it("packs every rule's chip within 2,000 UTF-8 bytes", async () => {
-    for (const rule of rulesOf(pane)) {
-      const one = await chip(sweep, `security-rule:${rule.key}`);
-      expect(one.bytes, rule.key).toBeLessThanOrEqual(SECURITY_CHIP_BYTE_BUDGET);
-      if (one.trimmed) expect(one.chip.reading, rule.key).toHaveProperty("leftOut");
-      expect(one.chip.evidence, rule.key).toEqual([findRule(pane, rule.key)?.at]);
-    }
-  });
+  it.each(Object.keys(HELP) as (keyof typeof HELP)[])(
+    "packs every rule's chip within 2,000 UTF-8 bytes and its tool within 12,000, with %s help",
+    async (kind) => {
+      const help = HELP[kind];
+      const { pane, sweep } = scenario(name, withHelp(help));
+      for (const rule of rulesOf(pane)) {
+        const id = `security-rule:${rule.key}`;
+        const one = await chip(sweep, id);
+        expect(one.bytes, rule.key).toBeLessThanOrEqual(SECURITY_CHIP_BYTE_BUDGET);
+        expect((await chip(sweep, id)).content, rule.key).toBe(one.content);
+        expect(one.chip.evidence, rule.key).toEqual([findRule(pane, rule.key)?.at]);
+        const reading = one.chip.reading as {
+          facts: { label: string; words: string }[];
+          where: unknown[];
+          advisories?: unknown[];
+          leftOut?: { facts?: number; where?: number };
+        };
+        if (one.trimmed) expect(reading, rule.key).toHaveProperty("leftOut");
+        const code = help !== "" && rule.key.includes(":code:");
+        if (code && reading.facts.length > 0)
+          expect(reading.facts[0], rule.key).toEqual({ label: "What it is", words: help });
+        if (reading.leftOut?.facts) {
+          expect(reading.where, rule.key).toEqual([]);
+          expect(reading.advisories ?? [], rule.key).toEqual([]);
+        }
+        if (code && !one.trimmed) {
+          expect(times(one.content, help), rule.key).toBe(1);
+          expect(one.content, rule.key).toContain(`CWE-79, CWE-116, CWE-20, CWE-1333, CWE-400`);
+        }
+        const detail = await tool(sweep, { rule: rule.key });
+        expect(Buffer.byteLength(detail.text), rule.key).toBeLessThanOrEqual(
+          SPI_RESULT_BYTE_BUDGET,
+        );
+        if (code) expect(times(detail.text, help), rule.key).toBe(1);
+      }
+      const read = await tool(sweep);
+      expect(Buffer.byteLength(read.text)).toBeLessThanOrEqual(SPI_RESULT_BYTE_BUDGET);
+    },
+  );
 
   it("tells Copilot the page's counts and lane words, with ≥ where the page has it", async () => {
     const { chip: packed } = await chip(sweep, "place:security");
@@ -188,30 +243,48 @@ describe("scanner text", () => {
   const known = "fixture-scanner-credential";
   const hub = ["gh", "p_", "FAKE".repeat(9)].join("");
   const { journal } = createToolOutputRedactor([known]);
-  const dirty = (pane: SecurityPane): SecurityPane => {
-    const copy = structuredClone(pane);
-    const lane = copy.lanes[0];
-    const rule = lane?.byRule.rules[0];
-    if (!rule) throw new Error("The single scenario has no rule");
-    rule.title = `Hard-coded ${hub}`;
-    rule.opened.help = `Rotate ${known} before release.`;
-    for (const line of rule.opened.where) line.files = [{ code: `src/${known}/Config.java` }];
-    return copy;
-  };
+  const { pane, sweep } = scenario("1116", (alert) => ({
+    ...alert,
+    description: `Hard-coded ${hub} in config`,
+    fullDescription: `Rotate ${known} before release.`,
+  }));
+  const code = rulesOf(pane).find(({ key }) => key.includes(":code:"));
 
   it("passes the redactor before it reaches Copilot, in the chips and the tool", async () => {
-    const { pane, sweep } = scenario("single", dirty);
-    const key = rulesOf(pane)[0]?.key ?? "";
-    const texts = [
-      (await chip(sweep, "place:security", journal)).content,
-      (await chip(sweep, `security-rule:${key}`, journal)).content,
-      (await tool(sweep, {}, journal)).text,
-      (await tool(sweep, { rule: key }, journal)).text,
-    ];
+    if (!code) throw new Error("The 1116 scenario has no code rule");
+    const place = await chip(sweep, "place:security", journal);
+    const titles = (place.chip.reading as { rules: { rule: string; title: string }[] }).rules;
+    expect(titles.find(({ rule }) => rule === code.key)?.title).toBe(
+      "Hard-coded [redacted] in config",
+    );
+    const one = await chip(sweep, `security-rule:${code.key}`, journal);
+    const detail = await tool(sweep, { rule: code.key }, journal);
+    const texts = [place.content, one.content, (await tool(sweep, {}, journal)).text, detail.text];
     for (const text of texts) {
       expect(text).not.toContain(hub);
       expect(text).not.toContain(known);
-      expect(text).toContain("[redacted]");
+      expect(text).toContain("Hard-coded [redacted] in config");
+    }
+    for (const text of [one.content, detail.text])
+      expect(text).toContain("Rotate [redacted] before release.");
+  });
+
+  it("withholds the chips and the tool when the redactor cannot handle a value", async () => {
+    if (!code) throw new Error("The 1116 scenario has no code rule");
+    const refusing = {
+      value: () => {
+        throw new Error("fixture-private-value");
+      },
+    };
+    for (const id of ["place:security", `security-rule:${code.key}`])
+      expect(await chipFromSweep(() => sweep, id, refusing)).toEqual({
+        ok: false,
+        reason: "Context chip withheld.",
+      });
+    for (const args of [{}, { rule: code.key }]) {
+      const run = tool(sweep, args, refusing);
+      await expect(run).rejects.toThrow("SPI tool output withheld.");
+      await expect(run).rejects.not.toThrow("fixture-private-value");
     }
   });
 });

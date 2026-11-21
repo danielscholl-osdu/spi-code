@@ -105,7 +105,7 @@ export function ruleReading(view: ViewSnapshot, key: string) {
     return { title: key, at: undefined, reading: { rule: key, open } };
   }
   const { lane, rule, at } = found;
-  const { facts, where, also, help, cwe } = rule.opened;
+  const { facts, where, also } = rule.opened;
   const advisories = facts.flatMap(({ advisories }) =>
     advisories
       ? [...advisories.preview, ...advisories.rest].map((advisory) => ({
@@ -124,8 +124,6 @@ export function ruleReading(view: ViewSnapshot, key: string) {
       who: lane.figure.who,
       ...ruleLine(rule, true),
       facts: facts.map(({ label, words }) => ({ label, words: wordsText(words) })),
-      ...(help === undefined ? {} : { help }),
-      ...(cwe === undefined ? {} : { cwe }),
       ...(also.length > 0 ? { also: also.map(({ words }) => wordsText(words)) } : {}),
       where: where.map((line) => ({
         repository: line.repository,

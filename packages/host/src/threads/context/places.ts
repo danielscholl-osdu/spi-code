@@ -148,7 +148,7 @@ export function readPlace(view: ViewSnapshot, id: string): PlaceRead | undefined
       notRead: unreadLists(view.security),
       fit: {
         budget: SECURITY_CHIP_BYTE_BUDGET,
-        lists: ["where", "advisories"],
+        lists: ["facts", "where", "advisories"],
         tool: SECURITY_TOOL,
       },
     };

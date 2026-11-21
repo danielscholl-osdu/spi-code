@@ -7,6 +7,7 @@ import type { SecurityPane } from "@spi-code/contracts";
 import {
   buildModel,
   builtInFleet,
+  type CodeAlertFact,
   createContext,
   emptyFacts,
   type Facts,
@@ -51,7 +52,10 @@ export function securityFixture(name: SecurityFixture): SecurityPane {
 }
 
 /** The pane with the security read records a sweep of that case would save; 1116 read every repository. */
-export function securitySweep(name: SecurityFixture): {
+export function securitySweep(
+  name: SecurityFixture,
+  scanned: (alert: CodeAlertFact) => CodeAlertFact = (alert) => alert,
+): {
   pane: SecurityPane;
   records: ReadRecord[];
   now: Date;
@@ -78,6 +82,7 @@ export function securitySweep(name: SecurityFixture): {
       alerts.dependabot = alerts.dependabot.filter((a) => !lists.dependabot.includes(a.number));
     if (alerts.code) alerts.code = alerts.code.filter((a) => !lists.code.includes(a.number));
   }
+  for (const alerts of Object.values(data)) if (alerts.code) alerts.code = alerts.code.map(scanned);
   const failing = (repo: string) =>
     spec.failed ?? (spec.retained?.includes(repo) ? "HTTP 502: Bad Gateway" : undefined);
   const security: ReadRecord[] =

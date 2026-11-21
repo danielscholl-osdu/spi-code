@@ -214,7 +214,7 @@ const READS: readonly SpiRead<Fields>[] = [
         at: at ?? "/security",
         state,
         value: { ...lists, ...(typeof reading === "string" ? { reading } : reading) },
-        lists: ["where", "advisories"],
+        lists: ["facts", "where", "advisories"],
       };
     },
   }),
