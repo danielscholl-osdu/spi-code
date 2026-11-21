@@ -601,8 +601,7 @@ describe("Thread and Changes", () => {
     expect(threadStore.getState().draft).toMatchObject({
       scope: "partition",
       landsIn: "upstream",
-      text:
-        "Continue the change in partition-core/src/Main.java in a thread that lands in Upstream.",
+      text: "Continue the change in partition-core/src/Main.java in a thread that lands in Upstream.",
     });
     expect(window.location.hash).toBe("#thread/new");
 
