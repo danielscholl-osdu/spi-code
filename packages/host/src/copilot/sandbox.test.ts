@@ -95,6 +95,7 @@ type Sample =
   | "unexpected-key"
   | "credential"
   | "unknown-name"
+  | "fifth-git-key"
   | "missing-output"
   | "no-preflight";
 
@@ -203,6 +204,7 @@ function recordedRuntime(sample: Sample, canaryRoot: string) {
           if (sample !== "missing-path") names.push("PATH");
           if (sample === "credential") names.push("COPILOT_SDK_AUTH_TOKEN");
           if (sample === "unknown-name") names.push("NEW_SDK_BRIDGE");
+          if (sample === "fifth-git-key") names.push("GIT_CONFIG_KEY_4");
           const text = [
             `${toolCallId}:begin`,
             sample === "reported-write" ? "wrote" : "blocked",
@@ -282,6 +284,7 @@ describe("Copilot sandbox preflight", () => {
     ["unexpected-key", "credential-environment"],
     ["credential", "credential-environment"],
     ["unknown-name", "credential-environment"],
+    ["fifth-git-key", "credential-environment"],
     ["missing-output", "preflight-failed"],
   ] as const)(
     "keeps only custom tools when the preflight records %s",

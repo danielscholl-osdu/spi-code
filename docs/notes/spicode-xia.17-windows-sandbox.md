@@ -1,11 +1,15 @@
 # spicode-xia.17 Windows sandbox on Windows Server 2025
 
-Observed in CI run `44826417487` on `windows-latest` x64, at head
-`19302f56910f0c61280de85f52e5ad8c68315e7a`, with the
+Observed in CI run `44831183060` on `windows-latest` x64, at head
+`3b847954`, with the
 `windows-2025-vs2026` image (Windows Server 2025, 10.0.26100.0), Node 22.22.0
 and `@microsoft/mxc-sdk` 1.1.0. The Windows 11 client is unobserved. The
 Windows package and packaged smoke passed. No Copilot seat or model turn was
 available, so checks that require the Copilot session were not attempted.
+The probe ran on Node 22.22.0 with no Electron, while the MXC SDK's README asks
+for Node 24 or later, and the executor resolved to the source package's
+`wxc-exec.exe` (see Packaged executor resolution below), so the packaged run
+covers MXC's FFI library, not the packaged executor.
 
 `package:win` now runs `scripts/windows-sandbox-probe.mjs` after extracting the
 ZIP and passes it the exact binaries below

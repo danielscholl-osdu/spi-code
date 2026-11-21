@@ -40,11 +40,11 @@ export function OwnershipMismatch({
         onClick={() =>
           askIn(scope, null, {
             landsIn: target,
-            text: `Continue the change in ${path} in a thread that lands in ${destination}.`,
+            text: `Redo the change to ${path} in this thread, which lands in ${destination}.`,
           })
         }
       >
-        {`Continue this file in a thread that lands in ${destination}`}
+        {`Redo this file in a thread that lands in ${destination}`}
       </button>
     </div>
   );

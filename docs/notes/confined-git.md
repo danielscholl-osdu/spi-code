@@ -59,7 +59,9 @@ failed, and the commit advanced HEAD.
   inside the sandbox too). Only then does it print `<random id>:EPERM` and
   exec Git. The host accepts the result only when it has the SDK's shape,
   stdout starts with that line, the exit is not 97 or 98 and the canary is
-  absent.
+  absent. A fake MXC that parsed the id from the command and echoed it without
+  running anything would pass; the in-process library is trusted host code, so
+  that is outside the threat model.
 - A result carries `afterExit: "not-known"` exactly when `run()` was called.
   Failures before that (no sandbox, a scratch folder that cannot be made, a
   clone config or worktree pointer that is not the recorded one) are

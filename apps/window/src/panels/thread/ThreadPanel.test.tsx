@@ -602,19 +602,19 @@ describe("Thread and Changes", () => {
       ]),
     });
     const move = [...(refreshed?.querySelectorAll("button") ?? [])].find((button) =>
-      button.textContent?.startsWith("Continue this file"),
+      button.textContent?.startsWith("Redo this file"),
     );
     if (!move) throw new Error("No move action");
     await act(async () => move.click());
     expect(threadStore.getState().draft).toMatchObject({
       scope: "partition",
       landsIn: "upstream",
-      text: "Continue the change in partition-core/src/Main.java in a thread that lands in Upstream.",
+      text: "Redo the change to partition-core/src/Main.java in this thread, which lands in Upstream.",
     });
     expect(window.location.hash).toBe("#thread/new");
 
     expect(shell.$<HTMLTextAreaElement>("textarea[aria-label='Message Copilot']")?.value).toBe(
-      "Continue the change in partition-core/src/Main.java in a thread that lands in Upstream.",
+      "Redo the change to partition-core/src/Main.java in this thread, which lands in Upstream.",
     );
     const send = shell.layout.querySelector<HTMLButtonElement>('button[aria-label="Send"]');
     expect(send?.disabled).toBe(false);

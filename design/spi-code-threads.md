@@ -32,16 +32,16 @@ A thread has one scope, picked from a fixed list SPI Code seeds from the fleet i
 
 | Scope | Folder the engine works in | Remotes |
 |---|---|---|
-| Program | `repos/`, the folder that holds every clone | every repository below, each cloned the first time a thread needs it |
+| Program | None. It clones nothing and reads through SPI tools | none |
 | A service (one of 13) | `repos/<service>`, one clone; a worktree per thread that changes code | origin, the fork on GitHub (`Azure/osdu-spi-partition`); upstream, the project on GitLab (`osdu/platform/system/partition`) |
 | Template | `repos/osdu-spi` | origin, `Azure/osdu-spi` |
 | Environment | `repos/osdu-spi-stack` | origin, `Azure/osdu-spi-stack` |
 
-- The scope comes from where the thread starts: a service page gives that service, Template and Environment give theirs, and Today, Upstream, Releases, Security and ⌘N from anywhere else give Program.
-- The scope chip in the composer changes the scope until the first message is sent. After that it is fixed, because the worktree and history belong to one folder.
+- The scope comes from where the thread starts (Starting a thread has the table). ⌘N and the compose icon ask for it in the scope picker; the other ways in name it.
+- Before the first message the draft's Ask in control changes the scope, through the same picker, and keeps the typed text. After that it is fixed, because the worktree and history belong to one folder.
 - A fork and its upstream share history through the fork's upstream branch, so one clone holds both.
 - A scope's repositories are cloned on first use, and the clone is the first row of the timeline. Nothing is cloned for a scope the operator never opens a thread in.
-- A program thread reads across everything and changes nothing (ruling T3).
+- A program thread reads across everything and changes nothing (ruling T3). It has no folder, so Copilot has no file, write or shell tools in it; its timeline says so on each turn, where another scope's would report its sandbox.
 
 ## Lands in
 
@@ -63,7 +63,7 @@ Lands in replaces T3 Code's branch toolbar. Its options are the only destination
 
 ## The owner tag
 
-Changes tags each file fork or upstream. When a file's owner does not match where the thread lands, its row says so ("Upstream owns this file. The next sync overwrites a change made here.") and offers to move that file's change to a thread that lands in the right place. The same rule goes to Copilot in its scope instructions, so it proposes the split itself.
+Changes tags each file fork or upstream. When a file's owner does not match where the thread lands, its row says so ("Upstream owns this file. The next sync overwrites a change made here.") and offers to redo that file in a thread that lands in the right place. The button opens a draft in the same scope, landing Upstream or on Fork · main, whose text names the file. The change itself stays in this thread, and the operator redoes it in the new one; carrying the file's diff across is later work (spicode-1rj7). The same rule goes to Copilot in its scope instructions, so it proposes the split itself.
 
 The tag is a warning and blocks nothing: some fork changes touch an upstream-owned file on purpose, in a sync conflict for one. It comes from core's split of SPI code and upstream code, exposed per path. Until core can classify a path, the file carries no tag and no warning, never a guess.
 
@@ -83,29 +83,38 @@ SPI tools only read. Program operations that write (dispatch, re-run, merge) are
 
 ## Starting a thread
 
-A thread starts as a draft in the centre: the composer with its scope and any context chip, and nothing sent. No place carries a standing composer (ruling T2). There are four ways in, and all four land in that same draft.
+A thread starts as a draft in the centre, and nothing is sent until the operator sends it. No place carries a standing composer (ruling T2). Every way in lands in that same draft.
 
 | From | How | Scope | Context chip |
 |---|---|---|---|
-| Anywhere | ⌘N, or New thread at the head of the sidebar's thread list | The open service, Template or Environment; otherwise Program | The open row or popover if one is open; otherwise none |
+| Anywhere | ⌘N, or the compose icon beside Find or ask at the head of the sidebar | Picked in the scope picker, which opens over the page with nothing preselected: Environment and Template, then the pinned services, then the others, in sidebar order. Program is not a row | None |
+| A service, Template or Environment | The Ask icon at the end of the top bar, after the pin ("Ask Copilot about <scope>") | That scope | None |
 | An opened row or a popover | Ask about this, one control at the end of the source pills | The row's fork when it has one; otherwise Program | That row or popover's subject |
-| Find or ask | A sentence typed into ⌘K, then ↵ on Ask Copilot | As ⌘N | As ⌘N; the sentence becomes the draft's text |
-| A service page | New thread on its Threads tab | That service | None |
+| Find or ask | A sentence typed into ⌘K, then ↵ on Ask Copilot | The open service, Template or Environment; otherwise Program | The open row or popover if one is open; the sentence becomes the draft's text |
+| A scope's thread list | New thread on a service's Threads tab, or under Template's or Environment's reading | That scope | None |
+| A program thread's answer | Continue in, on the scopes the answer names, or Another scope… | The scope chosen | The answer, as a finding; the new thread shows it as lineage |
+
+The draft is one centred block. Its title bar is a muted link back to where it was opened. "Ask in <scope ▾>" is the only place the scope shows, and its control opens the picker. Under the composer sit the Lands in chip and, once a scope is set, up to three of that scope's Today rows that need the operator: one click attaches a row as the chip, and a row a thread already owns opens that thread instead. A draft with a chip and no text sends the chip with a fixed sentence, which the empty composer shows as its placeholder. ⌘N inside a draft moves it to another scope and keeps its text, and Back after a send returns to the page the draft came from.
 
 Ask about this is the only Copilot control on a row or popover, and it sends nothing. It answers what ruling Z7 on Today and places left open: the removed buttons promised an outcome ("Ask Copilot why", "Port !968"), while this one names what it produces, a thread about this row, and the request stays in the operator's words. When a thread already owns the row, the control reads that thread's title and status and opens it (TH-05).
 
 ## Threads in the sidebar and on a service
 
-- The sidebar lists threads by status under Pinned, as PS-08 draws them: Waiting on you, Working, then the Settled shelf with its count. Each row ends with its scope in muted ink, and a thread with a worktree shows its branch and target under its title.
+- A thread's status is Waiting on you, Working, Open (its turn ended and it is not settled) or Settled. Settled is stored in the thread's journal, not derived. A sent message un-settles a thread, and one idle for 7 days settles on its own unless the operator un-settled it by hand.
+- In the sidebar, threads nest under their service's pinned row. Threads of unpinned services, and of the program, the template and the environment, go under Other threads. Each row ends with its status: a spinner for Working, an alert for Waiting on you, a check for Done (its last turn completed since the operator last opened it), otherwise its age. A thread that opened a request shows the request's pill on its row.
+- "Settled N ›" sits at the sidebar's foot, above the gear, and opens the settled list in place, its rows dimmed. A thread settles from its row's hover check, right-click Settle, the Settle button in its title row, or ⌘⇧S, which toggles. A settle by hand offers Undo, and settling the open thread moves to the next unsettled one, or to Today.
+- A thread whose journal cannot be read stays listed as a muted "Can't be read" row. It opens nothing, and its tooltip names the thread id.
 - A service page gains a Threads tab after Security, with the count of its threads that are Waiting on you or Working. It lists every thread scoped to that service, settled ones under a fold.
 - Template and Environment list their threads under their reading.
-- Threads are not nested under a pinned service in the sidebar, and are not grouped by scope.
 
 ## The thread view
 
 - The timeline holds messages, a grouped work log whose rows open to a call's arguments and result, clone and setup rows, and approval rows.
-- The composer holds the scope chip, the Lands in chip, any context chips, the model picker (CP-09), the access mode, and send or stop. @ completes places.
-- The right panel exists only in a thread (PS-11). Its tabs are Thread, Changes, Reading and Evidence. Thread holds the scope and its remotes, Lands in with its branch and what it opens, the worktree path, lineage, and Commit, Push and Create PR or MR. Changes lists files against the base with added and removed counts, the owner tag and a unified diff per file. Reading and Evidence are the scope's place and its sweep evidence, one tab away.
+- The composer holds any context chips, the model picker (CP-09), the access mode, and send or stop. The Lands in chip sits with it. @ completes places.
+- The right panel exists only in a thread (PS-11). Its tabs are Thread, Changes, Reading and Evidence. Thread holds the scope and its remotes, Lands in with its branch and what it opens, the worktree path, lineage, Commit, one Push / Open request button, and the request. Changes lists files against the base with added and removed counts, the owner tag and a unified diff per file. Reading and Evidence are the scope's place and its sweep evidence, one tab away.
+- Push / Open request reads "Push / Open draft PR" or "Push / Open draft MR" for a thread that has no request yet: it pushes the commit the tab shows and opens a draft request. A thread on an existing request, or one whose request is already open, pushes to that request's branch and opens nothing; the button then reads Push. The tab shows the commit, the branch and the remote's head as the thread last read it. When the remote moved since, the push is refused and an Update button reads the remote again.
+- A push whose range changes a file under `.github/` asks for a value typed beside the button before it is sent: the request's number for a thread on an existing request, or, for a new request, which has no number yet, the target branch's name. The tab says which and why. A push that changes nothing under `.github/` asks for nothing.
+- The Request field shows the request's pill once there is one, and reads "Pending until the next sweep reads it" until a sweep row holds the request, then "Owned by this thread". Until then Today, the service page and the Forks sheet draw it as a dashed row marked "pending · not yet in a sweep" outside their sections, so it never counts as a Today member; once the sweep holds it, the sweep's own row carries the thread's marker. The [service home](spi-code-service-home.md) places those rows.
 - A program thread's Thread tab says it changes no code; its answer offers the scopes involved, and choosing one starts a child thread there carrying the finding, shown as lineage.
 
 Not built in the threads epic, each to come later as its own work: plan mode, the terminal drawer, the diff panel over the timeline, Open in editor, file and image attachments, @ for files, $ for playbooks and / for thread commands. The mock's "@ a file", "/ a command" and Open in editor show these and are not part of the first build.
@@ -134,7 +143,7 @@ Commands are not offered until they run as a host-run tool (spicode-7ay).
 |---|---|---|
 | Read files, search code | Copilot, in the worktree or the shared clone | The sandbox's read paths. No prompt |
 | Edit a file | Copilot | An approval row with the diff in Supervised; no prompt in Auto-accept edits |
-| Run a command (build, test, git) | Copilot, in the sandbox, with no sign-in | An approval row with the command, in every access mode |
+| Run a command (build, test, git) | Copilot, in the sandbox, with no sign-in | Not offered in the threads epic (spicode-7ay). When it returns, an approval row with the command, in every access mode |
 | Read GitHub or GitLab | The host, through SPI tools | Typed read tools |
 | Commit, push, open a pull request or merge request | The host's own git, gh and glab. Staging and commit run confined under `@microsoft/mxc-sdk` (ruling T9); push and the requests run outside the sandbox under the operator's sign-in (CT-11) | Buttons the operator presses on the Thread tab |
 | A program operation (dispatch, re-run, merge) | The host | A typed SPI tool that raises a card, M4, unchanged |
@@ -143,7 +152,7 @@ Copilot has no commit, push or request tool. A git command it runs is a command 
 
 A command the host spawns itself, such as its own `git add` and `git commit` (ruling T9) or a fork's build or verify script (CT-16), is not a Copilot tool and the SDK's sandbox does not cover it. Those run under `@microsoft/mxc-sdk` with the same policy. The Copilot runtime's sandbox is that same library, so one policy format serves both. It takes the place of the hand-written Seatbelt profile and Windows restricted token the PRD once named. On Windows it needs Windows 11, and SPI Code accepts MXC's required Windows telemetry.
 
-The sandbox has been observed on macOS only. Until the same checks pass on Windows (spicode-xia.17), a Windows thread asks and reads and offers no shell or file tools.
+The sandbox has been observed on macOS only. The Windows checks (spicode-xia.17) ran on Windows Server 2025 in CI: MXC loaded, but the host offered no ProcessContainer, so nothing ran confined, and a Windows 11 client was not observed. A Windows thread therefore asks and reads and offers no shell or file tools, and Commit says confined Git is not available on this platform.
 
 ## Rulings
 
@@ -180,11 +189,12 @@ The sandbox has been observed on macOS only. Until the same checks pass on Windo
 | CP-04, CP-05, NF-01 | The built-in shell and file tools are on, inside the sandbox, behind an approval. URL fetch, memory and subagent tools stay off. |
 | EV-05 | Ruling T6. |
 | CT-07 | The SDK's `sandboxConfig` for Copilot's tools and `@microsoft/mxc-sdk` for host-run commands, in place of a hand-written Seatbelt profile and Windows restricted token. |
-| CT-10, CT-13, CT-14 | A command is an approval row. Commit, push and opening a request are buttons the operator presses. A changed file's diff is on the Changes tab. |
+| CT-04 | A push that changes `.github/` needs the request's number typed, or the target branch's name for a new request. |
+| CT-10, CT-13, CT-14 | A command is an approval row. Commit is a button the operator presses, and Push / Open request is one button that pushes and opens a draft. A changed file's diff is on the Changes tab. |
 | CT-11 | Ruling T9. The host's own `git add` and `git commit` run confined under `@microsoft/mxc-sdk`. Status, diff and push run outside the sandbox. All of them run with hooks off, name the clone's git folder directly, never follow the worktree's `.git` file and check the repository config; status and diff pass `--ignore-submodules=all`. |
 | Milestones | A Threads row carries both, in the build order above. |
 | Open questions | The `sandboxConfig` question is settled; the Windows question is whether the SDK's sandbox engages there. |
 | Today and places, Z7 | Ask about this is the one Copilot control on a row or popover. |
-| Service home | Still no subtree under a pinned service. The service page gains a Threads tab, and rows gain Ask about this. |
+| Service home | Threads nest under their service's pinned sidebar row. The service page gains a Threads tab and an Ask icon after the pin, rows gain Ask about this, and a request a thread opened shows pending until a sweep reads it. |
 
 Unchanged: the host drives Copilot through the SDK (CP-01 to CP-03), one runtime and no MCP server, the home and environment rules (CT-09), one right panel that exists only in a thread (PS-11), threads by status and the Settled shelf (PS-08, TH-07), the thread marker on an owned row (TH-05, PS-15), the model picker (CP-09), and M4's cards for program operations.

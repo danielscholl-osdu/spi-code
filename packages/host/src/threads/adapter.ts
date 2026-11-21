@@ -46,6 +46,9 @@ type Lease = {
   releasing?: Promise<void>;
 };
 
+const NO_FOLDER =
+  "This thread has no folder, so Copilot has no file, write or shell tools. It reads through SPI tools.";
+
 function record(events: RuntimeEvents, name: string, result: JsonValue) {
   const callId = randomUUID();
   events.toolStarted({ callId, name, kind: "tool", arguments: null });
@@ -105,7 +108,7 @@ export class CopilotThreadAdapter implements ThreadRuntime<Tool> {
     const { session } = lease;
     lease.active = { events, signal };
     try {
-      return await this.send(input, session, events);
+      return await this.send(input, session, events, lease.workspace.clonePath === undefined);
     } catch (error) {
       const disconnected = !session.connected;
       await this.release(threadId, lease, disconnected && !this.closed).catch(() => {});
@@ -268,6 +271,7 @@ export class CopilotThreadAdapter implements ThreadRuntime<Tool> {
     { message, context, signal }: RuntimeTurn<Tool>,
     session: ThreadCopilotSession,
     events: RuntimeEvents,
+    folderless: boolean,
   ): Promise<RuntimeStop | undefined> {
     let finish: (result?: Error | RuntimeStop) => void = () => {};
     let interrupt: (reason: unknown) => void = () => {};
@@ -299,7 +303,10 @@ export class CopilotThreadAdapter implements ThreadRuntime<Tool> {
             .join("\n\n");
           const { messageId, sandbox } = await session.send({ prompt });
           if (signal.aborted) return;
-          if (sandbox.kind === "not-confined") record(events, "sandbox.unavailable", sandbox);
+          if (sandbox.kind === "not-confined") {
+            if (folderless) record(events, "sandbox.none", NO_FOLDER);
+            else record(events, "sandbox.unavailable", sandbox);
+          }
           tracker.sent(messageId);
         })(),
         promise,

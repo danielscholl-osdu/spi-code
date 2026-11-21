@@ -25,7 +25,7 @@ export type OpenedBodyProps = {
   onClose(): void;
 };
 
-/** What Ask about this and ⌘N carry from an opened row: its subject, title and fork. */
+/** What Ask about this and a draft's Needs you row carry from a row: its subject, title and fork. */
 export function askTarget(content: OpenedContent): AskTarget | null {
   if (!content.subject) return null;
   return {

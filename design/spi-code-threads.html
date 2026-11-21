@@ -196,7 +196,7 @@ figcaption{font-size:13px;color:var(--faint);margin-top:10px;max-width:96ch}
   <div class="problem">
     <p>SPI Code reads the program well and can't yet talk about it or change it. The host streams one Copilot turn through the SDK, but there is no thread, no composer and no checkout of any repository, and all 53 agent tools are stubs.</p>
     <p>This design adds threads on SPI Code's own engine, in the host, on the Copilot SDK it already runs. The engine is a package with no SPI Code imports, so another app can use it. T3 Code supplies the behaviour and the look, re-made in SPI Code's kit, and none of the code. In place of T3 Code's projects there is a fixed set of <b>scopes</b> (the program, each service, the template, the environment). Each service has one clone that holds both its GitHub fork and its GitLab upstream. A <b>Lands in</b> choice decides whether a change becomes a fork pull request or an upstream merge request. Copilot is handed the place or row the operator started from as packed context, plus read tools over the last sweep.</p>
-    <p>It changes one PRD rule: Copilot gets its built-in shell and file tools. They run inside the SDK's sandbox, without the operator's sign-ins, and each edit or command waits for approval. Copilot can't commit, push or open a request; the operator does, from the thread. The sandbox has been run on macOS only, so a Windows thread asks and reads until the same checks pass there. Program operations (dispatch a cascade, re-run a lane) stay typed tools with cards, as M4 has them.</p>
+    <p>It changes one PRD rule: Copilot gets its built-in shell and file tools. They run inside the SDK's sandbox, without the operator's sign-ins, and each edit or command waits for approval. Copilot can't commit, push or open a request; the operator does, from the thread. The sandbox has been run on macOS only. On Windows Server 2025 in CI, MXC found no ProcessContainer, so a Windows thread asks and reads. Program operations (dispatch a cascade, re-run a lane) stay typed tools with cards, as M4 has them.</p>
   </div>
 
   <p class="eyebrow" style="margin-top:26px">Colors identify who owns a part</p>
@@ -265,9 +265,9 @@ figcaption{font-size:13px;color:var(--faint);margin-top:10px;max-width:96ch}
           <div class="fld"><span class="l">Changes against main</span>
             <div class="file"><span class="p">provider/partition-azure/…/BlobRetryTest.java</span><span class="d">+12 −4</span><span><span class="tag fork">fork</span></span></div>
             <div class="file"><span class="p">partition-core/…/RetryPolicy.java</span><span class="d">+3 −1</span><span><span class="tag up">upstream</span></span>
-              <span class="w">Upstream owns this file. The next sync overwrites a change made here. <b>Move it to an upstream thread ›</b></span></div>
+              <span class="w">Upstream owns this file. The next sync overwrites a change made here. <b>Redo this file in a thread that lands in Upstream</b></span></div>
           </div>
-          <div class="fld"><span class="l">Git</span><span class="v" style="display:flex;gap:6px;flex-wrap:wrap"><span class="btn">Commit</span><span class="btn">Push</span><span class="btn">Create PR</span></span></div>
+          <div class="fld"><span class="l">Git</span><span class="v" style="display:flex;gap:6px;flex-wrap:wrap"><span class="btn">Commit</span><span class="btn">Push / Open draft PR</span></span></div>
           <div class="fld"><span class="l">Worktree</span><span class="v m">…/SPI Code/worktrees/partition/blob-retry</span><span class="v"><span class="btn">Open in editor</span></span></div>
         </div>
       </div>
@@ -392,7 +392,7 @@ figcaption{font-size:13px;color:var(--faint);margin-top:10px;max-width:96ch}
       </div>
       <figcaption>A scope fixes which repositories a thread can reach. The engine allows one folder per thread, so a service is one clone carrying both remotes, and the program is the parent folder of all clones.</figcaption>
     </figure>
-    <p style="margin-top:14px">The scope comes from where the thread starts: a service page gives that service, Template and Environment give theirs, and Today, Upstream, Releases, Security and ⌘N from anywhere else give Program. The scope chip in the composer changes it before the first message. After that it is fixed, because the engine's worktree and history belong to one folder.</p>
+    <p style="margin-top:14px">The scope comes from where the thread starts: ⌘N asks for it in the scope picker, a service page's Ask gives that service, Template and Environment give theirs, and Ask about this gives the row's fork or Program. The draft's Ask in control changes it before the first message. After that it is fixed, because the engine's worktree and history belong to one folder.</p>
     <p>A program thread reads across everything and changes nothing. When its answer leads to a change, it offers the scopes involved, and choosing one starts a child thread there that carries the finding. The Thread tab shows the lineage.</p>
     <p>A fork and its upstream share history through the fork's upstream branch, which is what lets one clone hold both. A scope's repositories are cloned on first use and the clone shows as the first row of the timeline, the way T3 Code shows worktree setup. Nothing is cloned for a scope the operator never opens a thread in.</p>
   </section>
@@ -447,7 +447,7 @@ figcaption{font-size:13px;color:var(--faint);margin-top:10px;max-width:96ch}
     </figure>
     <p style="margin-top:14px">A thread starts on Asking unless it starts from something that names a branch. An existing pull request or merge request is a fifth case: the thread is prepared on that request's own branch. An asking thread moves into a worktree later through the same chip, so the operator does not have to decide before the question is answered.</p>
     <h3>The owner tag on a changed file</h3>
-    <p>The Changes list tags each file fork or upstream. When a file's owner does not match where the thread lands, the row says so and offers to move that file's change to a thread that lands in the right place. The same sentence goes to Copilot in its instructions, with the scope's ownership rule, so it proposes the split itself. The tag is a warning and blocks nothing: the operator can still commit an upstream-owned file to the fork.</p>
+    <p>The Changes list tags each file fork or upstream. When a file's owner does not match where the thread lands, the row says so and offers to redo that file in a thread that lands in the right place. That opens a draft naming the file; the change stays in this thread until carrying it across is built (spicode-1rj7). The same sentence goes to Copilot in its instructions, with the scope's ownership rule, so it proposes the split itself. The tag is a warning and blocks nothing: the operator can still commit an upstream-owned file to the fork.</p>
     <p>Core already separates SPI code from upstream code for security alerts. The tag needs that rule exposed per path. Until core can classify a path, the file carries no tag and no warning, never a guess.</p>
     <p>Where an upstream push goes depends on the operator's GitLab access. A maintainer pushes a branch to the upstream project. Anyone else pushes to their own fork of it on GitLab, which the clone holds as a third remote, and the merge request goes from that fork into upstream. SPI Code reads which applies with <code>glab</code> when the thread first lands in Upstream and names the remote on the Thread tab. It does not create a fork: when the operator has neither, the Thread tab says so and links to the upstream project.</p>
   </section>
@@ -473,9 +473,9 @@ figcaption{font-size:13px;color:var(--faint);margin-top:10px;max-width:96ch}
     <div class="tblwrap"><table class="tbl">
       <thead><tr><th>From</th><th>How</th><th>Scope</th><th>Context chip</th></tr></thead>
       <tbody>
-        <tr><td><b>Anywhere</b></td><td>⌘N, or New thread at the head of the sidebar's thread list</td><td>The open service, Template or Environment; otherwise Program</td><td>The open row or popover if one is open; otherwise none</td></tr>
+        <tr><td><b>Anywhere</b></td><td>⌘N, or the compose icon beside Find or ask</td><td>Picked in the scope picker, with nothing preselected</td><td>None</td></tr>
         <tr><td><b>An opened row or a popover</b></td><td>Ask about this, one control at the end of the source pills</td><td>The row's fork when it has one; otherwise Program</td><td>That row or popover's subject</td></tr>
-        <tr><td><b>Find or ask</b></td><td>A sentence typed into ⌘K, then ↵ on "Ask Copilot"</td><td>As ⌘N</td><td>As ⌘N; the sentence becomes the draft's text</td></tr>
+        <tr><td><b>Find or ask</b></td><td>A sentence typed into ⌘K, then ↵ on "Ask Copilot"</td><td>The open service, Template or Environment; otherwise Program</td><td>The open row or popover if one is open; the sentence becomes the draft's text</td></tr>
         <tr><td><b>A service page</b></td><td>New thread on its Threads tab</td><td>That service</td><td>None</td></tr>
       </tbody>
     </table></div>
@@ -634,7 +634,7 @@ figcaption{font-size:13px;color:var(--faint);margin-top:10px;max-width:96ch}
           <tr><td><b>TH-08</b> T3 Code's runtime modes are not carried</td><td>Two are: Supervised and Auto-accept edits</td></tr>
           <tr><td><b>CP-04, CP-05, NF-01</b> No built-in shell or file tool; every permission request denied</td><td>The built-in shell and file tools are on, inside the sandbox, behind an approval. Fetch and subagent tools stay off</td></tr>
           <tr><td><b>CT-07</b> Seatbelt on macOS, a restricted token on Windows</td><td>The SDK's sandbox for Copilot's tools and <code>@microsoft/mxc-sdk</code> for host-run commands. On Windows that means Windows 11 and MXC's required telemetry</td></tr>
-          <tr><td><b>CT-10, CT-13, CT-14</b> Commands and each commit and push are cards with bindings</td><td>A command is an approval row. Commit and push are buttons the operator presses; Copilot has no way to do either</td></tr>
+          <tr><td><b>CT-10, CT-13, CT-14</b> Commands and each commit and push are cards with bindings</td><td>A command is an approval row. Commit, and Push / Open request as one button, are pressed by the operator; Copilot has no way to do either</td></tr>
           <tr><td><b>Milestones</b> Threads at M3, code threads at M5</td><td>One threads epic carries both, in the build order above</td></tr>
           <tr><td><b>Service home</b> A subtree under a pinned service and Copilot actions are out of scope</td><td>Still no subtree. The service page gains a Threads tab, and rows gain Ask about this</td></tr>
         </tbody>

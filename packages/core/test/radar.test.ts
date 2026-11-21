@@ -95,6 +95,8 @@ describe("the classifier mirrors the upstream filter engine", () => {
       const prefix = service.prefix ?? service.id;
       expect(rule(`provider/${prefix}-azure/pom.xml`)).toBe("fork");
       expect(rule(`${prefix}-core/pom.xml`)).toBe("upstream");
+      expect(rule(`${prefix}-core/src/main/java/provider/interfaces/IStore.java`)).toBe("upstream");
+      expect(rule(`provider/${prefix}-aws/pom.xml`)).toBe("fork");
       expect(rule("not-in-the-filter/file.txt")).toBeUndefined();
     }
   });
