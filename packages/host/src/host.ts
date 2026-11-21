@@ -279,12 +279,14 @@ export function startHost(options: HostOptions) {
         appData,
         capturedPath: await capturedPath(),
         env,
+        managedToolBinDir: async (tool) => (await toolInstaller()).binDir(tool),
         ...(platform === "win32"
           ? { managedGitBinDir: async () => (await gitInstaller()).binDir?.() }
           : {}),
       });
     }),
     exec,
+    forgeCwd: join(appData, "forge"),
     workspaces: (git) => new ScopeWorkspaces(git),
     runtime: async (onCredential) =>
       new CopilotRuntime({

@@ -72,6 +72,7 @@ const firstScope = registry.lookup(KNOWN_SERVICES[0]?.id ?? "");
 if (firstScope?.kind !== "service") throw new Error("Expected a service scope");
 const scope = firstScope;
 const identity = { name: "Fixture Operator", email: "operator@example.invalid" };
+const helperToken = "fixture-helper-secret";
 
 async function fixtureGit(cwd: string, ...args: string[]): Promise<string> {
   const { stdout } = await exec("git", args, {
@@ -872,6 +873,154 @@ describe("privileged Git", () => {
     );
   });
 
+  it.each(["replace", "graft"] as const)(
+    "ignores a planted %s when checking the remote ancestor",
+    async (kind) => {
+      const git = gitRunner();
+      const workspace = await checkout(git);
+      const base = await fixtureGit(workspace.cwd, "rev-parse", "HEAD");
+      await writeFile(join(workspace.cwd, "remote.txt"), "remote");
+      await fixtureGit(workspace.cwd, "add", "--", "remote.txt");
+      await fixtureGit(
+        workspace.cwd,
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "-m",
+        "Remote side",
+      );
+      const remoteHead = await fixtureGit(workspace.cwd, "rev-parse", "HEAD");
+      await fixtureGit(workspace.cwd, "push", origin, `${remoteHead}:refs/heads/spi/replace-guard`);
+      await fixtureGit(workspace.cwd, "checkout", "--detach", base);
+      await writeFile(join(workspace.cwd, "local.txt"), "local");
+      await fixtureGit(workspace.cwd, "add", "--", "local.txt");
+      await fixtureGit(
+        workspace.cwd,
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "-m",
+        "Local side",
+      );
+      const localHead = await fixtureGit(workspace.cwd, "rev-parse", "HEAD");
+      if (kind === "replace") {
+        const replacement = await fixtureGit(
+          workspace.cwd,
+          "-c",
+          "user.name=Fixture",
+          "-c",
+          "user.email=fixture@example.invalid",
+          "commit-tree",
+          `${localHead}^{tree}`,
+          "-p",
+          remoteHead,
+          "-m",
+          "Planted replacement",
+        );
+        await fixtureGit(workspace.cwd, "replace", localHead, replacement);
+      } else {
+        await mkdir(join(workspace.gitDirectory, "info"), { recursive: true });
+        await writeFile(
+          join(workspace.gitDirectory, "info", "grafts"),
+          `${localHead} ${remoteHead}\n`,
+        );
+      }
+      const target = { clone: workspace.cwd };
+      const ancestor = await git.isAncestor(target, remoteHead, localHead);
+      if (ancestor.ok && ancestor.data)
+        await git.push(target, {
+          remote: "origin",
+          source: localHead,
+          destination: "refs/heads/spi/replace-guard",
+          expectedHead: remoteHead,
+        });
+      expect(ancestor).toEqual({ ok: true, data: false });
+      expect(
+        await fixtureGit(root, "--git-dir", origin, "rev-parse", "refs/heads/spi/replace-guard"),
+      ).toBe(remoteHead);
+    },
+  );
+
+  it.each([
+    ["github.com", "gh"],
+    ["gitlab.example.invalid", "glab"],
+  ] as const)("scopes the push credential helper to %s through managed %s", async (host, tool) => {
+    if (process.platform === "win32") return;
+    const setup = gitRunner();
+    const workspace = await checkout(setup);
+    const target = { clone: workspace.cwd };
+    const remote = "credential";
+    const url = `https://${host}/fixture/repository.git`;
+    expect(await setup.addRemote(target, remote, url)).toMatchObject({ ok: true });
+
+    const tools = join(root, "credential-tools");
+    const wrappers = join(root, "credential-git");
+    const operatorHome = join(root, "operator-home");
+    const argumentsFile = join(root, "credential-argv");
+    const helperFile = join(root, "credential-helper");
+    await Promise.all([
+      mkdir(tools, { recursive: true }),
+      mkdir(wrappers, { recursive: true }),
+      mkdir(operatorHome, { recursive: true }),
+    ]);
+    await writeFile(
+      join(tools, tool),
+      `#!/bin/sh
+cat >/dev/null
+printf 'username=x-access-token\\npassword=${helperToken}\\n'
+`,
+      { mode: 0o755 },
+    );
+    const { stdout: realGit } = await exec("which", ["git"]);
+    await writeFile(
+      join(wrappers, "git"),
+      `#!/bin/sh
+is_push=
+helper=
+for arg in "$@"; do
+  [ "$arg" = push ] && is_push=1
+  case "$arg" in
+    credential.*.helper=\\!*) helper=\${arg#*=!} ;;
+  esac
+done
+if [ -n "$is_push" ]; then
+  printf '%s\\n' "$@" > ${shellQuote(argumentsFile)}
+  printf 'HOME=%s\\n' "$HOME" >> ${shellQuote(argumentsFile)}
+  printf 'protocol=https\\nhost=${host}\\n\\n' | sh -c "$helper get" > ${shellQuote(helperFile)}
+  exit 0
+fi
+exec ${shellQuote(realGit.trim())} "$@"
+`,
+      { mode: 0o755 },
+    );
+    const git = new PrivilegedGit({
+      appData,
+      capturedPath: wrappers,
+      allowLocalRemotes: true,
+      env: { ...process.env, HOME: operatorHome },
+      managedToolBinDir: async () => tools,
+    });
+    expect(
+      await git.push(target, {
+        remote,
+        source: "HEAD",
+        destination: "refs/heads/spi/credential",
+        expectedHead: null,
+      }),
+    ).toMatchObject({ ok: true });
+    const argumentsText = await readFile(argumentsFile, "utf8");
+    expect(argumentsText).toContain(
+      `credential.https://${host}.helper=!${shellQuote(join(tools, tool))} auth git-credential`,
+    );
+    expect(argumentsText).toContain(`HOME=${operatorHome}`);
+    expect(argumentsText).not.toContain(helperToken);
+    expect(await readFile(helperFile, "utf8")).toContain(`password=${helperToken}`);
+  });
+
   it("leases an existing branch to the observed head so a move between check and push is refused", async () => {
     const git = gitRunner();
     const workspace = await checkout(git);
@@ -884,27 +1033,34 @@ describe("privileged Git", () => {
       "refs/remotes/origin/main",
     );
     if (!added.ok) throw new Error(added.error);
-    await writeFile(join(added.data.worktree.cwd, "answer.txt"), "local");
-    await fixtureGit(added.data.worktree.cwd, "add", "--", "answer.txt");
+    const moved = await commit("remote moved");
+    const local = await commit("local after remote");
+    await fixtureGit(seed, "push", origin, `${moved}:refs/heads/spi/staged`);
+    await fixtureGit(seed, "push", origin, `${local}:refs/heads/spi/local`);
     await fixtureGit(
       added.data.worktree.cwd,
-      "-c",
-      "user.name=Fixture",
-      "-c",
-      "user.email=fixture@example.invalid",
-      "commit",
-      "-m",
-      "Local change",
+      "fetch",
+      "origin",
+      `+refs/heads/spi/local:refs/remotes/origin/spi/local`,
     );
-    const local = await fixtureGit(added.data.worktree.cwd, "rev-parse", "HEAD");
+    await fixtureGit(added.data.worktree.cwd, "reset", "--hard", "refs/remotes/origin/spi/local");
     expect(await git.remoteHead(added.data, "origin", "spi/race")).toEqual({
       ok: true,
       data: base,
     });
     expect(await git.isAncestor(added.data, base, local)).toEqual({ ok: true, data: true });
+    expect(await git.isAncestor(added.data, moved, local)).toEqual({ ok: true, data: true });
 
-    const moved = await commit("remote moved");
-    await fixtureGit(seed, "push", origin, "HEAD:refs/heads/spi/race");
+    expect(
+      await git.push(added.data, {
+        remote: "origin",
+        source: local,
+        destination: "refs/heads/spi/race",
+        dryRun: true,
+      }),
+    ).toMatchObject({ ok: true });
+    await fixtureGit(seed, "push", origin, `${moved}:refs/heads/spi/race`);
+    expect(await fixtureGit(seed, "rev-parse", "HEAD")).toBe(local);
     const pushed = await git.push(added.data, {
       remote: "origin",
       source: local,

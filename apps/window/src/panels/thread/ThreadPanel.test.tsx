@@ -650,6 +650,7 @@ describe("Thread and Changes", () => {
         branch: "spi/t1",
         base: "main",
         opens: "pull-request",
+        observedHead: "b".repeat(40),
       },
     });
     await answer(shell, "thread.changes", "thread.changes.result", {
@@ -669,7 +670,7 @@ describe("Thread and Changes", () => {
     await act(async () => push?.click());
     expect(shell.posted().at(-1)).toMatchObject({
       type: "thread.publish",
-      payload: { threadId: "t1", head: HEAD },
+      payload: { threadId: "t1", head: HEAD, observedHead: "b".repeat(40) },
     });
     await answer(shell, "thread.publish", "thread.published", {
       publication: {
@@ -687,6 +688,45 @@ describe("Thread and Changes", () => {
     expect(shell.$<HTMLAnchorElement>(".thread-publish-outcome a")?.href).toBe(
       "https://github.com/Azure/osdu-spi-partition/pull/42",
     );
+  });
+
+  it("leaves Push usable after a request outcome is not known", async () => {
+    savePanes({ open: { rightPanel: true } });
+    const shell = await mountShell("#thread/t1", [LANDED]);
+    await answer(shell, "thread.publication", "thread.publication.result", {
+      publication: {
+        state: "ready",
+        remote: "origin",
+        branch: "spi/t1",
+        base: "main",
+        opens: "pull-request",
+        observedHead: null,
+      },
+    });
+    await answer(shell, "thread.changes", "thread.changes.result", {
+      changes: { ...read(false), ahead: 1 },
+    });
+    const push = [...(shell.panel()?.querySelectorAll<HTMLButtonElement>("button") ?? [])].find(
+      (button) => button.textContent === "Push / Open draft PR",
+    );
+    await act(async () => push?.click());
+    await answer(shell, "thread.publish", "thread.published", {
+      publication: { outcome: "not known", reason: "The forge did not return the request URL." },
+    });
+    await answer(shell, "thread.publication", "thread.publication.result", {
+      publication: {
+        state: "ready",
+        remote: "origin",
+        branch: "spi/t1",
+        base: "main",
+        opens: "pull-request",
+        observedHead: HEAD,
+      },
+    });
+    const refreshed = [
+      ...(shell.panel()?.querySelectorAll<HTMLButtonElement>("button") ?? []),
+    ].find((button) => button.textContent === "Push / Open draft PR");
+    expect(refreshed?.disabled).toBe(false);
   });
 
   it("shows a request as pending until that URL appears in a sweep", async () => {

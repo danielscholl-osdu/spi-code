@@ -1,18 +1,22 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { writeFileSync } from "node:fs";
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { appendFileSync, writeFileSync } from "node:fs";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Exec } from "@spi-code/core";
+import type { Exec, ExecOptions, ExecResult } from "@spi-code/core";
 import type { ThreadDefinition } from "@spi-code/threads";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { HostExec, type HostExecLog } from "../exec/host-exec.js";
 import type { PrivilegedGit } from "../scopes/git.js";
 import { ScopeRegistry } from "../scopes/registry.js";
 import { spiReadTools } from "../tools/spi-reads.js";
-import { type PublicationGit, preparePublication, publishChanges } from "./publication.js";
+import {
+  observePublication,
+  type PublicationGit,
+  preparePublication,
+  publishChanges,
+} from "./publication.js";
 
 const BASE = "1".repeat(40);
 const OBSERVED = "2".repeat(40);
@@ -23,81 +27,151 @@ const GITLAB = "osdu/platform/system/partition";
 const GITLAB_HOST = "community.opengroup.org";
 
 let root: string;
-let bin: string;
+let forgeCwd: string;
 let record: string;
-let logs: HostExecLog[];
 
-async function tool(name: "gh" | "glab") {
-  const script = join(bin, `${name}.cjs`);
-  await writeFile(
-    script,
-    `const fs = require("node:fs");
-const tool = ${JSON.stringify(name)};
-const args = process.argv.slice(2);
-fs.appendFileSync(${JSON.stringify(record)}, tool + " " + JSON.stringify(args) + "\\n");
-const mode = fs.readFileSync(${JSON.stringify(join(root, "mode"))}, "utf8");
-if (args[0] === "auth") {
-  process.stderr.write("fixture rejected auth subcommand");
-  process.exit(2);
-}
-if (tool === "gh" && args[0] === "pr" && args[1] === "create") {
-  console.log("https://github.com/${GITHUB}/pull/42");
-  process.exit(0);
-}
-if (tool === "glab" && args[0] === "api") {
-  if (args[1].startsWith("projects/")) {
-    const access = mode === "direct" ? 40 : 10;
-    console.log(JSON.stringify({
-      path_with_namespace: "${GITLAB}",
-      web_url: "https://${GITLAB_HOST}/${GITLAB}",
-      default_branch: "trunk",
-      permissions: { project_access: { access_level: access } }
-    }));
-    process.exit(0);
+type ForgeMode =
+  | "direct"
+  | "fork"
+  | "none"
+  | "token"
+  | "unparsed"
+  | "timeout"
+  | "bad-url"
+  | "spoof-fork"
+  | "source-fork";
+
+class ForgeExec implements Exec {
+  private created = false;
+
+  constructor(readonly mode: ForgeMode) {}
+
+  async runJSON<T = unknown>(
+    cmd: string,
+    args: string[],
+    opts: ExecOptions = {},
+  ): Promise<ExecResult<T>> {
+    this.record(cmd, args, opts);
+    if (cmd === "gh" && args[0] === "pr" && args[1] === "list")
+      return {
+        ok: true,
+        data: (this.created
+          ? [{ url: `https://github.com/${GITHUB}/pull/42`, number: 42 }]
+          : []) as T,
+        exitCode: 0,
+      };
+    if (cmd === "glab" && args[0] === "mr" && args[1] === "list")
+      return {
+        ok: true,
+        data: (this.created
+          ? [
+              {
+                web_url: `https://${GITLAB_HOST}/${GITLAB}/-/merge_requests/73`,
+                iid: 73,
+              },
+            ]
+          : []) as T,
+        exitCode: 0,
+      };
+    if (cmd !== "glab" || args[0] !== "api" || !args.includes(`--hostname`))
+      return { ok: false, error: "unexpected fixture JSON command", code: 2 };
+    const endpoint = args[1] ?? "";
+    if (endpoint.includes("/merge_requests/")) {
+      return {
+        ok: true,
+        data: {
+          source_branch: `spi/thread-request`,
+          source_project_id: this.mode === "source-fork" ? 102 : 101,
+        } as T,
+        exitCode: 0,
+      };
+    }
+    if (
+      endpoint === "projects/101" ||
+      (endpoint.startsWith("projects/") && !endpoint.includes("?"))
+    ) {
+      const sourceFork = endpoint === "projects/102";
+      return {
+        ok: true,
+        data: {
+          path_with_namespace: sourceFork ? "operator/partition" : GITLAB,
+          web_url: `https://${GITLAB_HOST}/${sourceFork ? "operator/partition" : GITLAB}`,
+          default_branch: "trunk",
+          permissions: {
+            project_access: {
+              access_level:
+                sourceFork || !["fork", "none", "source-fork", "spoof-fork"].includes(this.mode)
+                  ? 40
+                  : 10,
+            },
+          },
+          ...(sourceFork ? { forked_from_project: { path_with_namespace: GITLAB } } : {}),
+        } as T,
+        exitCode: 0,
+      };
+    }
+    return {
+      ok: true,
+      data: (this.mode === "fork" || this.mode === "spoof-fork"
+        ? [
+            {
+              path_with_namespace: "operator/partition",
+              web_url:
+                this.mode === "spoof-fork"
+                  ? `https://${GITLAB_HOST}@evil.example.invalid/operator/partition`
+                  : `https://${GITLAB_HOST}/operator/partition`,
+              forked_from_project: { path_with_namespace: GITLAB },
+            },
+          ]
+        : []) as T,
+      exitCode: 0,
+    };
   }
-  console.log(JSON.stringify(mode === "fork" ? [{
-    path_with_namespace: "operator/partition",
-    web_url: "https://${GITLAB_HOST}/operator/partition",
-    forked_from_project: { path_with_namespace: "${GITLAB}" }
-  }] : []));
-  process.exit(0);
-}
-if (tool === "glab" && args[0] === "mr" && args[1] === "create") {
-  if (mode === "token") {
-    process.stderr.write("${TOKEN}");
-    process.exit(1);
+
+  async runText(cmd: string, args: string[], opts: ExecOptions = {}): Promise<ExecResult<string>> {
+    this.record(cmd, args, opts);
+    if (cmd === "gh" && args[0] === "pr" && args[1] === "create") {
+      this.created = true;
+      if (this.mode === "timeout")
+        return { ok: false, error: "Command timed out after 30000ms.", code: null };
+      return {
+        ok: true,
+        data:
+          this.mode === "unparsed"
+            ? "created, see the web UI"
+            : `https://github.com/${GITHUB}/pull/42`,
+        exitCode: 0,
+      };
+    }
+    if (cmd === "glab" && args[0] === "mr" && args[1] === "create") {
+      this.created = true;
+      if (args.includes("--source-project"))
+        return { ok: false, error: "unknown flag: --source-project", code: 2 };
+      if (!args.includes("--head")) return { ok: false, error: "missing --head", code: 2 };
+      if (this.mode === "token") return { ok: false, error: "<redacted>", code: 1 };
+      return {
+        ok: true,
+        data:
+          this.mode === "bad-url"
+            ? `https://user:${TOKEN}@evil.example.invalid/${GITLAB}/-/merge_requests/7`
+            : this.mode === "unparsed"
+              ? "created, see the web UI"
+              : `https://${GITLAB_HOST}/${GITLAB}/-/merge_requests/73`,
+        exitCode: 0,
+      };
+    }
+    return { ok: false, error: "unexpected fixture command", code: 2 };
   }
-  console.log("https://${GITLAB_HOST}/${GITLAB}/-/merge_requests/73");
-  process.exit(0);
-}
-process.stderr.write("unexpected fixture command");
-process.exit(2);
-`,
-  );
-  if (process.platform === "win32") {
-    await writeFile(join(bin, `${name}.cmd`), `@node "%~dp0\\${name}.cjs" %*\r\n`);
-  } else {
-    const launcher = join(bin, name);
-    await writeFile(launcher, `#!/bin/sh\nexec "${process.execPath}" "${script}" "$@"\n`);
-    await chmod(launcher, 0o755);
+
+  private record(cmd: string, args: string[], opts: ExecOptions) {
+    if (opts.cwd !== forgeCwd)
+      throw new Error(`Forge fixture ran outside its host directory: ${opts.cwd ?? "none"}`);
+    appendFileSync(record, `${cmd} ${JSON.stringify(args)}\n`);
   }
 }
 
-function forge(mode: "direct" | "fork" | "none" | "token"): Exec {
-  writeFileSync(join(root, "mode"), mode);
-  return new HostExec({
-    appData: root,
-    capturedPath: `${bin}${process.platform === "win32" ? ";" : ":"}${process.env.PATH ?? ""}`,
-    installer: {
-      binDir: async (tool) => (tool === "gh" || tool === "glab" ? bin : undefined),
-    },
-    env: {
-      ...process.env,
-      GITLAB_TOKEN: TOKEN,
-      GH_TOKEN: TOKEN,
-    },
-    log: (entry) => logs.push(entry),
-  });
+function forge(mode: ForgeMode = "direct"): Exec {
+  return new ForgeExec(mode);
 }
 
 function gitTarget() {
@@ -162,6 +236,22 @@ function landing(
   };
 }
 
+function gitlabRequest(): ThreadDefinition {
+  const base = landing("request");
+  if (base.landsIn?.target !== "request") throw new Error("Expected a request landing");
+  return {
+    ...base,
+    landsIn: {
+      ...base.landsIn,
+      forge: "gitlab",
+      repository: GITLAB,
+      requestNumber: 8,
+      sourceBranch: base.landsIn.branch,
+      head: BASE,
+    },
+  };
+}
+
 function branchOf(thread: ThreadDefinition): string {
   if (!thread.landsIn || thread.landsIn.target === "asking") throw new Error("No branch");
   return thread.landsIn.branch;
@@ -169,13 +259,10 @@ function branchOf(thread: ThreadDefinition): string {
 
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), "spi-publication-"));
-  bin = join(root, "bin");
+  forgeCwd = join(root, "forge");
   record = join(root, "commands.txt");
-  logs = [];
-  await mkdir(bin, { recursive: true });
-  await tool("gh");
-  await tool("glab");
-  writeFileSync(join(root, "mode"), "direct");
+  await mkdir(forgeCwd, { recursive: true });
+  writeFileSync(record, "");
 });
 
 afterEach(async () => {
@@ -191,7 +278,7 @@ describe("publication destinations", () => {
     const scope = new ScopeRegistry().lookup("partition");
     if (!scope) throw new Error("Missing partition");
     const thread = landing(target);
-    const prepared = await preparePublication(exec, scope, thread);
+    const prepared = await preparePublication(exec, scope, thread, forgeCwd);
     if (!prepared.ok) throw new Error(JSON.stringify(prepared.publication));
     const { git, calls } = runner();
     const result = await publishChanges(
@@ -202,9 +289,11 @@ describe("publication destinations", () => {
       thread.title,
       BASE,
       HEAD,
+      null,
       prepared,
+      forgeCwd,
     );
-    expect(result.publication, JSON.stringify({ result, logs })).toMatchObject({
+    expect(result.publication).toMatchObject({
       outcome: "published",
       head: HEAD,
       request: { forge: "github", requestNumber: 42 },
@@ -214,6 +303,7 @@ describe("publication destinations", () => {
         remote,
         source: HEAD,
         destination: `refs/heads/${branchOf(thread)}`,
+        expectedHead: null,
       },
     ]);
     const commands = await readFile(record, "utf8");
@@ -228,7 +318,7 @@ describe("publication destinations", () => {
     const scope = new ScopeRegistry().lookup("partition");
     if (!scope) throw new Error("Missing partition");
     const thread = landing("request");
-    const prepared = await preparePublication(exec, scope, thread);
+    const prepared = await preparePublication(exec, scope, thread, forgeCwd);
     if (!prepared.ok) throw new Error(JSON.stringify(prepared.publication));
     const { git, calls } = runner({ remote: BASE, guarded: true });
     const result = await publishChanges(
@@ -239,7 +329,9 @@ describe("publication destinations", () => {
       thread.title,
       BASE,
       HEAD,
+      BASE,
       prepared,
+      forgeCwd,
     );
     expect(result.publication).toMatchObject({ outcome: "pushed", head: HEAD });
     expect(calls.push[0]).toEqual({
@@ -265,12 +357,23 @@ describe("publication destinations", () => {
         url: `https://github.com/${GITHUB}/pull/42`,
       },
     };
-    const prepared = await preparePublication(exec, scope, thread);
+    const prepared = await preparePublication(exec, scope, thread, forgeCwd);
     if (!prepared.ok) throw new Error("Expected ready");
     expect(prepared.publication.opens).toBe("none");
     const { git } = runner({ remote: BASE, guarded: true });
     await expect(
-      publishChanges(exec, git, gitTarget(), "thread-1", undefined, BASE, HEAD, prepared),
+      publishChanges(
+        exec,
+        git,
+        gitTarget(),
+        "thread-1",
+        undefined,
+        BASE,
+        HEAD,
+        BASE,
+        prepared,
+        forgeCwd,
+      ),
     ).resolves.toMatchObject({ publication: { outcome: "pushed", head: HEAD } });
     await expect(readFile(record, "utf8").catch(() => "")).resolves.not.toContain("pr create");
   });
@@ -282,11 +385,22 @@ describe("publication destinations", () => {
       const scope = new ScopeRegistry().lookup("partition");
       if (!scope) throw new Error("Missing partition");
       const thread = landing("upstream");
-      const prepared = await preparePublication(exec, scope, thread);
+      const prepared = await preparePublication(exec, scope, thread, forgeCwd);
       if (!prepared.ok) throw new Error(JSON.stringify(prepared.publication));
       const { git, calls } = runner();
       await expect(
-        publishChanges(exec, git, gitTarget(), "thread-1", thread.title, BASE, HEAD, prepared),
+        publishChanges(
+          exec,
+          git,
+          gitTarget(),
+          "thread-1",
+          thread.title,
+          BASE,
+          HEAD,
+          null,
+          prepared,
+          forgeCwd,
+        ),
       ).resolves.toMatchObject({
         publication: {
           outcome: "published",
@@ -306,12 +420,126 @@ describe("publication destinations", () => {
       );
       const commands = await readFile(record, "utf8");
       expect(commands).toContain(
-        `"mr","create","--repo","${GITLAB}","--source-project","${
+        `"mr","create","--repo","https://${GITLAB_HOST}/${GITLAB}","--head","${
           mode === "direct" ? GITLAB : "operator/partition"
         }"`,
       );
       expect(commands).toContain(`"--target-branch","trunk","--draft"`);
       expect(commands).not.toMatch(/\bauth\b/u);
+    },
+  );
+
+  it("runs every forge command from the host-owned empty directory", async () => {
+    const scope = new ScopeRegistry().lookup("partition");
+    if (!scope) throw new Error("Missing partition");
+    const exec = forge("direct");
+    const prepared = await preparePublication(exec, scope, landing("upstream"), forgeCwd);
+    if (!prepared.ok) throw new Error("Expected ready");
+    const { git } = runner();
+    await publishChanges(
+      exec,
+      git,
+      gitTarget(),
+      "thread-1",
+      undefined,
+      BASE,
+      HEAD,
+      null,
+      prepared,
+      forgeCwd,
+    );
+    expect(await readFile(record, "utf8")).toContain(`glab ["api"`);
+    expect(await readFile(record, "utf8")).not.toContain(gitTarget().worktree.cwd);
+  });
+
+  it.each(["direct", "fork"] as const)(
+    "names the upstream host on GitLab API reads for %s access",
+    async (mode) => {
+      const scope = new ScopeRegistry().lookup("partition");
+      if (!scope) throw new Error("Missing partition");
+      await preparePublication(forge(mode), scope, landing("upstream"), forgeCwd);
+      const commands = await readFile(record, "utf8");
+      expect(commands).toContain(`"--hostname","${GITLAB_HOST}"`);
+      for (const line of commands.split("\n").filter((line) => line.startsWith("glab [")))
+        if (line.includes('"api"')) expect(line).toContain(`"--hostname","${GITLAB_HOST}"`);
+    },
+  );
+
+  it("refuses an existing GitLab request whose source is upstream and cannot be pushed", async () => {
+    const scope = new ScopeRegistry().lookup("partition");
+    if (!scope) throw new Error("Missing partition");
+    const prepared = await preparePublication(forge("fork"), scope, gitlabRequest(), forgeCwd);
+    expect(prepared).toMatchObject({
+      ok: false,
+      publication: {
+        state: "unavailable",
+        reason: expect.stringContaining("source branch is in upstream"),
+      },
+    });
+  });
+
+  it("selects the operator remote for an existing request sourced from that GitLab fork", async () => {
+    const scope = new ScopeRegistry().lookup("partition");
+    if (!scope) throw new Error("Missing partition");
+    const prepared = await preparePublication(
+      forge("source-fork"),
+      scope,
+      gitlabRequest(),
+      forgeCwd,
+    );
+    expect(prepared).toMatchObject({
+      ok: true,
+      publication: { remote: "operator", opens: "none" },
+      sourceRepository: "operator/partition",
+      remoteUrl: `https://${GITLAB_HOST}/operator/partition.git`,
+    });
+  });
+
+  it.each(["unparsed", "timeout"] as const)(
+    "adopts an existing request before retrying create after %s",
+    async (mode) => {
+      const scope = new ScopeRegistry().lookup("partition");
+      if (!scope) throw new Error("Missing partition");
+      const exec = forge(mode);
+      const prepared = await preparePublication(exec, scope, landing("fork-main"), forgeCwd);
+      if (!prepared.ok) throw new Error("Expected ready");
+      const { git } = runner();
+      await expect(
+        publishChanges(
+          exec,
+          git,
+          gitTarget(),
+          "thread-1",
+          undefined,
+          BASE,
+          HEAD,
+          null,
+          prepared,
+          forgeCwd,
+        ),
+      ).resolves.toMatchObject({ publication: { outcome: "not known" } });
+      await expect(
+        publishChanges(
+          exec,
+          git,
+          gitTarget(),
+          "thread-1",
+          undefined,
+          BASE,
+          HEAD,
+          null,
+          prepared,
+          forgeCwd,
+        ),
+      ).resolves.toMatchObject({
+        publication: {
+          outcome: "published",
+          request: { requestNumber: 42 },
+        },
+      });
+      const commands = await readFile(record, "utf8");
+      expect(commands.match(/"pr","list"/gu)).toHaveLength(2);
+      expect(commands.match(/"pr","create"/gu)).toHaveLength(1);
     },
   );
 
@@ -321,7 +549,7 @@ describe("publication destinations", () => {
     if (!scope) throw new Error("Missing partition");
     for (const branch of ["main", "fork_integration"]) {
       const thread = landing("request", branch);
-      await expect(preparePublication(exec, scope, thread)).resolves.toMatchObject({
+      await expect(preparePublication(exec, scope, thread, forgeCwd)).resolves.toMatchObject({
         ok: false,
         publication: { state: "unavailable", reason: expect.stringContaining("protected") },
       });
@@ -333,7 +561,7 @@ describe("publication destinations", () => {
     const exec = forge("none");
     const scope = new ScopeRegistry().lookup("partition");
     if (!scope) throw new Error("Missing partition");
-    const prepared = await preparePublication(exec, scope, landing("upstream"));
+    const prepared = await preparePublication(exec, scope, landing("upstream"), forgeCwd);
     expect(prepared).toMatchObject({
       ok: false,
       publication: {
@@ -346,18 +574,92 @@ describe("publication destinations", () => {
     const commands = await readFile(record, "utf8");
     expect(commands).not.toMatch(/(?:push|\bmr\b.*create|\bpr\b.*create)/u);
   });
+
+  it("rejects a GitLab fork URL whose host is spoofed", async () => {
+    const scope = new ScopeRegistry().lookup("partition");
+    if (!scope) throw new Error("Missing partition");
+    await expect(
+      preparePublication(forge("spoof-fork"), scope, landing("upstream"), forgeCwd),
+    ).resolves.toMatchObject({
+      ok: false,
+      publication: { state: "unavailable", reason: expect.stringContaining("has no fork") },
+    });
+  });
 });
 
 describe("publication gates", () => {
+  it("carries the remote head the Thread tab observed into a later fast-forward push", async () => {
+    const scope = new ScopeRegistry().lookup("partition");
+    if (!scope) throw new Error("Missing partition");
+    const exec = forge("direct");
+    const prepared = await preparePublication(exec, scope, landing("fork-main"), forgeCwd);
+    if (!prepared.ok) throw new Error("Expected ready");
+    const { git, calls } = runner({ remote: OBSERVED, guarded: true });
+    await expect(observePublication(git, gitTarget(), prepared)).resolves.toEqual({
+      ...prepared.publication,
+      observedHead: OBSERVED,
+    });
+    await publishChanges(
+      exec,
+      git,
+      gitTarget(),
+      "thread-1",
+      undefined,
+      BASE,
+      HEAD,
+      OBSERVED,
+      prepared,
+      forgeCwd,
+    );
+    expect(calls.push).toEqual([expect.objectContaining({ expectedHead: OBSERVED })]);
+  });
+
+  it("refuses when the worktree head differs from the Thread tab's displayed head", async () => {
+    const scope = new ScopeRegistry().lookup("partition");
+    if (!scope) throw new Error("Missing partition");
+    const exec = forge("direct");
+    const prepared = await preparePublication(exec, scope, landing("fork-main"), forgeCwd);
+    if (!prepared.ok) throw new Error("Expected ready");
+    const { git, calls } = runner();
+    await expect(
+      publishChanges(
+        exec,
+        git,
+        gitTarget(),
+        "thread-1",
+        undefined,
+        BASE,
+        OBSERVED,
+        null,
+        prepared,
+        forgeCwd,
+      ),
+    ).resolves.toMatchObject({
+      publication: { outcome: "refused", reason: expect.stringContaining("branch head moved") },
+    });
+    expect(calls.push).toEqual([]);
+  });
+
   it("refuses a non-fast-forward remote and never reaches push", async () => {
     const exec = forge("direct");
     const scope = new ScopeRegistry().lookup("partition");
     if (!scope) throw new Error("Missing partition");
-    const prepared = await preparePublication(exec, scope, landing("fork-main"));
+    const prepared = await preparePublication(exec, scope, landing("fork-main"), forgeCwd);
     if (!prepared.ok) throw new Error("Expected ready");
     const { git, calls } = runner({ remote: OBSERVED, guarded: false });
     await expect(
-      publishChanges(exec, git, gitTarget(), "thread-1", undefined, BASE, HEAD, prepared),
+      publishChanges(
+        exec,
+        git,
+        gitTarget(),
+        "thread-1",
+        undefined,
+        BASE,
+        HEAD,
+        OBSERVED,
+        prepared,
+        forgeCwd,
+      ),
     ).resolves.toMatchObject({
       publication: { outcome: "refused", reason: expect.stringContaining("not an ancestor") },
     });
@@ -372,13 +674,76 @@ describe("publication gates", () => {
       ...landing("fork-main"),
       pushedHead: BASE,
     };
-    const prepared = await preparePublication(exec, scope, thread);
+    const prepared = await preparePublication(exec, scope, thread, forgeCwd);
     if (!prepared.ok) throw new Error("Expected ready");
     const { git, calls } = runner({ remote: OBSERVED, guarded: true });
     await expect(
-      publishChanges(exec, git, gitTarget(), "thread-1", undefined, BASE, HEAD, prepared),
+      publishChanges(
+        exec,
+        git,
+        gitTarget(),
+        "thread-1",
+        undefined,
+        BASE,
+        HEAD,
+        BASE,
+        prepared,
+        forgeCwd,
+      ),
     ).resolves.toMatchObject({
       publication: { outcome: "refused", reason: expect.stringContaining("moved") },
+    });
+    expect(calls.push).toEqual([]);
+  });
+
+  it("refuses an existing request whose branch moved past its landing head", async () => {
+    const scope = new ScopeRegistry().lookup("partition");
+    if (!scope) throw new Error("Missing partition");
+    const exec = forge("direct");
+    const prepared = await preparePublication(exec, scope, landing("request"), forgeCwd);
+    if (!prepared.ok) throw new Error("Expected ready");
+    const { git, calls } = runner({ remote: OBSERVED, guarded: true });
+    await expect(
+      publishChanges(
+        exec,
+        git,
+        gitTarget(),
+        "thread-1",
+        undefined,
+        BASE,
+        HEAD,
+        BASE,
+        prepared,
+        forgeCwd,
+      ),
+    ).resolves.toMatchObject({
+      publication: { outcome: "refused", reason: expect.stringContaining("moved") },
+    });
+    expect(calls.push).toEqual([]);
+  });
+
+  it("names a remote branch deleted after the Thread tab observed it", async () => {
+    const scope = new ScopeRegistry().lookup("partition");
+    if (!scope) throw new Error("Missing partition");
+    const exec = forge("direct");
+    const prepared = await preparePublication(exec, scope, landing("fork-main"), forgeCwd);
+    if (!prepared.ok) throw new Error("Expected ready");
+    const { git, calls } = runner();
+    await expect(
+      publishChanges(
+        exec,
+        git,
+        gitTarget(),
+        "thread-1",
+        undefined,
+        BASE,
+        HEAD,
+        BASE,
+        prepared,
+        forgeCwd,
+      ),
+    ).resolves.toMatchObject({
+      publication: { outcome: "refused", reason: expect.stringContaining("was deleted") },
     });
     expect(calls.push).toEqual([]);
   });
@@ -395,12 +760,25 @@ describe("publication gates", () => {
         opens: "merge-request" as const,
       },
       repository: GITLAB,
+      repositoryUrl: `https://${GITLAB_HOST}/${GITLAB}`,
       sourceRepository: GITLAB,
       base: "trunk",
+      forgeHost: GITLAB_HOST,
     };
     const { git, calls } = runner();
     await expect(
-      publishChanges(exec, git, gitTarget(), "thread-1", undefined, BASE, HEAD, prepared),
+      publishChanges(
+        exec,
+        git,
+        gitTarget(),
+        "thread-1",
+        undefined,
+        BASE,
+        HEAD,
+        null,
+        prepared,
+        forgeCwd,
+      ),
     ).resolves.toMatchObject({ publication: { outcome: "refused" } });
     expect(calls.push).toEqual([]);
   });
@@ -409,7 +787,7 @@ describe("publication gates", () => {
     const scope = new ScopeRegistry().lookup("partition");
     if (!scope) throw new Error("Missing partition");
     const thread = landing("upstream");
-    const prepared = await preparePublication(forge("direct"), scope, thread);
+    const prepared = await preparePublication(forge("direct"), scope, thread, forgeCwd);
     if (!prepared.ok) throw new Error("Expected ready");
     const exec = forge("token");
     const { git } = runner();
@@ -421,12 +799,36 @@ describe("publication gates", () => {
       thread.title,
       BASE,
       HEAD,
+      null,
       prepared,
+      forgeCwd,
     );
     const commands = await readFile(record, "utf8");
-    const recorded = JSON.stringify({ logs, result, commands });
+    const recorded = JSON.stringify({ result, commands });
     expect(recorded).not.toContain(TOKEN);
     expect(result.publication).toMatchObject({ outcome: "failed" });
+  });
+
+  it("rejects merge request URLs with another host or userinfo", async () => {
+    const scope = new ScopeRegistry().lookup("partition");
+    if (!scope) throw new Error("Missing partition");
+    const exec = forge("bad-url");
+    const prepared = await preparePublication(exec, scope, landing("upstream"), forgeCwd);
+    if (!prepared.ok) throw new Error("Expected ready");
+    const result = await publishChanges(
+      exec,
+      { ...runner().git, remoteHead: async () => ({ ok: true, data: null }) },
+      gitTarget(),
+      "thread-1",
+      undefined,
+      BASE,
+      HEAD,
+      null,
+      prepared,
+      forgeCwd,
+    );
+    expect(result.publication).toMatchObject({ outcome: "not known" });
+    expect(result).not.toHaveProperty("request");
   });
 
   it("does not offer a publication or push tool to Copilot", () => {

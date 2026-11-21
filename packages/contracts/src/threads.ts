@@ -230,6 +230,7 @@ const publication = z.discriminatedUnion("state", [
     branch: id,
     base: id.optional(),
     opens: z.enum(["pull-request", "merge-request", "none"]),
+    observedHead: sha.nullable().optional(),
     request: threadRequest.optional(),
   }),
   z.strictObject({
@@ -331,7 +332,11 @@ export const ThreadMessageSchema = z.discriminatedUnion("type", [
   envelope("thread.committed", "response", threadId.extend({ commit }).strict()),
   envelope("thread.publication", "request", threadId.strict()),
   envelope("thread.publication.result", "response", threadId.extend({ publication }).strict()),
-  envelope("thread.publish", "request", threadId.extend({ head: sha }).strict()),
+  envelope(
+    "thread.publish",
+    "request",
+    threadId.extend({ head: sha, observedHead: sha.nullable() }).strict(),
+  ),
   envelope(
     "thread.published",
     "response",

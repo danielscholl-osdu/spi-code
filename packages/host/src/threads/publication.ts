@@ -28,9 +28,11 @@ export type PreparedPublication =
       publication: ReadyPublication;
       remoteUrl?: string;
       repository: string;
+      repositoryUrl: string;
       sourceRepository: string;
       base: string;
-      observedHead?: string;
+      forgeHost: string;
+      previousHead?: string;
       request?: ThreadRequest;
     };
 
@@ -44,6 +46,11 @@ type GitLabProject = {
     group_access?: { access_level?: unknown };
   };
   forked_from_project?: { path_with_namespace?: unknown };
+};
+
+type GitLabRequest = {
+  source_branch?: unknown;
+  source_project_id?: unknown;
 };
 
 const sha = (value: unknown): value is string =>
@@ -122,15 +129,17 @@ function validFork(
 async function upstreamPublication(
   exec: Exec,
   scope: RepositoryScope,
+  forgeCwd?: string,
 ): Promise<PreparedPublication> {
   const upstream = scope.upstream;
   if (!upstream) return unavailable("This scope has no upstream project.");
   const projectUrl = upstream.url.replace(/\.git$/u, "");
   const host = new URL(projectUrl).hostname;
-  const project = await exec.runJSON<GitLabProject>("glab", [
-    "api",
-    `projects/${encodeURIComponent(upstream.repo)}`,
-  ]);
+  const project = await exec.runJSON<GitLabProject>(
+    "glab",
+    ["api", `projects/${encodeURIComponent(upstream.repo)}`, "--hostname", host],
+    forgeCwd ? { cwd: forgeCwd } : {},
+  );
   if (!project.ok)
     return {
       ok: false,
@@ -161,15 +170,23 @@ async function upstreamPublication(
         opens: "merge-request",
       },
       repository: upstream.repo,
+      repositoryUrl: projectUrl,
       sourceRepository: upstream.repo,
       base: defaultBranch,
+      forgeHost: new URL(projectUrl).host,
     };
   }
   const repository = upstream.repo.split("/").at(-1) ?? upstream.repo;
-  const forks = await exec.runJSON<unknown>("glab", [
-    "api",
-    `projects?owned=true&search=${encodeURIComponent(repository)}&per_page=100`,
-  ]);
+  const forks = await exec.runJSON<unknown>(
+    "glab",
+    [
+      "api",
+      `projects?owned=true&search=${encodeURIComponent(repository)}&per_page=100`,
+      "--hostname",
+      host,
+    ],
+    forgeCwd ? { cwd: forgeCwd } : {},
+  );
   if (!forks.ok)
     return {
       ok: false,
@@ -202,8 +219,127 @@ async function upstreamPublication(
     },
     remoteUrl: `${fork.web_url}.git`,
     repository: upstream.repo,
+    repositoryUrl: projectUrl,
     sourceRepository: fork.path_with_namespace,
     base: defaultBranch,
+    forgeHost: new URL(projectUrl).host,
+  };
+}
+
+async function existingGitLabRequest(
+  exec: Exec,
+  scope: RepositoryScope,
+  landing: Extract<ThreadLanding, { target: "request" }>,
+  forgeCwd?: string,
+): Promise<PreparedPublication> {
+  const upstream = scope.upstream;
+  if (!upstream) return unavailable("This scope has no upstream project.");
+  const projectUrl = upstream.url.replace(/\.git$/u, "");
+  const host = new URL(projectUrl).hostname;
+  const details = await exec.runJSON<GitLabRequest>(
+    "glab",
+    [
+      "api",
+      `projects/${encodeURIComponent(upstream.repo)}/merge_requests/${landing.requestNumber}`,
+      "--hostname",
+      host,
+    ],
+    forgeCwd ? { cwd: forgeCwd } : {},
+  );
+  if (!details.ok)
+    return {
+      ok: false,
+      publication: {
+        state: "not read",
+        reason: `The existing merge request was not read. ${details.error}`,
+      },
+    };
+  if (details.data.source_branch !== landing.sourceBranch)
+    return unavailable("The existing merge request no longer names this source branch.");
+  const sourceProjectId = details.data.source_project_id;
+  if (typeof sourceProjectId !== "number" && typeof sourceProjectId !== "string")
+    return {
+      ok: false,
+      publication: {
+        state: "not read",
+        reason: "The existing merge request's source project was not read.",
+      },
+    };
+  const source = await exec.runJSON<GitLabProject>(
+    "glab",
+    ["api", `projects/${encodeURIComponent(String(sourceProjectId))}`, "--hostname", host],
+    forgeCwd ? { cwd: forgeCwd } : {},
+  );
+  if (!source.ok)
+    return {
+      ok: false,
+      publication: {
+        state: "not read",
+        reason: `The merge request's source project was not read. ${source.error}`,
+      },
+    };
+  const sourcePath = source.data.path_with_namespace;
+  if (typeof sourcePath !== "string")
+    return {
+      ok: false,
+      publication: {
+        state: "not read",
+        reason: "The merge request's source project was not read.",
+      },
+    };
+  if (sourcePath === upstream.repo) {
+    const destination = await upstreamPublication(exec, scope, forgeCwd);
+    if (!destination.ok) return destination;
+    if (destination.publication.remote !== "upstream")
+      return unavailable(
+        "The merge request's source branch is in upstream, but this sign-in cannot push there.",
+      );
+    return { ...destination, previousHead: landing.head };
+  }
+  if (!validFork(source.data, upstream.repo, host) || accessLevel(source.data) < 30) {
+    return unavailable("The merge request's source project is not a fork this sign-in can push.");
+  }
+  const project = await exec.runJSON<GitLabProject>(
+    "glab",
+    ["api", `projects/${encodeURIComponent(upstream.repo)}`, "--hostname", host],
+    forgeCwd ? { cwd: forgeCwd } : {},
+  );
+  if (!project.ok)
+    return {
+      ok: false,
+      publication: {
+        state: "not read",
+        reason: `The upstream project was not read. ${project.error}`,
+      },
+    };
+  const base =
+    typeof project.data.default_branch === "string" && project.data.default_branch
+      ? project.data.default_branch
+      : "";
+  if (!base)
+    return {
+      ok: false,
+      publication: {
+        state: "not read",
+        reason: "The upstream project's default branch was not read.",
+      },
+    };
+  return {
+    ok: true,
+    publication: {
+      state: "ready",
+      remote: "operator",
+      branch: landing.branch,
+      base,
+      opens: "none",
+    },
+    remoteUrl: `${source.data.web_url}.git`,
+    repository: upstream.repo,
+    repositoryUrl: projectUrl,
+    sourceRepository: sourcePath,
+    base,
+    forgeHost: new URL(projectUrl).host,
+    previousHead: landing.head,
   };
 }
 
@@ -212,6 +348,7 @@ export async function preparePublication(
   exec: Exec,
   scope: Scope,
   thread: Readonly<ThreadDefinition>,
+  forgeCwd?: string,
 ): Promise<PreparedPublication> {
   const landing = thread.landsIn;
   if (!landing || landing.target === "asking")
@@ -231,9 +368,11 @@ export async function preparePublication(
         ...(thread.request ? { request: thread.request } : {}),
       },
       repository: scope.origin.repo,
+      repositoryUrl: scope.origin.url.replace(/\.git$/u, ""),
       sourceRepository: scope.origin.repo,
       base: "main",
-      ...(thread.pushedHead ? { observedHead: thread.pushedHead } : {}),
+      forgeHost: new URL(scope.origin.url).host,
+      ...(thread.pushedHead ? { previousHead: thread.pushedHead } : {}),
       ...(thread.request ? { request: thread.request } : {}),
     };
   }
@@ -249,9 +388,11 @@ export async function preparePublication(
         ...(thread.request ? { request: thread.request } : {}),
       },
       repository: scope.origin.repo,
+      repositoryUrl: scope.origin.url.replace(/\.git$/u, ""),
       sourceRepository: scope.origin.repo,
       base: "fork_integration",
-      ...(thread.pushedHead ? { observedHead: thread.pushedHead } : {}),
+      forgeHost: new URL(scope.origin.url).host,
+      ...(thread.pushedHead ? { previousHead: thread.pushedHead } : {}),
       ...(thread.request ? { request: thread.request } : {}),
     };
   }
@@ -264,7 +405,7 @@ export async function preparePublication(
       };
     let destination = undefined as Extract<PreparedPublication, { ok: true }> | undefined;
     if (landing.forge === "gitlab") {
-      const upstream = await upstreamPublication(exec, scope);
+      const upstream = await existingGitLabRequest(exec, scope, landing, forgeCwd);
       if (!upstream.ok) return upstream;
       destination = upstream;
     }
@@ -282,17 +423,25 @@ export async function preparePublication(
         request,
       },
       repository: landing.repository,
+      repositoryUrl:
+        landing.forge === "github"
+          ? scope.origin.url.replace(/\.git$/u, "")
+          : (destination?.repositoryUrl ?? ""),
       sourceRepository:
         landing.forge === "github"
           ? landing.repository
           : (destination?.sourceRepository ?? landing.repository),
       ...(destination?.remoteUrl ? { remoteUrl: destination.remoteUrl } : {}),
       base: upstreamDefault ?? "main",
-      observedHead: thread.pushedHead ?? landing.head,
+      forgeHost:
+        landing.forge === "github"
+          ? new URL(scope.origin.url).host
+          : (destination?.forgeHost ?? ""),
+      previousHead: thread.pushedHead ?? destination?.previousHead ?? landing.head,
       request,
     };
   }
-  const upstream = await upstreamPublication(exec, scope);
+  const upstream = await upstreamPublication(exec, scope, forgeCwd);
   if (!upstream.ok) return upstream;
   if (protectedBranch(landing.branch, upstream.base))
     return unavailable(`Refusing to push protected branch ${landing.branch}.`);
@@ -304,7 +453,7 @@ export async function preparePublication(
       opens: thread.request ? "none" : upstream.publication.opens,
       ...(thread.request ? { request: thread.request } : {}),
     },
-    ...(thread.pushedHead ? { observedHead: thread.pushedHead } : {}),
+    ...(thread.pushedHead ? { previousHead: thread.pushedHead } : {}),
     ...(thread.request ? { request: thread.request } : {}),
   };
 }
@@ -312,23 +461,29 @@ export async function preparePublication(
 function parsedRequest(
   text: string,
   forge: ReadyPublication["opens"],
-  repository: string,
+  prepared: Extract<PreparedPublication, { ok: true }>,
 ): ThreadRequest | undefined {
   const urls = text.match(/https:\/\/[^\s"'<>]+/gu) ?? [];
   for (const candidate of urls) {
     try {
       const url = new URL(candidate);
-      const escaped = repository.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-      const pattern =
+      if (
+        url.protocol !== "https:" ||
+        url.host !== prepared.forgeHost ||
+        url.username ||
+        url.password
+      )
+        continue;
+      const escaped = prepared.repository.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+      const match =
         forge === "pull-request"
-          ? new RegExp(`^https://github\\.com/${escaped}/pull/(\\d+?)/?$`, "u")
-          : new RegExp(`^https://[^/]+/${escaped}/-/merge_requests/(\\d+?)/?$`, "u");
-      const match = pattern.exec(url.toString());
+          ? new RegExp(`^/${escaped}/pull/(\\d+)/?$`, "u").exec(url.pathname)
+          : new RegExp(`^/${escaped}/-/merge_requests/(\\d+)/?$`, "u").exec(url.pathname);
       const number = Number(match?.[1]);
       if (!Number.isSafeInteger(number) || number <= 0) continue;
       return {
         forge: forge === "pull-request" ? "github" : "gitlab",
-        repository,
+        repository: prepared.repository,
         requestNumber: number,
         url: url.toString(),
       };
@@ -337,6 +492,84 @@ function parsedRequest(
     }
   }
   return undefined;
+}
+
+async function existingRequest(
+  exec: Exec,
+  prepared: Extract<PreparedPublication, { ok: true }>,
+  forgeCwd: string,
+): Promise<{ ok: true; request?: ThreadRequest } | { ok: false; reason: string }> {
+  const { publication } = prepared;
+  const listed = await exec.runJSON<unknown>(
+    publication.opens === "pull-request" ? "gh" : "glab",
+    publication.opens === "pull-request"
+      ? [
+          "pr",
+          "list",
+          "--repo",
+          prepared.repository,
+          "--head",
+          publication.branch,
+          "--base",
+          prepared.base,
+          "--state",
+          "open",
+          "--json",
+          "url,number",
+        ]
+      : [
+          "mr",
+          "list",
+          "--repo",
+          prepared.repositoryUrl,
+          "--source-branch",
+          publication.branch,
+          "--target-branch",
+          prepared.base,
+          "--output",
+          "json",
+        ],
+    { cwd: forgeCwd },
+  );
+  if (!listed.ok)
+    return { ok: false, reason: `The branch's request was not read. ${listed.error}` };
+  if (!Array.isArray(listed.data))
+    return { ok: false, reason: "The branch's open request was not read." };
+  for (const entry of listed.data) {
+    if (!object(entry)) continue;
+    const url = entry.url ?? entry.web_url;
+    if (typeof url !== "string") continue;
+    const request = parsedRequest(url, publication.opens, prepared);
+    if (!request) continue;
+    return { ok: true, request };
+  }
+  return { ok: true };
+}
+
+/** Reads the remote head into the publication the Thread tab last showed. */
+export async function observePublication(
+  git: Pick<PublicationGit, "remoteHead">,
+  target: WorktreeTarget,
+  prepared: PreparedPublication,
+): Promise<Publication> {
+  if (!prepared.ok) return prepared.publication;
+  const observed = await git.remoteHead(
+    target,
+    prepared.publication.remote,
+    prepared.publication.branch,
+  );
+  if (!observed.ok)
+    return {
+      state: "not read",
+      reason: `The remote branch was not read. ${resultError(observed, "Git failed.")}`,
+    };
+  if (observed.data === null && prepared.previousHead !== undefined) {
+    return {
+      state: "unavailable",
+      reason: "The remote branch was deleted. Update the thread's landing before pushing.",
+    };
+  }
+  return { ...prepared.publication, observedHead: observed.data };
 }
 
 function gitOutcome(result: ExecResult<string>, operation: string): PublicationOutcome {
@@ -359,7 +592,9 @@ export async function publishChanges(
   title: string | undefined,
   baseHead: string,
   displayedHead: string,
+  displayedRemoteHead: string | null,
   prepared: Extract<PreparedPublication, { ok: true }>,
+  forgeCwd: string,
 ): Promise<{
   publication: PublicationOutcome;
   request?: ThreadRequest;
@@ -407,12 +642,14 @@ export async function publishChanges(
   }
   const observed = await git.remoteHead(target, publication.remote, publication.branch);
   if (!observed.ok) return { publication: gitOutcome(observed, "Reading the remote branch") };
-  if (prepared.observedHead !== undefined && observed.data !== prepared.observedHead) {
+  if (observed.data !== displayedRemoteHead) {
     return {
       publication: {
         outcome: "refused",
         reason:
-          "The remote branch moved since the thread last observed it. Update it before pushing.",
+          displayedRemoteHead !== null && observed.data === null
+            ? "The remote branch was deleted since the Thread tab read it. Update it before pushing."
+            : "The remote branch moved since the Thread tab read it. Update it before pushing.",
       },
     };
   }
@@ -432,7 +669,7 @@ export async function publishChanges(
     remote: publication.remote,
     source: displayedHead,
     destination: `refs/heads/${publication.branch}`,
-    ...(observed.data ? { expectedHead: observed.data } : {}),
+    expectedHead: observed.data,
   });
   if (!pushed.ok) return { publication: gitOutcome(pushed, "Pushing the branch") };
   if (publication.opens === "none") {
@@ -448,6 +685,25 @@ export async function publishChanges(
   }
   const requestTitle = title?.trim() || `SPI Code thread ${threadId}`;
   const body = `Draft request for SPI Code thread ${threadId}.`;
+  const existing = await existingRequest(exec, prepared, forgeCwd);
+  if (!existing.ok)
+    return {
+      publication: {
+        outcome: "not known",
+        reason: existing.reason,
+      },
+      pushedHead: displayedHead,
+    };
+  if (existing.request)
+    return {
+      publication: {
+        outcome: "published",
+        head: displayedHead,
+        request: existing.request,
+      },
+      request: existing.request,
+      pushedHead: displayedHead,
+    };
   const created =
     publication.opens === "pull-request"
       ? await exec.runText(
@@ -467,7 +723,7 @@ export async function publishChanges(
             "--body",
             body,
           ],
-          { cwd: target.worktree.cwd },
+          { cwd: forgeCwd },
         )
       : await exec.runText(
           "glab",
@@ -475,8 +731,8 @@ export async function publishChanges(
             "mr",
             "create",
             "--repo",
-            prepared.repository,
-            "--source-project",
+            prepared.repositoryUrl,
+            "--head",
             prepared.sourceRepository,
             "--source-branch",
             publication.branch,
@@ -489,14 +745,14 @@ export async function publishChanges(
             body,
             "--yes",
           ],
-          { cwd: target.worktree.cwd },
+          { cwd: forgeCwd },
         );
   if (!created.ok)
     return {
       publication: gitOutcome(created, "Opening the draft request"),
       pushedHead: displayedHead,
     };
-  const request = parsedRequest(created.data, publication.opens, prepared.repository);
+  const request = parsedRequest(created.data, publication.opens, prepared);
   if (!request)
     return {
       publication: {

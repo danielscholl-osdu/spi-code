@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { constants } from "node:fs";
-import { access, copyFile, lstat, mkdir, readFile, realpath } from "node:fs/promises";
+import { access, copyFile, lstat, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { type ExecOptions, type ExecResult, textResult } from "@spi-code/core";
@@ -21,6 +21,8 @@ export interface PrivilegedGitOptions {
   readonly capturedPath: string;
   /** Supply Setup's installed Git bin directory on Windows. */
   readonly managedGitBinDir?: () => Promise<string | undefined>;
+  /** Supply the installed gh or glab directory for a push credential helper. */
+  readonly managedToolBinDir?: (tool: "gh" | "glab") => Promise<string | undefined>;
   readonly env?: NodeJS.ProcessEnv;
   /** Local bare repositories used by offline fixtures. */
   readonly allowLocalRemotes?: boolean;
@@ -36,7 +38,7 @@ export interface GitTarget {
   readonly worktree?: { readonly id: string; readonly cwd: string };
 }
 
-export type GitOptions = Pick<ExecOptions, "onOutput" | "signal" | "timeoutMs">;
+export type GitOptions = Pick<ExecOptions, "env" | "onOutput" | "signal" | "timeoutMs">;
 
 export interface CloneRemotes {
   readonly origin: string;
@@ -58,7 +60,7 @@ export interface PushRequest {
   /** A ref under refs/ on the remote. */
   readonly destination: string;
   /** The exact remote head observed before the ancestor check; the only force form allowed. */
-  readonly expectedHead?: string;
+  readonly expectedHead?: string | null;
   readonly dryRun?: boolean;
 }
 
@@ -198,6 +200,7 @@ interface Runtime {
   readonly cwd: string;
   readonly empty: string;
   readonly binary: string;
+  readonly credentialEnv: Readonly<Record<string, string>>;
   readonly env: Readonly<Record<string, string>>;
   readonly exec: HostExec;
 }
@@ -215,12 +218,14 @@ async function createRuntime(options: PrivilegedGitOptions): Promise<Runtime> {
   const cwd = join(appData, "scope-git");
   const empty = join(cwd, "empty");
   const temp = join(cwd, "tmp");
+  const grafts = join(empty, "grafts");
   await mkdir(cwd, { recursive: true, mode: 0o700 });
   await directDirectory(cwd);
   for (const directory of [empty, temp]) {
     await mkdir(directory, { recursive: true, mode: 0o700 });
     await directDirectory(directory);
   }
+  await writeFile(grafts, "", { mode: 0o600 });
   const windows = process.platform === "win32";
   const root = systemRoot(options.env ?? process.env);
   const paths = windows ? [join(root, "System32"), root] : ["/usr/bin", "/bin"];
@@ -239,6 +244,8 @@ async function createRuntime(options: PrivilegedGitOptions): Promise<Runtime> {
     GIT_TERMINAL_PROMPT: "0",
     GIT_CONFIG_NOSYSTEM: "1",
     GIT_CONFIG_GLOBAL: join(empty, "gitconfig"),
+    GIT_GRAFT_FILE: grafts,
+    GIT_NO_REPLACE_OBJECTS: "1",
     GIT_ATTR_NOSYSTEM: "1",
     GIT_CEILING_DIRECTORIES: appData,
     GIT_ALLOW_PROTOCOL: options.allowLocalRemotes ? "file" : "https",
@@ -255,10 +262,43 @@ async function createRuntime(options: PrivilegedGitOptions): Promise<Runtime> {
     cwd,
     empty,
     binary,
+    credentialEnv: Object.fromEntries(
+      Object.entries(options.env ?? process.env).filter(
+        (entry): entry is [string, string] =>
+          entry[1] !== undefined &&
+          /^(?:APPDATA|GH_CONFIG_DIR|GLAB_CONFIG_DIR|HOME|LOCALAPPDATA|USERPROFILE|XDG_CONFIG_HOME)$/iu.test(
+            entry[0],
+          ),
+      ),
+    ),
     // The sandbox cannot read the runner's own directory, only its empty one.
     env: { ...env, PATH: capturedPath, HOME: empty, USERPROFILE: empty, XDG_CONFIG_HOME: empty },
     exec,
   };
+}
+
+function shellQuote(path: string, platform: NodeJS.Platform): string {
+  return platform === "win32"
+    ? `"${path.replaceAll('"', '""')}"`
+    : `'${path.replaceAll("'", "'\\''")}'`;
+}
+
+async function managedExecutable(
+  options: PrivilegedGitOptions,
+  tool: "gh" | "glab",
+): Promise<ExecResult<string>> {
+  const directory = await options.managedToolBinDir?.(tool);
+  if (!directory)
+    return { ok: false, error: `Managed ${tool} is unavailable. Check Setup.`, code: null };
+  const path = join(directory, process.platform === "win32" ? `${tool}.exe` : tool);
+  try {
+    const binary = await realpath(path);
+    await access(binary, constants.X_OK);
+    if (!(await lstat(binary)).isFile()) throw new Error("not a file");
+    return { ok: true, data: binary, exitCode: 0 };
+  } catch {
+    return { ok: false, error: `Managed ${tool} is unavailable. Check Setup.`, code: null };
+  }
 }
 
 function worktreePointer(text: string): string | undefined {
@@ -321,7 +361,7 @@ async function execGit(
       ...options,
       cwd: runtime.cwd,
       // Pin the common directory; Git must not consult a worktree's commondir file.
-      ...(common === undefined ? {} : { env: { GIT_COMMON_DIR: common } }),
+      ...(common === undefined ? {} : { env: { ...options.env, GIT_COMMON_DIR: common } }),
     },
   );
   if (!output.error && output.exit !== 0) {
@@ -746,23 +786,55 @@ export class PrivilegedGit {
     request: PushRequest,
     options: GitOptions = {},
   ): Promise<ExecResult<string>> {
+    const remote = remoteName(request.remote);
+    const source = revision(request.source);
+    const destination = fullRef(request.destination);
+    const expectedHead =
+      request.expectedHead === null
+        ? ""
+        : request.expectedHead === undefined
+          ? undefined
+          : objectId(request.expectedHead);
+    const runtime = await this.#getRuntime();
+    const url = await this.remoteUrl(target, remote, options);
+    if (!url.ok) return url;
+    let parsed: URL;
+    try {
+      parsed = new URL(url.data.trim());
+    } catch {
+      return { ok: false, error: "The remote URL could not be read.", code: null };
+    }
+    let credentialArgs: string[] = [];
+    let credentialEnv: Record<string, string> = {};
+    if (parsed.protocol === "https:") {
+      const tool = parsed.hostname.toLowerCase() === "github.com" ? "gh" : "glab";
+      const helper = await managedExecutable(this.#options, tool);
+      if (!helper.ok) return helper;
+      const scope = `credential.https://${parsed.host}`;
+      credentialArgs = [
+        "-c",
+        `${scope}.helper=`,
+        "-c",
+        `${scope}.helper=!${shellQuote(helper.data, process.platform)} auth git-credential`,
+      ];
+      credentialEnv = runtime.credentialEnv;
+    }
     return this.#run(
       target,
       [
+        ...credentialArgs,
         "push",
         "--porcelain",
         "--no-recurse-submodules",
-        ...(request.expectedHead
-          ? [
-              `--force-with-lease=${request.destination.slice("refs/heads/".length)}:${objectId(request.expectedHead)}`,
-            ]
+        ...(expectedHead !== undefined
+          ? [`--force-with-lease=${destination.slice("refs/heads/".length)}:${expectedHead}`]
           : []),
         ...(request.dryRun ? ["--dry-run"] : []),
         "--",
-        remoteName(request.remote),
-        `${revision(request.source)}:${fullRef(request.destination)}`,
+        remote,
+        `${source}:${destination}`,
       ],
-      options,
+      { ...options, env: { ...options.env, ...credentialEnv } },
     );
   }
 

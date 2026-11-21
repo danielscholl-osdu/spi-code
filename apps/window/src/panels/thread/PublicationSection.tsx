@@ -32,13 +32,8 @@ function outcomeText(outcome: ReturnType<typeof publicationStore.getState>["outc
   return outcome.reason;
 }
 
-function blocked(
-  changes: ReturnType<typeof useChanges>,
-  outcome: ReturnType<typeof publicationStore.getState>["outcomes"][string] | undefined,
-  publishing: boolean,
-): string | undefined {
+function blocked(changes: ReturnType<typeof useChanges>, publishing: boolean): string | undefined {
   if (publishing) return "Publishing…";
-  if (outcome?.outcome === "not known") return "Read the forge before trying again.";
   if (!changes || changes.state === "reading") return "Reading the worktree…";
   if (changes.state === "asking") return "An Asking thread has nothing to push.";
   if (changes.state === "not read") return "The worktree was not read, so nothing can be pushed.";
@@ -54,7 +49,7 @@ function Publication({ id }: ThreadTabProps) {
   useEffect(() => {
     if (!publication) publicationStore.getState().read(id);
   }, [id, publication]);
-  const reason = blocked(changes, outcome, publishing);
+  const reason = blocked(changes, publishing);
   if (publication?.state === "asking")
     return <span data-quiet="asking">An Asking thread has nothing to push.</span>;
   if (!publication || publication.state === "reading")
@@ -79,16 +74,23 @@ function Publication({ id }: ThreadTabProps) {
       </span>
     );
   const head = changes?.state === "read" ? changes.head : "";
+  const observedHead = publication.observedHead;
   return (
     <div className="thread-publish">
       <span className="thread-field-quiet">
-        Commit <code>{head ? head.slice(0, 7) : "not read"}</code> · {publication.branch}
+        Commit <code>{head ? head.slice(0, 7) : "not read"}</code> · {publication.branch} · Remote{" "}
+        <code>
+          {observedHead === null ? "new branch" : (observedHead?.slice(0, 7) ?? "not read")}
+        </code>
       </span>
       <div className="thread-commit-row">
         <button
           type="button"
-          disabled={Boolean(reason) || !head}
-          onClick={() => publicationStore.getState().publish(id, head)}
+          disabled={Boolean(reason) || !head || observedHead === undefined}
+          onClick={() => {
+            if (observedHead !== undefined)
+              publicationStore.getState().publish(id, head, observedHead);
+          }}
         >
           {publication.opens === "none"
             ? "Push"
@@ -97,6 +99,11 @@ function Publication({ id }: ThreadTabProps) {
               : "Push / Open draft MR"}
         </button>
         {reason && <span className="thread-field-quiet">{reason}</span>}
+        {outcome?.outcome === "refused" && /remote branch/u.test(outcome.reason) && (
+          <button type="button" onClick={() => publicationStore.getState().read(id)}>
+            Update
+          </button>
+        )}
       </div>
       {outcome?.outcome !== "publishing" && outcome && (
         <p className="thread-publish-outcome" data-outcome={outcome.outcome} role="status">

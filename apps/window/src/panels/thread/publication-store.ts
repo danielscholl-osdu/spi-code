@@ -19,7 +19,7 @@ type State = {
   publications: Readonly<Record<string, PublicationState>>;
   outcomes: Readonly<Record<string, Outcome | { outcome: "publishing" }>>;
   read(threadId: string): void;
-  publish(threadId: string, head: string): void;
+  publish(threadId: string, head: string, observedHead: string | null): void;
   receive(input: unknown): void;
 };
 
@@ -72,12 +72,12 @@ export function createPublicationStore(post: (message: Message) => void = postTo
       });
       if (!sent) throw new Error("Window generated an invalid thread.publication");
     },
-    publish(threadId, head) {
+    publish(threadId, head, observedHead) {
       if (get().outcomes[threadId]?.outcome === "publishing") return;
       set(({ outcomes }) => ({
         outcomes: { ...outcomes, [threadId]: { outcome: "publishing" } },
       }));
-      const sent = request("thread.publish", { threadId, head }, (reply) => {
+      const sent = request("thread.publish", { threadId, head, observedHead }, (reply) => {
         const outcome: Outcome =
           reply.type === "thread.published"
             ? reply.payload.publication
@@ -102,7 +102,12 @@ export function createPublicationStore(post: (message: Message) => void = postTo
               : {}),
           };
         });
-        if (outcome.outcome === "published" || outcome.outcome === "pushed") {
+        if (outcome.outcome === "not known") {
+          set(({ publications }) => ({
+            publications: { ...publications, [threadId]: reading },
+          }));
+          get().read(threadId);
+        } else if (outcome.outcome === "published" || outcome.outcome === "pushed") {
           get().read(threadId);
         }
       });

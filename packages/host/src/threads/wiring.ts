@@ -3,7 +3,7 @@
 
 import { realpathSync } from "node:fs";
 import { mkdir, realpath } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { setTimeout } from "node:timers/promises";
 import type { Tool } from "@github/copilot-sdk";
@@ -30,7 +30,12 @@ import { threadContext } from "./context/provider.js";
 import { redactSpiText, type SpiRedactor } from "./context/redaction.js";
 import type { LatestSweep } from "./context/sweep.js";
 import { operatorIdentity } from "./identity.js";
-import { preparePublication, publishChanges, requestFromLanding } from "./publication.js";
+import {
+  observePublication,
+  preparePublication,
+  publishChanges,
+  requestFromLanding,
+} from "./publication.js";
 
 export interface ThreadHostOptions {
   db: DatabaseSync;
@@ -39,6 +44,7 @@ export interface ThreadHostOptions {
   savedSweep: LatestSweep;
   git: () => Promise<PrivilegedGit>;
   exec?: Exec;
+  forgeCwd?: string;
   workspaces: (git: PrivilegedGit) => ScopeWorkspaces;
   runtime: (onCredential: (token: string) => void) => Promise<CopilotRuntime>;
   env: NodeJS.ProcessEnv;
@@ -56,6 +62,7 @@ export function openThreadHost(options: ThreadHostOptions) {
     runJSON: async () => ({ ok: false, error: "Forge tools are unavailable.", code: null }),
     runText: async () => ({ ok: false, error: "Forge tools are unavailable.", code: null }),
   };
+  const forgeCwd = options.forgeCwd ?? join(dirname(storePath), "forge");
   const lock = new DatabaseSync(`${realpathSync(storePath)}.threads-lock`);
   try {
     // The rollback-mode lock is released by SQLite even if the host process dies.
@@ -275,7 +282,16 @@ export function openThreadHost(options: ThreadHostOptions) {
         try {
           const summary = engine.read(id);
           const scope = scopeFor(id);
-          return (await preparePublication(exec, scope, summary.thread)).publication;
+          await mkdir(forgeCwd, { recursive: true, mode: 0o700 });
+          const prepared = await preparePublication(exec, scope, summary.thread, forgeCwd);
+          if (!prepared.ok) return prepared.publication;
+          const at = await worktreeOf(id);
+          if (!at)
+            return {
+              state: "not read" as const,
+              reason: "The thread's worktree was not available.",
+            };
+          return await observePublication(at.git, at.target, prepared);
         } catch (error) {
           return {
             state: "not read" as const,
@@ -283,7 +299,7 @@ export function openThreadHost(options: ThreadHostOptions) {
           };
         }
       },
-      publish: async (id: string, displayedHead: string) => {
+      publish: async (id: string, displayedHead: string, observedHead: string | null) => {
         if (engine.isRunning(id))
           return {
             outcome: "refused" as const,
@@ -292,7 +308,8 @@ export function openThreadHost(options: ThreadHostOptions) {
         try {
           return await engine.transition(id, async () => {
             const summary = engine.read(id);
-            const prepared = await preparePublication(exec, scopeFor(id), summary.thread);
+            await mkdir(forgeCwd, { recursive: true, mode: 0o700 });
+            const prepared = await preparePublication(exec, scopeFor(id), summary.thread, forgeCwd);
             if (!prepared.ok)
               return {
                 outcome: "refused" as const,
@@ -313,7 +330,9 @@ export function openThreadHost(options: ThreadHostOptions) {
               summary.thread.title,
               summary.thread.landsIn.head,
               displayedHead,
+              observedHead,
               prepared,
+              forgeCwd,
             );
             if (result.pushedHead) {
               engine.publish(id, {
