@@ -3,6 +3,7 @@
 
 import type { ReactNode } from "react";
 import type { IconName } from "../components/icons/Icon.js";
+import type { LandsInChipProps } from "./LandsInChip.js";
 
 /** How a call or a setup step ended. `unknown` is a step whose end the host never saw. */
 export type StepStatus = "running" | "done" | "failed" | "unknown";
@@ -135,8 +136,6 @@ export interface CopilotAccount {
 
 export interface ComposerProps {
   scope: ScopeOption;
-  /** The words a draft's text box opens with. */
-  initialText?: string | undefined;
   context: readonly ContextChip[];
   onRemoveContext(id: string): void;
   places: readonly PlaceOption[];
@@ -150,7 +149,7 @@ export interface ComposerProps {
   running: boolean;
   /** Stop was pressed and the turn has not ended. */
   stopping?: boolean;
-  /** Words to put back in the box, as after a send that started no thread. */
+  /** The words a draft's box opens with: asked from Find, or put back after a send that started no thread. */
   initialText?: string | undefined;
   draft: boolean;
   /** Why the message cannot go yet, or why the last send failed. A draft keeps its words on send. */
@@ -174,6 +173,8 @@ export interface ThreadViewProps extends ComposerProps {
   contextLine?: string | undefined;
   /** A draft's scope control, which opens the scope picker; once sent the scope is fixed. */
   onChangeScope?(): void;
+  /** A draft's Lands in choice, where its scope offers more than Asking. */
+  landsIn?: LandsInChipProps | undefined;
   /** What a draft shows under its composer, and a thread between its timeline and composer. */
   below?: ReactNode;
   onApprovalDecision?(approval: Approval, approved: boolean): void;

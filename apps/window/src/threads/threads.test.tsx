@@ -1182,6 +1182,42 @@ it("opens a draft holding a sentence asked in Find, in the page's scope, and sen
   expect([...host.sent("thread.start"), ...host.sent("thread.send")]).toEqual([]);
 });
 
+it("lands a Template or Environment draft in Asking or the repository's main, and a draft moved to a fork asks", async () => {
+  const places = [
+    ["#engineering-system", "Template", "template"],
+    ["#environment", "Environment", "environment"],
+  ] as const;
+  for (const [hash, label, scope] of places) {
+    await go(hash);
+    await click(buttonNamed(`Ask Copilot about ${label}`));
+    await click(buttonNamed("Lands in: Asking · changes nothing"));
+    expect(all("[aria-label='Lands in'] button").map((button) => button.textContent)).toEqual([
+      "Asking · changes nothing",
+      "Fork · main",
+    ]);
+    await click(buttonNamed("Fork · main"));
+    await type("Bump the base image.");
+    await click(buttonNamed("Send"));
+    expect(host.sent("thread.start").at(-1)?.payload).toMatchObject({
+      scope,
+      landsIn: { target: "fork-main" },
+    });
+  }
+
+  await go("#engineering-system");
+  await click(buttonNamed("Ask Copilot about Template"));
+  await click(buttonNamed("Lands in: Asking · changes nothing"));
+  await click(buttonNamed("Fork · main"));
+  await act(async () => threadStore.getState().setDraftScope("partition"));
+  expect(container.querySelector("[aria-label^='Lands in:']")).toBeNull();
+  await type("Only read it.");
+  await click(buttonNamed("Send"));
+  expect(host.sent("thread.start").at(-1)?.payload).toEqual({
+    scope: "partition",
+    title: "Only read it.",
+  });
+});
+
 it("continues a program answer in a scope it names, carrying the finding and its parent", async () => {
   const finding: ChipResult = {
     ok: true,
@@ -1221,7 +1257,7 @@ it("continues a program answer in a scope it names, carrying the finding and its
   expect(heading()).toBe("Ask in legal▾");
   expect(container.querySelector(".thread-chips")?.textContent).toContain("Finding · Forks on 8.4");
   await type("Bump it here.");
-  await click(buttonNamed("Send ⏎"));
+  await click(buttonNamed("Send"));
   expect(host.sent("thread.start").at(-1)?.payload).toMatchObject({
     scope: "legal",
     subject: "finding:p1",
@@ -1230,6 +1266,32 @@ it("continues a program answer in a scope it names, carrying the finding and its
   const sent = host.sent("thread.send").at(-1);
   if (sent?.type !== "thread.send") throw new Error("Nothing was sent");
   expect(sent.payload.message.attachments).toEqual([finding.attachment]);
+});
+
+it("holds a continuation whose finding did not pack, and a removed finding sends no parent", async () => {
+  host.addThread("p1", { scope: "program", title: "Forks on 8.4" }, "Open");
+  await act(async () => host.relist());
+  const target = { subject: "finding:p1", label: "Finding · Forks on 8.4", parent: "p1" };
+  await act(async () => threadStore.getState().startDraft("legal", target));
+  await go("#thread/new");
+  expect(notice()).toBe("No sweep has been saved.");
+  await type("Bump it here.");
+  await click(buttonNamed("Send"));
+  expect([...host.sent("thread.start"), ...host.sent("thread.send")]).toEqual([]);
+  expect(notice()).toBe(
+    "Not sent: the finding this continues did not pack. No sweep has been saved.",
+  );
+  expect(container.querySelector("textarea")?.value).toBe("Bump it here.");
+
+  host.chips.set("finding:p1", { ...PACKED, id: "finding:p1" });
+  await act(async () => threadStore.getState().startDraft("legal", target));
+  await act(async () => threadStore.getState().removeDraftChip());
+  await type("Bump it here.");
+  await click(buttonNamed("Send"));
+  expect(host.sent("thread.start").at(-1)?.payload).toEqual({
+    scope: "legal",
+    title: "Bump it here.",
+  });
 });
 
 it("counts a service's Waiting and Working threads on its Threads tab as the sidebar shows them", async () => {

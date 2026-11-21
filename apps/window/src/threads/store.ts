@@ -12,6 +12,8 @@ import {
 import { createStore } from "zustand/vanilla";
 import type { Route } from "../app/navigation.js";
 import type { PendingSend } from "./entries.js";
+import type { LandsInChoice } from "./LandsInChip.js";
+import { PLACE_SCOPES } from "./scopes.js";
 import type { ModelChoice } from "./types.js";
 
 type Request = Extract<Message, { kind: "request" }>;
@@ -47,8 +49,10 @@ export interface Draft {
   opened?: number;
   /** The words the draft opens with, as a sentence asked from Find. */
   text?: string;
-  /** The thread this draft continues. */
+  /** The thread this draft continues, whose finding must be its chip. */
   parent?: string;
+  /** Where a Template or Environment draft's work lands; absent is Asking. */
+  landsIn?: LandsInChoice;
   from?: DraftFrom;
   subject?: { id: string; label: string };
   origin?: string;
@@ -82,6 +86,7 @@ type ThreadsState = {
   setTarget(target: AskTarget | null): void;
   startDraft(scope: string, target?: AskTarget | null, from?: DraftFrom, text?: string): void;
   setDraftScope(scope: string): void;
+  setDraftLandsIn(choice: LandsInChoice): void;
   /** Attaches a row as the draft's one chip, in place of any chip there. */
   attachDraftChip(target: AskTarget): void;
   removeDraftChip(): void;
@@ -133,6 +138,10 @@ export function lastChoice(events: readonly ThreadWireEvent[] | undefined): Mode
 /** What a send with a chip and no words asks; the empty composer shows it as its placeholder. */
 export const CHIP_ONLY_PROMPT =
   "Look at what's attached and tell me what stands out and what I should do next.";
+
+/** The chip a continuation must carry: its parent's last answer. */
+export const findingOf = (parent: string) => `finding:${parent}`;
+const landsInScope = (scope: string) => PLACE_SCOPES.some(({ id }) => id === scope);
 
 const withoutSending = ({ sending: _, ...draft }: Draft): Draft => draft;
 /** The draft as it was before a send that started no thread, its words put back. */
@@ -369,13 +378,20 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
         const { draft } = get();
         if (draft) set({ draft: { ...draft, scope } });
       },
+      setDraftLandsIn(choice) {
+        const { draft } = get();
+        if (!draft || draft.sending !== undefined) return;
+        const { landsIn: _, ...rest } = draft;
+        set({ draft: choice === "asking" ? rest : { ...rest, landsIn: choice } });
+      },
       attachDraftChip(target) {
         const { draft } = get();
         if (!draft || draft.sending !== undefined) return;
-        const { failure: _, origin: __, ...rest } = draft;
+        const { failure: _, origin: __, parent: ___, ...rest } = draft;
         set({
           draft: {
             ...rest,
+            ...(target.parent ? { parent: target.parent } : {}),
             subject: { id: target.subject, label: target.label },
             ...(target.origin ? { origin: target.origin } : {}),
             chip: { state: "packing" },
@@ -386,7 +402,7 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
       removeDraftChip() {
         const { draft } = get();
         if (!draft) return;
-        const { chip: _, subject: __, ...rest } = draft;
+        const { chip: _, subject: __, parent: ___, ...rest } = draft;
         set({ draft: rest });
       },
       sendDraft({ words, chipOnly: asked }, onStarted) {
@@ -397,6 +413,19 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
         const chipOnly = asked && chip !== undefined;
         const text = asked ? CHIP_ONLY_PROMPT : words.trim();
         const { failure: _, ...rest } = draft;
+        if (draft.parent && chip?.id !== findingOf(draft.parent)) {
+          const why = draft.chip?.state === "done" && !draft.chip.ok ? ` ${draft.chip.reason}` : "";
+          set({
+            draft: {
+              ...rest,
+              failure: {
+                reason: `Not sent: the finding this continues did not pack.${why}`,
+                words,
+              },
+            },
+          });
+          return;
+        }
         const sending = {
           words,
           message: {
@@ -412,6 +441,9 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
           title: threadTitle(chipOnly && draft.subject ? draft.subject.label : text),
           ...(draft.subject && chip ? { subject: draft.subject.id } : {}),
           ...(draft.parent ? { parent: draft.parent } : {}),
+          ...(draft.landsIn && draft.landsIn !== "asking" && landsInScope(draft.scope)
+            ? { landsIn: { target: draft.landsIn } }
+            : {}),
         };
         const serial = draftSerial;
         const onReply = (reply: Message) => {

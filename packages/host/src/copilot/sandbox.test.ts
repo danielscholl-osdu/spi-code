@@ -344,6 +344,31 @@ describe("Copilot sandbox preflight", () => {
     });
   });
 
+  it.for([
+    ["created", undefined],
+    ["resumed", "session-prior"],
+  ] as const)(
+    "registers no shell and runs no preflight in a %s Program session",
+    async ([, resumeId]) => {
+      const runtime = recordedRuntime("blocked", root);
+      const thread = await runtime.open(resumeId, "darwin", { tempPath: roots.temp });
+      const opened = resumeId
+        ? runtime.client.resumeSession.mock.calls[0]?.[1]
+        : runtime.client.createSession.mock.calls[0]?.[0];
+      expect(opened?.availableTools).toEqual(customOnly);
+      const updates = runtime.session.rpc.options.update.mock.calls.map(([options]) => options);
+      expect(updates.some((options) => options.availableTools.includes("builtin:bash"))).toBe(
+        false,
+      );
+      expect(updates.some((options) => "shell" in options)).toBe(false);
+      expect(runtime.session.rpc.tools.initializeAndValidate).not.toHaveBeenCalled();
+      expect(runtime.session.rpc.tools.execute).not.toHaveBeenCalled();
+      expect(thread.sandbox).toEqual({ kind: "not-confined", reason: "preflight-not-run" });
+      await thread.send({ prompt: "Ask" });
+      expect(runtime.session.send).toHaveBeenCalledOnce();
+    },
+  );
+
   it("releases the attestation and requires a fresh preflight on resume", async () => {
     const original = recordedRuntime("blocked", root);
     const thread = await original.open();

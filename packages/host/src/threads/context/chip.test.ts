@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { detailFeedPath, recordedSnapshotPath } from "../../../test/watch/snapshot-fixture.js";
 import { CHIP_BYTE_BUDGET, type PackedChip, packChip, TRIMMED_CHIP_KEEPS } from "./chip.js";
 import { addChip, chipFromSweep, MAX_CHIPS, refreshChip, snapshotChips } from "./draft.js";
+import { packFinding } from "./finding.js";
 import { PLACES } from "./places.js";
 import type { SavedSweep } from "./sweep.js";
 
@@ -249,5 +250,31 @@ describe("a draft's chips", () => {
       ok: false,
       reason: "Nothing in the latest sweep has the id nope.",
     });
+  });
+});
+
+describe("a finding chip", () => {
+  const answered = (text: string) =>
+    ({
+      read: () => ({
+        thread: { scope: "program", title: "Forks on 8.4" },
+        turns: [{ id: "u1", outcome: "completed", text }],
+      }),
+      eventsSince: () => [{ type: "turn.finished", turnId: "u1", at: Date.UTC(2026, 10, 16) }],
+    }) as unknown as Parameters<typeof packFinding>[0];
+
+  it("cuts an over-budget multibyte answer to a prefix measured in serialized UTF-8 bytes", () => {
+    const opening = "Search and legal pin 8.4. ";
+    const outcome = packFinding(answered(opening + "🙂".repeat(4000)), "finding:p1", plain);
+    if (!outcome.ok) throw new Error(outcome.reason);
+    const { finding } = outcome.chip.chip;
+    if (typeof finding !== "string") throw new Error("No finding");
+    expect(outcome.chip.trimmed).toBe(true);
+    expect(finding.startsWith(`${opening}🙂`)).toBe(true);
+    expect(finding.endsWith("🙂…")).toBe(true);
+    expect(Buffer.from(finding).toString()).toBe(finding);
+    expect(outcome.chip.bytes).toBe(Buffer.byteLength(outcome.chip.content));
+    expect(outcome.chip.bytes).toBeLessThanOrEqual(CHIP_BYTE_BUDGET);
+    expect(outcome.chip.bytes).toBeGreaterThan(CHIP_BYTE_BUDGET - 4);
   });
 });
