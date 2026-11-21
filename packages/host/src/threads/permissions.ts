@@ -84,8 +84,17 @@ async function canonicalWritePath(base: string, path: string): Promise<string | 
       const candidate = resolve(physical, ...physicalSuffix);
       if (candidate !== resolve(lexical, ...lexicalSuffix)) return undefined;
       if (physicalSuffix.length === 0) {
-        const info = await nativeLstat(candidate);
-        if (!info.isFile() || info.nlink > 1) return undefined;
+        const [physicalInfo, lexicalInfo] = await Promise.all([
+          nativeLstat(physicalSpelling),
+          nativeLstat(lexicalSpelling),
+        ]);
+        if (
+          !physicalInfo.isFile() ||
+          physicalInfo.nlink > 1 ||
+          !lexicalInfo.isFile() ||
+          lexicalInfo.nlink > 1
+        )
+          return undefined;
       }
       return candidate;
     } catch {
@@ -128,19 +137,25 @@ async function readIsAllowed(workspace: SandboxWorkspace, request: PermissionReq
   );
 }
 
-async function writeIsAllowed(workspace: SandboxWorkspace, request: PermissionRequest) {
-  if (request.kind !== "write" || !workspace.worktreePath) return false;
-  if (request.fileEdits !== undefined && !Array.isArray(request.fileEdits)) return false;
+type WriteCheck = "allowed" | "disallowed-path" | "multiple-files";
+
+async function checkWrite(
+  workspace: SandboxWorkspace,
+  request: PermissionRequest,
+): Promise<WriteCheck> {
+  if (request.kind !== "write" || !workspace.worktreePath) return "disallowed-path";
+  if (request.fileEdits !== undefined && !Array.isArray(request.fileEdits))
+    return "disallowed-path";
   const base = workspace.worktreePath;
   const edits: string[] = [];
   for (const edit of request.fileEdits ?? []) {
-    if (!edit || typeof edit !== "object") return false;
+    if (!edit || typeof edit !== "object") return "disallowed-path";
     if (edit.before !== undefined) {
-      if (!edit.before || typeof edit.before.path !== "string") return false;
+      if (!edit.before || typeof edit.before.path !== "string") return "disallowed-path";
       edits.push(edit.before.path);
     }
     if (edit.after !== undefined) {
-      if (!edit.after || typeof edit.after.path !== "string") return false;
+      if (!edit.after || typeof edit.after.path !== "string") return "disallowed-path";
       edits.push(edit.after.path);
     }
   }
@@ -159,14 +174,15 @@ async function writeIsAllowed(workspace: SandboxWorkspace, request: PermissionRe
     ),
     Promise.all(paths.map((path) => canonicalWritePath(base, path))),
   ]);
-  const [fileName, ...attested] = canonical;
-  return (
+  const allowedPath = (path: string | undefined): path is string =>
     root !== undefined &&
-    fileName !== undefined &&
-    inside(root, fileName) &&
-    !forbidden.some((dir) => dir !== undefined && inside(dir, fileName)) &&
-    attested.every((path) => path === fileName)
-  );
+    path !== undefined &&
+    inside(root, path) &&
+    !forbidden.some((dir) => dir !== undefined && inside(dir, path));
+  const [fileName, ...attested] = canonical;
+  if (!allowedPath(fileName) || attested.some((path) => !allowedPath(path)))
+    return "disallowed-path";
+  return attested.every((path) => path === fileName) ? "allowed" : "multiple-files";
 }
 
 function carriesEscalation(request: PermissionRequest): boolean {
@@ -218,15 +234,17 @@ function presentation(request: PermissionRequest) {
 function deniedReason(
   request: PermissionRequest,
   gateDenied: boolean,
-  writePathDenied: boolean,
+  writeCheck: WriteCheck,
 ): string {
   if (carriesEscalation(request)) return "Sandbox bypasses and path grants are not allowed.";
   if (carriesRedactionMarker(request))
     return "This edit contains redacted text and cannot be written back.";
-  if (gateDenied || writePathDenied)
+  if (gateDenied || writeCheck === "disallowed-path")
     return request.kind === "write"
       ? "This thread is not allowed to edit this path."
       : "The sandbox denied this request.";
+  if (writeCheck === "multiple-files")
+    return "This edit names more than one file and cannot be approved as one change.";
   if (request.kind === "write" && writeDiff(request) === undefined)
     return "This edit has no diff to show for approval.";
   if (request.kind === "write") return "This thread is Asking and cannot edit files.";
@@ -255,10 +273,14 @@ export function askingPermission(
     if (!events) return { kind: "reject" };
     const table = permissionDecision(request.kind, mode);
     let decision: PermissionDecision = gateDenied || carriesEscalation(request) ? "deny" : table;
-    let writePathDenied = false;
+    let writeCheck: WriteCheck = "allowed";
     if (request.kind === "write" && decision !== "deny") {
-      writePathDenied = !(await writeIsAllowed(workspace, request));
-      if (writePathDenied || carriesRedactionMarker(request) || writeDiff(request) === undefined)
+      writeCheck = await checkWrite(workspace, request);
+      if (
+        writeCheck !== "allowed" ||
+        carriesRedactionMarker(request) ||
+        writeDiff(request) === undefined
+      )
         decision = "deny";
       else if (request.managedApprovalRequired) decision = "ask";
     }
@@ -279,9 +301,7 @@ export function askingPermission(
         approvalId: randomUUID(),
         kind: request.kind,
         ...shown,
-        ...(decision === "deny"
-          ? { reason: deniedReason(request, gateDenied, writePathDenied) }
-          : {}),
+        ...(decision === "deny" ? { reason: deniedReason(request, gateDenied, writeCheck) } : {}),
       },
       decision === "ask" ? undefined : decision === "pass",
     );

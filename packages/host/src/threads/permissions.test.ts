@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { execFileSync } from "node:child_process";
 import {
   linkSync,
   mkdirSync,
@@ -357,7 +358,7 @@ const boundaryRows = [
         resolvedPath: join(paths.worktreePath, "other.ts"),
       }) as PermissionRequest,
     gateDenied: false,
-    reason: "This thread is not allowed to edit this path.",
+    reason: "This edit names more than one file and cannot be approved as one change.",
   },
   {
     name: "an outside fileEdits path",
@@ -405,7 +406,7 @@ const boundaryRows = [
         ],
       }) as PermissionRequest,
     gateDenied: false,
-    reason: "This thread is not allowed to edit this path.",
+    reason: "This edit names more than one file and cannot be approved as one change.",
   },
   {
     name: "a fileEdits rename to another file inside the worktree",
@@ -421,7 +422,7 @@ const boundaryRows = [
         ],
       }) as PermissionRequest,
     gateDenied: false,
-    reason: "This thread is not allowed to edit this path.",
+    reason: "This edit names more than one file and cannot be approved as one change.",
   },
   {
     name: "a second fileEdits entry for another file inside the worktree",
@@ -439,6 +440,33 @@ const boundaryRows = [
           },
         ],
       }) as PermissionRequest,
+    gateDenied: false,
+    reason: "This edit names more than one file and cannot be approved as one change.",
+  },
+  {
+    name: "an array-like fileEdits object",
+    request: (paths: ReturnType<typeof workspace>) =>
+      ({
+        ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+        fileName: join(paths.worktreePath, "src.ts"),
+        fileEdits: {
+          0: { before: { path: join(paths.worktreePath, "other.ts"), content: "a" } },
+          length: 1,
+        },
+      }) as unknown as PermissionRequest,
+    gateDenied: false,
+    reason: "This thread is not allowed to edit this path.",
+  },
+  {
+    name: "a symlink leaf inside the worktree",
+    request: (paths: ReturnType<typeof workspace>) => {
+      const alias = join(paths.worktreePath, "alias.ts");
+      symlinkSync(join(paths.worktreePath, "other.ts"), alias, "file");
+      return {
+        ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+        fileName: alias,
+      } as PermissionRequest;
+    },
     gateDenied: false,
     reason: "This thread is not allowed to edit this path.",
   },
@@ -524,6 +552,39 @@ it.each(boundaryRows.flatMap((row) => modes.map((mode) => ({ ...row, mode }))))(
     expect(requestApproval).toHaveBeenCalledWith(expect.objectContaining({ reason }), false);
   },
 );
+
+for (const mode of modes) {
+  it.skipIf(process.platform === "win32")(
+    `denies a FIFO target inside the worktree in ${mode} mode`,
+    async () => {
+      const paths = workspace();
+      const pipe = join(paths.worktreePath, "pipe");
+      execFileSync("mkfifo", [pipe]);
+      const requestApproval = vi.fn(
+        async (_request: object, decision?: boolean) => decision !== false,
+      );
+      const events = {
+        requestApproval,
+        thinking() {},
+        delta() {},
+        toolStarted() {},
+        toolFinished() {},
+      };
+      const result = await askingPermission(paths, () => events, { mode })(
+        {
+          ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+          fileName: pipe,
+        },
+        { sessionId: "fixture" },
+      );
+      expect(result).toEqual({ kind: "reject" });
+      expect(requestApproval).toHaveBeenCalledWith(
+        expect.objectContaining({ reason: "This thread is not allowed to edit this path." }),
+        false,
+      );
+    },
+  );
+}
 
 it("draws new file contents as an all-added diff", async () => {
   const paths = workspace();

@@ -45,6 +45,7 @@ import { ThreadRoutes } from "./routes.js";
 import { openThreadHost } from "./wiring.js";
 
 const sandbox = { kind: "confined", backend: "seatbelt" } as const;
+const WAIT_TIMEOUT_MS = 10_000;
 const synthetic =
   "Tool execution was interrupted before a result was recorded. Its effects may be absent, partial, or already complete.";
 
@@ -102,10 +103,21 @@ class RecordedSession {
     };
   }
 
-  async waitForSend(count = 1) {
+  async waitForSend(count = 1, signal?: AbortSignal) {
     while (this.send.mock.calls.length < count) {
+      if (signal?.aborted) return;
       await new Promise<void>((resolve) => {
-        this.sendWaiters.push(resolve);
+        const wake = () => {
+          signal?.removeEventListener("abort", onAbort);
+          resolve();
+        };
+        const onAbort = () => {
+          const index = this.sendWaiters.indexOf(wake);
+          if (index !== -1) this.sendWaiters.splice(index, 1);
+          resolve();
+        };
+        this.sendWaiters.push(wake);
+        signal?.addEventListener("abort", onAbort, { once: true });
       });
     }
   }
@@ -255,44 +267,71 @@ async function connect(
     1,
     host.routes,
   );
+  const requestTypes = new Map<string, string>();
   let index = 0;
   function dispatch<T extends Extract<Message, { kind: "request" }>>(
     type: T["type"],
     payload: T["payload"],
   ) {
     const id = String(++index);
+    requestTypes.set(id, type);
     receive({ data: { version: PROTOCOL_VERSION, id, kind: "request", type, payload } });
     return id;
   }
-  function waitForOutput<T>(check: () => T | undefined): Promise<T> {
+  function waitForOutput<T>(
+    check: () => T | undefined,
+    what = "host output",
+    timeoutMs = WAIT_TIMEOUT_MS,
+  ): Promise<T> {
     const existing = check();
     if (existing !== undefined) return Promise.resolve(existing);
-    return new Promise<T>((resolve) => {
+    return new Promise<T>((resolve, reject) => {
+      const timer = globalThis.setTimeout(() => {
+        outputWaiters.delete(wake);
+        reject(new Error(`Timed out after ${timeoutMs}ms waiting for ${what}`));
+      }, timeoutMs);
       const wake = () => {
         const match = check();
         if (match === undefined) return;
+        globalThis.clearTimeout(timer);
         outputWaiters.delete(wake);
         resolve(match);
       };
       outputWaiters.add(wake);
     });
   }
-  function response(id: string) {
-    return waitForOutput(() =>
-      output.find((entry) => entry.id === id && entry.kind === "response"),
+  function response(id: string, timeoutMs = WAIT_TIMEOUT_MS) {
+    const type = requestTypes.get(id);
+    const what = type ? `response to ${type} request ${id}` : `response to request ${id}`;
+    return waitForOutput(
+      () => output.find((entry) => entry.id === id && entry.kind === "response"),
+      what,
+      timeoutMs,
     );
   }
   const events = () =>
     output.flatMap((entry): ThreadWireEvent[] =>
       entry.type === "thread.events" ? entry.payload.events : [],
     );
-  function waitForEvent(match: (event: ThreadWireEvent) => boolean) {
-    return waitForOutput(() => events().find(match));
+  function waitForEvent(
+    match: (event: ThreadWireEvent) => boolean,
+    what = "matching thread event",
+    timeoutMs = WAIT_TIMEOUT_MS,
+  ) {
+    return waitForOutput(() => events().find(match), what, timeoutMs);
   }
-  async function waitForSend(session: RecordedSession | undefined, requestId: string, count = 1) {
+  async function waitForSend(
+    session: RecordedSession | undefined,
+    requestId: string,
+    count = 1,
+    timeoutMs = WAIT_TIMEOUT_MS,
+  ) {
     if (!session) throw new Error("Missing recorded session");
     let settled = false;
     let wakeOutput: (() => void) | undefined;
+    let timer: ReturnType<typeof globalThis.setTimeout> | undefined;
+    const cancelSend = new AbortController();
+    const what = `session ${session.id}.send call ${count} (request ${requestId})`;
     const earlyResponse = new Promise<never>((_resolve, reject) => {
       const check = () => {
         if (settled) return;
@@ -310,11 +349,20 @@ async function connect(
       outputWaiters.add(check);
       check();
     });
+    const deadline = new Promise<never>((_resolve, reject) => {
+      timer = globalThis.setTimeout(() => {
+        if (settled) return;
+        reject(new Error(`Timed out after ${timeoutMs}ms waiting for ${what}`));
+      }, timeoutMs);
+    });
     earlyResponse.catch(() => {});
+    deadline.catch(() => {});
     try {
-      await Promise.race([session.waitForSend(count), earlyResponse]);
+      await Promise.race([session.waitForSend(count, cancelSend.signal), earlyResponse, deadline]);
     } finally {
       settled = true;
+      cancelSend.abort();
+      if (timer !== undefined) globalThis.clearTimeout(timer);
       if (wakeOutput) outputWaiters.delete(wakeOutput);
     }
   }
@@ -340,6 +388,7 @@ async function connect(
       dispatch("thread.send", { threadId, message }),
     stop: () => dispatch("thread.stop", { threadId }),
     events,
+    waitForOutput,
     waitForEvent,
     waitForSend,
     output,
@@ -371,6 +420,7 @@ it("stops the SDK stream, records partial text as not known and releases before 
   });
   await port.waitForEvent(
     (event) => event.type === "assistant.delta" && event.text === "Visible partial\n",
+    "assistant.delta event",
   );
   let release = () => {};
   const held = new Promise<void>((resolve) => {
@@ -388,6 +438,7 @@ it("stops the SDK stream, records partial text as not known and releases before 
   try {
     await port.waitForEvent(
       (event) => event.type === "message.sent" && event.message.prompt === "Continue",
+      "message.sent event",
     );
     await setTimeout(1550);
     expect(open).toHaveBeenCalledOnce();
@@ -565,6 +616,27 @@ it("waits for a slow worktree reopen past one second and surfaces an early reope
     head.mockRestore();
   }
 });
+
+it("rejects waitForOutput and waitForSend at their own deadline naming what was awaited", async () => {
+  const {
+    runtime,
+    sessions: [session],
+  } = recordedRuntime("deadline-session");
+  if (!session) throw new Error("Incomplete recording");
+  const port = await connect(runtime);
+  await expect(port.waitForOutput(() => undefined, "synthetic host message", 25)).rejects.toThrow(
+    /Timed out after 25ms waiting for synthetic host message/u,
+  );
+  await expect(port.response("999", 25)).rejects.toThrow(
+    /Timed out after 25ms waiting for response to request 999/u,
+  );
+  await expect(port.waitForEvent(() => false, "approval.requested event", 25)).rejects.toThrow(
+    /Timed out after 25ms waiting for approval\.requested event/u,
+  );
+  await expect(port.waitForSend(session, "999", 1, 25)).rejects.toThrow(
+    /Timed out after 25ms waiting for session deadline-session\.send call 1 \(request 999\)/u,
+  );
+}, 5000);
 
 it("offers a Program thread no shell or file tools, even confined, and refuses to land it", async () => {
   const { runtime, sessions, open } = recordedRuntime("program-session");
@@ -1128,6 +1200,7 @@ it("restarts after disconnect, keeps tool effects unknown and drops a synthetic 
   });
   await port.waitForEvent(
     (event) => event.type === "assistant.delta" && event.text === "Reply after the read\n",
+    "assistant.delta event",
   );
   after.finish("third");
   expect(await port.response(followUp)).toMatchObject({ payload: { outcome: "completed" } });
@@ -1590,6 +1663,7 @@ it("routes one edit approval to only its thread turn", async () => {
       event.type === "approval.requested" &&
       event.path === join(root, "worktree", "src.ts") &&
       Boolean(event.diff?.includes("+new")),
+    "approval.requested event",
   );
   const request = port
     .events()
@@ -1660,8 +1734,14 @@ it("auto-accepts an edit in the thread's persisted access mode", async () => {
     },
     { sessionId: session.id },
   );
-  await port.waitForEvent((event) => event.type === "approval.requested" && event.kind === "write");
-  await port.waitForEvent((event) => event.type === "approval.resolved" && event.approved === true);
+  await port.waitForEvent(
+    (event) => event.type === "approval.requested" && event.kind === "write",
+    "approval.requested event",
+  );
+  await port.waitForEvent(
+    (event) => event.type === "approval.resolved" && event.approved === true,
+    "approval.resolved event",
+  );
   expect(port.events()).toContainEqual(
     expect.objectContaining({
       type: "approval.resolved",
