@@ -107,17 +107,15 @@ function revision(name: string): string {
   return name === "HEAD" || /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(name) ? name : fullRef(name);
 }
 
+const diffFlags = [submodulesOff, "--no-renames", "--no-ext-diff", "--no-textconv", "--no-color"];
+
 function diffArgs(against: string): string[] {
-  return [
-    submodulesOff,
-    "--no-renames",
-    "--no-ext-diff",
-    "--no-textconv",
-    "--no-color",
-    "--end-of-options",
-    revision(against),
-    "--",
-  ];
+  return [...diffFlags, "--end-of-options", revision(against), "--"];
+}
+
+function objectId(id: string): string {
+  if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(id)) throw new Error("Invalid object id.");
+  return id;
 }
 
 function worktreeId(id: string): string {
@@ -512,6 +510,44 @@ export class PrivilegedGit {
     );
   }
 
+  /** One path as the ref holds it against a blob, as a patch or as numstat. */
+  async diffBlob(
+    target: GitTarget,
+    against: string,
+    path: string,
+    id: string,
+    format: "patch" | "numstat",
+    options: GitOptions = {},
+  ): Promise<ExecResult<string>> {
+    return this.#run(
+      target,
+      [
+        "diff",
+        ...(format === "numstat" ? ["--numstat"] : []),
+        ...diffFlags,
+        "--end-of-options",
+        `${revision(against)}:${worktreePath(path)}`,
+        objectId(id),
+        "--",
+      ],
+      options,
+    );
+  }
+
+  /** A blob's content, refused when it is larger than the limit. */
+  async blob(
+    target: GitTarget,
+    id: string,
+    limit: number,
+    options: GitOptions = {},
+  ): Promise<ExecResult<string>> {
+    const size = await this.#run(target, ["cat-file", "-s", objectId(id)], options);
+    if (!size.ok) return size;
+    if (!(Number(size.data.trim()) <= limit))
+      return { ok: false, error: "The file is too large to show.", code: null };
+    return this.#run(target, ["cat-file", "blob", id], options);
+  }
+
   /** Discards local changes and detaches HEAD at the ref. */
   async checkoutDetached(
     target: GitTarget,
@@ -652,6 +688,22 @@ export class PrivilegedGit {
     if (paths.length === 0) throw new Error("Invalid worktree path.");
     const pathspecs = paths.map(worktreePath);
     return this.#confined(target, ["add", "--", ...pathspecs], {}, options);
+  }
+
+  /** Writes each worktree file to the object store, confined, and prints one id per path. */
+  async hashFiles(
+    target: WorktreeTarget,
+    paths: readonly string[],
+    options: ConfinedGitOptions = {},
+  ): Promise<ConfinedResult> {
+    if (paths.length === 0) throw new Error("Invalid worktree path.");
+    const files = paths.map(worktreePath);
+    return this.#confined(
+      target,
+      ["hash-object", "-w", "--no-filters", "--", ...files],
+      {},
+      options,
+    );
   }
 
   async commit(

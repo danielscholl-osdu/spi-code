@@ -75,3 +75,36 @@ it("says why the worktree was not read when the host answers with an error", () 
     reason: "Git is unavailable.",
   });
 });
+
+it("keeps the newest Refresh and drops an older status or diff reply that arrives after it", () => {
+  const { store, posted, reply } = host();
+  const read = (uncommitted: boolean) => ({
+    threadId: "t1",
+    changes: { state: "read", head: HEAD, ahead: 0, uncommitted, files: [] },
+  });
+  store.getState().readDiff("t1", "a.txt");
+  const oldDiff = posted.at(-1)?.id;
+  store.getState().refresh("t1");
+  const older = posted.at(-1)?.id;
+  store.getState().refresh("t1");
+  const newer = posted.at(-1)?.id;
+  reply("thread.changes.result", read(true), "response", newer);
+  reply("thread.changes.result", read(false), "response", older);
+  expect(store.getState().changes.t1).toMatchObject({ uncommitted: true });
+  const patch = { state: "read", patch: "+old\n", truncated: false };
+  reply("thread.diff.result", { threadId: "t1", path: "a.txt", diff: patch }, "response", oldDiff);
+  expect(store.getState().diffs).toEqual({});
+});
+
+it("refuses an oversized message with a reason and still commits the next one", () => {
+  const { store, posted } = host();
+  store.getState().commit("t1", "x".repeat(10_001));
+  expect(store.getState().commits.t1).toEqual({
+    outcome: "refused",
+    reason: "A commit message is 10,000 characters at most.",
+  });
+  expect(posted).toEqual([]);
+  store.getState().commit("t1", "Change it");
+  expect(store.getState().commits.t1).toEqual({ outcome: "committing" });
+  expect(posted.map(({ type }) => type)).toEqual(["thread.commit"]);
+});

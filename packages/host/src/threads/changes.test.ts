@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -116,7 +116,9 @@ describe("a thread's changes", { timeout: 120_000 }, () => {
       uncommitted: true,
       files: [
         { path: "answer.txt", added: 2, removed: 1, untracked: false },
-        { path: "notes/new.txt", added: 2, removed: 0, untracked: true },
+        macOnly
+          ? { path: "notes/new.txt", added: null, removed: null, untracked: true }
+          : { path: "notes/new.txt", added: 2, removed: 0, untracked: true },
       ],
     });
     expect(await readFileDiff(git, target, base, "answer.txt")).toMatchObject({
@@ -124,12 +126,88 @@ describe("a thread's changes", { timeout: 120_000 }, () => {
       patch: expect.stringContaining("-two\n+2\n three\n+four\n"),
       truncated: false,
     });
-    expect(await readFileDiff(git, target, base, "notes/new.txt")).toEqual({
-      state: "read",
-      patch: "--- /dev/null\n+++ b/notes/new.txt\n@@ -0,0 +1,2 @@\n+alpha\n+beta\n",
-      truncated: false,
+    expect(await readFileDiff(git, target, base, "notes/new.txt")).toEqual(
+      macOnly
+        ? { state: "not read", reason: "Confined Git is not available on this platform yet." }
+        : {
+            state: "read",
+            patch: "--- /dev/null\n+++ b/notes/new.txt\n@@ -0,0 +1,2 @@\n+alpha\n+beta\n",
+            truncated: false,
+          },
+    );
+  });
+
+  it("reads no untracked file when the sandbox for the read is not there", async () => {
+    const { target, base, cwd } = await landed();
+    await writeFile(join(cwd, "new.txt"), "fixture-content\n");
+    const git = new PrivilegedGit({
+      appData: join(root, "app data"),
+      capturedPath,
+      allowLocalRemotes: true,
+      platform: "darwin",
+      mxc: () => Promise.reject(new Error("Cannot find module")),
+    });
+    expect(await readChanges(git, target, base)).toMatchObject({
+      files: [{ path: "new.txt", added: null, removed: null, untracked: true }],
+    });
+    expect(await readFileDiff(git, target, base, "new.txt")).toEqual({
+      state: "not read",
+      reason: "The sandbox for Git is not available.",
     });
   });
+
+  it.skipIf(macOnly)(
+    "holds the read in the worktree when a parent becomes a link after status",
+    async () => {
+      const { git, target, base, cwd } = await landed();
+      const outside = join(root, "outside");
+      await mkdir(outside);
+      await writeFile(join(outside, "new.txt"), "fixture-secret\n");
+      await mkdir(join(cwd, "notes"));
+      await writeFile(join(cwd, "notes", "new.txt"), "alpha\n");
+      const swapped = new Proxy(git, {
+        get(object, key) {
+          if (key === "statusAll")
+            return async (...args: Parameters<PrivilegedGit["statusAll"]>) => {
+              const status = await object.statusAll(...args);
+              await rename(join(cwd, "notes"), join(root, "moved"));
+              await symlink(outside, join(cwd, "notes"));
+              return status;
+            };
+          const value = Reflect.get(object, key);
+          return typeof value === "function" ? value.bind(object) : value;
+        },
+      });
+      const read = await readChanges(swapped, target, base);
+      expect(read).toMatchObject({
+        files: [{ path: "notes/new.txt", added: null, removed: null, untracked: true }],
+      });
+      await rm(join(cwd, "notes"));
+      await rename(join(root, "moved"), join(cwd, "notes"));
+      const diff = await readFileDiff(swapped, target, base, "notes/new.txt");
+      expect(diff).toMatchObject({ state: "not read" });
+      expect(JSON.stringify(diff)).not.toContain("fixture-secret");
+    },
+  );
+
+  it.skipIf(macOnly)(
+    "counts a file staged for deletion and recreated against the base",
+    async () => {
+      const { git, target, base, cwd } = await landed();
+      await fixtureGit(cwd, "rm", "--quiet", "--", "answer.txt");
+      await writeFile(join(cwd, "answer.txt"), "one\n2\nthree\n");
+      expect(await readChanges(git, target, base)).toMatchObject({
+        uncommitted: true,
+        files: [{ path: "answer.txt", added: 1, removed: 1, untracked: false }],
+      });
+      const diff = await readFileDiff(git, target, base, "answer.txt");
+      expect(diff).toMatchObject({ state: "read", truncated: false });
+      expect(diff.state === "read" && diff.patch).toContain(
+        "@@ -1,3 +1,3 @@\n one\n-two\n+2\n three\n",
+      );
+      expect(diff.state === "read" && diff.patch).not.toContain("/dev/null");
+    },
+  );
 
   it("reads no untracked file through a link, at the leaf or in a parent", async ({ skip }) => {
     skip(process.platform === "win32", "symlinks need privileges on Windows");
@@ -203,6 +281,7 @@ it("shows a refused commit as refused, one that may have run as not known, and a
     timedOut: false,
     warnings: [],
   });
+  const committing = (request: { command: string }) => request.command.includes("--no-verify");
   const sandbox = (run: MxcApi["run"]): Pick<PrivilegedGitOptions, "mxc" | "platform"> => ({
     platform: "darwin",
     mxc: async () => ({
@@ -226,6 +305,33 @@ it("shows a refused commit as refused, one that may have run as not known, and a
       "git exiting with an error",
       sandbox(async (request) => result(proof(request.command), 1)),
       { outcome: "failed", reason: "error: pathspec did not match" },
+    ],
+    [
+      "a commit timing out before the head moved",
+      sandbox(async (request) => ({
+        ...result(proof(request.command), 0),
+        timedOut: committing(request),
+      })),
+      { outcome: "not known", reason: "Git timed out before the head moved. Refresh to check." },
+    ],
+    [
+      "a commit timing out after the head moved",
+      sandbox(async (request) => {
+        if (committing(request))
+          await fixtureGit(
+            cwd,
+            "-c",
+            "user.name=F",
+            "-c",
+            "user.email=f@example.invalid",
+            "commit",
+            "--quiet",
+            "-am",
+            "Timed",
+          );
+        return { ...result(proof(request.command), 0), timedOut: committing(request) };
+      }),
+      { outcome: "committed", head: expect.stringMatching(/^[0-9a-f]{40}$/u) },
     ],
   ];
   for (const [label, confinement, expected] of rows) {
@@ -252,6 +358,23 @@ describe("the operator's identity", () => {
     ["[user]\n\tname =\n\temail\n", {}],
   ])("reads %j", (text, expected) => {
     expect(parseUserIdentity(text)).toEqual(expected);
+  });
+
+  it.each([
+    ["[user]\n\tname = Fixture \\\n Operator\n\temail = operator@example.invalid\n"],
+    ['[user]\n\tname = "Fixture \\\nOperator" ; quoted\n'],
+    ["[user]\n\tsigningkey = abc \\\nname = Not this\n\temail = operator@example.invalid\n"],
+    ["[alias]\n\tx = !echo \\\n[user]\n\tname = Not this\n"],
+  ])("reads a continued value as git does: %j", async (text) => {
+    const file = join(root, "continued-config");
+    await writeFile(file, text);
+    const git = async (key: string) =>
+      fixtureGit(root, "config", "--file", file, "--get", key).catch(() => undefined);
+    const [name, email] = [await git("user.name"), await git("user.email")];
+    expect(parseUserIdentity(text)).toEqual({
+      ...(name ? { name } : {}),
+      ...(email ? { email } : {}),
+    });
   });
 
   it("takes ~/.gitconfig first and the XDG file for what it lacks, and is not known without both", async () => {
