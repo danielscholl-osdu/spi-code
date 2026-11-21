@@ -30,6 +30,7 @@ export type PreparedPublication =
       repository: string;
       repositoryUrl: string;
       sourceRepository: string;
+      sourceProjectId?: number | string;
       base: string;
       forgeHost: string;
       previousHead?: string;
@@ -37,6 +38,7 @@ export type PreparedPublication =
     };
 
 type GitLabProject = {
+  id?: unknown;
   default_branch?: unknown;
   path_with_namespace?: unknown;
   web_url?: unknown;
@@ -160,6 +162,15 @@ async function upstreamPublication(
       },
     };
   if (accessLevel(value) >= 30) {
+    const sourceProjectId = value.id;
+    if (typeof sourceProjectId !== "number" && typeof sourceProjectId !== "string")
+      return {
+        ok: false,
+        publication: {
+          state: "not read",
+          reason: "The upstream project's identity was not read.",
+        },
+      };
     return {
       ok: true,
       publication: {
@@ -172,6 +183,7 @@ async function upstreamPublication(
       repository: upstream.repo,
       repositoryUrl: projectUrl,
       sourceRepository: upstream.repo,
+      sourceProjectId,
       base: defaultBranch,
       forgeHost: new URL(projectUrl).host,
     };
@@ -208,6 +220,15 @@ async function upstreamPublication(
       "You cannot push to upstream, and your sign-in has no fork of it. SPI Code did not create one.",
       projectUrl,
     );
+  const sourceProjectId = fork.id;
+  if (typeof sourceProjectId !== "number" && typeof sourceProjectId !== "string")
+    return {
+      ok: false,
+      publication: {
+        state: "not read",
+        reason: "The operator's GitLab fork identity was not read.",
+      },
+    };
   return {
     ok: true,
     publication: {
@@ -221,6 +242,7 @@ async function upstreamPublication(
     repository: upstream.repo,
     repositoryUrl: projectUrl,
     sourceRepository: fork.path_with_namespace,
+    sourceProjectId,
     base: defaultBranch,
     forgeHost: new URL(projectUrl).host,
   };
@@ -337,6 +359,7 @@ async function existingGitLabRequest(
     repository: upstream.repo,
     repositoryUrl: projectUrl,
     sourceRepository: sourcePath,
+    sourceProjectId,
     base,
     forgeHost: new URL(projectUrl).host,
     previousHead: landing.head,
@@ -431,6 +454,9 @@ export async function preparePublication(
         landing.forge === "github"
           ? landing.repository
           : (destination?.sourceRepository ?? landing.repository),
+      ...(destination?.sourceProjectId !== undefined
+        ? { sourceProjectId: destination.sourceProjectId }
+        : {}),
       ...(destination?.remoteUrl ? { remoteUrl: destination.remoteUrl } : {}),
       base: upstreamDefault ?? "main",
       forgeHost:
@@ -515,7 +541,7 @@ async function existingRequest(
           "--state",
           "open",
           "--json",
-          "url,number",
+          "url,number,isCrossRepository,headRepositoryOwner",
         ]
       : [
           "mr",
@@ -536,11 +562,42 @@ async function existingRequest(
   if (!Array.isArray(listed.data))
     return { ok: false, reason: "The branch's open request was not read." };
   for (const entry of listed.data) {
-    if (!object(entry)) continue;
+    if (!object(entry)) return { ok: false, reason: "The branch's open request was not read." };
     const url = entry.url ?? entry.web_url;
-    if (typeof url !== "string") continue;
+    if (typeof url !== "string")
+      return { ok: false, reason: "The branch's open request was not read." };
     const request = parsedRequest(url, publication.opens, prepared);
-    if (!request) continue;
+    if (!request) return { ok: false, reason: "The branch's open request was not read." };
+    if (publication.opens === "pull-request") {
+      const owner = entry.headRepositoryOwner;
+      const expectedOwner = prepared.sourceRepository.split("/")[0]?.toLowerCase();
+      const expectedCrossRepository =
+        prepared.sourceRepository.toLowerCase() !== prepared.repository.toLowerCase();
+      if (
+        !object(owner) ||
+        typeof owner.login !== "string" ||
+        typeof entry.isCrossRepository !== "boolean" ||
+        owner.login.toLowerCase() !== expectedOwner ||
+        entry.isCrossRepository !== expectedCrossRepository
+      ) {
+        return {
+          ok: false,
+          reason: "The branch's request did not match this push's source repository.",
+        };
+      }
+    } else {
+      const sourceProjectId = entry.source_project_id;
+      if (
+        (typeof sourceProjectId !== "number" && typeof sourceProjectId !== "string") ||
+        prepared.sourceProjectId === undefined ||
+        String(sourceProjectId) !== String(prepared.sourceProjectId)
+      ) {
+        return {
+          ok: false,
+          reason: "The branch's request did not match this push's source project.",
+        };
+      }
+    }
     return { ok: true, request };
   }
   return { ok: true };

@@ -154,6 +154,16 @@ function isMissing(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
 
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await lstat(path);
+    return true;
+  } catch (error) {
+    if (isMissing(error)) return false;
+    throw error;
+  }
+}
+
 function isWithin(root: string, child: string): boolean {
   const path = relative(root, child);
   return !!path && !isAbsolute(path) && path !== ".." && !path.startsWith(`..${sep}`);
@@ -339,6 +349,8 @@ function fixedArgs(runtime: Runtime): string[] {
     "-c",
     "gc.auto=0",
     "-c",
+    "core.commitGraph=false",
+    "-c",
     "submodule.recurse=false",
     "-c",
     "commit.gpgSign=false",
@@ -473,14 +485,20 @@ export class PrivilegedGit {
     ) {
       throw new Error("Invalid Git remote URL.");
     }
+    const runtime = await this.#getRuntime();
+    const { common } = await this.#resolve(runtime, target);
+    if (
+      (await pathExists(join(common, "remotes", name))) ||
+      (await pathExists(join(common, "branches", name)))
+    ) {
+      return { ok: false, error: `Remote ${name} has legacy Git configuration.`, code: 2 };
+    }
     const existing = await this.remoteUrl(target, name, options);
     if (existing.ok) {
       return existing.data.trim() === url
         ? { ok: true, data: existing.data }
         : { ok: false, error: `Remote ${name} already has a different URL.`, code: 2 };
     }
-    const runtime = await this.#getRuntime();
-    const { common } = await this.#resolve(runtime, target);
     const added = await execGit(
       runtime,
       [`--git-dir=${common}`, `--work-tree=${target.worktree?.cwd ?? target.clone}`],

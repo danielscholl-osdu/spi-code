@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { execFile, spawnSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   cp,
   lstat,
@@ -942,6 +942,105 @@ describe("privileged Git", () => {
       expect(
         await fixtureGit(root, "--git-dir", origin, "rev-parse", "refs/heads/spi/replace-guard"),
       ).toBe(remoteHead);
+    },
+  );
+
+  it("ignores a forged commit-graph when checking the remote ancestor", async () => {
+    const git = gitRunner();
+    const workspace = await checkout(git);
+    const id = ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid"];
+    const base = await fixtureGit(workspace.cwd, "rev-parse", "HEAD");
+    await writeFile(join(workspace.cwd, "remote.txt"), "remote");
+    await fixtureGit(workspace.cwd, "add", "--", "remote.txt");
+    await fixtureGit(workspace.cwd, ...id, "commit", "-m", "Remote side");
+    const remoteHead = await fixtureGit(workspace.cwd, "rev-parse", "HEAD");
+    await fixtureGit(workspace.cwd, "push", origin, `${remoteHead}:refs/heads/spi/graph-guard`);
+    await fixtureGit(workspace.cwd, "checkout", "--detach", base);
+    await writeFile(join(workspace.cwd, "local.txt"), "local");
+    await fixtureGit(workspace.cwd, "add", "--", "local.txt");
+    await fixtureGit(workspace.cwd, ...id, "commit", "-m", "Local side");
+    const localHead = await fixtureGit(workspace.cwd, "rev-parse", "HEAD");
+    const target = { clone: workspace.cwd };
+    expect(await git.isAncestor(target, remoteHead, localHead)).toEqual({
+      ok: true,
+      data: false,
+    });
+
+    await fixtureGit(workspace.cwd, "update-ref", "refs/probe/r", remoteHead);
+    await fixtureGit(workspace.cwd, "update-ref", "refs/probe/l", localHead);
+    await fixtureGit(
+      workspace.cwd,
+      "-c",
+      "commitGraph.generationVersion=1",
+      "commit-graph",
+      "write",
+      "--reachable",
+    );
+    await fixtureGit(workspace.cwd, "update-ref", "-d", "refs/probe/r");
+    await fixtureGit(workspace.cwd, "update-ref", "-d", "refs/probe/l");
+    const file = join(workspace.gitDirectory, "objects", "info", "commit-graph");
+    const graph = await readFile(file);
+    const chunks = graph[6] ?? 0;
+    const offsets = new Map<string, number>();
+    for (let index = 0; index <= chunks; index += 1) {
+      const at = 8 + index * 12;
+      offsets.set(graph.toString("latin1", at, at + 4), Number(graph.readBigUInt64BE(at + 4)));
+    }
+    const oidl = offsets.get("OIDL") ?? 0;
+    const cdat = offsets.get("CDAT") ?? 0;
+    const count = (cdat - oidl) / 20;
+    const indexOf = (oid: string) => {
+      for (let index = 0; index < count; index += 1)
+        if (graph.toString("hex", oidl + index * 20, oidl + index * 20 + 20) === oid) return index;
+      throw new Error("Object is absent from the planted commit-graph.");
+    };
+    const entry = (oid: string) => cdat + indexOf(oid) * 36;
+    const level = graph.readUInt32BE(entry(remoteHead) + 28) >>> 2;
+    const local = entry(localHead);
+    graph.writeUInt32BE(indexOf(remoteHead), local + 20);
+    const low = graph.readUInt32BE(local + 28) & 3;
+    graph.writeUInt32BE((((level + 1) << 2) | low) >>> 0, local + 28);
+    createHash("sha1")
+      .update(graph.subarray(0, graph.length - 20))
+      .digest()
+      .copy(graph, graph.length - 20);
+    await rm(file, { force: true });
+    await writeFile(file, graph);
+
+    const ancestor = await git.isAncestor(target, remoteHead, localHead);
+    const pushed =
+      ancestor.ok && ancestor.data
+        ? await git.push(target, {
+            remote: "origin",
+            source: localHead,
+            destination: "refs/heads/spi/graph-guard",
+            expectedHead: remoteHead,
+          })
+        : undefined;
+    expect(ancestor).toEqual({ ok: true, data: false });
+    expect(pushed).toBeUndefined();
+    expect(
+      await fixtureGit(root, "--git-dir", origin, "rev-parse", "refs/heads/spi/graph-guard"),
+    ).toBe(remoteHead);
+  });
+
+  it.each(["remotes", "branches"] as const)(
+    "refuses a legacy .git/%s file for the remote being added",
+    async (directory) => {
+      const git = gitRunner();
+      const workspace = await checkout(git);
+      const target = { clone: workspace.cwd };
+      const url = "https://gitlab.example.invalid/operator/partition.git";
+      await mkdir(join(workspace.gitDirectory, directory), { recursive: true });
+      await writeFile(join(workspace.gitDirectory, directory, "operator"), `URL: ${url}\n`);
+
+      await expect(git.addRemote(target, "operator", url)).resolves.toMatchObject({
+        ok: false,
+        error: expect.stringContaining("legacy Git configuration"),
+      });
+      expect(await readFile(join(workspace.gitDirectory, "config"), "utf8")).not.toContain(
+        '[remote "operator"]',
+      );
     },
   );
 

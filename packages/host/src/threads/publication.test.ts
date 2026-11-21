@@ -56,7 +56,14 @@ class ForgeExec implements Exec {
       return {
         ok: true,
         data: (this.created
-          ? [{ url: `https://github.com/${GITHUB}/pull/42`, number: 42 }]
+          ? [
+              {
+                url: `https://github.com/${GITHUB}/pull/42`,
+                number: 42,
+                isCrossRepository: false,
+                headRepositoryOwner: { login: "Azure" },
+              },
+            ]
           : []) as T,
         exitCode: 0,
       };
@@ -68,6 +75,10 @@ class ForgeExec implements Exec {
               {
                 web_url: `https://${GITLAB_HOST}/${GITLAB}/-/merge_requests/73`,
                 iid: 73,
+                source_project_id:
+                  this.mode === "fork" || this.mode === "source-fork" || this.mode === "spoof-fork"
+                    ? 102
+                    : 101,
               },
             ]
           : []) as T,
@@ -94,6 +105,7 @@ class ForgeExec implements Exec {
       return {
         ok: true,
         data: {
+          id: sourceFork ? 102 : 101,
           path_with_namespace: sourceFork ? "operator/partition" : GITLAB,
           web_url: `https://${GITLAB_HOST}/${sourceFork ? "operator/partition" : GITLAB}`,
           default_branch: "trunk",
@@ -115,6 +127,7 @@ class ForgeExec implements Exec {
       data: (this.mode === "fork" || this.mode === "spoof-fork"
         ? [
             {
+              id: 102,
               path_with_namespace: "operator/partition",
               web_url:
                 this.mode === "spoof-fork"
@@ -167,6 +180,54 @@ class ForgeExec implements Exec {
     if (opts.cwd !== forgeCwd)
       throw new Error(`Forge fixture ran outside its host directory: ${opts.cwd ?? "none"}`);
     appendFileSync(record, `${cmd} ${JSON.stringify(args)}\n`);
+  }
+}
+
+class ListedRequestExec extends ForgeExec {
+  constructor(
+    mode: ForgeMode,
+    readonly ownership: "own" | "foreign",
+  ) {
+    super(mode);
+  }
+
+  override async runJSON<T = unknown>(
+    cmd: string,
+    args: string[],
+    opts: ExecOptions = {},
+  ): Promise<ExecResult<T>> {
+    if (cmd === "gh" && args[0] === "pr" && args[1] === "list") {
+      appendFileSync(record, `${cmd} ${JSON.stringify(args)}\n`);
+      return {
+        ok: true,
+        data: [
+          {
+            url: `https://github.com/${GITHUB}/pull/666`,
+            number: 666,
+            isCrossRepository: this.ownership === "foreign",
+            headRepositoryOwner: {
+              login: this.ownership === "foreign" ? "stranger" : "Azure",
+            },
+          },
+        ] as T,
+        exitCode: 0,
+      };
+    }
+    if (cmd === "glab" && args[0] === "mr" && args[1] === "list") {
+      appendFileSync(record, `${cmd} ${JSON.stringify(args)}\n`);
+      return {
+        ok: true,
+        data: [
+          {
+            web_url: `https://${GITLAB_HOST}/${GITLAB}/-/merge_requests/666`,
+            iid: 666,
+            source_project_id: this.ownership === "foreign" ? 999 : 102,
+          },
+        ] as T,
+        exitCode: 0,
+      };
+    }
+    return super.runJSON<T>(cmd, args, opts);
   }
 }
 
@@ -429,6 +490,66 @@ describe("publication destinations", () => {
     },
   );
 
+  it.each([
+    ["fork-main" as const, "direct" as const],
+    ["upstream" as const, "fork" as const],
+  ])("does not adopt a stranger's %s request for the same branch name", async (target, mode) => {
+    const scope = new ScopeRegistry().lookup("partition");
+    if (!scope) throw new Error("Missing partition");
+    const exec = new ListedRequestExec(mode, "foreign");
+    const prepared = await preparePublication(exec, scope, landing(target), forgeCwd);
+    if (!prepared.ok) throw new Error("Expected ready");
+    const { git } = runner();
+    const result = await publishChanges(
+      exec,
+      git,
+      gitTarget(),
+      "thread-1",
+      undefined,
+      BASE,
+      HEAD,
+      null,
+      prepared,
+      forgeCwd,
+    );
+    expect(result.publication).toMatchObject({ outcome: "not known" });
+    expect(result).not.toHaveProperty("request");
+    expect(await readFile(record, "utf8")).not.toMatch(/pr create|mr create/u);
+  });
+
+  it.each([
+    ["fork-main" as const, "direct" as const],
+    ["upstream" as const, "fork" as const],
+  ])("adopts %s's own request from the branch lookup", async (target, mode) => {
+    const scope = new ScopeRegistry().lookup("partition");
+    if (!scope) throw new Error("Missing partition");
+    const exec = new ListedRequestExec(mode, "own");
+    const prepared = await preparePublication(exec, scope, landing(target), forgeCwd);
+    if (!prepared.ok) throw new Error("Expected ready");
+    const { git } = runner();
+    await expect(
+      publishChanges(
+        exec,
+        git,
+        gitTarget(),
+        "thread-1",
+        undefined,
+        BASE,
+        HEAD,
+        null,
+        prepared,
+        forgeCwd,
+      ),
+    ).resolves.toMatchObject({
+      publication: { outcome: "published", request: { requestNumber: 666 } },
+      request: { requestNumber: 666 },
+    });
+    const commands = await readFile(record, "utf8");
+    if (target === "fork-main")
+      expect(commands).toContain('"--json","url,number,isCrossRepository,headRepositoryOwner"');
+    expect(commands).not.toMatch(/pr create|mr create/u);
+  });
+
   it("runs every forge command from the host-owned empty directory", async () => {
     const scope = new ScopeRegistry().lookup("partition");
     if (!scope) throw new Error("Missing partition");
@@ -638,6 +759,19 @@ describe("publication gates", () => {
       publication: { outcome: "refused", reason: expect.stringContaining("branch head moved") },
     });
     expect(calls.push).toEqual([]);
+  });
+
+  it("names a remote branch deleted when the Thread tab is first observed", async () => {
+    const scope = new ScopeRegistry().lookup("partition");
+    if (!scope) throw new Error("Missing partition");
+    const thread = { ...landing("fork-main"), pushedHead: BASE };
+    const prepared = await preparePublication(forge("direct"), scope, thread, forgeCwd);
+    if (!prepared.ok) throw new Error("Expected ready");
+    const { git } = runner();
+    await expect(observePublication(git, gitTarget(), prepared)).resolves.toEqual({
+      state: "unavailable",
+      reason: "The remote branch was deleted. Update the thread's landing before pushing.",
+    });
   });
 
   it("refuses a non-fast-forward remote and never reaches push", async () => {
