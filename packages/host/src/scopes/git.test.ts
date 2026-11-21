@@ -872,54 +872,50 @@ describe("privileged Git", () => {
     );
   });
 
-  it(
-    "leases an existing branch to the observed head so a move between check and push is refused",
-    async () => {
-      const git = gitRunner();
-      const workspace = await checkout(git);
-      const base = await fixtureGit(seed, "rev-parse", "HEAD");
-      await fixtureGit(seed, "push", origin, "HEAD:refs/heads/spi/race");
-      const added = await git.addBranchWorktree(
-        workspace.cwd,
-        "race",
-        "spi/race",
-        "refs/remotes/origin/main",
-      );
-      if (!added.ok) throw new Error(added.error);
-      await writeFile(join(added.data.worktree.cwd, "answer.txt"), "local");
-      await fixtureGit(added.data.worktree.cwd, "add", "--", "answer.txt");
-      await fixtureGit(
-        added.data.worktree.cwd,
-        "-c",
-        "user.name=Fixture",
-        "-c",
-        "user.email=fixture@example.invalid",
-        "commit",
-        "-m",
-        "Local change",
-      );
-      const local = await fixtureGit(added.data.worktree.cwd, "rev-parse", "HEAD");
-      expect(await git.remoteHead(added.data, "origin", "spi/race")).toEqual({
-        ok: true,
-        data: base,
-      });
-      expect(await git.isAncestor(added.data, base, local)).toEqual({ ok: true, data: true });
+  it("leases an existing branch to the observed head so a move between check and push is refused", async () => {
+    const git = gitRunner();
+    const workspace = await checkout(git);
+    const base = await fixtureGit(seed, "rev-parse", "HEAD");
+    await fixtureGit(seed, "push", origin, "HEAD:refs/heads/spi/race");
+    const added = await git.addBranchWorktree(
+      workspace.cwd,
+      "race",
+      "spi/race",
+      "refs/remotes/origin/main",
+    );
+    if (!added.ok) throw new Error(added.error);
+    await writeFile(join(added.data.worktree.cwd, "answer.txt"), "local");
+    await fixtureGit(added.data.worktree.cwd, "add", "--", "answer.txt");
+    await fixtureGit(
+      added.data.worktree.cwd,
+      "-c",
+      "user.name=Fixture",
+      "-c",
+      "user.email=fixture@example.invalid",
+      "commit",
+      "-m",
+      "Local change",
+    );
+    const local = await fixtureGit(added.data.worktree.cwd, "rev-parse", "HEAD");
+    expect(await git.remoteHead(added.data, "origin", "spi/race")).toEqual({
+      ok: true,
+      data: base,
+    });
+    expect(await git.isAncestor(added.data, base, local)).toEqual({ ok: true, data: true });
 
-      const moved = await commit("remote moved");
-      await fixtureGit(seed, "push", origin, "HEAD:refs/heads/spi/race");
-      const pushed = await git.push(added.data, {
-        remote: "origin",
-        source: local,
-        destination: "refs/heads/spi/race",
-        expectedHead: base,
-      });
-      expect(pushed).toMatchObject({ ok: false });
-      expect(await fixtureGit(root, "--git-dir", origin, "rev-parse", "refs/heads/spi/race")).toBe(
-        moved,
-      );
-    },
-    60_000,
-  );
+    const moved = await commit("remote moved");
+    await fixtureGit(seed, "push", origin, "HEAD:refs/heads/spi/race");
+    const pushed = await git.push(added.data, {
+      remote: "origin",
+      source: local,
+      destination: "refs/heads/spi/race",
+      expectedHead: base,
+    });
+    expect(pushed).toMatchObject({ ok: false });
+    expect(await fixtureGit(root, "--git-dir", origin, "rev-parse", "refs/heads/spi/race")).toBe(
+      moved,
+    );
+  }, 60_000);
 
   const target = { clone: "/nowhere" };
   const worktreeTarget = { clone: "/nowhere", worktree: { id: "t", cwd: "/nowhere/t" } };
@@ -1090,6 +1086,7 @@ describe("privileged Git", () => {
       [
         "add",
         "addBranchWorktree",
+        "addRemote",
         "addWorktree",
         "ahead",
         "blob",
@@ -1104,9 +1101,11 @@ describe("privileged Git", () => {
         "hashFiles",
         "head",
         "headIsAncestorOf",
+        "isAncestor",
         "listWorktrees",
         "numstat",
         "push",
+        "remoteHead",
         "remoteUrl",
         "resolveRef",
         "rollbackWorktree",
