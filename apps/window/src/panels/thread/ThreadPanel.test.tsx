@@ -690,6 +690,128 @@ describe("Thread and Changes", () => {
     );
   });
 
+  it("asks for confirmation only when the pushed range touches .github/ and sends the typed value", async () => {
+    savePanes({ open: { rightPanel: true } });
+    const shell = await mountShell("#thread/t1", [LANDED]);
+    await answer(shell, "thread.publication", "thread.publication.result", {
+      publication: {
+        state: "ready",
+        remote: "origin",
+        branch: "spi/t1",
+        base: "main",
+        opens: "pull-request",
+        observedHead: null,
+      },
+    });
+    await answer(shell, "thread.changes", "thread.changes.result", {
+      changes: { ...read(false), ahead: 1 },
+    });
+    expect(shell.$(".thread-publish-confirm")).toBeNull();
+    const pushButton = () =>
+      [...(shell.panel()?.querySelectorAll<HTMLButtonElement>("button") ?? [])].find((button) =>
+        button.textContent?.startsWith("Push"),
+      );
+    expect(pushButton()?.disabled).toBe(false);
+
+    const nextHead = "d".repeat(40);
+    await act(async () => {
+      changesStore.setState((state) => ({
+        changes: {
+          ...state.changes,
+          t1: { state: "read", head: nextHead, ahead: 1, uncommitted: false, files: [] },
+        },
+      }));
+    });
+    await answer(shell, "thread.publication", "thread.publication.result", {
+      publication: {
+        state: "ready",
+        remote: "origin",
+        branch: "spi/t1",
+        base: "main",
+        opens: "pull-request",
+        observedHead: null,
+        githubConfirmation: { kind: "branch", value: "main" },
+      },
+    });
+    const branchConfirm = shell.$(".thread-publish-confirm");
+    expect(branchConfirm?.textContent).toContain(".github/");
+    expect(branchConfirm?.textContent).toContain("New requests have no number yet");
+    expect(branchConfirm?.textContent).toContain("main");
+    expect(pushButton()?.disabled).toBe(true);
+
+    const input = shell.$<HTMLInputElement>(".thread-publish-confirm input");
+    if (!input) throw new Error("Missing confirmation input");
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+        input,
+        "main",
+      );
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(pushButton()?.disabled).toBe(false);
+    await act(async () => pushButton()?.click());
+    expect(shell.posted().at(-1)).toMatchObject({
+      type: "thread.publish",
+      payload: {
+        threadId: "t1",
+        head: nextHead,
+        observedHead: null,
+        githubConfirmation: "main",
+      },
+    });
+
+    await answer(shell, "thread.publish", "thread.published", {
+      publication: {
+        outcome: "published",
+        head: nextHead,
+        request: {
+          forge: "github",
+          repository: "Azure/osdu-spi-partition",
+          requestNumber: 42,
+          url: "https://github.com/Azure/osdu-spi-partition/pull/42",
+        },
+      },
+    });
+    await answer(shell, "thread.publication", "thread.publication.result", {
+      publication: {
+        state: "ready",
+        remote: "origin",
+        branch: "spi/t1",
+        opens: "none",
+        observedHead: nextHead,
+        request: {
+          forge: "github",
+          repository: "Azure/osdu-spi-partition",
+          requestNumber: 42,
+          url: "https://github.com/Azure/osdu-spi-partition/pull/42",
+        },
+        githubConfirmation: { kind: "request", value: "42" },
+      },
+    });
+    const requestConfirm = shell.$(".thread-publish-confirm");
+    expect(requestConfirm?.textContent).toContain("request number 42");
+    expect(shell.$<HTMLInputElement>(".thread-publish-confirm input")?.value).toBe("");
+    const requestInput = shell.$<HTMLInputElement>(".thread-publish-confirm input");
+    if (!requestInput) throw new Error("Missing request confirmation input");
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+        requestInput,
+        "42",
+      );
+      requestInput.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => pushButton()?.click());
+    expect(shell.posted().at(-1)).toMatchObject({
+      type: "thread.publish",
+      payload: {
+        threadId: "t1",
+        head: nextHead,
+        observedHead: nextHead,
+        githubConfirmation: "42",
+      },
+    });
+  });
+
   it("leaves Push usable after a request outcome is not known", async () => {
     savePanes({ open: { rightPanel: true } });
     const shell = await mountShell("#thread/t1", [LANDED]);

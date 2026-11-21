@@ -297,7 +297,7 @@ export class ThreadRoutes {
     },
     "thread.publish": async (request, send) => {
       if (request.type !== "thread.publish") return;
-      const { threadId, head, observedHead } = request.payload;
+      const { threadId, head, observedHead, githubConfirmation } = request.payload;
       send({
         version: PROTOCOL_VERSION,
         id: request.id,
@@ -305,7 +305,7 @@ export class ThreadRoutes {
         type: "thread.published",
         payload: {
           threadId,
-          publication: await this.open().publish(threadId, head, observedHead),
+          publication: await this.open().publish(threadId, head, observedHead, githubConfirmation),
         },
       });
     },

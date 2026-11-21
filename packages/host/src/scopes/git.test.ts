@@ -876,6 +876,29 @@ describe("privileged Git", () => {
     );
   });
 
+  it("lists changed paths between commits and keeps both sides of a rename out of .github/", async () => {
+    const git = gitRunner();
+    const workspace = await checkout(git);
+    const target = await linkedWorktree(git, workspace.cwd);
+    const id = ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid"];
+    await mkdir(join(target.worktree.cwd, ".github", "workflows"), { recursive: true });
+    await writeFile(join(target.worktree.cwd, ".github", "workflows", "ci.yml"), "name: CI\n");
+    await fixtureGit(target.worktree.cwd, "add", "--", ".github/workflows/ci.yml");
+    await fixtureGit(target.worktree.cwd, ...id, "commit", "-m", "Add workflow");
+    const withWorkflow = await fixtureGit(target.worktree.cwd, "rev-parse", "HEAD");
+
+    await mkdir(join(target.worktree.cwd, "scripts"), { recursive: true });
+    await fixtureGit(target.worktree.cwd, "mv", ".github/workflows/ci.yml", "scripts/ci.yml");
+    await fixtureGit(target.worktree.cwd, ...id, "commit", "-m", "Move workflow out");
+    const movedOut = await fixtureGit(target.worktree.cwd, "rev-parse", "HEAD");
+
+    expect(await git.changedPaths(target, withWorkflow, movedOut)).toEqual({
+      ok: true,
+      data: [".github/workflows/ci.yml", "scripts/ci.yml"],
+    });
+    await expect(git.changedPaths(target, "HEAD", movedOut)).rejects.toThrow("Invalid object id.");
+  }, 60_000);
+
   it.each(["replace", "graft"] as const)(
     "ignores a planted %s when checking the remote ancestor",
     async (kind) => {
@@ -1819,6 +1842,7 @@ exec ${shellQuote(realGit.trim())} "$@"
         "addWorktree",
         "ahead",
         "blob",
+        "changedPaths",
         "checkoutDetached",
         "clone",
         "commit",

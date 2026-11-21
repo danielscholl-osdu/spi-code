@@ -15,8 +15,12 @@
 .thread-commit-outcome[data-outcome="not known"] { color: var(--warning-text); }
 :is(.thread-commit, .thread-publish, .thread-changes-head) button { padding: 2px 9px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
 :is(.thread-commit, .thread-publish, .thread-changes-head) button:disabled { color: var(--text-muted); cursor: default; }
-:is(.thread-commit, .thread-publish, .thread-changes-head, .thread-changes) :is(button, textarea):focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+:is(.thread-commit, .thread-publish, .thread-changes-head, .thread-changes) :is(button, textarea, input):focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .thread-publish, .thread-request { display: grid; gap: 6px; justify-items: start; }
+.thread-publish-confirm { display: grid; gap: 4px; width: 100%; }
+.thread-publish-confirm label { color: var(--warning-text); font-size: var(--text-xs); }
+.thread-publish-confirm input { box-sizing: border-box; width: 100%; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font-family: var(--font-mono); font-size: var(--text-xs); }
+.thread-publish-confirm input::placeholder { color: var(--placeholder); }
 .thread-publish-outcome { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 0; }
 .thread-publish-outcome[data-outcome="failed"] { color: var(--error-text); }
 .thread-publish-outcome[data-outcome="not known"] { color: var(--warning-text); }
