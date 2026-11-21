@@ -52,13 +52,15 @@ class RecordedSession {
   connected = true;
   history: SessionEvent[] = [];
   private listener?: (event: SessionEvent) => void;
+  private readonly sendWaiters: Array<() => void> = [];
+  private readonly releaseWaiters: Array<() => void> = [];
 
   constructor(
     readonly id: string,
     readonly order: string[],
   ) {}
 
-  readonly send = vi.fn(async () => ({
+  readonly send = vi.fn(async (_input: Parameters<ThreadCopilotSession["send"]>[0]) => ({
     messageId: `${this.id}-${this.send.mock.calls.length}`,
     sandbox,
   }));
@@ -85,11 +87,35 @@ class RecordedSession {
           delete this.listener;
         };
       }) as ThreadCopilotSession["on"],
-      send: this.send,
+      send: (input) => {
+        const pending = this.send(input);
+        for (const wake of this.sendWaiters.splice(0)) wake();
+        return pending;
+      },
       abort: this.abort,
-      release: this.release,
+      release: () => {
+        const pending = this.release();
+        for (const wake of this.releaseWaiters.splice(0)) wake();
+        return pending;
+      },
       setModel: this.setModel,
     };
+  }
+
+  async waitForSend(count = 1) {
+    while (this.send.mock.calls.length < count) {
+      await new Promise<void>((resolve) => {
+        this.sendWaiters.push(resolve);
+      });
+    }
+  }
+
+  async waitForRelease(count = 1) {
+    while (this.release.mock.calls.length < count) {
+      await new Promise<void>((resolve) => {
+        this.releaseWaiters.push(resolve);
+      });
+    }
   }
 
   get messageId() {
@@ -130,6 +156,7 @@ beforeEach(() => {
   root = realpathSync.native(mkdtempSync(join(tmpdir(), "spi-thread-adapter-")));
   storePath = join(root, "runs.sqlite");
   database = new DatabaseSync(storePath);
+  database.exec("PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL");
 });
 afterEach(async () => {
   for (const host of hosts.splice(0)) await host.stop();
@@ -212,6 +239,7 @@ async function connect(
   const host = new ThreadRoutes({ ...options, env: { ...options.env, ...env } });
   hosts.push(host);
   const output: Message[] = [];
+  const outputWaiters = new Set<() => void>();
   let receive: (event: { data: unknown }) => void = () => {};
   attachHostPort(
     {
@@ -220,6 +248,7 @@ async function connect(
       },
       postMessage: (data) => {
         output.push(data as Message);
+        for (const wake of outputWaiters) wake();
       },
       start() {},
     },
@@ -235,15 +264,59 @@ async function connect(
     receive({ data: { version: PROTOCOL_VERSION, id, kind: "request", type, payload } });
     return id;
   }
-  async function response(id: string) {
-    return vi.waitFor(
-      () => {
-        const result = output.find((entry) => entry.id === id && entry.kind === "response");
-        if (!result) throw new Error("Waiting for response");
-        return result;
-      },
-      { interval: 5, timeout: 2500 },
+  function waitForOutput<T>(check: () => T | undefined): Promise<T> {
+    const existing = check();
+    if (existing !== undefined) return Promise.resolve(existing);
+    return new Promise<T>((resolve) => {
+      const wake = () => {
+        const match = check();
+        if (match === undefined) return;
+        outputWaiters.delete(wake);
+        resolve(match);
+      };
+      outputWaiters.add(wake);
+    });
+  }
+  function response(id: string) {
+    return waitForOutput(() =>
+      output.find((entry) => entry.id === id && entry.kind === "response"),
     );
+  }
+  const events = () =>
+    output.flatMap((entry): ThreadWireEvent[] =>
+      entry.type === "thread.events" ? entry.payload.events : [],
+    );
+  function waitForEvent(match: (event: ThreadWireEvent) => boolean) {
+    return waitForOutput(() => events().find(match));
+  }
+  async function waitForSend(session: RecordedSession | undefined, requestId: string, count = 1) {
+    if (!session) throw new Error("Missing recorded session");
+    let settled = false;
+    let wakeOutput: (() => void) | undefined;
+    const earlyResponse = new Promise<never>((_resolve, reject) => {
+      const check = () => {
+        if (settled) return;
+        const reply = output.find((entry) => entry.id === requestId && entry.kind === "response");
+        if (!reply) return;
+        if (wakeOutput) outputWaiters.delete(wakeOutput);
+        if (session.send.mock.calls.length >= count) return;
+        const detail =
+          reply.type === "error"
+            ? reply.payload.message
+            : `${reply.type} (${JSON.stringify(reply.payload)})`;
+        reject(new Error(`Turn finished before session.send was called (${count}x): ${detail}`));
+      };
+      wakeOutput = check;
+      outputWaiters.add(check);
+      check();
+    });
+    earlyResponse.catch(() => {});
+    try {
+      await Promise.race([session.waitForSend(count), earlyResponse]);
+    } finally {
+      settled = true;
+      if (wakeOutput) outputWaiters.delete(wakeOutput);
+    }
   }
   const threadId =
     existing ??
@@ -266,10 +339,9 @@ async function connect(
     send: (message: Extract<Message, { type: "thread.send" }>["payload"]["message"]) =>
       dispatch("thread.send", { threadId, message }),
     stop: () => dispatch("thread.stop", { threadId }),
-    events: () =>
-      output.flatMap((entry): ThreadWireEvent[] =>
-        entry.type === "thread.events" ? entry.payload.events : [],
-      ),
+    events,
+    waitForEvent,
+    waitForSend,
     output,
   };
 }
@@ -289,20 +361,16 @@ it("stops the SDK stream, records partial text as not known and releases before 
     reasoningEffort: "medium",
   });
 
-  await vi.waitFor(() => expect(first.send).toHaveBeenCalledOnce());
+  await port.waitForSend(first, firstSend);
+  expect(first.send).toHaveBeenCalledOnce();
   first.begin("first");
   first.event("assistant.message_start", { messageId: "partial" });
   first.event("assistant.message_delta", {
     messageId: "partial",
     deltaContent: "Visible partial\n",
   });
-  await vi.waitFor(() =>
-    expect(port.events()).toContainEqual(
-      expect.objectContaining({
-        type: "assistant.delta",
-        text: "Visible partial\n",
-      }),
-    ),
+  await port.waitForEvent(
+    (event) => event.type === "assistant.delta" && event.text === "Visible partial\n",
   );
   let release = () => {};
   const held = new Promise<void>((resolve) => {
@@ -314,16 +382,12 @@ it("stops the SDK stream, records partial text as not known and releases before 
     await originalRelease?.();
   });
   const stopping = port.stop();
-  await vi.waitFor(() => expect(first.release).toHaveBeenCalledOnce());
+  await first.waitForRelease();
+  expect(first.release).toHaveBeenCalledOnce();
   const next = port.send({ prompt: "Continue" });
   try {
-    await vi.waitFor(() =>
-      expect(port.events()).toContainEqual(
-        expect.objectContaining({
-          type: "message.sent",
-          message: expect.objectContaining({ prompt: "Continue" }),
-        }),
-      ),
+    await port.waitForEvent(
+      (event) => event.type === "message.sent" && event.message.prompt === "Continue",
     );
     await setTimeout(1550);
     expect(open).toHaveBeenCalledOnce();
@@ -340,7 +404,8 @@ it("stops the SDK stream, records partial text as not known and releases before 
       partialTextSeen: "not known",
     }),
   );
-  await vi.waitFor(() => expect(second.send).toHaveBeenCalledOnce());
+  await port.waitForSend(second, next);
+  expect(second.send).toHaveBeenCalledOnce();
   expect(
     open.mock.calls.map(([, options]) => ({
       model: options.model,
@@ -390,15 +455,19 @@ it("reopens a moved thread in its worktree while resuming the same history", asy
   try {
     const port = await connect(runtime);
     const first = port.send({ prompt: "Read it" });
-    await vi.waitFor(() => expect(sessions[0]?.send).toHaveBeenCalledOnce());
+    await port.waitForSend(sessions[0], first);
+    expect(sessions[0]?.send).toHaveBeenCalledOnce();
     sessions[0]?.begin("asking");
     sessions[0]?.finish("asking");
     await port.response(first);
-    await port.response(
-      port.dispatch("thread.land", { threadId: port.threadId, landsIn: { target: "fork-main" } }),
-    );
+    expect(
+      await port.response(
+        port.dispatch("thread.land", { threadId: port.threadId, landsIn: { target: "fork-main" } }),
+      ),
+    ).toMatchObject({ type: "thread.landed" });
     const second = port.send({ prompt: "Change it" });
-    await vi.waitFor(() => expect(sessions[1]?.send).toHaveBeenCalledOnce());
+    await port.waitForSend(sessions[1], second);
+    expect(sessions[1]?.send).toHaveBeenCalledOnce();
     sessions[1]?.begin("worktree");
     sessions[1]?.finish("worktree");
     await port.response(second);
@@ -426,11 +495,83 @@ it("reopens a moved thread in its worktree while resuming the same history", asy
   }
 });
 
+it("waits for a slow worktree reopen past one second and surfaces an early reopen failure", async () => {
+  const { runtime, sessions, order } = recordedRuntime("asking-slow", "worktree-slow");
+  const landsIn = {
+    target: "fork-main" as const,
+    branch: "spi/slow-reopen",
+    baseRef: "refs/remotes/origin/main",
+    worktree: join(root, "slow-reopen-worktree"),
+    head: "a".repeat(40),
+  };
+  let calls = 0;
+  const prepare = vi
+    .spyOn(ScopeWorkspaces.prototype, "prepareThread")
+    .mockImplementation(async (_db, _scope, _threadId, landing) => {
+      calls++;
+      if (landing?.target === "asking" || landing === undefined)
+        return { ok: true, workspace: { kind: "program" } };
+      if (calls === 2) {
+        await setTimeout(1150);
+        return {
+          ok: true,
+          workspace: {
+            kind: "worktree",
+            cwd: landsIn.worktree,
+            gitDirectory: join(root, "clone", ".git"),
+            clonePath: join(root, "clone"),
+            worktreeId: "fixture",
+            readOnly: false,
+          },
+        };
+      }
+      return {
+        ok: false,
+        operation: "fetch",
+        remote: "origin",
+        error: "Worktree preparation failed.",
+      };
+    });
+  const land = vi.spyOn(ScopeWorkspaces.prototype, "land").mockResolvedValue({ ok: true, landsIn });
+  const head = vi
+    .spyOn(PrivilegedGit.prototype, "head")
+    .mockResolvedValue({ ok: true, data: landsIn.head });
+  try {
+    const port = await connect(runtime);
+    const first = port.send({ prompt: "Read it" });
+    await port.waitForSend(sessions[0], first);
+    sessions[0]?.begin("asking");
+    sessions[0]?.finish("asking");
+    await port.response(first);
+    expect(
+      await port.response(
+        port.dispatch("thread.land", { threadId: port.threadId, landsIn: { target: "fork-main" } }),
+      ),
+    ).toMatchObject({ type: "thread.landed" });
+    const second = port.send({ prompt: "Change it slowly" });
+    await port.waitForSend(sessions[1], second);
+    expect(sessions[1]?.send).toHaveBeenCalledOnce();
+    sessions[1]?.begin("worktree");
+    sessions[1]?.finish("worktree");
+    expect(await port.response(second)).toMatchObject({ payload: { outcome: "completed" } });
+    expect(order).toEqual(["create", "released asking-slow", "resume asking-slow"]);
+    const third = port.send({ prompt: "Fail preparation" });
+    await expect(port.waitForSend(sessions[1], third, 2)).rejects.toThrow(
+      /Turn finished before session\.send was called.*failed/u,
+    );
+  } finally {
+    prepare.mockRestore();
+    land.mockRestore();
+    head.mockRestore();
+  }
+});
+
 it("offers a Program thread no shell or file tools, even confined, and refuses to land it", async () => {
   const { runtime, sessions, open } = recordedRuntime("program-session");
   const port = await connect(runtime);
   const sent = port.send({ prompt: "Which forks pin 8.4?" });
-  await vi.waitFor(() => expect(sessions[0]?.send).toHaveBeenCalledOnce());
+  await port.waitForSend(sessions[0], sent);
+  expect(sessions[0]?.send).toHaveBeenCalledOnce();
   sessions[0]?.begin("program");
   sessions[0]?.finish("program");
   await port.response(sent);
@@ -552,7 +693,8 @@ it("refuses a landing and deletion when a turn is already running", async () => 
   if (!session) throw new Error("Missing recorded session");
   const port = await connect(runtime);
   const turn = port.send({ prompt: "Hold this turn" });
-  await vi.waitFor(() => expect(session.send).toHaveBeenCalledOnce());
+  await port.waitForSend(session, turn);
+  expect(session.send).toHaveBeenCalledOnce();
   const landing = port.dispatch("thread.land", {
     threadId: port.threadId,
     landsIn: { target: "fork-main" },
@@ -613,13 +755,17 @@ it("refuses a commit without the operator's identity and says why changes were n
     const host = new ThreadRoutes({ ...options, identity });
     hosts.push(host);
     const output: Message[] = [];
+    const outputWaiters = new Set<() => void>();
     let receive: (event: { data: unknown }) => void = () => {};
     attachHostPort(
       {
         on: (_event, listener) => {
           receive = listener;
         },
-        postMessage: (data) => output.push(data as Message),
+        postMessage: (data) => {
+          output.push(data as Message);
+          for (const wake of outputWaiters) wake();
+        },
         start() {},
       },
       1,
@@ -627,10 +773,16 @@ it("refuses a commit without the operator's identity and says why changes were n
     );
     const reply = async (id: string, type: string, payload: unknown) => {
       receive({ data: { version: PROTOCOL_VERSION, id, kind: "request", type, payload } });
-      return vi.waitFor(() => {
-        const found = output.find((entry) => entry.id === id && entry.kind === "response");
-        if (!found) throw new Error("Waiting for response");
-        return found;
+      const existing = output.find((entry) => entry.id === id && entry.kind === "response");
+      if (existing) return existing;
+      return new Promise<Message>((resolve) => {
+        const wake = () => {
+          const found = output.find((entry) => entry.id === id && entry.kind === "response");
+          if (!found) return;
+          outputWaiters.delete(wake);
+          resolve(found);
+        };
+        outputWaiters.add(wake);
       });
     };
     const started = await reply("1", "thread.start", { scope: "program" });
@@ -801,31 +953,52 @@ it("waits for a stopped session open to release before starting the queued turn"
     order,
   } = recordedRuntime("slow-open", "queued");
   if (!first || !second) throw new Error("Incomplete recording");
-  const adapter = CopilotThreadAdapter.prototype as unknown as { open(): Promise<unknown> };
-  using enterOpen = vi.spyOn(adapter, "open");
+  const adapter = CopilotThreadAdapter.prototype as unknown as {
+    open(...args: unknown[]): Promise<unknown>;
+  };
+  const originalOpen = adapter.open;
+  let notifySecondOpen = () => {};
+  const secondOpenEntered = new Promise<void>((resolve) => {
+    notifySecondOpen = resolve;
+  });
+  using enterOpen = vi.spyOn(adapter, "open").mockImplementation(function (
+    this: unknown,
+    ...args: unknown[]
+  ) {
+    if (enterOpen.mock.calls.length === 2) notifySecondOpen();
+    return originalOpen.apply(this, args);
+  });
+  let notifyOpen = () => {};
+  const opened = new Promise<void>((resolve) => {
+    notifyOpen = resolve;
+  });
   let unblock = () => {};
   const held = new Promise<void>((resolve) => {
     unblock = resolve;
   });
   open.mockImplementationOnce(async () => {
     order.push("opening");
+    notifyOpen();
     await held;
     return first.session;
   });
   const port = await connect(runtime);
   const firstSend = port.send({ prompt: "Open a session" });
-  await vi.waitFor(() => expect(open).toHaveBeenCalledOnce());
+  await opened;
+  expect(open).toHaveBeenCalledOnce();
   const stopping = port.stop();
   const next = port.send({ prompt: "Run after stop" });
   try {
     expect(await port.response(stopping)).toMatchObject({ type: "thread.stopped" });
-    await vi.waitFor(() => expect(enterOpen).toHaveBeenCalledTimes(2));
+    await secondOpenEntered;
+    expect(enterOpen).toHaveBeenCalledTimes(2);
     expect(open).toHaveBeenCalledOnce();
   } finally {
     unblock();
   }
   expect(await port.response(firstSend)).toMatchObject({ payload: { outcome: "stopped" } });
-  await vi.waitFor(() => expect(second.send).toHaveBeenCalledOnce());
+  await port.waitForSend(second, next);
+  expect(second.send).toHaveBeenCalledOnce();
   expect(first.send).not.toHaveBeenCalled();
   expect(order).toEqual(["opening", "released slow-open", "create"]);
   second.begin("0");
@@ -843,7 +1016,8 @@ it("tracks tools when the same warm session restarts turn numbering at zero", as
   const port = await connect(runtime);
   for (const [index, callId] of ["first-read", "second-read"].entries()) {
     const response = port.send({ prompt: `Question ${index + 1}` });
-    await vi.waitFor(() => expect(session.send).toHaveBeenCalledTimes(index + 1));
+    await port.waitForSend(session, response, index + 1);
+    expect(session.send).toHaveBeenCalledTimes(index + 1);
     session.event("user.message", { messageId: session.messageId, content: "Question" });
     session.event("assistant.turn_start", { turnId: "0" });
     if (index === 1) {
@@ -884,7 +1058,8 @@ it("restarts after disconnect, keeps tool effects unknown and drops a synthetic 
   if (!before || !after) throw new Error("Incomplete recording");
   const port = await connect(runtime);
   const first = port.send({ prompt: "Read this" });
-  await vi.waitFor(() => expect(before.send).toHaveBeenCalledOnce());
+  await port.waitForSend(before, first);
+  expect(before.send).toHaveBeenCalledOnce();
   before.begin("first");
   before.event("tool.execution_start", {
     toolName: "view",
@@ -911,7 +1086,8 @@ it("restarts after disconnect, keeps tool effects unknown and drops a synthetic 
 
   after.history = [...before.history];
   const followUp = port.send({ prompt: "What happened?" });
-  await vi.waitFor(() => expect(after.send).toHaveBeenCalledOnce());
+  await port.waitForSend(after, followUp);
+  expect(after.send).toHaveBeenCalledOnce();
   expect(order).toEqual(["create", "released sdk-fixed", "restart", "resume sdk-fixed"]);
   after.begin("second");
   after.event("tool.execution_start", {
@@ -950,13 +1126,8 @@ it("restarts after disconnect, keeps tool effects unknown and drops a synthetic 
     messageId: "reply",
     deltaContent: "Reply after the read\n",
   });
-  await vi.waitFor(() =>
-    expect(port.events()).toContainEqual(
-      expect.objectContaining({
-        type: "assistant.delta",
-        text: "Reply after the read\n",
-      }),
-    ),
+  await port.waitForEvent(
+    (event) => event.type === "assistant.delta" && event.text === "Reply after the read\n",
   );
   after.finish("third");
   expect(await port.response(followUp)).toMatchObject({ payload: { outcome: "completed" } });
@@ -974,7 +1145,8 @@ it("keeps model and effort on a warm session, and tells the thread when the SDK 
   const port = await connect(runtime);
   const ask = async (turnId: string, message: Parameters<typeof port.send>[0]) => {
     const id = port.send(message);
-    await vi.waitFor(() => expect(first.send).toHaveBeenCalledTimes(Number(turnId)));
+    await port.waitForSend(first, id, Number(turnId));
+    expect(first.send).toHaveBeenCalledTimes(Number(turnId));
     first.begin(turnId);
     first.finish(turnId);
     expect(await port.response(id)).toMatchObject({ payload: { outcome: "completed" } });
@@ -993,7 +1165,8 @@ it("keeps model and effort on a warm session, and tells the thread when the SDK 
   nextRuntime.open.mockRejectedValueOnce(new Error("Session not found: previous"));
   const nextPort = await connect(nextRuntime.runtime, port.threadId);
   const id = nextPort.send({ prompt: "Continue despite the lost history" });
-  await vi.waitFor(() => expect(replacement.send).toHaveBeenCalledOnce());
+  await nextPort.waitForSend(replacement, id);
+  expect(replacement.send).toHaveBeenCalledOnce();
   expect(
     nextRuntime.open.mock.calls.map(([, options]) => [
       options.resumeId,
@@ -1020,7 +1193,8 @@ it("journals reasoning and intent as one Thinking mark and keeps their text out 
   if (!session) throw new Error("Incomplete recording");
   const port = await connect(runtime);
   const id = port.send({ prompt: "Why?" });
-  await vi.waitFor(() => expect(session.send).toHaveBeenCalledOnce());
+  await port.waitForSend(session, id);
+  expect(session.send).toHaveBeenCalledOnce();
   const secret = "reasoning-sentinel-7c1f";
   session.begin("turn");
   session.event("assistant.reasoning_delta", { reasoningId: "r", deltaContent: `${secret} one` });
@@ -1091,7 +1265,8 @@ it("records unconfirmed Auto effort once and resumes with desired settings after
     reasoningEffort?: "high",
   ) => {
     const id = port.send({ prompt, ...(reasoningEffort ? { reasoningEffort } : {}) });
-    await vi.waitFor(() => expect(session.send).toHaveBeenCalledTimes(count));
+    await port.waitForSend(session, id, count);
+    expect(session.send).toHaveBeenCalledTimes(count);
     session.begin(prompt);
     session.finish(prompt);
     expect(await port.response(id)).toMatchObject({ payload: { outcome: "completed" } });
@@ -1185,7 +1360,8 @@ it("lets an Asking turn read journal-redacted SPI evidence using each host-known
     prompt: "Question",
     attachments: [{ name: "context:releases", content: '{"token":"fake-short"}' }],
   });
-  await vi.waitFor(() => expect(session.send).toHaveBeenCalledOnce());
+  await port.waitForSend(session, id);
+  expect(session.send).toHaveBeenCalledOnce();
   session.begin("spi-read-turn");
   const config = open.mock.calls[0]?.[1];
   const tool = config?.tools?.find(({ name }) => name === "spi_evidence");
@@ -1240,7 +1416,8 @@ it("lets Asking use SPI read tools only through the permission request handler",
   if (!session) throw new Error("Incomplete recording");
   const port = await connect(runtime);
   const id = port.send({ prompt: "Question" });
-  await vi.waitFor(() => expect(session.send).toHaveBeenCalledOnce());
+  await port.waitForSend(session, id);
+  expect(session.send).toHaveBeenCalledOnce();
   session.begin("spi-change-turn");
   const config = open.mock.calls[0]?.[1];
   if (!config?.onPermissionDenied) throw new Error("Missing sandbox denial observer");
@@ -1283,7 +1460,8 @@ it("denies and journals Asking permissions and redacts named model and journal f
   if (!session) throw new Error("Incomplete recording");
   const port = await connect(runtime);
   const id = port.send({ prompt: "Question" });
-  await vi.waitFor(() => expect(session.send).toHaveBeenCalledOnce());
+  await port.waitForSend(session, id);
+  expect(session.send).toHaveBeenCalledOnce();
   session.begin("permission-turn");
   const config = open.mock.calls[0]?.[1];
   if (!config?.onPermissionDenied) throw new Error("Missing sandbox denial observer");
@@ -1392,11 +1570,8 @@ it("routes one edit approval to only its thread turn", async () => {
   if (!session) throw new Error("Incomplete recording");
   const port = await connect(runtime, undefined, undefined, undefined, true, true);
   const send = port.send({ prompt: "Edit" });
-  await vi.waitFor(() => {
-    const error = port.output.find((entry) => entry.id === send && entry.type === "error");
-    if (error?.type === "error") throw new Error(error.payload.message);
-    expect(session.send).toHaveBeenCalledOnce();
-  });
+  await port.waitForSend(session, send);
+  expect(session.send).toHaveBeenCalledOnce();
   session.begin("approval-route-turn");
   const config = open.mock.calls[0]?.[1];
   if (!config) throw new Error("Missing thread config");
@@ -1410,14 +1585,11 @@ it("routes one edit approval to only its thread turn", async () => {
     },
     { sessionId: session.id },
   );
-  await vi.waitFor(() =>
-    expect(port.events()).toContainEqual(
-      expect.objectContaining({
-        type: "approval.requested",
-        path: join(root, "worktree", "src.ts"),
-        diff: expect.stringContaining("+new"),
-      }),
-    ),
+  await port.waitForEvent(
+    (event) =>
+      event.type === "approval.requested" &&
+      event.path === join(root, "worktree", "src.ts") &&
+      Boolean(event.diff?.includes("+new")),
   );
   const request = port
     .events()
@@ -1473,7 +1645,8 @@ it("auto-accepts an edit in the thread's persisted access mode", async () => {
     "auto-accept-edits",
   );
   const send = port.send({ prompt: "Edit" });
-  await vi.waitFor(() => expect(session.send).toHaveBeenCalledOnce());
+  await port.waitForSend(session, send);
+  expect(session.send).toHaveBeenCalledOnce();
   session.begin("auto-edit-turn");
   const config = open.mock.calls[0]?.[1];
   if (!config) throw new Error("Missing thread config");
@@ -1487,11 +1660,8 @@ it("auto-accepts an edit in the thread's persisted access mode", async () => {
     },
     { sessionId: session.id },
   );
-  await vi.waitFor(() =>
-    expect(port.events()).toContainEqual(
-      expect.objectContaining({ type: "approval.requested", kind: "write" }),
-    ),
-  );
+  await port.waitForEvent((event) => event.type === "approval.requested" && event.kind === "write");
+  await port.waitForEvent((event) => event.type === "approval.resolved" && event.approved === true);
   expect(port.events()).toContainEqual(
     expect.objectContaining({
       type: "approval.resolved",
@@ -1865,7 +2035,8 @@ it("refuses a send whose bytes would differ from the preview, and sends the fres
   await expect(start()).resolves.toMatchObject({ type: "thread.started" });
   const attached = { name: "context:previous-reading", content: JSON.stringify({ title }) };
   const sent = port.send({ prompt: "Why", attachments: [fresh, attached] });
-  await vi.waitFor(() => expect(session.send).toHaveBeenCalledOnce());
+  await port.waitForSend(session, sent);
+  expect(session.send).toHaveBeenCalledOnce();
   expect(session.send).toHaveBeenCalledWith({
     prompt: `${fresh.name}\n${fresh.content}\n\n${attached.name}\n{"title":"Café · [redacted]"}\n\nWhy`,
   });

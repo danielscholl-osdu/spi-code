@@ -82,7 +82,12 @@ async function canonicalWritePath(base: string, path: string): Promise<string | 
         nativeRealpath(lexicalSpelling),
       ]);
       const candidate = resolve(physical, ...physicalSuffix);
-      return candidate === resolve(lexical, ...lexicalSuffix) ? candidate : undefined;
+      if (candidate !== resolve(lexical, ...lexicalSuffix)) return undefined;
+      if (physicalSuffix.length === 0) {
+        const info = await nativeLstat(candidate);
+        if (!info.isFile() || info.nlink > 1) return undefined;
+      }
+      return candidate;
     } catch {
       if (!(await missing(physicalSpelling)) || !(await missing(lexicalSpelling))) return undefined;
       const physicalParent = dirname(physicalSpelling);
@@ -125,10 +130,20 @@ async function readIsAllowed(workspace: SandboxWorkspace, request: PermissionReq
 
 async function writeIsAllowed(workspace: SandboxWorkspace, request: PermissionRequest) {
   if (request.kind !== "write" || !workspace.worktreePath) return false;
+  if (request.fileEdits !== undefined && !Array.isArray(request.fileEdits)) return false;
   const base = workspace.worktreePath;
-  const edits = (request.fileEdits ?? []).flatMap((edit) =>
-    [edit.before?.path, edit.after?.path].filter((path): path is string => path !== undefined),
-  );
+  const edits: string[] = [];
+  for (const edit of request.fileEdits ?? []) {
+    if (!edit || typeof edit !== "object") return false;
+    if (edit.before !== undefined) {
+      if (!edit.before || typeof edit.before.path !== "string") return false;
+      edits.push(edit.before.path);
+    }
+    if (edit.after !== undefined) {
+      if (!edit.after || typeof edit.after.path !== "string") return false;
+      edits.push(edit.after.path);
+    }
+  }
   const paths = [
     request.fileName,
     ...(request.resolvedPath === undefined ? [] : [request.resolvedPath]),
@@ -148,14 +163,9 @@ async function writeIsAllowed(workspace: SandboxWorkspace, request: PermissionRe
   return (
     root !== undefined &&
     fileName !== undefined &&
-    (request.resolvedPath === undefined || fileName === canonical[1]) &&
-    attested.every((path) => path !== undefined) &&
-    canonical.every(
-      (path) =>
-        path !== undefined &&
-        inside(root, path) &&
-        !forbidden.some((root) => root !== undefined && inside(root, path)),
-    )
+    inside(root, fileName) &&
+    !forbidden.some((dir) => dir !== undefined && inside(dir, fileName)) &&
+    attested.every((path) => path === fileName)
   );
 }
 

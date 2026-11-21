@@ -1,7 +1,15 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  linkSync,
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -36,6 +44,7 @@ function workspace() {
   writeFileSync(join(worktreePath, "src.ts"), "before");
   writeFileSync(join(worktreePath, "other.ts"), "other");
   writeFileSync(join(outsidePath, "secret.txt"), "outside");
+  linkSync(join(outsidePath, "secret.txt"), join(worktreePath, "hard.txt"));
   symlinkSync(outsidePath, join(worktreePath, "outside-link"), "dir");
   return { root, clonePath, worktreePath, tempPath, outsidePath, cloneGitPath };
 }
@@ -383,6 +392,80 @@ const boundaryRows = [
     reason: "This thread is not allowed to edit this path.",
   },
   {
+    name: "a fileEdits path for another file inside the worktree",
+    request: (paths: ReturnType<typeof workspace>) =>
+      ({
+        ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+        fileName: join(paths.worktreePath, "src.ts"),
+        fileEdits: [
+          {
+            before: { path: join(paths.worktreePath, "other.ts"), content: "a" },
+            after: { path: join(paths.worktreePath, "other.ts"), content: "b" },
+          },
+        ],
+      }) as PermissionRequest,
+    gateDenied: false,
+    reason: "This thread is not allowed to edit this path.",
+  },
+  {
+    name: "a fileEdits rename to another file inside the worktree",
+    request: (paths: ReturnType<typeof workspace>) =>
+      ({
+        ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+        fileName: join(paths.worktreePath, "src.ts"),
+        fileEdits: [
+          {
+            before: { path: join(paths.worktreePath, "src.ts"), content: "before" },
+            after: { path: join(paths.worktreePath, "other.ts"), content: "after" },
+          },
+        ],
+      }) as PermissionRequest,
+    gateDenied: false,
+    reason: "This thread is not allowed to edit this path.",
+  },
+  {
+    name: "a second fileEdits entry for another file inside the worktree",
+    request: (paths: ReturnType<typeof workspace>) =>
+      ({
+        ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+        fileName: join(paths.worktreePath, "src.ts"),
+        fileEdits: [
+          {
+            before: { path: join(paths.worktreePath, "src.ts"), content: "before" },
+            after: { path: join(paths.worktreePath, "src.ts"), content: "after" },
+          },
+          {
+            after: { path: join(paths.worktreePath, "other.ts"), content: "extra" },
+          },
+        ],
+      }) as PermissionRequest,
+    gateDenied: false,
+    reason: "This thread is not allowed to edit this path.",
+  },
+  {
+    name: "a hard link inside the worktree to an outside file",
+    request: (paths: ReturnType<typeof workspace>) =>
+      ({
+        ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+        fileName: join(paths.worktreePath, "hard.txt"),
+      }) as PermissionRequest,
+    gateDenied: false,
+    reason: "This thread is not allowed to edit this path.",
+  },
+  {
+    name: "a hard link inside the worktree to another worktree file",
+    request: (paths: ReturnType<typeof workspace>) => {
+      const alias = join(paths.worktreePath, "hard-inside.ts");
+      linkSync(join(paths.worktreePath, "other.ts"), alias);
+      return {
+        ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+        fileName: alias,
+      } as PermissionRequest;
+    },
+    gateDenied: false,
+    reason: "This thread is not allowed to edit this path.",
+  },
+  {
     name: "a read with only sandboxPathGrant",
     request: (paths: ReturnType<typeof workspace>) =>
       ({
@@ -464,6 +547,37 @@ it("draws new file contents as an all-added diff", async () => {
   expect(requestApproval).toHaveBeenCalledWith(
     expect.objectContaining({ diff: "+export const value = 1;\n" }),
     undefined,
+  );
+});
+
+it.each(modes)("allows fileEdits whose paths canonicalize to fileName in %s mode", async (mode) => {
+  const paths = workspace();
+  const requestApproval = vi.fn(async (_request: object, decision?: boolean) => decision !== false);
+  const events = {
+    requestApproval,
+    thinking() {},
+    delta() {},
+    toolStarted() {},
+    toolFinished() {},
+  };
+  const target = join(paths.worktreePath, "src.ts");
+  const result = await askingPermission(paths, () => events, { mode })(
+    {
+      ...(request("write") as Extract<PermissionRequest, { kind: "write" }>),
+      fileName: target,
+      fileEdits: [
+        {
+          before: { path: "src.ts", content: "before" },
+          after: { path: target, content: "after" },
+        },
+      ],
+    },
+    { sessionId: "fixture" },
+  );
+  expect(result).toEqual({ kind: "approve-once" });
+  expect(requestApproval).toHaveBeenCalledWith(
+    expect.objectContaining({ path: target }),
+    mode === "supervised" ? undefined : true,
   );
 });
 
