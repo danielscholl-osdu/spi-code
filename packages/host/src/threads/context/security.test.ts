@@ -581,6 +581,25 @@ describe("a Security subject the latest sweep cannot show", () => {
         .join(" and ")}.`,
       rules: named,
     });
+    const partialLanes = (key: string) =>
+      partial.pane.lanes.filter(({ byRule }) =>
+        byRule.rules.some((rule) => rest(rule.key) === rest(key)),
+      );
+    const spread = rulesOf(partial.pane)
+      .map(({ key }) => key)
+      .find((key) => partialLanes(key).length === 2);
+    if (!spread) throw new Error("The partial scenario lacks a rule in two lanes");
+    const gone = [...lanes.keys()].find(
+      (id) => !partialLanes(spread).some((lane) => lane.id === id),
+    );
+    const unread = await chip(partial.sweep, `security-rule:${gone}${rest(spread)}`);
+    expect(unread.chip.reading).toEqual({
+      rule: `${gone}${rest(spread)}`,
+      open: `Open in ${partialLanes(spread)
+        .map(({ figure }) => figure.label)
+        .join(" and ")} now; a list not read may still hold it in ${lanes.get(gone as never)}.`,
+      rules: partialLanes(spread).map(({ id }) => `${id}${rest(spread)}`),
+    });
   });
 
   it("says not read with no pane, even beside a saved snapshot's old security reading", async () => {

@@ -172,9 +172,12 @@ export function ruleReading(view: ViewSnapshot, key: string) {
             ? `Open in ${only.lane.figure.label} now; a list not read may still hold it in ${was}.`
             : `Open in ${only.lane.figure.label} now.`,
       });
+    const lanes = others.map(({ lane }) => lane.figure.label).join(" and ");
     const open =
       others.length > 1 && was
-        ? `No open alert in ${was} this sweep; open in ${others.map(({ lane }) => lane.figure.label).join(" and ")}.`
+        ? unread
+          ? `Open in ${lanes} now; a list not read may still hold it in ${was}.`
+          : `No open alert in ${was} this sweep; open in ${lanes}.`
         : unread
           ? "No open alert in the lists read this sweep; a list not read may still hold it."
           : "No open alert this sweep.";
