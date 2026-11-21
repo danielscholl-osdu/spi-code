@@ -1427,4 +1427,122 @@ describe(".github/ push gate", () => {
       data: renamedHead,
     });
   }, 60_000);
+
+  it("gates a real-git push adding .github/actions as a gitlink", async () => {
+    const physical = await realpath(root);
+    const capturedPath = process.env.PATH ?? process.env.Path ?? "";
+    const runFixtureGit = async (cwd: string, ...args: string[]) => {
+      const { stdout } = await execFileAsync("git", args, {
+        cwd,
+        windowsHide: true,
+        env: {
+          PATH: capturedPath,
+          ...(process.platform === "win32"
+            ? { SystemRoot: process.env.SystemRoot ?? "C:\\Windows" }
+            : {}),
+          HOME: physical,
+          USERPROFILE: physical,
+          GIT_CONFIG_NOSYSTEM: "1",
+          GIT_CONFIG_GLOBAL: join(physical, "empty-config"),
+          GIT_ALLOW_PROTOCOL: "file",
+        },
+      });
+      return stdout.trim();
+    };
+    const id = ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid"];
+    const seed = join(physical, "seed-gitlink");
+    const origin = join(physical, "origin-gitlink.git");
+    const appData = join(physical, "app-data-gitlink");
+    await runFixtureGit(physical, "init", "--initial-branch", "main", seed);
+    await writeFile(join(seed, "README.md"), "# Fixture\n");
+    await runFixtureGit(seed, "add", "--", "README.md");
+    await runFixtureGit(seed, ...id, "commit", "-m", "Initial commit");
+    const baseHead = await runFixtureGit(seed, "rev-parse", "HEAD");
+    await runFixtureGit(physical, "clone", "--bare", seed, origin);
+
+    const scope = new ScopeRegistry().lookup("partition");
+    if (scope?.kind !== "service") throw new Error("Missing partition");
+    const git = new PrivilegedGit({ appData, capturedPath, allowLocalRemotes: true });
+    const cloneParent = join(await git.dataRoot(), "repos", "azure", "osdu-spi-partition");
+    await mkdir(cloneParent, { recursive: true });
+    const cloned = await git.clone(cloneParent, { origin: pathToFileURL(origin).href });
+    if (!cloned.ok) throw new Error(cloned.error);
+    const worktree = await git.addBranchWorktree(
+      join(cloneParent, "checkout"),
+      "thread-gitlink",
+      "spi/gitlink-add",
+      baseHead,
+    );
+    if (!worktree.ok) throw new Error(worktree.error);
+
+    await mkdir(join(worktree.data.worktree.cwd, ".github", "actions"), { recursive: true });
+    await runFixtureGit(
+      worktree.data.worktree.cwd,
+      "update-index",
+      "--add",
+      "--cacheinfo",
+      `160000,${baseHead},.github/actions`,
+    );
+    await runFixtureGit(worktree.data.worktree.cwd, ...id, "commit", "-m", "Add actions gitlink");
+    const gitlinkHead = await runFixtureGit(worktree.data.worktree.cwd, "rev-parse", "HEAD");
+
+    const exec = forge("direct");
+    const thread = landing("fork-main", "spi/gitlink-add");
+    const prepared = await preparePublication(exec, scope, thread, forgeCwd);
+    if (!prepared.ok) throw new Error("Expected ready");
+
+    await expect(observePublication(git, worktree.data, prepared, baseHead)).resolves.toMatchObject(
+      {
+        state: "ready",
+        observedHead: null,
+        githubConfirmation: { kind: "branch", value: "main" },
+      },
+    );
+
+    await expect(
+      publishChanges(
+        exec,
+        git,
+        worktree.data,
+        "thread-gitlink",
+        thread.title,
+        baseHead,
+        gitlinkHead,
+        null,
+        prepared,
+        forgeCwd,
+      ),
+    ).resolves.toMatchObject({
+      publication: {
+        outcome: "refused",
+        reason: expect.stringContaining(".github/"),
+      },
+    });
+    expect(await git.remoteHead(worktree.data, "origin", "spi/gitlink-add")).toEqual({
+      ok: true,
+      data: null,
+    });
+
+    await expect(
+      publishChanges(
+        exec,
+        git,
+        worktree.data,
+        "thread-gitlink",
+        thread.title,
+        baseHead,
+        gitlinkHead,
+        null,
+        prepared,
+        forgeCwd,
+        "main",
+      ),
+    ).resolves.toMatchObject({
+      publication: { outcome: "published", head: gitlinkHead },
+    });
+    expect(await git.remoteHead(worktree.data, "origin", "spi/gitlink-add")).toEqual({
+      ok: true,
+      data: gitlinkHead,
+    });
+  }, 60_000);
 });

@@ -908,6 +908,7 @@ export class PrivilegedGit {
         "--name-only",
         "-z",
         ...diffFlags,
+        "--ignore-submodules=none",
         "--end-of-options",
         objectId(from),
         objectId(to),
