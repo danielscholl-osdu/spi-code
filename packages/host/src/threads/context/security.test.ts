@@ -702,5 +702,41 @@ describe("a Security subject the latest sweep cannot show", () => {
       ok: false,
       reason: "Nothing in the latest sweep has the id campaign:security:gone.",
     });
+
+    const without = {
+      ...saved,
+      view: { ...projected, campaigns: drawn.campaigns.filter(({ kind }) => kind !== "security") },
+    };
+    const later = latestSweep(() => without, { ctx: input.context, appData: input.appData });
+    for (const campaign of campaigns) {
+      const before = await chipFromSweep(latest, campaign.id, journalOutputRedactor);
+      const after = await chipFromSweep(later, campaign.id, journalOutputRedactor);
+      if (!before.ok || !after.ok)
+        throw new Error(`${campaign.id}: ${after.ok ? "" : after.reason}`);
+      expect(after.chip.chip, campaign.id).toEqual(before.chip.chip);
+    }
+    const closed = `campaign:security:${encodeURIComponent("Fixture: closed-since")}`;
+    const fallback = await chipFromSweep(later, closed, journalOutputRedactor);
+    expect(fallback).toMatchObject({
+      ok: true,
+      chip: {
+        chip: { id: closed, kind: "place", title: "Security", reading: { from: FROM, open: [] } },
+      },
+    });
+    for (const crafted of [
+      "campaign:security:",
+      "campaign:security:gone",
+      "campaign:security:__proto__",
+      "campaign:security:%E0%A4%A",
+      `campaign:security:${encodeURIComponent("__proto__: constructor")}`,
+      `campaign:security:${encodeURIComponent("CodeQL: ../../etc/passwd")}`,
+      `campaign:security:${encodeURIComponent("CodeQL: java/x?y=1")}`,
+      `campaign:security:${encodeURIComponent("CodeQL: java/log-injection").toLowerCase()}`,
+      "campaign:security:CodeQL: java/log-injection",
+    ])
+      expect(await chipFromSweep(later, crafted, journalOutputRedactor), crafted).toEqual({
+        ok: false,
+        reason: `Nothing in the latest sweep has the id ${crafted}.`,
+      });
   });
 });

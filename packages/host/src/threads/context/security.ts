@@ -113,6 +113,32 @@ export function findRule(pane: SecurityPane | undefined, key: string) {
 
 export const SECURITY_CAMPAIGN = "campaign:security:";
 const FROM = "The campaign row this was started from is no longer drawn.";
+const CAMPAIGN_FACT = /^([^\s:/\\?#]+): ([^\s\\?#]+)$/u;
+const NOT_A_PART: readonly string[] = Object.freeze([
+  "",
+  ".",
+  "..",
+  "__proto__",
+  "constructor",
+  "prototype",
+]);
+
+/** The `tool: rule` a campaign subject was saved with, read from the subject alone; undefined unless canonical. */
+function campaignFact(id: string): string | undefined {
+  const encoded = id.slice(SECURITY_CAMPAIGN.length);
+  if (encoded.length === 0 || encoded.length > 512) return undefined;
+  let fact: string;
+  try {
+    fact = decodeURIComponent(encoded);
+  } catch {
+    return undefined;
+  }
+  if (encodeURIComponent(fact) !== encoded || /[\p{Cc}\p{Cf}]/u.test(fact)) return undefined;
+  const [, tool, rule] = CAMPAIGN_FACT.exec(fact) ?? [];
+  if (!tool || !rule) return undefined;
+  const parts = [tool, ...rule.split(/[/:]/)];
+  return parts.some((part) => NOT_A_PART.includes(part)) ? undefined : fact;
+}
 
 /** A code rule whose key ends in a campaign's `tool: rule` fact, in any lane. */
 function campaignRules(pane: SecurityPane | undefined, fact: string) {
@@ -131,9 +157,9 @@ function campaignRules(pane: SecurityPane | undefined, fact: string) {
 
 /** A campaign subject saved before the pane: its one rule, or the page with the rules it now is. */
 export function campaignReading(view: ViewSnapshot, id: string) {
-  const campaign = view.campaigns.find((entry) => entry.id === id && entry.kind === "security");
-  if (!campaign) return undefined;
-  const keys = campaignRules(view.security, campaign.fact);
+  const fact = campaignFact(id);
+  if (fact === undefined) return undefined;
+  const keys = campaignRules(view.security, fact);
   const [only] = keys;
   const rule = only && keys.length === 1 ? findRule(view.security, only) : undefined;
   if (rule) return { rule: true, ...packed(rule, { from: FROM }) };
