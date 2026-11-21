@@ -222,6 +222,10 @@ const commit = z.discriminatedUnion("outcome", [
   z.strictObject({ outcome: z.enum(["refused", "failed"]), reason: id }),
   z.strictObject({ outcome: unknown, reason: id }),
 ]);
+const githubConfirmation = z.strictObject({
+  kind: z.enum(["request", "branch"]),
+  value: id,
+});
 const publication = z.discriminatedUnion("state", [
   z.strictObject({ state: z.literal("asking") }),
   z.strictObject({
@@ -232,6 +236,7 @@ const publication = z.discriminatedUnion("state", [
     opens: z.enum(["pull-request", "merge-request", "none"]),
     observedHead: sha.nullable().optional(),
     request: threadRequest.optional(),
+    githubConfirmation: githubConfirmation.optional(),
   }),
   z.strictObject({
     state: z.literal("unavailable"),
@@ -335,7 +340,13 @@ export const ThreadMessageSchema = z.discriminatedUnion("type", [
   envelope(
     "thread.publish",
     "request",
-    threadId.extend({ head: sha, observedHead: sha.nullable() }).strict(),
+    threadId
+      .extend({
+        head: sha,
+        observedHead: sha.nullable(),
+        githubConfirmation: z.string().max(256).optional(),
+      })
+      .strict(),
   ),
   envelope(
     "thread.published",

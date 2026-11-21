@@ -893,6 +893,32 @@ export class PrivilegedGit {
     );
   }
 
+  /** Paths changed between two commits with renames split so both old and new paths appear. */
+  async changedPaths(
+    target: GitTarget,
+    from: string,
+    to: string,
+    options: GitOptions = {},
+  ): Promise<ExecResult<string[]>> {
+    const result = await this.#run(
+      target,
+      [
+        "--literal-pathspecs",
+        "diff",
+        "--name-only",
+        "-z",
+        ...diffFlags,
+        "--end-of-options",
+        objectId(from),
+        objectId(to),
+        "--",
+      ],
+      options,
+    );
+    if (!result.ok) return result;
+    return { ok: true, data: result.data.split("\0").filter(Boolean) };
+  }
+
   /** One path as the ref holds it against a blob, as a patch or as numstat. */
   async diffBlob(
     target: GitTarget,

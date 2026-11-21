@@ -291,7 +291,7 @@ export function openThreadHost(options: ThreadHostOptions) {
               state: "not read" as const,
               reason: "The thread's worktree was not available.",
             };
-          return await observePublication(at.git, at.target, prepared);
+          return await observePublication(at.git, at.target, prepared, at.base);
         } catch (error) {
           return {
             state: "not read" as const,
@@ -299,7 +299,12 @@ export function openThreadHost(options: ThreadHostOptions) {
           };
         }
       },
-      publish: async (id: string, displayedHead: string, observedHead: string | null) => {
+      publish: async (
+        id: string,
+        displayedHead: string,
+        observedHead: string | null,
+        githubConfirmation?: string,
+      ) => {
         if (engine.isRunning(id))
           return {
             outcome: "refused" as const,
@@ -333,6 +338,7 @@ export function openThreadHost(options: ThreadHostOptions) {
               observedHead,
               prepared,
               forgeCwd,
+              githubConfirmation,
             );
             if (result.pushedHead) {
               engine.publish(id, {

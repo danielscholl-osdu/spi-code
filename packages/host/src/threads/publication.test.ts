@@ -1,14 +1,17 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { execFile } from "node:child_process";
 import { appendFileSync, writeFileSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { promisify } from "node:util";
 import type { Exec, ExecOptions, ExecResult } from "@spi-code/core";
 import type { ThreadDefinition } from "@spi-code/threads";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { PrivilegedGit, PushResult } from "../scopes/git.js";
+import { PrivilegedGit, type PushResult } from "../scopes/git.js";
 import { ScopeRegistry } from "../scopes/registry.js";
 import { spiReadTools } from "../tools/spi-reads.js";
 import {
@@ -17,6 +20,8 @@ import {
   preparePublication,
   publishChanges,
 } from "./publication.js";
+
+const execFileAsync = promisify(execFile);
 
 const BASE = "1".repeat(40);
 const OBSERVED = "2".repeat(40);
@@ -240,13 +245,18 @@ function gitTarget() {
 function runner({
   remote = null,
   pushResult = { ok: true, data: "pushed" },
+  paths = [],
+  changedPathsError,
 }: {
   remote?: string | null;
   pushResult?: PushResult;
+  paths?: string[];
+  changedPathsError?: string;
 } = {}) {
   const calls = {
     remote: [] as { remote: string; url: string }[],
     push: [] as Parameters<PrivilegedGit["push"]>[1][],
+    ranges: [] as { from: string; to: string }[],
   };
   const git: PublicationGit = {
     statusAll: async () => ({ ok: true, data: "" }),
@@ -262,6 +272,12 @@ function runner({
     addRemote: async (_target, remoteName, url) => {
       calls.remote.push({ remote: remoteName, url });
       return { ok: true, data: url };
+    },
+    changedPaths: async (_target, from, to) => {
+      calls.ranges.push({ from, to });
+      return changedPathsError
+        ? { ok: false, error: changedPathsError, code: 128 }
+        : { ok: true, data: paths };
     },
     remoteHead: async () => ({ ok: true, data: remote }),
     push: async (_target, request) => {
@@ -743,7 +759,7 @@ describe("publication gates", () => {
     const prepared = await preparePublication(exec, scope, landing("fork-main"), forgeCwd);
     if (!prepared.ok) throw new Error("Expected ready");
     const { git, calls } = runner({ remote: OBSERVED });
-    await expect(observePublication(git, gitTarget(), prepared)).resolves.toEqual({
+    await expect(observePublication(git, gitTarget(), prepared, BASE)).resolves.toEqual({
       ...prepared.publication,
       observedHead: OBSERVED,
     });
@@ -795,7 +811,7 @@ describe("publication gates", () => {
     const prepared = await preparePublication(forge("direct"), scope, thread, forgeCwd);
     if (!prepared.ok) throw new Error("Expected ready");
     const { git } = runner();
-    await expect(observePublication(git, gitTarget(), prepared)).resolves.toEqual({
+    await expect(observePublication(git, gitTarget(), prepared, BASE)).resolves.toEqual({
       state: "unavailable",
       reason: "The remote branch was deleted. Update the thread's landing before pushing.",
     });
@@ -1041,4 +1057,374 @@ describe("publication gates", () => {
     );
     expect(JSON.stringify(tools.map(({ name }) => name))).not.toMatch(/publish|push/u);
   });
+});
+
+describe(".github/ push gate", () => {
+  it("refuses an existing request push that changes .github/ until the request number matches", async () => {
+    const scope = new ScopeRegistry().lookup("partition");
+    if (!scope) throw new Error("Missing partition");
+    const exec = forge("direct");
+    const prepared = await preparePublication(exec, scope, landing("request"), forgeCwd);
+    if (!prepared.ok) throw new Error("Expected ready");
+    const { git, calls } = runner({
+      remote: OBSERVED,
+      paths: [".github/workflows/validate.yml", "src/app.ts"],
+    });
+
+    await expect(observePublication(git, gitTarget(), prepared, BASE)).resolves.toEqual({
+      ...prepared.publication,
+      observedHead: OBSERVED,
+      githubConfirmation: { kind: "request", value: "8" },
+    });
+    expect(calls.ranges.at(-1)).toEqual({ from: OBSERVED, to: HEAD });
+
+    for (const wrong of [undefined, "", "   ", "9", "#8", "main"]) {
+      await expect(
+        publishChanges(
+          exec,
+          git,
+          gitTarget(),
+          "thread-1",
+          undefined,
+          BASE,
+          HEAD,
+          OBSERVED,
+          prepared,
+          forgeCwd,
+          wrong,
+        ),
+        `value=${String(wrong)}`,
+      ).resolves.toMatchObject({
+        publication: {
+          outcome: "refused",
+          reason: "This push changes .github/. Type request number 8 to confirm.",
+        },
+      });
+    }
+    expect(calls.push).toEqual([]);
+
+    await expect(
+      publishChanges(
+        exec,
+        git,
+        gitTarget(),
+        "thread-1",
+        undefined,
+        BASE,
+        HEAD,
+        OBSERVED,
+        prepared,
+        forgeCwd,
+        " 8 ",
+      ),
+    ).resolves.toMatchObject({ publication: { outcome: "pushed", head: HEAD } });
+    expect(calls.push).toHaveLength(1);
+  });
+
+  it("asks for the existing request number after a thread has already opened a draft PR", async () => {
+    const scope = new ScopeRegistry().lookup("partition");
+    if (!scope) throw new Error("Missing partition");
+    const exec = forge("direct");
+    const thread: ThreadDefinition = {
+      ...landing("fork-main"),
+      pushedHead: OBSERVED,
+      request: {
+        forge: "github",
+        repository: GITHUB,
+        requestNumber: 42,
+        url: `https://github.com/${GITHUB}/pull/42`,
+      },
+    };
+    const prepared = await preparePublication(exec, scope, thread, forgeCwd);
+    if (!prepared.ok) throw new Error("Expected ready");
+    const { git, calls } = runner({
+      remote: OBSERVED,
+      paths: [".github/CODEOWNERS"],
+    });
+
+    await expect(observePublication(git, gitTarget(), prepared, BASE)).resolves.toMatchObject({
+      githubConfirmation: { kind: "request", value: "42" },
+    });
+    await expect(
+      publishChanges(
+        exec,
+        git,
+        gitTarget(),
+        "thread-1",
+        undefined,
+        BASE,
+        HEAD,
+        OBSERVED,
+        prepared,
+        forgeCwd,
+        "main",
+      ),
+    ).resolves.toMatchObject({
+      publication: {
+        outcome: "refused",
+        reason: "This push changes .github/. Type request number 42 to confirm.",
+      },
+    });
+    expect(calls.push).toEqual([]);
+    await expect(
+      publishChanges(
+        exec,
+        git,
+        gitTarget(),
+        "thread-1",
+        undefined,
+        BASE,
+        HEAD,
+        OBSERVED,
+        prepared,
+        forgeCwd,
+        "42",
+      ),
+    ).resolves.toMatchObject({ publication: { outcome: "pushed", head: HEAD } });
+    expect(calls.push).toHaveLength(1);
+  });
+
+  it.each([
+    ["fork-main" as const, "main", "fork_integration"],
+    ["fork-integration" as const, "fork_integration", "main"],
+    ["upstream" as const, "trunk", "main"],
+  ])(
+    "refuses a new %s request touching .github/ until target branch %s matches",
+    async (target, expectedBranch, wrongBranch) => {
+      const scope = new ScopeRegistry().lookup("partition");
+      if (!scope) throw new Error("Missing partition");
+      const exec = forge("direct");
+      const prepared = await preparePublication(exec, scope, landing(target), forgeCwd);
+      if (!prepared.ok) throw new Error("Expected ready");
+      const { git, calls } = runner({ paths: [".github/workflows/cascade.yml"] });
+
+      await expect(observePublication(git, gitTarget(), prepared, BASE)).resolves.toEqual({
+        ...prepared.publication,
+        observedHead: null,
+        githubConfirmation: { kind: "branch", value: expectedBranch },
+      });
+      expect(calls.ranges.at(-1)).toEqual({ from: BASE, to: HEAD });
+
+      for (const wrong of [undefined, "", wrongBranch, expectedBranch.toUpperCase(), "8"]) {
+        await expect(
+          publishChanges(
+            exec,
+            git,
+            gitTarget(),
+            "thread-1",
+            undefined,
+            BASE,
+            HEAD,
+            null,
+            prepared,
+            forgeCwd,
+            wrong,
+          ),
+          `value=${String(wrong)}`,
+        ).resolves.toMatchObject({
+          publication: {
+            outcome: "refused",
+            reason: `This push changes .github/. New requests have no number yet; type target branch ${expectedBranch} to confirm.`,
+          },
+        });
+      }
+      expect(calls.push).toEqual([]);
+
+      await expect(
+        publishChanges(
+          exec,
+          git,
+          gitTarget(),
+          "thread-1",
+          undefined,
+          BASE,
+          HEAD,
+          null,
+          prepared,
+          forgeCwd,
+          expectedBranch,
+        ),
+      ).resolves.toMatchObject({ publication: { outcome: "published", head: HEAD } });
+      expect(calls.push).toHaveLength(1);
+    },
+  );
+
+  it("asks for nothing when the pushed range has no .github/ change", async () => {
+    const scope = new ScopeRegistry().lookup("partition");
+    if (!scope) throw new Error("Missing partition");
+    const exec = forge("direct");
+    const prepared = await preparePublication(exec, scope, landing("fork-main"), forgeCwd);
+    if (!prepared.ok) throw new Error("Expected ready");
+    const { git, calls } = runner({
+      paths: ["src/index.ts", ".github-notes/readme.md", "docs/.github/guide.md"],
+    });
+
+    const observed = await observePublication(git, gitTarget(), prepared, BASE);
+    expect(observed).toEqual({ ...prepared.publication, observedHead: null });
+    expect(observed).not.toHaveProperty("githubConfirmation");
+
+    await expect(
+      publishChanges(
+        exec,
+        git,
+        gitTarget(),
+        "thread-1",
+        undefined,
+        BASE,
+        HEAD,
+        null,
+        prepared,
+        forgeCwd,
+      ),
+    ).resolves.toMatchObject({ publication: { outcome: "published", head: HEAD } });
+    expect(calls.push).toHaveLength(1);
+  });
+
+  it("reports not read and refuses to push when the pushed range cannot be read", async () => {
+    const scope = new ScopeRegistry().lookup("partition");
+    if (!scope) throw new Error("Missing partition");
+    const exec = forge("direct");
+    const prepared = await preparePublication(exec, scope, landing("fork-main"), forgeCwd);
+    if (!prepared.ok) throw new Error("Expected ready");
+    const { git, calls } = runner({ changedPathsError: "fatal: bad object" });
+
+    await expect(observePublication(git, gitTarget(), prepared, BASE)).resolves.toMatchObject({
+      state: "not read",
+      reason: expect.stringContaining("pushed range was not read"),
+    });
+    await expect(
+      publishChanges(
+        exec,
+        git,
+        gitTarget(),
+        "thread-1",
+        undefined,
+        BASE,
+        HEAD,
+        null,
+        prepared,
+        forgeCwd,
+        "main",
+      ),
+    ).resolves.toMatchObject({ publication: { outcome: "failed" } });
+    expect(calls.push).toEqual([]);
+  });
+
+  it("gates a real-git rename moving a file out of .github/", async () => {
+    const physical = await realpath(root);
+    const capturedPath = process.env.PATH ?? process.env.Path ?? "";
+    const runFixtureGit = async (cwd: string, ...args: string[]) => {
+      const { stdout } = await execFileAsync("git", args, {
+        cwd,
+        windowsHide: true,
+        env: {
+          PATH: capturedPath,
+          ...(process.platform === "win32"
+            ? { SystemRoot: process.env.SystemRoot ?? "C:\\Windows" }
+            : {}),
+          HOME: physical,
+          USERPROFILE: physical,
+          GIT_CONFIG_NOSYSTEM: "1",
+          GIT_CONFIG_GLOBAL: join(physical, "empty-config"),
+          GIT_ALLOW_PROTOCOL: "file",
+        },
+      });
+      return stdout.trim();
+    };
+    const id = ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid"];
+    const seed = join(physical, "seed");
+    const origin = join(physical, "origin.git");
+    const appData = join(physical, "app-data");
+    await runFixtureGit(physical, "init", "--initial-branch", "main", seed);
+    await mkdir(join(seed, ".github", "workflows"), { recursive: true });
+    await writeFile(join(seed, ".github", "workflows", "ci.yml"), "name: CI\non: [push]\n");
+    await runFixtureGit(seed, "add", "--", ".github/workflows/ci.yml");
+    await runFixtureGit(seed, ...id, "commit", "-m", "Add workflow");
+    const baseHead = await runFixtureGit(seed, "rev-parse", "HEAD");
+    await runFixtureGit(physical, "clone", "--bare", seed, origin);
+
+    const scope = new ScopeRegistry().lookup("partition");
+    if (scope?.kind !== "service") throw new Error("Missing partition");
+    const git = new PrivilegedGit({ appData, capturedPath, allowLocalRemotes: true });
+    const cloneParent = join(await git.dataRoot(), "repos", "azure", "osdu-spi-partition");
+    await mkdir(cloneParent, { recursive: true });
+    const cloned = await git.clone(cloneParent, { origin: pathToFileURL(origin).href });
+    if (!cloned.ok) throw new Error(cloned.error);
+    const worktree = await git.addBranchWorktree(
+      join(cloneParent, "checkout"),
+      "thread-rename",
+      "spi/rename-out",
+      baseHead,
+    );
+    if (!worktree.ok) throw new Error(worktree.error);
+
+    await mkdir(join(worktree.data.worktree.cwd, "scripts"), { recursive: true });
+    await runFixtureGit(
+      worktree.data.worktree.cwd,
+      "mv",
+      ".github/workflows/ci.yml",
+      "scripts/ci.yml",
+    );
+    await runFixtureGit(worktree.data.worktree.cwd, ...id, "commit", "-m", "Move workflow out");
+    const renamedHead = await runFixtureGit(worktree.data.worktree.cwd, "rev-parse", "HEAD");
+
+    const exec = forge("direct");
+    const thread = landing("fork-main", "spi/rename-out");
+    const prepared = await preparePublication(exec, scope, thread, forgeCwd);
+    if (!prepared.ok) throw new Error("Expected ready");
+
+    await expect(observePublication(git, worktree.data, prepared, baseHead)).resolves.toMatchObject(
+      {
+        state: "ready",
+        observedHead: null,
+        githubConfirmation: { kind: "branch", value: "main" },
+      },
+    );
+
+    await expect(
+      publishChanges(
+        exec,
+        git,
+        worktree.data,
+        "thread-rename",
+        thread.title,
+        baseHead,
+        renamedHead,
+        null,
+        prepared,
+        forgeCwd,
+      ),
+    ).resolves.toMatchObject({
+      publication: {
+        outcome: "refused",
+        reason: expect.stringContaining(".github/"),
+      },
+    });
+    expect(await git.remoteHead(worktree.data, "origin", "spi/rename-out")).toEqual({
+      ok: true,
+      data: null,
+    });
+
+    await expect(
+      publishChanges(
+        exec,
+        git,
+        worktree.data,
+        "thread-rename",
+        thread.title,
+        baseHead,
+        renamedHead,
+        null,
+        prepared,
+        forgeCwd,
+        "main",
+      ),
+    ).resolves.toMatchObject({
+      publication: { outcome: "published", head: renamedHead },
+    });
+    expect(await git.remoteHead(worktree.data, "origin", "spi/rename-out")).toEqual({
+      ok: true,
+      data: renamedHead,
+    });
+  }, 60_000);
 });

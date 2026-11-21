@@ -8,7 +8,8 @@ import type { PrivilegedGit, WorktreeTarget } from "../scopes/git.js";
 import type { RepositoryScope, Scope } from "../scopes/registry.js";
 import { type ChangesGit, readChanges } from "./changes.js";
 
-export type PublicationGit = ChangesGit & Pick<PrivilegedGit, "addRemote" | "push" | "remoteHead">;
+export type PublicationGit = ChangesGit &
+  Pick<PrivilegedGit, "addRemote" | "changedPaths" | "push" | "remoteHead">;
 
 type Publication = Extract<
   Message,
@@ -68,6 +69,28 @@ function protectedBranch(branch: string, upstreamDefault?: string): boolean {
   return ["main", "fork_integration", upstreamDefault].some(
     (protectedBranch) => protectedBranch && branch === protectedBranch,
   );
+}
+
+function isGitHubPath(path: string): boolean {
+  const lower = path.toLowerCase();
+  return lower === ".github" || lower.startsWith(".github/");
+}
+
+function githubConfirmationFor(
+  prepared: Extract<PreparedPublication, { ok: true }>,
+): NonNullable<ReadyPublication["githubConfirmation"]> {
+  if (prepared.request) {
+    return { kind: "request", value: String(prepared.request.requestNumber) };
+  }
+  return { kind: "branch", value: prepared.base };
+}
+
+function githubConfirmationReason(
+  expected: NonNullable<ReadyPublication["githubConfirmation"]>,
+): string {
+  return expected.kind === "request"
+    ? `This push changes .github/. Type request number ${expected.value} to confirm.`
+    : `This push changes .github/. New requests have no number yet; type target branch ${expected.value} to confirm.`;
 }
 
 export function requestFromLanding(
@@ -604,11 +627,12 @@ async function existingRequest(
   return { ok: true };
 }
 
-/** Reads the remote head into the publication the Thread tab last showed. */
+/** Reads the remote head and pushed range into the publication the Thread tab last showed. */
 export async function observePublication(
-  git: Pick<PublicationGit, "remoteHead">,
+  git: Pick<PublicationGit, "changedPaths" | "head" | "remoteHead">,
   target: WorktreeTarget,
   prepared: PreparedPublication,
+  baseHead: string,
 ): Promise<Publication> {
   if (!prepared.ok) return prepared.publication;
   const observed = await git.remoteHead(
@@ -627,10 +651,36 @@ export async function observePublication(
       reason: "The remote branch was deleted. Update the thread's landing before pushing.",
     };
   }
-  return { ...prepared.publication, observedHead: observed.data };
+  const head = await git.head(target);
+  if (!head.ok)
+    return {
+      state: "not read",
+      reason: `The branch head was not read. ${resultError(head, "Git failed.")}`,
+    };
+  const currentHead = head.data.trim();
+  const rangeBase = observed.data ?? baseHead;
+  if (!sha(currentHead) || !sha(rangeBase))
+    return {
+      state: "not read",
+      reason: "The pushed range was not read.",
+    };
+  const changed = await git.changedPaths(target, rangeBase, currentHead);
+  if (!changed.ok)
+    return {
+      state: "not read",
+      reason: `The pushed range was not read. ${resultError(changed, "Git failed.")}`,
+    };
+  const githubConfirmation = changed.data.some(isGitHubPath)
+    ? githubConfirmationFor(prepared)
+    : undefined;
+  return {
+    ...prepared.publication,
+    observedHead: observed.data,
+    ...(githubConfirmation ? { githubConfirmation } : {}),
+  };
 }
 
-function gitOutcome(result: ExecResult<string>, operation: string): PublicationOutcome {
+function gitOutcome(result: ExecResult<unknown>, operation: string): PublicationOutcome {
   return !result.ok &&
     result.code === null &&
     !/spawn .*ENOENT|not found|EACCES/iu.test(result.error)
@@ -653,6 +703,7 @@ export async function publishChanges(
   displayedRemoteHead: string | null,
   prepared: Extract<PreparedPublication, { ok: true }>,
   forgeCwd: string,
+  githubConfirmation?: string,
 ): Promise<{
   publication: PublicationOutcome;
   request?: ThreadRequest;
@@ -710,6 +761,24 @@ export async function publishChanges(
             : "The remote branch moved since the Thread tab read it. Update it before pushing.",
       },
     };
+  }
+  const rangeBase = observed.data ?? baseHead;
+  if (!sha(rangeBase))
+    return {
+      publication: { outcome: "refused", reason: "The base commit is not a full head." },
+    };
+  const changed = await git.changedPaths(target, rangeBase, displayedHead);
+  if (!changed.ok) return { publication: gitOutcome(changed, "Reading the pushed range") };
+  if (changed.data.some(isGitHubPath)) {
+    const expected = githubConfirmationFor(prepared);
+    if (githubConfirmation?.trim() !== expected.value) {
+      return {
+        publication: {
+          outcome: "refused",
+          reason: githubConfirmationReason(expected),
+        },
+      };
+    }
   }
   const pushed = await git.push(target, {
     remote: publication.remote,

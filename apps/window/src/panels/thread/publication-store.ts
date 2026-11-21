@@ -19,26 +19,39 @@ type State = {
   publications: Readonly<Record<string, PublicationState>>;
   outcomes: Readonly<Record<string, Outcome | { outcome: "publishing" }>>;
   read(threadId: string): void;
-  publish(threadId: string, head: string, observedHead: string | null): void;
+  publish(
+    threadId: string,
+    head: string,
+    observedHead: string | null,
+    githubConfirmation?: string,
+  ): void;
   receive(input: unknown): void;
 };
 
 export function createPublicationStore(post: (message: Message) => void = postToHost) {
   const waiting = new Map<string, (reply: Message) => void>();
+  const latest = new Map<string, string>();
   const request = (
     type: Request["type"],
     payload: Request["payload"],
     reply: (message: Message) => void,
+    newest?: string,
   ) => {
     const id = crypto.randomUUID();
     const parsed = parseMessage({ version: PROTOCOL_VERSION, id, kind: "request", type, payload });
     if (!parsed.ok) return false;
-    waiting.set(id, reply);
+    if (newest !== undefined) latest.set(newest, id);
+    const settle = (message: Message) => {
+      if (newest !== undefined && latest.get(newest) !== id) return;
+      if (newest !== undefined) latest.delete(newest);
+      reply(message);
+    };
+    waiting.set(id, settle);
     try {
       post(parsed.message);
     } catch {
       waiting.delete(id);
-      reply({
+      settle({
         version: PROTOCOL_VERSION,
         id,
         kind: "response",
@@ -55,62 +68,80 @@ export function createPublicationStore(post: (message: Message) => void = postTo
     read(threadId) {
       if (!get().publications[threadId])
         set(({ publications }) => ({ publications: { ...publications, [threadId]: reading } }));
-      const sent = request("thread.publication", { threadId }, (reply) => {
-        const publication: Publication =
-          reply.type === "thread.publication.result"
-            ? reply.payload.publication
-            : {
-                state: "not read",
-                reason:
-                  reply.type === "error"
-                    ? reply.payload.message
-                    : "The host did not read the publish destination.",
-              };
-        set((state) => ({
-          publications: { ...state.publications, [threadId]: publication },
-        }));
-      });
+      const sent = request(
+        "thread.publication",
+        { threadId },
+        (reply) => {
+          const publication: Publication =
+            reply.type === "thread.publication.result"
+              ? reply.payload.publication
+              : {
+                  state: "not read",
+                  reason:
+                    reply.type === "error"
+                      ? reply.payload.message
+                      : "The host did not read the publish destination.",
+                };
+          set((state) => ({
+            publications: { ...state.publications, [threadId]: publication },
+          }));
+        },
+        threadId,
+      );
       if (!sent) throw new Error("Window generated an invalid thread.publication");
     },
-    publish(threadId, head, observedHead) {
+    publish(threadId, head, observedHead, githubConfirmation) {
       if (get().outcomes[threadId]?.outcome === "publishing") return;
       set(({ outcomes }) => ({
         outcomes: { ...outcomes, [threadId]: { outcome: "publishing" } },
       }));
-      const sent = request("thread.publish", { threadId, head, observedHead }, (reply) => {
-        const outcome: Outcome =
-          reply.type === "thread.published"
-            ? reply.payload.publication
-            : {
-                outcome: "not known",
-                reason:
-                  reply.type === "error"
-                    ? reply.payload.message
-                    : "The host gave no publishing result.",
-              };
-        set((state) => {
-          const current = state.publications[threadId];
-          return {
-            outcomes: { ...state.outcomes, [threadId]: outcome },
-            ...(outcome.outcome === "published" && current?.state === "ready"
-              ? {
-                  publications: {
-                    ...state.publications,
-                    [threadId]: { ...current, opens: "none", request: outcome.request },
-                  },
-                }
-              : {}),
-          };
-        });
-        if (outcome.outcome === "not known") {
-          set(({ publications }) => ({
-            publications: { ...publications, [threadId]: reading },
-          }));
-          get().read(threadId);
-        } else if (outcome.outcome === "published" || outcome.outcome === "pushed") {
-          get().read(threadId);
-        }
-      });
+      const sent = request(
+        "thread.publish",
+        {
+          threadId,
+          head,
+          observedHead,
+          ...(githubConfirmation === undefined ? {} : { githubConfirmation }),
+        },
+        (reply) => {
+          const outcome: Outcome =
+            reply.type === "thread.published"
+              ? reply.payload.publication
+              : {
+                  outcome: "not known",
+                  reason:
+                    reply.type === "error"
+                      ? reply.payload.message
+                      : "The host gave no publishing result.",
+                };
+          set((state) => {
+            const current = state.publications[threadId];
+            return {
+              outcomes: { ...state.outcomes, [threadId]: outcome },
+              ...(outcome.outcome === "published" && current?.state === "ready"
+                ? {
+                    publications: {
+                      ...state.publications,
+                      [threadId]: { ...current, opens: "none", request: outcome.request },
+                    },
+                  }
+                : {}),
+            };
+          });
+          if (outcome.outcome === "not known") {
+            set(({ publications }) => ({
+              publications: { ...publications, [threadId]: reading },
+            }));
+            get().read(threadId);
+          } else if (
+            outcome.outcome === "published" ||
+            outcome.outcome === "pushed" ||
+            (outcome.outcome === "refused" && outcome.reason.includes(".github/"))
+          ) {
+            get().read(threadId);
+          }
+        },
+      );
       if (!sent) {
         set(({ outcomes }) => ({
           outcomes: {
@@ -126,6 +157,7 @@ export function createPublicationStore(post: (message: Message) => void = postTo
       const message = parsed.message;
       if (message.type === "host.hello") {
         waiting.clear();
+        latest.clear();
         const outcomes = Object.fromEntries(
           Object.entries(get().outcomes).map(([id, outcome]) => [
             id,
