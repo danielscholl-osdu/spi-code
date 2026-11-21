@@ -7,6 +7,7 @@ import {
   parseCodeAlert,
   parseDependencyAlert,
   readSecurity,
+  TITLE_MAX,
 } from "../../src/collect/security.js";
 import { SECURITY_EVERY_MS } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
@@ -123,6 +124,33 @@ describe("alert parsing", () => {
     expect(long?.tags?.[0]).toBe("tag-0");
     const exact = "y".repeat(HELP_MAX);
     expect(parseCodeAlert({ ...CODE, fullDescription: exact })?.fullDescription).toBe(exact);
+  });
+
+  test("never cuts help or a title inside a word, so a credential across the cap leaves nothing", () => {
+    const token = "fixture-scanner-credential-across-the-cap";
+    const lead = `${"word ".repeat(59)}a `;
+    const help = parseCodeAlert({
+      ...CODE,
+      fullDescription: `${lead}${token} tail`,
+    })?.fullDescription;
+    expect([...lead].length).toBeLessThan(HELP_MAX);
+    expect([...lead, ...token].length).toBeGreaterThan(HELP_MAX);
+    expect(help).toBe(`${lead.trimEnd()}…`);
+    expect(help).not.toContain(token.slice(0, 2));
+    expect(
+      parseCodeAlert({ ...CODE, fullDescription: "安".repeat(HELP_MAX + 1) }),
+    ).not.toHaveProperty("fullDescription");
+
+    const title = (description: string) => parseCodeAlert({ ...CODE, description })?.description;
+    expect(TITLE_MAX).toBe(120);
+    const long = title(`${"安全 ".repeat(100)}`);
+    expect([...(long ?? "")].length).toBeLessThanOrEqual(TITLE_MAX);
+    expect(long?.endsWith("安全…")).toBe(true);
+    expect(title(`${"x".repeat(TITLE_MAX - 3)} ${token}`)).toBe(`${"x".repeat(TITLE_MAX - 3)}…`);
+    expect(title("安".repeat(10_000))).toBe(CODE.rule);
+    expect(title("Comparison of narrow type with wide type in loop condition")).toBe(
+      "Comparison of narrow type with wide type in loop condition",
+    );
   });
 });
 

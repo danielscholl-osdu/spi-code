@@ -232,6 +232,24 @@ describe("an opened rule while a list was not read", () => {
     const others = rule.where.filter(({ repository }) => repository !== "file");
     expect(others.flatMap(({ count }) => counts(count)).every((n) => !n.atLeast)).toBe(true);
   });
+
+  it("counts a retained list's remaining files and directories at least", () => {
+    const source = securityCase("retained");
+    const keys = new Set(classify(source).alerts.map(({ key }) => key));
+    const files = [...keys].flatMap((key) =>
+      opened(source, key)
+        .where.filter(({ repository }) => repository === "file")
+        .flatMap((line) => counts(line.files)),
+    );
+    expect(files.length).toBeGreaterThan(0);
+    expect(files.every(({ atLeast }) => atLeast)).toBe(true);
+    const sweep = sweep1116Source();
+    const read = [...new Set(classify(sweep).alerts.map(({ key }) => key))].flatMap((key) =>
+      opened(sweep, key).where.flatMap((line) => counts(line.files)),
+    );
+    expect(read.length).toBeGreaterThan(0);
+    expect(read.every(({ atLeast }) => !atLeast)).toBe(true);
+  });
 });
 
 describe("an opened rule's help and CWE", () => {

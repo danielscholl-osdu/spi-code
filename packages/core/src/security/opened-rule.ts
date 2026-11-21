@@ -123,7 +123,8 @@ function patched(alerts: readonly SecurityAlert[], atLeast: boolean): Words {
   return ["first patched in ", ...join(parts)];
 }
 
-function files(alerts: readonly SecurityAlert[], code: boolean): Words {
+/** Paths, directories or files; from a list not read this sweep, every count is at least. */
+function files(alerts: readonly SecurityAlert[], code: boolean, atLeast: boolean): Words {
   const paths = [...new Set(alerts.flatMap(({ path }) => (path ? [path] : [])))];
   if (paths.length === 0) return ["Repository setting"];
   if (!code || paths.length === 1) return paths.map((path) => ({ code: shortPath(path) }));
@@ -131,14 +132,15 @@ function files(alerts: readonly SecurityAlert[], code: boolean): Words {
     const dirs = [...new Set(paths.map(dirOf))];
     const shown = dirs.slice(0, 2).map((dir): Words => [{ code: dir ? `${shortPath(dir)}/` : "/" }]);
     const more = dirs.length - shown.length;
-    return [...join(shown), ...(more > 0 ? [" and ", exact(more), plural(more, " more directory", " more directories")] : [])];
+    return [...join(shown), ...(more > 0 ? [" and ", count(more, atLeast), plural(more, " more directory", " more directories")] : [])];
   }
   const tally = paths
     .map((path) => [path, alerts.filter((alert) => alert.path === path).length] as const)
     .sort(([a, x], [b, y]) => y - x || a.localeCompare(b));
-  const shown = tally.slice(0, 3).map(([path, n]): Words => [{ code: basename(path) }, ...(n > 1 ? [` ×${n}`] : [])]);
+  const times = (n: number): Words => (n < 2 ? [] : atLeast ? [" ×", count(n, true)] : [` ×${n}`]);
+  const shown = tally.slice(0, 3).map(([path, n]): Words => [{ code: basename(path) }, ...times(n)]);
   const more = tally.length - shown.length;
-  return [...join(shown), ...(more > 0 ? [" and ", exact(more), plural(more, " more file")] : [])];
+  return [...join(shown), ...(more > 0 ? [" and ", count(more, atLeast), plural(more, " more file")] : [])];
 }
 
 function where(
@@ -179,7 +181,7 @@ function where(
           index > 0
             ? []
             : [count(mine.length, !read), ...(heavy > 0 && heavy < mine.length ? [", ", ...heavyWords(mine, !read)] : [])],
-        files: files(group, code),
+        files: files(group, code, !read),
         needs: patches.size > 1 ? patched(group, !read) : [],
         alerts: group.map((alert) => pill(repo.name, alert, several)),
         prs: prPills(repo, group),

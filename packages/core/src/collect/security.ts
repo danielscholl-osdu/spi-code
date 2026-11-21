@@ -14,6 +14,8 @@ export const CODE_JQ = `.[] | {number, severity: .rule.security_severity_level, 
 const SEVERITIES: ReadonlySet<string> = new Set(["critical", "high", "medium", "low"]);
 /** The longest rule help kept, in characters, its ellipsis included. */
 export const HELP_MAX = 300;
+/** The longest code rule title kept, in characters, its ellipsis included. */
+export const TITLE_MAX = 120;
 const TAGS_MAX = 20;
 const TAG_MAX = 100;
 
@@ -31,11 +33,15 @@ function severity(v: unknown): Severity | undefined {
 
 const INVISIBLE = /(?![\t\n\v\f\r])[\p{Cc}\p{Cf}]/gu;
 
-function oneLine(v: unknown): string | undefined {
+/** Scanner text on one line within max characters, cut only between words so a secret is never halved. */
+function oneLine(v: unknown, max: number): string | undefined {
   const text = str(v)?.replace(INVISIBLE, "").replaceAll("`", "").replace(/\s+/g, " ").trim();
   if (!text) return undefined;
   const chars = [...text];
-  return chars.length > HELP_MAX ? `${chars.slice(0, HELP_MAX - 1).join("").trimEnd()}…` : text;
+  if (chars.length <= max) return text;
+  const kept = chars.slice(0, max).join("");
+  const space = kept.lastIndexOf(" ");
+  return space > 0 ? `${kept.slice(0, space)}…` : undefined;
 }
 
 function tagsOf(v: unknown): string[] | undefined {
@@ -76,14 +82,14 @@ export function parseCodeAlert(r: Raw): CodeAlertFact | undefined {
   const sev = severity(r.severity);
   const ruleSeverity = str(r.ruleSeverity);
   const path = str(r.path);
-  const fullDescription = oneLine(r.fullDescription);
+  const fullDescription = oneLine(r.fullDescription, HELP_MAX);
   const tags = tagsOf(r.tags);
   return {
     number: r.number,
     ...(sev ? { severity: sev } : {}),
     ...(ruleSeverity ? { ruleSeverity } : {}),
     rule,
-    description: str(r.description) ?? rule,
+    description: oneLine(r.description, TITLE_MAX) ?? rule,
     ...(fullDescription ? { fullDescription } : {}),
     ...(tags ? { tags } : {}),
     tool: str(r.tool) ?? "",
