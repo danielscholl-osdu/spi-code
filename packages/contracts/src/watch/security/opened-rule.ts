@@ -19,6 +19,8 @@ export const SecurityWhereSchema = z.strictObject({
   alerts: z.array(SecurityPillSchema),
   /** Open and closed fix PRs. */
   prs: z.array(SecurityPillSchema),
+  /** Its files name every path whole, as the alerts give them. */
+  verbatim: z.literal(true).optional(),
   /** The pill that expands a long line in place; absent when every alert has its own pill. */
   more: z.string().optional(),
 });
@@ -30,6 +32,8 @@ export const SecurityAdvisorySchema = z.strictObject({
   words: SecurityWordsSchema,
   /** Its first patched version and how many alerts it raised. */
   fix: SecurityWordsSchema,
+  /** Its words carry the advisory's summary as GitHub gives it. */
+  verbatim: z.literal(true).optional(),
 });
 
 /** A package's advisories in order: the first shown, the rest behind a disclosure. */
@@ -47,6 +51,8 @@ export const SecurityOpenedRuleSchema = z.strictObject({
       words: SecurityWordsSchema,
       /** The package's advisories, drawn as this fact's body. */
       advisories: SecurityAdvisoriesSchema.optional(),
+      /** Every scanner-written string in its words is as the scanner wrote it. */
+      verbatim: z.literal(true).optional(),
     }),
   ),
   /** The scanner's one-line help and CWE, when the sweep read them. */

@@ -46,6 +46,10 @@ const shortPath = (path: string) => {
   const parts = path.split("/");
   return parts.length > 4 ? [...parts.slice(0, 2), "…", ...parts.slice(-1)].join("/") : path;
 };
+/** Every path these words name is one an alert gives, whole. */
+const whole = (words: Words, paths: readonly (string | undefined)[]) =>
+  words.every((part) => typeof part === "string" || !("code" in part) || paths.includes(part.code));
+const AS_WRITTEN = Object.freeze({ verbatim: true as const });
 const byFile = (a: SecurityAlert, b: SecurityAlert) =>
   (a.path ?? "").localeCompare(b.path ?? "") || a.number - b.number;
 
@@ -173,6 +177,7 @@ function where(
     const lines = manifests(mine).map((group, index): SecurityWhere => {
       const several = new Set(group.map(({ path }) => path)).size > 1;
       const heavy = mine.filter((alert) => alert.high).length;
+      const shown = files(group, code, !read);
       return {
         repository: repo.name,
         first: index === 0,
@@ -181,10 +186,11 @@ function where(
           index > 0
             ? []
             : [count(mine.length, !read), ...(heavy > 0 && heavy < mine.length ? [", ", ...heavyWords(mine, !read)] : [])],
-        files: files(group, code, !read),
+        files: shown,
         needs: patches.size > 1 ? patched(group, !read) : [],
         alerts: group.map((alert) => pill(repo.name, alert, several)),
         prs: prPills(repo, group),
+        ...(whole(shown, group.map(({ path }) => path)) ? AS_WRITTEN : {}),
         ...(group.length > FEW ? { more: `${group.length} ${toolOf(group[0] as SecurityAlert)} alerts` } : {}),
       };
     });
@@ -201,6 +207,7 @@ function where(
         needs: [],
         alerts: [],
         prs: [],
+        ...AS_WRITTEN,
       },
     ];
   });
@@ -225,6 +232,7 @@ function advisories(alerts: readonly SecurityAlert[], short: boolean) {
       const fact = first?.dependabot;
       const fixes = [...new Set(mine.flatMap((alert) => alert.dependabot?.fixed ?? []))].sort(compareVersions);
       return {
+        ...(fact && fact.summary === fact.summary.trim() ? AS_WRITTEN : {}),
         id: fact?.cve ?? fact?.advisory ?? "",
         words: [`${capital(first ? severityWord(first) : "")}. `, fact?.summary.trim() ?? ""],
         fix: [
@@ -254,6 +262,10 @@ function advisories(alerts: readonly SecurityAlert[], short: boolean) {
 
 type Scanner = Pick<SecurityOpenedRule, "help" | "cwe">;
 
+/** Whether the help scanner() takes is that alert's full_description byte for byte. */
+const helpVerbatim = (alerts: readonly SecurityAlert[]) =>
+  alerts.find((alert) => alert.code?.fullDescription)?.code?.verbatim === true;
+
 /** A code rule's help and CWE, each from the first alert that carries it: retained alerts may predate both. */
 function scanner(alerts: readonly SecurityAlert[]): Scanner {
   const help = alerts.find((alert) => alert.code?.fullDescription)?.code?.fullDescription;
@@ -276,13 +288,13 @@ function facts(
 ): SecurityOpenedRule["facts"] {
   const [first] = alerts;
   const out: SecurityOpenedRule["facts"] = [];
-  if (help) out.push({ label: "What it is", words: [help] });
+  if (help) out.push({ label: "What it is", words: [help], ...(helpVerbatim(alerts) ? AS_WRITTEN : {}) });
   if (first?.code)
-    out.push({ label: "Rule", words: [{ code: first.code.rule }, ` · ${first.code.tool}`, ...(cwe ? [` · ${cwe}`] : [])] });
+    out.push({ label: "Rule", words: [{ code: first.code.rule }, ` · ${first.code.tool}`, ...(cwe ? [` · ${cwe}`] : [])], ...AS_WRITTEN });
   if (first?.dependabot) {
-    out.push({ label: "Package", words: [{ code: first.dependabot.package }, ` · ${first.dependabot.ecosystem}`] });
+    out.push({ label: "Package", words: [{ code: first.dependabot.package }, ` · ${first.dependabot.ecosystem}`], ...AS_WRITTEN });
     const body = advisories(alerts, short);
-    if (body) out.push({ label: body.preview.length + body.rest.length === 1 ? "Advisory" : "Advisories", words: [], advisories: body });
+    if (body) out.push({ label: body.preview.length + body.rest.length === 1 ? "Advisory" : "Advisories", words: [], advisories: body, ...AS_WRITTEN });
   }
   const times = alerts.map(({ createdAt }) => createdAt).sort();
   const [since] = times;
@@ -295,6 +307,7 @@ function facts(
         ...(day(newest) === day(since) ? [] : [", newest ", day(newest)]),
         ...(short ? [" in the lists read"] : []),
       ],
+      ...AS_WRITTEN,
     });
   if (first?.code) {
     const spots = [...new Set(alerts.map(({ repository, path }) => `${repository}\n${path ?? ""}`))]
@@ -306,14 +319,17 @@ function facts(
       .sort((a, b) => b.n - a.n || a.repository.localeCompare(b.repository) || a.path.localeCompare(b.path))
       .slice(0, 2);
     const unread = (name: string) => !input.repositories.find((repo) => repo.name === name)?.read.code;
-    if (spots.length > 0)
+    if (spots.length > 0) {
+      const words = join(
+        spots.map(({ repository, path, n }): Words => [{ code: basename(path) }, ` in ${repository}, `, count(n, unread(repository)), " alerts"]),
+        " · ",
+      );
       out.push({
         label: short ? "Most in lists read" : "Most in",
-        words: join(
-          spots.map(({ repository, path, n }): Words => [{ code: basename(path) }, ` in ${repository}, `, count(n, unread(repository)), " alerts"]),
-          " · ",
-        ),
+        words,
+        ...(whole(words, spots.map(({ path }) => path)) ? AS_WRITTEN : {}),
       });
+    }
   }
   return out;
 }

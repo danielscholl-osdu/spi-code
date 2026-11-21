@@ -56,7 +56,7 @@ interface SpiRead<A> {
   readonly metadata: ToolMetadata;
   readonly description: string;
   readonly args: z.ZodType<A>;
-  read(sweep: SavedSweep, args: A, journal: SpiRedactor): Answer | Promise<Answer>;
+  read(sweep: SavedSweep, args: A): Answer | Promise<Answer>;
 }
 const define = <A>(read: SpiRead<A>) => read as unknown as SpiRead<Fields>;
 
@@ -67,8 +67,8 @@ const reading = (view: ViewSnapshot, match: (anchor: Fields) => boolean) =>
   view.readings.find(({ anchor }) => match(anchor))?.content ?? NOT_READ;
 
 const place = (id: string) => ({
-  read: ({ view }: SavedSweep, _args: Fields, journal: SpiRedactor): Answer => {
-    const found = readPlace(view, id, journal);
+  read: ({ view }: SavedSweep): Answer => {
+    const found = readPlace(view, id);
     if (!found) return { found: false, reason: `The saved sweep has no place ${id}.` };
     const { reading: content, ...rest } = found;
     return { ...rest, value: { reading: content } };
@@ -122,8 +122,8 @@ const READS: readonly SpiRead<Fields>[] = [
     description:
       "One service's home: its reading, stations, release, open pull requests and issues.",
     args: z.strictObject({ service: z.string().min(1) }),
-    read: ({ view }, { service }, journal) => {
-      const found = readPlace(view, `service:${service}`, journal);
+    read: ({ view }, { service }) => {
+      const found = readPlace(view, `service:${service}`);
       const entry = view.services?.find((row) => row.service === service);
       if (!found || !entry) {
         return { found: false, reason: `The saved sweep has no service ${service}.` };
@@ -179,8 +179,8 @@ const READS: readonly SpiRead<Fields>[] = [
         .regex(/^\d{4}-\d{2}$/)
         .optional(),
     }),
-    read: ({ view }, { month }, journal) => {
-      const found = readPlace(view, "place:releases", journal);
+    read: ({ view }, { month }) => {
+      const found = readPlace(view, "place:releases");
       if (!found) return { found: false, reason: "The saved sweep has no Releases place." };
       const { reading: _reading, ...head } = found;
       return {
@@ -202,23 +202,14 @@ const READS: readonly SpiRead<Fields>[] = [
     description:
       "Security: open alerts by lane (shipped SPI code, shipped upstream code, tests and tooling), each rule or package with its forks, fix and age, and the lists not read. With rule (a rule's key), that rule's facts and where it sits by repository and file.",
     args: z.strictObject({ rule: z.string().min(1).optional() }),
-    read: ({ view }, { rule }, journal) => {
+    read: ({ view }, { rule }) => {
       const state = securityState(view);
       const notRead = unreadLists(view.security);
       const lists = notRead.length > 0 ? { listsNotRead: notRead } : {};
-      const found = (() => {
-        try {
-          return rule === undefined
-            ? {
-                title: "Security",
-                at: undefined,
-                reading: paneReading(view.security, journal, true),
-              }
-            : ruleReading(view, rule, journal);
-        } catch {
-          throw new Error(WITHHELD);
-        }
-      })();
+      const found =
+        rule === undefined
+          ? { title: "Security", at: undefined, reading: paneReading(view.security, true) }
+          : ruleReading(view, rule);
       const at = securityAt(view, found.at);
       return {
         place: found.title,
@@ -404,7 +395,7 @@ export function spiReadTools(
       meta,
       args,
       check,
-      (parsed) => answerFor(latest(), (sweep) => read(sweep, parsed, journal), journal),
+      (parsed) => answerFor(latest(), (sweep) => read(sweep, parsed), journal),
       description,
     );
     const { handler } = gated.tool;

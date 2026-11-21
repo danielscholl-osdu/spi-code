@@ -365,6 +365,7 @@ const codeAlertFact = z.object({
   description: z.string(),
   fullDescription: z.string().optional(),
   cut: z.literal(true).optional(),
+  verbatim: z.literal(true).optional(),
   tags: z.array(z.string()).optional(),
   tool: z.string(),
   path: z.string().optional(),

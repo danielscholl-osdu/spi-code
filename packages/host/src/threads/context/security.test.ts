@@ -22,7 +22,6 @@ import type { SpiRedactor } from "./redaction.js";
 import {
   findRule,
   SECURITY_CHIP_BYTE_BUDGET,
-  TITLE_MAX_BYTES,
   TITLE_MAX_CHARS,
   unreadLists as unreadListsOf,
   wordsText,
@@ -81,11 +80,11 @@ const withHelp =
   (help: string) =>
   (alert: CodeAlertFact): CodeAlertFact =>
     help
-      ? {
+      ? (parseCodeAlert({
           ...alert,
           fullDescription: help,
           tags: ["security", ...CWES.map((id) => `external/cwe/${id}`)],
-        }
+        }) ?? alert)
       : alert;
 const times = (text: string, part: string) => text.split(part).length - 1;
 
@@ -185,6 +184,33 @@ describe.each(SECURITY_FIXTURES)("Security's context on the %s scenario", (name)
       const subject = `security-rule:${rule.key}`;
       expect(journalOutputRedactor.value(subject)).toBe(subject);
       expect((await chip(sweep, subject)).id).toBe(subject);
+    }
+  });
+
+  it("tells Copilot a rule's facts, files and summaries only where core kept them as written", async () => {
+    for (const rule of rulesOf(pane)) {
+      const { value } = await tool(sweep, { rule: rule.key });
+      if (value.leftOut) continue;
+      const { facts, where } = rule.opened;
+      expect(
+        value.facts.map(({ label }: { label: string }) => label),
+        rule.key,
+      ).toEqual(facts.filter(({ verbatim }) => verbatim).map(({ label }) => label));
+      expect(value.where, rule.key).toHaveLength(where.length);
+      for (const [index, line] of where.entries())
+        expect(value.where[index].files, rule.key).toBe(
+          line.verbatim && line.files.length > 0 ? wordsText(line.files) : undefined,
+        );
+      const all = facts.flatMap(({ advisories }) =>
+        advisories ? [...advisories.preview, ...advisories.rest] : [],
+      );
+      expect(value.advisories ?? [], rule.key).toEqual(
+        all.map((advisory) => ({
+          id: advisory.id,
+          ...(advisory.verbatim ? { words: wordsText(advisory.words) } : {}),
+          fix: wordsText(advisory.fix),
+        })),
+      );
     }
   });
 
@@ -324,11 +350,15 @@ describe("scanner text", () => {
   const known = "fixture-scanner-credential";
   const hub = ["gh", "p_", "FAKE".repeat(9)].join("");
   const { journal } = createToolOutputRedactor([known]);
-  const { pane, sweep } = scenario("1116", (alert) => ({
-    ...alert,
-    description: `Hard-coded ${hub} in config`,
-    fullDescription: `Rotate ${known} before release.`,
-  }));
+  const { pane, sweep } = scenario(
+    "1116",
+    (alert) =>
+      parseCodeAlert({
+        ...alert,
+        description: `Hard-coded ${hub} in config`,
+        fullDescription: `Rotate ${known} before release.`,
+      }) ?? alert,
+  );
   const code = rulesOf(pane).find(({ key }) => key.includes(":code:"));
 
   it("passes the redactor before it reaches Copilot, in the chips and the tool", async () => {
@@ -403,7 +433,7 @@ describe("scanner text Copilot is told about Security", () => {
   const tool_ = target.key.split(":")[2] ?? "";
 
   /** The six things Copilot is told about Security, with campaign subjects saved for this rule and for none. */
-  async function outputs(sweep: SavedSweep, key: string) {
+  async function outputs(sweep: SavedSweep, key: string, redactor: SpiRedactor = journal) {
     const fact = `${tool_}: ${ruleId}`;
     const none = "Fixture: no-such-rule";
     const view: ViewSnapshot = {
@@ -420,25 +450,31 @@ describe("scanner text Copilot is told about Security", () => {
     };
     const saved: SavedSweep = { ...sweep, view };
     return {
-      place: (await chip(saved, "place:security", journal)).content,
-      rule: (await chip(saved, `security-rule:${key}`, journal)).content,
-      campaign: (await chip(saved, `campaign:security:${encodeURIComponent(fact)}`, journal))
+      place: (await chip(saved, "place:security", redactor)).content,
+      rule: (await chip(saved, `security-rule:${key}`, redactor)).content,
+      campaign: (await chip(saved, `campaign:security:${encodeURIComponent(fact)}`, redactor))
         .content,
-      fallback: (await chip(saved, `campaign:security:${encodeURIComponent(none)}`, journal))
+      fallback: (await chip(saved, `campaign:security:${encodeURIComponent(none)}`, redactor))
         .content,
-      tool: (await tool(saved, {}, journal)).text,
-      ruleTool: (await tool(saved, { rule: key }, journal)).text,
+      tool: (await tool(saved, {}, redactor)).text,
+      ruleTool: (await tool(saved, { rule: key }, redactor)).text,
     };
   }
 
-  /** A pane saved before rows carried the cut flag: the host reads it as it was saved. */
+  /** A pane saved before core said what it changed: no row says cut and nothing says verbatim. */
   const unflagged = (pane: SecurityPane): SecurityPane => ({
     ...pane,
     lanes: pane.lanes.map((lane) => ({
       ...lane,
       byRule: {
         ...lane.byRule,
-        rules: lane.byRule.rules.map(({ cut: _, ...rule }) => rule),
+        rules: lane.byRule.rules.map(({ cut: _, ...rule }) => ({
+          ...rule,
+          opened: {
+            ...rule.opened,
+            facts: rule.opened.facts.map(({ verbatim: _v, ...fact }) => fact),
+          },
+        })),
       },
     })),
   });
@@ -453,7 +489,7 @@ describe("scanner text Copilot is told about Security", () => {
         }) ?? alert,
       saved: (pane: SecurityPane) => pane,
     },
-    "cut by an older collector, in a pane saved before the cut flag": {
+    "cut by an older collector, in a pane saved before the flags": {
       alert: (alert: CodeAlertFact) => ({
         ...alert,
         description: title,
@@ -461,10 +497,28 @@ describe("scanner text Copilot is told about Security", () => {
       }),
       saved: unflagged,
     },
+    "ending in the cut's ellipsis, though marked verbatim": {
+      alert: (alert: CodeAlertFact): CodeAlertFact => ({
+        ...alert,
+        description: title,
+        fullDescription: `${`${helpLead}${secret} tail`.slice(0, HELP_MAX - 1).trimEnd()}…`,
+        verbatim: true,
+      }),
+      saved: (pane: SecurityPane): SecurityPane => ({
+        ...pane,
+        lanes: pane.lanes.map((lane) => ({
+          ...lane,
+          byRule: {
+            ...lane.byRule,
+            rules: lane.byRule.rules.map(({ cut: _, ...rule }) => rule),
+          },
+        })),
+      }),
+    },
   } as const;
 
   it.each(Object.keys(cases) as (keyof typeof cases)[])(
-    "tells Copilot the title redacted then shortened, and no help, when the help was %s",
+    "tells Copilot the rule key for an over-long title, and no help, when the help was %s",
     async (kind) => {
       expect([...titleLead].length).toBeLessThan(TITLE_MAX_CHARS);
       expect([...`${titleLead}${secret}`].length).toBeGreaterThan(TITLE_MAX_CHARS);
@@ -478,35 +532,37 @@ describe("scanner text Copilot is told about Security", () => {
       expect(row.title).toBe(title);
       expect(row.opened.help).toContain(prefix);
       if (held !== pane) expect(row).not.toHaveProperty("cut");
+      const what = row.opened.facts.find(({ label }) => label === "What it is");
+      expect(what?.verbatim).toBe(kind.includes("verbatim") ? true : undefined);
       const told = await outputs({ ...sweep, view: { ...view, security: held } }, target.key);
-      const shortened = `${titleLead}[redacted] tail of…`;
       for (const [name, text] of Object.entries(told)) {
         expect(text, name).not.toContain(prefix);
         expect(text, name).not.toContain(helpLead.trimEnd());
+        expect(text, name).not.toContain(titleLead.trimEnd());
       }
       const ruleChip = JSON.parse(told.rule) as { title: string; reading: { title: string } };
-      expect(ruleChip.title).toBe(shortened);
-      expect(ruleChip.reading.title).toBe(shortened);
+      expect(ruleChip.title).toBe(target.key);
+      expect(ruleChip.reading.title).toBe(target.key);
       const placeRules = (
         JSON.parse(told.place) as { reading: { rules: { rule: string; title: string }[] } }
       ).reading.rules;
-      expect(placeRules.find(({ rule }) => rule === target.key)?.title).toBe(shortened);
+      expect(placeRules.find(({ rule }) => rule === target.key)?.title).toBe(target.key);
       for (const name of ["campaign", "tool", "ruleTool"] as const)
-        expect(told[name], name).toContain(JSON.stringify(shortened));
+        expect(told[name], name).toContain(`"title":${JSON.stringify(target.key)}`);
     },
   );
 
-  it.each(["\t", "  ", "\n", "\u200b "])(
-    "leaves no part of a credential whose space the title gives as %j",
+  it.each(["\t", "\n", "\r\n", "\u200b ", "\u2028"])(
+    "goes by the rule key when the title gives a credential's space as %j",
     async (space) => {
-      const spaced = `${titleLead}${secret.replace(" ", space)} tail of the long title`;
+      const spaced = `Hard-coded ${secret.replace(" ", space)} in config`;
       const { sweep } = scenario("1116", (alert) =>
         alert.rule === ruleId && alert.tool === tool_ ? { ...alert, description: spaced } : alert,
       );
       for (const [name, text] of Object.entries(await outputs(sweep, target.key)))
         expect(text, name).not.toContain(prefix);
       expect((await chip(sweep, `security-rule:${target.key}`, journal)).chip.title).toBe(
-        `${titleLead}[redacted] tail of…`,
+        target.key,
       );
     },
   );
@@ -520,29 +576,134 @@ describe("scanner text Copilot is told about Security", () => {
     expect((await chip(sweep, `security-rule:${target.key}`)).chip.title).toBe(target.key);
   });
 
-  it("shortens a title to its bound at the last space, or between characters with none", async () => {
-    const titles: [string, string][] = [
-      ["安全 ".repeat(3_400), `${"安全 ".repeat(39).trimEnd()}…`],
-      [
-        `${"x".repeat(TITLE_MAX_CHARS - 3)} ${"y".repeat(10)}`,
-        `${"x".repeat(TITLE_MAX_CHARS - 3)}…`,
-      ],
-      ["安".repeat(10_000), `${"安".repeat(TITLE_MAX_BYTES / 3 - 1)}…`],
-      ['"'.repeat(500), `${'"'.repeat(TITLE_MAX_CHARS - 1)}…`],
-      ["\u{1F600}".repeat(200), `${"\u{1F600}".repeat(Math.floor((TITLE_MAX_BYTES - 3) / 4))}…`],
-      [`a\u0000b\tc\n\n d\u200b ${"e".repeat(200)}`, "ab c d…"],
-      ["x".repeat(TITLE_MAX_CHARS), "x".repeat(TITLE_MAX_CHARS)],
-    ];
-    for (const [raw, shortened] of titles) {
-      const { sweep } = scenario("1116", (alert) =>
-        alert.rule === ruleId && alert.tool === tool_ ? { ...alert, description: raw } : alert,
+  const emoji = "\u{1F600}";
+  /** What the scanner writes, and whether Copilot is told it exactly as written. */
+  const awkward: { name: string; title?: string; help?: string; sent: boolean }[] = [
+    { name: "a plain title", title: "Plain scanner title", sent: true },
+    { name: "a title with a tab", title: "Tab\tinside", sent: false },
+    { name: "a title with CRLF", title: "First\r\nsecond", sent: false },
+    { name: "a title on two lines", title: "First\nsecond", sent: false },
+    { name: "a title with a line separator", title: "First\u2028second", sent: false },
+    { name: "a title with NBSP", title: "No\u00a0break", sent: true },
+    { name: "a title with a zero-width space", title: "Zero\u200bwidth", sent: false },
+    { name: "a title with backticks", title: "`TrustManager` that accepts all", sent: true },
+    { name: "a title with outer spaces", title: " Leading and trailing ", sent: true },
+    { name: "a title ending in an ellipsis", title: "Ends in an ellipsis…", sent: true },
+    { name: "a title at the character bound", title: "x".repeat(TITLE_MAX_CHARS), sent: true },
+    { name: "a title one over it", title: "x".repeat(TITLE_MAX_CHARS + 1), sent: false },
+    {
+      name: "a title at the byte bound",
+      title: `${emoji.repeat(89)}abcd`,
+      sent: true,
+    },
+    { name: "a title one byte over it", title: `${emoji.repeat(89)}abcde`, sent: false },
+    {
+      name: "a title of three-byte characters at both bounds",
+      title: "安".repeat(120),
+      sent: true,
+    },
+    { name: "plain help", help: "Plain scanner help.", sent: true },
+    { name: "help with a tab", help: "A\ttab.", sent: false },
+    { name: "help with CRLF", help: "First\r\nsecond.", sent: false },
+    {
+      name: "help on several lines",
+      help: "password: |\n  QzFixtureOnlyYamlPassword",
+      sent: false,
+    },
+    { name: "help with NBSP", help: "No\u00a0break.", sent: false },
+    { name: "help with a zero-width space", help: "Zero\u200bwidth.", sent: false },
+    { name: "help with backticks", help: "Uses `eval` on input.", sent: false },
+    { name: "help with outer spaces", help: " Leading and trailing. ", sent: false },
+    { name: "help ending in an ellipsis", help: "Ends in an ellipsis…", sent: false },
+    { name: "help at its bound", help: "y".repeat(HELP_MAX), sent: true },
+    { name: "help one over it", help: "y".repeat(HELP_MAX + 1), sent: false },
+    { name: "help cut at a space", help: "word ".repeat(80).trimEnd(), sent: false },
+    { name: "no help", help: "", sent: false },
+  ];
+
+  it.each(awkward)(
+    "tells Copilot $name exactly as written after one redaction, or the rule key and no help",
+    async ({ title: raw, help, sent }) => {
+      const { pane, sweep } = scenario("1116", (alert) =>
+        alert.rule === ruleId && alert.tool === tool_
+          ? (parseCodeAlert({
+              ...alert,
+              ...(raw === undefined ? {} : { description: raw }),
+              ...(help === undefined ? {} : { fullDescription: help }),
+            }) ?? alert)
+          : alert,
       );
-      const one = await chip(sweep, `security-rule:${target.key}`);
-      expect(one.chip.title).toBe(shortened);
-      expect([...shortened].length).toBeLessThanOrEqual(TITLE_MAX_CHARS);
-      expect(Buffer.byteLength(JSON.stringify(shortened)) - 2).toBeLessThanOrEqual(TITLE_MAX_BYTES);
-    }
-  });
+      const row = findRule(pane, target.key)?.rule;
+      if (!row) throw new Error(`${target.key} is gone`);
+      if (raw !== undefined) expect(row.title).toBe(raw);
+      const told = Object.fromEntries(
+        Object.entries(await outputs(sweep, target.key)).map(([name, text]) => [
+          name,
+          JSON.parse(text),
+        ]),
+      );
+      const rows = (reading: { rules?: { rule: string; title: string }[] }) =>
+        reading.rules?.filter(({ rule }) => rule === target.key) ?? [];
+      const titles = [
+        ...rows(told.place.reading),
+        ...rows(told.campaign.reading),
+        ...rows(told.fallback.reading),
+        ...rows(told.tool),
+      ].map(({ title }) => title);
+      titles.push(
+        told.rule.title,
+        told.rule.reading.title,
+        told.ruleTool.place,
+        told.ruleTool.title,
+      );
+      expect(titles).toHaveLength(8);
+      const title = raw === undefined ? row.title : sent ? journal.value(raw) : target.key;
+      for (const each of titles) expect(each).toBe(title);
+      const helps = [told.rule.reading, told.ruleTool].map(
+        (reading: { facts: { label: string; words: string }[] }) =>
+          reading.facts.find(({ label }) => label === "What it is")?.words,
+      );
+      const expected = help !== undefined && sent ? journal.value(help) : undefined;
+      for (const each of helps) expect(each).toBe(expected);
+      const stored = row.opened.help;
+      if (help !== undefined && !sent && stored)
+        for (const [name, value] of Object.entries(told))
+          expect(JSON.stringify(value), name).not.toContain(JSON.stringify(stored).slice(1, -1));
+    },
+  );
+  const pat = `github_pat_${"Qz".repeat(11)}`;
+  const probes = {
+    "a token split by zero-width spaces in the title": {
+      alert: (alert: CodeAlertFact) =>
+        parseCodeAlert({ ...alert, description: `${pat}\u200bQzFixture\u200bSensitiveSuffix` }),
+      parts: ["QzFixture", "SensitiveSuffix", pat.slice(0, 16)],
+    },
+    "a YAML block with a password line in the help": {
+      alert: (alert: CodeAlertFact) =>
+        parseCodeAlert({ ...alert, fullDescription: "password: |\n  QzFixtureOnlyYamlPassword" }),
+      parts: ["QzFixtureOnlyYamlPassword", "YamlPassword"],
+    },
+    "that help as an older collector saved it, flattened and unflagged": {
+      alert: (alert: CodeAlertFact): CodeAlertFact => ({
+        ...alert,
+        fullDescription: "password: | QzFixtureOnlyYamlPassword",
+      }),
+      parts: ["QzFixtureOnlyYamlPassword", "YamlPassword"],
+    },
+  } as const;
+
+  it.each(Object.keys(probes) as (keyof typeof probes)[])(
+    "leaves no part of %s in anything Security tells Copilot",
+    async (kind) => {
+      const { alert: scanned, parts } = probes[kind];
+      const { journal: known } = createToolOutputRedactor([`${pat}QzFixtureSensitiveSuffix`]);
+      const { sweep } = scenario("1116", (alert) =>
+        alert.rule === ruleId && alert.tool === tool_ ? (scanned(alert) ?? alert) : alert,
+      );
+      for (const [name, text] of Object.entries(await outputs(sweep, target.key, known)))
+        for (const part of parts) expect(text, `${name}: ${part}`).not.toContain(part);
+    },
+  );
 });
 
 describe("a long scanner title outside Security", () => {
@@ -629,11 +790,8 @@ describe("a scanner title of any length", () => {
     spaced: "安全 ".repeat(3_400),
     "widest whole": "安".repeat(TITLE_MAX_CHARS),
   } as const;
-  const shortened = {
-    unspaced: `${"安".repeat(TITLE_MAX_CHARS - 1)}…`,
-    spaced: `${"安全 ".repeat(39).trimEnd()}…`,
-    "widest whole": titles["widest whole"],
-  } as const;
+  const told = (kind: keyof typeof titles, key: string) =>
+    kind === "widest whole" ? titles[kind] : key;
   it.each(
     SECURITY_FIXTURES.flatMap((name) =>
       (Object.keys(titles) as (keyof typeof titles)[]).map((kind) => [name, kind] as const),
@@ -652,7 +810,7 @@ describe("a scanner title of any length", () => {
       );
       expect(one.chip, rule.key).toHaveProperty("reading");
       expect(one.chip.title, rule.key).toBe(
-        rule.key.includes(":code:") ? shortened[kind] : rule.title,
+        rule.key.includes(":code:") ? told(kind, rule.key) : rule.title,
       );
       const detail = await tool(sweep, { rule: rule.key });
       expect(Buffer.byteLength(detail.text), rule.key).toBeLessThanOrEqual(SPI_RESULT_BYTE_BUDGET);

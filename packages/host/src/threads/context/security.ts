@@ -10,7 +10,6 @@ import {
   type SecurityWords,
   type ViewSnapshot,
 } from "@spi-code/contracts";
-import type { SpiRedactor } from "./redaction.js";
 import { areaEnvelopes, NOT_READ, type ReadState, readState } from "./sweep.js";
 
 /** What a Security chip may hold, so it travels with seven others in a message. */
@@ -43,54 +42,31 @@ export function unreadLists(pane: SecurityPane | undefined): string[] {
   );
 }
 
-/** The most of a scanner's title Copilot is told, ellipsis included, as characters and as UTF-8 bytes in JSON. */
+/** The longest scanner title Copilot is told, in characters and in UTF-8 bytes as JSON. */
 export const TITLE_MAX_CHARS = 120;
 export const TITLE_MAX_BYTES = 360;
 const ELLIPSIS = "…";
-const INVISIBLE = /(?![\t\n\v\f\r])[\p{Cc}\p{Cf}]/gu;
+const OFF_LINE = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
 const encoded = (text: string) => Buffer.byteLength(JSON.stringify(text)) - 2;
 
-/** Within the bound, cut at the last space it holds, or between characters when it holds none. */
-function shortened(text: string): string {
-  const chars = [...text];
-  if (chars.length <= TITLE_MAX_CHARS && encoded(text) <= TITLE_MAX_BYTES) return text;
-  let kept = 0;
-  let bytes = encoded(ELLIPSIS);
-  for (const char of chars) {
-    if (kept === TITLE_MAX_CHARS - 1 || bytes + encoded(char) > TITLE_MAX_BYTES) break;
-    bytes += encoded(char);
-    kept += 1;
-  }
-  const head = chars.slice(0, kept).join("");
-  const space = head.lastIndexOf(" ");
-  return `${(space > 0 ? head.slice(0, space) : head).trimEnd()}${ELLIPSIS}`;
+/** The scanner's title exactly as written when it is one line within the bound, otherwise the rule key. */
+function titleOf({ title, key }: SecurityRuleRow): string {
+  const sendable =
+    title.length > 0 &&
+    !OFF_LINE.test(title) &&
+    [...title].length <= TITLE_MAX_CHARS &&
+    encoded(title) <= TITLE_MAX_BYTES;
+  return sendable ? title : key;
 }
 
-function redacted(text: string, redactor: SpiRedactor): string {
-  let safe: unknown;
-  try {
-    safe = redactor.value(text);
-  } catch {
-    throw new Error("Security title withheld.");
-  }
-  if (typeof safe !== "string") throw new Error("Security title withheld.");
-  return safe;
-}
-
-/** The scanner's title redacted whole as given and again on one line, then shortened. */
-function titleOf(rule: SecurityRuleRow, redactor: SpiRedactor): string {
-  const line = redacted(rule.title, redactor).replace(INVISIBLE, "").replace(/\s+/g, " ").trim();
-  return line ? shortened(redacted(line, redactor)) : rule.key;
-}
-
-/** The help the collector cut, by its flag or, from a sweep before the flag, by the cut's ellipsis. */
-const cutHelp = (rule: SecurityRuleRow) =>
+/** Help Copilot is not told: the row says an alert's help was changed, or it ends in a cut's ellipsis. */
+const changedHelp = (rule: SecurityRuleRow) =>
   rule.cut || rule.opened.help?.endsWith(ELLIPSIS) ? rule.opened.help : undefined;
 
-function ruleLine(rule: SecurityRuleRow, detail: boolean, redactor: SpiRedactor) {
+function ruleLine(rule: SecurityRuleRow, detail: boolean) {
   return {
     rule: rule.key,
-    title: titleOf(rule, redactor),
+    title: titleOf(rule),
     worst: rule.severity,
     ...(detail ? said("sub", rule.sub) : {}),
     alerts: counted(rule.alerts),
@@ -111,7 +87,7 @@ const laneLine = (lane: SecurityLane) => ({
 });
 
 /** The Security page as the pane draws it: totals, headline, banner, the three bars and By rule. */
-export function paneReading(pane: SecurityPane | undefined, redactor: SpiRedactor, detail = false) {
+export function paneReading(pane: SecurityPane | undefined, detail = false) {
   if (!pane) return UNREAD;
   const head = {
     ...said("totals", pane.page.totals),
@@ -122,9 +98,7 @@ export function paneReading(pane: SecurityPane | undefined, redactor: SpiRedacto
   return {
     ...head,
     lanes: pane.lanes.map(laneLine),
-    rules: pane.lanes.flatMap(({ byRule }) =>
-      byRule.rules.map((rule) => ruleLine(rule, detail, redactor)),
-    ),
+    rules: pane.lanes.flatMap(({ byRule }) => byRule.rules.map((rule) => ruleLine(rule, detail))),
   };
 }
 
@@ -200,14 +174,14 @@ function campaignRules(pane: SecurityPane | undefined, fact: string) {
 }
 
 /** A campaign subject saved before the pane: its one rule, or the page with the rules it now is. */
-export function campaignReading(view: ViewSnapshot, id: string, redactor: SpiRedactor) {
+export function campaignReading(view: ViewSnapshot, id: string) {
   const fact = campaignFact(id);
   if (fact === undefined) return undefined;
   const keys = campaignRules(view.security, fact);
   const [only] = keys;
   const rule = only && keys.length === 1 ? findRule(view.security, only) : undefined;
-  if (rule) return { rule: true, ...packed(rule, redactor, { from: FROM }) };
-  const page = paneReading(view.security, redactor);
+  if (rule) return { rule: true, ...packed(rule, { from: FROM }) };
+  const page = paneReading(view.security);
   return {
     rule: false,
     title: "Security",
@@ -226,7 +200,7 @@ function elsewhere(pane: SecurityPane, key: string) {
 }
 
 /** One rule or package as its opened row draws it: its facts, its Where lines and the other bars. */
-export function ruleReading(view: ViewSnapshot, key: string, redactor: SpiRedactor) {
+export function ruleReading(view: ViewSnapshot, key: string) {
   const pane = view.security;
   const found = findRule(pane, key);
   if (!found) {
@@ -236,7 +210,7 @@ export function ruleReading(view: ViewSnapshot, key: string, redactor: SpiRedact
     const unread = pane.unread.length > 0;
     const was = pane.lanes.find(({ id }) => key.startsWith(`${id}:`))?.figure.label;
     if (only && others.length === 1)
-      return packed(only, redactor, {
+      return packed(only, {
         moved:
           unread && was
             ? `Open in ${only.lane.figure.label} now; a list not read may still hold it in ${was}.`
@@ -261,27 +235,26 @@ export function ruleReading(view: ViewSnapshot, key: string, redactor: SpiRedact
       },
     };
   }
-  return packed(found, redactor);
+  return packed(found);
 }
 
-function packed(
-  { lane, rule, at }: NonNullable<ReturnType<typeof findRule>>,
-  redactor: SpiRedactor,
-  note = {},
-) {
+/** Scanner-written words go to Copilot only as written: a changed help, summary or path is left out. */
+function packed({ lane, rule, at }: NonNullable<ReturnType<typeof findRule>>, note = {}) {
   const { facts, where, also } = rule.opened;
   const advisories = facts.flatMap(({ advisories }) =>
     advisories
       ? [...advisories.preview, ...advisories.rest].map((advisory) => ({
           id: advisory.id,
-          words: wordsText(advisory.words),
+          ...(advisory.verbatim ? { words: wordsText(advisory.words) } : {}),
           fix: wordsText(advisory.fix),
         }))
       : [],
   );
-  const help = cutHelp(rule);
-  const told = facts.filter(({ words }) => help === undefined || !words.includes(help));
-  const line = ruleLine(rule, true, redactor);
+  const help = changedHelp(rule);
+  const told = facts.filter(
+    ({ words, verbatim }) => verbatim && (help === undefined || !words.includes(help)),
+  );
+  const line = ruleLine(rule, true);
   return {
     title: line.title,
     at,
@@ -297,7 +270,7 @@ function packed(
         repository: line.repository,
         ...(line.read ? {} : { read: false }),
         ...said("count", line.count),
-        ...said("files", line.files),
+        ...(line.verbatim ? said("files", line.files) : {}),
         ...said("needs", line.needs),
         ...(line.prs.length > 0 ? { prs: line.prs.map(({ label }) => label) } : {}),
       })),

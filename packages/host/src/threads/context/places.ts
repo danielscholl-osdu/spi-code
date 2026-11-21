@@ -7,7 +7,6 @@ import {
   SECURITY_RULE_SUBJECT,
   type ViewSnapshot,
 } from "@spi-code/contracts";
-import type { SpiRedactor } from "./redaction.js";
 import {
   campaignReading,
   paneReading,
@@ -70,10 +69,7 @@ interface Place {
   readonly at?: string;
   readonly masks?: Partial<Record<AreaName, (content: Content) => Content>>;
   /** A place drawn from its own part of the snapshot rather than a reading. */
-  readonly own?: (
-    view: ViewSnapshot,
-    redactor: SpiRedactor,
-  ) => Pick<PlaceRead, "reading" | "notRead" | "fit">;
+  readonly own?: (view: ViewSnapshot) => Pick<PlaceRead, "reading" | "notRead" | "fit">;
 }
 
 const areas =
@@ -98,8 +94,8 @@ export const PLACES: Readonly<Record<string, Place>> = {
     place: "Security",
     at: "/security",
     state: securityState,
-    own: ({ security }, redactor) => ({
-      reading: paneReading(security, redactor),
+    own: ({ security }) => ({
+      reading: paneReading(security),
       notRead: unreadLists(security),
       fit: { budget: SECURITY_CHIP_BYTE_BUDGET, lists: ["rules"], tool: SECURITY_TOOL },
     }),
@@ -131,11 +127,7 @@ function contentOf(view: ViewSnapshot, match: (anchor: Reading["anchor"]) => boo
 }
 
 /** A place's reading from the saved sweep, with what an unread area could not say masked as not read. */
-export function readPlace(
-  view: ViewSnapshot,
-  id: string,
-  redactor: SpiRedactor,
-): PlaceRead | undefined {
+export function readPlace(view: ViewSnapshot, id: string): PlaceRead | undefined {
   if (id.startsWith(SERVICE_PLACE)) {
     const service = id.slice(SERVICE_PLACE.length);
     const index = view.services?.findIndex((entry) => entry.service === service) ?? -1;
@@ -149,9 +141,7 @@ export function readPlace(
       reading: content ?? NOT_READ,
     };
   }
-  const campaign = id.startsWith(SECURITY_CAMPAIGN)
-    ? campaignReading(view, id, redactor)
-    : undefined;
+  const campaign = id.startsWith(SECURITY_CAMPAIGN) ? campaignReading(view, id) : undefined;
   if (campaign && !campaign.rule) {
     const evidence = securityAt(view);
     return {
@@ -165,7 +155,7 @@ export function readPlace(
   }
   if (campaign || id.startsWith(SECURITY_RULE_SUBJECT)) {
     const { title, at, reading } =
-      campaign ?? ruleReading(view, id.slice(SECURITY_RULE_SUBJECT.length), redactor);
+      campaign ?? ruleReading(view, id.slice(SECURITY_RULE_SUBJECT.length));
     const evidence = securityAt(view, at);
     return {
       place: title,
@@ -184,7 +174,7 @@ export function readPlace(
   const place = Object.hasOwn(PLACES, id) ? PLACES[id] : undefined;
   if (!place) return undefined;
   const state = place.state(view);
-  const own = place.own?.(view, redactor);
+  const own = place.own?.(view);
   const at = id === "place:security" ? securityAt(view) : place.at;
   if (own)
     return {

@@ -154,12 +154,29 @@ describe("alert parsing", () => {
     expect(title(undefined)?.description).toBe(CODE.rule);
   });
 
-  test("says when it cut a rule's help, and says nothing when it kept it whole", () => {
-    const cut = (r: Record<string, unknown>) => parseCodeAlert({ ...CODE, ...r });
-    expect(cut({ fullDescription: "word ".repeat(200) })?.cut).toBe(true);
-    expect(cut({ fullDescription: "安".repeat(HELP_MAX + 1) })?.cut).toBe(true);
-    expect(cut({ fullDescription: "y".repeat(HELP_MAX) })).not.toHaveProperty("cut");
-    expect(cut({})).not.toHaveProperty("cut");
+  test.each([
+    ["Plain help.", "verbatim"],
+    ["y".repeat(HELP_MAX), "verbatim"],
+    ["Help that ends in an ellipsis…", "verbatim"],
+    ["Uses `eval` on input.", "cut"],
+    ["A\ttab.", "cut"],
+    ["CRLF\r\nhere.", "cut"],
+    ["password: |\n  QzFixtureOnlyYamlPassword", "cut"],
+    ["Two  spaces.", "cut"],
+    [" Leading space.", "cut"],
+    ["Trailing space. ", "cut"],
+    ["Zero\u200bwidth.", "cut"],
+    ["No\u00a0break.", "cut"],
+    ["word ".repeat(200), "cut"],
+    ["安".repeat(HELP_MAX + 1), "cut"],
+    ["   ", "none"],
+    [undefined, "none"],
+  ] as const)("says whether help %j is the scanner's byte for byte: %s", (raw, said) => {
+    const parsed = parseCodeAlert({ ...CODE, fullDescription: raw });
+    expect(parsed?.verbatim === true).toBe(said === "verbatim");
+    expect(parsed?.cut === true).toBe(said === "cut");
+    if (said === "verbatim") expect(parsed?.fullDescription).toBe(raw);
+    if (said === "none") expect(parsed).not.toHaveProperty("fullDescription");
   });
 });
 

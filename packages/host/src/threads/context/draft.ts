@@ -28,12 +28,7 @@ export async function chipFromSweep(
   const sweep = latest();
   if (!sweep) return refuse("No sweep has been saved.");
   const at = { sweptAt: sweep.view.sweptAt, reads: sweep.reads };
-  let place: ReturnType<typeof readPlace>;
-  try {
-    place = readPlace(sweep.view, id, redactor);
-  } catch {
-    return refuse("Context chip withheld.");
-  }
+  const place = readPlace(sweep.view, id);
   if (place) return packPlace(id, place, at, redactor);
   const answer = await sweep.inspect(id);
   if (!answer) return refuse(`Nothing in the latest sweep has the id ${id}.`);

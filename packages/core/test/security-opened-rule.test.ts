@@ -200,6 +200,7 @@ describe("an opened rule while a list was not read", () => {
         needs: [],
         alerts: [],
         prs: [],
+        verbatim: true,
       },
     ]);
     expect(rule.where.at(-1)?.repository).toBe("workflow");
@@ -282,10 +283,11 @@ describe("an opened rule's help and CWE", () => {
     expect(rule.help).toBe(HELP);
     expect(rule.cwe).toBe("CWE-352");
     expect(rule.facts.slice(0, 2)).toEqual([
-      { label: "What it is", words: [HELP] },
+      { label: "What it is", words: [HELP], verbatim: true },
       {
         label: "Rule",
         words: [{ code: "java/spring-disabled-csrf-protection" }, " · CodeQL", " · CWE-352"],
+        verbatim: true,
       },
     ]);
     expect(SecurityOpenedRuleSchema.parse(rule)).toEqual(rule);
@@ -329,5 +331,78 @@ describe("an opened rule's help and CWE", () => {
     for (const rule of [plain, helpOnly, tagsOnly, noCwe])
       for (const fact of rule.facts)
         expect(fact.words.length > 0 || fact.advisories !== undefined, fact.label).toBe(true);
+  });
+});
+
+describe("what an opened rule says is as the scanner wrote it", () => {
+  const source = sweep1116Source();
+  const keys = [...new Set(classify(source).alerts.map(({ key }) => key))];
+  const rules = keys.map((key) => ({ key, rule: opened(source, key) }));
+
+  it("marks the help verbatim only from the alert it is taken from", () => {
+    const mine = classify(source).alerts.filter((alert) => alert.key === CSRF);
+    const [first] = mine;
+    const help = "Synthetic help, whole.";
+    const data = structuredClone(source.facts.security.data ?? {});
+    for (const alerts of Object.values(data))
+      alerts.code = alerts.code?.map((fact) => {
+        if (!mine.some((alert) => alert.code?.url === fact.url)) return fact;
+        const parsed = parseCodeAlert({ ...fact, fullDescription: help }) as CodeAlertFact;
+        if (fact.url !== first?.code?.url) return parsed;
+        const { verbatim: _, ...older } = parsed;
+        return older;
+      });
+    const mixed = {
+      ...source,
+      facts: { ...source.facts, security: { ...source.facts.security, data } },
+    };
+    const what = opened(mixed, CSRF).facts.find(({ label }) => label === "What it is");
+    expect(what).toEqual({ label: "What it is", words: [help] });
+  });
+
+  it("marks an advisory verbatim only when its words carry GitHub's summary untrimmed", () => {
+    const summaries = new Map(
+      classify(source).alerts.flatMap(({ dependabot }) =>
+        dependabot ? [[dependabot.cve ?? dependabot.advisory, dependabot.summary] as const] : [],
+      ),
+    );
+    const advisories = rules.flatMap(({ rule }) =>
+      rule.facts.flatMap(({ advisories }) => [
+        ...(advisories?.preview ?? []),
+        ...(advisories?.rest ?? []),
+      ]),
+    );
+    const changed = advisories.filter(({ verbatim }) => !verbatim);
+    expect(changed.length).toBeGreaterThan(0);
+    for (const advisory of advisories) {
+      const summary = summaries.get(advisory.id) ?? "";
+      expect(advisory.verbatim === true, advisory.id).toBe(summary === summary.trim());
+      expect(advisory.words.at(-1), advisory.id).toBe(summary.trim());
+    }
+  });
+
+  it("marks Where files and Most in verbatim only when they name every path whole", () => {
+    const paths = new Set(classify(source).alerts.flatMap(({ path }) => (path ? [path] : [])));
+    const named = (words: SecurityWords) =>
+      words.flatMap((part) => (typeof part === "object" && "code" in part ? [part.code] : []));
+    const lines = rules.flatMap(({ rule }) => rule.where);
+    const most = rules.flatMap(({ rule }) =>
+      rule.facts.filter(({ label }) => label.startsWith("Most in")),
+    );
+    for (const line of [
+      ...lines.map(({ files, verbatim }) => ({ words: files, verbatim })),
+      ...most,
+    ])
+      expect(line.verbatim === true, JSON.stringify(line.words)).toBe(
+        named(line.words).every((path) => paths.has(path)),
+      );
+    expect(lines.some(({ verbatim }) => verbatim)).toBe(true);
+    expect(lines.some(({ verbatim }) => !verbatim)).toBe(true);
+    expect(most.length).toBeGreaterThan(0);
+    for (const { rule } of rules)
+      for (const fact of rule.facts.filter(({ label }) =>
+        ["Rule", "Package", "Open since"].includes(label),
+      ))
+        expect(fact.verbatim, fact.label).toBe(true);
   });
 });

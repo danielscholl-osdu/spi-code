@@ -31,12 +31,13 @@ function severity(v: unknown): Severity | undefined {
 
 const INVISIBLE = /(?![\t\n\v\f\r])[\p{Cc}\p{Cf}]/gu;
 
-/** Scanner text on one line within max characters, cut only between words, and whether it was cut. */
-function oneLine(v: unknown, max: number): { text?: string; cut?: true } {
-  const text = str(v)?.replace(INVISIBLE, "").replaceAll("`", "").replace(/\s+/g, " ").trim();
+/** Scanner text on one line within max characters, cut only between words: verbatim when unchanged, cut when not. */
+function oneLine(v: unknown, max: number): { text?: string; cut?: true; verbatim?: true } {
+  const raw = str(v);
+  const text = raw?.replace(INVISIBLE, "").replaceAll("`", "").replace(/\s+/g, " ").trim();
   if (!text) return {};
   const chars = [...text];
-  if (chars.length <= max) return { text };
+  if (chars.length <= max) return text === raw ? { text, verbatim: true } : { text, cut: true };
   const kept = chars.slice(0, max).join("");
   const space = kept.lastIndexOf(" ");
   return space > 0 ? { text: `${kept.slice(0, space)}…`, cut: true } : { cut: true };
@@ -91,6 +92,7 @@ export function parseCodeAlert(r: Raw): CodeAlertFact | undefined {
     description: str(r.description) ?? rule,
     ...(fullDescription ? { fullDescription } : {}),
     ...(help.cut ? { cut: true as const } : {}),
+    ...(help.verbatim ? { verbatim: true as const } : {}),
     ...(tags ? { tags } : {}),
     tool: str(r.tool) ?? "",
     ...(path ? { path } : {}),
