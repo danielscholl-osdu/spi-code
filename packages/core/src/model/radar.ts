@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { CoreContext } from "../context.js";
+import type { ServiceDef } from "../config.js";
 import type { DiffFact, LibraryPins, MrFact, RadarFacts } from "../facts.js";
 import { type FilterMap, parseFilter, type UpstreamFilter } from "./filter.js";
 import type { LineModel } from "./lines.js";
@@ -147,6 +148,26 @@ export function classifyPath(filter: UpstreamFilter, path: string): PathVerdict 
   if (top === "provider" || top === "devops") return { bucket: "Filtered", entry: top };
   if (top === "testing" && parts.length > 1) return byMap(filter, "testing", parts[1] as string);
   return byMap(filter, "top_level", top);
+}
+
+export type ServicePathOwner = "fork" | "upstream";
+export type ServicePathRule = (path: string) => ServicePathOwner | undefined;
+
+/**
+ * A recorded service filter as one quiet path rule. A filter for another service, or an
+ * entry the filter does not place, is unknown rather than a guess.
+ */
+export function servicePathRule(
+  service: ServiceDef,
+  filter: UpstreamFilter,
+): ServicePathRule | undefined {
+  if (filter.service !== (service.prefix ?? service.id)) return undefined;
+  return (path) => {
+    const { bucket } = classifyPath(filter, path);
+    if (bucket === "Port" || bucket === "Filtered") return "fork";
+    if (bucket === "Shared" || bucket === "Interface") return "upstream";
+    return undefined;
+  };
 }
 
 const TOOLCHAIN_RULES: ReadonlyArray<[RegExp, (m: RegExpExecArray) => string]> = Object.freeze([

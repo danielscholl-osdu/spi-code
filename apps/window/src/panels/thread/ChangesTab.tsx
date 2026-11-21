@@ -4,6 +4,8 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { useStore } from "zustand";
 import { changesStore, diffOf } from "./changes-store.js";
+import { OwnershipMismatch } from "./OwnershipMismatch.js";
+import { OwnerTag } from "./OwnerTag.js";
 import type { ThreadTab, ThreadTabProps } from "./tab.js";
 import { useChanges, useReadWhileShown } from "./useChanges.js";
 import "./thread-tab.css";
@@ -99,8 +101,15 @@ function Changes({ id, summary }: ThreadTabProps) {
               onClick={() => setOpen(open === file.path ? null : file.path)}
             >
               <span className="thread-change-path">{file.path}</span>
+              <OwnerTag owner={file.owner} />
               <span className="thread-change-counts">{counts(file)}</span>
             </button>
+            <OwnershipMismatch
+              owner={file.owner}
+              path={file.path}
+              scope={summary?.thread.scope ?? ""}
+              landing={landsIn}
+            />
             {open === file.path && <Patch id={id} path={file.path} />}
           </li>
         ))}

@@ -22,6 +22,7 @@ import {
   readFileDiff,
   type ThreadChanges,
 } from "./changes.js";
+import { pathRuleForWorktree, withPathOwners } from "./changes-owner.js";
 import { chipFromSweep } from "./context/draft.js";
 import { FINDING_PREFIX, packFinding } from "./context/finding.js";
 import { threadContext } from "./context/provider.js";
@@ -227,7 +228,9 @@ export function openThreadHost(options: ThreadHostOptions) {
         try {
           const at = await worktreeOf(id);
           if (!at) return { state: "asking" };
-          return await readChanges(at.git, at.target, at.base);
+          const changes = await readChanges(at.git, at.target, at.base);
+          const rule = await pathRuleForWorktree(scopeFor(id).id, at.target.worktree.cwd);
+          return withPathOwners(changes, rule);
         } catch (error) {
           return { state: "not read", reason: chipRedactor.text(reason(error, "Git failed.")) };
         }

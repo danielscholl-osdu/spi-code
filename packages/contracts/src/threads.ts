@@ -172,6 +172,7 @@ export type ThreadWireEvent = z.infer<typeof ThreadEventSchema>;
 
 const sha = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u);
 const count = z.int().nonnegative().nullable();
+const pathOwner = z.enum(["fork", "upstream"]);
 const changes = z.discriminatedUnion("state", [
   z.strictObject({ state: z.literal("asking") }),
   z.strictObject({
@@ -180,7 +181,13 @@ const changes = z.discriminatedUnion("state", [
     ahead: z.int().nonnegative(),
     uncommitted: z.boolean(),
     files: z.array(
-      z.strictObject({ path: id, added: count, removed: count, untracked: z.boolean() }),
+      z.strictObject({
+        path: id,
+        added: count,
+        removed: count,
+        untracked: z.boolean(),
+        owner: pathOwner.optional(),
+      }),
     ),
   }),
   z.strictObject({ state: z.literal("not read"), reason: id }),

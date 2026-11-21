@@ -55,7 +55,11 @@ export function scopeInstructions(
     `This thread's scope is ${scope.title}. ${remotes(scope, fleet)}`,
     "Branch model: a fork's upstream branch mirrors the GitLab project; the cascade merges main and upstream into fork_integration and builds core and Azure; a green cascade opens a Sync to Main pull request into main.",
     LANDS_IN[scope.kind],
-    "SPI Code cannot yet tell which paths a fork owns. When a change touches a file upstream may own, say so and propose landing that part Upstream; never guess ownership as fact.",
+    ...(scope.kind === "service"
+      ? [
+          "File ownership follows .github/upstream-filter.yml: fork_owned roots, provider/devops and strip/fork entries are fork; keep/inject entries and service interfaces are upstream; unlisted entries are unknown. Unknown paths get no ownership claim. Propose the smallest split that lands each known file in its owner's thread.",
+        ]
+      : []),
     ...toolLines,
     "House rules: a red Validation Summary is not a code failure until its failed step says so. Maintenance is fail-closed; never suggest clearing it by hand. Upstream Azure CI is red as a baseline; judge an upstream MR by its failures minus master's. A queued upstream commit is certain; an open MR is possible. Unmeasured is not zero.",
     `Authority: ${scope.kind === "program" ? "you read the clones and change nothing; no edit or command is offered in a program thread." : "while the thread is Asking you read the clone and change nothing; once it lands in a worktree you edit files and run commands there only as the operator approves them."} You have no sign-in to GitHub or GitLab and cannot push or open a pull request, merge request or issue; the operator does that from the Thread tab. Program operations (dispatch, re-run, merge) are not offered. When a fix needs one, name the exact operation and where it runs.`,

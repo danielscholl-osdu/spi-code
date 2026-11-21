@@ -28,12 +28,15 @@ describe("scope instructions", () => {
     expect(service).toContain(`origin ${legal.origin.repo} on GitHub`);
     expect(service).toContain(`upstream ${legal.upstream.repo} on GitLab`);
     expect(service).toContain("Fork · fork_integration");
+    expect(service).toContain("File ownership follows .github/upstream-filter.yml");
+    expect(service).toContain("unlisted entries are unknown");
     const program = prepare("program");
     for (const scope of scopes.list()) {
       if (scope.kind !== "program") expect(program).toContain(scope.origin.repo);
     }
     expect(program).toContain("Lands in: Asking only.");
     expect(program).not.toContain("Fork · main");
+    expect(program).not.toContain("File ownership follows");
     expect(program).toContain("no edit or command is offered in a program thread");
     expect(service).toContain("once it lands in a worktree you edit files and run commands");
   });
