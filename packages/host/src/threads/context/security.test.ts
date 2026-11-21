@@ -597,13 +597,14 @@ describe("scanner text Copilot is told about Security", () => {
     { name: "a title with CRLF", title: "First\r\nsecond", sent: false },
     { name: "a title on two lines", title: "First\nsecond", sent: false },
     { name: "a title with a line separator", title: "First\u2028second", sent: false },
+    { name: "a title with a paragraph separator", title: "First\u2029second", sent: false },
     { name: "a title with NBSP", title: "No\u00a0break", sent: true },
     { name: "a title with a zero-width space", title: "Zero\u200bwidth", sent: false },
     { name: "a title with backticks", title: "`TrustManager` that accepts all", sent: true },
     { name: "a title with outer spaces", title: " Leading and trailing ", sent: true },
     { name: "a title ending in an ellipsis", title: "Ends in an ellipsis…", sent: true },
-    { name: "a title at the character bound", title: "x".repeat(TITLE_MAX_CHARS), sent: true },
-    { name: "a title one over it", title: "x".repeat(TITLE_MAX_CHARS + 1), sent: false },
+    { name: "a title at the character bound", title: "x".repeat(120), sent: true },
+    { name: "a title one over it", title: "x".repeat(121), sent: false },
     {
       name: "a title at the byte bound",
       title: `${emoji.repeat(89)}abcd`,
@@ -754,6 +755,51 @@ describe("scanner text Copilot is told about Security", () => {
     for (const [name, text] of Object.entries(await outputs(sweep, key, known)))
       for (const part of parts) expect(text, `${name}: ${part}`).not.toContain(part);
   });
+
+  const DEEP = "lib/a/deep/Synthetic.java";
+  it.each([
+    {
+      name: "one cut to the basename another alert gives whole",
+      paths: [DEEP, DEEP, DEEP, DEEP, "Synthetic.java"],
+      files: undefined,
+    },
+    {
+      name: "every one whole at the root",
+      paths: ["Other.java", "Other.java", "Other.java", "Other.java", "Synthetic.java"],
+      files: "Other.java ×4, Synthetic.java",
+    },
+  ])(
+    "tells Copilot a Where line's files only when each is its alert's whole path: $name",
+    async ({ paths, files }) => {
+      const moved = new Map(
+        paths.map((path, index) => [
+          `https://github.com/Azure/osdu-spi-file/security/code-scanning/${18 - index}`,
+          path,
+        ]),
+      );
+      const { pane, sweep } = scenario("1116", (alert) => {
+        const path = moved.get(alert.url);
+        return path
+          ? { ...alert, tool: "FixtureScanner", rule: "synthetic/path-alias", path }
+          : alert;
+      });
+      const key = rulesOf(pane).find(({ key }) =>
+        key.endsWith(":FixtureScanner:synthetic/path-alias"),
+      )?.key;
+      if (!key) throw new Error("No rule carries the moved alerts");
+      const told = await outputs(sweep, key);
+      const campaign = JSON.parse(told.campaign);
+      expect(campaign.kind).toBe("security rule");
+      for (const [name, reading] of [
+        ["rule", JSON.parse(told.rule).reading],
+        ["campaign", campaign.reading],
+        ["ruleTool", JSON.parse(told.ruleTool)],
+      ])
+        expect(reading.where, name).toEqual([
+          { repository: "file", count: "5", ...(files ? { files } : {}) },
+        ]);
+    },
+  );
 });
 
 describe("a long scanner title outside Security", () => {

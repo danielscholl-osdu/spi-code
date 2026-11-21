@@ -46,9 +46,6 @@ const shortPath = (path: string) => {
   const parts = path.split("/");
   return parts.length > 4 ? [...parts.slice(0, 2), "…", ...parts.slice(-1)].join("/") : path;
 };
-/** Every path these words name is one an alert gives, whole. */
-const whole = (words: Words, paths: readonly (string | undefined)[]) =>
-  words.every((part) => typeof part === "string" || !("code" in part) || paths.includes(part.code));
 const AS_WRITTEN = Object.freeze({ verbatim: true as const });
 const byFile = (a: SecurityAlert, b: SecurityAlert) =>
   (a.path ?? "").localeCompare(b.path ?? "") || a.number - b.number;
@@ -127,24 +124,32 @@ function patched(alerts: readonly SecurityAlert[], atLeast: boolean): Words {
   return ["first patched in ", ...join(parts)];
 }
 
-/** Paths, directories or files; from a list not read this sweep, every count is at least. */
-function files(alerts: readonly SecurityAlert[], code: boolean, atLeast: boolean): Words {
+/** Paths, directories or files, and whether each path shown is its alerts' own, whole; from a list not read, counts are at least. */
+function files(alerts: readonly SecurityAlert[], code: boolean, atLeast: boolean): { words: Words; whole: boolean } {
   const paths = [...new Set(alerts.flatMap(({ path }) => (path ? [path] : [])))];
-  if (paths.length === 0) return ["Repository setting"];
-  if (!code || paths.length === 1) return paths.map((path) => ({ code: shortPath(path) }));
+  if (paths.length === 0) return { words: ["Repository setting"], whole: true };
+  if (!code || paths.length === 1)
+    return { words: paths.map((path) => ({ code: shortPath(path) })), whole: paths.every((path) => shortPath(path) === path) };
   if (alerts.length <= FEW) {
     const dirs = [...new Set(paths.map(dirOf))];
     const shown = dirs.slice(0, 2).map((dir): Words => [{ code: dir ? `${shortPath(dir)}/` : "/" }]);
     const more = dirs.length - shown.length;
-    return [...join(shown), ...(more > 0 ? [" and ", count(more, atLeast), plural(more, " more directory", " more directories")] : [])];
+    return {
+      words: [...join(shown), ...(more > 0 ? [" and ", count(more, atLeast), plural(more, " more directory", " more directories")] : [])],
+      whole: false,
+    };
   }
   const tally = paths
     .map((path) => [path, alerts.filter((alert) => alert.path === path).length] as const)
     .sort(([a, x], [b, y]) => y - x || a.localeCompare(b));
   const times = (n: number): Words => (n < 2 ? [] : atLeast ? [" ×", count(n, true)] : [` ×${n}`]);
-  const shown = tally.slice(0, 3).map(([path, n]): Words => [{ code: basename(path) }, ...times(n)]);
+  const top = tally.slice(0, 3);
+  const shown = top.map(([path, n]): Words => [{ code: basename(path) }, ...times(n)]);
   const more = tally.length - shown.length;
-  return [...join(shown), ...(more > 0 ? [" and ", count(more, atLeast), plural(more, " more file")] : [])];
+  return {
+    words: [...join(shown), ...(more > 0 ? [" and ", count(more, atLeast), plural(more, " more file")] : [])],
+    whole: top.every(([path]) => basename(path) === path),
+  };
 }
 
 function where(
@@ -177,7 +182,7 @@ function where(
     const lines = manifests(mine).map((group, index): SecurityWhere => {
       const several = new Set(group.map(({ path }) => path)).size > 1;
       const heavy = mine.filter((alert) => alert.high).length;
-      const shown = files(group, code, !read);
+      const { words: shown, whole } = files(group, code, !read);
       return {
         repository: repo.name,
         first: index === 0,
@@ -190,7 +195,7 @@ function where(
         needs: patches.size > 1 ? patched(group, !read) : [],
         alerts: group.map((alert) => pill(repo.name, alert, several)),
         prs: prPills(repo, group),
-        ...(whole(shown, group.map(({ path }) => path)) ? AS_WRITTEN : {}),
+        ...(whole ? AS_WRITTEN : {}),
         ...(group.length > FEW ? { more: `${group.length} ${toolOf(group[0] as SecurityAlert)} alerts` } : {}),
       };
     });
@@ -327,7 +332,7 @@ function facts(
       out.push({
         label: short ? "Most in lists read" : "Most in",
         words,
-        ...(whole(words, spots.map(({ path }) => path)) ? AS_WRITTEN : {}),
+        ...(spots.every(({ path }) => basename(path) === path) ? AS_WRITTEN : {}),
       });
     }
   }

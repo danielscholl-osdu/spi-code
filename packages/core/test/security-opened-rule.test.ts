@@ -405,4 +405,73 @@ describe("what an opened rule says is as the scanner wrote it", () => {
       ))
         expect(fact.verbatim, fact.label).toBe(true);
   });
+
+  const SYNTHETIC = "synthetic/path-alias";
+  const DEEP = "lib/a/deep/Synthetic.java";
+  const ROOT = "Synthetic.java";
+  /** The sweep with each repository's first code alerts moved onto one rule, at the paths given. */
+  function placed(paths: Record<string, string[]>) {
+    const data = structuredClone(source.facts.security.data ?? {});
+    for (const [repo, mine] of Object.entries(paths)) {
+      const alerts = data[repo];
+      if (!alerts?.code) throw new Error(`${repo} has no code alerts`);
+      alerts.code = alerts.code.map((fact, index) => {
+        const path = mine[index];
+        return path ? { ...fact, tool: "FixtureScanner", rule: SYNTHETIC, path } : fact;
+      });
+    }
+    const moved = {
+      ...source,
+      facts: { ...source.facts, security: { ...source.facts.security, data } },
+    };
+    const key = classify(moved).alerts.find(({ code }) => code?.rule === SYNTHETIC)?.key;
+    if (!key) throw new Error("No alert carries the synthetic rule");
+    const rule = opened(moved, key);
+    return {
+      where: rule.where.map(({ repository, files, verbatim }) => ({ repository, files, verbatim })),
+      most: rule.facts.find(({ label }) => label === "Most in"),
+    };
+  }
+
+  it("marks a Where line shortened to a basename as changed, though another alert's whole path is that basename", () => {
+    const { where, most } = placed({ "Azure/osdu-spi-file": [DEEP, DEEP, DEEP, DEEP, ROOT] });
+    expect(where).toEqual([
+      { repository: "file", files: [{ code: ROOT }, " ×4", ", ", { code: ROOT }] },
+    ]);
+    expect(most?.words[0]).toEqual({ code: ROOT });
+    expect(most).not.toHaveProperty("verbatim");
+  });
+
+  it("marks a Where line verbatim when every basename it shows is its alerts' whole path", () => {
+    const { where, most } = placed({
+      "Azure/osdu-spi-file": ["Other.java", "Other.java", "Other.java", "Other.java", ROOT],
+    });
+    expect(where).toEqual([
+      {
+        repository: "file",
+        files: [{ code: "Other.java" }, " ×4", ", ", { code: ROOT }],
+        verbatim: true,
+      },
+    ]);
+    expect(most?.words[0]).toEqual({ code: "Other.java" });
+    expect(most).toHaveProperty("verbatim", true);
+  });
+
+  it("marks Most in changed when one spot is shortened and another spot's whole path is its basename", () => {
+    const { where, most } = placed({
+      "Azure/osdu-spi-file": [DEEP, DEEP, DEEP, DEEP],
+      "Azure/osdu-spi-workflow": [ROOT, ROOT, ROOT],
+    });
+    expect(where.map(({ verbatim }) => verbatim)).toEqual([true, true]);
+    expect(most?.words.filter((part) => typeof part === "object" && "code" in part)).toEqual([
+      { code: ROOT },
+      { code: ROOT },
+    ]);
+    expect(most).not.toHaveProperty("verbatim");
+    const whole = placed({
+      "Azure/osdu-spi-file": [ROOT, ROOT, ROOT, ROOT],
+      "Azure/osdu-spi-workflow": [ROOT, ROOT, ROOT],
+    });
+    expect(whole.most).toHaveProperty("verbatim", true);
+  });
 });
