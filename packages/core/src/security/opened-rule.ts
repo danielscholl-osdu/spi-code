@@ -298,7 +298,7 @@ function facts(
   const out: SecurityOpenedRule["facts"] = [];
   if (help) out.push({ label: "What it is", words: [help], ...(helpVerbatim(alerts) ? AS_WRITTEN : {}) });
   if (first?.code)
-    out.push({ label: "Rule", words: [{ code: first.code.rule }, ` · ${first.code.tool}`, ...(cwe ? [` · ${cwe}`] : [])], ...AS_WRITTEN });
+    out.push({ label: "Rule", words: [{ code: first.code.rule }, ...(first.code.tool ? [` · ${first.code.tool}`] : []), ...(cwe ? [` · ${cwe}`] : [])], ...AS_WRITTEN });
   if (first?.dependabot) {
     out.push({ label: "Package", words: [{ code: first.dependabot.package }, ` · ${first.dependabot.ecosystem}`], ...AS_WRITTEN });
     const body = advisories(alerts, short);

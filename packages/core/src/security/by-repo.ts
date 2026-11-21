@@ -131,7 +131,7 @@ function moreWords(rules: readonly SecurityRepoRule[], short: boolean): Security
   if (rest.length === 0) return [];
   const packages = rest.filter((r) => listOf(r.key) === "dependabot").length;
   const noun = short
-    ? "rules and packages"
+    ? plural(rest.length, "rule or package", "rules and packages")
     : packages === 0
       ? plural(rest.length, "rule")
       : packages === rest.length

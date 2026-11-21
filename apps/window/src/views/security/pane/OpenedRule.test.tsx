@@ -134,11 +134,15 @@ const owned = (subject: string, status: ThreadSummary["status"]): ThreadSummary 
 async function opened(at: SecurityRuleRow, threads: ThreadSummary[] = []) {
   const previous = watchStore.getState().snapshot;
   const before = threadStore.getState().threads;
-  watchStore.setState({ snapshot: { cursor: 1, body: snapshot } });
-  threadStore.setState({ threads });
+  await act(async () => {
+    watchStore.setState({ snapshot: { cursor: 1, body: snapshot } });
+    threadStore.setState({ threads });
+  });
   cleanups.push(async () => {
-    watchStore.setState({ snapshot: previous });
-    threadStore.setState({ threads: before });
+    await act(async () => {
+      watchStore.setState({ snapshot: previous });
+      threadStore.setState({ threads: before });
+    });
   });
   const container = await render(at);
   await act(async () => container.querySelector<HTMLButtonElement>("[data-tick]")?.click());

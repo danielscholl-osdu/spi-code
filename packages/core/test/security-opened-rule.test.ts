@@ -380,6 +380,19 @@ describe("an opened rule's help and CWE", () => {
       for (const fact of rule.facts)
         expect(fact.words.length > 0 || fact.advisories !== undefined, fact.label).toBe(true);
   });
+
+  it("leaves the scanner off the Rule line when the alerts name none", () => {
+    const unnamed = "spi:code::java/spring-disabled-csrf-protection";
+    const ruleLine = (raw: Record<string, unknown>) =>
+      opened(withScanner(CSRF, { tool: "", ...raw }, "every"), unnamed).facts.find(
+        ({ label }) => label === "Rule",
+      )?.words;
+    expect(ruleLine({})).toEqual([{ code: "java/spring-disabled-csrf-protection" }]);
+    expect(ruleLine({ tags: ["external/cwe/cwe-352"] })).toEqual([
+      { code: "java/spring-disabled-csrf-protection" },
+      " · CWE-352",
+    ]);
+  });
 });
 
 describe("an opened rule's CWE across its alerts", () => {

@@ -194,7 +194,7 @@ describe("By repository while a list was not read", () => {
     const workflow = row(upstream, "workflow");
     expect([text(workflow.sub), text(workflow.top), text(workflow.unread)]).toEqual([
       "≥2 high · code scanning not read",
-      "org.jsoup:jsoup 2 · com.google.guava:guava 1 · ≥1 more rules and packages · from the lists read",
+      "org.jsoup:jsoup 2 · com.google.guava:guava 1 · ≥1 more rule or package · from the lists read",
       "Code scanning alerts not read this sweep.",
     ]);
     expect(row(upstream, "crs-catalog")).toMatchObject({ read: true, unread: [] });

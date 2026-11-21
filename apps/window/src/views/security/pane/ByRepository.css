@@ -38,6 +38,7 @@
   line-height: 16px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .security-repo { border-bottom: 1px solid var(--border-soft); scroll-margin-top: var(--security-head-height); }
