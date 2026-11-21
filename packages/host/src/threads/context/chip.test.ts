@@ -156,7 +156,7 @@ describe("a place chip", () => {
     expect(legal.chip.chip.reading).toEqual(whole?.content);
   });
 
-  it("packs Security's own reading as not read, and refuses Environment and Program", async () => {
+  it("packs Security's own reading as not read, and Environment and Program as theirs", async () => {
     const security = await chipFromSweep(() => sweepAt(view.sweptAt), "place:security", plain);
     if (!security.ok) throw new Error(security.reason);
     expect(security.chip.chip).toMatchObject({
@@ -167,16 +167,20 @@ describe("a place chip", () => {
       reading: view.readings.find(({ anchor }) => anchor.kind === "security")?.content,
       areas: [{ area: "security", state: "unread" }],
     });
-    for (const id of ["place:environment", "place:program"]) {
-      expect(await chipFromSweep(() => sweepAt(view.sweptAt), id, plain)).toEqual({
-        ok: false,
-        reason: `${id} cannot be a chip yet: it packs with the scope that reads it.`,
-      });
+    for (const [id, title, anchor] of [
+      ["place:environment", "Environment", "environment"],
+      ["place:program", "Today", "program"],
+    ] as const) {
+      const packed = await chipFromSweep(() => sweepAt(view.sweptAt), id, plain);
+      if (!packed.ok) throw new Error(packed.reason);
+      expect(packed.chip.chip).toMatchObject({ id, kind: "place", title });
+      const content = view.readings.find((reading) => reading.anchor.kind === anchor)?.content;
+      expect(packed.chip.chip.reading).toEqual(content);
     }
   });
 });
 
-it("packs all 52 recorded chips within 6,000 UTF-8 bytes, trimming only two", async () => {
+it("packs all 54 recorded chips within 6,000 UTF-8 bytes, trimming only two", async () => {
   const ids = [
     ...feed.map(({ id }) => id),
     ...Object.keys(PLACES),
@@ -194,7 +198,7 @@ it("packs all 52 recorded chips within 6,000 UTF-8 bytes, trimming only two", as
       expect(chip.trimmed).toMatch(id === "place:upstream" ? /spi_radar/ : /spi_inspect/);
     }
   }
-  expect(ids).toHaveLength(52);
+  expect(ids).toHaveLength(54);
   expect(trimmed).toEqual(["radar:partition", "place:upstream"]);
 });
 

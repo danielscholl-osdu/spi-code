@@ -23,6 +23,7 @@ import {
   type ThreadChanges,
 } from "./changes.js";
 import { chipFromSweep } from "./context/draft.js";
+import { FINDING_PREFIX, packFinding } from "./context/finding.js";
 import { threadContext } from "./context/provider.js";
 import { redactSpiText, type SpiRedactor } from "./context/redaction.js";
 import type { LatestSweep } from "./context/sweep.js";
@@ -262,7 +263,10 @@ export function openThreadHost(options: ThreadHostOptions) {
       },
       engine,
       remember,
-      chip: (id: string) => chipFromSweep(options.savedSweep, id, spiRedactor),
+      chip: async (id: string) =>
+        id.startsWith(FINDING_PREFIX)
+          ? packFinding(engine, id, spiRedactor)
+          : chipFromSweep(options.savedSweep, id, spiRedactor),
       redact: chipRedactor.text,
       land: async (id: string, request: Parameters<ScopeWorkspaces["land"]>[3]) => {
         return engine.transition(id, async () => {

@@ -46,6 +46,8 @@ const identity = {
   scope: id,
   title: z.string().optional(),
   subject: id.optional(),
+  /** The thread this one continues, whose finding its first message carries. */
+  parent: id.optional(),
   accessMode: z.enum(["supervised", "auto-accept-edits"]).optional(),
 };
 const definition = z.strictObject({ ...identity, landsIn: landing.optional() });
