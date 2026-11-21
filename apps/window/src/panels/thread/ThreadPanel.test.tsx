@@ -537,6 +537,85 @@ describe("Thread and Changes", () => {
     expect(commitButton(shell)?.disabled).toBe(false);
   });
 
+  it("offers the right thread for an ownership mismatch without blocking Commit", async () => {
+    savePanes({ open: { rightPanel: true } });
+    const shell = await mountShell("#thread/t1", [LANDED]);
+    const changes = await shell.tab("Changes");
+    await answer(shell, "thread.changes", "thread.changes.result", {
+      changes: read(true, [
+        {
+          path: "partition-core/src/Main.java",
+          added: 2,
+          removed: 1,
+          untracked: false,
+          owner: "upstream",
+        },
+        {
+          path: "provider/partition-azure/src/Azure.java",
+          added: 1,
+          removed: 0,
+          untracked: false,
+          owner: "fork",
+        },
+        { path: "unknown/file.txt", added: 1, removed: 0, untracked: false },
+      ]),
+    });
+    expect(
+      [...(changes?.querySelectorAll(".thread-owner-tag") ?? [])].map((tag) => tag.textContent),
+    ).toEqual(["Upstream", "Fork"]);
+    expect(changes?.textContent).not.toContain("unknown/file.txtFork");
+    expect(changes?.querySelector(".thread-owner-mismatch")?.textContent).toContain(
+      "Upstream owns this file. The next sync overwrites a change made here.",
+    );
+    await shell.tab("Thread");
+    await answer(shell, "thread.changes", "thread.changes.result", {
+      changes: read(true, [
+        {
+          path: "partition-core/src/Main.java",
+          added: 2,
+          removed: 1,
+          untracked: false,
+          owner: "upstream",
+        },
+      ]),
+    });
+    await typeMessage(shell, "Split the change");
+    expect(commitButton(shell)?.disabled).toBe(false);
+    const refreshed = await shell.tab("Changes");
+    await answer(shell, "thread.changes", "thread.changes.result", {
+      changes: read(true, [
+        {
+          path: "partition-core/src/Main.java",
+          added: 2,
+          removed: 1,
+          untracked: false,
+          owner: "upstream",
+        },
+      ]),
+    });
+    const move = [...(refreshed?.querySelectorAll("button") ?? [])].find((button) =>
+      button.textContent?.startsWith("Continue this file"),
+    );
+    if (!move) throw new Error("No move action");
+    await act(async () => move.click());
+    expect(threadStore.getState().draft).toMatchObject({
+      scope: "partition",
+      landsIn: "upstream",
+      text:
+        "Continue the change in partition-core/src/Main.java in a thread that lands in Upstream.",
+    });
+    expect(window.location.hash).toBe("#thread/new");
+
+    expect(shell.$<HTMLTextAreaElement>("textarea[aria-label='Message Copilot']")?.value).toBe(
+      "Continue the change in partition-core/src/Main.java in a thread that lands in Upstream.",
+    );
+    const send = shell.layout.querySelector<HTMLButtonElement>('button[aria-label="Send"]');
+    expect(send?.disabled).toBe(false);
+    await act(async () => send?.click());
+    const start = [...shell.posted()].reverse().find((message) => message.type === "thread.start");
+    expect(start?.payload).toMatchObject({ scope: "partition", landsIn: { target: "upstream" } });
+  });
+
   it("says the worktree was not read and offers no commit", async () => {
     savePanes({ open: { rightPanel: true } });
     const shell = await mountShell("#thread/t1", [LANDED]);

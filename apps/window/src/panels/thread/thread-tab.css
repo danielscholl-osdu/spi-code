@@ -22,7 +22,13 @@
 .thread-change { display: flex; width: 100%; gap: 8px; align-items: baseline; padding: 4px 6px; border: 0; border-radius: 6px; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
 .thread-change:hover { background: var(--surface-raised); }
 .thread-change-path { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--text-xs); overflow-wrap: anywhere; }
+.thread-owner-tag { flex: none; padding: 0 5px; border: 1px solid currentColor; border-radius: 999px; color: var(--text-muted); font-size: var(--text-xs); line-height: 1.35; }
+.thread-owner-tag[data-owner="fork"] { color: var(--work); }
+.thread-owner-tag[data-owner="upstream"] { color: var(--text); }
 .thread-change-counts { flex: none; color: var(--text-muted); font-size: var(--text-xs); }
+.thread-owner-mismatch { display: grid; gap: 4px; margin: 2px 6px 6px; padding: 6px 8px; border: 1px solid var(--warning); border-radius: 6px; background: var(--warning-surface); color: var(--warning-text); font-size: var(--text-sm); }
+.thread-owner-mismatch p { margin: 0; }
+.thread-owner-mismatch button { justify-self: start; padding: 0; border: 0; background: transparent; color: var(--accent-text); font: inherit; font-size: var(--text-sm); cursor: pointer; }
 .thread-diff { max-height: 360px; margin: 4px 0 8px; overflow: auto; padding: 8px; border: 1px solid var(--border-soft); border-radius: 6px; background: var(--surface); color: var(--text); font-family: var(--font-mono); font-size: var(--text-xs); white-space: pre-wrap; overflow-wrap: anywhere; }
 .thread-diff > span { display: block; }
 .thread-diff [data-line="added"] { background: var(--success-surface); color: var(--success-text); }

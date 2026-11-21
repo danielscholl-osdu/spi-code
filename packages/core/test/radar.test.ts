@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, test } from "vitest";
+import { KNOWN_SERVICES } from "../src/config";
 import type { Facts } from "../src/facts";
 import { parseFilter } from "../src/model/filter";
 import { buildModel } from "../src/model/index";
-import { certainText, classifyPath, diffVerdicts } from "../src/model/radar";
+import { certainText, classifyPath, diffVerdicts, servicePathRule } from "../src/model/radar";
 import { FIXTURE_NOW, fixtureFacts } from "./harness";
 import { fixtureContext } from "./model-fleet";
 
@@ -82,6 +83,26 @@ describe("the classifier mirrors the upstream filter engine", () => {
     expect(
       classifyPath(ent, "entitlements-v2-core/src/main/java/provider/interfaces/IStore.java"),
     ).toEqual({ bucket: "Interface", entry: "entitlements-v2-core" });
+  });
+
+  test("a recorded service rule names fork, upstream and nothing for an unplaced path", () => {
+    for (const id of ["partition", "entitlements", "legal", "schema", "file"]) {
+      const filter = parseFilter(fixtureFacts().radar.data?.filters[id]?.text ?? "");
+      const service = KNOWN_SERVICES.find((entry) => entry.id === id);
+      if (!service) throw new Error(`No service ${id}`);
+      const rule = servicePathRule(service, filter);
+      if (!rule) throw new Error(`No path rule for ${id}`);
+      const prefix = service.prefix ?? service.id;
+      expect(rule(`provider/${prefix}-azure/pom.xml`)).toBe("fork");
+      expect(rule(`${prefix}-core/pom.xml`)).toBe("upstream");
+      expect(rule("not-in-the-filter/file.txt")).toBeUndefined();
+    }
+  });
+
+  test("a filter from a different service never claims a path", () => {
+    const service = KNOWN_SERVICES.find((entry) => entry.id === "partition");
+    if (!service) throw new Error("No partition service");
+    expect(servicePathRule(service, filterOf("entitlements"))).toBeUndefined();
   });
 
   test("profiles and fossa modules come only from a wholly added block", () => {

@@ -30,8 +30,14 @@ export function newThread() {
 }
 
 /** A draft in one scope, cursor in its text box, carrying a row as its chip when given one. */
-export function askIn(scope: string, target?: AskTarget | null, text?: string) {
-  threadStore.getState().startDraft(scope, target ?? null, from(), text);
+export function askIn(
+  scope: string,
+  target?: AskTarget | null,
+  options?: string | { landsIn?: "fork-main" | "upstream"; text?: string },
+) {
+  const text = typeof options === "string" ? options : options?.text;
+  const landsIn = typeof options === "string" ? undefined : options?.landsIn;
+  threadStore.getState().startDraft(scope, target ?? null, from(), text, landsIn);
   navigate({ kind: "thread", id: NEW_THREAD });
 }
 

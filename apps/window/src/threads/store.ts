@@ -13,7 +13,6 @@ import { createStore } from "zustand/vanilla";
 import type { Route } from "../app/navigation.js";
 import type { PendingSend } from "./entries.js";
 import type { LandsInChoice } from "./LandsInChip.js";
-import { PLACE_SCOPES } from "./scopes.js";
 import type { ModelChoice } from "./types.js";
 
 type Request = Extract<Message, { kind: "request" }>;
@@ -51,7 +50,7 @@ export interface Draft {
   text?: string;
   /** The thread this draft continues, whose finding must be its chip. */
   parent?: string;
-  /** Where a Template or Environment draft's work lands; absent is Asking. */
+  /** Where the draft's work lands; absent is Asking. */
   landsIn?: LandsInChoice;
   from?: DraftFrom;
   subject?: { id: string; label: string };
@@ -84,7 +83,13 @@ type ThreadsState = {
   target: AskTarget | null;
   undo: { id: string; title: string } | null;
   setTarget(target: AskTarget | null): void;
-  startDraft(scope: string, target?: AskTarget | null, from?: DraftFrom, text?: string): void;
+  startDraft(
+    scope: string,
+    target?: AskTarget | null,
+    from?: DraftFrom,
+    text?: string,
+    landsIn?: Draft["landsIn"],
+  ): void;
   setDraftScope(scope: string): void;
   setDraftLandsIn(choice: LandsInChoice): void;
   /** Attaches a row as the draft's one chip, in place of any chip there. */
@@ -141,8 +146,6 @@ export const CHIP_ONLY_PROMPT =
 
 /** The chip a continuation must carry: its parent's last answer. */
 export const findingOf = (parent: string) => `finding:${parent}`;
-const landsInScope = (scope: string) => PLACE_SCOPES.some(({ id }) => id === scope);
-
 const withoutSending = ({ sending: _, ...draft }: Draft): Draft => draft;
 /** The draft as it was before a send that started no thread, its words put back. */
 const failDraft = (draft: Draft, reason: string): Draft => ({
@@ -355,7 +358,7 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
       target: null,
       undo: null,
       setTarget: (target) => set({ target }),
-      startDraft(scope, target, from, text) {
+      startDraft(scope, target, from, text, landsIn) {
         draftSerial += 1;
         const draft: Draft = {
           scope,
@@ -363,6 +366,7 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
           ...(text ? { text } : {}),
           ...(target?.parent ? { parent: target.parent } : {}),
           ...(from ? { from } : {}),
+          ...(landsIn ? { landsIn } : {}),
           ...(target ? { subject: { id: target.subject, label: target.label } } : {}),
           ...(target?.origin ? { origin: target.origin } : {}),
           ...(target ? { chip: { state: "packing" } as const } : {}),
@@ -441,7 +445,7 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
           title: threadTitle(chipOnly && draft.subject ? draft.subject.label : text),
           ...(draft.subject && chip ? { subject: draft.subject.id } : {}),
           ...(draft.parent ? { parent: draft.parent } : {}),
-          ...(draft.landsIn && draft.landsIn !== "asking" && landsInScope(draft.scope)
+          ...(draft.landsIn && draft.landsIn !== "asking"
             ? { landsIn: { target: draft.landsIn } }
             : {}),
         };
