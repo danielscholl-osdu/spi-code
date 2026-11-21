@@ -57,6 +57,17 @@ async function fixture() {
   };
 }
 
+it("preserves binary stdout for privileged object reads", async () => {
+  const options = await fixture();
+  const bytes = Buffer.from([0, 0xff, 0xfe, 0xc3, 0x28, 0x0a]);
+  const result = await new HostExec(options).runRaw(process.execPath, [
+    "-e",
+    `process.stdout.write(Buffer.from(${JSON.stringify([...bytes])}))`,
+  ]);
+  expect(result).toMatchObject({ exit: 0 });
+  expect(result.stdout).toEqual(bytes);
+});
+
 it("delivers redacted device progress before exit, retaining the buffered stdout", async () => {
   // A host *TOKEN* value that starts like the tail of the payload would hold that byte back.
   const env = Object.fromEntries(

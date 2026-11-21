@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { access, copyFile, lstat, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -120,6 +121,73 @@ function diffArgs(against: string): string[] {
 function objectId(id: string): string {
   if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(id)) throw new Error("Invalid object id.");
   return id;
+}
+
+export type GitObjectFormat = "sha1" | "sha256";
+const ancestryLimit = 50_000;
+
+type CommitReader = (id: string) => Promise<ExecResult<Buffer>>;
+
+export function gitCommitId(format: GitObjectFormat, raw: Buffer): string {
+  return createHash(format)
+    .update(Buffer.from(`commit ${raw.length}\0`, "utf8"))
+    .update(raw)
+    .digest("hex");
+}
+
+function commitParents(raw: Buffer, format: GitObjectFormat): string[] | undefined {
+  const separator = raw.indexOf("\n\n");
+  if (separator < 0) return undefined;
+  const expectedLength = format === "sha1" ? 40 : 64;
+  const lines = raw.subarray(0, separator).toString("latin1").split("\n");
+  const tree = lines[0]?.match(/^tree ([0-9a-f]+)$/u);
+  if (tree?.[1]?.length !== expectedLength) return undefined;
+  const parents: string[] = [];
+  for (const line of lines.slice(1)) {
+    if (!line.startsWith("parent ")) continue;
+    const parent = line.slice("parent ".length);
+    if (parent.length !== expectedLength || !/^[0-9a-f]+$/u.test(parent)) return undefined;
+    parents.push(parent);
+  }
+  return parents;
+}
+
+export async function verifyGitAncestry(
+  ancestor: string,
+  descendant: string,
+  format: GitObjectFormat,
+  readCommit: CommitReader,
+  limit = ancestryLimit,
+): Promise<ExecResult<boolean>> {
+  objectId(ancestor);
+  const queue = [objectId(descendant)];
+  const seen = new Set<string>();
+  for (let index = 0; index < queue.length; index += 1) {
+    const id = queue[index];
+    if (id === undefined) return { ok: false, error: "The ancestry walk failed.", code: 1 };
+    if (id === ancestor) return { ok: true, data: true };
+    if (seen.has(id)) continue;
+    if (seen.size >= limit)
+      return { ok: false, error: "The ancestry walk exceeded its commit limit.", code: 1 };
+    seen.add(id);
+    const commit = await readCommit(id);
+    if (!commit.ok) return commit;
+    if (gitCommitId(format, commit.data) !== id)
+      return {
+        ok: false,
+        error: `Commit ${id} did not match its object id. Refusing to push.`,
+        code: 1,
+      };
+    const parents = commitParents(commit.data, format);
+    if (!parents)
+      return {
+        ok: false,
+        error: `Commit ${id} has invalid content. Refusing to push.`,
+        code: 1,
+      };
+    for (const parent of parents) if (!seen.has(parent)) queue.push(parent);
+  }
+  return { ok: true, data: false };
 }
 
 function worktreeId(id: string): string {
@@ -383,6 +451,37 @@ async function execGit(
   return textResult(output, options);
 }
 
+async function execGitRaw(
+  runtime: Runtime,
+  repository: string[],
+  args: string[],
+  options: GitOptions,
+  common?: string,
+): Promise<ExecResult<Buffer>> {
+  const silentOptions = { ...options };
+  delete silentOptions.onOutput;
+  const output = await runtime.exec.runRaw(
+    runtime.binary,
+    [...fixedArgs(runtime), ...repository, ...args],
+    {
+      timeoutMs,
+      ...silentOptions,
+      cwd: runtime.cwd,
+      ...(common === undefined ? {} : { env: { ...options.env, GIT_COMMON_DIR: common } }),
+    },
+  );
+  if (output.error !== undefined) return { ok: false, error: output.error, code: output.exit };
+  if (output.exit !== 0) {
+    const diagnostic = output.stderr.split(/[\r\n]/u).find((line) => /^(fatal|error):/u.test(line));
+    return {
+      ok: false,
+      error: diagnostic?.slice(0, 500) ?? `Git exited with ${output.exit}.`,
+      code: output.exit,
+    };
+  }
+  return { ok: true, data: output.stdout, exitCode: output.exit };
+}
+
 // Each operation fixes its own arguments: a nested repository's config names programs
 // that Git runs whenever an option lets it look inside one.
 export class PrivilegedGit {
@@ -573,13 +672,11 @@ export class PrivilegedGit {
     descendant: string,
     options: GitOptions = {},
   ): Promise<ExecResult<boolean>> {
-    const result = await this.#run(
-      target,
-      ["merge-base", "--is-ancestor", "HEAD", revision(descendant)],
-      options,
-    );
-    if (result.ok) return { ok: true, data: true };
-    return result.code === 1 ? { ok: true, data: false } : result;
+    const head = await this.head(target, options);
+    if (!head.ok) return head;
+    const descendantHead = await this.resolveRef(target, descendant, options);
+    if (!descendantHead.ok) return descendantHead;
+    return this.isAncestor(target, head.data.trim(), descendantHead.data.trim(), options);
   }
 
   async isAncestor(
@@ -588,13 +685,58 @@ export class PrivilegedGit {
     descendant: string,
     options: GitOptions = {},
   ): Promise<ExecResult<boolean>> {
-    const result = await this.#run(
+    objectId(ancestor);
+    objectId(descendant);
+    const format = await this.#run(
       target,
-      ["merge-base", "--is-ancestor", objectId(ancestor), objectId(descendant)],
+      ["config", "--local", "--get", "extensions.objectFormat"],
       options,
     );
-    if (result.ok) return { ok: true, data: true };
-    return result.code === 1 ? { ok: true, data: false } : result;
+    if (!format.ok && format.code !== 1) return format;
+    const objectFormat = !format.ok ? "sha1" : format.data.trim();
+    if (objectFormat !== "sha1" && objectFormat !== "sha256") {
+      return { ok: false, error: "The repository object format is not supported.", code: null };
+    }
+    return verifyGitAncestry(
+      ancestor,
+      descendant,
+      objectFormat,
+      async (id) => {
+        const type = await this.#run(target, ["cat-file", "-t", objectId(id)], options);
+        if (!type.ok)
+          return {
+            ok: false,
+            error:
+              type.code === null
+                ? `Commit ${id} could not be read. Refusing to push.`
+                : `Commit ${id} is missing. Refusing to push.`,
+            code: type.code,
+          };
+        if (type.data.trim() !== "commit")
+          return {
+            ok: false,
+            error: `Object ${id} is not a commit. Refusing to push.`,
+            code: 1,
+          };
+        const runtime = await this.#getRuntime();
+        const { admin, common } = await this.#resolve(runtime, target);
+        const raw = await execGitRaw(
+          runtime,
+          [`--git-dir=${admin}`, `--work-tree=${target.worktree?.cwd ?? target.clone}`],
+          ["cat-file", "commit", id],
+          options,
+          common,
+        );
+        return raw.ok
+          ? raw
+          : {
+              ok: false,
+              error: `Commit ${id} could not be read. Refusing to push.`,
+              code: raw.code,
+            };
+      },
+      ancestryLimit,
+    );
   }
 
   /** A remote branch's exact head, or null when that ref does not exist. */
@@ -813,6 +955,18 @@ export class PrivilegedGit {
         : request.expectedHead === undefined
           ? undefined
           : objectId(request.expectedHead);
+    if (expectedHead) {
+      const sourceHead = await this.resolveRef(target, source, options);
+      if (!sourceHead.ok) return sourceHead;
+      const ancestor = await this.isAncestor(target, expectedHead, sourceHead.data.trim(), options);
+      if (!ancestor.ok) return { ok: false, error: ancestor.error, code: ancestor.code ?? 1 };
+      if (!ancestor.data)
+        return {
+          ok: false,
+          error: "The expected remote head is not an ancestor of the source commit.",
+          code: 1,
+        };
+    }
     const runtime = await this.#getRuntime();
     const url = await this.remoteUrl(target, remote, options);
     if (!url.ok) return url;

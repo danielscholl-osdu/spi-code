@@ -186,7 +186,7 @@ class ForgeExec implements Exec {
 class ListedRequestExec extends ForgeExec {
   constructor(
     mode: ForgeMode,
-    readonly ownership: "own" | "foreign",
+    readonly ownership: "own" | "foreign" | "foreign-own",
   ) {
     super(mode);
   }
@@ -198,32 +198,30 @@ class ListedRequestExec extends ForgeExec {
   ): Promise<ExecResult<T>> {
     if (cmd === "gh" && args[0] === "pr" && args[1] === "list") {
       appendFileSync(record, `${cmd} ${JSON.stringify(args)}\n`);
+      const owners = this.ownership === "foreign-own" ? ["foreign", "own"] : [this.ownership];
       return {
         ok: true,
-        data: [
-          {
-            url: `https://github.com/${GITHUB}/pull/666`,
-            number: 666,
-            isCrossRepository: this.ownership === "foreign",
-            headRepositoryOwner: {
-              login: this.ownership === "foreign" ? "stranger" : "Azure",
-            },
+        data: owners.map((ownership, index) => ({
+          url: `https://github.com/${GITHUB}/pull/${666 + index}`,
+          number: 666 + index,
+          isCrossRepository: ownership === "foreign",
+          headRepositoryOwner: {
+            login: ownership === "foreign" ? "stranger" : "Azure",
           },
-        ] as T,
+        })) as T,
         exitCode: 0,
       };
     }
     if (cmd === "glab" && args[0] === "mr" && args[1] === "list") {
       appendFileSync(record, `${cmd} ${JSON.stringify(args)}\n`);
+      const owners = this.ownership === "foreign-own" ? ["foreign", "own"] : [this.ownership];
       return {
         ok: true,
-        data: [
-          {
-            web_url: `https://${GITLAB_HOST}/${GITLAB}/-/merge_requests/666`,
-            iid: 666,
-            source_project_id: this.ownership === "foreign" ? 999 : 102,
-          },
-        ] as T,
+        data: owners.map((ownership, index) => ({
+          web_url: `https://${GITLAB_HOST}/${GITLAB}/-/merge_requests/${666 + index}`,
+          iid: 666 + index,
+          source_project_id: ownership === "foreign" ? 999 : 102,
+        })) as T,
         exitCode: 0,
       };
     }
@@ -550,6 +548,36 @@ describe("publication destinations", () => {
     expect(commands).not.toMatch(/pr create|mr create/u);
   });
 
+  it.each([
+    ["fork-main" as const, "direct" as const],
+    ["upstream" as const, "fork" as const],
+  ])("skips a stranger and adopts %s's own request later in the lookup", async (target, mode) => {
+    const scope = new ScopeRegistry().lookup("partition");
+    if (!scope) throw new Error("Missing partition");
+    const exec = new ListedRequestExec(mode, "foreign-own");
+    const prepared = await preparePublication(exec, scope, landing(target), forgeCwd);
+    if (!prepared.ok) throw new Error("Expected ready");
+    const { git } = runner();
+    await expect(
+      publishChanges(
+        exec,
+        git,
+        gitTarget(),
+        "thread-1",
+        undefined,
+        BASE,
+        HEAD,
+        null,
+        prepared,
+        forgeCwd,
+      ),
+    ).resolves.toMatchObject({
+      publication: { outcome: "published", request: { requestNumber: 667 } },
+      request: { requestNumber: 667 },
+    });
+    expect(await readFile(record, "utf8")).not.toMatch(/pr create|mr create/u);
+  });
+
   it("runs every forge command from the host-owned empty directory", async () => {
     const scope = new ScopeRegistry().lookup("partition");
     if (!scope) throw new Error("Missing partition");
@@ -796,6 +824,38 @@ describe("publication gates", () => {
       ),
     ).resolves.toMatchObject({
       publication: { outcome: "refused", reason: expect.stringContaining("not an ancestor") },
+    });
+    expect(calls.push).toEqual([]);
+  });
+
+  it.each([
+    "Commit abc did not match its object id. Refusing to push.",
+    "Commit abc is missing. Refusing to push.",
+    "Object abc is not a commit. Refusing to push.",
+    "The ancestry walk exceeded its commit limit.",
+  ])("puts a verified ancestry refusal on the Thread tab: %s", async (reason) => {
+    const exec = forge("direct");
+    const scope = new ScopeRegistry().lookup("partition");
+    if (!scope) throw new Error("Missing partition");
+    const prepared = await preparePublication(exec, scope, landing("fork-main"), forgeCwd);
+    if (!prepared.ok) throw new Error("Expected ready");
+    const { git, calls } = runner({ remote: OBSERVED, guarded: true });
+    git.isAncestor = async () => ({ ok: false, error: reason, code: 1 });
+    await expect(
+      publishChanges(
+        exec,
+        git,
+        gitTarget(),
+        "thread-1",
+        undefined,
+        BASE,
+        HEAD,
+        OBSERVED,
+        prepared,
+        forgeCwd,
+      ),
+    ).resolves.toMatchObject({
+      publication: { outcome: "refused", reason },
     });
     expect(calls.push).toEqual([]);
   });

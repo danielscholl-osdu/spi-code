@@ -4,6 +4,7 @@
 import { execFile, spawn } from "node:child_process";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { StringDecoder } from "node:string_decoder";
 import { promisify } from "node:util";
 import {
   type Exec,
@@ -33,6 +34,10 @@ export interface HostExecOptions extends Omit<ManagedToolEnvironmentOptions, "pl
 }
 
 const PIPE_GRACE_MS = 1000;
+
+export interface HostExecRawOutput extends Omit<ExecOutput, "stdout"> {
+  stdout: Buffer;
+}
 
 async function killTree(pid: number): Promise<void> {
   if (process.platform === "win32") {
@@ -68,11 +73,21 @@ export class HostExec implements Exec {
   }
 
   // Can also be passed to core's RecordingExec.
-  readonly run = async (
+  readonly run = async (cmd: string, args: string[], opts: ExecOptions = {}): Promise<ExecOutput> =>
+    (await this.#run(cmd, args, opts, false)) as ExecOutput;
+
+  readonly runRaw = async (
     cmd: string,
     args: string[],
     opts: ExecOptions = {},
-  ): Promise<ExecOutput> => {
+  ): Promise<HostExecRawOutput> => (await this.#run(cmd, args, opts, true)) as HostExecRawOutput;
+
+  readonly #run = async (
+    cmd: string,
+    args: string[],
+    opts: ExecOptions,
+    raw: boolean,
+  ): Promise<ExecOutput | HostExecRawOutput> => {
     const inherited = { ...(this.options.env ?? process.env), ...opts.env };
     const secrets = Object.fromEntries(
       Object.entries(inherited).filter(
@@ -81,7 +96,7 @@ export class HostExec implements Exec {
     );
     const safe = execRedactor(opts, secrets);
     const timeoutMs = opts.timeoutMs ?? 30_000;
-    let output: ExecOutput;
+    let output: ExecOutput | HostExecRawOutput;
     try {
       if (!Number.isFinite(timeoutMs) || timeoutMs <= 0 || timeoutMs > 2_147_483_647) {
         throw new Error("Invalid command timeout.");
@@ -93,7 +108,7 @@ export class HostExec implements Exec {
         mkdir(join(this.options.appData, "azure"), { recursive: true }),
       ]);
       if (opts.signal?.aborted) throw new Error("Command aborted.");
-      output = await new Promise<ExecOutput>((resolve) => {
+      output = await new Promise<ExecOutput | HostExecRawOutput>((resolve) => {
         const child = spawn(cmd, args, {
           env,
           cwd: opts.cwd,
@@ -101,6 +116,8 @@ export class HostExec implements Exec {
           detached: process.platform !== "win32",
           stdio: ["pipe", "pipe", "pipe"],
         });
+        const stdoutDecoder = new StringDecoder("utf8");
+        const stdoutBytes: Buffer[] = [];
         let stdout = "";
         let stderr = "";
         let error: string | undefined;
@@ -119,14 +136,21 @@ export class HostExec implements Exec {
           } catch (failure) {
             error ??= safe(String(failure));
           }
-          resolve({
-            // An interrupted command's output is cut, so it leaves the same snapshot it delivered.
-            stdout: interrupted ? delivery.snapshot(stdout) : stdout,
+          const common = {
             stderr: interrupted ? delivery.snapshot(stderr) : safe(stderr),
             exit: spawnFailed ? null : exit,
             ...(error === undefined ? {} : { error }),
             ...(interrupted ? { snapshot: true as const } : {}),
-          });
+          };
+          resolve(
+            raw
+              ? { ...common, stdout: Buffer.concat(stdoutBytes) }
+              : {
+                  ...common,
+                  // An interrupted command's output is cut, so it leaves the same snapshot it delivered.
+                  stdout: interrupted ? delivery.snapshot(stdout) : stdout,
+                },
+          );
         };
         const fail = (message: string) => {
           interrupted = true;
@@ -159,9 +183,16 @@ export class HostExec implements Exec {
             fail(String(failure));
           }
         };
-        child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
-          stdout += chunk;
-          deliver("stdout", chunk);
+        child.stdout.on("data", (chunk: Buffer) => {
+          stdoutBytes.push(Buffer.from(chunk));
+          const text = stdoutDecoder.write(chunk);
+          stdout += text;
+          deliver("stdout", text);
+        });
+        child.stdout.on("end", () => {
+          const text = stdoutDecoder.end();
+          stdout += text;
+          deliver("stdout", text);
         });
         child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
           stderr += chunk;
@@ -184,12 +215,19 @@ export class HostExec implements Exec {
         child.stdin.end(opts.stdin);
       });
     } catch (error) {
-      output = {
-        stdout: "",
-        stderr: "",
-        exit: null,
-        error: safe(error instanceof Error ? error.message : String(error)),
-      };
+      output = raw
+        ? {
+            stdout: Buffer.alloc(0),
+            stderr: "",
+            exit: null,
+            error: safe(error instanceof Error ? error.message : String(error)),
+          }
+        : {
+            stdout: "",
+            stderr: "",
+            exit: null,
+            error: safe(error instanceof Error ? error.message : String(error)),
+          };
     }
     this.options.log?.({
       cmd: safe(cmd),

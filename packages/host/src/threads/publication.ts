@@ -561,6 +561,7 @@ async function existingRequest(
     return { ok: false, reason: `The branch's request was not read. ${listed.error}` };
   if (!Array.isArray(listed.data))
     return { ok: false, reason: "The branch's open request was not read." };
+  let foundStranger = false;
   for (const entry of listed.data) {
     if (!object(entry)) return { ok: false, reason: "The branch's open request was not read." };
     const url = entry.url ?? entry.web_url;
@@ -580,10 +581,8 @@ async function existingRequest(
         owner.login.toLowerCase() !== expectedOwner ||
         entry.isCrossRepository !== expectedCrossRepository
       ) {
-        return {
-          ok: false,
-          reason: "The branch's request did not match this push's source repository.",
-        };
+        foundStranger = true;
+        continue;
       }
     } else {
       const sourceProjectId = entry.source_project_id;
@@ -592,14 +591,17 @@ async function existingRequest(
         prepared.sourceProjectId === undefined ||
         String(sourceProjectId) !== String(prepared.sourceProjectId)
       ) {
-        return {
-          ok: false,
-          reason: "The branch's request did not match this push's source project.",
-        };
+        foundStranger = true;
+        continue;
       }
     }
     return { ok: true, request };
   }
+  if (foundStranger)
+    return {
+      ok: false,
+      reason: "The branch's request did not match this push's source.",
+    };
   return { ok: true };
 }
 
@@ -712,7 +714,10 @@ export async function publishChanges(
   }
   if (observed.data) {
     const ancestor = await git.isAncestor(target, observed.data, displayedHead);
-    if (!ancestor.ok) return { publication: gitOutcome(ancestor, "Checking the remote head") };
+    if (!ancestor.ok)
+      return {
+        publication: { outcome: "refused", reason: ancestor.error },
+      };
     if (!ancestor.data)
       return {
         publication: {

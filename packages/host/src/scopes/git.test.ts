@@ -20,6 +20,7 @@ import { basename, dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
+import { deflateSync } from "node:zlib";
 import type { ExecResult } from "@spi-code/core";
 import { KNOWN_SERVICES } from "@spi-code/core";
 import { afterEach, beforeEach, describe, expect, it, type TestContext, vi } from "vitest";
@@ -27,8 +28,10 @@ import { type ConfinedResult, loadMxc, type MxcApi } from "./confined.js";
 import {
   type GitOptions,
   type GitTarget,
+  gitCommitId,
   PrivilegedGit,
   type PrivilegedGitOptions,
+  verifyGitAncestry,
   type WorktreeTarget,
 } from "./git.js";
 import { ScopeRegistry } from "./registry.js";
@@ -1023,6 +1026,316 @@ describe("privileged Git", () => {
       await fixtureGit(root, "--git-dir", origin, "rev-parse", "refs/heads/spi/graph-guard"),
     ).toBe(remoteHead);
   });
+
+  it.each(["loose", "alternate"] as const)(
+    "refuses a forged base object from %s",
+    async (how) => {
+      const git = gitRunner();
+      const workspace = await checkout(git);
+      const id = ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid"];
+      const base = await fixtureGit(workspace.cwd, "rev-parse", "HEAD");
+      await writeFile(join(workspace.cwd, "remote.txt"), "remote");
+      await fixtureGit(workspace.cwd, "add", "--", "remote.txt");
+      await fixtureGit(workspace.cwd, ...id, "commit", "-m", "Remote side");
+      const remoteHead = await fixtureGit(workspace.cwd, "rev-parse", "HEAD");
+      await fixtureGit(workspace.cwd, "push", origin, `${remoteHead}:refs/heads/spi/graph-guard`);
+      await fixtureGit(workspace.cwd, "checkout", "--detach", base);
+      await writeFile(join(workspace.cwd, "local.txt"), "local");
+      await fixtureGit(workspace.cwd, "add", "--", "local.txt");
+      await fixtureGit(workspace.cwd, ...id, "commit", "-m", "Local side");
+      const localHead = await fixtureGit(workspace.cwd, "rev-parse", "HEAD");
+      const target = { clone: workspace.cwd };
+      const before = await git.isAncestor(target, remoteHead, localHead);
+
+      const objects = join(workspace.gitDirectory, "objects");
+      const tree = await fixtureGit(workspace.cwd, "rev-parse", `${base}^{tree}`);
+      const body = Buffer.from(
+        `tree ${tree}\nparent ${remoteHead}\nauthor F <f@example.invalid> 1 +0000\ncommitter F <f@example.invalid> 1 +0000\n\nforged\n`,
+      );
+      const forged = deflateSync(Buffer.concat([Buffer.from(`commit ${body.length}\0`), body]));
+      // every object loose, packs gone
+      const aside = join(root, "aside");
+      await mkdir(aside, { recursive: true });
+      const packDir = join(objects, "pack");
+      const packs = (await readdir(packDir).catch(() => [])) as string[];
+      for (const name of packs) await rename(join(packDir, name), join(aside, name));
+      for (const name of packs.filter((n) => n.endsWith(".pack")))
+        spawnSync("git", ["unpack-objects"], {
+          cwd: workspace.cwd,
+          input: await readFile(join(aside, name)),
+        });
+      const loose = join(objects, base.slice(0, 2), base.slice(2));
+      if (how === "loose") {
+        await mkdir(dirname(loose), { recursive: true });
+        await rm(loose, { force: true });
+        await writeFile(loose, forged);
+      } else {
+        await rm(loose, { force: true });
+        const alt = join(workspace.gitDirectory, "fable-alt");
+        await mkdir(join(alt, base.slice(0, 2)), { recursive: true });
+        await writeFile(join(alt, base.slice(0, 2), base.slice(2)), forged);
+        await mkdir(join(objects, "info"), { recursive: true });
+        await writeFile(join(objects, "info", "alternates"), `${alt}\n`);
+      }
+      const ancestor = await git.isAncestor(target, remoteHead, localHead);
+      const pushed =
+        ancestor.ok && ancestor.data
+          ? await git.push(target, {
+              remote: "origin",
+              source: localHead,
+              destination: "refs/heads/spi/graph-guard",
+              expectedHead: remoteHead,
+            })
+          : undefined;
+      const remoteNow = await fixtureGit(
+        root,
+        "--git-dir",
+        origin,
+        "rev-parse",
+        "refs/heads/spi/graph-guard",
+      );
+      expect(before).toEqual({ ok: true, data: false });
+      expect(ancestor).toMatchObject({
+        ok: false,
+        error: expect.stringContaining("did not match its object id"),
+      });
+      expect(pushed).toBeUndefined();
+      await expect(
+        git.push(target, {
+          remote: "origin",
+          source: localHead,
+          destination: "refs/heads/spi/graph-guard",
+          expectedHead: remoteHead,
+        }),
+      ).resolves.toMatchObject({
+        ok: false,
+        error: expect.stringContaining("did not match its object id"),
+      });
+      expect(
+        await fixtureGit(root, "--git-dir", origin, "rev-parse", "refs/heads/spi/graph-guard"),
+      ).toBe(remoteHead);
+      expect(remoteNow).toBe(remoteHead);
+    },
+    60_000,
+  );
+
+  it("pushes a verified fast-forward with several commits", async () => {
+    const git = gitRunner();
+    const workspace = await checkout(git);
+    const base = await fixtureGit(workspace.cwd, "rev-parse", "HEAD");
+    await fixtureGit(workspace.cwd, "push", origin, `${base}:refs/heads/spi/verified-forward`);
+    const target = { clone: workspace.cwd };
+    for (const text of ["one", "two", "three"]) {
+      await writeFile(join(workspace.cwd, "forward.txt"), text);
+      await fixtureGit(workspace.cwd, "add", "--", "forward.txt");
+      await fixtureGit(
+        workspace.cwd,
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "-m",
+        text,
+      );
+    }
+    const head = await fixtureGit(workspace.cwd, "rev-parse", "HEAD");
+    await expect(git.isAncestor(target, base, head)).resolves.toEqual({ ok: true, data: true });
+    await expect(
+      git.push(target, {
+        remote: "origin",
+        source: head,
+        destination: "refs/heads/spi/verified-forward",
+        expectedHead: base,
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    expect(
+      await fixtureGit(root, "--git-dir", origin, "rev-parse", "refs/heads/spi/verified-forward"),
+    ).toBe(head);
+  }, 60_000);
+
+  it("walks both parents of a merge before a leased push", async () => {
+    const git = gitRunner();
+    const workspace = await checkout(git);
+    const base = await fixtureGit(workspace.cwd, "rev-parse", "HEAD");
+    const identity = ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid"];
+    await writeFile(join(workspace.cwd, "left.txt"), "left");
+    await fixtureGit(workspace.cwd, "add", "--", "left.txt");
+    await fixtureGit(workspace.cwd, ...identity, "commit", "-m", "Left");
+    const left = await fixtureGit(workspace.cwd, "rev-parse", "HEAD");
+    await fixtureGit(workspace.cwd, "checkout", "--detach", base);
+    await writeFile(join(workspace.cwd, "right.txt"), "right");
+    await fixtureGit(workspace.cwd, "add", "--", "right.txt");
+    await fixtureGit(workspace.cwd, ...identity, "commit", "-m", "Right");
+    const right = await fixtureGit(workspace.cwd, "rev-parse", "HEAD");
+    await fixtureGit(workspace.cwd, "push", origin, `${right}:refs/heads/spi/verified-merge`);
+    const merge = await fixtureGit(
+      workspace.cwd,
+      ...identity,
+      "commit-tree",
+      `${left}^{tree}`,
+      "-p",
+      left,
+      "-p",
+      right,
+      "-m",
+      "Merge",
+    );
+    const target = { clone: workspace.cwd };
+    await expect(git.isAncestor(target, right, merge)).resolves.toEqual({ ok: true, data: true });
+    await expect(
+      git.push(target, {
+        remote: "origin",
+        source: merge,
+        destination: "refs/heads/spi/verified-merge",
+        expectedHead: right,
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    expect(
+      await fixtureGit(root, "--git-dir", origin, "rev-parse", "refs/heads/spi/verified-merge"),
+    ).toBe(merge);
+  }, 60_000);
+
+  it.each(["missing", "blob"] as const)(
+    "refuses a %s parent object",
+    async (kind) => {
+      const git = gitRunner();
+      const workspace = await checkout(git);
+      const tree = await fixtureGit(workspace.cwd, "rev-parse", "HEAD^{tree}");
+      const blobFile = join(root, `${kind}.blob`);
+      await writeFile(blobFile, "not a commit");
+      const parent =
+        kind === "blob"
+          ? await fixtureGit(workspace.cwd, "hash-object", "-w", "--", blobFile)
+          : "0".repeat(40);
+      const rawFile = join(root, `${kind}.commit`);
+      await writeFile(
+        rawFile,
+        `tree ${tree}\nparent ${parent}\nauthor Fixture <fixture@example.invalid> 0 +0000\ncommitter Fixture <fixture@example.invalid> 0 +0000\n\nfixture\n`,
+      );
+      const head = await fixtureGit(
+        workspace.cwd,
+        "hash-object",
+        "-w",
+        "-t",
+        "commit",
+        "--",
+        rawFile,
+      );
+      await expect(
+        git.isAncestor({ clone: workspace.cwd }, "f".repeat(40), head),
+      ).resolves.toMatchObject({
+        ok: false,
+        error:
+          kind === "missing"
+            ? expect.stringContaining("is missing")
+            : expect.stringContaining("is not a commit"),
+      });
+    },
+    60_000,
+  );
+
+  it("refuses an ancestry walk past its bound", async () => {
+    const objects = new Map<string, Buffer>();
+    const raw = (parent?: string) =>
+      Buffer.from(
+        `tree ${"0".repeat(40)}\n${parent ? `parent ${parent}\n` : ""}author A <a@example.invalid> 0 +0000\ncommitter A <a@example.invalid> 0 +0000\n\nfixture\n`,
+      );
+    let id: string | undefined;
+    for (let index = 0; index < 3; index += 1) {
+      const content = raw(id);
+      id = gitCommitId("sha1", content);
+      objects.set(id, content);
+    }
+    await expect(
+      verifyGitAncestry(
+        "f".repeat(40),
+        id ?? "",
+        "sha1",
+        async (requested) => {
+          const content = objects.get(requested);
+          return content ? { ok: true, data: content } : { ok: false, error: "missing", code: 128 };
+        },
+        2,
+      ),
+    ).resolves.toEqual({
+      ok: false,
+      error: "The ancestry walk exceeded its commit limit.",
+      code: 1,
+    });
+  });
+
+  it("hashes commit objects with both Git object formats", () => {
+    for (const [format, length, expected] of [
+      ["sha1", 40, "0b1850df85afd09b2963574c57faef309cdaa7bf"],
+      ["sha256", 64, "fbd967e29f6440eb36fd7d731b542e38524aac921b85d290c0b0b1c1a1188a20"],
+    ] as const) {
+      const raw = Buffer.from(
+        `tree ${"0".repeat(length)}\nauthor Fixture <fixture@example.invalid> 0 +0000\ncommitter Fixture <fixture@example.invalid> 0 +0000\n\nfixture\n`,
+      );
+      expect(gitCommitId(format, raw)).toBe(expected);
+    }
+  });
+
+  it("verifies and pushes a SHA-256 repository", async ({ skip }) => {
+    const sha256 = join(root, "sha256-seed");
+    const sha256Remote = join(root, "sha256.git");
+    const initialized = await fixtureGit(
+      root,
+      "init",
+      "--object-format=sha256",
+      "--initial-branch",
+      "main",
+      sha256,
+    )
+      .then(() => true)
+      .catch(() => false);
+    skip(!initialized, "Git does not support SHA-256 repositories in this fixture");
+    await writeFile(join(sha256, "answer.txt"), "base");
+    await fixtureGit(sha256, "add", "--", "answer.txt");
+    await fixtureGit(
+      sha256,
+      "-c",
+      "user.name=Fixture",
+      "-c",
+      "user.email=fixture@example.invalid",
+      "commit",
+      "-m",
+      "Base",
+    );
+    const base = await fixtureGit(sha256, "rev-parse", "HEAD");
+    await fixtureGit(root, "clone", "--bare", sha256, sha256Remote);
+    const directory = join(appData, "repos", "sha256");
+    await mkdir(directory, { recursive: true });
+    const git = gitRunner();
+    const cloned = await git.clone(directory, { origin: pathToFileURL(sha256Remote).href });
+    if (!cloned.ok) throw new Error(cloned.error);
+    const target = { clone: join(directory, "checkout") };
+    for (const text of ["one", "two"]) {
+      await writeFile(join(target.clone, "answer.txt"), text);
+      await fixtureGit(target.clone, "add", "--", "answer.txt");
+      await fixtureGit(
+        target.clone,
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "-m",
+        text,
+      );
+    }
+    const head = await fixtureGit(target.clone, "rev-parse", "HEAD");
+    await expect(git.isAncestor(target, base, head)).resolves.toEqual({ ok: true, data: true });
+    await expect(
+      git.push(target, {
+        remote: "origin",
+        source: head,
+        destination: "refs/heads/main",
+        expectedHead: base,
+      }),
+    ).resolves.toMatchObject({ ok: true });
+  }, 60_000);
 
   it.each(["remotes", "branches"] as const)(
     "refuses a legacy .git/%s file for the remote being added",
