@@ -27,6 +27,7 @@ import { LinkPill } from "../../components/kit/LinkPill.js";
 import { type BodyPlace, todayContent } from "../../components/opened-body/content.js";
 import { OpenedBody } from "../../components/opened-body/OpenedBody.js";
 import { plainTitle } from "../../text.js";
+import { PendingRequests } from "../../threads/PendingRequests.js";
 import { RequestOwner } from "../../threads/RequestOwner.js";
 import { timedText } from "../../time.js";
 import { CanWait } from "./CanWait.js";
@@ -391,6 +392,7 @@ export function TodayTable({
           </Section>
         );
       })}
+      {!station && <PendingRequests sweep={snapshot} fork />}
       {causes && <CanWait causes={causes} snapshot={snapshot} services={services} />}
     </div>
   );

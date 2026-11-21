@@ -16,6 +16,7 @@ import { STATION_MARKS } from "../../components/flow/Flow.js";
 import { LinkPill } from "../../components/kit/LinkPill.js";
 import { ServiceMark, serviceMark } from "../../components/sidebar/service-mark.js";
 import { plainTitle } from "../../text.js";
+import { PendingRequests } from "../../threads/PendingRequests.js";
 import { RequestOwner } from "../../threads/RequestOwner.js";
 import { forksWord, STATION_LABELS } from "./fleet.js";
 import { ageInOneUnit, ForkName } from "./parts.js";
@@ -178,6 +179,7 @@ function OpenFork({
           ))}
         </ul>
       )}
+      <PendingRequests sweep={snapshot} scope={fork} />
       {causes.length > 0 && (
         <div className="forks-can-wait">
           <strong>Can wait</strong>

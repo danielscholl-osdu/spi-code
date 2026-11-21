@@ -3,6 +3,7 @@
 
 import type { ServicePull } from "@spi-code/contracts";
 import { LinkPill } from "../../components/kit/LinkPill.js";
+import { PendingRequests } from "../../threads/PendingRequests.js";
 import { When } from "../../time.js";
 import type { TabProps } from "./tabs.js";
 import { serviceWorkOf, WorkList } from "./work-list.js";
@@ -16,25 +17,28 @@ export const pullsHeld = ({ snapshot, id }: Pick<TabProps, "snapshot" | "id">) =
 export function Pulls({ id, home, snapshot, row }: TabProps) {
   const list = serviceWorkOf(snapshot, id)?.pulls;
   return (
-    <WorkList
-      key={id}
-      kind="pr"
-      repo={home.repo}
-      service={id}
-      rows={list?.rows ?? []}
-      count={list?.count ?? null}
-      partial={list?.partial ?? false}
-      historyRead={list?.pastRead ?? false}
-      read={list?.read}
-      at={list?.at}
-      row={row}
-      render={(pr) => ({
-        subtitle: pr.state === "open" ? [pr.author, `into ${pr.base}`] : [pr.author],
-        status: <PullStatus pr={pr} />,
-        summary: <PullSummary pr={pr} />,
-        companion: pr.companion,
-      })}
-    />
+    <>
+      <PendingRequests sweep={snapshot} scope={id} forge="github" />
+      <WorkList
+        key={id}
+        kind="pr"
+        repo={home.repo}
+        service={id}
+        rows={list?.rows ?? []}
+        count={list?.count ?? null}
+        partial={list?.partial ?? false}
+        historyRead={list?.pastRead ?? false}
+        read={list?.read}
+        at={list?.at}
+        row={row}
+        render={(pr) => ({
+          subtitle: pr.state === "open" ? [pr.author, `into ${pr.base}`] : [pr.author],
+          status: <PullStatus pr={pr} />,
+          summary: <PullSummary pr={pr} />,
+          companion: pr.companion,
+        })}
+      />
+    </>
   );
 }
 

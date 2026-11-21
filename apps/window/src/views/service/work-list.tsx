@@ -5,6 +5,7 @@ import type { ServiceIssue, ServicePull, ViewSnapshot } from "@spi-code/contract
 import { type ReactNode, useState } from "react";
 import { navigate } from "../../app/navigation.js";
 import { LinkPill } from "../../components/kit/LinkPill.js";
+import { RequestOwner } from "../../threads/RequestOwner.js";
 import { When } from "../../time.js";
 import { NotRead } from "./lists.js";
 import "./work-list.css";
@@ -157,7 +158,10 @@ export function WorkList<T extends Row>({
                   >
                     {entry.title}
                   </button>
-                  <div className="work-subtitle">{subtitle.filter(Boolean).join(" · ")}</div>
+                  <div className="work-subtitle">
+                    {subtitle.filter(Boolean).join(" · ")}
+                    {kind === "pr" && <RequestOwner url={entry.url} compact />}
+                  </div>
                   {companion && (
                     <LinkPill
                       link={{

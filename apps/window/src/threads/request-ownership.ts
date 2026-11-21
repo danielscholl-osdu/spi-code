@@ -21,3 +21,19 @@ export function threadOwningRequest(
       (thread.thread.request !== undefined && urls.includes(thread.thread.request.url)),
   );
 }
+
+export type PendingRequest = {
+  thread: ThreadSummary;
+  request: NonNullable<ThreadSummary["thread"]["request"]>;
+};
+
+/** The requests threads opened that no row of this sweep holds yet, so they are drawn from the store. */
+export function pendingRequests(
+  threads: readonly ThreadSummary[] | null | undefined,
+  sweep: unknown,
+): PendingRequest[] {
+  return (threads ?? []).flatMap((thread) => {
+    const request = thread.thread.request;
+    return request && !requestInSweep(sweep, request.url) ? [{ thread, request }] : [];
+  });
+}

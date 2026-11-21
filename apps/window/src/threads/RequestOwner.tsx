@@ -16,6 +16,8 @@ export function RequestOwner({ url, compact = false }: { url: string; compact?: 
     <button
       type="button"
       className="request-owner"
+      data-state="owned"
+      data-request={url}
       title={`${owner.thread.title ?? "Untitled thread"} owns this request`}
       onClick={() => navigate({ kind: "thread", id: owner.id })}
     >

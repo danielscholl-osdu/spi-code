@@ -78,6 +78,7 @@ async function render(snapshot: ViewSnapshot = nov16(), hash = "#today") {
   const root = createRoot(container);
   await act(async () => root.render(<Routed snapshot={snapshot} />));
   unmount = () => act(async () => root.unmount());
+  return (next: ViewSnapshot) => act(async () => root.render(<Routed snapshot={next} />));
 }
 
 const section = (id: string) => container.querySelector(`[data-section=${id}]`);
@@ -789,22 +790,25 @@ describe("Forks on the 16 Nov sweep", () => {
     expect(route()).toEqual({ kind: "service", id: name });
   });
 
-  it("marks the request's row owned on Today and in the Forks sheet", async () => {
-    const body = whole();
-    const found = todayMembers(body.briefing).find(({ member }) => member.primary);
+  it("draws a request dashed and pending before a sweep holds it, then solid and owned once", async () => {
+    const swept = whole();
+    const found = todayMembers(swept.briefing).find(({ member }) => member.primary);
     if (!found?.member.primary) throw new Error("Fixture needs a request row");
     const { member } = found;
     const primary = found.member.primary;
-    const owner = {
-      id: "request-thread",
+    const unswept: ViewSnapshot = JSON.parse(JSON.stringify(swept), (_key, value) =>
+      value === primary.url ? `${primary.url}#unswept` : value,
+    );
+    const thread = (id: string, url: string, title: string) => ({
+      id,
       thread: {
         scope: member.fork,
-        title: "Fix the request",
+        title,
         request: {
           forge: primary.kind === "mr" ? ("gitlab" as const) : ("github" as const),
           repository: "fixture/repository",
           requestNumber: 42,
-          url: primary.url,
+          url,
         },
       },
       status: "Open" as const,
@@ -812,25 +816,52 @@ describe("Forks on the 16 Nov sweep", () => {
       updatedAt: 1,
       settledAt: null,
       done: false,
-    };
-    threadStore.setState({ threads: [owner] });
-    await render(body);
-    expect(
-      container.querySelector(`[data-item-id="${member.id}"] .request-owner`)?.textContent,
-    ).toContain("Owned");
-    await unmount();
-    container.remove();
+    });
+    threadStore.setState({
+      threads: [
+        thread("request-thread", primary.url, "Fix the request"),
+        thread("other-thread", "https://github.com/fixture/elsewhere/pull/7", "Elsewhere"),
+      ],
+    });
+    const marks = (scope: ParentNode = container) => ({
+      pending: scope.querySelectorAll(`[data-state="pending"][data-request="${primary.url}"]`)
+        .length,
+      owned: scope.querySelectorAll(`[data-state="owned"][data-request="${primary.url}"]`).length,
+    });
+    const openFork = async () =>
+      click(
+        fork(member.fork)?.querySelector<HTMLButtonElement>(
+          `button[aria-label="${member.fork}: show its rows"]`,
+        ),
+      );
 
-    await render(body, "#today/forks");
-    const expander = fork(member.fork)?.querySelector<HTMLButtonElement>(
-      `button[aria-label="${member.fork}: show its rows"]`,
-    );
-    await click(expander);
+    const swap = await render(unswept);
+    expect(marks()).toEqual({ pending: 1, owned: 0 });
+    const pending = container.querySelector(`[data-request="${primary.url}"]`);
+    expect(pending?.textContent).toContain("pending · not yet in a sweep");
+    expect(pending?.closest("[data-section]")).toBeNull();
+    expect(memberIds()).toEqual(todayMembers(unswept.briefing).map(({ member }) => member.id));
+    await click(pending?.querySelector("button"));
+    expect(window.location.hash).toBe("#thread/request-thread");
+
+    window.location.hash = "#today";
+    await swap(swept);
+    expect(marks()).toEqual({ pending: 0, owned: 1 });
     expect(
-      fork(member.fork)?.nextElementSibling?.querySelector(
-        `[data-member="${member.id}"] .request-owner`,
-      )?.textContent,
-    ).toContain("Owned");
+      container.querySelector(`[data-item-id="${member.id}"] [data-state="owned"]`),
+    ).not.toBeNull();
+    expect(container.querySelectorAll('[data-state="pending"]')).toHaveLength(1);
+
+    window.location.hash = "#today/forks";
+    await swap(unswept);
+    await openFork();
+    const sheet = () => fork(member.fork)?.nextElementSibling ?? undefined;
+    expect(marks(sheet())).toEqual({ pending: 1, owned: 0 });
+    await swap(swept);
+    expect(marks(sheet())).toEqual({ pending: 0, owned: 1 });
+    expect(
+      sheet()?.querySelector(`[data-member="${member.id}"] [data-state="owned"]`),
+    ).not.toBeNull();
   });
 
   it("presses a station on Forks and dims all the other reading columns", async () => {

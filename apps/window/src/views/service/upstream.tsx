@@ -3,6 +3,8 @@
 
 import type { ServiceUpstream } from "@spi-code/contracts";
 import { LinkPill } from "../../components/kit/LinkPill.js";
+import { PendingRequests } from "../../threads/PendingRequests.js";
+import { RequestOwner } from "../../threads/RequestOwner.js";
 import { When } from "../../time.js";
 import { ListSection, listsOf, NotRead } from "./lists.js";
 import type { ServiceTab, TabProps } from "./tabs.js";
@@ -27,6 +29,7 @@ function MrRow({
       <div className="service-list-row">
         <span>
           <LinkPill link={{ label: `MR !${iid}`, url, kind: "mr" }} filled />
+          <RequestOwner url={url} compact />
         </span>
         <span className="service-list-what">
           <span className="service-list-title">{title}</span>
@@ -132,7 +135,12 @@ export function Upstream({ id, snapshot }: TabProps) {
         id="open-upstream"
         label="Open upstream"
         count={open.read ? open.list?.total : undefined}
-        before={!open.read && <NotRead id={id} what="Open upstream" at={open.at} />}
+        before={
+          <>
+            {!open.read && <NotRead id={id} what="Open upstream" at={open.at} />}
+            <PendingRequests sweep={snapshot} scope={id} forge="gitlab" />
+          </>
+        }
         after={
           open.list &&
           open.list.total > 0 && (

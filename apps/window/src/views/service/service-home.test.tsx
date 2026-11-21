@@ -26,6 +26,7 @@ import { buildPaletteGroups } from "../../palette/palette.logic.js";
 import { createSelectionStore } from "../../panels/selection.js";
 import { PINS_STORAGE_KEY, readPins, SEED_PINS } from "../../store/pins.js";
 import { createWatchStore } from "../../store/watch.js";
+import { threadStore } from "../../threads/store.js";
 import { when } from "../../time.js";
 import { ageInOneUnit } from "../today/parts.js";
 import nov16 from "../today/snapshot-1116.json?raw";
@@ -83,6 +84,8 @@ async function mount(body: ViewSnapshot, hash: string, titles?: TitleStore) {
     await act(async () => root.unmount());
     container.remove();
   };
+  return (next: ViewSnapshot) =>
+    act(async () => watch.setState({ snapshot: { cursor: next.cursor, body: next } }));
 }
 
 const $ = <T extends Element = HTMLElement>(selector: string) =>
@@ -95,8 +98,10 @@ beforeEach(() => {
   window.location.hash = "";
 });
 
+const initialThreadState = threadStore.getState();
 afterEach(async () => {
   await unmount();
+  threadStore.setState(initialThreadState, true);
   await act(async () => setOpenSelection(null));
   window.location.hash = "";
   localStorage.removeItem(PINS_STORAGE_KEY);
@@ -244,6 +249,47 @@ it("filters Merged to merged PRs and gives only Waiting on you gates an amber to
       ?.click(),
   );
   expect($('li[data-row="81"]')).not.toBeNull();
+});
+
+it("draws a thread's PR dashed on the place before a sweep holds it, then solid and owned once", async () => {
+  const swept = sixteenth();
+  const pr = swept.services
+    ?.find(({ service }) => service === "search")
+    ?.work?.pulls.rows.find(({ state }) => state === "open");
+  if (!pr) throw new Error("Fixture needs an open PR on search");
+  const unswept: ViewSnapshot = JSON.parse(JSON.stringify(swept), (_key, value) =>
+    value === pr.url ? `${pr.url}#unswept` : value,
+  );
+  const request = (url: string, forge: "github" | "gitlab") => ({
+    id: `thread-${forge}`,
+    thread: {
+      scope: "search",
+      title: "Fix the request",
+      request: { forge, repository: "fixture/repository", requestNumber: pr.number, url },
+    },
+    status: "Open" as const,
+    sequence: 1,
+    updatedAt: 1,
+    settledAt: null,
+    done: false,
+  });
+  const mr = "https://gitlab.example.test/fixture/upstream/-/merge_requests/9";
+  threadStore.setState({ threads: [request(pr.url, "github"), request(mr, "gitlab")] });
+  const marks = (url: string) => ({
+    pending: container.querySelectorAll(`[data-state="pending"][data-request="${url}"]`).length,
+    owned: container.querySelectorAll(`[data-state="owned"][data-request="${url}"]`).length,
+  });
+
+  const swap = await mount(unswept, "#service/search/pulls");
+  expect(marks(pr.url)).toEqual({ pending: 1, owned: 0 });
+  expect(marks(mr)).toEqual({ pending: 0, owned: 0 });
+  expect($(`[data-request="${pr.url}"]`)?.textContent).toContain("pending · not yet in a sweep");
+  await swap(swept);
+  expect(marks(pr.url)).toEqual({ pending: 0, owned: 1 });
+  expect($(`li[data-row="${pr.number}"] [data-state="owned"]`)).not.toBeNull();
+
+  await act(async () => navigate({ kind: "service", id: "search", tab: "upstream" }));
+  expect(marks(mr)).toEqual({ pending: 1, owned: 0 });
 });
 
 it("shows a proven tracking issue only under All and keeps its companion on the PR", async () => {
