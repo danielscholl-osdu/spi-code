@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { access, copyFile, lstat, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
@@ -64,6 +65,15 @@ export interface PushRequest {
   readonly expectedHead?: string | null;
   readonly dryRun?: boolean;
 }
+
+export type PushResult =
+  | ExecResult<string>
+  | {
+      readonly ok: false;
+      readonly error: string;
+      readonly code: number | null;
+      readonly ancestryRefused: true;
+    };
 
 export type WorktreeTarget = Required<GitTarget>;
 
@@ -143,12 +153,16 @@ function commitParents(raw: Buffer, format: GitObjectFormat): string[] | undefin
   const tree = lines[0]?.match(/^tree ([0-9a-f]+)$/u);
   if (tree?.[1]?.length !== expectedLength) return undefined;
   const parents: string[] = [];
-  for (const line of lines.slice(1)) {
-    if (!line.startsWith("parent ")) continue;
+  let index = 1;
+  for (; index < lines.length && lines[index]?.startsWith("parent "); index += 1) {
+    const line = lines[index];
+    if (line === undefined) return undefined;
     const parent = line.slice("parent ".length);
     if (parent.length !== expectedLength || !/^[0-9a-f]+$/u.test(parent)) return undefined;
     parents.push(parent);
   }
+  for (const line of lines.slice(index))
+    if (line.startsWith("parent ") || line.startsWith("tree ")) return undefined;
   return parents;
 }
 
@@ -451,35 +465,124 @@ async function execGit(
   return textResult(output, options);
 }
 
-async function execGitRaw(
-  runtime: Runtime,
-  repository: string[],
-  args: string[],
-  options: GitOptions,
-  common?: string,
-): Promise<ExecResult<Buffer>> {
-  const silentOptions = { ...options };
-  delete silentOptions.onOutput;
-  const output = await runtime.exec.runRaw(
-    runtime.binary,
-    [...fixedArgs(runtime), ...repository, ...args],
-    {
-      timeoutMs,
-      ...silentOptions,
-      cwd: runtime.cwd,
-      ...(common === undefined ? {} : { env: { ...options.env, GIT_COMMON_DIR: common } }),
-    },
-  );
-  if (output.error !== undefined) return { ok: false, error: output.error, code: output.exit };
-  if (output.exit !== 0) {
-    const diagnostic = output.stderr.split(/[\r\n]/u).find((line) => /^(fatal|error):/u.test(line));
-    return {
-      ok: false,
-      error: diagnostic?.slice(0, 500) ?? `Git exited with ${output.exit}.`,
-      code: output.exit,
-    };
+type GitBatchRecord = { readonly data: Buffer; readonly type: string } | { readonly missing: true };
+
+class GitBatchReader {
+  readonly #child: ChildProcessWithoutNullStreams;
+  readonly #closed: Promise<void>;
+  readonly #timer: ReturnType<typeof setTimeout>;
+  readonly #abort: () => void;
+  #buffer = Buffer.alloc(0);
+  #failure: Error | undefined;
+  #pending:
+    | {
+        readonly id: string;
+        readonly reject: (error: Error) => void;
+        readonly resolve: (record: GitBatchRecord) => void;
+      }
+    | undefined;
+  #stderr = "";
+
+  constructor(runtime: Runtime, repository: string[], common: string, options: GitOptions) {
+    this.#child = spawn(
+      runtime.binary,
+      [...fixedArgs(runtime), ...repository, "cat-file", "--batch"],
+      {
+        cwd: runtime.cwd,
+        env: { ...runtime.env, ...options.env, GIT_COMMON_DIR: common },
+        shell: false,
+        stdio: ["pipe", "pipe", "pipe"],
+        windowsHide: true,
+      },
+    );
+    this.#closed = new Promise((resolve) => {
+      this.#child.once("close", (code) => {
+        if (!this.#failure && code !== 0)
+          this.#fail(new Error(this.#stderr || `Git cat-file exited with ${code}.`));
+        resolve();
+      });
+    });
+    this.#child.on("error", (error) => this.#fail(error));
+    this.#child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
+      this.#stderr = `${this.#stderr}${chunk}`.slice(-4096);
+    });
+    this.#child.stdout.on("data", (chunk: Buffer) => {
+      this.#buffer = Buffer.concat([this.#buffer, chunk]);
+      this.#receive();
+    });
+    this.#child.stdin.on("error", (error: NodeJS.ErrnoException) => {
+      if (error.code !== "EPIPE") this.#fail(error);
+    });
+    const duration = options.timeoutMs ?? timeoutMs;
+    this.#timer = setTimeout(() => {
+      this.#fail(new Error(`Git cat-file timed out after ${duration}ms.`));
+    }, duration);
+    this.#abort = () => this.#fail(new Error("Git cat-file was aborted."));
+    options.signal?.addEventListener("abort", this.#abort, { once: true });
+    if (options.signal?.aborted) this.#abort();
   }
-  return { ok: true, data: output.stdout, exitCode: output.exit };
+
+  read(id: string): Promise<GitBatchRecord> {
+    if (this.#failure) return Promise.reject(this.#failure);
+    if (this.#pending) return Promise.reject(new Error("Git cat-file already has a pending read."));
+    return new Promise((resolve, reject) => {
+      this.#pending = { id, reject, resolve };
+      this.#child.stdin.write(`${id}\n`);
+    });
+  }
+
+  async close(): Promise<void> {
+    clearTimeout(this.#timer);
+    this.#child.stdin.end();
+    await this.#closed;
+  }
+
+  #fail(error: Error): void {
+    this.#failure ??= error;
+    this.#pending?.reject(error);
+    this.#pending = undefined;
+    this.#child.kill();
+  }
+
+  #receive(): void {
+    const pending = this.#pending;
+    if (!pending) return;
+    const headerEnd = this.#buffer.indexOf("\n");
+    if (headerEnd < 0) return;
+    const header = this.#buffer.subarray(0, headerEnd).toString("latin1");
+    if (header === `${pending.id} missing`) {
+      this.#buffer = this.#buffer.subarray(headerEnd + 1);
+      this.#pending = undefined;
+      pending.resolve({ missing: true });
+      return;
+    }
+    const match = /^([0-9a-f]+) (\w+) ([0-9]+)$/u.exec(header);
+    const size = match === null ? Number.NaN : Number(match[3]);
+    if (
+      match === null ||
+      match[1] !== pending.id ||
+      !Number.isSafeInteger(size) ||
+      size < 0
+    ) {
+      this.#fail(new Error("Git cat-file returned an invalid batch header."));
+      return;
+    }
+    const end = headerEnd + 1 + size + 1;
+    if (this.#buffer.length < end) return;
+    if (this.#buffer[end - 1] !== 0x0a) {
+      this.#fail(new Error("Git cat-file returned an invalid batch record."));
+      return;
+    }
+    const type = match[2];
+    if (type === undefined) {
+      this.#fail(new Error("Git cat-file returned an invalid batch header."));
+      return;
+    }
+    const data = this.#buffer.subarray(headerEnd + 1, end - 1);
+    this.#buffer = this.#buffer.subarray(end);
+    this.#pending = undefined;
+    pending.resolve({ type, data });
+  }
 }
 
 // Each operation fixes its own arguments: a nested repository's config names programs
@@ -697,46 +800,49 @@ export class PrivilegedGit {
     if (objectFormat !== "sha1" && objectFormat !== "sha256") {
       return { ok: false, error: "The repository object format is not supported.", code: null };
     }
-    return verifyGitAncestry(
-      ancestor,
-      descendant,
-      objectFormat,
-      async (id) => {
-        const type = await this.#run(target, ["cat-file", "-t", objectId(id)], options);
-        if (!type.ok)
-          return {
-            ok: false,
-            error:
-              type.code === null
-                ? `Commit ${id} could not be read. Refusing to push.`
-                : `Commit ${id} is missing. Refusing to push.`,
-            code: type.code,
-          };
-        if (type.data.trim() !== "commit")
-          return {
-            ok: false,
-            error: `Object ${id} is not a commit. Refusing to push.`,
-            code: 1,
-          };
-        const runtime = await this.#getRuntime();
-        const { admin, common } = await this.#resolve(runtime, target);
-        const raw = await execGitRaw(
-          runtime,
-          [`--git-dir=${admin}`, `--work-tree=${target.worktree?.cwd ?? target.clone}`],
-          ["cat-file", "commit", id],
-          options,
-          common,
-        );
-        return raw.ok
-          ? raw
-          : {
+    const runtime = await this.#getRuntime();
+    const { admin, common } = await this.#resolve(runtime, target);
+    const reader = new GitBatchReader(
+      runtime,
+      [`--git-dir=${admin}`, `--work-tree=${target.worktree?.cwd ?? target.clone}`],
+      common,
+      options,
+    );
+    try {
+      return await verifyGitAncestry(
+        ancestor,
+        descendant,
+        objectFormat,
+        async (id) => {
+          let object: GitBatchRecord;
+          try {
+            object = await reader.read(id);
+          } catch {
+            return {
               ok: false,
               error: `Commit ${id} could not be read. Refusing to push.`,
-              code: raw.code,
+              code: null,
             };
-      },
-      ancestryLimit,
-    );
+          }
+          if ("missing" in object)
+            return {
+              ok: false,
+              error: `Commit ${id} is missing. Refusing to push.`,
+              code: 128,
+            };
+          if (object.type !== "commit")
+            return {
+              ok: false,
+              error: `Object ${id} is not a commit. Refusing to push.`,
+              code: 1,
+            };
+          return { ok: true, data: object.data };
+        },
+        ancestryLimit,
+      );
+    } finally {
+      await reader.close();
+    }
   }
 
   /** A remote branch's exact head, or null when that ref does not exist. */
@@ -945,7 +1051,7 @@ export class PrivilegedGit {
     target: GitTarget,
     request: PushRequest,
     options: GitOptions = {},
-  ): Promise<ExecResult<string>> {
+  ): Promise<PushResult> {
     const remote = remoteName(request.remote);
     const source = revision(request.source);
     const destination = fullRef(request.destination);
@@ -959,12 +1065,19 @@ export class PrivilegedGit {
       const sourceHead = await this.resolveRef(target, source, options);
       if (!sourceHead.ok) return sourceHead;
       const ancestor = await this.isAncestor(target, expectedHead, sourceHead.data.trim(), options);
-      if (!ancestor.ok) return { ok: false, error: ancestor.error, code: ancestor.code ?? 1 };
+      if (!ancestor.ok)
+        return {
+          ok: false,
+          error: ancestor.error,
+          code: ancestor.code ?? 1,
+          ancestryRefused: true,
+        };
       if (!ancestor.data)
         return {
           ok: false,
           error: "The expected remote head is not an ancestor of the source commit.",
           code: 1,
+          ancestryRefused: true,
         };
     }
     const runtime = await this.#getRuntime();

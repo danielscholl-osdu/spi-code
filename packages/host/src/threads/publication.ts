@@ -9,7 +9,7 @@ import type { RepositoryScope, Scope } from "../scopes/registry.js";
 import { type ChangesGit, readChanges } from "./changes.js";
 
 export type PublicationGit = ChangesGit &
-  Pick<PrivilegedGit, "addRemote" | "isAncestor" | "push" | "remoteHead">;
+  Pick<PrivilegedGit, "addRemote" | "push" | "remoteHead">;
 
 type Publication = Extract<
   Message,
@@ -712,28 +712,19 @@ export async function publishChanges(
       },
     };
   }
-  if (observed.data) {
-    const ancestor = await git.isAncestor(target, observed.data, displayedHead);
-    if (!ancestor.ok)
-      return {
-        publication: { outcome: "refused", reason: ancestor.error },
-      };
-    if (!ancestor.data)
-      return {
-        publication: {
-          outcome: "refused",
-          reason:
-            "The remote branch is not an ancestor of this commit. Update the branch before pushing.",
-        },
-      };
-  }
   const pushed = await git.push(target, {
     remote: publication.remote,
     source: displayedHead,
     destination: `refs/heads/${publication.branch}`,
     expectedHead: observed.data,
   });
-  if (!pushed.ok) return { publication: gitOutcome(pushed, "Pushing the branch") };
+  if (!pushed.ok)
+    return {
+      publication:
+        "ancestryRefused" in pushed
+          ? { outcome: "refused", reason: pushed.error }
+          : gitOutcome(pushed, "Pushing the branch"),
+    };
   if (publication.opens === "none") {
     return {
       publication: {

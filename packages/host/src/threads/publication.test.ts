@@ -8,7 +8,7 @@ import { join } from "node:path";
 import type { Exec, ExecOptions, ExecResult } from "@spi-code/core";
 import type { ThreadDefinition } from "@spi-code/threads";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { PrivilegedGit } from "../scopes/git.js";
+import type { PrivilegedGit, PushResult } from "../scopes/git.js";
 import { ScopeRegistry } from "../scopes/registry.js";
 import { spiReadTools } from "../tools/spi-reads.js";
 import {
@@ -239,10 +239,10 @@ function gitTarget() {
 
 function runner({
   remote = null,
-  guarded = false,
+  pushResult = { ok: true, data: "pushed" },
 }: {
   remote?: string | null;
-  guarded?: boolean;
+  pushResult?: PushResult;
 } = {}) {
   const calls = {
     remote: [] as { remote: string; url: string }[],
@@ -264,10 +264,9 @@ function runner({
       return { ok: true, data: url };
     },
     remoteHead: async () => ({ ok: true, data: remote }),
-    isAncestor: async () => ({ ok: true, data: guarded }),
     push: async (_target, request) => {
       calls.push.push(request);
-      return { ok: true, data: "pushed" };
+      return pushResult;
     },
   };
   return { git, calls };
@@ -379,7 +378,7 @@ describe("publication destinations", () => {
     const thread = landing("request");
     const prepared = await preparePublication(exec, scope, thread, forgeCwd);
     if (!prepared.ok) throw new Error(JSON.stringify(prepared.publication));
-    const { git, calls } = runner({ remote: BASE, guarded: true });
+    const { git, calls } = runner({ remote: BASE });
     const result = await publishChanges(
       exec,
       git,
@@ -419,7 +418,7 @@ describe("publication destinations", () => {
     const prepared = await preparePublication(exec, scope, thread, forgeCwd);
     if (!prepared.ok) throw new Error("Expected ready");
     expect(prepared.publication.opens).toBe("none");
-    const { git } = runner({ remote: BASE, guarded: true });
+    const { git } = runner({ remote: BASE });
     await expect(
       publishChanges(
         exec,
@@ -743,7 +742,7 @@ describe("publication gates", () => {
     const exec = forge("direct");
     const prepared = await preparePublication(exec, scope, landing("fork-main"), forgeCwd);
     if (!prepared.ok) throw new Error("Expected ready");
-    const { git, calls } = runner({ remote: OBSERVED, guarded: true });
+    const { git, calls } = runner({ remote: OBSERVED });
     await expect(observePublication(git, gitTarget(), prepared)).resolves.toEqual({
       ...prepared.publication,
       observedHead: OBSERVED,
@@ -802,13 +801,21 @@ describe("publication gates", () => {
     });
   });
 
-  it("refuses a non-fast-forward remote and never reaches push", async () => {
+  it("refuses a non-fast-forward remote without sending a branch", async () => {
     const exec = forge("direct");
     const scope = new ScopeRegistry().lookup("partition");
     if (!scope) throw new Error("Missing partition");
     const prepared = await preparePublication(exec, scope, landing("fork-main"), forgeCwd);
     if (!prepared.ok) throw new Error("Expected ready");
-    const { git, calls } = runner({ remote: OBSERVED, guarded: false });
+    const { git, calls } = runner({
+      remote: OBSERVED,
+      pushResult: {
+        ok: false,
+        error: "The expected remote head is not an ancestor of the source commit.",
+        code: 1,
+        ancestryRefused: true,
+      },
+    });
     await expect(
       publishChanges(
         exec,
@@ -825,7 +832,9 @@ describe("publication gates", () => {
     ).resolves.toMatchObject({
       publication: { outcome: "refused", reason: expect.stringContaining("not an ancestor") },
     });
-    expect(calls.push).toEqual([]);
+    expect(calls.push).toEqual([
+      expect.objectContaining({ expectedHead: OBSERVED, source: HEAD }),
+    ]);
   });
 
   it.each([
@@ -839,8 +848,10 @@ describe("publication gates", () => {
     if (!scope) throw new Error("Missing partition");
     const prepared = await preparePublication(exec, scope, landing("fork-main"), forgeCwd);
     if (!prepared.ok) throw new Error("Expected ready");
-    const { git, calls } = runner({ remote: OBSERVED, guarded: true });
-    git.isAncestor = async () => ({ ok: false, error: reason, code: 1 });
+    const { git, calls } = runner({
+      remote: OBSERVED,
+      pushResult: { ok: false, error: reason, code: 1, ancestryRefused: true },
+    });
     await expect(
       publishChanges(
         exec,
@@ -857,7 +868,9 @@ describe("publication gates", () => {
     ).resolves.toMatchObject({
       publication: { outcome: "refused", reason },
     });
-    expect(calls.push).toEqual([]);
+    expect(calls.push).toEqual([
+      expect.objectContaining({ expectedHead: OBSERVED, source: HEAD }),
+    ]);
   });
 
   it("refuses a remote that moved after the thread last observed it", async () => {
@@ -870,7 +883,7 @@ describe("publication gates", () => {
     };
     const prepared = await preparePublication(exec, scope, thread, forgeCwd);
     if (!prepared.ok) throw new Error("Expected ready");
-    const { git, calls } = runner({ remote: OBSERVED, guarded: true });
+    const { git, calls } = runner({ remote: OBSERVED });
     await expect(
       publishChanges(
         exec,
@@ -896,7 +909,7 @@ describe("publication gates", () => {
     const exec = forge("direct");
     const prepared = await preparePublication(exec, scope, landing("request"), forgeCwd);
     if (!prepared.ok) throw new Error("Expected ready");
-    const { git, calls } = runner({ remote: OBSERVED, guarded: true });
+    const { git, calls } = runner({ remote: OBSERVED });
     await expect(
       publishChanges(
         exec,

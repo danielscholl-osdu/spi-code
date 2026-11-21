@@ -1119,6 +1119,182 @@ describe("privileged Git", () => {
     60_000,
   );
 
+  it.each(["plain", "fsck"] as const)(
+    "refuses a late parent on a %s remote without pushing",
+    async (mode) => {
+      const git = gitRunner();
+      const workspace = await checkout(git);
+      const base = await fixtureGit(workspace.cwd, "rev-parse", "HEAD");
+      await writeFile(join(workspace.cwd, "remote.txt"), "remote");
+      await fixtureGit(workspace.cwd, "add", "--", "remote.txt");
+      await fixtureGit(
+        workspace.cwd,
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "-m",
+        "Remote",
+      );
+      const remoteHead = await fixtureGit(workspace.cwd, "rev-parse", "HEAD");
+      await fixtureGit(
+        workspace.cwd,
+        "push",
+        origin,
+        `${remoteHead}:refs/heads/spi/late-parent`,
+      );
+      if (mode === "fsck")
+        await fixtureGit(root, "--git-dir", origin, "config", "receive.fsckObjects", "true");
+      const tree = await fixtureGit(workspace.cwd, "rev-parse", `${base}^{tree}`);
+      const rawFile = join(root, `late-parent-${mode}.commit`);
+      await writeFile(
+        rawFile,
+        `tree ${tree}\nparent ${base}\nauthor Fixture <fixture@example.invalid> 0 +0000\ncommitter Fixture <fixture@example.invalid> 0 +0000\nparent ${remoteHead}\n\nlate parent\n`,
+      );
+      const head = await fixtureGit(
+        workspace.cwd,
+        "hash-object",
+        "-w",
+        "-t",
+        "commit",
+        "--",
+        rawFile,
+      );
+      await expect(fixtureGit(workspace.cwd, "fsck", "--strict", head)).resolves.toContain("");
+      await expect(
+        fixtureGit(workspace.cwd, "rev-list", "--parents", "-n", "1", head),
+      ).resolves.toBe(`${head} ${base}`);
+      await expect(
+        fixtureGit(workspace.cwd, "merge-base", "--is-ancestor", remoteHead, head),
+      ).rejects.toBeDefined();
+      const target = { clone: workspace.cwd };
+      await expect(git.isAncestor(target, remoteHead, head)).resolves.toMatchObject({
+        ok: false,
+        error: expect.stringContaining("invalid content"),
+      });
+      await expect(
+        git.push(target, {
+          remote: "origin",
+          source: head,
+          destination: "refs/heads/spi/late-parent",
+          expectedHead: remoteHead,
+        }),
+      ).resolves.toMatchObject({
+        ok: false,
+        error: expect.stringContaining("invalid content"),
+      });
+      await expect(
+        fixtureGit(
+          root,
+          "--git-dir",
+          origin,
+          "rev-parse",
+          "refs/heads/spi/late-parent",
+        ),
+      ).resolves.toBe(remoteHead);
+    },
+    60_000,
+  );
+
+  it.each([
+    [
+      "a late parent duplicating a real parent",
+      "sha1" as const,
+      `tree ${"0".repeat(40)}
+parent ${"1".repeat(40)}
+author A <a@example.invalid> 0 +0000
+committer A <a@example.invalid> 0 +0000
+parent ${"1".repeat(40)}
+`,
+    ],
+    [
+      "a missing tree line",
+      "sha1" as const,
+      `parent ${"1".repeat(40)}
+author A <a@example.invalid> 0 +0000
+committer A <a@example.invalid> 0 +0000
+`,
+    ],
+    [
+      "two tree lines",
+      "sha1" as const,
+      `tree ${"0".repeat(40)}
+parent ${"1".repeat(40)}
+tree ${"2".repeat(40)}
+author A <a@example.invalid> 0 +0000
+committer A <a@example.invalid> 0 +0000
+`,
+    ],
+    [
+      "a non-hex parent id",
+      "sha1" as const,
+      `tree ${"0".repeat(40)}
+parent ${"g".repeat(40)}
+author A <a@example.invalid> 0 +0000
+committer A <a@example.invalid> 0 +0000
+`,
+    ],
+    [
+      "a short parent id",
+      "sha1" as const,
+      `tree ${"0".repeat(40)}
+parent ${"1".repeat(39)}
+author A <a@example.invalid> 0 +0000
+committer A <a@example.invalid> 0 +0000
+`,
+    ],
+    [
+      "a SHA-1 parent id in a SHA-256 commit",
+      "sha256" as const,
+      `tree ${"0".repeat(64)}
+parent ${"1".repeat(40)}
+author A <a@example.invalid> 0 +0000
+committer A <a@example.invalid> 0 +0000
+`,
+    ],
+  ] as const)("refuses %s in a commit header", async (_name, format, header) => {
+    const raw = Buffer.from(`${header}\nfixture\n`);
+    const head = gitCommitId(format, raw);
+    await expect(
+      verifyGitAncestry(
+        format === "sha1" ? "f".repeat(40) : "f".repeat(64),
+        head,
+        format,
+        async (requested) =>
+          requested === head
+            ? { ok: true, data: raw }
+            : { ok: false, error: "missing", code: 128 },
+      ),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: `Commit ${head} has invalid content. Refusing to push.`,
+    });
+  });
+
+  it("stops parsing commit parents at the header", async () => {
+    const parent = Buffer.from(
+      `tree ${"0".repeat(40)}\nauthor A <a@example.invalid> 0 +0000\ncommitter A <a@example.invalid> 0 +0000\n\nroot\n`,
+    );
+    const parentId = gitCommitId("sha1", parent);
+    const child = Buffer.from(
+      `tree ${"0".repeat(40)}\nparent ${parentId}\nauthor A <a@example.invalid> 0 +0000\ncommitter A <a@example.invalid> 0 +0000\n\nparent ${"f".repeat(40)} is message text\n`,
+    );
+    const childId = gitCommitId("sha1", child);
+    const objects = new Map([
+      [parentId, parent],
+      [childId, child],
+    ]);
+    await expect(
+      verifyGitAncestry(parentId, childId, "sha1", async (requested) => {
+        const content = objects.get(requested);
+        return content
+          ? { ok: true, data: content }
+          : { ok: false, error: "missing", code: 128 };
+      }),
+    ).resolves.toEqual({ ok: true, data: true });
+  });
+
   it("pushes a verified fast-forward with several commits", async () => {
     const git = gitRunner();
     const workspace = await checkout(git);
