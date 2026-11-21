@@ -5,17 +5,18 @@ import type { ModelCatalogResult } from "@spi-code/contracts";
 import { useCallback, useEffect, useMemo } from "react";
 import { useStore } from "zustand";
 import { navigate, replaceRoute, routeHash, routeLabel } from "../app/navigation.js";
-import { treeServices } from "../app/queue.js";
 import { useRegistry } from "../app/routes.js";
 import { matchesShiftShortcut, shiftShortcutLabel } from "../app/shortcuts.js";
 import { PaneTitle } from "../app/title-row.js";
 import { Icon } from "../components/icons/Icon.js";
 import { routeAfterSettle } from "../components/sidebar/ThreadRows.js";
 import { watchStore } from "../store/watch.js";
-import { scopeLabel, threadEntries } from "./entries.js";
+import { ContinueIn } from "./ContinueIn.js";
+import { threadEntries } from "./entries.js";
 import { AUTO } from "./ModelPicker.js";
 import { NeedsYou } from "./NeedsYou.js";
 import { openScopePicker } from "./picker.js";
+import { canStartIn, PROGRAM, scopeIcon, scopeLabel } from "./scopes.js";
 import { type Draft, lastChoice, NEW_THREAD, threadStore } from "./store.js";
 import { ThreadView } from "./ThreadView.js";
 import type { ContextChip, CopilotAccount, ModelOption } from "./types.js";
@@ -76,7 +77,6 @@ function draftNotice(draft: Draft): string | undefined {
 export function ThreadPage({ id }: { id: string }) {
   const state = useStore(threadStore);
   const tree = useStore(watchStore, (watch) => watch.snapshot?.body.tree);
-  const services = treeServices(tree);
   const registry = useRegistry();
   const { models, account } = useMemo(() => catalogModels(state.catalog), [state.catalog]);
   const isDraft = id === NEW_THREAD;
@@ -158,7 +158,7 @@ export function ThreadPage({ id }: { id: string }) {
             draft={false}
             running
             stopping={stopping}
-            scope={{ id: scope, label: scope, icon: "box" }}
+            scope={{ id: scope, label: scopeLabel(scope), icon: scopeIcon(scope) }}
             context={[]}
             onRemoveContext={() => {}}
             onSend={() => {}}
@@ -166,18 +166,18 @@ export function ThreadPage({ id }: { id: string }) {
           />
         ) : (
           <ThreadView
-            key="draft"
+            key={`draft-${draft.opened ?? 0}`}
             {...shared}
-            initialText={draft.failure?.words}
+            initialText={draft.failure?.words ?? draft.text}
             draft
             running={false}
-            scope={{ id: scope, label: scope, icon: "box" }}
+            scope={{ id: scope, label: scopeLabel(scope), icon: scopeIcon(scope) }}
             onChangeScope={() => openScopePicker({ mode: "change", current: scope })}
             context={draftChips(draft)}
             onRemoveContext={state.removeDraftChip}
             notice={draftNotice(draft)}
             canSend={
-              services.includes(scope) &&
+              canStartIn(scope, tree) &&
               draft.chip?.state !== "packing" &&
               draft.sending === undefined
             }
@@ -247,6 +247,11 @@ export function ThreadPage({ id }: { id: string }) {
         onStop={() => state.stop(id)}
         onApprovalDecision={(approval, approved) =>
           state.decideApproval(id, approval.turnId, approval.approvalId, approved)
+        }
+        below={
+          summary && scope === PROGRAM && !running && events ? (
+            <ContinueIn thread={summary} events={events} />
+          ) : undefined
         }
       />
     </>

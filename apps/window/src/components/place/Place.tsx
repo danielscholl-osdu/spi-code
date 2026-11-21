@@ -7,6 +7,7 @@ import { PLACES, type Route, routeLabel, useOpenSelection } from "../../app/navi
 import { scopeRoute } from "../../app/queue.js";
 import { PaneTitle } from "../../app/title-row.js";
 import { plainTitle } from "../../text.js";
+import { AskButton } from "../../threads/AskButton.js";
 import { instantsIn, TimedText, timedText } from "../../time.js";
 import { PinControl } from "../pin/PinControl.js";
 import { FreshChip, FreshItems, freshItemIds } from "./FreshItems.js";
@@ -37,6 +38,8 @@ export type PlaceProps = {
   actions?: ReactNode;
   /** The pin this place is kept under in the sidebar; without it the top row has no pin control. */
   pin?: string | undefined;
+  /** The thread scope Ask at the top row's end starts a draft in. */
+  ask?: string;
   /** Lead drawn in place of the reading headline. */
   readingLead?: ReactNode;
   /** Tiles drawn in place of the reading's own. */
@@ -58,6 +61,7 @@ export function Place({
   selectedId,
   actions,
   pin,
+  ask,
   tiles,
   readingLead,
   belowTiles,
@@ -77,6 +81,12 @@ export function Place({
   const fresh = place && place !== "upstream" ? freshItemIds(snapshot, place) : [];
   const ItemContent = onSelect ? "button" : "div";
   const lead = tiles ?? content?.tiles;
+  const end = (pin || ask) && (
+    <>
+      {pin && <PinControl pin={pin} name={name} />}
+      {ask && <AskButton scope={ask} />}
+    </>
+  );
   const groups = new Map<string, Item[]>();
   for (const item of content?.items.slice(0, 5) ?? []) {
     const group = groups.get(item.group);
@@ -91,14 +101,14 @@ export function Place({
           place={place}
           snapshot={snapshot}
           heading={
-            <PaneTitle end={pin && <PinControl pin={pin} name={name} />}>
+            <PaneTitle end={end}>
               <h1 data-place>{name}</h1>
               {actions}
             </PaneTitle>
           }
         />
       ) : (
-        <PaneTitle end={pin && <PinControl pin={pin} name={name} />}>
+        <PaneTitle end={end}>
           <h1 data-place>{name}</h1>
           {actions}
         </PaneTitle>

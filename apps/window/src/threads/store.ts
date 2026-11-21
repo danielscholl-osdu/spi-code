@@ -31,6 +31,8 @@ export interface AskTarget {
   /** The row's fork; absent when the row has none. */
   scope?: string;
   origin?: string;
+  /** The thread this target is the finding of, which a thread started from it continues. */
+  parent?: string;
 }
 
 /** Where a draft was opened from, which its back link returns to. */
@@ -41,6 +43,12 @@ export interface DraftFrom {
 
 export interface Draft {
   scope: string;
+  /** Bumped by each new draft, so its composer starts afresh with the draft's words. */
+  opened?: number;
+  /** The words the draft opens with, as a sentence asked from Find. */
+  text?: string;
+  /** The thread this draft continues. */
+  parent?: string;
   from?: DraftFrom;
   subject?: { id: string; label: string };
   origin?: string;
@@ -72,7 +80,7 @@ type ThreadsState = {
   target: AskTarget | null;
   undo: { id: string; title: string } | null;
   setTarget(target: AskTarget | null): void;
-  startDraft(scope: string, target?: AskTarget | null, from?: DraftFrom): void;
+  startDraft(scope: string, target?: AskTarget | null, from?: DraftFrom, text?: string): void;
   setDraftScope(scope: string): void;
   /** Attaches a row as the draft's one chip, in place of any chip there. */
   attachDraftChip(target: AskTarget): void;
@@ -338,15 +346,18 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
       target: null,
       undo: null,
       setTarget: (target) => set({ target }),
-      startDraft(scope, target, from) {
+      startDraft(scope, target, from, text) {
+        draftSerial += 1;
         const draft: Draft = {
           scope,
+          opened: draftSerial,
+          ...(text ? { text } : {}),
+          ...(target?.parent ? { parent: target.parent } : {}),
           ...(from ? { from } : {}),
           ...(target ? { subject: { id: target.subject, label: target.label } } : {}),
           ...(target?.origin ? { origin: target.origin } : {}),
           ...(target ? { chip: { state: "packing" } as const } : {}),
         };
-        draftSerial += 1;
         set(({ choices }) => {
           const { draft: _, ...rest } = choices;
           return { draft, choices: rest };
@@ -400,6 +411,7 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
           scope: draft.scope,
           title: threadTitle(chipOnly && draft.subject ? draft.subject.label : text),
           ...(draft.subject && chip ? { subject: draft.subject.id } : {}),
+          ...(draft.parent ? { parent: draft.parent } : {}),
         };
         const serial = draftSerial;
         const onReply = (reply: Message) => {

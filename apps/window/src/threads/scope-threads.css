@@ -1,0 +1,19 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+.scope-threads { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+.scope-threads-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.scope-threads-head h2 { margin: 0; color: var(--text-muted); font-size: var(--text-sm); font-weight: 600; }
+.scope-threads-new { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 7px; background: transparent; color: var(--text-strong); font: inherit; font-size: var(--text-sm); cursor: pointer; }
+.scope-threads-new:hover { background: var(--surface-raised); }
+.scope-threads-new:focus-visible, .scope-thread:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.scope-threads-quiet { margin: 0; color: var(--text-muted); font-size: var(--text-md); }
+.scope-threads-list { margin: 0; padding: 0; list-style: none; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; }
+.scope-threads-list li + li { border-top: 1px solid var(--border); }
+.scope-thread { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 8px 12px; border: 0; background: transparent; color: var(--text-strong); font: inherit; text-align: left; cursor: pointer; }
+.scope-thread:hover { background: var(--surface-raised); }
+.scope-thread-title { min-width: 0; overflow-wrap: anywhere; }
+.scope-thread-status { flex: none; color: var(--text-muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.scope-threads-settled > summary { color: var(--text-muted); font-size: var(--text-sm); cursor: pointer; }
+.scope-threads-settled > .scope-threads-list { margin-top: 8px; }
+.scope-threads-count { color: var(--text-strong); font-variant-numeric: tabular-nums; }

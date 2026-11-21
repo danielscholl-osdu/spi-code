@@ -12,6 +12,7 @@ import { LinkPill } from "../../components/kit/LinkPill.js";
 import { PinControl } from "../../components/pin/PinControl.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
 import { AskButton } from "../../threads/AskButton.js";
+import { threadStore } from "../../threads/store.js";
 import { TABS } from "./tabs.js";
 import "./service.css";
 
@@ -131,6 +132,7 @@ function Home({
   row: string | undefined;
 }) {
   const ids = useId();
+  const threads = useStore(threadStore, (state) => state.threads);
   const [focus, setFocus] = useState(0);
   const [first] = TABS;
   const active = TABS.find((entry) => entry.id === tab) ?? first;
@@ -165,8 +167,8 @@ function Home({
       <Flow label={`How code reaches ${id} main`} stations={stations} doors={doors} />
       <div className="service-tabs" role="tablist" aria-label={`${id} tabs`}>
         {TABS.map((entry) => {
-          const count = entry.count?.({ id, home, snapshot });
-          const unread = count === null || entry.held?.({ id, home, snapshot });
+          const count = entry.count?.({ id, home, snapshot, threads });
+          const unread = count === null || entry.held?.({ id, home, snapshot, threads });
           return (
             <button
               key={entry.id}

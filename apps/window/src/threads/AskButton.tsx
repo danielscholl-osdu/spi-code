@@ -2,21 +2,21 @@
 // SPDX-License-Identifier: MIT
 
 import { useStore } from "zustand";
-import { treeServices } from "../app/queue.js";
 import { isReachable, useRegistry } from "../app/routes.js";
 import { Icon } from "../components/icons/Icon.js";
 import { watchStore } from "../store/watch.js";
+import { canStartIn, scopeLabel } from "./scopes.js";
 import { askIn } from "./start.js";
 import { NEW_THREAD } from "./store.js";
 import "./threads.css";
 
-/** Ask at the end of a service's top bar: a draft already scoped there. */
+/** Ask at the end of a service's, Template's or Environment's top bar: a draft scoped there. */
 export function AskButton({ scope }: { scope: string }) {
   const registry = useRegistry();
   const tree = useStore(watchStore, (watch) => watch.snapshot?.body.tree);
   if (!isReachable({ kind: "thread", id: NEW_THREAD }, registry)) return null;
-  if (!treeServices(tree).includes(scope)) return null;
-  const name = `Ask Copilot about ${scope}`;
+  if (!canStartIn(scope, tree)) return null;
+  const name = `Ask Copilot about ${scopeLabel(scope)}`;
   return (
     <button
       type="button"

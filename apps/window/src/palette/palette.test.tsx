@@ -274,13 +274,10 @@ it("draws each service's mark as the sidebar does, from its home", async () => {
     expect(serviceAttention(id).mark, id).toBe(serviceMark(homes, id)?.label ?? null);
 });
 
-it("omits unshipped Threads and Ask groups", async () => {
+it("ends a typed query with Ask Copilot in the page's scope, and never lands on a placeholder", async () => {
   await act(async () => findField()?.click());
   await type("legal");
-  for (const group of ["threads", "ask"]) {
-    const row = palette()?.querySelector(`[data-group="${group}"] .palette-row`);
-    expect(row).toBeNull();
-  }
+  expect(rows("ask")).toEqual(["Ask CopilotProgram"]);
   for (let step = 0; step < 6; step += 1) {
     await key("ArrowDown");
     expect(highlighted()).not.toMatch(/not available/);
@@ -296,7 +293,7 @@ it("moves with the arrows, opens with Enter, and filters as the operator types",
   expect(highlighted()).toBe("Upstreampage");
 
   await type("legal");
-  expect(labels()).toEqual(["Services", "On legal", "Waiting on you", "Can wait"]);
+  expect(labels()).toEqual(["Services", "On legal", "Waiting on you", "Can wait", "Ask"]);
   expect(rows("services")).toEqual(["1legal"]);
   expect(rows("waiting")).toEqual(["legal · Sync PR has a failed check"]);
   expect(highlighted()).toBe("1legal");
@@ -680,7 +677,7 @@ it("offers the built tabs with their tab counts and keeps the companion out of F
   const group = palette()?.querySelector('[data-group="on:search"]');
   expect(group?.textContent).toContain("PR #77");
   expect(group?.textContent).not.toContain("Issue #78");
-  const countedTabs = ["upstream", "pulls", "issues", "runs", "security"];
+  const countedTabs = ["upstream", "pulls", "issues", "runs", "security", "threads"];
   expect(
     [...(group?.querySelectorAll(".palette-row") ?? [])]
       .slice(-countedTabs.length)

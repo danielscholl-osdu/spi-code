@@ -14,6 +14,7 @@ import { PaletteFrame } from "../palette/CommandPalette.js";
 import { usePins } from "../store/pins.js";
 import { watchStore } from "../store/watch.js";
 import { closeScopePicker, scopePickerStore } from "./picker.js";
+import { PLACE_SCOPES } from "./scopes.js";
 import { askIn } from "./start.js";
 import { threadStore } from "./store.js";
 import "./threads.css";
@@ -27,7 +28,7 @@ export interface ScopeRow {
   divider?: boolean;
 }
 
-/** The scopes a thread can start in today, in sidebar order: the pinned services, then the others. */
+/** The scopes a thread can start in, in sidebar order: Environment, Template, the pinned services, then the others. */
 export function useScopeRows(): ScopeRow[] {
   const body = useStore(watchStore, (watch) => watch.snapshot?.body);
   const services = treeServices(body?.tree);
@@ -40,8 +41,9 @@ export function useScopeRows(): ScopeRow[] {
     mark: serviceMark(body, id),
   });
   return [
-    ...pinned.map(row),
-    ...others.map((id, index) => ({ ...row(id), divider: index === 0 && pinned.length > 0 })),
+    ...PLACE_SCOPES.map(({ id, label, icon }) => ({ id, label, icon })),
+    ...pinned.map((id, index) => ({ ...row(id), divider: index === 0 })),
+    ...others.map((id, index) => ({ ...row(id), divider: index === 0 })),
   ];
 }
 
@@ -68,7 +70,7 @@ export function ScopePicker({ findOpen, closeFind }: { findOpen: boolean; closeF
   const pick = (id: string) => {
     picked.current = true;
     if (picking?.mode === "change") threadStore.getState().setDraftScope(id);
-    else askIn(id);
+    else askIn(id, picking?.target);
     closeScopePicker();
   };
   return (

@@ -3,7 +3,9 @@
 
 import { useState } from "react";
 import { createTitleStore, TitleProvider } from "../../app/title-row.js";
+import Environment from "../../views/environment/index.js";
 import ServicePage from "../../views/service/index.js";
+import Template from "../../views/template/index.js";
 import { PROGRAM, type ThreadTab, type ThreadTabProps } from "./tab.js";
 
 /** The scope's place as the centre draws it; its title stays out of the thread's top row. */
@@ -24,7 +26,13 @@ function ReadingTab({ summary }: ThreadTabProps) {
     );
   return (
     <TitleProvider value={titles}>
-      <ServicePage id={scope} />
+      {scope === "template" ? (
+        <Template />
+      ) : scope === "environment" ? (
+        <Environment />
+      ) : (
+        <ServicePage id={scope} />
+      )}
     </TitleProvider>
   );
 }

@@ -48,6 +48,7 @@ import {
 } from "./timeline.js";
 import "./environment.css";
 import { placePin } from "../../store/pins.js";
+import { ScopeThreads } from "../../threads/ScopeThreads.js";
 
 function LineReading({ line, upstream }: { line: RepoLine; upstream: string | undefined }) {
   return (
@@ -202,6 +203,7 @@ export default function Environment({
       {...extra}
       name={words?.place ?? routeLabel({ kind: "environment" })}
       pin={placePin("environment")}
+      ask="environment"
       reading={
         reading.content && reading.content.items.length < READING_ITEMS
           ? { ...reading, content: { ...reading.content, folded: null } }
@@ -222,6 +224,7 @@ export default function Environment({
     return (
       <div className="environment" data-view-pane="environment" ref={pane}>
         {placeOf()}
+        <ScopeThreads scope="environment" />
       </div>
     );
   const days = daysOf(env);
@@ -498,6 +501,7 @@ export default function Environment({
         ),
         belowTiles: timeline || undefined,
       })}
+      <ScopeThreads scope="environment" />
       {opening && marked && popoverAnchor?.isConnected && (
         <Popover
           key={repositoryOpen ? markedKey : undefined}
