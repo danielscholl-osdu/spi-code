@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { access, copyFile, lstat, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
@@ -558,12 +558,7 @@ class GitBatchReader {
     }
     const match = /^([0-9a-f]+) (\w+) ([0-9]+)$/u.exec(header);
     const size = match === null ? Number.NaN : Number(match[3]);
-    if (
-      match === null ||
-      match[1] !== pending.id ||
-      !Number.isSafeInteger(size) ||
-      size < 0
-    ) {
+    if (match === null || match[1] !== pending.id || !Number.isSafeInteger(size) || size < 0) {
       this.#fail(new Error("Git cat-file returned an invalid batch header."));
       return;
     }

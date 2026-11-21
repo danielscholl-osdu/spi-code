@@ -8,8 +8,7 @@ import type { PrivilegedGit, WorktreeTarget } from "../scopes/git.js";
 import type { RepositoryScope, Scope } from "../scopes/registry.js";
 import { type ChangesGit, readChanges } from "./changes.js";
 
-export type PublicationGit = ChangesGit &
-  Pick<PrivilegedGit, "addRemote" | "push" | "remoteHead">;
+export type PublicationGit = ChangesGit & Pick<PrivilegedGit, "addRemote" | "push" | "remoteHead">;
 
 type Publication = Extract<
   Message,

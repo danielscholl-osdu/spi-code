@@ -832,9 +832,7 @@ describe("publication gates", () => {
     ).resolves.toMatchObject({
       publication: { outcome: "refused", reason: expect.stringContaining("not an ancestor") },
     });
-    expect(calls.push).toEqual([
-      expect.objectContaining({ expectedHead: OBSERVED, source: HEAD }),
-    ]);
+    expect(calls.push).toEqual([expect.objectContaining({ expectedHead: OBSERVED, source: HEAD })]);
   });
 
   it.each([
@@ -868,9 +866,7 @@ describe("publication gates", () => {
     ).resolves.toMatchObject({
       publication: { outcome: "refused", reason },
     });
-    expect(calls.push).toEqual([
-      expect.objectContaining({ expectedHead: OBSERVED, source: HEAD }),
-    ]);
+    expect(calls.push).toEqual([expect.objectContaining({ expectedHead: OBSERVED, source: HEAD })]);
   });
 
   it("refuses a remote that moved after the thread last observed it", async () => {

@@ -1138,12 +1138,7 @@ describe("privileged Git", () => {
         "Remote",
       );
       const remoteHead = await fixtureGit(workspace.cwd, "rev-parse", "HEAD");
-      await fixtureGit(
-        workspace.cwd,
-        "push",
-        origin,
-        `${remoteHead}:refs/heads/spi/late-parent`,
-      );
+      await fixtureGit(workspace.cwd, "push", origin, `${remoteHead}:refs/heads/spi/late-parent`);
       if (mode === "fsck")
         await fixtureGit(root, "--git-dir", origin, "config", "receive.fsckObjects", "true");
       const tree = await fixtureGit(workspace.cwd, "rev-parse", `${base}^{tree}`);
@@ -1185,13 +1180,7 @@ describe("privileged Git", () => {
         error: expect.stringContaining("invalid content"),
       });
       await expect(
-        fixtureGit(
-          root,
-          "--git-dir",
-          origin,
-          "rev-parse",
-          "refs/heads/spi/late-parent",
-        ),
+        fixtureGit(root, "--git-dir", origin, "rev-parse", "refs/heads/spi/late-parent"),
       ).resolves.toBe(remoteHead);
     },
     60_000,
@@ -1262,9 +1251,7 @@ committer A <a@example.invalid> 0 +0000
         head,
         format,
         async (requested) =>
-          requested === head
-            ? { ok: true, data: raw }
-            : { ok: false, error: "missing", code: 128 },
+          requested === head ? { ok: true, data: raw } : { ok: false, error: "missing", code: 128 },
       ),
     ).resolves.toMatchObject({
       ok: false,
@@ -1288,9 +1275,7 @@ committer A <a@example.invalid> 0 +0000
     await expect(
       verifyGitAncestry(parentId, childId, "sha1", async (requested) => {
         const content = objects.get(requested);
-        return content
-          ? { ok: true, data: content }
-          : { ok: false, error: "missing", code: 128 };
+        return content ? { ok: true, data: content } : { ok: false, error: "missing", code: 128 };
       }),
     ).resolves.toEqual({ ok: true, data: true });
   });
