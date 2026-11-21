@@ -196,7 +196,7 @@ figcaption{font-size:13px;color:var(--faint);margin-top:10px;max-width:96ch}
   <div class="problem">
     <p>SPI Code reads the program well and can't yet talk about it or change it. The host streams one Copilot turn through the SDK, but there is no thread, no composer and no checkout of any repository, and all 53 agent tools are stubs.</p>
     <p>This design adds threads on SPI Code's own engine, in the host, on the Copilot SDK it already runs. The engine is a package with no SPI Code imports, so another app can use it. T3 Code supplies the behaviour and the look, re-made in SPI Code's kit, and none of the code. In place of T3 Code's projects there is a fixed set of <b>scopes</b> (the program, each service, the template, the environment). Each service has one clone that holds both its GitHub fork and its GitLab upstream. A <b>Lands in</b> choice decides whether a change becomes a fork pull request or an upstream merge request. Copilot is handed the place or row the operator started from as packed context, plus read tools over the last sweep.</p>
-    <p>It changes one PRD rule: Copilot gets its built-in shell and file tools. They run inside the SDK's sandbox, without the operator's sign-ins, and each edit or command waits for approval. Copilot can't commit, push or open a request; the operator does, from the thread. The sandbox has been run on macOS only. On Windows Server 2025 in CI, MXC found no ProcessContainer, so a Windows thread asks and reads. Program operations (dispatch a cascade, re-run a lane) stay typed tools with cards, as M4 has them.</p>
+    <p>It changes one PRD rule: Copilot gets its built-in shell and file tools. They run inside the SDK's sandbox, without the operator's sign-ins, and each edit waits for approval. The shipped build offers the file tools only; commands wait for a host-run tool (spicode-7ay), and <code>spi-code-threads.md</code> wins wherever this page differs. Copilot can't commit, push or open a request; the operator does, from the thread. The sandbox has been run on macOS only. On Windows Server 2025 in CI, MXC found no ProcessContainer, so a Windows thread asks and reads. Program operations (dispatch a cascade, re-run a lane) stay typed tools with cards, as M4 has them.</p>
   </div>
 
   <p class="eyebrow" style="margin-top:26px">Colors identify who owns a part</p>
@@ -343,7 +343,7 @@ figcaption{font-size:13px;color:var(--faint);margin-top:10px;max-width:96ch}
       <div class="panel">
         <div class="tabs"><span class="on">Thread</span><span>Reading</span><span>Evidence</span></div>
         <div class="pb">
-          <div class="fld"><span class="l">Scope</span><span class="v">Program · every repository</span><span class="v">15 on GitHub, 13 upstreams on GitLab · 3 cloned on this machine</span></div>
+          <div class="fld"><span class="l">Scope</span><span class="v">Program · no folder</span><span class="v">It clones nothing and reads through SPI tools</span></div>
           <div class="fld"><span class="l">Lands in</span><span class="v">Asking. A program thread changes no code. A change continues in a service, the template or the environment.</span></div>
           <div class="fld"><span class="l">Context</span><span class="v">Today as read at 13:50 · 16 members</span></div>
           <div class="fld"><span class="l">Usage</span><span class="v">11k of 200k context</span></div>
@@ -390,8 +390,9 @@ figcaption{font-size:13px;color:var(--faint);margin-top:10px;max-width:96ch}
           <rect x="640" y="300" width="340" height="60" class="box b-fork"/><text x="654" y="324" class="t">origin · GitHub</text><text x="654" y="344" class="mono">Azure/osdu-spi-stack</text>
         </svg>
       </div>
-      <figcaption>A scope fixes which repositories a thread can reach. The engine allows one folder per thread, so a service is one clone carrying both remotes, and the program is the parent folder of all clones.</figcaption>
+      <figcaption>A scope fixes which repositories a thread can reach. The engine allows one folder per thread, so a service is one clone carrying both remotes.</figcaption>
     </figure>
+    <p class="note">The Program row is historical: Program has no folder and clones nothing, as <code>spi-code-threads.md</code> has it, and that page wins.</p>
     <p style="margin-top:14px">The scope comes from where the thread starts: ⌘N asks for it in the scope picker, a service page's Ask gives that service, Template and Environment give theirs, and Ask about this gives the row's fork or Program. The draft's Ask in control changes it before the first message. After that it is fixed, because the engine's worktree and history belong to one folder.</p>
     <p>A program thread reads across everything and changes nothing. When its answer leads to a change, it offers the scopes involved, and choosing one starts a child thread there that carries the finding. The Thread tab shows the lineage.</p>
     <p>A fork and its upstream share history through the fork's upstream branch, which is what lets one clone hold both. A scope's repositories are cloned on first use and the clone shows as the first row of the timeline, the way T3 Code shows worktree setup. Nothing is cloned for a scope the operator never opens a thread in.</p>
@@ -469,14 +470,16 @@ figcaption{font-size:13px;color:var(--faint);margin-top:10px;max-width:96ch}
 
   <section>
     <h2>Starting a thread</h2>
-    <p>A thread starts as a draft in the centre: the composer with its scope and any context chip, and nothing sent. There are four ways in, and all four land in that same draft.</p>
+    <p>A thread starts as a draft in the centre: the composer with its scope and any context chip, and nothing sent. Every way in lands in that same draft.</p>
     <div class="tblwrap"><table class="tbl">
       <thead><tr><th>From</th><th>How</th><th>Scope</th><th>Context chip</th></tr></thead>
       <tbody>
         <tr><td><b>Anywhere</b></td><td>⌘N, or the compose icon beside Find or ask</td><td>Picked in the scope picker, with nothing preselected</td><td>None</td></tr>
+        <tr><td><b>A service, Template or Environment</b></td><td>The Ask icon at the end of the top bar, after the pin</td><td>That scope</td><td>None</td></tr>
         <tr><td><b>An opened row or a popover</b></td><td>Ask about this, one control at the end of the source pills</td><td>The row's fork when it has one; otherwise Program</td><td>That row or popover's subject</td></tr>
         <tr><td><b>Find or ask</b></td><td>A sentence typed into ⌘K, then ↵ on "Ask Copilot"</td><td>The open service, Template or Environment; otherwise Program</td><td>The open row or popover if one is open; the sentence becomes the draft's text</td></tr>
-        <tr><td><b>A service page</b></td><td>New thread on its Threads tab</td><td>That service</td><td>None</td></tr>
+        <tr><td><b>A scope's thread list</b></td><td>New thread on a service's Threads tab, or under Template's or Environment's reading</td><td>That scope</td><td>None</td></tr>
+        <tr><td><b>A program thread's answer</b></td><td>Continue in, on the scopes the answer names, or Another scope…</td><td>The scope chosen</td><td>The answer, as a finding; the new thread shows it as lineage</td></tr>
       </tbody>
     </table></div>
     <figure>
@@ -492,8 +495,8 @@ figcaption{font-size:13px;color:var(--faint);margin-top:10px;max-width:96ch}
 
   <section>
     <h2>Threads in the sidebar and on a service</h2>
-    <p>The sidebar lists threads by status under Pinned, as PS-08 already draws: Waiting on you, Working, then the Settled shelf with its count. This is also how T3 Code's sidebar groups them. Each row adds its scope at the end in muted ink, and a thread with a worktree shows its branch and target under its title.</p>
-    <p>A service page gains a Threads tab after Security, with the count of threads that are Waiting on you or Working. It lists every thread scoped to that service, settled ones under a fold. Template and Environment list theirs under their reading. Threads are not nested under a pinned service in the sidebar.</p>
+    <p>In the sidebar, threads nest under their service's pinned row. Threads of unpinned services, and of the program, the template and the environment, go under Other threads. Each row ends with its status: a spinner for Working, an alert for Waiting on you, a check for Done, otherwise its age. "Settled N ›" sits at the sidebar's foot, above the gear, and opens the settled list in place.</p>
+    <p>A service page gains a Threads tab after Security, with the count of threads that are Waiting on you or Working. It lists every thread scoped to that service, settled ones under a fold. Template and Environment list theirs under their reading.</p>
   </section>
 
   <section>
@@ -541,7 +544,7 @@ figcaption{font-size:13px;color:var(--faint);margin-top:10px;max-width:96ch}
 
   <section>
     <h2>Authority</h2>
-    <p>Copilot has its own shell and file tools in a thread that lands somewhere, and every one of them runs inside the Copilot SDK's sandbox. The engine sets the policy; the operator's approval decides whether a call runs at all. The sandbox was run on macOS on the prototype. Appendix D has each check.</p>
+    <p>Copilot has its own file tools in a thread that lands somewhere, and every one of them runs inside the Copilot SDK's sandbox. Its shell runs only the host's sandbox preflight; commands wait for a host-run tool (spicode-7ay). The engine sets the policy; the operator's approval decides whether a call runs at all. The sandbox was run on macOS on the prototype. Appendix D has each check.</p>
     <div class="tblwrap"><table class="tbl">
       <thead><tr><th>Inside the sandbox</th><th>Policy</th><th>Seen on macOS</th></tr></thead>
       <tbody>
@@ -559,7 +562,7 @@ figcaption{font-size:13px;color:var(--faint);margin-top:10px;max-width:96ch}
       <tbody>
         <tr><td><b>Read files, search code</b></td><td>Copilot, in the worktree or the shared clone</td><td>The sandbox's read paths. No prompt</td></tr>
         <tr><td><b>Edit a file</b></td><td>Copilot</td><td>An approval row with the diff in Supervised; no prompt in Auto-accept edits</td></tr>
-        <tr><td><b>Run a command (build, test, <code>git</code>)</b></td><td>Copilot, in the sandbox, with no sign-in</td><td>An approval row with the command, every time</td></tr>
+        <tr><td><b>Run a command (build, test, <code>git</code>)</b></td><td>Copilot, in the sandbox, with no sign-in</td><td>Not offered in the threads epic (spicode-7ay). When it returns, an approval row with the command, every time</td></tr>
         <tr><td><b>Read GitHub or GitLab</b></td><td>The host, through SPI tools</td><td>Typed read tools. <code>gh</code> and <code>glab</code> have no sign-in inside the sandbox</td></tr>
         <tr><td><b>Commit, push, open a PR or MR</b></td><td>The host's own git, <code>gh</code> and <code>glab</code>; add and commit confined under <code>@microsoft/mxc-sdk</code>, push outside the sandbox (CT-11)</td><td>The operator presses it on the Thread tab. Copilot cannot</td></tr>
         <tr><td><b>A program operation (dispatch, re-run, merge)</b></td><td>The host</td><td>A typed SPI tool that raises a card, M4, unchanged</td></tr>
@@ -629,17 +632,17 @@ figcaption{font-size:13px;color:var(--faint);margin-top:10px;max-width:96ch}
         <thead><tr><th>Today's text</th><th>This proposal</th></tr></thead>
         <tbody>
           <tr><td><b>TH-01</b> A thread has one anchor of eleven kinds, from the program down to a queue item or a PR</td><td>A thread has one scope of four kinds (Program, a service, Template, Environment). The item it started from is context, not identity</td></tr>
-          <tr><td><b>TH-03, PS-05</b> Every place carries a composer</td><td>No standing composer. Four start paths lead to one draft</td></tr>
+          <tr><td><b>TH-03, PS-05</b> Every place carries a composer</td><td>No standing composer. Every way in leads to one draft</td></tr>
           <tr><td><b>TH-04</b> Kind is operate or code, fixed at start, and sets the tools</td><td>One kind. Lands in decides whether there is a worktree, and can change from Asking later</td></tr>
           <tr><td><b>TH-08</b> T3 Code's runtime modes are not carried</td><td>Two are: Supervised and Auto-accept edits</td></tr>
-          <tr><td><b>CP-04, CP-05, NF-01</b> No built-in shell or file tool; every permission request denied</td><td>The built-in shell and file tools are on, inside the sandbox, behind an approval. Fetch and subagent tools stay off</td></tr>
+          <tr><td><b>CP-04, CP-05, NF-01</b> No built-in shell or file tool; every permission request denied</td><td>The built-in file tools are on, inside the sandbox, once its preflight passes, with edits behind an approval. The shell runs only that preflight; commands wait for spicode-7ay. Fetch and subagent tools stay off</td></tr>
           <tr><td><b>CT-07</b> Seatbelt on macOS, a restricted token on Windows</td><td>The SDK's sandbox for Copilot's tools and <code>@microsoft/mxc-sdk</code> for host-run commands. On Windows that means Windows 11 and MXC's required telemetry</td></tr>
-          <tr><td><b>CT-10, CT-13, CT-14</b> Commands and each commit and push are cards with bindings</td><td>A command is an approval row. Commit, and Push / Open request as one button, are pressed by the operator; Copilot has no way to do either</td></tr>
+          <tr><td><b>CT-10, CT-13, CT-14</b> Commands and each commit and push are cards with bindings</td><td>Copilot runs no commands until spicode-7ay; then a command is an approval row. Commit, and Push / Open request as one button, are pressed by the operator; Copilot has no way to do either</td></tr>
           <tr><td><b>Milestones</b> Threads at M3, code threads at M5</td><td>One threads epic carries both, in the build order above</td></tr>
-          <tr><td><b>Service home</b> A subtree under a pinned service and Copilot actions are out of scope</td><td>Still no subtree. The service page gains a Threads tab, and rows gain Ask about this</td></tr>
+          <tr><td><b>Service home</b> A subtree under a pinned service and Copilot actions are out of scope</td><td>Threads nest under their service's pinned sidebar row. The service page gains a Threads tab and an Ask icon after the pin, and rows gain Ask about this</td></tr>
         </tbody>
       </table></div>
-      <p class="note">Unchanged: the host drives Copilot through the SDK (CP-01 to CP-03), one runtime and no MCP server, SPI Code's own worktrees, the sandbox's write, home and environment rules (CT-08, CT-09), no commands when the sandbox can't start (CT-07), one right panel that exists only in a thread (PS-11), threads by status and the Settled shelf (PS-08, TH-07), the context chip's contents and budget (PS-14), the thread marker on an owned row (TH-05, PS-15), the model picker (CP-09), and M4's cards for program operations.</p>
+      <p class="note">Unchanged: the host drives Copilot through the SDK (CP-01 to CP-03), one runtime and no MCP server, SPI Code's own worktrees, the sandbox's write, home and environment rules (CT-08, CT-09), no commands when the sandbox can't start (CT-07), one right panel that exists only in a thread (PS-11), threads by status (PS-08, TH-07), now nested under their service with Settled at the sidebar's foot, the context chip's contents and budget (PS-14), the thread marker on an owned row (TH-05, PS-15), the model picker (CP-09), and M4's cards for program operations.</p>
     </section>
 
     <section>
