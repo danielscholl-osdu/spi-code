@@ -13,6 +13,7 @@ import { createStore } from "zustand/vanilla";
 import type { Route } from "../app/navigation.js";
 import type { PendingSend } from "./entries.js";
 import type { LandsInChoice } from "./LandsInChip.js";
+import { PLACE_SCOPES } from "./scopes.js";
 import type { ModelChoice } from "./types.js";
 
 type Request = Extract<Message, { kind: "request" }>;
@@ -146,6 +147,8 @@ export const CHIP_ONLY_PROMPT =
 
 /** The chip a continuation must carry: its parent's last answer. */
 export const findingOf = (parent: string) => `finding:${parent}`;
+const landsInScope = (scope: string) => PLACE_SCOPES.some(({ id }) => id === scope);
+
 const withoutSending = ({ sending: _, ...draft }: Draft): Draft => draft;
 /** The draft as it was before a send that started no thread, its words put back. */
 const failDraft = (draft: Draft, reason: string): Draft => ({
@@ -380,7 +383,12 @@ export function createThreadStore(post: (message: Message) => void = postToHost)
       },
       setDraftScope(scope) {
         const { draft } = get();
-        if (draft) set({ draft: { ...draft, scope } });
+        if (!draft) return;
+        if (landsInScope(scope)) set({ draft: { ...draft, scope } });
+        else {
+          const { landsIn: _, ...rest } = draft;
+          set({ draft: { ...rest, scope } });
+        }
       },
       setDraftLandsIn(choice) {
         const { draft } = get();
