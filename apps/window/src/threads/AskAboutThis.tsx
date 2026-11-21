@@ -25,7 +25,7 @@ export function useAskAbout(target: AskTarget | null): Ask | null {
 
 /**
  * The one Copilot control on a row or popover. A row a thread owns opens that thread; a row with no
- * fork has none until Program threads are built.
+ * fork has none yet (spicode-xia.39).
  */
 export function AskAboutThis({ ask: { target, owner } }: { ask: Ask }) {
   const { scope } = target;
