@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { setTimeout } from "node:timers/promises";
 import type { Tool } from "@github/copilot-sdk";
+import type { Exec } from "@spi-code/core";
 import { createToolOutputRedactor, ThreadEngine, type ToolOutputRedactor } from "@spi-code/threads";
 import type { CopilotRuntime } from "../copilot/runtime.js";
 import type { CommitIdentity, PrivilegedGit } from "../scopes/git.js";
@@ -29,6 +30,7 @@ import { threadContext } from "./context/provider.js";
 import { redactSpiText, type SpiRedactor } from "./context/redaction.js";
 import type { LatestSweep } from "./context/sweep.js";
 import { operatorIdentity } from "./identity.js";
+import { preparePublication, publishChanges, requestFromLanding } from "./publication.js";
 
 export interface ThreadHostOptions {
   db: DatabaseSync;
@@ -36,6 +38,7 @@ export interface ThreadHostOptions {
   scopes: ScopeRegistry;
   savedSweep: LatestSweep;
   git: () => Promise<PrivilegedGit>;
+  exec?: Exec;
   workspaces: (git: PrivilegedGit) => ScopeWorkspaces;
   runtime: (onCredential: (token: string) => void) => Promise<CopilotRuntime>;
   env: NodeJS.ProcessEnv;
@@ -49,6 +52,10 @@ const reason = (error: unknown, fallback: string) =>
 
 export function openThreadHost(options: ThreadHostOptions) {
   const { db, storePath, scopes } = options;
+  const exec: Exec = options.exec ?? {
+    runJSON: async () => ({ ok: false, error: "Forge tools are unavailable.", code: null }),
+    runText: async () => ({ ok: false, error: "Forge tools are unavailable.", code: null }),
+  };
   const lock = new DatabaseSync(`${realpathSync(storePath)}.threads-lock`);
   try {
     // The rollback-mode lock is released by SQLite even if the host process dies.
@@ -264,6 +271,66 @@ export function openThreadHost(options: ThreadHostOptions) {
           return { outcome: "refused", reason: chipRedactor.text(reason(error, "Git failed.")) };
         }
       },
+      publication: async (id: string) => {
+        try {
+          const summary = engine.read(id);
+          const scope = scopeFor(id);
+          return (await preparePublication(exec, scope, summary.thread)).publication;
+        } catch (error) {
+          return {
+            state: "not read" as const,
+            reason: chipRedactor.text(reason(error, "The publish destination failed to read.")),
+          };
+        }
+      },
+      publish: async (id: string, displayedHead: string) => {
+        if (engine.isRunning(id))
+          return {
+            outcome: "refused" as const,
+            reason: "A turn is running. Publish when it finishes.",
+          };
+        try {
+          return await engine.transition(id, async () => {
+            const summary = engine.read(id);
+            const prepared = await preparePublication(exec, scopeFor(id), summary.thread);
+            if (!prepared.ok)
+              return {
+                outcome: "refused" as const,
+                reason:
+                  prepared.publication.state === "unavailable" ||
+                  prepared.publication.state === "not read"
+                    ? prepared.publication.reason
+                    : "An Asking thread has nothing to push.",
+              };
+            const at = await worktreeOf(id);
+            if (!at || !summary.thread.landsIn || summary.thread.landsIn.target === "asking")
+              return { outcome: "refused" as const, reason: "The thread has no worktree." };
+            const result = await publishChanges(
+              exec,
+              at.git,
+              at.target,
+              id,
+              summary.thread.title,
+              summary.thread.landsIn.head,
+              displayedHead,
+              prepared,
+            );
+            if (result.pushedHead) {
+              engine.publish(id, {
+                head: result.pushedHead,
+                ...(result.request ? { request: result.request } : {}),
+              });
+              options.onThreadsChanged?.();
+            }
+            return result.publication;
+          });
+        } catch (error) {
+          return {
+            outcome: "failed" as const,
+            reason: chipRedactor.text(reason(error, "Publishing failed.")),
+          };
+        }
+      },
       engine,
       remember,
       chip: async (id: string) =>
@@ -278,7 +345,12 @@ export function openThreadHost(options: ThreadHostOptions) {
           const result = await workspaces.land(db, scopeFor(id), id, request);
           if (!result.ok) return result;
           try {
-            engine.land(id, result.landsIn);
+            const scope = scopeFor(id);
+            const landingRequest =
+              result.landsIn.target === "request" && scope.kind !== "program"
+                ? requestFromLanding(result.landsIn, scope)
+                : undefined;
+            engine.land(id, result.landsIn, landingRequest);
           } catch (error) {
             await workspaces.rollbackLanding(db, id);
             throw error;

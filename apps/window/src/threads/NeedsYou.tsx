@@ -7,6 +7,7 @@ import { navigate } from "../app/navigation.js";
 import { todayContent } from "../components/opened-body/content.js";
 import { askTarget } from "../components/opened-body/OpenedBody.js";
 import { watchStore } from "../store/watch.js";
+import { threadOwningRequest } from "./request-ownership.js";
 import { type AskTarget, threadStore } from "./store.js";
 
 const SHOWN = 3;
@@ -41,7 +42,7 @@ export function NeedsYou({
       <h3>Needs you</h3>
       <ul>
         {rows.map(({ line, member, target }) => {
-          const owner = threads?.find((thread) => thread.thread.subject === target.subject);
+          const owner = threadOwningRequest(threads, target.subject, target.urls);
           return (
             <li key={target.subject}>
               <button

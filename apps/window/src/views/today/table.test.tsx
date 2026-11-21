@@ -20,6 +20,7 @@ import {
 } from "../../app/navigation.js";
 import { serviceMark } from "../../components/sidebar/service-mark.js";
 import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
+import { threadStore } from "../../threads/store.js";
 import { timedText, when } from "../../time.js";
 import { TodayHome } from "./Home.js";
 import snapshot1116 from "./snapshot-1116.json?raw";
@@ -55,6 +56,7 @@ function Routed({ snapshot }: { snapshot: ViewSnapshot }) {
 let harness: ReturnType<typeof installSpi>;
 let container: HTMLDivElement;
 let unmount: () => Promise<void>;
+const initialThreadState = threadStore.getState();
 beforeEach(() => {
   harness = installSpi();
   window.location.hash = "#today";
@@ -63,6 +65,7 @@ afterEach(async () => {
   await unmount();
   container.remove();
   setOpenSelection(null);
+  threadStore.setState(initialThreadState, true);
   harness.restore();
   window.location.hash = "";
 });
@@ -784,6 +787,50 @@ describe("Forks on the 16 Nov sweep", () => {
     expect(expander?.getAttribute("aria-expanded")).toBe("false");
     await click(link);
     expect(route()).toEqual({ kind: "service", id: name });
+  });
+
+  it("marks the request's row owned on Today and in the Forks sheet", async () => {
+    const body = whole();
+    const found = todayMembers(body.briefing).find(({ member }) => member.primary);
+    if (!found?.member.primary) throw new Error("Fixture needs a request row");
+    const { member } = found;
+    const primary = found.member.primary;
+    const owner = {
+      id: "request-thread",
+      thread: {
+        scope: member.fork,
+        title: "Fix the request",
+        request: {
+          forge: primary.kind === "mr" ? ("gitlab" as const) : ("github" as const),
+          repository: "fixture/repository",
+          requestNumber: 42,
+          url: primary.url,
+        },
+      },
+      status: "Open" as const,
+      sequence: 1,
+      updatedAt: 1,
+      settledAt: null,
+      done: false,
+    };
+    threadStore.setState({ threads: [owner] });
+    await render(body);
+    expect(
+      container.querySelector(`[data-item-id="${member.id}"] .request-owner`)?.textContent,
+    ).toContain("Owned");
+    await unmount();
+    container.remove();
+
+    await render(body, "#today/forks");
+    const expander = fork(member.fork)?.querySelector<HTMLButtonElement>(
+      `button[aria-label="${member.fork}: show its rows"]`,
+    );
+    await click(expander);
+    expect(
+      fork(member.fork)?.nextElementSibling?.querySelector(
+        `[data-member="${member.id}"] .request-owner`,
+      )?.textContent,
+    ).toContain("Owned");
   });
 
   it("presses a station on Forks and dims all the other reading columns", async () => {

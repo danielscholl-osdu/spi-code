@@ -55,7 +55,7 @@ export function ThreadPanel({
               onClick={() => setChosen(tab.id)}
               onKeyDown={onKeyDown}
             >
-              {tab.label}
+              {tab.Label ? <tab.Label id={id} summary={summary} /> : tab.label}
             </button>
           ))}
           <RightPanelToggle open onToggleRightPanel={onToggle} />

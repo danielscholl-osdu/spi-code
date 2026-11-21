@@ -284,6 +284,7 @@ export function startHost(options: HostOptions) {
           : {}),
       });
     }),
+    exec,
     workspaces: (git) => new ScopeWorkspaces(git),
     runtime: async (onCredential) =>
       new CopilotRuntime({

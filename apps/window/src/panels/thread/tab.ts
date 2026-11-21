@@ -10,6 +10,11 @@ export type ThreadTabProps = {
   summary: ThreadSummary | undefined;
 };
 
-export type ThreadTab = { id: string; label: string; Panel: ComponentType<ThreadTabProps> };
+export type ThreadTab = {
+  id: string;
+  label: string;
+  Panel: ComponentType<ThreadTabProps>;
+  Label?: ComponentType<ThreadTabProps>;
+};
 
 export const PROGRAM = "program";

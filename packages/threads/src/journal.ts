@@ -27,6 +27,25 @@ function nonemptyString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
 }
 
+function validRequest(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const request = value as Record<string, unknown>;
+  strictKeys(request, ["forge", "repository", "requestNumber", "url"]);
+  if (
+    (request.forge !== "github" && request.forge !== "gitlab") ||
+    !nonemptyString(request.repository) ||
+    !nonnegativeInteger(request.requestNumber) ||
+    request.requestNumber === 0 ||
+    !nonemptyString(request.url)
+  )
+    return false;
+  try {
+    return new URL(request.url).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function validLanding(value: unknown): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const landing = value as Record<string, unknown>;
@@ -86,8 +105,21 @@ function journalEntry(payload: string): JournalEntry {
       if (!nonnegativeInteger(entry.seenSequence)) throw new Error("Invalid thread seen event");
       break;
     case "thread.landed":
-      strictKeys(entry, ["type", "landsIn"]);
-      if (!validLanding(entry.landsIn)) throw new Error("Invalid thread landed event");
+      strictKeys(entry, ["type", "landsIn"], ["request"]);
+      if (
+        !validLanding(entry.landsIn) ||
+        (entry.request !== undefined && !validRequest(entry.request))
+      )
+        throw new Error("Invalid thread landed event");
+      break;
+    case "thread.pushed":
+      strictKeys(entry, ["type", "head"], ["request"]);
+      if (
+        !nonemptyString(entry.head) ||
+        !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(entry.head) ||
+        (entry.request !== undefined && !validRequest(entry.request))
+      )
+        throw new Error("Invalid thread pushed event");
       break;
     case "thread.deleted":
       strictKeys(entry, ["type"]);

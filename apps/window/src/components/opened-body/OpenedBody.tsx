@@ -31,6 +31,7 @@ export function askTarget(content: OpenedContent): AskTarget | null {
   return {
     subject: content.subject.id,
     label: content.title,
+    urls: [...new Set(bodySources(content).map(({ url }) => url))],
     ...(content.scope ? { scope: content.scope } : {}),
     origin: `Started from ${content.place.label} › ${content.title}`,
   };

@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import type {
   EventOf,
   JournalEntry,
+  ThreadDefinition,
   ThreadEvent,
   ThreadLanding,
   ThreadSummary,
@@ -20,6 +21,8 @@ export class Timeline {
   private readonly messagesById = new Map<string, TimelineMessage>();
   private readonly recovery: string[] = [];
   private landsIn: ThreadLanding = { target: "asking" };
+  private request: ThreadDefinition["request"];
+  private pushedHead: string | undefined;
   private sequence: number;
   private updatedAt: number;
   private settledAt: number | null = null;
@@ -29,6 +32,8 @@ export class Timeline {
   private lastTurnEnd: { sequence: number; outcome: TimelineTurn["outcome"] } | null = null;
 
   constructor(readonly created: EventOf<"thread.created">) {
+    this.request = created.thread.request;
+    this.pushedHead = created.thread.pushedHead;
     this.sequence = created.sequence;
     this.updatedAt = created.at;
   }
@@ -41,7 +46,12 @@ export class Timeline {
   summary(): ThreadSummary {
     return {
       id: this.created.threadId,
-      thread: { ...this.created.thread, landsIn: this.landsIn },
+      thread: {
+        ...this.created.thread,
+        landsIn: this.landsIn,
+        ...(this.request === undefined ? {} : { request: this.request }),
+        ...(this.pushedHead === undefined ? {} : { pushedHead: this.pushedHead }),
+      },
       status: this.active?.approvals.some((approval) => !approval.end)
         ? "Waiting on you"
         : this.active
@@ -119,6 +129,11 @@ export class Timeline {
         return;
       case "thread.landed":
         this.landsIn = event.landsIn;
+        this.request = event.request;
+        return;
+      case "thread.pushed":
+        this.pushedHead = event.head;
+        if (event.request) this.request = event.request;
         return;
       case "thread.deleted":
         return;

@@ -77,6 +77,7 @@ it("moves an Asking thread without changing its messages and resolves the next t
     worktree: cwd,
     head: "a".repeat(40),
   });
+
   const next = engine.send(id, { prompt: "Make the change" });
   const second = await turn(1);
   expect(second.input.workspace).toEqual({ cwd });
@@ -99,6 +100,24 @@ it("moves an Asking thread without changing its messages and resolves the next t
       { message: { prompt: "Make the change" } },
     ],
   });
+  database.close();
+});
+
+it("stores a published request by URL and keeps it across reloads", () => {
+  const database = new DatabaseSync(":memory:");
+  const initial = harness(database).engine;
+  const id = initial.create({ scope: "partition", title: "Retry the port" });
+  const { engine } = harness(database);
+  const request = {
+    forge: "github" as const,
+    repository: "Azure/osdu-spi-partition",
+    requestNumber: 42,
+    url: "https://github.com/Azure/osdu-spi-partition/pull/42",
+  };
+  engine.publish(id, { head: "b".repeat(40), request });
+  expect(engine.read(id).thread.request).toEqual(request);
+  expect(engine.read(id).thread.pushedHead).toBe("b".repeat(40));
+  expect(harness(database).engine.read(id).thread.request).toEqual(request);
   database.close();
 });
 

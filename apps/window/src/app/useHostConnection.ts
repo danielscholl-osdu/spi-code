@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { selectionStore } from "../panels/index.js";
 import { changesStore } from "../panels/thread/changes-store.js";
+import { publicationStore } from "../panels/thread/publication-store.js";
 import { watchStore } from "../store/watch.js";
 import { threadStore } from "../threads/store.js";
 import { type Appearance, createAppearance } from "./appearance.js";
@@ -56,6 +57,7 @@ export function useHostConnection({
       selectionStore.getState().receive(message);
       threadStore.getState().receive(message);
       changesStore.getState().receive(message);
+      publicationStore.getState().receive(message);
       try {
         watchStore.getState().receive(message);
       } catch (reason) {

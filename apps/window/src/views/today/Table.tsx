@@ -27,6 +27,7 @@ import { LinkPill } from "../../components/kit/LinkPill.js";
 import { type BodyPlace, todayContent } from "../../components/opened-body/content.js";
 import { OpenedBody } from "../../components/opened-body/OpenedBody.js";
 import { plainTitle } from "../../text.js";
+import { RequestOwner } from "../../threads/RequestOwner.js";
 import { timedText } from "../../time.js";
 import { CanWait } from "./CanWait.js";
 import { forksWord } from "./fleet.js";
@@ -194,7 +195,14 @@ function RowCells({
           <span className="service-tag today-row-tag">Counted on Upstream</span>
         )}
       </td>
-      <td className="today-row-open">{row.pill && <LinkPill link={row.pill} />}</td>
+      <td className="today-row-open">
+        {row.pill && (
+          <>
+            <LinkPill link={row.pill} />
+            <RequestOwner url={row.pill.url} compact />
+          </>
+        )}
+      </td>
       <td className="today-row-age">
         {row.gaps > 0 && (
           <button

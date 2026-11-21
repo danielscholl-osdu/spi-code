@@ -57,6 +57,8 @@ export interface PushRequest {
   readonly source: string;
   /** A ref under refs/ on the remote. */
   readonly destination: string;
+  /** The exact remote head observed before the ancestor check; the only force form allowed. */
+  readonly expectedHead?: string;
   readonly dryRun?: boolean;
 }
 
@@ -408,6 +410,50 @@ export class PrivilegedGit {
     return this.#run(target, ["remote", "get-url", "--", remoteName(remote)], options);
   }
 
+  /** Adds one HTTPS remote for a GitLab fork and refreshes the host's trusted config copy. */
+  async addRemote(
+    target: GitTarget,
+    remote: string,
+    url: string,
+    options: GitOptions = {},
+  ): Promise<ExecResult<string>> {
+    const name = remoteName(remote);
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw new Error("Invalid Git remote URL.");
+    }
+    if (
+      parsed.protocol !== "https:" ||
+      parsed.username ||
+      parsed.password ||
+      parsed.hash ||
+      !parsed.hostname
+    ) {
+      throw new Error("Invalid Git remote URL.");
+    }
+    const existing = await this.remoteUrl(target, name, options);
+    if (existing.ok) {
+      return existing.data.trim() === url
+        ? { ok: true, data: existing.data }
+        : { ok: false, error: `Remote ${name} already has a different URL.`, code: 2 };
+    }
+    const runtime = await this.#getRuntime();
+    const { common } = await this.#resolve(runtime, target);
+    const added = await execGit(
+      runtime,
+      [`--git-dir=${common}`, `--work-tree=${target.worktree?.cwd ?? target.clone}`],
+      ["remote", "add", "--", name, url],
+      options,
+      common,
+    );
+    if (added.ok) {
+      await copyFile(join(common, "config"), join(dirname(target.clone), "clone.config"));
+    }
+    return added;
+  }
+
   /** Fetches the remote's branches into refs/remotes/<remote>/, pruning deleted ones. */
   async fetch(
     target: GitTarget,
@@ -476,6 +522,42 @@ export class PrivilegedGit {
     );
     if (result.ok) return { ok: true, data: true };
     return result.code === 1 ? { ok: true, data: false } : result;
+  }
+
+  async isAncestor(
+    target: GitTarget,
+    ancestor: string,
+    descendant: string,
+    options: GitOptions = {},
+  ): Promise<ExecResult<boolean>> {
+    const result = await this.#run(
+      target,
+      ["merge-base", "--is-ancestor", objectId(ancestor), objectId(descendant)],
+      options,
+    );
+    if (result.ok) return { ok: true, data: true };
+    return result.code === 1 ? { ok: true, data: false } : result;
+  }
+
+  /** A remote branch's exact head, or null when that ref does not exist. */
+  async remoteHead(
+    target: GitTarget,
+    remote: string,
+    branch: string,
+    options: GitOptions = {},
+  ): Promise<ExecResult<string | null>> {
+    const ref = fullRef(`refs/heads/${branch}`);
+    const result = await this.#run(
+      target,
+      ["ls-remote", "--refs", "--exit-code", "--", remoteName(remote), ref],
+      options,
+    );
+    if (!result.ok && result.code === 2) return { ok: true, data: null };
+    if (!result.ok) return result;
+    const [head] = result.data.trim().split(/\s+/u);
+    if (!head || !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(head))
+      return { ok: false, error: "The remote head could not be read.", code: null };
+    return { ok: true, data: head };
   }
 
   /** The working tree against HEAD or a named ref, as a patch; one worktree path narrows it. */
@@ -658,7 +740,7 @@ export class PrivilegedGit {
     return this.#run({ clone }, ["worktree", "list", "--porcelain", "-z"], options);
   }
 
-  /** A fast-forward push of one ref; there is no force or delete form. */
+  /** A fast-forward push, or the one expected-old-value lease form for an existing branch. */
   async push(
     target: GitTarget,
     request: PushRequest,
@@ -670,6 +752,11 @@ export class PrivilegedGit {
         "push",
         "--porcelain",
         "--no-recurse-submodules",
+        ...(request.expectedHead
+          ? [
+              `--force-with-lease=${request.destination.slice("refs/heads/".length)}:${objectId(request.expectedHead)}`,
+            ]
+          : []),
         ...(request.dryRun ? ["--dry-run"] : []),
         "--",
         remoteName(request.remote),

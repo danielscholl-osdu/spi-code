@@ -6,6 +6,7 @@ import { navigate } from "../app/navigation.js";
 import { treeServices } from "../app/queue.js";
 import { useRegistry } from "../app/routes.js";
 import { watchStore } from "../store/watch.js";
+import { threadOwningRequest } from "./request-ownership.js";
 import { askAbout } from "./start.js";
 import { type AskTarget, type ThreadSummary, threadStore } from "./store.js";
 
@@ -14,7 +15,7 @@ type Ask = { target: AskTarget & { scope?: string }; owner?: ThreadSummary };
 /** Whether a row offers Ask about this: a thread that owns it, or a fork to scope a new one to. */
 export function useAskAbout(target: AskTarget | null): Ask | null {
   const owner = useStore(threadStore, (state) =>
-    target ? state.threads?.find((thread) => thread.thread.subject === target.subject) : undefined,
+    target ? threadOwningRequest(state.threads, target.subject, target.urls) : undefined,
   );
   const tree = useStore(watchStore, (state) => state.snapshot?.body.tree);
   const threads = useRegistry().views.thread;

@@ -284,6 +284,28 @@ export class ThreadRoutes {
         payload: { threadId, commit: await this.open().commit(threadId, message) },
       });
     },
+    "thread.publication": async (request, send) => {
+      if (request.type !== "thread.publication") return;
+      const { threadId } = request.payload;
+      send({
+        version: PROTOCOL_VERSION,
+        id: request.id,
+        kind: "response",
+        type: "thread.publication.result",
+        payload: { threadId, publication: await this.open().publication(threadId) },
+      });
+    },
+    "thread.publish": async (request, send) => {
+      if (request.type !== "thread.publish") return;
+      const { threadId, head } = request.payload;
+      send({
+        version: PROTOCOL_VERSION,
+        id: request.id,
+        kind: "response",
+        type: "thread.published",
+        payload: { threadId, publication: await this.open().publish(threadId, head) },
+      });
+    },
     "thread.stop": async (request, send) => {
       if (request.type !== "thread.stop") return;
       await this.engine().stop(request.payload.threadId);

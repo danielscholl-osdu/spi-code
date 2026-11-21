@@ -7,6 +7,8 @@ import { useStore } from "zustand";
 import { parseRoute, type Route } from "../../app/navigation.js";
 import { shiftShortcutLabel } from "../../app/shortcuts.js";
 import { scopeLabel } from "../../threads/scopes.js";
+import { watchStore } from "../../store/watch.js";
+import { requestInSweep } from "../../threads/request-ownership.js";
 import { type ThreadSummary, threadStore } from "../../threads/store.js";
 import { useNow } from "../evidence/useNow.js";
 import { Icon } from "../icons/Icon.js";
@@ -85,6 +87,8 @@ export function ThreadRow({
   onNavigate(route: Route): void;
 }) {
   const now = useNow(60_000);
+  const snapshot = useStore(watchStore, (state) => state.snapshot);
+  const request = thread.thread.request;
   const settle = () =>
     threadStore.getState().settle(thread, (threads) => {
       const next = routeAfterSettle(threads, thread.id);
@@ -165,6 +169,24 @@ export function ThreadRow({
               </ContextMenu.Positioner>
             </ContextMenu.Portal>
           </ContextMenu.Root>
+          {request && (
+            <a
+              className="sidebar-thread-request"
+              data-state={requestInSweep(snapshot?.body, request.url) ? "owned" : "pending"}
+              href={request.url}
+              title={request.url}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                void window.spi?.openExternal(request.url);
+              }}
+            >
+              {request.forge === "github" ? "PR" : "MR"} {request.forge === "github" ? "#" : "!"}
+              {request.requestNumber} ·{" "}
+              {requestInSweep(snapshot?.body, request.url) ? "owned" : "pending"}
+              <span aria-hidden="true">↗</span>
+            </a>
+          )}
           {(canSettle || thread.status === "Settled") && (
             <button
               type="button"

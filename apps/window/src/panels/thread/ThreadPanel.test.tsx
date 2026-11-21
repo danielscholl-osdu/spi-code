@@ -18,6 +18,7 @@ import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import { type ThreadSummary, threadStore } from "../../threads/store.js";
 import { clockTime } from "../../time.js";
 import { changesStore } from "./changes-store.js";
+import { publicationStore } from "./publication-store.js";
 
 type HappyWindow = { happyDOM: { setViewport(viewport: { width: number; height: number }): void } };
 
@@ -26,6 +27,7 @@ const cleanups: Array<() => Promise<void>> = [];
 const watched = watchStore.getState();
 const threads = threadStore.getState();
 const changed = changesStore.getState();
+const published = publicationStore.getState();
 
 function summary(thread: ThreadSummary["thread"]): ThreadSummary {
   return {
@@ -84,7 +86,8 @@ async function mountShell(
     title: () => $(".centre-title h1")?.textContent,
     tab: async (label: string) => {
       const tab = [...container.querySelectorAll<HTMLButtonElement>("[role=tab]")].find(
-        (candidate) => candidate.textContent === label,
+        (candidate) =>
+          candidate.textContent === label || candidate.textContent?.startsWith(`${label} `),
       );
       if (!tab) throw new Error(`Missing tab ${label}`);
       await act(async () => tab.click());
@@ -131,6 +134,7 @@ afterEach(async () => {
   watchStore.setState(watched, true);
   threadStore.setState(threads, true);
   changesStore.setState(changed, true);
+  publicationStore.setState(published, true);
   window.location.hash = "";
 });
 
@@ -413,15 +417,19 @@ describe("Thread and Changes", () => {
   const answer = async (shell: Shell, request: string, type: string, payload: object) => {
     const asked = [...shell.posted()].reverse().find((message) => message.type === request);
     if (!asked) throw new Error(`No ${request} was posted`);
-    await act(async () =>
+    const reply = {
+      version: PROTOCOL_VERSION,
+      id: asked.id,
+      kind: "response",
+      type,
+      payload: { threadId: "t1", ...payload },
+    };
+    await act(async () => {
       changesStore.getState().receive({
-        version: PROTOCOL_VERSION,
-        id: asked.id,
-        kind: "response",
-        type,
-        payload: { threadId: "t1", ...payload },
-      }),
-    );
+        ...reply,
+      });
+      publicationStore.getState().receive(reply);
+    });
   };
   const commitButton = (shell: Shell) =>
     [...(shell.panel()?.querySelectorAll<HTMLButtonElement>("button") ?? [])].find((button) =>
@@ -630,5 +638,79 @@ describe("Thread and Changes", () => {
     expect(changes?.querySelector("[data-quiet=not-read]")?.textContent).toBe(
       "⌀ The worktree was not read. Git is unavailable.",
     );
+  });
+
+  it("binds Push to the displayed head, opens the draft result and counts Changes", async () => {
+    savePanes({ open: { rightPanel: true } });
+    const shell = await mountShell("#thread/t1", [LANDED]);
+    await answer(shell, "thread.publication", "thread.publication.result", {
+      publication: {
+        state: "ready",
+        remote: "origin",
+        branch: "spi/t1",
+        base: "main",
+        opens: "pull-request",
+      },
+    });
+    await answer(shell, "thread.changes", "thread.changes.result", {
+      changes: {
+        ...read(false),
+        ahead: 1,
+        files: [{ path: "answer.txt", added: 1, removed: 0, untracked: false }],
+      },
+    });
+    expect(shell.panel()?.querySelector('[role="tab"][data-tab="changes"]')?.textContent).toBe(
+      "Changes 1",
+    );
+    const push = [...(shell.panel()?.querySelectorAll<HTMLButtonElement>("button") ?? [])].find(
+      (button) => button.textContent === "Push / Open draft PR",
+    );
+    expect(push?.disabled).toBe(false);
+    await act(async () => push?.click());
+    expect(shell.posted().at(-1)).toMatchObject({
+      type: "thread.publish",
+      payload: { threadId: "t1", head: HEAD },
+    });
+    await answer(shell, "thread.publish", "thread.published", {
+      publication: {
+        outcome: "published",
+        head: HEAD,
+        request: {
+          forge: "github",
+          repository: "Azure/osdu-spi-partition",
+          requestNumber: 42,
+          url: "https://github.com/Azure/osdu-spi-partition/pull/42",
+        },
+      },
+    });
+    expect(shell.$(".thread-publish-outcome")?.textContent).toContain("Opened draft PR 42");
+    expect(shell.$<HTMLAnchorElement>(".thread-publish-outcome a")?.href).toBe(
+      "https://github.com/Azure/osdu-spi-partition/pull/42",
+    );
+  });
+
+  it("shows a request as pending until that URL appears in a sweep", async () => {
+    savePanes({ open: { rightPanel: true } });
+    const url = "https://github.com/Azure/osdu-spi-partition/pull/42";
+    const owned = summary({
+      ...LANDED.thread,
+      request: {
+        forge: "github",
+        repository: "Azure/osdu-spi-partition",
+        requestNumber: 42,
+        url,
+      },
+    });
+    const shell = await mountShell("#thread/t1", [owned]);
+    expect(shell.$("[data-field=request]")?.textContent).toContain("Pending until the next sweep");
+    await act(async () => {
+      watchStore.setState({
+        snapshot: {
+          cursor: fixture.cursor,
+          body: { ...fixture, requestProbe: { url } } as ViewSnapshot,
+        },
+      });
+    });
+    expect(shell.$("[data-field=request]")?.textContent).toContain("Owned by this thread");
   });
 });

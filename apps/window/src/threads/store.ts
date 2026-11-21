@@ -35,6 +35,8 @@ export interface AskTarget {
   origin?: string;
   /** The thread this target is the finding of, which a thread started from it continues. */
   parent?: string;
+  /** Forge links the latest sweep attached to this row. */
+  urls?: readonly string[];
 }
 
 /** Where a draft was opened from, which its back link returns to. */

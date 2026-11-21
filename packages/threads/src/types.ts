@@ -21,7 +21,16 @@ export interface ThreadDefinition {
   /** The thread this one continues. */
   parent?: string;
   landsIn?: ThreadLanding;
+  request?: ThreadRequest;
+  pushedHead?: string;
   accessMode?: AccessMode;
+}
+
+export interface ThreadRequest {
+  forge: "github" | "gitlab";
+  repository: string;
+  requestNumber: number;
+  url: string;
 }
 
 export type LandingTarget = "fork-main" | "fork-integration" | "upstream";
@@ -222,7 +231,8 @@ export type JournalEntry =
     }
   | { type: "thread.unsettled"; reason: "operator"; restore?: true }
   | { type: "thread.seen"; seenSequence: number }
-  | { type: "thread.landed"; landsIn: ThreadLanding }
+  | { type: "thread.landed"; landsIn: ThreadLanding; request?: ThreadRequest }
+  | { type: "thread.pushed"; head: string; request?: ThreadRequest }
   | { type: "thread.deleted" }
   | { type: "message.sent"; messageId: string; message: ThreadMessage }
   | { type: "message.cancelled"; messageId: string; reason: InterruptionReason }

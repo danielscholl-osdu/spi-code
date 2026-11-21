@@ -16,6 +16,7 @@ import { STATION_MARKS } from "../../components/flow/Flow.js";
 import { LinkPill } from "../../components/kit/LinkPill.js";
 import { ServiceMark, serviceMark } from "../../components/sidebar/service-mark.js";
 import { plainTitle } from "../../text.js";
+import { RequestOwner } from "../../threads/RequestOwner.js";
 import { forksWord, STATION_LABELS } from "./fleet.js";
 import { ageInOneUnit, ForkName } from "./parts.js";
 import "./forks.css";
@@ -166,7 +167,12 @@ function OpenFork({
                 </span>
                 {plainTitle(line.headline)}
               </span>
-              {member.primary && <LinkPill link={member.primary} />}
+              {member.primary && (
+                <>
+                  <LinkPill link={member.primary} />
+                  <RequestOwner url={member.primary.url} compact />
+                </>
+              )}
               {member.age && <span>{ageInOneUnit(member.age)}</span>}
             </li>
           ))}
@@ -184,6 +190,7 @@ function OpenFork({
                   entry.objects.map((object) => (
                     <Fragment key={object.id}>
                       <LinkPill link={{ label: object.label, url: object.url, kind: "pr" }} />
+                      <RequestOwner url={object.url} compact />
                       {object.age && <span>open {ageInOneUnit(object.age)}</span>}
                     </Fragment>
                   ))}

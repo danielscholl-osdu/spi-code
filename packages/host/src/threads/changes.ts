@@ -7,6 +7,12 @@ import type { ExecResult } from "@spi-code/core";
 import type { ConfinedResult } from "../scopes/confined.js";
 import type { CommitIdentity, PrivilegedGit, WorktreeTarget } from "../scopes/git.js";
 
+export type ChangesGit = Pick<
+  PrivilegedGit,
+  "ahead" | "blob" | "diff" | "diffBlob" | "hashFiles" | "head" | "numstat" | "statusAll"
+>;
+export type CommitGit = ChangesGit & Pick<PrivilegedGit, "add" | "commit">;
+
 export type ChangedFile = {
   path: string;
   /** Null for a binary file or one the host did not count. */
@@ -85,7 +91,7 @@ async function plainFile(worktree: string, path: string): Promise<boolean> {
 
 /** Untracked files written to the object store by a confined read; their ids, or why none. */
 async function hashNew(
-  git: PrivilegedGit,
+  git: ChangesGit,
   target: WorktreeTarget,
   paths: readonly string[],
 ): Promise<Map<string, string> | string> {
@@ -108,7 +114,7 @@ function lines(text: string): string[] {
 }
 
 async function newFile(
-  git: PrivilegedGit,
+  git: ChangesGit,
   target: WorktreeTarget,
   path: string,
   id: string | undefined,
@@ -120,7 +126,7 @@ async function newFile(
 
 /** A file the base holds that is untracked now, as after a staged delete: the base against it. */
 async function againstBase(
-  git: PrivilegedGit,
+  git: ChangesGit,
   target: WorktreeTarget,
   base: string,
   path: string,
@@ -134,7 +140,7 @@ async function againstBase(
 }
 
 export async function readChanges(
-  git: PrivilegedGit,
+  git: ChangesGit,
   target: WorktreeTarget,
   base: string,
 ): Promise<ThreadChanges> {
@@ -165,7 +171,7 @@ function bounded(patch: string): FileDiff {
 }
 
 export async function readFileDiff(
-  git: PrivilegedGit,
+  git: ChangesGit,
   target: WorktreeTarget,
   base: string,
   path: string,
@@ -209,7 +215,7 @@ const timedOut = (result: ConfinedResult) =>
 
 /** Git timed out and may still be running: HEAD moving is the only proof of a commit. */
 async function afterTimeout(
-  git: PrivilegedGit,
+  git: ChangesGit,
   target: WorktreeTarget,
   before: string,
 ): Promise<CommitOutcome> {
@@ -228,7 +234,7 @@ async function afterTimeout(
 
 /** Stages everything in the worktree and commits it, both confined. */
 export async function commitChanges(
-  git: PrivilegedGit,
+  git: CommitGit,
   target: WorktreeTarget,
   message: string,
   identity: CommitIdentity,

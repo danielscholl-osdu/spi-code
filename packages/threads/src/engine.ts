@@ -285,12 +285,37 @@ export class ThreadEngine<Tool> {
     return settled;
   }
 
-  land(id: string, landsIn: ThreadLanding): void {
+  land(id: string, landsIn: ThreadLanding, request?: ThreadDefinition["request"]): void {
     this.assertOpen();
     this.get(id);
     if (this.isRunning(id))
       throw new Error("Wait for the thread to finish before changing Lands in.");
-    this.record(id, [{ type: "thread.landed", landsIn: structuredClone(landsIn) }]);
+    this.record(id, [
+      {
+        type: "thread.landed",
+        landsIn: structuredClone(landsIn),
+        ...(request === undefined ? {} : { request: structuredClone(request) }),
+      },
+    ]);
+  }
+
+  publish(
+    id: string,
+    publication: { head: string; request?: NonNullable<ThreadDefinition["request"]> },
+  ): void {
+    this.assertOpen();
+    this.get(id);
+    if (this.isRunning(id))
+      throw new Error("Wait for the thread to finish before publishing its branch.");
+    this.record(id, [
+      {
+        type: "thread.pushed",
+        head: publication.head,
+        ...(publication.request === undefined
+          ? {}
+          : { request: structuredClone(publication.request) }),
+      },
+    ]);
   }
 
   isRunning(id: string): boolean {

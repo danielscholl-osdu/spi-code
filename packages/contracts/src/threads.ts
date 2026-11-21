@@ -6,6 +6,7 @@ import { PROTOCOL_VERSION } from "./watch/messages.js";
 
 const id = z.string().min(1);
 const sequence = z.int().nonnegative();
+const sha = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u);
 const threadId = z.object({ threadId: id });
 const landingTarget = z.enum(["fork-main", "fork-integration", "upstream"]);
 const landingRequest = z.discriminatedUnion("target", [
@@ -41,6 +42,12 @@ const landing = z.discriminatedUnion("target", [
     sourceBranch: id,
   }),
 ]);
+const threadRequest = z.strictObject({
+  forge: z.enum(["github", "gitlab"]),
+  repository: id,
+  requestNumber: z.int().positive(),
+  url: z.url({ protocol: /^https$/ }),
+});
 /** `subject`: the id of the row or popover the thread started from, which it then owns. */
 const identity = {
   scope: id,
@@ -50,7 +57,12 @@ const identity = {
   parent: id.optional(),
   accessMode: z.enum(["supervised", "auto-accept-edits"]).optional(),
 };
-const definition = z.strictObject({ ...identity, landsIn: landing.optional() });
+const definition = z.strictObject({
+  ...identity,
+  landsIn: landing.optional(),
+  request: threadRequest.optional(),
+  pushedHead: sha.optional(),
+});
 export const ReasoningEffortSchema = z.enum(["low", "medium", "high", "xhigh", "max"]);
 const message = z.strictObject({
   prompt: z.string().trim().min(1),
@@ -62,7 +74,6 @@ const outcome = z.enum(["completed", "failed", "stopped", "cancelled"]);
 const interruption = z.enum(["restart", "shutdown"]);
 const cancellation = z.enum(["restart", "shutdown", "operator", "turn-ended", "refused-tool"]);
 const unknown = z.literal("not known");
-
 const summary = z.strictObject({
   id,
   thread: definition,
@@ -86,12 +97,23 @@ export const ThreadEventSchema = z.discriminatedUnion("type", [
   }),
   z.strictObject({
     ...event,
+    type: z.literal("thread.pushed"),
+    head: sha,
+    request: threadRequest.optional(),
+  }),
+  z.strictObject({
+    ...event,
     type: z.literal("thread.unsettled"),
     reason: z.literal("operator"),
     restore: z.literal(true).optional(),
   }),
   z.strictObject({ ...event, type: z.literal("thread.seen"), seenSequence: sequence }),
-  z.strictObject({ ...event, type: z.literal("thread.landed"), landsIn: landing }),
+  z.strictObject({
+    ...event,
+    type: z.literal("thread.landed"),
+    landsIn: landing,
+    request: threadRequest.optional(),
+  }),
   z.strictObject({ ...event, type: z.literal("thread.deleted") }),
   z.strictObject({ ...event, type: z.literal("message.sent"), messageId: id, message }),
   z.strictObject({
@@ -170,7 +192,6 @@ export const ThreadEventSchema = z.discriminatedUnion("type", [
 
 export type ThreadWireEvent = z.infer<typeof ThreadEventSchema>;
 
-const sha = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u);
 const count = z.int().nonnegative().nullable();
 const pathOwner = z.enum(["fork", "upstream"]);
 const changes = z.discriminatedUnion("state", [
@@ -198,6 +219,33 @@ const diff = z.discriminatedUnion("state", [
 ]);
 const commit = z.discriminatedUnion("outcome", [
   z.strictObject({ outcome: z.literal("committed"), head: sha }),
+  z.strictObject({ outcome: z.enum(["refused", "failed"]), reason: id }),
+  z.strictObject({ outcome: unknown, reason: id }),
+]);
+const publication = z.discriminatedUnion("state", [
+  z.strictObject({ state: z.literal("asking") }),
+  z.strictObject({
+    state: z.literal("ready"),
+    remote: id,
+    branch: id,
+    base: id.optional(),
+    opens: z.enum(["pull-request", "merge-request", "none"]),
+    request: threadRequest.optional(),
+  }),
+  z.strictObject({
+    state: z.literal("unavailable"),
+    reason: id,
+    url: z.url({ protocol: /^https$/ }).optional(),
+  }),
+  z.strictObject({ state: z.literal("not read"), reason: id }),
+]);
+const publicationOutcome = z.discriminatedUnion("outcome", [
+  z.strictObject({ outcome: z.literal("pushed"), head: sha, request: threadRequest.optional() }),
+  z.strictObject({
+    outcome: z.literal("published"),
+    head: sha,
+    request: threadRequest,
+  }),
   z.strictObject({ outcome: z.enum(["refused", "failed"]), reason: id }),
   z.strictObject({ outcome: unknown, reason: id }),
 ]);
@@ -281,6 +329,14 @@ export const ThreadMessageSchema = z.discriminatedUnion("type", [
     threadId.extend({ message: z.string().trim().min(1).max(10_000) }).strict(),
   ),
   envelope("thread.committed", "response", threadId.extend({ commit }).strict()),
+  envelope("thread.publication", "request", threadId.strict()),
+  envelope("thread.publication.result", "response", threadId.extend({ publication }).strict()),
+  envelope("thread.publish", "request", threadId.extend({ head: sha }).strict()),
+  envelope(
+    "thread.published",
+    "response",
+    threadId.extend({ publication: publicationOutcome }).strict(),
+  ),
   envelope("thread.stop", "request", threadId.strict()),
   envelope("thread.stopped", "response", threadId.strict()),
   envelope("thread.settle", "request", threadId.strict()),

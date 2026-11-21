@@ -1036,6 +1036,37 @@ it("refuses a send whose preview went stale, keeps the words and shows the fresh
   ]);
 });
 
+it("recognizes a request URL as owned on an opened Today or place row", async () => {
+  const release = line("waiting:release-approval");
+  const member = release.members[0];
+  if (!member) throw new Error("Fixture needs a request member");
+  const requestRow = todayContent({ line: release, member, items, place });
+  const requestLink = requestRow.links?.find(({ kind }) => kind === "pr" || kind === "mr");
+  if (!requestLink) throw new Error("Fixture needs a request link");
+  host.addThread(
+    "request-thread",
+    {
+      scope: requestRow.scope ?? "program",
+      title: "Retry the release",
+      request: {
+        forge: requestLink.kind === "mr" ? "gitlab" : "github",
+        repository: "fixture/repository",
+        requestNumber: 89,
+        url: requestLink.url,
+      },
+      landsIn: { target: "asking" },
+    },
+    "Open",
+  );
+  await act(async () => host.relist());
+  await openRow(requestRow);
+  const owner = container.querySelector<HTMLButtonElement>(".ask-about--owned");
+  expect(owner?.textContent).toContain("Retry the release · Open");
+  if (!owner) throw new Error("Missing request owner");
+  await click(owner);
+  expect(window.location.hash).toBe("#thread/request-thread");
+});
+
 const needs = () =>
   all('[aria-label="Needs you"] button').map((button) => [
     button.querySelector(".thread-needs-label")?.textContent,
