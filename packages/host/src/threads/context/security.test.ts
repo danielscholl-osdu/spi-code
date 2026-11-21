@@ -496,6 +496,30 @@ describe("scanner text Copilot is told about Security", () => {
     },
   );
 
+  it.each(["\t", "  ", "\n", "\u200b "])(
+    "leaves no part of a credential whose space the title gives as %j",
+    async (space) => {
+      const spaced = `${titleLead}${secret.replace(" ", space)} tail of the long title`;
+      const { sweep } = scenario("1116", (alert) =>
+        alert.rule === ruleId && alert.tool === tool_ ? { ...alert, description: spaced } : alert,
+      );
+      for (const [name, text] of Object.entries(await outputs(sweep, target.key)))
+        expect(text, name).not.toContain(prefix);
+      expect((await chip(sweep, `security-rule:${target.key}`, journal)).chip.title).toBe(
+        `${titleLead}[redacted] tail of…`,
+      );
+    },
+  );
+
+  it("goes by the rule key when the title holds nothing to show", async () => {
+    const { sweep } = scenario("1116", (alert) =>
+      alert.rule === ruleId && alert.tool === tool_
+        ? { ...alert, description: "\u200b \t" }
+        : alert,
+    );
+    expect((await chip(sweep, `security-rule:${target.key}`)).chip.title).toBe(target.key);
+  });
+
   it("shortens a title to its bound at the last space, or between characters with none", async () => {
     const titles: [string, string][] = [
       ["安全 ".repeat(3_400), `${"安全 ".repeat(39).trimEnd()}…`],

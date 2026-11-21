@@ -66,16 +66,21 @@ function shortened(text: string): string {
   return `${(space > 0 ? head.slice(0, space) : head).trimEnd()}${ELLIPSIS}`;
 }
 
-/** The scanner's title redacted while it is whole, then put on one line and shortened. */
-function titleOf(rule: SecurityRuleRow, redactor: SpiRedactor): string {
+function redacted(text: string, redactor: SpiRedactor): string {
   let safe: unknown;
   try {
-    safe = redactor.value(rule.title);
+    safe = redactor.value(text);
   } catch {
     throw new Error("Security title withheld.");
   }
   if (typeof safe !== "string") throw new Error("Security title withheld.");
-  return shortened(safe.replace(INVISIBLE, "").replace(/\s+/g, " ").trim());
+  return safe;
+}
+
+/** The scanner's title redacted whole as given and again on one line, then shortened. */
+function titleOf(rule: SecurityRuleRow, redactor: SpiRedactor): string {
+  const line = redacted(rule.title, redactor).replace(INVISIBLE, "").replace(/\s+/g, " ").trim();
+  return line ? shortened(redacted(line, redactor)) : rule.key;
 }
 
 /** The help the collector cut, by its flag or, from a sweep before the flag, by the cut's ellipsis. */
