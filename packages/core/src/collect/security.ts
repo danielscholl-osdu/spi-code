@@ -14,8 +14,6 @@ export const CODE_JQ = `.[] | {number, severity: .rule.security_severity_level, 
 const SEVERITIES: ReadonlySet<string> = new Set(["critical", "high", "medium", "low"]);
 /** The longest rule help kept, in characters, its ellipsis included. */
 export const HELP_MAX = 300;
-/** The longest code rule title kept, in characters, its ellipsis included. */
-export const TITLE_MAX = 120;
 const TAGS_MAX = 20;
 const TAG_MAX = 100;
 
@@ -83,7 +81,6 @@ export function parseCodeAlert(r: Raw): CodeAlertFact | undefined {
   const ruleSeverity = str(r.ruleSeverity);
   const path = str(r.path);
   const help = oneLine(r.fullDescription, HELP_MAX);
-  const title = oneLine(r.description, TITLE_MAX);
   const fullDescription = help.text;
   const tags = tagsOf(r.tags);
   return {
@@ -91,9 +88,9 @@ export function parseCodeAlert(r: Raw): CodeAlertFact | undefined {
     ...(sev ? { severity: sev } : {}),
     ...(ruleSeverity ? { ruleSeverity } : {}),
     rule,
-    description: title.text ?? rule,
+    description: str(r.description) ?? rule,
     ...(fullDescription ? { fullDescription } : {}),
-    ...(help.cut || title.cut ? { cut: true as const } : {}),
+    ...(help.cut ? { cut: true as const } : {}),
     ...(tags ? { tags } : {}),
     tool: str(r.tool) ?? "",
     ...(path ? { path } : {}),

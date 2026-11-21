@@ -396,7 +396,7 @@ export interface CodeAlertFact {
   description: string;
   /** The rule's help on one line, capped; absent in facts from an older sweep. */
   fullDescription?: string;
-  /** The collector cut the title or the help; an older sweep's cut carries only its ellipsis. */
+  /** The collector cut the help; an older sweep's cut carries only its ellipsis. */
   cut?: true;
   /** The rule's tags, such as external/cwe/cwe-352. */
   tags?: string[];

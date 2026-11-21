@@ -22,6 +22,8 @@ import type { SpiRedactor } from "./redaction.js";
 import {
   findRule,
   SECURITY_CHIP_BYTE_BUDGET,
+  TITLE_MAX_BYTES,
+  TITLE_MAX_CHARS,
   unreadLists as unreadListsOf,
   wordsText,
 } from "./security.js";
@@ -388,10 +390,11 @@ describe("scanner text", () => {
   });
 });
 
-describe("scanner text cut before redaction", () => {
+describe("scanner text Copilot is told about Security", () => {
   const secret = "Qzfixture spaced-scanner-credential";
   const { journal } = createToolOutputRedactor([secret]);
-  const titleLead = `${"w ".repeat(55)}`;
+  const titleLead = `${"w ".repeat(50)}`;
+  const title = `${titleLead}${secret} tail of the long title`;
   const helpLead = `${"word ".repeat(57)}fill `;
   const prefix = secret.slice(0, secret.indexOf(" "));
   const target = rulesOf(scenario("1116").pane).find(({ key }) => key.includes(":code:"));
@@ -399,7 +402,7 @@ describe("scanner text cut before redaction", () => {
   const ruleId = target.key.split(":").slice(3).join(":");
   const tool_ = target.key.split(":")[2] ?? "";
 
-  /** The five things Copilot is told about Security, with campaign subjects saved for this rule and for none. */
+  /** The six things Copilot is told about Security, with campaign subjects saved for this rule and for none. */
   async function outputs(sweep: SavedSweep, key: string) {
     const fact = `${tool_}: ${ruleId}`;
     const none = "Fixture: no-such-rule";
@@ -428,55 +431,184 @@ describe("scanner text cut before redaction", () => {
     };
   }
 
+  /** A pane saved before rows carried the cut flag: the host reads it as it was saved. */
+  const unflagged = (pane: SecurityPane): SecurityPane => ({
+    ...pane,
+    lanes: pane.lanes.map((lane) => ({
+      ...lane,
+      byRule: {
+        ...lane.byRule,
+        rules: lane.byRule.rules.map(({ cut: _, ...rule }) => rule),
+      },
+    })),
+  });
+
   const cases = {
-    "cut at this read": (alert: CodeAlertFact) =>
-      parseCodeAlert({
+    "cut by the collector at this read": {
+      alert: (alert: CodeAlertFact) =>
+        parseCodeAlert({
+          ...alert,
+          description: title,
+          fullDescription: `${helpLead}${secret} tail`,
+        }) ?? alert,
+      saved: (pane: SecurityPane) => pane,
+    },
+    "cut by an older collector, in a pane saved before the cut flag": {
+      alert: (alert: CodeAlertFact) => ({
         ...alert,
-        description: `${titleLead}${secret} tail`,
-        fullDescription: `${helpLead}${secret} tail`,
-      }) ?? alert,
-    "held from an earlier read with the old cut": (alert: CodeAlertFact) => ({
-      ...alert,
-      description: `${titleLead}${prefix}…`,
-      fullDescription: `${`${helpLead}${secret} tail`.slice(0, HELP_MAX - 1).trimEnd()}…`,
-    }),
+        description: title,
+        fullDescription: `${`${helpLead}${secret} tail`.slice(0, HELP_MAX - 1).trimEnd()}…`,
+      }),
+      saved: unflagged,
+    },
   } as const;
 
   it.each(Object.keys(cases) as (keyof typeof cases)[])(
-    "tells Copilot the rule id and no help when the text was %s, and the page still shows it",
+    "tells Copilot the title redacted then shortened, and no help, when the help was %s",
     async (kind) => {
-      const cutOne = (alert: CodeAlertFact) =>
-        alert.rule === ruleId && alert.tool === tool_ ? cases[kind](alert) : alert;
-      const { pane, sweep } = scenario("1116", cutOne);
-      const row = findRule(pane, target.key)?.rule;
+      expect([...titleLead].length).toBeLessThan(TITLE_MAX_CHARS);
+      expect([...`${titleLead}${secret}`].length).toBeGreaterThan(TITLE_MAX_CHARS);
+      const { alert, saved } = cases[kind];
+      const cutOne = (fact: CodeAlertFact) =>
+        fact.rule === ruleId && fact.tool === tool_ ? alert(fact) : fact;
+      const { pane, view, sweep } = scenario("1116", cutOne);
+      const held = saved(pane);
+      const row = findRule(held, target.key)?.rule;
       if (!row) throw new Error(`${target.key} is gone`);
-      expect(row.title).toContain(prefix);
+      expect(row.title).toBe(title);
       expect(row.opened.help).toContain(prefix);
-      const told = await outputs(sweep, target.key);
+      if (held !== pane) expect(row).not.toHaveProperty("cut");
+      const told = await outputs({ ...sweep, view: { ...view, security: held } }, target.key);
+      const shortened = `${titleLead}[redacted] tail of…`;
       for (const [name, text] of Object.entries(told)) {
         expect(text, name).not.toContain(prefix);
         expect(text, name).not.toContain(helpLead.trimEnd());
       }
       const ruleChip = JSON.parse(told.rule) as { title: string; reading: { title: string } };
-      expect(ruleChip.title).toBe(target.key);
-      expect(ruleChip.reading.title).toBe(target.key);
+      expect(ruleChip.title).toBe(shortened);
+      expect(ruleChip.reading.title).toBe(shortened);
       const placeRules = (
         JSON.parse(told.place) as { reading: { rules: { rule: string; title: string }[] } }
       ).reading.rules;
-      expect(placeRules.find(({ rule }) => rule === target.key)?.title).toBe(target.key);
-      const whole = rulesOf(pane).find(
-        ({ key }) => key.includes(":code:") && !key.endsWith(`:${tool_}:${ruleId}`),
-      );
-      if (!whole) throw new Error("The 1116 scenario has one code rule");
-      expect(placeRules.find(({ rule }) => rule === whole.key)?.title).toBe(whole.title);
+      expect(placeRules.find(({ rule }) => rule === target.key)?.title).toBe(shortened);
+      for (const name of ["campaign", "tool", "ruleTool"] as const)
+        expect(told[name], name).toContain(JSON.stringify(shortened));
     },
   );
+
+  it("shortens a title to its bound at the last space, or between characters with none", async () => {
+    const titles: [string, string][] = [
+      ["安全 ".repeat(3_400), `${"安全 ".repeat(39).trimEnd()}…`],
+      [
+        `${"x".repeat(TITLE_MAX_CHARS - 3)} ${"y".repeat(10)}`,
+        `${"x".repeat(TITLE_MAX_CHARS - 3)}…`,
+      ],
+      ["安".repeat(10_000), `${"安".repeat(TITLE_MAX_BYTES / 3 - 1)}…`],
+      ['"'.repeat(500), `${'"'.repeat(TITLE_MAX_CHARS - 1)}…`],
+      ["\u{1F600}".repeat(200), `${"\u{1F600}".repeat(Math.floor((TITLE_MAX_BYTES - 3) / 4))}…`],
+      [`a\u0000b\tc\n\n d\u200b ${"e".repeat(200)}`, "ab c d…"],
+      ["x".repeat(TITLE_MAX_CHARS), "x".repeat(TITLE_MAX_CHARS)],
+    ];
+    for (const [raw, shortened] of titles) {
+      const { sweep } = scenario("1116", (alert) =>
+        alert.rule === ruleId && alert.tool === tool_ ? { ...alert, description: raw } : alert,
+      );
+      const one = await chip(sweep, `security-rule:${target.key}`);
+      expect(one.chip.title).toBe(shortened);
+      expect([...shortened].length).toBeLessThanOrEqual(TITLE_MAX_CHARS);
+      expect(Buffer.byteLength(JSON.stringify(shortened)) - 2).toBeLessThanOrEqual(TITLE_MAX_BYTES);
+    }
+  });
+});
+
+describe("a long scanner title outside Security", () => {
+  const secret = "Qzfixture spaced-scanner-credential";
+  const { journal } = createToolOutputRedactor([secret]);
+  const raw = `${"w ".repeat(55)}${secret} tail of the title`;
+  const told = `${"w ".repeat(55)}[redacted] tail of the title`;
+
+  it("reaches the service, repository and alert routes whole, so redaction sees all of it", async () => {
+    const input = fixtureInput();
+    const data = input.facts.security.data ?? {};
+    const [repo, alerts] =
+      Object.entries(data).find(([name]) => name === "Azure/osdu-spi-partition") ?? [];
+    const first = alerts?.code?.find(({ rule }) => rule === "java/spring-disabled-csrf-protection");
+    if (!repo || !alerts?.code || !first) throw new Error("partition has no code alert");
+    const parsed = parseCodeAlert({ ...first, description: raw });
+    expect(parsed?.description).toBe(raw);
+    expect(parsed).not.toHaveProperty("cut");
+    alerts.code = alerts.code.map((alert) =>
+      alert.rule === first.rule && alert.tool === first.tool
+        ? { ...alert, description: parsed?.description ?? "" }
+        : alert,
+    );
+    const view = projectWatch(input);
+    const saved = {
+      view,
+      facts: input.facts,
+      releases: { ...input.releases, records: input.releaseRecords },
+      reads: { ...input.reads, releases: input.releaseRecords },
+    };
+    const latest = latestSweep(() => saved, { ctx: input.context, appData: input.appData });
+    const alertLine = view.briefing.repositories.rows
+      .flatMap(({ sections }) => sections.flatMap(({ lines }) => lines))
+      .find(({ id, text }) => id?.startsWith("alert:") && text.includes("w w w"));
+    if (!alertLine?.id) throw new Error("No alert line carries the title");
+    const tools = spiToolProvider(spiReadTools(latest, journal)).offer();
+    const session = new FakeSession({
+      tools,
+      availableTools: tools.map(({ name }) => `custom:${name}`),
+      onPermissionRequest: buildPermissionGate(),
+    });
+    const call = async (name: string, args: object) => {
+      const text = await session.callTool(name, args);
+      if (typeof text !== "string") throw new Error(`${name} answered no text`);
+      return JSON.parse(text);
+    };
+    const packed = async (id: string) => {
+      const outcome = await chipFromSweep(latest, id, journal);
+      if (!outcome.ok) throw new Error(`${id}: ${outcome.reason}`);
+      return JSON.parse(outcome.chip.content);
+    };
+    const service = await packed("service:partition");
+    const line = await call("spi_line", { service: "partition" });
+    const repoChip = await packed("repo:partition");
+    const inspectRepo = (await call("spi_inspect", { id: "repo:partition" })).item;
+    const alertChip = await packed(alertLine.id);
+    const inspectAlert = (await call("spi_inspect", { id: alertLine.id })).item;
+    const labels = (reading: { items: { evidence: { label: string }[] }[] }) =>
+      reading.items.flatMap(({ evidence }) => evidence.map(({ label }) => label));
+    expect(labels(service.reading)).toContain(told);
+    expect(labels(line.reading)).toContain(told);
+    expect(line.home.overview.map(({ cause }: { cause: string }) => cause)).toEqual([told]);
+    for (const item of [repoChip, inspectRepo]) {
+      expect(item.title).toBe(`High code-scanning alert: ${told}`);
+      expect(item.cause).toBe(item.title);
+      expect(item.related[5].text).toBe(
+        `${told} · 2 alerts · SPI · shipped · provider/partition-azure · found by CodeQL`,
+      );
+    }
+    for (const item of [alertChip, inspectAlert]) {
+      expect(item.title).toBe(`${told} · 2 alerts`);
+      expect(item.cause).toBe(item.title);
+      expect(item.related[0].text).toBe(item.title);
+    }
+    expect(alertLine.text).toContain(raw);
+    for (const value of [service, line, repoChip, inspectRepo, alertChip, inspectAlert])
+      expect(JSON.stringify(value)).not.toContain(secret.slice(0, secret.indexOf(" ")));
+  });
 });
 
 describe("a scanner title of any length", () => {
   const titles = {
     unspaced: "安".repeat(10_000),
     spaced: "安全 ".repeat(3_400),
+    "widest whole": "安".repeat(TITLE_MAX_CHARS),
+  } as const;
+  const shortened = {
+    unspaced: `${"安".repeat(TITLE_MAX_CHARS - 1)}…`,
+    spaced: `${"安全 ".repeat(39).trimEnd()}…`,
+    "widest whole": titles["widest whole"],
   } as const;
   it.each(
     SECURITY_FIXTURES.flatMap((name) =>
@@ -495,9 +627,16 @@ describe("a scanner title of any length", () => {
         SECURITY_CHIP_BYTE_BUDGET,
       );
       expect(one.chip, rule.key).toHaveProperty("reading");
-      expect(one.chip.title, rule.key).toBe(rule.key.includes(":code:") ? rule.key : rule.title);
+      expect(one.chip.title, rule.key).toBe(
+        rule.key.includes(":code:") ? shortened[kind] : rule.title,
+      );
       const detail = await tool(sweep, { rule: rule.key });
       expect(Buffer.byteLength(detail.text), rule.key).toBeLessThanOrEqual(SPI_RESULT_BYTE_BUDGET);
+      if (kind === "widest whole" && rule.key.includes(":code:")) {
+        expect(rule, rule.key).not.toHaveProperty("cut");
+        expect(detail.value.title, rule.key).toBe(titles[kind]);
+        expect(detail.text, rule.key).toContain(HELP.wide);
+      }
     }
   });
 
@@ -733,10 +872,61 @@ describe("a Security subject the latest sweep cannot show", () => {
       `campaign:security:${encodeURIComponent("CodeQL: java/x?y=1")}`,
       `campaign:security:${encodeURIComponent("CodeQL: java/log-injection").toLowerCase()}`,
       "campaign:security:CodeQL: java/log-injection",
+      `campaign:security:${encodeURIComponent("Fixture\tScanner: java/log-injection")}`,
+      `campaign:security:${encodeURIComponent("Fixture Scanner: java/log-injection")}`,
+      `campaign:security:${encodeURIComponent("Fixture Scanner: java/log-injection")}`,
+      `campaign:security:${encodeURIComponent(" Fixture Scanner: java/log-injection")}`,
+      `campaign:security:${encodeURIComponent("Fixture Scanner : java/log-injection")}`,
+      `campaign:security:${encodeURIComponent("Fixture  Scanner: java/log-injection")}`,
+      `campaign:security:${encodeURIComponent("Fixture Scanner: java/log injection")}`,
+      "campaign:security:Fixture+Scanner%3A%20java%2Flog-injection",
+      "campaign:security:Fixture Scanner%3A%20java%2Flog-injection",
+      `campaign:security:${encodeURIComponent("Fixture __proto__: java/log-injection")}`,
     ])
       expect(await chipFromSweep(later, crafted, journalOutputRedactor), crafted).toEqual({
         ok: false,
         reason: `Nothing in the latest sweep has the id ${crafted}.`,
       });
+  });
+
+  it("resolves the subject the producer saves for a scanner whose name has a space", async () => {
+    const input = fixtureInput();
+    for (const alerts of Object.values(input.facts.security.data ?? {}))
+      if (alerts.code)
+        alerts.code = alerts.code.map((alert) =>
+          alert.rule === "java/log-injection" ? { ...alert, tool: "Fixture Scanner" } : alert,
+        );
+    const drawn = projectWatch(input);
+    const campaign = drawn.campaigns.find(({ fact }) => fact.startsWith("Fixture Scanner: "));
+    if (!campaign) throw new Error("The producer drew no campaign for Fixture Scanner");
+    expect(campaign.id).toBe("campaign:security:Fixture%20Scanner%3A%20java%2Flog-injection");
+    const pane = drawn.security;
+    if (!pane) throw new Error("The 1106 snapshot has no pane");
+    const matches = rulesOf(pane)
+      .filter(({ key }) => key.endsWith(":code:Fixture Scanner:java/log-injection"))
+      .map(({ key }) => key);
+    expect(matches.length).toBeGreaterThan(0);
+    const saved = (campaigns: ViewSnapshot["campaigns"]) => ({
+      view: { ...drawn, campaigns },
+      facts: input.facts,
+      releases: { ...input.releases, records: input.releaseRecords },
+      reads: { ...input.reads, releases: input.releaseRecords },
+    });
+    const ctx = { ctx: input.context, appData: input.appData };
+    const current = latestSweep(() => saved(drawn.campaigns), ctx);
+    const gone = latestSweep(
+      () => saved(drawn.campaigns.filter(({ id }) => id !== campaign.id)),
+      ctx,
+    );
+    const FROM = "The campaign row this was started from is no longer drawn.";
+    for (const latest of [current, gone]) {
+      const packed = await chipFromSweep(latest, campaign.id, journalOutputRedactor);
+      if (!packed.ok) throw new Error(`${campaign.id}: ${packed.reason}`);
+      expect(packed.chip.chip).toMatchObject(
+        matches.length === 1
+          ? { kind: "security rule", reading: { from: FROM, rule: matches[0] } }
+          : { kind: "place", title: "Security", reading: { from: FROM, open: matches } },
+      );
+    }
   });
 });

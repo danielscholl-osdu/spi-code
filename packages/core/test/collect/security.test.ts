@@ -7,7 +7,6 @@ import {
   parseCodeAlert,
   parseDependencyAlert,
   readSecurity,
-  TITLE_MAX,
 } from "../../src/collect/security.js";
 import { SECURITY_EVERY_MS } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
@@ -126,7 +125,7 @@ describe("alert parsing", () => {
     expect(parseCodeAlert({ ...CODE, fullDescription: exact })?.fullDescription).toBe(exact);
   });
 
-  test("never cuts help or a title inside a word, so a credential across the cap leaves nothing", () => {
+  test("never cuts help inside a word, so a credential across the cap leaves nothing", () => {
     const token = "fixture-scanner-credential-across-the-cap";
     const lead = `${"word ".repeat(59)}a `;
     const help = parseCodeAlert({
@@ -140,29 +139,26 @@ describe("alert parsing", () => {
     expect(
       parseCodeAlert({ ...CODE, fullDescription: "安".repeat(HELP_MAX + 1) }),
     ).not.toHaveProperty("fullDescription");
-
-    const title = (description: string) => parseCodeAlert({ ...CODE, description })?.description;
-    expect(TITLE_MAX).toBe(120);
-    const long = title(`${"安全 ".repeat(100)}`);
-    expect([...(long ?? "")].length).toBeLessThanOrEqual(TITLE_MAX);
-    expect(long?.endsWith("安全…")).toBe(true);
-    expect(title(`${"x".repeat(TITLE_MAX - 3)} ${token}`)).toBe(`${"x".repeat(TITLE_MAX - 3)}…`);
-    expect(title("安".repeat(10_000))).toBe(CODE.rule);
-    expect(title("Comparison of narrow type with wide type in loop condition")).toBe(
-      "Comparison of narrow type with wide type in loop condition",
-    );
   });
 
-  test("says when it cut a rule's title or help, and says nothing when it kept both whole", () => {
+  test("keeps a rule's title as the scanner gave it, at any length", () => {
+    const title = (description: unknown) => parseCodeAlert({ ...CODE, description });
+    for (const long of [
+      "安".repeat(10_000),
+      "安全 ".repeat(3_400),
+      `${"w ".repeat(55)}${"x".repeat(80)}\n  tail`,
+    ]) {
+      expect(title(long)?.description).toBe(long);
+      expect(title(long)).not.toHaveProperty("cut");
+    }
+    expect(title(undefined)?.description).toBe(CODE.rule);
+  });
+
+  test("says when it cut a rule's help, and says nothing when it kept it whole", () => {
     const cut = (r: Record<string, unknown>) => parseCodeAlert({ ...CODE, ...r });
     expect(cut({ fullDescription: "word ".repeat(200) })?.cut).toBe(true);
-    expect(cut({ description: "安全 ".repeat(100) })?.cut).toBe(true);
-    expect(cut({ description: "安".repeat(TITLE_MAX + 1) })?.cut).toBe(true);
-    const whole = cut({
-      fullDescription: "y".repeat(HELP_MAX),
-      description: "x".repeat(TITLE_MAX),
-    });
-    expect(whole).not.toHaveProperty("cut");
+    expect(cut({ fullDescription: "安".repeat(HELP_MAX + 1) })?.cut).toBe(true);
+    expect(cut({ fullDescription: "y".repeat(HELP_MAX) })).not.toHaveProperty("cut");
     expect(cut({})).not.toHaveProperty("cut");
   });
 });
