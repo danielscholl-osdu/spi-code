@@ -3,6 +3,7 @@
 
 import { navigate, parseRoute, type Route, routeLabel } from "../app/navigation.js";
 import { openScopePicker } from "./picker.js";
+import { scopeOfRoute } from "./scopes.js";
 import { type AskTarget, type DraftFrom, NEW_THREAD, threadStore } from "./store.js";
 
 const isDraftRoute = (route: Route | undefined) =>
@@ -29,9 +30,14 @@ export function newThread() {
 }
 
 /** A draft in one scope, cursor in its text box, carrying a row as its chip when given one. */
-export function askIn(scope: string, target?: AskTarget | null) {
-  threadStore.getState().startDraft(scope, target ?? null, from());
+export function askIn(scope: string, target?: AskTarget | null, text?: string) {
+  threadStore.getState().startDraft(scope, target ?? null, from(), text);
   navigate({ kind: "thread", id: NEW_THREAD });
+}
+
+/** Ask Copilot in Find: a draft holding the sentence, scoped and carrying the open row as ⌘N would. */
+export function askFromFind(text: string) {
+  askIn(scopeOfRoute(parseRoute(window.location.hash)), threadStore.getState().target, text);
 }
 
 /** Ask about this: a draft in the row's fork with the row as its one chip. Nothing is sent. */

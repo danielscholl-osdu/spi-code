@@ -6,13 +6,11 @@ import { useEffect, useState } from "react";
 import { useStore } from "zustand";
 import { parseRoute, type Route } from "../../app/navigation.js";
 import { shiftShortcutLabel } from "../../app/shortcuts.js";
+import { scopeLabel } from "../../threads/scopes.js";
 import { type ThreadSummary, threadStore } from "../../threads/store.js";
 import { useNow } from "../evidence/useNow.js";
 import { Icon } from "../icons/Icon.js";
 import { SidebarGroup, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "./ui-sidebar.js";
-
-const PROGRAM = "program";
-const scopeLabel = (scope: string) => (scope === PROGRAM ? "Program" : scope);
 
 export function age(at: number, now: number): string {
   const minutes = Math.floor((now - at) / 60_000);

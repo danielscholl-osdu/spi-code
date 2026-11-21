@@ -564,7 +564,9 @@ it("ends the timeline with the item groups and hides the extra for a short readi
     ).toEqual(["Stopped", "Waiting on you"]);
     expect(timeline?.nextElementSibling?.nextElementSibling).toBeNull();
     expect(view.page.querySelector(".place-folded")).toBeNull();
-    expect(view.page.querySelector("section.place")?.nextElementSibling).toBeNull();
+    expect(view.page.querySelector("section.place")?.nextElementSibling?.className).toBe(
+      "scope-threads",
+    );
   } finally {
     await view.done();
   }

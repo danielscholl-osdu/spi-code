@@ -7,6 +7,7 @@ import { ReadLines, readLine, SelectionPage } from "../../components/evidence/Ev
 import { serviceEvidence } from "../../components/evidence/page-evidence.js";
 import { useNow } from "../../components/evidence/useNow.js";
 import { watchStore } from "../../store/watch.js";
+import { PLACE_SCOPES, scopeLabel } from "../../threads/scopes.js";
 import { threadStore } from "../../threads/store.js";
 import { clockTime } from "../../time.js";
 import { PROGRAM, type ThreadTab, type ThreadTabProps } from "./tab.js";
@@ -110,13 +111,14 @@ function EvidenceTab({ id, summary }: ThreadTabProps) {
       state === "read" || state === "cut" ? [source] : [],
     ) ?? [];
   const page = { areas: snapshot.areas, sweptAt: snapshot.sweptAt, logged, now };
-  const home = scope === PROGRAM ? null : serviceEvidence(scope, snapshot);
+  const place = scope === PROGRAM || PLACE_SCOPES.some(({ id }) => id === scope);
+  const home = place ? null : serviceEvidence(scope, snapshot);
   return (
     <div className="evidence thread-evidence">
       {started}
       <section aria-label={`${scope} evidence`} data-evidence-for="scope">
         <p className="evidence-lede">
-          {scope === PROGRAM ? "Program" : scope}
+          {scopeLabel(scope)}
           {` · sweep ended ${clockTime(snapshot.sweptAt, { now, hint: false })}`}
         </p>
         {home ? (
@@ -125,7 +127,9 @@ function EvidenceTab({ id, summary }: ThreadTabProps) {
           <p className="panel-empty" data-quiet="unread">
             {scope === PROGRAM
               ? "⌀ The program's evidence comes with a later build."
-              : "⌀ This fork was not read."}
+              : place
+                ? `⌀ ${scopeLabel(scope)}'s evidence comes with a later build.`
+                : "⌀ This fork was not read."}
           </p>
         )}
       </section>

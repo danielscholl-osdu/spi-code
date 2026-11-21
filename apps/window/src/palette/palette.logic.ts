@@ -33,6 +33,8 @@ import {
 } from "../app/routes.js";
 import { pinOf } from "../store/pins.js";
 import { plainTitle } from "../text.js";
+import { scopeLabel } from "../threads/scopes.js";
+import type { ThreadSummary } from "../threads/store.js";
 import { TABS } from "../views/service/tabs.js";
 import { causeReading } from "../views/today/CanWait.js";
 import { drawnCauses } from "../views/today/Table.js";
@@ -42,6 +44,7 @@ export type PaletteTarget =
   | { kind: "route"; route: Route }
   | { kind: "line"; id: string }
   | { kind: "cause"; id: string }
+  | { kind: "ask"; text: string }
   | { kind: "settings" };
 
 export type PaletteItem = {
@@ -60,7 +63,15 @@ export type PaletteItem = {
 };
 
 export type PaletteGroup = {
-  value: "go-to" | "services" | "blocked" | "waiting" | "can-wait" | `on:${string}`;
+  value:
+    | "go-to"
+    | "services"
+    | "threads"
+    | "blocked"
+    | "waiting"
+    | "can-wait"
+    | "ask"
+    | `on:${string}`;
   label: string;
   items: PaletteItem[];
 };
@@ -94,7 +105,11 @@ function routeItem(route: Route, kind: string, keywords: readonly string[] = [])
   };
 }
 
-function serviceChildren(body: ViewSnapshot, id: string): PaletteGroup | undefined {
+function serviceChildren(
+  body: ViewSnapshot,
+  id: string,
+  threads: readonly ThreadSummary[] | null,
+): PaletteGroup | undefined {
   const service = body.services?.find((entry) => entry.service === id);
   if (!service?.home) return undefined;
   const items: PaletteItem[] = [];
@@ -124,11 +139,47 @@ function serviceChildren(body: ViewSnapshot, id: string): PaletteGroup | undefin
       label: tab.label,
       kind: "",
       keywords: [id],
-      count: tab.count({ id, home: service.home, snapshot: body }),
+      count: tab.count({ id, home: service.home, snapshot: body, threads }),
       target: { kind: "route", route: { kind: "service", id, tab: tab.id } },
     });
   }
   return { value: `on:${id}`, label: `On ${id}`, items };
+}
+
+/** Every thread the host lists, by title, with its scope muted at the right. */
+function threadGroup(threads: readonly ThreadSummary[]): PaletteGroup {
+  return {
+    value: "threads",
+    label: "Threads",
+    items: threads
+      .filter(({ status }) => status !== "Can't be read")
+      .map(({ id, thread, status }) => ({
+        value: `thread:${id}`,
+        label: thread.title ?? "Untitled thread",
+        kind: scopeLabel(thread.scope),
+        keywords: [status],
+        target: { kind: "route", route: { kind: "thread", id } },
+      })),
+  };
+}
+
+/** The row ↵ on a sentence asks Copilot with: a draft holding it, in the scope ⌘N would pick. */
+export function askGroup(query: string, scope: string): PaletteGroup | undefined {
+  const text = query.trim();
+  if (!text) return undefined;
+  return {
+    value: "ask",
+    label: "Ask",
+    items: [
+      {
+        value: "ask",
+        label: "Ask Copilot",
+        kind: scopeLabel(scope),
+        keywords: [],
+        target: { kind: "ask", text },
+      },
+    ],
+  };
 }
 
 /** Today's Blocked, Waiting on you and Can wait rows, in Today's order and words. */
@@ -167,12 +218,14 @@ function todayGroups(briefing: SnapshotBody["briefing"] | undefined): PaletteGro
 }
 
 /**
- * Go to, Services, then Today's Blocked, Waiting on you and Can wait, from the registered routes
- * and the snapshot; empty groups and routes with no registered view are left out.
+ * Go to, Services, Threads, then Today's Blocked, Waiting on you and Can wait, from the registered
+ * routes, the snapshot and the host's threads; empty groups and routes with no registered view are
+ * left out.
  */
 export function buildPaletteGroups(
   body: ViewSnapshot | SnapshotBody | undefined,
   registry: Registry = DEFAULT_REGISTRY,
+  threads: readonly ThreadSummary[] | null = null,
 ): PaletteGroup[] {
   const reachable = (route: Route) => isReachable(route, registry);
   const services = treeServices(body?.tree)
@@ -180,7 +233,8 @@ export function buildPaletteGroups(
     .filter(reachable)
     .map((route) => {
       const item = routeItem(route, "service");
-      const children = body && "sweptAt" in body ? serviceChildren(body, route.id) : undefined;
+      const children =
+        body && "sweptAt" in body ? serviceChildren(body, route.id, threads) : undefined;
       return children ? { ...item, children } : item;
     });
   const groups: PaletteGroup[] = [
@@ -194,6 +248,7 @@ export function buildPaletteGroups(
       ],
     },
     { value: "services", label: "Services", items: services },
+    ...(reachable({ kind: "thread", id: "new" }) ? [threadGroup(threads ?? [])] : []),
     ...(reachable(TODAY) ? todayGroups(body?.briefing) : []),
   ];
   return groups.filter(({ items }) => items.length > 0);

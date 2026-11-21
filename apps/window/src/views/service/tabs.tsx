@@ -3,11 +3,13 @@
 
 import type { ServiceHome, ViewSnapshot } from "@spi-code/contracts";
 import type { ComponentType } from "react";
+import type { ThreadSummary } from "../../threads/store.js";
 import { Issues, issueCount, issuesHeld } from "./issues.js";
 import { Overview } from "./Overview.js";
 import { Pulls, pullCount, pullsHeld } from "./pulls.js";
 import { runsTab } from "./runs.js";
 import { SECURITY_TAB } from "./security.js";
+import { THREADS_TAB } from "./threads.js";
 import { UPSTREAM_TAB } from "./upstream.js";
 
 export type TabProps = {
@@ -18,6 +20,8 @@ export type TabProps = {
   row: string | undefined;
   /** Changes each time a station or door asks for the row again, so it takes focus again. */
   focus?: number | undefined;
+  /** The host's threads; null until it lists them. */
+  threads?: readonly ThreadSummary[] | null;
 };
 
 export type ServiceTab = {
@@ -38,4 +42,5 @@ export const TABS: readonly ServiceTab[] = [
   { id: "issues", label: "Issues", Panel: Issues, count: issueCount, held: issuesHeld },
   runsTab,
   SECURITY_TAB,
+  THREADS_TAB,
 ];

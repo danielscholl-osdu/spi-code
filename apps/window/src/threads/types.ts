@@ -135,6 +135,8 @@ export interface CopilotAccount {
 
 export interface ComposerProps {
   scope: ScopeOption;
+  /** The words a draft's text box opens with. */
+  initialText?: string | undefined;
   context: readonly ContextChip[];
   onRemoveContext(id: string): void;
   places: readonly PlaceOption[];
@@ -172,7 +174,7 @@ export interface ThreadViewProps extends ComposerProps {
   contextLine?: string | undefined;
   /** A draft's scope control, which opens the scope picker; once sent the scope is fixed. */
   onChangeScope?(): void;
-  /** What a draft shows under its composer. */
+  /** What a draft shows under its composer, and a thread between its timeline and composer. */
   below?: ReactNode;
   onApprovalDecision?(approval: Approval, approved: boolean): void;
 }

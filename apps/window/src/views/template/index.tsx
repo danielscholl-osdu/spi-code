@@ -19,6 +19,7 @@ import { Repositories } from "./Repositories.js";
 import { Rollout, rolloutLadder } from "./Rollout.js";
 import "./template.css";
 import { placePin } from "../../store/pins.js";
+import { ScopeThreads } from "../../threads/ScopeThreads.js";
 
 const TEMPLATE_REPOSITORY = "osdu-spi";
 const ROLLOUT = "rollout";
@@ -108,6 +109,7 @@ export default function Template({ store = watchStore }: { store?: typeof watchS
       <Place
         name="Template"
         pin={placePin("engineering-system")}
+        ask="template"
         reading={reading}
         snapshot={snapshot}
         services={treeServices(snapshot?.tree)}
@@ -249,6 +251,7 @@ export default function Template({ store = watchStore }: { store?: typeof watchS
             </div>
           </details>
         )}
+      <ScopeThreads scope="template" />
       {opened && marked && anchor && (
         <Popover anchor={anchor} selection={marked} content={opened} onClose={close} />
       )}

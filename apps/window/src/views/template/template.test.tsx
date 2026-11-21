@@ -198,7 +198,7 @@ it("omits empty and unshipped parts, including before the first sweep", async ()
   await mount(empty);
   expect(container.querySelector(".place-reading, details, [data-part]")).toBeNull();
   expect(container.querySelector(".template")?.textContent).not.toMatch(
-    /Threads|composer|not available yet|gate 3/,
+    /composer|not available yet|gate 3/,
   );
 });
 

@@ -29,6 +29,7 @@ export function ThreadView({
           onOpenLink={composer.onOpenLink}
           onApprovalDecision={onApprovalDecision}
         />
+        {below}
         <Composer {...composer} />
       </section>
     );

@@ -25,8 +25,10 @@ import { Autocomplete } from "@base-ui/react/autocomplete";
 import { Dialog } from "@base-ui/react/dialog";
 import { type ComponentProps, type ReactNode, useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
+import { parseRoute } from "../app/navigation.js";
 import {
   type Destination,
+  isReachable,
   lastTodayRoute,
   sameRoute,
   setOpenSelection,
@@ -37,9 +39,17 @@ import { PinControl } from "../components/pin/PinControl.js";
 import { ServiceMark, serviceMark } from "../components/sidebar/service-mark.js";
 import { isFixedPin, pin, togglePin, usePins } from "../store/pins.js";
 import type { createWatchStore } from "../store/watch.js";
+import { scopeOfRoute } from "../threads/scopes.js";
+import { askFromFind } from "../threads/start.js";
+import { NEW_THREAD, threadStore } from "../threads/store.js";
 import { openCause } from "../views/today/CanWait.js";
 import { openTodayLine } from "../views/today/Table.js";
-import { buildPaletteGroups, filterPaletteGroups, type PaletteItem } from "./palette.logic.js";
+import {
+  askGroup,
+  buildPaletteGroups,
+  filterPaletteGroups,
+  type PaletteItem,
+} from "./palette.logic.js";
 import "./palette.css";
 
 type PinState = "unpinned" | "pinned" | "always";
@@ -78,12 +88,28 @@ export function CommandPalette({
   /** Opens Settings on Readiness. */
   onSettings(): void;
 }) {
+  const asked = useRef(false);
   return (
-    <PaletteFrame open={open} onOpenChange={onOpenChange} label="Find or ask">
+    <PaletteFrame
+      open={open}
+      onOpenChange={onOpenChange}
+      label="Find or ask"
+      finalFocus={() => {
+        const draft = asked.current;
+        asked.current = false;
+        return draft
+          ? (document.querySelector<HTMLElement>(".thread-view--draft textarea") ?? false)
+          : true;
+      }}
+    >
       <PaletteContent
         store={store}
         onNavigate={onNavigate}
         onSettings={onSettings}
+        onAsk={(text) => {
+          asked.current = true;
+          askFromFind(text);
+        }}
         onClose={() => onOpenChange(false)}
       />
     </PaletteFrame>
@@ -131,11 +157,14 @@ function PaletteContent({
   store,
   onNavigate,
   onSettings,
+  onAsk,
   onClose,
 }: {
   store: ReturnType<typeof createWatchStore>;
   onNavigate(destination: Destination): void;
   onSettings(): void;
+  /** Ask Copilot: a draft holding the typed sentence. */
+  onAsk(text: string): void;
   onClose(): void;
 }) {
   const body = useStore(store, (state) => state.snapshot?.body);
@@ -143,8 +172,16 @@ function PaletteContent({
   const [highlighted, setHighlighted] = useState<string | undefined>(undefined);
   const registry = useRegistry();
   const pins = usePins();
-  const groups = useMemo(() => buildPaletteGroups(body, registry), [body, registry]);
-  const shown = useMemo(() => filterPaletteGroups(groups, query), [groups, query]);
+  const threads = useStore(threadStore, (state) => state.threads);
+  const groups = useMemo(
+    () => buildPaletteGroups(body, registry, threads),
+    [body, registry, threads],
+  );
+  const asks = isReachable({ kind: "thread", id: NEW_THREAD }, registry);
+  const shown = useMemo(() => {
+    const ask = asks && askGroup(query, scopeOfRoute(parseRoute(window.location.hash)));
+    return [...filterPaletteGroups(groups, query), ...(ask ? [ask] : [])];
+  }, [groups, query, asks]);
   const highlightedItem = shown
     .flatMap(({ items }) => items)
     .find(({ value }) => value === highlighted);
@@ -156,6 +193,7 @@ function PaletteContent({
     if (target.kind === "route")
       onNavigate(sameRoute(target.route, TODAY) ? lastTodayRoute() : target.route);
     else if (target.kind === "settings") onSettings();
+    else if (target.kind === "ask") onAsk(target.text);
     else if (target.kind === "line") openTodayLine(body?.briefing.lines, target.id);
     else if (body?.briefing.today?.causes?.rows.some(({ id }) => id === target.id))
       openCause(target.id);

@@ -1,0 +1,8 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+.thread-continue { box-sizing: border-box; flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; width: min(var(--thread-column), calc(100% - 44px)); margin: 0 auto 6px; font-size: var(--text-sm); }
+.thread-continue-lead { color: var(--text-muted); }
+.thread-continue button { padding: 2px 9px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.thread-continue button:hover { background: var(--surface-raised); }
+.thread-continue button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }

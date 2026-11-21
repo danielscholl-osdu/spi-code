@@ -364,14 +364,18 @@ it("opens the scope picker over the page from ⌘N and the compose icon, in side
   await newKey();
   expect(window.location.hash).toBe("#today");
   expect(pickerRows()).toEqual([
+    "Environment",
+    "Template",
     "search",
     "legal",
     ...services.filter((service) => !["search", "legal"].includes(service)),
   ]);
   expect(
-    [...(picker()?.querySelectorAll("li[data-divider]") ?? [])].map((li) => li.textContent),
-  ).toEqual(["partition2"]);
-  expect(picker()?.textContent).not.toMatch(/Program|Template|Environment|Azure\//);
+    [...(picker()?.querySelectorAll("li[data-divider]") ?? [])].map(
+      (li) => li.querySelector(".scope-picker-label")?.textContent,
+    ),
+  ).toEqual(["search", "partition"]);
+  expect(picker()?.textContent).not.toMatch(/Program|Azure\//);
 
   await filterPicker("ind");
   expect(pickerRows()).toEqual(["indexer", "indexer-queue"]);
@@ -395,7 +399,7 @@ it("opens the scope picker over the page from ⌘N and the compose icon, in side
   expect(compose.getAttribute("title")).toBe("New thread Ctrl+N");
   await click(compose);
   expect(window.location.hash).toBe("#upstream");
-  expect(pickerRows()[0]).toBe("search");
+  expect(pickerRows()[2]).toBe("search");
   await pickerKey("Escape");
   expect(picker()).toBeNull();
   expect(window.location.hash).toBe("#upstream");
@@ -1135,4 +1139,127 @@ it("posts one approval decision with the thread, turn and approval ids", () => {
       approved: false,
     },
   ]);
+});
+
+const go = (hash: string) =>
+  act(async () => {
+    window.location.hash = hash;
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+  });
+const find = () => document.querySelector<HTMLElement>('[role="dialog"][aria-label="Find or ask"]');
+
+async function askFind(text: string) {
+  await act(async () => {
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }));
+  });
+  const field = find()?.querySelector("input");
+  if (!field) throw new Error("No Find");
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(field, text);
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  expect(find()?.querySelector("[data-highlighted]")?.textContent).toMatch(/^Ask Copilot/);
+  await act(async () => {
+    field.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  });
+}
+
+it("opens a draft holding a sentence asked in Find, in the page's scope, and sends nothing", async () => {
+  await go("#engineering-system");
+  await askFind("Which forks have not adopted the last template change?");
+  expect(find()).toBeNull();
+  expect(window.location.hash).toBe("#thread/new");
+  expect(heading()).toBe("Ask in Template▾");
+  expect(container.querySelector("textarea")?.value).toBe(
+    "Which forks have not adopted the last template change?",
+  );
+
+  await askFind("And which of them have a release PR open?");
+  expect(heading()).toBe("Ask in Program▾");
+  expect(container.querySelector("textarea")?.value).toBe(
+    "And which of them have a release PR open?",
+  );
+  expect([...host.sent("thread.start"), ...host.sent("thread.send")]).toEqual([]);
+});
+
+it("continues a program answer in a scope it names, carrying the finding and its parent", async () => {
+  const finding: ChipResult = {
+    ok: true,
+    id: "finding:p1",
+    sweptAt: "2026-11-16T13:50:00Z",
+    trimmed: false,
+    bytes: 40,
+    attachment: { name: "context:finding:p1", content: '{"id":"finding:p1","kind":"finding"}' },
+  };
+  host.chips.set(finding.id, finding);
+  host.addThread("p1", { scope: "program", title: "Forks on 8.4" }, "Open");
+  await act(async () => host.relist());
+  await go("#thread/p1");
+  const base = { threadId: "p1", at: 1 };
+  await act(async () =>
+    host.events("p1", [
+      { ...base, sequence: 1, type: "thread.created", thread: { scope: "program" } },
+      { ...base, sequence: 2, type: "message.sent", messageId: "m1", message: { prompt: "Who?" } },
+      { ...base, sequence: 3, type: "turn.started", turnId: "u1", messageId: "m1" },
+      {
+        ...base,
+        sequence: 4,
+        type: "assistant.delta",
+        turnId: "u1",
+        text: "Search and legal pin 8.4, and the Template carries the bump. Storage does not.\n",
+      },
+      { ...base, sequence: 5, type: "turn.finished", turnId: "u1", outcome: "completed" },
+    ]),
+  );
+  expect(all(".thread-continue button").map((button) => button.textContent)).toEqual([
+    "legal ›",
+    "Template ›",
+    "Another scope…",
+  ]);
+
+  await click(buttonNamed("legal ›"));
+  expect(heading()).toBe("Ask in legal▾");
+  expect(container.querySelector(".thread-chips")?.textContent).toContain("Finding · Forks on 8.4");
+  await type("Bump it here.");
+  await click(buttonNamed("Send ⏎"));
+  expect(host.sent("thread.start").at(-1)?.payload).toMatchObject({
+    scope: "legal",
+    subject: "finding:p1",
+    parent: "p1",
+  });
+  expect(host.sent("thread.send").at(-1)?.payload.message.attachments).toEqual([
+    finding.attachment,
+  ]);
+});
+
+it("counts a service's Waiting and Working threads on its Threads tab as the sidebar shows them", async () => {
+  for (const id of readPins()) if (services.includes(id)) unpin(id);
+  await act(async () => pin("partition"));
+  host.addThread("a", { scope: "partition", title: "A" }, "Working");
+  host.addThread("b", { scope: "partition", title: "B" }, "Waiting on you");
+  host.addThread("c", { scope: "partition", title: "C" }, "Open");
+  host.addThread("d", { scope: "partition", title: "D" }, "Settled");
+  host.addThread("e", { scope: "legal", title: "E" }, "Working");
+  await act(async () => host.relist());
+  await go("#service/partition");
+  const tab = () => container.querySelector('[role="tab"][data-tab="threads"]')?.textContent;
+  const sidebar = () =>
+    all("#app-sidebar [data-nested] .sidebar-thread").filter(({ dataset }) =>
+      ["Working", "Waiting on you"].includes(dataset.status ?? ""),
+    ).length;
+  expect(sidebar()).toBe(2);
+  expect(tab()).toBe(`Threads${sidebar()}`);
+
+  host.statuses.set("c", "Working");
+  await act(async () => host.relist());
+  expect(sidebar()).toBe(3);
+  expect(tab()).toBe(`Threads${sidebar()}`);
+
+  await click(
+    container.querySelector<HTMLElement>('[role="tab"][data-tab="threads"]') as HTMLElement,
+  );
+  expect(
+    all(".scope-threads > .scope-threads-list .scope-thread-title").map((row) => row.textContent),
+  ).toEqual(["A", "B", "C"]);
+  expect(container.querySelector(".scope-threads-settled summary")?.textContent).toBe("Settled 1");
 });
