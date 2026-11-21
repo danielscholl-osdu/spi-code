@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import type { ViewSnapshot } from "@spi-code/contracts";
 import { useStore } from "zustand";
 import { navigate } from "../app/navigation.js";
 import { type PendingRequest, pendingRequests } from "./request-ownership.js";
@@ -9,7 +10,7 @@ import "./request-owner.css";
 
 /**
  * Requests threads opened that this sweep has not read: dashed, from the thread store, until a
- * sweep row holds the URL and its RequestOwner draws it solid instead.
+ * sweep's PR or MR row holds it and its RequestOwner draws it solid instead.
  */
 export function PendingRequests({
   sweep,
@@ -17,7 +18,7 @@ export function PendingRequests({
   forge,
   fork = false,
 }: {
-  sweep: unknown;
+  sweep: ViewSnapshot | null | undefined;
   scope?: string;
   forge?: "github" | "gitlab";
   /** Name each request's fork, where the list spans forks. */

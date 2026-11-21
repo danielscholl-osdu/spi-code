@@ -188,14 +188,16 @@ function OpenFork({
               <li key={cause.id}>
                 <span>{plainTitle(cause.headline)}</span>
                 {entry.count > 1 && <span>{entry.count}</span>}
-                {cause.kind === "release" &&
-                  entry.objects.map((object) => (
-                    <Fragment key={object.id}>
-                      <LinkPill link={{ label: object.label, url: object.url, kind: "pr" }} />
-                      <RequestOwner url={object.url} compact />
-                      {object.age && <span>open {ageInOneUnit(object.age)}</span>}
-                    </Fragment>
-                  ))}
+                {cause.kind === "release"
+                  ? entry.objects.map((object) => (
+                      <Fragment key={object.id}>
+                        <LinkPill link={{ label: object.label, url: object.url, kind: "pr" }} />
+                        <RequestOwner url={object.url} compact />
+                        {object.age && <span>open {ageInOneUnit(object.age)}</span>}
+                      </Fragment>
+                    ))
+                  : (cause.kind === "dependabot" || cause.kind === "other") &&
+                    entry.objects.map(({ id, url }) => <RequestOwner key={id} url={url} compact />)}
               </li>
             ))}
           </ul>

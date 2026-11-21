@@ -792,12 +792,14 @@ describe("Forks on the 16 Nov sweep", () => {
 
   it("draws a request dashed and pending before a sweep holds it, then solid and owned once", async () => {
     const swept = whole();
-    const found = todayMembers(swept.briefing).find(({ member }) => member.primary);
+    const found = todayMembers(swept.briefing).find(
+      ({ member }) => member.primary?.kind === "pr" || member.primary?.kind === "mr",
+    );
     if (!found?.member.primary) throw new Error("Fixture needs a request row");
     const { member } = found;
     const primary = found.member.primary;
     const unswept: ViewSnapshot = JSON.parse(JSON.stringify(swept), (_key, value) =>
-      value === primary.url ? `${primary.url}#unswept` : value,
+      value === primary.url ? primary.url.replace(/\d+\/?$/, "1$&") : value,
     );
     const thread = (id: string, url: string, title: string) => ({
       id,
@@ -862,6 +864,79 @@ describe("Forks on the 16 Nov sweep", () => {
     expect(
       sheet()?.querySelector(`[data-member="${member.id}"] [data-state="owned"]`),
     ).not.toBeNull();
+  });
+
+  it("marks a swept Can wait PR owned on its entry, on Today and the Forks sheet", async () => {
+    const swept = whole();
+    const url = "https://github.com/Azure/osdu-spi-search/pull/71";
+    const cause = swept.briefing.today?.causes?.rows.find(
+      ({ kind, forks }) =>
+        kind === "other" && forks.some(({ objects }) => objects.some((o) => o.url === url)),
+    );
+    if (!cause) throw new Error("16 Nov has Search #71 under Other PRs");
+    expect(todayMembers(swept.briefing).some(({ member }) => member.primary?.url === url)).toBe(
+      false,
+    );
+    const unswept: ViewSnapshot = JSON.parse(JSON.stringify(swept), (_key, value) =>
+      value === url ? `${url.slice(0, -2)}171` : value,
+    );
+    threadStore.setState({
+      threads: [
+        {
+          id: "governance-thread",
+          thread: {
+            scope: "search",
+            title: "Declare governance inputs",
+            request: {
+              forge: "github",
+              repository: "Azure/osdu-spi-search",
+              requestNumber: 71,
+              url,
+            },
+          },
+          status: "Open",
+          sequence: 1,
+          updatedAt: 1,
+          settledAt: null,
+          done: false,
+        },
+      ],
+    });
+    const marks = (scope: ParentNode | null | undefined) => ({
+      pending: scope?.querySelectorAll(`[data-state="pending"][data-request="${url}"]`).length ?? 0,
+      owned: scope?.querySelectorAll(`[data-state="owned"][data-request="${url}"]`).length ?? 0,
+    });
+    const causeRow = () =>
+      container.querySelector(`tr.today-row--cause[data-row=${JSON.stringify(cause.id)}]`);
+    const reading = () => ({
+      members: memberIds(),
+      count: causeRow()?.querySelector(".today-row-age")?.textContent,
+    });
+
+    const swap = await render(unswept);
+    await click(causeRow()?.querySelector(".today-row-what button"));
+    expect(marks(container)).toEqual({ pending: 1, owned: 0 });
+    const before = reading();
+    await swap(swept);
+    expect(marks(container)).toEqual({ pending: 0, owned: 1 });
+    const entry = causeRow()
+      ?.nextElementSibling?.querySelector('[data-fork="search"]')
+      ?.closest("[data-cause-entry]");
+    expect(marks(entry)).toEqual({ pending: 0, owned: 1 });
+    expect(reading()).toEqual(before);
+
+    window.location.hash = "#today/forks";
+    await swap(unswept);
+    await click(
+      fork("search")?.querySelector<HTMLButtonElement>(
+        'button[aria-label="search: show its rows"]',
+      ),
+    );
+    const sheet = () => fork("search")?.nextElementSibling;
+    expect(marks(sheet())).toEqual({ pending: 1, owned: 0 });
+    await swap(swept);
+    expect(marks(sheet())).toEqual({ pending: 0, owned: 1 });
+    expect(marks(sheet()?.querySelector(".forks-can-wait"))).toEqual({ pending: 0, owned: 1 });
   });
 
   it("presses a station on Forks and dims all the other reading columns", async () => {

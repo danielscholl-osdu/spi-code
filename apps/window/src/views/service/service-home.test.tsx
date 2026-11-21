@@ -258,7 +258,7 @@ it("draws a thread's PR dashed on the place before a sweep holds it, then solid 
     ?.work?.pulls.rows.find(({ state }) => state === "open");
   if (!pr) throw new Error("Fixture needs an open PR on search");
   const unswept: ViewSnapshot = JSON.parse(JSON.stringify(swept), (_key, value) =>
-    value === pr.url ? `${pr.url}#unswept` : value,
+    value === pr.url ? pr.url.replace(/\d+\/?$/, "1$&") : value,
   );
   const request = (url: string, forge: "github" | "gitlab") => ({
     id: `thread-${forge}`,
@@ -291,6 +291,66 @@ it("draws a thread's PR dashed on the place before a sweep holds it, then solid 
   await act(async () => navigate({ kind: "service", id: "search", tab: "upstream" }));
   expect(marks(mr)).toEqual({ pending: 1, owned: 0 });
 });
+
+const requestThread = (url: string, forge: "github" | "gitlab", requestNumber: number) => ({
+  id: `thread-${forge}`,
+  thread: {
+    scope: "search",
+    title: "Fix the request",
+    request: { forge, repository: "fixture/repository", requestNumber, url },
+  },
+  status: "Open" as const,
+  sequence: 1,
+  updatedAt: 1,
+  settledAt: null,
+  done: false,
+});
+const requestMarks = (url: string) => ({
+  pending: container.querySelectorAll(`[data-state="pending"][data-request="${url}"]`).length,
+  owned: container.querySelectorAll(`[data-state="owned"][data-request="${url}"]`).length,
+});
+
+it("keeps a thread's PR pending when only another PR's title spells its URL", async () => {
+  const snapshot = sixteenth();
+  const rows = snapshot.services?.find(({ service }) => service === "search")?.work?.pulls.rows;
+  const other = rows?.find(({ state }) => state === "open");
+  if (!other) throw new Error("Fixture needs an open PR on search");
+  const url = "https://github.com/Azure/osdu-spi-search/pull/171";
+  other.title = url;
+  threadStore.setState({ threads: [requestThread(url, "github", 171)] });
+  await mount(snapshot, "#service/search/pulls");
+  expect(requestMarks(url)).toEqual({ pending: 1, owned: 0 });
+});
+
+it.each([
+  ["a trailing slash", "pulls", "https://github.com/Azure/osdu-spi-search/pull/71/"],
+  ["an uppercase host", "pulls", "https://GITHUB.COM/Azure/osdu-spi-search/pull/71"],
+  [
+    "GitLab's route without /-/",
+    "upstream",
+    "https://community.opengroup.org/osdu/platform/system/search-service/merge_requests/910",
+  ],
+] as const)(
+  "marks a thread's request owned when the sweep spells its URL with %s",
+  async (_, tab, spelled) => {
+    const snapshot = sixteenth();
+    const canonical = {
+      pulls: "https://github.com/Azure/osdu-spi-search/pull/71",
+      upstream:
+        "https://community.opengroup.org/osdu/platform/system/search-service/-/merge_requests/910",
+    }[tab];
+    const respelled: ViewSnapshot = JSON.parse(JSON.stringify(snapshot), (_key, value) =>
+      value === canonical ? spelled : value,
+    );
+    const forge = tab === "pulls" ? "github" : "gitlab";
+    threadStore.setState({
+      threads: [requestThread(canonical, forge, tab === "pulls" ? 71 : 910)],
+    });
+    await mount(respelled, `#service/search/${tab}`);
+    expect(requestMarks(canonical)).toEqual({ pending: 0, owned: 0 });
+    expect(requestMarks(spelled)).toEqual({ pending: 0, owned: 1 });
+  },
+);
 
 it("shows a proven tracking issue only under All and keeps its companion on the PR", async () => {
   await mount(sixteenth(), "#service/search/issues");

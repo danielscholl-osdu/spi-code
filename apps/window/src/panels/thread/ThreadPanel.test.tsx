@@ -747,7 +747,25 @@ describe("Thread and Changes", () => {
       watchStore.setState({
         snapshot: {
           cursor: fixture.cursor,
-          body: { ...fixture, requestProbe: { url } } as ViewSnapshot,
+          body: {
+            ...fixture,
+            services: fixture.services?.map((service) =>
+              service.service === "partition" && service.work
+                ? {
+                    ...service,
+                    work: {
+                      ...service.work,
+                      pulls: {
+                        ...service.work.pulls,
+                        rows: service.work.pulls.rows.map((row, index) =>
+                          index === 0 ? { ...row, number: 42, url } : row,
+                        ),
+                      },
+                    },
+                  }
+                : service,
+            ),
+          },
         },
       });
     });

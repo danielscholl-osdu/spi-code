@@ -12,6 +12,7 @@ import {
 } from "../../app/navigation.js";
 import { LinkPill } from "../../components/kit/LinkPill.js";
 import { plainTitle } from "../../text.js";
+import { RequestOwner } from "../../threads/RequestOwner.js";
 import { forksWord } from "./fleet.js";
 import { ageInOneUnit, ForkName, Section } from "./parts.js";
 
@@ -35,6 +36,8 @@ const KIND_NAMES: Readonly<Record<CanWaitCause["kind"], string>> = {
   issue: "Issues",
   alert: "Alerts",
 };
+
+const PR_KINDS: ReadonlySet<CanWaitCause["kind"]> = new Set(["release", "dependabot", "other"]);
 
 const isCause = (open: { kind: string; id: string } | null, id: string) =>
   open?.kind === "cause" && open.id === id;
@@ -151,6 +154,8 @@ function CauseBody({
     pill: (
       <span key={fork.objects[0]?.id ?? fork.fork} data-cause-entry={index}>
         <ForkPill cause={cause} fork={fork} snapshot={snapshot} />
+        {PR_KINDS.has(cause.kind) &&
+          fork.objects.map(({ id, url }) => <RequestOwner key={id} url={url} compact />)}
       </span>
     ),
   }));
