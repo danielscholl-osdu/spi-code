@@ -173,6 +173,11 @@ export function ThreadPage({ id }: { id: string }) {
             running={false}
             scope={{ id: scope, label: scopeLabel(scope), icon: scopeIcon(scope) }}
             onChangeScope={() => openScopePicker({ mode: "change", current: scope })}
+            landsIn={
+              scope === "template" || scope === "environment"
+                ? { value: draft.landsIn ?? "asking", scope, onChange: state.setDraftLandsIn }
+                : undefined
+            }
             context={draftChips(draft)}
             onRemoveContext={state.removeDraftChip}
             notice={draftNotice(draft)}

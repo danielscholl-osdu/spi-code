@@ -92,8 +92,9 @@ export async function openSandboxedThread(
     return options.onPermissionRequest(request, invocation);
   };
 
+  const preflights = platform === "darwin" && workspace.clonePath !== undefined;
   const initialTools = sandboxToolList(customTools, state, workspace);
-  if (platform === "darwin") initialTools.push("builtin:bash");
+  if (preflights) initialTools.push("builtin:bash");
   const config: SessionConfig = {
     model: options.model ?? "auto",
     ...(options.reasoningEffort === undefined ? {} : { reasoningEffort: options.reasoningEffort }),
@@ -123,7 +124,7 @@ export async function openSandboxedThread(
   const updateTools = (availableTools: string[]) =>
     session.rpc.options.update({ availableTools, toolFilterPrecedence: "excluded" });
   try {
-    if (platform === "darwin") {
+    if (preflights) {
       try {
         setupDir = await mkdtemp(join(runtimePaths.canaryRoot, "shell-"));
         const script = join(setupDir, "env.sh");

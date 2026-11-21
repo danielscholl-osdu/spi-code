@@ -4,6 +4,7 @@
 import { Icon } from "../components/icons/Icon.js";
 import { AskingLine } from "./AskingLine.js";
 import { Composer } from "./Composer.js";
+import { LandsInChip } from "./LandsInChip.js";
 import { Timeline } from "./Timeline.js";
 import type { ThreadViewProps } from "./types.js";
 import "./threads.css";
@@ -14,6 +15,7 @@ export function ThreadView({
   activity,
   contextLine,
   onChangeScope,
+  landsIn,
   below,
   onApprovalDecision,
   ...composer
@@ -55,7 +57,7 @@ export function ThreadView({
           </button>
         </h2>
         <Composer {...composer} />
-        <AskingLine />
+        {landsIn ? <LandsInChip {...landsIn} /> : <AskingLine />}
         {below}
       </div>
     </section>

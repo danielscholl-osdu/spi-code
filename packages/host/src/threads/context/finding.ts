@@ -54,19 +54,22 @@ export function packFinding(threads: Threads, id: string, redactor: SpiRedactor)
     if (bytes(chip) > CHIP_BYTE_BUDGET) {
       trimmed = true;
       const note = `Over ${CHIP_BYTE_BUDGET} UTF-8 bytes, so the finding is cut. The thread ${threadId} holds the whole answer.`;
-      let kept = text;
-      chip = { ...whole, finding: `${kept}…`, trimmed: note };
-      // Each character is at least one byte of JSON, so cutting the excess in characters fits.
-      for (
-        let over = bytes(chip) - CHIP_BYTE_BUDGET;
-        over > 0;
-        over = bytes(chip) - CHIP_BYTE_BUDGET
-      ) {
-        if (!kept)
-          return refuse(`The finding for ${threadId} is over ${CHIP_BYTE_BUDGET} UTF-8 bytes.`);
-        kept = kept.slice(0, -over).replace(/[\uD800-\uDBFF]$/u, "");
-        chip = { ...whole, finding: `${kept}…`, trimmed: note };
+      const points = Array.from(text);
+      const cut = (length: number): Chip => ({
+        ...whole,
+        finding: `${points.slice(0, length).join("")}…`,
+        trimmed: note,
+      });
+      let low = 0;
+      let high = points.length;
+      while (low < high) {
+        const middle = Math.ceil((low + high) / 2);
+        if (bytes(cut(middle)) <= CHIP_BYTE_BUDGET) low = middle;
+        else high = middle - 1;
       }
+      if (low === 0)
+        return refuse(`The finding for ${threadId} is over ${CHIP_BYTE_BUDGET} UTF-8 bytes.`);
+      chip = cut(low);
     }
     const content = JSON.stringify(chip);
     return {
