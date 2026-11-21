@@ -152,6 +152,19 @@ describe("alert parsing", () => {
       "Comparison of narrow type with wide type in loop condition",
     );
   });
+
+  test("says when it cut a rule's title or help, and says nothing when it kept both whole", () => {
+    const cut = (r: Record<string, unknown>) => parseCodeAlert({ ...CODE, ...r });
+    expect(cut({ fullDescription: "word ".repeat(200) })?.cut).toBe(true);
+    expect(cut({ description: "安全 ".repeat(100) })?.cut).toBe(true);
+    expect(cut({ description: "安".repeat(TITLE_MAX + 1) })?.cut).toBe(true);
+    const whole = cut({
+      fullDescription: "y".repeat(HELP_MAX),
+      description: "x".repeat(TITLE_MAX),
+    });
+    expect(whole).not.toHaveProperty("cut");
+    expect(cut({})).not.toHaveProperty("cut");
+  });
 });
 
 describe("readSecurity", () => {

@@ -33,15 +33,15 @@ function severity(v: unknown): Severity | undefined {
 
 const INVISIBLE = /(?![\t\n\v\f\r])[\p{Cc}\p{Cf}]/gu;
 
-/** Scanner text on one line within max characters, cut only between words so a secret is never halved. */
-function oneLine(v: unknown, max: number): string | undefined {
+/** Scanner text on one line within max characters, cut only between words, and whether it was cut. */
+function oneLine(v: unknown, max: number): { text?: string; cut?: true } {
   const text = str(v)?.replace(INVISIBLE, "").replaceAll("`", "").replace(/\s+/g, " ").trim();
-  if (!text) return undefined;
+  if (!text) return {};
   const chars = [...text];
-  if (chars.length <= max) return text;
+  if (chars.length <= max) return { text };
   const kept = chars.slice(0, max).join("");
   const space = kept.lastIndexOf(" ");
-  return space > 0 ? `${kept.slice(0, space)}…` : undefined;
+  return space > 0 ? { text: `${kept.slice(0, space)}…`, cut: true } : { cut: true };
 }
 
 function tagsOf(v: unknown): string[] | undefined {
@@ -82,15 +82,18 @@ export function parseCodeAlert(r: Raw): CodeAlertFact | undefined {
   const sev = severity(r.severity);
   const ruleSeverity = str(r.ruleSeverity);
   const path = str(r.path);
-  const fullDescription = oneLine(r.fullDescription, HELP_MAX);
+  const help = oneLine(r.fullDescription, HELP_MAX);
+  const title = oneLine(r.description, TITLE_MAX);
+  const fullDescription = help.text;
   const tags = tagsOf(r.tags);
   return {
     number: r.number,
     ...(sev ? { severity: sev } : {}),
     ...(ruleSeverity ? { ruleSeverity } : {}),
     rule,
-    description: oneLine(r.description, TITLE_MAX) ?? rule,
+    description: title.text ?? rule,
     ...(fullDescription ? { fullDescription } : {}),
+    ...(help.cut || title.cut ? { cut: true as const } : {}),
     ...(tags ? { tags } : {}),
     tool: str(r.tool) ?? "",
     ...(path ? { path } : {}),

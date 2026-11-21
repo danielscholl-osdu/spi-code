@@ -42,10 +42,13 @@ export function unreadLists(pane: SecurityPane | undefined): string[] {
   );
 }
 
+/** Text cut before redaction could see it whole may end inside a secret, so the rule goes by its key. */
+const titleOf = (rule: SecurityRuleRow) => (rule.cut ? rule.key : rule.title);
+
 function ruleLine(rule: SecurityRuleRow, detail: boolean) {
   return {
     rule: rule.key,
-    title: rule.title,
+    title: titleOf(rule),
     worst: rule.severity,
     ...(detail ? said("sub", rule.sub) : {}),
     alerts: counted(rule.alerts),
@@ -199,8 +202,10 @@ function packed({ lane, rule, at }: NonNullable<ReturnType<typeof findRule>>, no
         }))
       : [],
   );
+  const help = rule.cut ? rule.opened.help : undefined;
+  const told = facts.filter(({ words }) => help === undefined || !words.includes(help));
   return {
-    title: rule.title,
+    title: titleOf(rule),
     at,
     reading: {
       lane: lane.id,
@@ -208,7 +213,7 @@ function packed({ lane, rule, at }: NonNullable<ReturnType<typeof findRule>>, no
       who: lane.figure.who,
       ...note,
       ...ruleLine(rule, true),
-      facts: facts.map(({ label, words }) => ({ label, words: wordsText(words) })),
+      facts: told.map(({ label, words }) => ({ label, words: wordsText(words) })),
       ...(also.length > 0 ? { also: also.map(({ words }) => wordsText(words)) } : {}),
       where: where.map((line) => ({
         repository: line.repository,

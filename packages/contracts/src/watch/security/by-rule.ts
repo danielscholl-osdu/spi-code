@@ -30,6 +30,8 @@ export const SecurityRuleRowSchema = z.strictObject({
   severity: z.string(),
   /** The scanner's own title. */
   title: z.string(),
+  /** The title or help was cut, at this read or an earlier one, before redaction could see it whole. */
+  cut: z.literal(true).optional(),
   sub: SecurityWordsSchema,
   ticks: z.array(SecurityTickSchema),
   /** The line under the strip. */

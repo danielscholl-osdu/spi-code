@@ -165,6 +165,10 @@ function row(input: SecurityInput, key: string, alerts: readonly SecurityAlert[]
   const held = strip.filter((t) => t.alerts > 0).sort((a, b) => b.alerts - a.alerts);
   const repositories = held.map((t) => t.repository);
   const title = (list === "code" ? first?.code?.description : first?.dependabot?.package) ?? key;
+  const cut = alerts.some(
+    ({ code }) =>
+      code && (code.cut || code.description.endsWith("…") || code.fullDescription?.endsWith("…")),
+  );
   const [top] = held;
   const spread: SecurityWords =
     held.length === 1 && top && !short
@@ -182,6 +186,7 @@ function row(input: SecurityInput, key: string, alerts: readonly SecurityAlert[]
     ...(worst ? { worst } : {}),
     severity: worst ? capital(worst) : "None",
     title,
+    ...(cut ? { cut: true as const } : {}),
     sub: sub(alerts, list, short),
     ticks: strip,
     spread,

@@ -68,10 +68,10 @@ async function tool(
   return { text: output, value: JSON.parse(output) };
 }
 
-/** Help as long as a sweep keeps it, in one-byte and three-byte characters, and five CWEs. */
+/** Help as long as a sweep keeps it whole, in one-byte and three-byte characters, and five CWEs. */
 const HELP = {
   none: "",
-  ascii: `${"Untrusted input reaches a sink without being checked first, so a caller can change what the call does. ".repeat(3).slice(0, 299).trimEnd()}…`,
+  ascii: `${"Untrusted input reaches a sink without being checked first, so a caller can change what the call does. ".repeat(3).slice(0, 299).trimEnd()}.`,
   wide: "安全".repeat(150),
 } as const;
 const CWES = ["cwe-079", "cwe-116", "cwe-020", "cwe-1333", "cwe-400"];
@@ -365,7 +365,7 @@ describe("scanner text", () => {
       (await tool(across.sweep, {}, known)).text,
     ];
     for (const text of texts) expect(text).not.toContain(secret.slice(0, 2));
-    expect(texts[0]).toContain(`${lead.trimEnd()}…`);
+    expect(findRule(across.pane, code.key)?.rule.opened.help).toBe(`${lead.trimEnd()}…`);
   });
 
   it("withholds the chips and the tool when the redactor cannot handle a value", async () => {
@@ -386,6 +386,91 @@ describe("scanner text", () => {
       await expect(run).rejects.not.toThrow("fixture-private-value");
     }
   });
+});
+
+describe("scanner text cut before redaction", () => {
+  const secret = "Qzfixture spaced-scanner-credential";
+  const { journal } = createToolOutputRedactor([secret]);
+  const titleLead = `${"w ".repeat(55)}`;
+  const helpLead = `${"word ".repeat(57)}fill `;
+  const prefix = secret.slice(0, secret.indexOf(" "));
+  const target = rulesOf(scenario("1116").pane).find(({ key }) => key.includes(":code:"));
+  if (!target) throw new Error("The 1116 scenario has no code rule");
+  const ruleId = target.key.split(":").slice(3).join(":");
+  const tool_ = target.key.split(":")[2] ?? "";
+
+  /** The five things Copilot is told about Security, with campaign subjects saved for this rule and for none. */
+  async function outputs(sweep: SavedSweep, key: string) {
+    const fact = `${tool_}: ${ruleId}`;
+    const none = "Fixture: no-such-rule";
+    const view: ViewSnapshot = {
+      ...sweep.view,
+      campaigns: [
+        ...sweep.view.campaigns,
+        ...[fact, none].map((entry) => ({
+          id: `campaign:security:${encodeURIComponent(entry)}`,
+          kind: "security" as const,
+          fact: entry,
+          forks: ["legal", "storage"],
+        })),
+      ],
+    };
+    const saved: SavedSweep = { ...sweep, view };
+    return {
+      place: (await chip(saved, "place:security", journal)).content,
+      rule: (await chip(saved, `security-rule:${key}`, journal)).content,
+      campaign: (await chip(saved, `campaign:security:${encodeURIComponent(fact)}`, journal))
+        .content,
+      fallback: (await chip(saved, `campaign:security:${encodeURIComponent(none)}`, journal))
+        .content,
+      tool: (await tool(saved, {}, journal)).text,
+      ruleTool: (await tool(saved, { rule: key }, journal)).text,
+    };
+  }
+
+  const cases = {
+    "cut at this read": (alert: CodeAlertFact) =>
+      parseCodeAlert({
+        ...alert,
+        description: `${titleLead}${secret} tail`,
+        fullDescription: `${helpLead}${secret} tail`,
+      }) ?? alert,
+    "held from an earlier read with the old cut": (alert: CodeAlertFact) => ({
+      ...alert,
+      description: `${titleLead}${prefix}…`,
+      fullDescription: `${`${helpLead}${secret} tail`.slice(0, HELP_MAX - 1).trimEnd()}…`,
+    }),
+  } as const;
+
+  it.each(Object.keys(cases) as (keyof typeof cases)[])(
+    "tells Copilot the rule id and no help when the text was %s, and the page still shows it",
+    async (kind) => {
+      const cutOne = (alert: CodeAlertFact) =>
+        alert.rule === ruleId && alert.tool === tool_ ? cases[kind](alert) : alert;
+      const { pane, sweep } = scenario("1116", cutOne);
+      const row = findRule(pane, target.key)?.rule;
+      if (!row) throw new Error(`${target.key} is gone`);
+      expect(row.title).toContain(prefix);
+      expect(row.opened.help).toContain(prefix);
+      const told = await outputs(sweep, target.key);
+      for (const [name, text] of Object.entries(told)) {
+        expect(text, name).not.toContain(prefix);
+        expect(text, name).not.toContain(helpLead.trimEnd());
+      }
+      const ruleChip = JSON.parse(told.rule) as { title: string; reading: { title: string } };
+      expect(ruleChip.title).toBe(target.key);
+      expect(ruleChip.reading.title).toBe(target.key);
+      const placeRules = (
+        JSON.parse(told.place) as { reading: { rules: { rule: string; title: string }[] } }
+      ).reading.rules;
+      expect(placeRules.find(({ rule }) => rule === target.key)?.title).toBe(target.key);
+      const whole = rulesOf(pane).find(
+        ({ key }) => key.includes(":code:") && !key.endsWith(`:${tool_}:${ruleId}`),
+      );
+      if (!whole) throw new Error("The 1116 scenario has one code rule");
+      expect(placeRules.find(({ rule }) => rule === whole.key)?.title).toBe(whole.title);
+    },
+  );
 });
 
 describe("a scanner title of any length", () => {
@@ -410,7 +495,7 @@ describe("a scanner title of any length", () => {
         SECURITY_CHIP_BYTE_BUDGET,
       );
       expect(one.chip, rule.key).toHaveProperty("reading");
-      expect(one.chip.title, rule.key).toBe(rule.title);
+      expect(one.chip.title, rule.key).toBe(rule.key.includes(":code:") ? rule.key : rule.title);
       const detail = await tool(sweep, { rule: rule.key });
       expect(Buffer.byteLength(detail.text), rule.key).toBeLessThanOrEqual(SPI_RESULT_BYTE_BUDGET);
     }

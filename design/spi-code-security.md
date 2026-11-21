@@ -69,7 +69,7 @@ The line under the strip names the repository that holds most of a rule only whe
 | R6 | Shipped upstream code's subtitle reads as the mock's. |
 | R7 | The grouped block keeps ≥ in a partial sweep. |
 | R8 | A program repository opens on GitHub; a fork opens its service page. |
-| R9 | Each rule or package has a subject of its own, `security-rule:` and its key, so a thread asked from it owns that rule alone and its chip packs that rule's facts and Where lines. Ask about this is scoped to the rule's fork when it sits in one fork and every list it draws on was read. A rule in several forks or only in a program repository is asked in Program once Ask about this offers Program on a row with no fork (spicode-xia.39); until then it shows no Ask. |
+| R9 | Each rule or package has a subject of its own, `security-rule:` and its key, so a thread asked from it owns that rule alone and its chip packs that rule's facts and Where lines. When the scanner's title or help was cut, Copilot is told the rule's key in place of the title and no help line; the page still draws both. Ask about this is scoped to the rule's fork when it sits in one fork and every list it draws on was read. A rule in several forks or only in a program repository is asked in Program once Ask about this offers Program on a row with no fork (spicode-xia.39); until then it shows no Ask. |
 | R10 | The mock's Campaign button and any other action on an opened row are not built; actions are M4. |
 | R11 | Figures agree with other pages by matching measure: the service Security tab's count is alerts in shipped code, without tests; Template tallies high and critical in shipped code. |
 | R12 | No snapshot: the place's title row and nothing under it. |
