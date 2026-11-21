@@ -5,7 +5,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { useStore } from "zustand";
 import { changesStore, diffOf } from "./changes-store.js";
 import type { ThreadTab, ThreadTabProps } from "./tab.js";
-import { useChanges, useRereadAfterTurn } from "./useChanges.js";
+import { useChanges, useReadWhileShown } from "./useChanges.js";
 import "./thread-tab.css";
 
 type File = Extract<NonNullable<ReturnType<typeof useChanges>>, { state: "read" }>["files"][number];
@@ -58,7 +58,7 @@ function Patch({ id, path }: { id: string; path: string }) {
 /** Each changed file against the commit the thread's branch was cut from, a unified diff when opened. */
 function Changes({ id, summary }: ThreadTabProps) {
   const changes = useChanges(id);
-  useRereadAfterTurn(id);
+  useReadWhileShown(id);
   const [open, setOpen] = useState<string | null>(null);
   const landsIn = summary?.thread.landsIn;
   const base =

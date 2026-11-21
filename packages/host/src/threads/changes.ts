@@ -1,9 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { constants } from "node:fs";
-import { open, realpath } from "node:fs/promises";
-import { join, relative, sep } from "node:path";
+import { lstat } from "node:fs/promises";
+import { join } from "node:path";
 import type { ExecResult } from "@spi-code/core";
 import type { ConfinedResult } from "../scopes/confined.js";
 import type { CommitIdentity, PrivilegedGit, WorktreeTarget } from "../scopes/git.js";
@@ -38,6 +37,8 @@ function data<T>(result: ExecResult<T>): T {
   return result.data;
 }
 
+const count = (value: string) => (/^\d+$/u.test(value) ? Number(value) : null);
+
 /** `git diff --numstat -z --no-renames`: binary files count as null. */
 export function parseNumstat(text: string): ChangedFile[] {
   return text
@@ -45,7 +46,6 @@ export function parseNumstat(text: string): ChangedFile[] {
     .filter(Boolean)
     .map((entry) => {
       const [added = "", removed = "", ...rest] = entry.split("\t");
-      const count = (value: string) => (/^\d+$/u.test(value) ? Number(value) : null);
       return {
         path: rest.join("\t"),
         added: count(added),
@@ -73,26 +73,33 @@ export function parseStatus(text: string): { uncommitted: boolean; untracked: st
   return { uncommitted, untracked };
 }
 
-/** An untracked regular file at its own path in the worktree, never through a link, or undefined. */
-async function readNew(worktree: string, path: string): Promise<Buffer | undefined> {
+/** A regular file at the path, not a link; a display filter, since the sandbox holds the read. */
+async function plainFile(worktree: string, path: string): Promise<boolean> {
   try {
-    const root = await realpath(worktree);
-    const real = await realpath(join(root, path));
-    if (relative(root, real) !== path.split("/").join(sep)) return undefined;
-    const handle = await open(real, constants.O_RDONLY | constants.O_NOFOLLOW);
-    try {
-      const info = await handle.stat();
-      if (!info.isFile() || info.size > FILE_LIMIT) return undefined;
-      return await handle.readFile();
-    } finally {
-      await handle.close();
-    }
+    const info = await lstat(join(worktree, path));
+    return info.isFile() && info.size <= FILE_LIMIT;
   } catch {
-    return undefined;
+    return false;
   }
 }
 
-const isBinary = (bytes: Buffer) => bytes.subarray(0, 8000).includes(0);
+/** Untracked files written to the object store by a confined read; their ids, or why none. */
+async function hashNew(
+  git: PrivilegedGit,
+  target: WorktreeTarget,
+  paths: readonly string[],
+): Promise<Map<string, string> | string> {
+  const plain = await Promise.all(paths.map((path) => plainFile(target.worktree.cwd, path)));
+  const files = paths.filter((_, index) => plain[index]);
+  if (files.length === 0) return "The new file could not be read.";
+  const hashed = await git.hashFiles(target, files);
+  if (!hashed.ok) return hashed.error;
+  const ids = hashed.data.split("\n").filter(Boolean);
+  if (ids.length !== files.length) return "The new file could not be read.";
+  return new Map(files.map((path, index) => [path, ids[index] ?? ""]));
+}
+
+const isBinary = (text: string) => text.slice(0, 8000).includes("\0");
 
 function lines(text: string): string[] {
   const all = text.split("\n");
@@ -100,10 +107,30 @@ function lines(text: string): string[] {
   return all;
 }
 
-async function untrackedFile(worktree: string, path: string): Promise<ChangedFile> {
-  const bytes = await readNew(worktree, path);
-  const added = bytes && !isBinary(bytes) ? lines(bytes.toString("utf8")).length : null;
+async function newFile(
+  git: PrivilegedGit,
+  target: WorktreeTarget,
+  path: string,
+  id: string | undefined,
+): Promise<ChangedFile> {
+  const text = id ? await git.blob(target, id, FILE_LIMIT) : undefined;
+  const added = text?.ok && !isBinary(text.data) ? lines(text.data).length : null;
   return { path, added, removed: added === null ? null : 0, untracked: true };
+}
+
+/** A file the base holds that is untracked now, as after a staged delete: the base against it. */
+async function againstBase(
+  git: PrivilegedGit,
+  target: WorktreeTarget,
+  base: string,
+  path: string,
+  id: string | undefined,
+): Promise<ChangedFile> {
+  const counted = id ? await git.diffBlob(target, base, path, id, "numstat") : undefined;
+  const [added, removed] = counted?.ok ? counted.data.split("\t") : [];
+  return added !== undefined && removed !== undefined
+    ? { path, added: count(added), removed: count(removed), untracked: false }
+    : { path, added: null, removed: null, untracked: true };
 }
 
 export async function readChanges(
@@ -115,13 +142,19 @@ export async function readChanges(
   const tracked = parseNumstat(data(await git.numstat(target, base)));
   const ahead = Number(data(await git.ahead(target, base)).trim());
   const head = data(await git.head(target)).trim();
-  const known = new Set(tracked.map(({ path }) => path));
-  const fresh = await Promise.all(
-    status.untracked
-      .filter((path) => !known.has(path))
-      .map((path) => untrackedFile(target.worktree.cwd, path)),
-  );
-  const files = [...tracked, ...fresh].sort((a, b) => (a.path < b.path ? -1 : 1));
+  const ids = status.untracked.length ? await hashNew(git, target, status.untracked) : new Map();
+  const idOf = (path: string) => (typeof ids === "string" ? undefined : ids.get(path));
+  const untracked = new Set(status.untracked);
+  const inBase = new Set(tracked.map(({ path }) => path).filter((path) => untracked.has(path)));
+  const files = await Promise.all([
+    ...tracked.map((file) =>
+      inBase.has(file.path) ? againstBase(git, target, base, file.path, idOf(file.path)) : file,
+    ),
+    ...status.untracked
+      .filter((path) => !inBase.has(path))
+      .map((path) => newFile(git, target, path, idOf(path))),
+  ]);
+  files.sort((a, b) => (a.path < b.path ? -1 : 1));
   return { state: "read", head, ahead, uncommitted: status.uncommitted, files };
 }
 
@@ -138,12 +171,19 @@ export async function readFileDiff(
   path: string,
 ): Promise<FileDiff> {
   const { untracked } = parseStatus(data(await git.statusAll(target)));
-  if (!untracked.includes(path)) return bounded(data(await git.diff(target, base, {}, path)));
-  const bytes = await readNew(target.worktree.cwd, path);
-  if (!bytes) return { state: "not read", reason: "The new file could not be read." };
-  if (isBinary(bytes))
+  const tracked = data(await git.diff(target, base, {}, path));
+  if (!untracked.includes(path)) return bounded(tracked);
+  const ids = await hashNew(git, target, [path]);
+  if (typeof ids === "string") return { state: "not read", reason: ids };
+  const id = ids.get(path) ?? "";
+  if (tracked)
+    return bounded(data(await git.diffBlob(target, base, path, id, "patch")).replaceAll(id, path));
+  const read = await git.blob(target, id, FILE_LIMIT);
+  if (!read.ok) return { state: "not read", reason: read.error };
+  const text = read.data;
+  if (isBinary(text))
     return { state: "read", patch: `Binary file ${path} is new.\n`, truncated: false };
-  const added = lines(bytes.toString("utf8"));
+  const added = lines(text);
   return bounded(
     [
       `--- /dev/null`,
@@ -164,6 +204,28 @@ function judged(result: ConfinedResult): CommitOutcome | undefined {
   return { outcome: "failed", reason: result.error };
 }
 
+const timedOut = (result: ConfinedResult) =>
+  !result.ok && result.code === null && !("refused" in result) && !("uncertain" in result);
+
+/** Git timed out and may still be running: HEAD moving is the only proof of a commit. */
+async function afterTimeout(
+  git: PrivilegedGit,
+  target: WorktreeTarget,
+  before: string,
+): Promise<CommitOutcome> {
+  const head = await git.head(target).catch(() => undefined);
+  if (!head?.ok)
+    return {
+      outcome: "not known",
+      reason:
+        "Git timed out and the head could not be read, so the commit may have been made. Refresh to check.",
+    };
+  const now = head.data.trim();
+  return now === before
+    ? { outcome: "not known", reason: "Git timed out before the head moved. Refresh to check." }
+    : { outcome: "committed", head: now };
+}
+
 /** Stages everything in the worktree and commits it, both confined. */
 export async function commitChanges(
   git: PrivilegedGit,
@@ -173,9 +235,12 @@ export async function commitChanges(
 ): Promise<CommitOutcome> {
   if (!parseStatus(data(await git.statusAll(target))).uncommitted)
     return { outcome: "refused", reason: "Nothing to commit." };
+  const before = data(await git.head(target)).trim();
   const staged = judged(await git.add(target, ["."]));
   if (staged) return staged;
-  const committed = judged(await git.commit(target, message, identity));
+  const result = await git.commit(target, message, identity);
+  if (timedOut(result)) return afterTimeout(git, target, before);
+  const committed = judged(result);
   if (committed) return committed;
   const head = await git.head(target).catch(() => undefined);
   return head?.ok

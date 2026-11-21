@@ -6,23 +6,26 @@ import { useStore } from "zustand";
 import { threadStore } from "../../threads/store.js";
 import { changesStore } from "./changes-store.js";
 
-/** The thread's worktree as last read; the first tab that shows it asks the host to read it. */
+/** The thread's worktree as last read. */
 export function useChanges(id: string) {
-  const changes = useStore(changesStore, (state) => state.changes[id]);
-  useEffect(() => {
-    if (!changesStore.getState().changes[id]) changesStore.getState().refresh(id);
-  }, [id]);
-  return changes;
+  return useStore(changesStore, (state) => state.changes[id]);
 }
 
-/** Reads the worktree again when a turn ends, since the turn may have changed it. */
-export function useRereadAfterTurn(id: string) {
+/** Reads the worktree when the tab is shown, and again when a turn ends, since it may have changed it. */
+export function useReadWhileShown(id: string) {
   const status = useStore(threadStore, (state) => state.threads?.find((t) => t.id === id)?.status);
-  const last = useRef(status);
+  const last = useRef({ id, status });
+  useEffect(() => {
+    changesStore.getState().refresh(id);
+  }, [id]);
   useEffect(() => {
     const was = last.current;
-    last.current = status;
-    if (was !== status && (was === "Working" || was === "Waiting on you"))
+    last.current = { id, status };
+    if (
+      was.id === id &&
+      was.status !== status &&
+      ["Working", "Waiting on you"].includes(was.status ?? "")
+    )
       changesStore.getState().refresh(id);
   }, [id, status]);
 }

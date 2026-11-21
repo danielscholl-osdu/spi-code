@@ -451,7 +451,11 @@ describe("Thread and Changes", () => {
       /^Asking\. A program thread changes no code\./u,
     );
     expect(commitButton(shell)).toBeUndefined();
-    expect((await shell.tab("Changes"))?.textContent).toContain("has no worktree");
+    const changes = await shell.tab("Changes");
+    await answer(shell, "thread.changes", "thread.changes.result", {
+      changes: { state: "asking" },
+    });
+    expect(changes?.textContent).toContain("has no worktree");
   });
 
   it("disables Commit while clean, lists both edits after Refresh with their diff, and commits", async () => {
@@ -492,6 +496,12 @@ describe("Thread and Changes", () => {
     ).toEqual(["removed", "added", "added"]);
 
     await shell.tab("Thread");
+    await answer(shell, "thread.changes", "thread.changes.result", {
+      changes: read(true, [
+        { path: "answer.txt", added: 2, removed: 1, untracked: false },
+        { path: "notes/new.txt", added: 2, removed: 0, untracked: true },
+      ]),
+    });
     expect(shell.$("[data-field=lands-in] dd")?.textContent).toContain(
       "spi/t1 · 0 commits · 2 files changed",
     );
@@ -512,6 +522,21 @@ describe("Thread and Changes", () => {
     expect(shell.posted().at(-1)?.type).toBe("thread.changes");
   });
 
+  it("reads the worktree again when the Thread tab is shown after a turn ended elsewhere", async () => {
+    savePanes({ open: { rightPanel: true } });
+    const shell = await mountShell("#thread/t1", [LANDED]);
+    await answer(shell, "thread.changes", "thread.changes.result", { changes: read(false) });
+    await shell.tab("Reading");
+    const asked = shell.posted().filter(({ type }) => type === "thread.changes").length;
+    await act(async () => threadStore.setState({ threads: [{ ...LANDED, status: "Working" }] }));
+    await act(async () => threadStore.setState({ threads: [LANDED] }));
+    await shell.tab("Thread");
+    expect(shell.posted().filter(({ type }) => type === "thread.changes")).toHaveLength(asked + 1);
+    await answer(shell, "thread.changes", "thread.changes.result", { changes: read(true) });
+    await typeMessage(shell, "Change it");
+    expect(commitButton(shell)?.disabled).toBe(false);
+  });
+
   it("says the worktree was not read and offers no commit", async () => {
     savePanes({ open: { rightPanel: true } });
     const shell = await mountShell("#thread/t1", [LANDED]);
@@ -520,7 +545,11 @@ describe("Thread and Changes", () => {
     });
     await typeMessage(shell, "Change it");
     expect(commitButton(shell)?.disabled).toBe(true);
-    expect((await shell.tab("Changes"))?.querySelector("[data-quiet=not-read]")?.textContent).toBe(
+    const changes = await shell.tab("Changes");
+    await answer(shell, "thread.changes", "thread.changes.result", {
+      changes: { state: "not read", reason: "Git is unavailable." },
+    });
+    expect(changes?.querySelector("[data-quiet=not-read]")?.textContent).toBe(
       "⌀ The worktree was not read. Git is unavailable.",
     );
   });

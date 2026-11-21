@@ -11,6 +11,7 @@ export type CommitResult = Payload<"thread.committed">["commit"];
 type Request = Extract<Message, { kind: "request" }>;
 
 const reading = { state: "reading" } as const;
+const tooLong = "A commit message is 10,000 characters at most.";
 const diffKey = (threadId: string, path: string) => `${threadId}\0${path}`;
 
 type ChangesState = {
@@ -30,20 +31,30 @@ export function diffOf(state: ChangesState, threadId: string, path: string) {
 
 export function createChangesStore(post: (message: Message) => void = postToHost) {
   const waiting = new Map<string, (reply: Message) => void>();
+  /** The newest read per thread or diff key; a reply to an older one is dropped. */
+  const latest = new Map<string, string>();
+  /** False when the contract refuses the payload, and nothing is sent. */
   const request = (
     type: Request["type"],
     payload: Request["payload"],
     then: (reply: Message) => void,
-  ) => {
+    newest?: string,
+  ): boolean => {
     const id = crypto.randomUUID();
     const parsed = parseMessage({ version: PROTOCOL_VERSION, id, kind: "request", type, payload });
-    if (!parsed.ok) throw new Error(`Window generated an invalid ${type}`);
-    waiting.set(id, then);
+    if (!parsed.ok) return false;
+    if (newest !== undefined) latest.set(newest, id);
+    const settle = (reply: Message) => {
+      if (newest !== undefined && latest.get(newest) !== id) return;
+      if (newest !== undefined) latest.delete(newest);
+      then(reply);
+    };
+    waiting.set(id, settle);
     try {
       post(parsed.message);
     } catch {
       waiting.delete(id);
-      then({
+      settle({
         version: PROTOCOL_VERSION,
         id,
         kind: "response",
@@ -51,6 +62,7 @@ export function createChangesStore(post: (message: Message) => void = postToHost
         payload: { code: "host_unavailable", message: "The host is not connected." },
       });
     }
+    return true;
   };
   const failure = (reply: Message, fallback: string) =>
     reply.type === "error" ? reply.payload.message : fallback;
@@ -64,17 +76,28 @@ export function createChangesStore(post: (message: Message) => void = postToHost
         changes: { ...changes, [threadId]: reading },
         diffs: without(diffs, threadId),
       }));
-      request("thread.changes", { threadId }, (reply) => {
-        const changes: ThreadChanges =
-          reply.type === "thread.changes.result"
-            ? reply.payload.changes
-            : { state: "not read", reason: failure(reply, "The host did not read the worktree.") };
-        set((state) => ({ changes: { ...state.changes, [threadId]: changes } }));
-      });
+      for (const key of latest.keys()) if (key.startsWith(`${threadId}\0`)) latest.delete(key);
+      const sent = request(
+        "thread.changes",
+        { threadId },
+        (reply) => {
+          const changes: ThreadChanges =
+            reply.type === "thread.changes.result"
+              ? reply.payload.changes
+              : {
+                  state: "not read",
+                  reason: failure(reply, "The host did not read the worktree."),
+                };
+          set((state) => ({ changes: { ...state.changes, [threadId]: changes } }));
+        },
+        threadId,
+      );
+      if (!sent) throw new Error("Window generated an invalid thread.changes");
     };
     /** The host went away: a commit in flight may or may not have run. A new host is read again. */
     const lose = (reason: string, restarted: boolean) => {
       waiting.clear();
+      latest.clear();
       const commits = { ...get().commits };
       for (const [threadId, commit] of Object.entries(commits))
         if (commit.outcome === "committing") commits[threadId] = { outcome: "not known", reason };
@@ -91,25 +114,34 @@ export function createChangesStore(post: (message: Message) => void = postToHost
       readDiff(threadId, path) {
         const key = diffKey(threadId, path);
         set(({ diffs }) => ({ diffs: { ...diffs, [key]: reading } }));
-        request("thread.diff", { threadId, path }, (reply) => {
-          const diff: FileDiff =
-            reply.type === "thread.diff.result"
-              ? reply.payload.diff
-              : { state: "not read", reason: failure(reply, "The host did not read the diff.") };
-          set(({ diffs }) => ({ diffs: { ...diffs, [key]: diff } }));
-        });
+        const sent = request(
+          "thread.diff",
+          { threadId, path },
+          (reply) => {
+            const diff: FileDiff =
+              reply.type === "thread.diff.result"
+                ? reply.payload.diff
+                : { state: "not read", reason: failure(reply, "The host did not read the diff.") };
+            set(({ diffs }) => ({ diffs: { ...diffs, [key]: diff } }));
+          },
+          key,
+        );
+        if (!sent) throw new Error("Window generated an invalid thread.diff");
       },
       commit(threadId, message) {
         if (get().commits[threadId]?.outcome === "committing") return;
-        set(({ commits }) => ({ commits: { ...commits, [threadId]: { outcome: "committing" } } }));
-        request("thread.commit", { threadId, message }, (reply) => {
-          const commit: CommitResult =
+        const done = (commit: CommitResult | { outcome: "committing" }) =>
+          set(({ commits }) => ({ commits: { ...commits, [threadId]: commit } }));
+        done({ outcome: "committing" });
+        const sent = request("thread.commit", { threadId, message }, (reply) => {
+          done(
             reply.type === "thread.committed"
               ? reply.payload.commit
-              : { outcome: "not known", reason: failure(reply, "The host gave no result.") };
-          set(({ commits }) => ({ commits: { ...commits, [threadId]: commit } }));
+              : { outcome: "not known", reason: failure(reply, "The host gave no result.") },
+          );
           refresh(threadId);
         });
+        if (!sent) done({ outcome: "refused", reason: tooLong });
       },
       receive(input) {
         const parsed = parseMessage(input);

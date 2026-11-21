@@ -994,9 +994,10 @@ describe("privileged Git", () => {
       : T extends object
         ? T[keyof T]
         : never;
-    // add's paths are validated worktree paths, never options.
-    type Add = Parameters<PrivilegedGit["add"]>;
-    type Input = Inputs<PrivilegedGit[Exclude<keyof PrivilegedGit, "add">]> | Add[0] | Add[2];
+    // add's and hashFiles' paths are validated worktree paths, never options.
+    type Paths = "add" | "hashFiles";
+    type Add = Parameters<PrivilegedGit[Paths]>;
+    type Input = Inputs<PrivilegedGit[Exclude<keyof PrivilegedGit, Paths>]> | Add[0] | Add[2];
     type Lists = Extract<Input | Fields<Input> | Fields<Fields<Input>>, readonly unknown[]>;
     const noLists: [Lists] extends [never] ? true : false = true;
     type Variadic = {
@@ -1021,13 +1022,16 @@ describe("privileged Git", () => {
         "addBranchWorktree",
         "addWorktree",
         "ahead",
+        "blob",
         "checkoutDetached",
         "clone",
         "commit",
         "constructor",
         "dataRoot",
         "diff",
+        "diffBlob",
         "fetch",
+        "hashFiles",
         "head",
         "headIsAncestorOf",
         "listWorktrees",

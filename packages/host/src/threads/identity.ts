@@ -8,38 +8,60 @@ import type { CommitIdentity } from "../scopes/git.js";
 
 type UserFields = { name?: string; email?: string };
 
-function unquote(raw: string): string {
+const escapes: Record<string, string> = { n: "\n", t: "\t", b: "\b", "\\": "\\", '"': '"' };
+
+/** One value as git reads it, from `rest` on line `at` through any continued lines. */
+function readValue(lines: string[], at: number, rest: string): { value?: string; last: number } {
   let value = "";
   let quoted = false;
-  for (let index = 0; index < raw.length; index += 1) {
-    const char = raw[index];
+  let spaces = "";
+  let line = rest;
+  let index = at;
+  for (let column = 0; column < line.length; column += 1) {
+    const char = line[column] ?? "";
+    if (!quoted && /\s/u.test(char)) {
+      if (value) spaces += " ";
+      continue;
+    }
+    if (!quoted && (char === "#" || char === ";")) break;
+    value += spaces;
+    spaces = "";
     if (char === '"') quoted = !quoted;
-    else if (!quoted && (char === "#" || char === ";")) break;
-    else if (char === "\\") {
-      const next = raw[++index];
-      value += next === "n" ? "\n" : next === "t" ? "\t" : (next ?? "");
-    } else value += char;
+    else if (char !== "\\") value += char;
+    else if (column === line.length - 1) {
+      if (index + 1 >= lines.length) break;
+      index += 1;
+      line = lines[index] ?? "";
+      column = -1;
+    } else {
+      column += 1;
+      const escaped = escapes[line[column] ?? ""];
+      if (escaped === undefined) return { last: index };
+      value += escaped;
+    }
   }
-  return value.trim();
+  return quoted ? { last: index } : { value, last: index };
 }
 
 /** The `[user]` name and email of one git config file; includes are not followed. */
 export function parseUserIdentity(text: string): UserFields {
   const found: UserFields = {};
+  const lines = text.split(/\r?\n/u);
   let inUser = false;
-  for (const line of text.split(/\r?\n/u)) {
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
     const section = /^\s*\[([^\]]*)\]\s*(.*)$/u.exec(line);
     let body = line;
     if (section) {
       inUser = (section[1] ?? "").trim().toLowerCase() === "user";
       body = section[2] ?? "";
     }
-    if (!inUser) continue;
     const entry = /^\s*([A-Za-z][\w-]*)\s*(?:=(.*))?$/u.exec(body);
     if (!entry || entry[2] === undefined) continue;
+    const { value, last } = readValue(lines, index, entry[2]);
+    index = last;
     const key = (entry[1] ?? "").toLowerCase();
-    const value = unquote(entry[2]);
-    if (key !== "name" && key !== "email") continue;
+    if (!inUser || (key !== "name" && key !== "email")) continue;
     if (value) found[key] = value;
     else delete found[key];
   }
