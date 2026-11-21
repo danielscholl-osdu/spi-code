@@ -5,7 +5,13 @@ import { resolvePointer, type ViewSnapshot } from "@spi-code/contracts";
 import { z } from "zod";
 import { readPlace } from "../threads/context/places.js";
 import { redactSpiText, redactSpiValue, type SpiRedactor } from "../threads/context/redaction.js";
-import { paneReading, ruleReading, unreadLists } from "../threads/context/security.js";
+import {
+  paneReading,
+  ruleReading,
+  securityAt,
+  securityState,
+  unreadLists,
+} from "../threads/context/security.js";
 import {
   areaEnvelopes,
   governedBy,
@@ -195,26 +201,24 @@ const READS: readonly SpiRead<Fields>[] = [
       "Security: open alerts by lane (shipped SPI code, shipped upstream code, tests and tooling), each rule or package with its forks, fix and age, and the lists not read. With rule (a rule's key), that rule's facts and where it sits by repository and file.",
     args: z.strictObject({ rule: z.string().min(1).optional() }),
     read: ({ view }, { rule }) => {
-      const state = readState(areaEnvelopes(view, ["security"]));
+      const state = securityState(view);
       const notRead = unreadLists(view.security);
       const lists = notRead.length > 0 ? { listsNotRead: notRead } : {};
-      if (rule === undefined) {
-        const reading = paneReading(view.security, true);
-        return {
-          place: "Security",
-          at: "/security",
-          state,
-          value: { ...lists, ...(typeof reading === "string" ? { reading } : reading) },
-          lists: ["rules"],
-        };
-      }
-      const { title, at, reading } = ruleReading(view, rule);
+      const found =
+        rule === undefined
+          ? { title: "Security", at: undefined, reading: paneReading(view.security, true) }
+          : ruleReading(view, rule);
+      const at = securityAt(view, found.at);
       return {
-        place: title,
-        at: at ?? "/security",
+        place: found.title,
+        ...(at === undefined ? {} : { at }),
         state,
-        value: { ...lists, ...(typeof reading === "string" ? { reading } : reading) },
-        lists: ["facts", "where", "advisories"],
+        value: {
+          ...lists,
+          ...(typeof found.reading === "string" ? { reading: found.reading } : found.reading),
+        },
+        lists: rule === undefined ? ["rules"] : ["facts", "where", "advisories"],
+        always: true,
       };
     },
   }),
@@ -319,15 +323,21 @@ function fit(value: Fields, lists: readonly string[]): Fields {
 const WITHHELD = "SPI tool output withheld.";
 
 function resultJson(value: Fields, lists: readonly string[], journal: SpiRedactor): string {
+  let text: string;
   try {
     const safe = redactSpiValue(value, journal);
     if (safe === null || typeof safe !== "object" || Array.isArray(safe)) {
       throw new Error(WITHHELD);
     }
-    return JSON.stringify(lists.length ? fit(safe as Fields, lists) : safe);
+    text = JSON.stringify(lists.length ? fit(safe as Fields, lists) : safe);
   } catch {
     throw new Error(WITHHELD);
   }
+  if (Buffer.byteLength(text) > SPI_RESULT_BYTE_BUDGET)
+    throw new Error(
+      `SPI tool output is over ${SPI_RESULT_BYTE_BUDGET} UTF-8 bytes even with its lists cut.`,
+    );
+  return text;
 }
 
 async function answerFor(

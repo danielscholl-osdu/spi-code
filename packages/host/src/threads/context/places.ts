@@ -8,10 +8,14 @@ import {
   type ViewSnapshot,
 } from "@spi-code/contracts";
 import {
+  campaignReading,
   paneReading,
   ruleReading,
+  SECURITY_CAMPAIGN,
   SECURITY_CHIP_BYTE_BUDGET,
   SECURITY_TOOL,
+  securityAt,
+  securityState,
   unreadLists,
 } from "./security.js";
 import {
@@ -89,7 +93,7 @@ export const PLACES: Readonly<Record<string, Place>> = {
   "place:security": {
     place: "Security",
     at: "/security",
-    state: areas("security"),
+    state: securityState,
     own: ({ security }) => ({
       reading: paneReading(security),
       notRead: unreadLists(security),
@@ -137,13 +141,27 @@ export function readPlace(view: ViewSnapshot, id: string): PlaceRead | undefined
       reading: content ?? NOT_READ,
     };
   }
-  if (id.startsWith(SECURITY_RULE_SUBJECT)) {
-    const { title, at, reading } = ruleReading(view, id.slice(SECURITY_RULE_SUBJECT.length));
+  const campaign = id.startsWith(SECURITY_CAMPAIGN) ? campaignReading(view, id) : undefined;
+  if (campaign && !campaign.rule) {
+    const evidence = securityAt(view);
+    return {
+      place: campaign.title,
+      ...(evidence === undefined ? {} : { at: evidence }),
+      state: securityState(view),
+      reading: campaign.reading,
+      notRead: unreadLists(view.security),
+      fit: { budget: SECURITY_CHIP_BYTE_BUDGET, lists: ["rules"], tool: SECURITY_TOOL },
+    };
+  }
+  if (campaign || id.startsWith(SECURITY_RULE_SUBJECT)) {
+    const { title, at, reading } =
+      campaign ?? ruleReading(view, id.slice(SECURITY_RULE_SUBJECT.length));
+    const evidence = securityAt(view, at);
     return {
       place: title,
       kind: "security rule",
-      at: at ?? "/security",
-      state: areas("security")(view),
+      ...(evidence === undefined ? {} : { at: evidence }),
+      state: securityState(view),
       reading,
       notRead: unreadLists(view.security),
       fit: {
@@ -157,10 +175,11 @@ export function readPlace(view: ViewSnapshot, id: string): PlaceRead | undefined
   if (!place) return undefined;
   const state = place.state(view);
   const own = place.own?.(view);
+  const at = id === "place:security" ? securityAt(view) : place.at;
   if (own)
     return {
       place: place.place,
-      ...(place.at === undefined ? {} : { at: place.at }),
+      ...(at === undefined ? {} : { at }),
       state,
       ...own,
     };

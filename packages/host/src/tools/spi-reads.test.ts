@@ -114,14 +114,18 @@ describe("SPI read tools over the saved sweep", () => {
 
   it("says 'not read' for an area the sweep did not read, never zero or empty", async () => {
     const security = await call("spi_security");
-    expect(security).toEqual({
+    expect(security).toMatchObject({
       place: "Security",
       sweptAt: view.sweptAt,
       at: "/security",
       read: "not read",
       areas: [{ area: "security", state: "unread" }],
       notRead: ["security"],
+      headline: "Security not read.",
     });
+    expect(security.listsNotRead).toHaveLength(view.security?.unread.length ?? -1);
+    for (const counted of ["totals", "lanes", "rules"])
+      expect(security).not.toHaveProperty(counted);
     const releases = await call("spi_release_notes");
     expect(releases).toMatchObject({ read: "not read", notRead: ["releases"] });
     expect(releases).not.toHaveProperty("lines");

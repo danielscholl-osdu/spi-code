@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 import { readFileSync } from "node:fs";
-import type { InspectResult, SecurityPane, ViewSnapshot } from "@spi-code/contracts";
-import type { CodeAlertFact } from "@spi-code/core";
+import type { SecurityPane, ViewSnapshot } from "@spi-code/contracts";
+import { type CodeAlertFact, HELP_MAX, parseCodeAlert } from "@spi-code/core";
 import { createToolOutputRedactor, journalOutputRedactor } from "@spi-code/threads";
 import { describe, expect, it } from "vitest";
 import {
@@ -11,16 +11,21 @@ import {
   type SecurityFixture,
   securitySweep,
 } from "../../../test/watch/security-fixture.js";
-import { detailFeedPath, recordedSnapshotPath } from "../../../test/watch/snapshot-fixture.js";
+import { fixtureInput, recordedSnapshotPath } from "../../../test/watch/snapshot-fixture.js";
 import { FakeSession } from "../../testing/fake-session.js";
 import { buildPermissionGate } from "../../tools/permission-gate.js";
 import { SPI_RESULT_BYTE_BUDGET, spiReadTools, spiToolProvider } from "../../tools/spi-reads.js";
+import { projectWatch } from "../../watch/project.js";
 import { areaEnvelopes } from "../../watch/provenance.js";
 import { chipFromSweep } from "./draft.js";
-import { readPlace } from "./places.js";
 import type { SpiRedactor } from "./redaction.js";
-import { findRule, SECURITY_CHIP_BYTE_BUDGET, wordsText } from "./security.js";
-import type { SavedSweep } from "./sweep.js";
+import {
+  findRule,
+  SECURITY_CHIP_BYTE_BUDGET,
+  unreadLists as unreadListsOf,
+  wordsText,
+} from "./security.js";
+import { latestSweep, type SavedSweep } from "./sweep.js";
 
 const recorded: ViewSnapshot = JSON.parse(readFileSync(recordedSnapshotPath, "utf8"));
 
@@ -173,6 +178,14 @@ describe.each(SECURITY_FIXTURES)("Security's context on the %s scenario", (name)
     }
   });
 
+  it("keeps every rule key whole through the redactor, so a refreshed chip still finds its rule", async () => {
+    for (const rule of rulesOf(pane)) {
+      const subject = `security-rule:${rule.key}`;
+      expect(journalOutputRedactor.value(subject)).toBe(subject);
+      expect((await chip(sweep, subject)).id).toBe(subject);
+    }
+  });
+
   it("names each list not read and is partial while one is", async () => {
     const { chip: packed } = await chip(sweep, "place:security");
     const lists = pane.unread.map(({ repository }) => repository);
@@ -181,6 +194,72 @@ describe.each(SECURITY_FIXTURES)("Security's context on the %s scenario", (name)
         (packed.notRead as string[]).some((entry) => entry.endsWith(` in ${repository}`)),
       ).toBe(true);
     if (lists.length) expect(packed.completeness).toBe("partial");
+  });
+});
+
+describe("Security's read state, as the page has it", () => {
+  const STATES = {
+    "1116": "read",
+    partial: "partly read",
+    retained: "partly read",
+    failed: "not read",
+    clean: "read",
+    single: "read",
+  } as const;
+
+  it.each(SECURITY_FIXTURES)("reads the %s scenario as its pane does", async (name) => {
+    const { pane, sweep } = scenario(name);
+    const state = STATES[name];
+    const rule = rulesOf(pane)[0]?.key ?? "spi:dep:none";
+    for (const args of [{}, { rule }]) {
+      const { value } = await tool(sweep, args);
+      expect(value.read, JSON.stringify(args)).toBe(state);
+      expect(value.listsNotRead ?? [], JSON.stringify(args)).toHaveLength(pane.unread.length);
+    }
+    for (const id of ["place:security", `security-rule:${rule}`])
+      expect((await chip(sweep, id)).chip.completeness, id).toBe(
+        state === "read" ? "complete" : "partial",
+      );
+  });
+
+  it("tells Copilot what the page shows before the first read, naming every list", async () => {
+    const { pane, view, sweep } = scenario("failed");
+    const unread: SavedSweep = {
+      ...sweep,
+      view: {
+        ...view,
+        areas: view.areas.map((entry) =>
+          entry.area === "security"
+            ? { ...entry, envelope: { source: "security", state: "unread" as const } }
+            : entry,
+        ),
+      },
+    };
+    expect(pane.unread).toHaveLength(15);
+    for (const args of [{}, { rule: "spi:dep:any" }]) {
+      const { value } = await tool(unread, args);
+      expect(value.read).toBe("not read");
+      expect(value.listsNotRead).toHaveLength(15);
+    }
+    expect((await tool(unread)).value.headline).toBe("Security not read.");
+    const place = await chip(unread, "place:security");
+    expect(place.chip.reading).toMatchObject({ headline: "Security not read." });
+    expect(place.chip.notRead).toEqual(expect.arrayContaining(unreadListsOf(pane)));
+  });
+
+  it("reads a saved snapshot with no pane as not read, whatever its area says", async () => {
+    const { view, sweep } = scenario("1116");
+    const { security: _, ...bare } = view;
+    const none: SavedSweep = { ...sweep, view: bare };
+    for (const args of [{}, { rule: "spi:dep:any" }]) {
+      const { value } = await tool(none, args);
+      expect(value).toMatchObject({ read: "not read", reading: "not read" });
+      expect(value).not.toHaveProperty("at");
+    }
+    for (const id of ["place:security", "security-rule:spi:dep:any"]) {
+      const { chip: packed } = await chip(none, id);
+      expect(packed).toMatchObject({ reading: "not read", completeness: "partial", evidence: [] });
+    }
   });
 });
 
@@ -269,6 +348,26 @@ describe("scanner text", () => {
       expect(text).toContain("Rotate [redacted] before release.");
   });
 
+  it("leaves no part of a known credential the help's cut falls across", async () => {
+    const secret = "Qzfixture-scanner-credential-across-the-cap";
+    const lead = `${"word ".repeat(59)}a `;
+    const { journal: known } = createToolOutputRedactor([secret]);
+    const across = scenario("1116", (alert) =>
+      alert.rule === code?.key.split(":").at(-1)
+        ? (parseCodeAlert({ ...alert, fullDescription: `${lead}${secret} tail` }) ?? alert)
+        : alert,
+    );
+    expect([...lead].length).toBeLessThan(HELP_MAX - 1);
+    if (!code) throw new Error("The 1116 scenario has no code rule");
+    const texts = [
+      (await chip(across.sweep, `security-rule:${code.key}`, known)).content,
+      (await tool(across.sweep, { rule: code.key }, known)).text,
+      (await tool(across.sweep, {}, known)).text,
+    ];
+    for (const text of texts) expect(text).not.toContain(secret.slice(0, 2));
+    expect(texts[0]).toContain(`${lead.trimEnd()}…`);
+  });
+
   it("withholds the chips and the tool when the redactor cannot handle a value", async () => {
     if (!code) throw new Error("The 1116 scenario has no code rule");
     const refusing = {
@@ -289,6 +388,51 @@ describe("scanner text", () => {
   });
 });
 
+describe("a scanner title of any length", () => {
+  const titles = {
+    unspaced: "安".repeat(10_000),
+    spaced: "安全 ".repeat(3_400),
+  } as const;
+  it.each(
+    SECURITY_FIXTURES.flatMap((name) =>
+      (Object.keys(titles) as (keyof typeof titles)[]).map((kind) => [name, kind] as const),
+    ),
+  )("keeps every %s chip and tool result within budget with a %s title", async (name, kind) => {
+    const { pane, sweep } = scenario(name, (alert) =>
+      withHelp(HELP.wide)(parseCodeAlert({ ...alert, description: titles[kind] }) ?? alert),
+    );
+    const place = await chip(sweep, "place:security");
+    expect(Buffer.byteLength(place.content)).toBeLessThanOrEqual(SECURITY_CHIP_BYTE_BUDGET);
+    expect(Buffer.byteLength((await tool(sweep)).text)).toBeLessThanOrEqual(SPI_RESULT_BYTE_BUDGET);
+    for (const rule of rulesOf(pane)) {
+      const one = await chip(sweep, `security-rule:${rule.key}`);
+      expect(Buffer.byteLength(one.content), rule.key).toBeLessThanOrEqual(
+        SECURITY_CHIP_BYTE_BUDGET,
+      );
+      expect(one.chip, rule.key).toHaveProperty("reading");
+      expect(one.chip.title, rule.key).toBe(rule.title);
+      const detail = await tool(sweep, { rule: rule.key });
+      expect(Buffer.byteLength(detail.text), rule.key).toBeLessThanOrEqual(SPI_RESULT_BYTE_BUDGET);
+    }
+  });
+
+  it("bounds the tool's final bytes when a field no cap covers is over budget", async () => {
+    const long = "r".repeat(20_000);
+    const { pane, sweep } = scenario("1116", (alert) => ({ ...alert, rule: long }));
+    const rule = rulesOf(pane).find(({ key }) => key.endsWith(long));
+    if (!rule) throw new Error("No rule carries the long id");
+    const tools = spiToolProvider(spiReadTools(() => sweep, journalOutputRedactor)).offer();
+    const session = new FakeSession({
+      tools,
+      availableTools: tools.map(({ name }) => `custom:${name}`),
+      onPermissionRequest: buildPermissionGate(),
+    });
+    const run = session.callTool("spi_security", { rule: rule.key });
+    await expect(run).rejects.toThrow(`over ${SPI_RESULT_BYTE_BUDGET} UTF-8 bytes`);
+    expect(Buffer.byteLength((await tool(sweep)).text)).toBeLessThanOrEqual(SPI_RESULT_BYTE_BUDGET);
+  });
+});
+
 describe("a Security subject the latest sweep cannot show", () => {
   const { view, sweep } = scenario("1116");
 
@@ -304,6 +448,41 @@ describe("a Security subject the latest sweep cannot show", () => {
     const unread = await chip(partial.sweep, "security-rule:spi:dep:closed-since");
     expect(unread.chip.reading).toMatchObject({
       open: "No open alert in the lists read this sweep; a list not read may still hold it.",
+    });
+  });
+
+  it("finds a rule that moved lane in its lane now, and names the lanes when it is open in several", async () => {
+    const { pane } = scenario("1116");
+    const lanes = new Map(pane.lanes.map((lane) => [lane.id, lane.figure.label]));
+    const rest = (key: string) => key.slice(key.indexOf(":"));
+    const keys = rulesOf(pane).map(({ key }) => key);
+    const lanesOf = (key: string) =>
+      pane.lanes.filter(({ byRule }) => byRule.rules.some((rule) => rest(rule.key) === rest(key)));
+    const moved = keys.find((key) => lanesOf(key).length === 1);
+    const several = keys.find((key) => lanesOf(key).length === 2);
+    if (!moved || !several) throw new Error("The 1116 scenario lacks a rule in one or two lanes");
+    const away = (key: string) =>
+      [...lanes.keys()].find((id) => !lanesOf(key).some((lane) => lane.id === id)) ?? "";
+    const [now] = lanesOf(moved);
+    const one = await chip(sweep, `security-rule:${away(moved)}${rest(moved)}`);
+    expect(one.chip).toMatchObject({
+      id: `security-rule:${away(moved)}${rest(moved)}`,
+      kind: "security rule",
+      reading: { rule: moved, lane: now?.id, moved: `Open in ${now?.figure.label} now.` },
+      evidence: [findRule(pane, moved)?.at],
+    });
+    const detail = await tool(sweep, { rule: `${away(moved)}${rest(moved)}` });
+    expect(detail.value).toMatchObject({ rule: moved, moved: `Open in ${now?.figure.label} now.` });
+    const both = await chip(sweep, `security-rule:${away(several)}${rest(several)}`);
+    const named = lanesOf(several).map(({ id }) => `${id}${rest(several)}`);
+    expect(both.chip.reading).toEqual({
+      rule: `${away(several)}${rest(several)}`,
+      open: `No open alert in ${lanes.get(away(several) as never)} this sweep; open in ${lanesOf(
+        several,
+      )
+        .map(({ figure }) => figure.label)
+        .join(" and ")}.`,
+      rules: named,
     });
   });
 
@@ -333,25 +512,79 @@ describe("a Security subject the latest sweep cannot show", () => {
     expect((await tool(bare)).value).toMatchObject({ reading: "not read" });
   });
 
-  it("sends a subject saved from an old Security row to the inspector, which reads no reading", async () => {
-    const asked: string[] = [];
-    const feed: InspectResult[] = JSON.parse(readFileSync(detailFeedPath, "utf8"));
-    const sample = feed[0] as InspectResult;
-    const inspecting: SavedSweep = {
-      ...sweep,
-      inspect: async (id) => {
-        asked.push(id);
-        return { kind: "queue item", result: { ...sample, id } };
-      },
+  it("resolves a subject saved from an old Security row through the inspector or the pane", async () => {
+    const input = fixtureInput();
+    const drawn = projectWatch(input);
+    const pane = drawn.security;
+    if (!pane) throw new Error("The 1106 snapshot has no pane");
+    const tail = (key: string) => key.slice(key.indexOf(":code:") + ":code:".length);
+    const lone = rulesOf(pane).find(
+      ({ key }) =>
+        key.includes(":code:") &&
+        rulesOf(pane).filter((rule) => rule.key.endsWith(`:code:${tail(key)}`)).length === 1,
+    );
+    if (!lone) throw new Error("The 1106 snapshot has no code rule in one lane");
+    const fact = tail(lone.key).replace(":", ": ");
+    const projected: ViewSnapshot = {
+      ...drawn,
+      campaigns: [
+        ...drawn.campaigns,
+        {
+          id: `campaign:security:${encodeURIComponent(fact)}`,
+          kind: "security",
+          fact,
+          forks: ["legal", "storage"],
+        },
+      ],
     };
-    const old = ["alert:osdu-spi-storage:dependabot:12", "campaign:cve:CVE-2026-0001"];
-    for (const id of old) {
-      expect(readPlace(view, id)).toBeUndefined();
-      expect(await chipFromSweep(() => inspecting, id, journalOutputRedactor)).toMatchObject({
-        ok: true,
-        chip: { id, chip: { id, kind: "queue item", title: sample.title } },
-      });
+    const saved = {
+      view: projected,
+      facts: input.facts,
+      releases: { ...input.releases, records: input.releaseRecords },
+      reads: { ...input.reads, releases: input.releaseRecords },
+    };
+    const latest = latestSweep(() => saved, { ctx: input.context, appData: input.appData });
+    const alert = projected.briefing.repositories.rows
+      .flatMap(({ sections }) => sections.flatMap(({ lines }) => lines))
+      .find(({ id }) => id?.startsWith("alert:"));
+    if (!alert?.id) throw new Error("The 1106 snapshot has no alert line");
+    expect(await chipFromSweep(latest, alert.id, journalOutputRedactor)).toMatchObject({
+      ok: true,
+      chip: { id: alert.id, chip: { id: alert.id, kind: "repository line", title: alert.text } },
+    });
+    const FROM = "The campaign row this was started from is no longer drawn.";
+    const campaigns = projected.campaigns.filter(({ kind }) => kind === "security");
+    expect(campaigns.length).toBeGreaterThan(1);
+    const shapes = new Set<string>();
+    for (const campaign of campaigns) {
+      const matches = rulesOf(pane).filter(({ key }) =>
+        key.endsWith(`:code:${campaign.fact.replace(": ", ":")}`),
+      );
+      const packed = await chipFromSweep(latest, campaign.id, journalOutputRedactor);
+      if (!packed.ok) throw new Error(`${campaign.id}: ${packed.reason}`);
+      const { chip: one } = packed.chip;
+      expect(one.id).toBe(campaign.id);
+      const [only] = matches;
+      if (only && matches.length === 1) {
+        shapes.add("rule");
+        expect(one).toMatchObject({
+          kind: "security rule",
+          title: only.title,
+          reading: { from: FROM, rule: only.key },
+        });
+      } else {
+        shapes.add("place");
+        expect(one).toMatchObject({
+          kind: "place",
+          title: "Security",
+          reading: { from: FROM, open: matches.map(({ key }) => key) },
+        });
+      }
     }
-    expect(asked).toEqual(old);
+    expect(shapes).toEqual(new Set(["rule", "place"]));
+    expect(await chipFromSweep(latest, "campaign:security:gone", journalOutputRedactor)).toEqual({
+      ok: false,
+      reason: "Nothing in the latest sweep has the id campaign:security:gone.",
+    });
   });
 });

@@ -10,7 +10,7 @@ import {
   type SecurityWords,
   type ViewSnapshot,
 } from "@spi-code/contracts";
-import { NOT_READ } from "./sweep.js";
+import { areaEnvelopes, NOT_READ, type ReadState, readState } from "./sweep.js";
 
 /** What a Security chip may hold, so it travels with seven others in a message. */
 export const SECURITY_CHIP_BYTE_BUDGET = 2000;
@@ -81,6 +81,22 @@ export function paneReading(pane: SecurityPane | undefined, detail = false) {
   };
 }
 
+/** The area's envelope says when the sweep ran; whether Security was read is the pane's to say. */
+export function securityState(view: ViewSnapshot): ReadState {
+  const state = readState(areaEnvelopes(view, ["security"]));
+  const pane = view.security;
+  if (!pane)
+    return { ...state, read: NOT_READ, notRead: [...new Set([...state.notRead, "security"])] };
+  return {
+    ...state,
+    read: !pane.read ? NOT_READ : pane.unread.length > 0 ? "partly read" : "read",
+  };
+}
+
+/** The pane's pointer for spi_evidence; a snapshot with no pane has nothing there. */
+export const securityAt = (view: ViewSnapshot, at?: string) =>
+  view.security ? (at ?? "/security") : undefined;
+
 export const ruleSubject = (key: string) => `${SECURITY_RULE_SUBJECT}${key}`;
 
 export function findRule(pane: SecurityPane | undefined, key: string) {
@@ -92,19 +108,82 @@ export function findRule(pane: SecurityPane | undefined, key: string) {
   return undefined;
 }
 
+export const SECURITY_CAMPAIGN = "campaign:security:";
+const FROM = "The campaign row this was started from is no longer drawn.";
+
+/** A code rule whose key ends in a campaign's `tool: rule` fact, in any lane. */
+function campaignRules(pane: SecurityPane | undefined, fact: string) {
+  return (pane?.lanes ?? []).flatMap((lane) =>
+    lane.byRule.rules.flatMap((rule) => {
+      const rest = rule.key.slice(`${lane.id}:code:`.length);
+      const split = rule.key.startsWith(`${lane.id}:code:`)
+        ? [...rest.matchAll(/:/g)].some(
+            ({ index }) => `${rest.slice(0, index)}: ${rest.slice(index + 1)}` === fact,
+          )
+        : false;
+      return split ? [rule.key] : [];
+    }),
+  );
+}
+
+/** A campaign subject saved before the pane: its one rule, or the page with the rules it now is. */
+export function campaignReading(view: ViewSnapshot, id: string) {
+  const campaign = view.campaigns.find((entry) => entry.id === id && entry.kind === "security");
+  if (!campaign) return undefined;
+  const keys = campaignRules(view.security, campaign.fact);
+  const [only] = keys;
+  const rule = only && keys.length === 1 ? findRule(view.security, only) : undefined;
+  if (rule) return { rule: true, ...packed(rule, { from: FROM }) };
+  const page = paneReading(view.security);
+  return {
+    rule: false,
+    title: "Security",
+    at: undefined,
+    reading: { from: FROM, open: keys, ...(typeof page === "string" ? { reading: page } : page) },
+  };
+}
+
+/** The same scanner and rule, or the same package, open in another lane. */
+function elsewhere(pane: SecurityPane, key: string) {
+  const rest = key.slice(key.indexOf(":"));
+  return pane.lanes.flatMap((lane) => {
+    const other = `${lane.id}${rest}`;
+    return other === key ? [] : (findRule(pane, other) ?? []);
+  });
+}
+
 /** One rule or package as its opened row draws it: its facts, its Where lines and the other bars. */
 export function ruleReading(view: ViewSnapshot, key: string) {
   const pane = view.security;
   const found = findRule(pane, key);
   if (!found) {
     if (!pane?.read) return { title: key, at: undefined, reading: UNREAD };
+    const others = elsewhere(pane, key);
+    const [only] = others;
+    if (only && others.length === 1)
+      return packed(only, { moved: `Open in ${only.lane.figure.label} now.` });
+    const unread = pane.unread.length > 0;
+    const was = pane.lanes.find(({ id }) => key.startsWith(`${id}:`))?.figure.label;
     const open =
-      pane.unread.length > 0
-        ? "No open alert in the lists read this sweep; a list not read may still hold it."
-        : "No open alert this sweep.";
-    return { title: key, at: undefined, reading: { rule: key, open } };
+      others.length > 1 && was
+        ? `No open alert in ${was} this sweep; open in ${others.map(({ lane }) => lane.figure.label).join(" and ")}.`
+        : unread
+          ? "No open alert in the lists read this sweep; a list not read may still hold it."
+          : "No open alert this sweep.";
+    return {
+      title: key,
+      at: undefined,
+      reading: {
+        rule: key,
+        open,
+        ...(others.length > 1 ? { rules: others.map(({ rule }) => rule.key) } : {}),
+      },
+    };
   }
-  const { lane, rule, at } = found;
+  return packed(found);
+}
+
+function packed({ lane, rule, at }: NonNullable<ReturnType<typeof findRule>>, note = {}) {
   const { facts, where, also } = rule.opened;
   const advisories = facts.flatMap(({ advisories }) =>
     advisories
@@ -122,6 +201,7 @@ export function ruleReading(view: ViewSnapshot, key: string) {
       lane: lane.id,
       label: lane.figure.label,
       who: lane.figure.who,
+      ...note,
       ...ruleLine(rule, true),
       facts: facts.map(({ label, words }) => ({ label, words: wordsText(words) })),
       ...(also.length > 0 ? { also: also.map(({ words }) => wordsText(words)) } : {}),
