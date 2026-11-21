@@ -64,6 +64,21 @@ describe("factsSchema", () => {
     expect(factsSchema.parse(emptyFacts())).toEqual(emptyFacts());
   });
 
+  it("keeps a code alert's help and tags, and parses one written before the sweep read them", () => {
+    const facts = fixtureFacts();
+    const repo = Object.values(facts.security.data ?? {}).find(
+      (alerts) => (alerts.code?.length ?? 0) > 1,
+    );
+    const [first, second] = repo?.code ?? [];
+    if (!first || !second) throw new Error("fixture has code alerts");
+    Object.assign(first, {
+      fullDescription: "Synthetic help.",
+      tags: ["security", "external/cwe/cwe-352"],
+    });
+    expect("fullDescription" in second || "tags" in second).toBe(false);
+    expect(factsSchema.parse(structuredClone(facts))).toEqual(facts);
+  });
+
   it.each(Object.entries(malformed()))(
     "rejects %s, naming the path",
     (_name, [key, value, path]) => {

@@ -363,6 +363,8 @@ const codeAlertFact = z.object({
   ruleSeverity: z.string().optional(),
   rule: z.string(),
   description: z.string(),
+  fullDescription: z.string().optional(),
+  tags: z.array(z.string()).optional(),
   tool: z.string(),
   path: z.string().optional(),
   url: z.string(),

@@ -9,9 +9,13 @@ import { errorText, pool } from "../util.js";
 
 const DEPENDABOT_JQ = `.[] | {number, severity: .security_advisory.severity, package: .dependency.package.name, ecosystem: .dependency.package.ecosystem, manifest: .dependency.manifest_path, scope: .dependency.scope, fixed: .security_vulnerability.first_patched_version.identifier, advisory: .security_advisory.ghsa_id, cve: .security_advisory.cve_id, summary: .security_advisory.summary, url: .html_url, createdAt: .created_at}`;
 
-const CODE_JQ = `.[] | {number, severity: .rule.security_severity_level, ruleSeverity: .rule.severity, rule: .rule.id, description: .rule.description, tool: .tool.name, path: .most_recent_instance.location.path, url: .html_url, createdAt: .created_at}`;
+export const CODE_JQ = `.[] | {number, severity: .rule.security_severity_level, ruleSeverity: .rule.severity, rule: .rule.id, description: .rule.description, fullDescription: .rule.full_description, tags: .rule.tags, tool: .tool.name, path: .most_recent_instance.location.path, url: .html_url, createdAt: .created_at}`;
 
 const SEVERITIES: ReadonlySet<string> = new Set(["critical", "high", "medium", "low"]);
+/** The longest rule help kept, in characters, its ellipsis included. */
+export const HELP_MAX = 300;
+const TAGS_MAX = 20;
+const TAG_MAX = 100;
 
 type Raw = Record<string, unknown>;
 
@@ -23,6 +27,19 @@ function severity(v: unknown): Severity | undefined {
   const s = str(v)?.toLowerCase();
   if (s === "moderate") return "medium";
   return s && SEVERITIES.has(s) ? (s as Severity) : undefined;
+}
+
+function oneLine(v: unknown): string | undefined {
+  const text = str(v)?.replaceAll("`", "").replace(/\s+/g, " ").trim();
+  if (!text) return undefined;
+  const chars = [...text];
+  return chars.length > HELP_MAX ? `${chars.slice(0, HELP_MAX - 1).join("").trimEnd()}…` : text;
+}
+
+function tagsOf(v: unknown): string[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const tags = v.filter((tag): tag is string => typeof tag === "string" && tag.length > 0 && tag.length <= TAG_MAX);
+  return tags.length > 0 ? tags.slice(0, TAGS_MAX) : undefined;
 }
 
 export function parseDependencyAlert(r: Raw): DependencyAlertFact | undefined {
@@ -57,12 +74,16 @@ export function parseCodeAlert(r: Raw): CodeAlertFact | undefined {
   const sev = severity(r.severity);
   const ruleSeverity = str(r.ruleSeverity);
   const path = str(r.path);
+  const fullDescription = oneLine(r.fullDescription);
+  const tags = tagsOf(r.tags);
   return {
     number: r.number,
     ...(sev ? { severity: sev } : {}),
     ...(ruleSeverity ? { ruleSeverity } : {}),
     rule,
     description: str(r.description) ?? rule,
+    ...(fullDescription ? { fullDescription } : {}),
+    ...(tags ? { tags } : {}),
     tool: str(r.tool) ?? "",
     ...(path ? { path } : {}),
     url,

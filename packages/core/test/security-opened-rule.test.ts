@@ -7,6 +7,8 @@ import {
   type SecurityWords,
 } from "@spi-code/contracts";
 import { describe, expect, it } from "vitest";
+import { parseCodeAlert } from "../src/collect/security";
+import type { CodeAlertFact } from "../src/facts";
 import type { SecurityRuleHead } from "../src/security/by-rule";
 import { classify } from "../src/security/classify";
 import type { SecuritySource } from "../src/security/index";
@@ -229,5 +231,85 @@ describe("an opened rule while a list was not read", () => {
     expect(file[1]?.files[0]).toMatch(/not read this sweep/);
     const others = rule.where.filter(({ repository }) => repository !== "file");
     expect(others.flatMap(({ count }) => counts(count)).every((n) => !n.atLeast)).toBe(true);
+  });
+});
+
+describe("an opened rule's help and CWE", () => {
+  /** The 16 Nov sweep with the scanner fields given to the last alert of a rule, as parseCodeAlert reads them. */
+  function withScanner(
+    key: string,
+    raw: Record<string, unknown>,
+    scope: "last" | "every" = "last",
+  ): SecuritySource {
+    const source = sweep1116Source();
+    const mine = classify(source).alerts.filter((alert) => alert.key === key);
+    const marked = scope === "last" ? mine.slice(-1) : mine;
+    const data = structuredClone(source.facts.security.data ?? {});
+    for (const alerts of Object.values(data))
+      alerts.code = alerts.code?.map((fact) =>
+        marked.some((alert) => alert.code?.url === fact.url)
+          ? (parseCodeAlert({ ...fact, ...raw }) as CodeAlertFact)
+          : fact,
+      );
+    return { ...source, facts: { ...source.facts, security: { ...source.facts.security, data } } };
+  }
+  const HELP =
+    "Disabling CSRF protection makes the application vulnerable to a cross-site request forgery attack.";
+
+  it("reads CWE-352 from the tags and puts the help above the rule, from the one alert that carries them", () => {
+    const rule = opened(
+      withScanner(CSRF, { fullDescription: HELP, tags: ["security", "external/cwe/cwe-352"] }),
+      CSRF,
+    );
+    expect(rule.help).toBe(HELP);
+    expect(rule.cwe).toBe("CWE-352");
+    expect(rule.facts.slice(0, 2)).toEqual([
+      { label: "What it is", words: [HELP] },
+      {
+        label: "Rule",
+        words: [{ code: "java/spring-disabled-csrf-protection" }, " · CodeQL", " · CWE-352"],
+      },
+    ]);
+    expect(SecurityOpenedRuleSchema.parse(rule)).toEqual(rule);
+  });
+
+  it("names every CWE a rule carries once, without its zero padding", () => {
+    const tags = [
+      "external/cwe/cwe-079",
+      "security",
+      "external/cwe/cwe-116",
+      "external/cwe/cwe-079",
+      "external/cwe/cwe-352x",
+      "cwe-200",
+    ];
+    expect(opened(withScanner(CSRF, { tags }), CSRF).cwe).toBe("CWE-79, CWE-116");
+  });
+
+  it("gives neither field, and no empty line, to a rule with no tags or no full description", () => {
+    const plain = opened(sweep1116Source(), CSRF);
+    expect("help" in plain || "cwe" in plain).toBe(false);
+    expect(plain.facts.map(({ label }) => label)).not.toContain("What it is");
+    expect(plain.facts.find(({ label }) => label === "Rule")?.words).toEqual([
+      { code: "java/spring-disabled-csrf-protection" },
+      " · CodeQL",
+    ]);
+    const helpOnly = opened(withScanner(CSRF, { fullDescription: HELP }, "every"), CSRF);
+    expect(helpOnly.help).toBe(HELP);
+    expect("cwe" in helpOnly).toBe(false);
+    expect(helpOnly.facts.find(({ label }) => label === "Rule")?.words).toHaveLength(2);
+    const tagsOnly = opened(
+      withScanner(CSRF, { tags: ["security", "external/cwe/cwe-352"] }, "every"),
+      CSRF,
+    );
+    expect("help" in tagsOnly).toBe(false);
+    expect(tagsOnly.facts.map(({ label }) => label)).not.toContain("What it is");
+    const noCwe = opened(
+      withScanner(CSRF, { fullDescription: " ", tags: ["security", "correctness"] }, "every"),
+      CSRF,
+    );
+    expect("help" in noCwe || "cwe" in noCwe).toBe(false);
+    for (const rule of [plain, helpOnly, tagsOnly, noCwe])
+      for (const fact of rule.facts)
+        expect(fact.words.length > 0 || fact.advisories !== undefined, fact.label).toBe(true);
   });
 });

@@ -201,7 +201,7 @@ const SYNC_CONFIG_JQ =
 const DEPENDABOT_JQ =
   ".[] | {number, severity: .security_advisory.severity, package: .dependency.package.name, ecosystem: .dependency.package.ecosystem, manifest: .dependency.manifest_path, scope: .dependency.scope, fixed: .security_vulnerability.first_patched_version.identifier, advisory: .security_advisory.ghsa_id, cve: .security_advisory.cve_id, summary: .security_advisory.summary, url: .html_url, createdAt: .created_at}";
 const CODE_SCANNING_JQ =
-  ".[] | {number, severity: .rule.security_severity_level, ruleSeverity: .rule.severity, rule: .rule.id, description: .rule.description, tool: .tool.name, path: .most_recent_instance.location.path, url: .html_url, createdAt: .created_at}";
+  ".[] | {number, severity: .rule.security_severity_level, ruleSeverity: .rule.severity, rule: .rule.id, description: .rule.description, fullDescription: .rule.full_description, tags: .rule.tags, tool: .tool.name, path: .most_recent_instance.location.path, url: .html_url, createdAt: .created_at}";
 
 type Mode = "rest" | "pages" | "text";
 interface RestShape {

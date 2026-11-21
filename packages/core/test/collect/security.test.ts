@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, test } from "vitest";
-import { parseCodeAlert, parseDependencyAlert, readSecurity } from "../../src/collect/security.js";
+import {
+  HELP_MAX,
+  parseCodeAlert,
+  parseDependencyAlert,
+  readSecurity,
+} from "../../src/collect/security.js";
 import { SECURITY_EVERY_MS } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
 import { envelopeOf } from "../../src/evidence/index.js";
@@ -68,6 +73,44 @@ describe("alert parsing", () => {
     expect(a?.severity).toBeUndefined();
     expect(a).toMatchObject({ ruleSeverity: "error", tool: "CodeQL" });
     expect(parseCodeAlert({ ...CODE, severity: "high" })?.severity).toBe("high");
+  });
+
+  test("keeps a rule's help on one line and its tags, and leaves both out when the scanner gave none", () => {
+    const a = parseCodeAlert({
+      ...CODE,
+      fullDescription:
+        "  Disabling CSRF protection makes the\n  application vulnerable to a `CSRF` attack.\n",
+      tags: ["security", "external/cwe/cwe-352", 7, null, ""],
+    });
+    expect(a?.fullDescription).toBe(
+      "Disabling CSRF protection makes the application vulnerable to a CSRF attack.",
+    );
+    expect(a?.tags).toEqual(["security", "external/cwe/cwe-352"]);
+    for (const gone of [
+      {},
+      { fullDescription: null, tags: null },
+      { fullDescription: " \n", tags: "security" },
+      { tags: [] },
+    ]) {
+      const b = parseCodeAlert({ ...CODE, ...gone });
+      expect(b).toMatchObject({ rule: CODE.rule, number: CODE.number });
+      expect(b && ("fullDescription" in b || "tags" in b)).toBe(false);
+    }
+  });
+
+  test("cuts a long help at HELP_MAX characters and keeps at most 20 tags of 100 characters", () => {
+    const long = parseCodeAlert({
+      ...CODE,
+      fullDescription: "word ".repeat(200),
+      tags: ["x".repeat(101), ...Array.from({ length: 30 }, (_, i) => `tag-${i}`)],
+    });
+    expect(HELP_MAX).toBe(300);
+    expect([...(long?.fullDescription ?? "")]).toHaveLength(HELP_MAX);
+    expect(long?.fullDescription?.endsWith("word…")).toBe(true);
+    expect(long?.tags).toHaveLength(20);
+    expect(long?.tags?.[0]).toBe("tag-0");
+    const exact = "y".repeat(HELP_MAX);
+    expect(parseCodeAlert({ ...CODE, fullDescription: exact })?.fullDescription).toBe(exact);
   });
 });
 

@@ -24,6 +24,7 @@ const IN_LANE = Object.freeze({
 const MONTHS = Object.freeze(["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]);
 /** A line or an advisory list longer than this is cut behind a disclosure. */
 const FEW = 4;
+const CWE_TAG = /^external\/cwe\/cwe-0*(\d+)$/i;
 
 type Words = SecurityWords;
 
@@ -249,10 +250,33 @@ function advisories(alerts: readonly SecurityAlert[], short: boolean) {
   };
 }
 
-function facts(input: SecurityInput, alerts: readonly SecurityAlert[], short: boolean): SecurityOpenedRule["facts"] {
+type Scanner = Pick<SecurityOpenedRule, "help" | "cwe">;
+
+/** A code rule's help and CWE, each from the first alert that carries it: retained alerts may predate both. */
+function scanner(alerts: readonly SecurityAlert[]): Scanner {
+  const help = alerts.find((alert) => alert.code?.fullDescription)?.code?.fullDescription;
+  const cwe = alerts
+    .map((alert) => [
+      ...new Set((alert.code?.tags ?? []).flatMap((tag) => {
+        const id = CWE_TAG.exec(tag)?.[1];
+        return id ? [`CWE-${id}`] : [];
+      })),
+    ])
+    .find((ids) => ids.length > 0);
+  return { ...(help ? { help } : {}), ...(cwe ? { cwe: cwe.join(", ") } : {}) };
+}
+
+function facts(
+  input: SecurityInput,
+  alerts: readonly SecurityAlert[],
+  short: boolean,
+  { help, cwe }: Scanner,
+): SecurityOpenedRule["facts"] {
   const [first] = alerts;
   const out: SecurityOpenedRule["facts"] = [];
-  if (first?.code) out.push({ label: "Rule", words: [{ code: first.code.rule }, ` · ${first.code.tool}`] });
+  if (help) out.push({ label: "What it is", words: [help] });
+  if (first?.code)
+    out.push({ label: "Rule", words: [{ code: first.code.rule }, ` · ${first.code.tool}`, ...(cwe ? [` · ${cwe}`] : [])] });
   if (first?.dependabot) {
     out.push({ label: "Package", words: [{ code: first.dependabot.package }, ` · ${first.dependabot.ecosystem}`] });
     const body = advisories(alerts, short);
@@ -306,8 +330,10 @@ export function securityOpenedRule(input: SecurityInput, rule: SecurityRuleHead)
   const repositories = [...new Set(alerts.map(({ repository }) => repository))];
   const [only] = repositories;
   const fork = only && input.repositories.find((repo) => repo.name === only && !repo.program);
+  const scanned = list === "code" ? scanner(alerts) : {};
   return {
-    facts: facts(input, alerts, short),
+    facts: facts(input, alerts, short, scanned),
+    ...scanned,
     where: where(input, alerts, list),
     also,
     ...(repositories.length === 1 && fork && !short ? { ask: { fork: fork.name } } : {}),

@@ -16,6 +16,7 @@ import { join } from "node:path";
 import { deflateRawSync, deflateSync, gzipSync, inflateRawSync } from "node:zlib";
 import { afterEach, describe, expect, test } from "vitest";
 import { buildQueries } from "../packages/core/src/collect/github-read.js";
+import { CODE_JQ } from "../packages/core/src/collect/security.js";
 import {
   auditSweep,
   callTargets,
@@ -309,6 +310,25 @@ const SHAPES: {
     class: "public-content" as const,
     github: ["Azure/osdu-spi-partition"],
   })),
+  {
+    cmd: "gh",
+    args: [
+      "api",
+      "--paginate",
+      "repos/Azure/osdu-spi-partition/code-scanning/alerts?state=open&per_page=100",
+      "--jq",
+      CODE_JQ,
+    ],
+    class: "operator",
+    github: ["Azure/osdu-spi-partition"],
+  },
+];
+const codeScanning = (jq: string) => [
+  "api",
+  "--paginate",
+  "repos/acme/widgets/code-scanning/alerts?state=open&per_page=100",
+  "--jq",
+  jq,
 ];
 
 const sorted = (set: Set<string> | undefined) => [...(set ?? [])].sort();
@@ -393,6 +413,29 @@ describe("call shapes", () => {
     ["a gh path on glab", "glab", ["api", "repos/acme/widgets"]],
     ["git clone", "git", ["clone", "https://github.com/acme/vault"]],
     ["a jq filter of its own", "gh", ["api", "repos/acme/widgets/pulls/1", "--jq", "env"]],
+    [
+      "the code-scanning read without the rule's help and tags",
+      "gh",
+      codeScanning(
+        CODE_JQ.replace(" fullDescription: .rule.full_description, tags: .rule.tags,", ""),
+      ),
+    ],
+    [
+      "the code-scanning read with a line number",
+      "gh",
+      codeScanning(
+        CODE_JQ.replace(
+          "path: .most_recent_instance.location.path,",
+          "path: .most_recent_instance.location.path, line: .most_recent_instance.location.start_line,",
+        ),
+      ),
+    ],
+    [
+      "the code-scanning read with its help dropped",
+      "gh",
+      codeScanning(CODE_JQ.replace(" fullDescription: .rule.full_description,", "")),
+    ],
+    ["the code-scanning read with a second filter", "gh", codeScanning(`${CODE_JQ} | env`)],
     ["a dot segment", "gh", ["api", "repos/acme/../actions/runs/1", "--jq", jqOf("run")]],
     [
       "the service history projection without the workflow path",
