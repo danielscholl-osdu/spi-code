@@ -12,6 +12,7 @@ import {
   emptyFacts,
   type Facts,
   fleetOf,
+  parseCodeAlert,
   parseRollout,
   type ReadRecord,
   type RepoAlerts,
@@ -25,6 +26,7 @@ interface Case {
   failed?: string;
   remove?: Record<string, Record<List, number[]>>;
   only?: Record<string, RepoAlerts>;
+  scanner?: Record<string, Record<string, Record<string, unknown>>>;
 }
 
 export type SecurityFixture = "1116" | "partial" | "retained" | "failed" | "clean" | "single";
@@ -81,6 +83,14 @@ export function securitySweep(
     if (alerts.dependabot)
       alerts.dependabot = alerts.dependabot.filter((a) => !lists.dependabot.includes(a.number));
     if (alerts.code) alerts.code = alerts.code.filter((a) => !lists.code.includes(a.number));
+  }
+  for (const [repo, byNumber] of Object.entries(spec.scanner ?? {})) {
+    const alerts = data[repo];
+    if (alerts?.code)
+      alerts.code = alerts.code.map((a) => {
+        const raw = byNumber[String(a.number)];
+        return raw ? (parseCodeAlert({ ...a, ...raw }) ?? a) : a;
+      });
   }
   for (const alerts of Object.values(data)) if (alerts.code) alerts.code = alerts.code.map(scanned);
   const failing = (repo: string) =>

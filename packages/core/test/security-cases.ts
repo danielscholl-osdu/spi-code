@@ -3,6 +3,7 @@
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { parseCodeAlert } from "../src/collect/security";
 import type { ReadRecord } from "../src/evidence/index";
 import type { Facts, RepoAlerts } from "../src/facts";
 import type { SecuritySource } from "../src/security/index";
@@ -15,6 +16,8 @@ interface Case {
   failed?: string;
   remove?: Record<string, Record<List, number[]>>;
   only?: Record<string, RepoAlerts>;
+  /** Scanner fields given to code alerts by repository and number, as the collector reads them. */
+  scanner?: Record<string, Record<string, Record<string, unknown>>>;
 }
 
 const CASES: Record<string, Case> = JSON.parse(
@@ -43,6 +46,14 @@ export function securityCase(name: SecurityCase): SecuritySource {
     if (!alerts) continue;
     alerts.dependabot = alerts.dependabot?.filter((a) => !lists.dependabot.includes(a.number));
     alerts.code = alerts.code?.filter((a) => !lists.code.includes(a.number));
+  }
+  for (const [repo, byNumber] of Object.entries(spec.scanner ?? {})) {
+    const alerts = data[repo];
+    if (alerts?.code)
+      alerts.code = alerts.code.map((a) => {
+        const raw = byNumber[String(a.number)];
+        return raw ? (parseCodeAlert({ ...a, ...raw }) ?? a) : a;
+      });
   }
   const failing = (repo: string) =>
     spec.failed ?? (spec.retained?.includes(repo) ? "HTTP 502: Bad Gateway" : undefined);

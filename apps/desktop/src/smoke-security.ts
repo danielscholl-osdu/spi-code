@@ -254,6 +254,27 @@ async function openAsk(context: Context, pane: SecurityPane) {
   assert.equal(placed, "", `${rule.key}: Ask about this is not at the left of its row`);
 }
 
+/** Opens the rule core gives the scanner's help and a CWE, so the enriched facts are captured. */
+async function openEnriched(context: Context, pane: SecurityPane) {
+  const found = pane.lanes.flatMap((lane) =>
+    lane.byRule.rules
+      .filter(({ opened }) => opened.help && opened.cwe)
+      .map((rule) => ({ lane, rule })),
+  )[0];
+  assert(found, "No rule in the clean pane has the scanner's help and a CWE");
+  const { lane, rule } = found;
+  assert(await click(context, LANE(lane.id)), `No ${lane.id} bar at 740`);
+  const row = `${PANE} .security-rule[data-security-rule=${JSON.stringify(rule.key)}]`;
+  await settle(context, `document.querySelector(${JSON.stringify(`${row} .security-rule-title`)})`);
+  assert(await click(context, `${row} .security-rule-title`), `No ${rule.key} row at 740`);
+  await settle(
+    context,
+    `document.querySelector(${JSON.stringify(`${row}[data-open] .security-facts`)})`,
+  );
+  await assertInside(context, "clean 740 opened rule with help and CWE");
+  assert(await reveal(context, row), "Opened rule with help at 740 starts under the column heads");
+}
+
 /**
  * The Security page over the 16 Nov, partial and clean panes at each view width in both themes,
  * then an opened rule and an opened repository at 740. Every bar and view is walked for overflow
@@ -302,6 +323,8 @@ export async function captureSecurity(context: Context, fixturePath: string): Pr
       }
     }
     if (theme !== "light") continue;
+    window.setContentSize(740, 800);
+    await context.rendered("Math.abs(innerWidth - 740) <= 1");
     const { snapshot, pane } = scenes["1116"];
     await show(context, snapshot, pane, cursor++);
     assert(await click(context, FIRST_RULE), "No rule to open at 740");
@@ -329,8 +352,21 @@ export async function captureSecurity(context: Context, fixturePath: string): Pr
       figures,
     );
     files.push("security-1116-ask-740-light.png");
+    await show(context, scenes.clean.snapshot, scenes.clean.pane, cursor++);
+    await openEnriched(context, scenes.clean.pane);
+    await capture(
+      context,
+      "security-clean-rule-help-740-light.png",
+      "clean, opened rule with the scanner's help and a CWE, 740 px, light",
+      figures,
+    );
+    files.push("security-clean-rule-help-740-light.png");
     await show(context, snapshot, pane, cursor++);
     assert(await click(context, VIEW(2)), "No By repository at 740");
+    await settle(
+      context,
+      `document.querySelector(${JSON.stringify(VIEW(2))})?.getAttribute("aria-pressed") === "true"`,
+    );
     assert(await click(context, FIRST_REPOSITORY), "No repository to open at 740");
     await settle(
       context,
@@ -353,7 +389,7 @@ export async function captureSecurity(context: Context, fixturePath: string): Pr
     join(output, "security.html"),
     `<!doctype html><html lang="en"><meta charset="utf-8"><title>Security</title>
 <style>body{font:14px system-ui;margin:24px}figure{margin:24px 0}img{max-width:100%}</style>
-<h1>Security</h1><p>The 16 Nov sweep's pane, one list not read (partial) and a clean bar, at 1440, 900 and 740 × 800 in both themes, then an opened rule, one with Ask about this and an opened repository at 740. Compare with design/spi-code-security.html; design/spi-code-security.md wins where they differ.</p>
+<h1>Security</h1><p>The 16 Nov sweep's pane, one list not read (partial) and a clean bar, at 1440, 900 and 740 × 800 in both themes, then an opened rule, one with Ask about this, one with the scanner's help and a CWE, and an opened repository at 740. Compare with design/spi-code-security.html; design/spi-code-security.md wins where they differ.</p>
 ${figures.join("\n")}`,
   );
   return files;

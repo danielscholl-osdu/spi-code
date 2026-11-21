@@ -5,6 +5,14 @@
   "retained": { "retained": ["Azure/osdu-spi-file"] },
   "failed": { "failed": "HTTP 502: Bad Gateway" },
   "clean": {
+    "scanner": {
+      "Azure/osdu-spi-workflow": {
+        "10": {
+          "fullDescription": "Writing sensitive information to a log can expose it to anyone who reads the log. This help is made up for the fixture.",
+          "tags": ["security", "external/cwe/cwe-532"]
+        }
+      }
+    },
     "remove": {
       "Azure/osdu-spi": { "dependabot": [], "code": [69] },
       "Azure/osdu-spi-entitlements": { "dependabot": [], "code": [4, 3] },
