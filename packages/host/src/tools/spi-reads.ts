@@ -48,6 +48,8 @@ type Answer =
       readonly lists?: readonly string[];
       /** Shown even when not read, as evidence names what was and was not read. */
       readonly always?: boolean;
+      /** Refused rather than sent when its lists are cut and it is still over budget. */
+      readonly bounded?: boolean;
     };
 
 interface SpiRead<A> {
@@ -219,6 +221,7 @@ const READS: readonly SpiRead<Fields>[] = [
         },
         lists: rule === undefined ? ["rules"] : ["facts", "where", "advisories"],
         always: true,
+        bounded: true,
       };
     },
   }),
@@ -322,7 +325,12 @@ function fit(value: Fields, lists: readonly string[]): Fields {
 
 const WITHHELD = "SPI tool output withheld.";
 
-function resultJson(value: Fields, lists: readonly string[], journal: SpiRedactor): string {
+function resultJson(
+  value: Fields,
+  lists: readonly string[],
+  journal: SpiRedactor,
+  bounded = false,
+): string {
   let text: string;
   try {
     const safe = redactSpiValue(value, journal);
@@ -333,7 +341,7 @@ function resultJson(value: Fields, lists: readonly string[], journal: SpiRedacto
   } catch {
     throw new Error(WITHHELD);
   }
-  if (Buffer.byteLength(text) > SPI_RESULT_BYTE_BUDGET)
+  if (bounded && Buffer.byteLength(text) > SPI_RESULT_BYTE_BUDGET)
     throw new Error(
       `SPI tool output is over ${SPI_RESULT_BYTE_BUDGET} UTF-8 bytes even with its lists cut.`,
     );
@@ -345,13 +353,13 @@ async function answerFor(
   answer: (sweep: SavedSweep) => Answer | Promise<Answer>,
   journal: SpiRedactor,
 ): Promise<string> {
-  const render = (value: Fields, lists: readonly string[] = []) =>
-    resultJson(value, lists, journal);
+  const render = (value: Fields, lists: readonly string[] = [], bounded = false) =>
+    resultJson(value, lists, journal, bounded);
   if (!sweep) return render({ read: NOT_READ, reason: "No sweep has been saved." });
   const found = await answer(sweep);
   if ("found" in found)
     return render({ sweptAt: sweep.view.sweptAt, found: false, reason: found.reason });
-  const { place: name, at, state, value, lists, always } = found;
+  const { place: name, at, state, value, lists, always, bounded } = found;
   const head = {
     place: name,
     sweptAt: sweep.view.sweptAt,
@@ -361,7 +369,9 @@ async function answerFor(
     ...(state.notRead.length ? { notRead: state.notRead } : {}),
     ...(state.failed.length ? { failed: state.failed } : {}),
   };
-  return state.read === NOT_READ && !always ? render(head) : render({ ...head, ...value }, lists);
+  return state.read === NOT_READ && !always
+    ? render(head)
+    : render({ ...head, ...value }, lists, bounded);
 }
 
 /** The SDK forwards thrown messages to the model. */

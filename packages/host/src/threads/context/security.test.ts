@@ -473,6 +473,18 @@ describe("a Security subject the latest sweep cannot show", () => {
     });
     const detail = await tool(sweep, { rule: `${away(moved)}${rest(moved)}` });
     expect(detail.value).toMatchObject({ rule: moved, moved: `Open in ${now?.figure.label} now.` });
+    const partial = scenario("partial");
+    const lanesThere = partial.pane.lanes.filter(({ byRule }) =>
+      byRule.rules.some((rule) => rest(rule.key) === rest(moved)),
+    );
+    if (lanesThere.length === 1 && lanesThere[0]?.id === now?.id)
+      expect(
+        (await chip(partial.sweep, `security-rule:${away(moved)}${rest(moved)}`)).chip.reading,
+      ).toMatchObject({
+        rule: moved,
+        moved: `Open in ${now?.figure.label} now; a list not read may still hold it in ${lanes.get(away(moved) as never)}.`,
+      });
+    else throw new Error(`${moved} is not in one lane in the partial scenario`);
     const both = await chip(sweep, `security-rule:${away(several)}${rest(several)}`);
     const named = lanesOf(several).map(({ id }) => `${id}${rest(several)}`);
     expect(both.chip.reading).toEqual({

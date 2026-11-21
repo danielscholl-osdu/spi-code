@@ -160,10 +160,15 @@ export function ruleReading(view: ViewSnapshot, key: string) {
     if (!pane?.read) return { title: key, at: undefined, reading: UNREAD };
     const others = elsewhere(pane, key);
     const [only] = others;
-    if (only && others.length === 1)
-      return packed(only, { moved: `Open in ${only.lane.figure.label} now.` });
     const unread = pane.unread.length > 0;
     const was = pane.lanes.find(({ id }) => key.startsWith(`${id}:`))?.figure.label;
+    if (only && others.length === 1)
+      return packed(only, {
+        moved:
+          unread && was
+            ? `Open in ${only.lane.figure.label} now; a list not read may still hold it in ${was}.`
+            : `Open in ${only.lane.figure.label} now.`,
+      });
     const open =
       others.length > 1 && was
         ? `No open alert in ${was} this sweep; open in ${others.map(({ lane }) => lane.figure.label).join(" and ")}.`
