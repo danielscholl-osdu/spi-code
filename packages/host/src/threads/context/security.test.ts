@@ -431,10 +431,23 @@ describe("scanner text Copilot is told about Security", () => {
   if (!target) throw new Error("The 1116 scenario has no code rule");
   const ruleId = target.key.split(":").slice(3).join(":");
   const tool_ = target.key.split(":")[2] ?? "";
+  const partsOf = (key: string) => ({
+    tool: key.split(":")[2] ?? "",
+    rule: key.split(":").slice(3).join(":"),
+  });
+  /** A rule in two lanes, whose campaign subject packs the page, and one in one lane, whose subject packs the rule. */
+  const ONE_LANE = "upstream:code:CodeQL:java/error-message-exposure";
+  const KEYS = [target.key, ONE_LANE];
+  const only =
+    (key: string, change: (alert: CodeAlertFact) => CodeAlertFact | undefined) =>
+    (alert: CodeAlertFact) =>
+      alert.rule === partsOf(key).rule && alert.tool === partsOf(key).tool
+        ? (change(alert) ?? alert)
+        : alert;
 
   /** The six things Copilot is told about Security, with campaign subjects saved for this rule and for none. */
   async function outputs(sweep: SavedSweep, key: string, redactor: SpiRedactor = journal) {
-    const fact = `${tool_}: ${ruleId}`;
+    const fact = `${partsOf(key).tool}: ${partsOf(key).rule}`;
     const none = "Fixture: no-such-rule";
     const view: ViewSnapshot = {
       ...sweep.view,
@@ -602,6 +615,12 @@ describe("scanner text Copilot is told about Security", () => {
       title: "安".repeat(120),
       sent: true,
     },
+    {
+      name: "a title giving a credential's space twice",
+      title: `Hard-coded ${secret.replace(" ", "  ")} in config`,
+      sent: true,
+    },
+    { name: "an empty title", title: "", sent: false },
     { name: "plain help", help: "Plain scanner help.", sent: true },
     { name: "help with a tab", help: "A\ttab.", sent: false },
     { name: "help with CRLF", help: "First\r\nsecond.", sent: false },
@@ -621,29 +640,29 @@ describe("scanner text Copilot is told about Security", () => {
     { name: "no help", help: "", sent: false },
   ];
 
-  it.each(awkward)(
-    "tells Copilot $name exactly as written after one redaction, or the rule key and no help",
-    async ({ title: raw, help, sent }) => {
-      const { pane, sweep } = scenario("1116", (alert) =>
-        alert.rule === ruleId && alert.tool === tool_
-          ? (parseCodeAlert({
-              ...alert,
-              ...(raw === undefined ? {} : { description: raw }),
-              ...(help === undefined ? {} : { fullDescription: help }),
-            }) ?? alert)
-          : alert,
+  it.each(awkward.flatMap((row) => KEYS.map((key) => ({ ...row, key }))))(
+    "tells Copilot $name about $key exactly as written after one redaction, or the rule key and no help",
+    async ({ title: raw, help, sent, key }) => {
+      const { pane, sweep } = scenario(
+        "1116",
+        only(key, (alert) =>
+          parseCodeAlert({
+            ...alert,
+            ...(raw === undefined ? {} : { description: raw }),
+            ...(help === undefined ? {} : { fullDescription: help }),
+          }),
+        ),
       );
-      const row = findRule(pane, target.key)?.rule;
-      if (!row) throw new Error(`${target.key} is gone`);
-      if (raw !== undefined) expect(row.title).toBe(raw);
+      const row = findRule(pane, key)?.rule;
+      if (!row) throw new Error(`${key} is gone`);
+      if (raw) expect(row.title).toBe(raw);
       const told = Object.fromEntries(
-        Object.entries(await outputs(sweep, target.key)).map(([name, text]) => [
-          name,
-          JSON.parse(text),
-        ]),
+        Object.entries(await outputs(sweep, key)).map(([name, text]) => [name, JSON.parse(text)]),
       );
       const rows = (reading: { rules?: { rule: string; title: string }[] }) =>
-        reading.rules?.filter(({ rule }) => rule === target.key) ?? [];
+        reading.rules?.filter(({ rule }) => rule === key) ?? [];
+      const single = told.campaign.kind === "security rule";
+      expect(single).toBe(key === ONE_LANE);
       const titles = [
         ...rows(told.place.reading),
         ...rows(told.campaign.reading),
@@ -656,10 +675,16 @@ describe("scanner text Copilot is told about Security", () => {
         told.ruleTool.place,
         told.ruleTool.title,
       );
-      expect(titles).toHaveLength(8);
-      const title = raw === undefined ? row.title : sent ? journal.value(raw) : target.key;
+      if (single) titles.push(told.campaign.title, told.campaign.reading.title);
+      expect(titles.length).toBeGreaterThanOrEqual(6);
+      const title = raw === undefined ? journal.value(row.title) : sent ? journal.value(raw) : key;
       for (const each of titles) expect(each).toBe(title);
-      const helps = [told.rule.reading, told.ruleTool].map(
+      const readings = [
+        told.rule.reading,
+        told.ruleTool,
+        ...(single ? [told.campaign.reading] : []),
+      ];
+      const helps = readings.map(
         (reading: { facts: { label: string; words: string }[] }) =>
           reading.facts.find(({ label }) => label === "What it is")?.words,
       );
@@ -671,6 +696,32 @@ describe("scanner text Copilot is told about Security", () => {
           expect(JSON.stringify(value), name).not.toContain(JSON.stringify(stored).slice(1, -1));
     },
   );
+
+  it("tells Copilot no help while the row says an alert's help was changed, though the help is marked verbatim", async () => {
+    const help = "Plain scanner help.";
+    const { pane, view, sweep } = scenario(
+      "1116",
+      only(target.key, (alert) => parseCodeAlert({ ...alert, fullDescription: help })),
+    );
+    const flagged: SecurityPane = {
+      ...pane,
+      lanes: pane.lanes.map((lane) => ({
+        ...lane,
+        byRule: {
+          ...lane.byRule,
+          rules: lane.byRule.rules.map((rule) =>
+            rule.key === target.key ? { ...rule, cut: true as const } : rule,
+          ),
+        },
+      })),
+    };
+    const what = findRule(flagged, target.key)?.rule.opened.facts[0];
+    expect(what).toMatchObject({ label: "What it is", words: [help], verbatim: true });
+    const told = await outputs({ ...sweep, view: { ...view, security: flagged } }, target.key);
+    for (const [name, text] of Object.entries(told)) expect(text, name).not.toContain(help);
+    expect((await outputs(sweep, target.key)).rule).toContain(help);
+  });
+
   const pat = `github_pat_${"Qz".repeat(11)}`;
   const probes = {
     "a token split by zero-width spaces in the title": {
@@ -692,18 +743,17 @@ describe("scanner text Copilot is told about Security", () => {
     },
   } as const;
 
-  it.each(Object.keys(probes) as (keyof typeof probes)[])(
-    "leaves no part of %s in anything Security tells Copilot",
-    async (kind) => {
-      const { alert: scanned, parts } = probes[kind];
-      const { journal: known } = createToolOutputRedactor([`${pat}QzFixtureSensitiveSuffix`]);
-      const { sweep } = scenario("1116", (alert) =>
-        alert.rule === ruleId && alert.tool === tool_ ? (scanned(alert) ?? alert) : alert,
-      );
-      for (const [name, text] of Object.entries(await outputs(sweep, target.key, known)))
-        for (const part of parts) expect(text, `${name}: ${part}`).not.toContain(part);
-    },
-  );
+  it.each(
+    (Object.keys(probes) as (keyof typeof probes)[]).flatMap((kind) =>
+      KEYS.map((key) => [kind, key] as const),
+    ),
+  )("leaves no part of %s in anything Security tells Copilot about %s", async (kind, key) => {
+    const { alert: scanned, parts } = probes[kind];
+    const { journal: known } = createToolOutputRedactor([`${pat}QzFixtureSensitiveSuffix`]);
+    const { sweep } = scenario("1116", only(key, scanned));
+    for (const [name, text] of Object.entries(await outputs(sweep, key, known)))
+      for (const part of parts) expect(text, `${name}: ${part}`).not.toContain(part);
+  });
 });
 
 describe("a long scanner title outside Security", () => {

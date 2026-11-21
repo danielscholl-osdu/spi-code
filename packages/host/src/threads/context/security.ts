@@ -50,9 +50,10 @@ const OFF_LINE = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
 const encoded = (text: string) => Buffer.byteLength(JSON.stringify(text)) - 2;
 
 /** The scanner's title exactly as written when it is one line within the bound, otherwise the rule key. */
-function titleOf({ title, key }: SecurityRuleRow): string {
+function titleOf({ title, key, list }: SecurityRuleRow): string {
   const sendable =
     title.length > 0 &&
+    !(list === "code" && key.endsWith(`:${title}`)) &&
     !OFF_LINE.test(title) &&
     [...title].length <= TITLE_MAX_CHARS &&
     encoded(title) <= TITLE_MAX_BYTES;

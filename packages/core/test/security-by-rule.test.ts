@@ -316,3 +316,24 @@ describe("≥ on a By rule row", () => {
     expect(text(csrf.spread)).toBe("≥12 forks");
   });
 });
+
+describe("a row's cut", () => {
+  const CSRF = "spi:code:CodeQL:java/spring-disabled-csrf-protection";
+  const input = inputOf(sweep1116Source());
+  const last = input.alerts.map(({ key }) => key).lastIndexOf(CSRF);
+  const cutOf = (code: Record<string, unknown>) =>
+    allRules({
+      ...input,
+      alerts: input.alerts.map((alert, index) =>
+        index === last && alert.code ? { ...alert, code: { ...alert.code, ...code } } : alert,
+      ),
+    }).find(({ key }) => key === CSRF)?.cut;
+
+  it("is set while any alert's help differs from its scanner's, or ends in the cut's ellipsis", () => {
+    expect(last).toBeGreaterThan(0);
+    expect(cutOf({})).toBeUndefined();
+    expect(cutOf({ fullDescription: "Whole help.", verbatim: true })).toBeUndefined();
+    expect(cutOf({ fullDescription: "Flattened help.", cut: true })).toBe(true);
+    expect(cutOf({ fullDescription: "Help cut by an older sweep…" })).toBe(true);
+  });
+});
