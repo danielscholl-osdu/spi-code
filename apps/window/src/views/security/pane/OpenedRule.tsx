@@ -11,15 +11,13 @@ import type {
 import { useState } from "react";
 import { navigate, openEvidence } from "../../../app/navigation.js";
 import { LinkPill } from "../../../components/kit/LinkPill.js";
-import { placePin } from "../../../store/pins.js";
-import { AskAboutThis, useAskAbout } from "../../../threads/AskAboutThis.js";
 import { type OpenedRuleProps, REPOSITORY_ATTR } from "./state.js";
 import { Words } from "./Words.js";
 import "./OpenedRule.css";
 
-/** An opened rule or package: its facts, Where, and Ask about this. */
+/** An opened rule or package: its facts and Where. */
 export function OpenedRule({ pane, state, actions, rule }: OpenedRuleProps) {
-  const { facts, where, also, ask } = rule.opened;
+  const { facts, where, also } = rule.opened;
   return (
     <div className="security-opened">
       <dl className="security-facts">
@@ -44,7 +42,7 @@ export function OpenedRule({ pane, state, actions, rule }: OpenedRuleProps) {
           />
         ))}
       </div>
-      {(also.length > 0 || ask) && (
+      {also.length > 0 && (
         <div className="security-opened-acts">
           {also.map(({ key, words }) => (
             <button
@@ -56,21 +54,10 @@ export function OpenedRule({ pane, state, actions, rule }: OpenedRuleProps) {
               <Words words={words} />
             </button>
           ))}
-          {ask && <Ask fork={ask.fork} title={rule.title} />}
         </div>
       )}
     </div>
   );
-}
-
-function Ask({ fork, title }: { fork: string; title: string }) {
-  const ask = useAskAbout({
-    subject: placePin("security"),
-    label: title,
-    scope: fork,
-    origin: `Started from Security › ${title}`,
-  });
-  return ask ? <AskAboutThis ask={ask} /> : null;
 }
 
 function Advisory({ advisory }: { advisory: SecurityAdvisory }) {
