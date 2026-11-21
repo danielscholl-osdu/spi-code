@@ -110,6 +110,7 @@ export class ThreadEngine<Tool> {
           scope: text(thread.scope),
           ...(thread.title === undefined ? {} : { title: text(thread.title) }),
           ...(thread.subject === undefined ? {} : { subject: text(thread.subject) }),
+          ...(thread.parent === undefined ? {} : { parent: text(thread.parent) }),
           ...(thread.accessMode === undefined ? {} : { accessMode: thread.accessMode }),
         },
       },

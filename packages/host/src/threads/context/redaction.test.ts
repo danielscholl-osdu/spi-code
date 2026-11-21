@@ -11,6 +11,7 @@ import { FakeSession } from "../../testing/fake-session.js";
 import { buildPermissionGate } from "../../tools/permission-gate.js";
 import { spiReadTools, spiToolProvider } from "../../tools/spi-reads.js";
 import { packChip } from "./chip.js";
+import { chipFromSweep } from "./draft.js";
 import { redactSpiValue } from "./redaction.js";
 import type { SavedSweep } from "./sweep.js";
 
@@ -111,7 +112,7 @@ const corpus = [
 ];
 
 it.each(corpus)(
-  "masks $name in a result, an error and a chip",
+  "masks $name in a result, an error, spi_stack and a chip",
   async ({ secret, text, field, masked }) => {
     const sample = feed.find(({ id }) => id === "rollout");
     const record = feed.find(({ id }) => id === "radar:partition")?.evidence[0];
@@ -120,8 +121,13 @@ it.each(corpus)(
     const credentials = field ? { [field]: key } : {};
     const result = { ...sample, evidence: [{ ...record, object: text(secret), credentials }] };
     const answer = { kind: "queue item", result };
+    const readings = view.readings.map((reading) =>
+      reading.anchor.kind === "environment" && reading.content
+        ? { ...reading, content: { ...reading.content, headline: text(secret) } }
+        : reading,
+    );
     const sweep: SavedSweep = {
-      view,
+      view: { ...view, readings },
       reads: {},
       inspect: async (id) => {
         if (id === "error") throw new Error(text(secret));
@@ -142,6 +148,14 @@ it.each(corpus)(
     const error = session.callTool("spi_inspect", { id: "error" });
     await expect(error).rejects.toThrow(redactedText);
     await expect(error).rejects.not.toThrow(secret);
+
+    const stack = JSON.parse(String(await session.callTool("spi_stack", {})));
+    expect(stack.reading.headline).toBe(redactedText);
+    expect(JSON.stringify(stack)).not.toContain(secret);
+    const place = await chipFromSweep(() => sweep, "place:environment", journalOutputRedactor);
+    if (!place.ok) throw new Error(place.reason);
+    expect(place.chip.chip).toMatchObject({ reading: { headline: redactedText } });
+    expect(place.chip.content).not.toContain(secret);
 
     const packed = packChip(answer, { sweptAt: view.sweptAt, reads: {} }, journalOutputRedactor);
     if (!packed.ok) throw new Error(packed.reason);

@@ -107,9 +107,10 @@ export class ThreadRoutes {
     },
     "thread.start": async (request, send) => {
       if (request.type !== "thread.start") return;
-      const { scope, title, subject, accessMode, landsIn: requested } = request.payload;
+      const { scope, title, subject, parent, accessMode, landsIn: requested } = request.payload;
       if (!this.options.scopes.lookup(scope)?.canStart)
         throw new Error("Thread scope is unavailable.");
+      if (parent !== undefined) this.engine().read(parent);
       if (subject !== undefined) {
         const preview = this.previews.get(subject);
         if (!preview || !this.unchanged(preview)) return this.stale(request, send);
@@ -118,6 +119,7 @@ export class ThreadRoutes {
         scope,
         ...(title === undefined ? {} : { title }),
         ...(subject === undefined ? {} : { subject }),
+        ...(parent === undefined ? {} : { parent }),
         ...(accessMode === undefined ? {} : { accessMode }),
       });
       let landsIn: ThreadLanding = { target: "asking" };

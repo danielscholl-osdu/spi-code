@@ -27,6 +27,7 @@ import { type AccessMode, ThreadEngine } from "@spi-code/threads";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { appStyle, mixedFixtureInput } from "../../test/watch/snapshot-fixture.js";
 import { CopilotRuntime, type ThreadCopilotSession } from "../copilot/runtime.js";
+import { sandboxToolList } from "../copilot/sandbox.js";
 import { attachHostPort } from "../process/port.js";
 import { WatchRoutes, watchFleet } from "../process/routes.js";
 import { PrivilegedGit } from "../scopes/git.js";
@@ -35,6 +36,7 @@ import { ScopeWorkspaces } from "../scopes/workspace.js";
 import { createLeaseStore } from "../store/leases.js";
 import { openStore } from "../store/open.js";
 import { createSnapshotStore } from "../store/snapshots.js";
+import { isSpiReadTool } from "../tools/spi-reads.js";
 import { projectWatch } from "../watch/project.js";
 import { CopilotThreadAdapter } from "./adapter.js";
 import type { LatestSweep } from "./context/sweep.js";
@@ -422,6 +424,32 @@ it("reopens a moved thread in its worktree while resuming the same history", asy
     land.mockRestore();
     head.mockRestore();
   }
+});
+
+it("offers a Program thread no shell or file tools, even confined, and refuses to land it", async () => {
+  const { runtime, sessions, open } = recordedRuntime("program-session");
+  const port = await connect(runtime);
+  const sent = port.send({ prompt: "Which forks pin 8.4?" });
+  await vi.waitFor(() => expect(sessions[0]?.send).toHaveBeenCalledOnce());
+  sessions[0]?.begin("program");
+  sessions[0]?.finish("program");
+  await port.response(sent);
+  const [workspace, options] = open.mock.calls[0] ?? [];
+  if (!workspace || !options) throw new Error("No session was opened");
+  const custom = (options.tools ?? []).map(({ name }) => name);
+  expect(custom.length).toBeGreaterThan(0);
+  expect(custom.every(isSpiReadTool)).toBe(true);
+  expect(sandboxToolList(custom, sandbox, workspace)).toEqual(
+    custom.map((name) => `custom:${name}`),
+  );
+  await expect(
+    port.response(
+      port.dispatch("thread.land", { threadId: port.threadId, landsIn: { target: "fork-main" } }),
+    ),
+  ).resolves.toMatchObject({
+    type: "error",
+    payload: { message: "Program threads change no code." },
+  });
 });
 
 it("keeps a thread on Asking when its worktree cannot be made", async () => {
@@ -1698,12 +1726,9 @@ it("packs a row's chip from the saved sweep, says why it refuses one, and keeps 
     sweptAt: view.sweptAt,
   });
   await expect(
-    port.response(port.dispatch("thread.chip", { id: "place:environment" })),
+    port.response(port.dispatch("thread.chip", { id: `finding:${port.threadId}` })),
   ).resolves.toMatchObject({
-    payload: {
-      ok: false,
-      reason: expect.stringContaining("place:environment cannot be a chip yet"),
-    },
+    payload: { ok: false, reason: "The thread has no finished answer to carry." },
   });
 
   const started = await port.response(

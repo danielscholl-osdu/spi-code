@@ -18,6 +18,8 @@ export interface ThreadDefinition {
   title?: string;
   /** The item the thread started from. */
   subject?: string;
+  /** The thread this one continues. */
+  parent?: string;
   landsIn?: ThreadLanding;
   accessMode?: AccessMode;
 }

@@ -96,7 +96,13 @@ function port(runtime: CopilotRuntime, database: DatabaseSync, storePath: string
   return { host, dispatch, response, events };
 }
 
-async function replay(ops: readonly TraceOp[], name: string): Promise<Replayed> {
+type Port = ReturnType<typeof port>;
+
+async function replay(
+  ops: readonly TraceOp[],
+  name: string,
+  after?: (current: Port, threadId: string, reopen: () => Promise<Port>) => Promise<void>,
+): Promise<Replayed> {
   const storePath = join(mkdtempSync(join(root, `${name}-`)), "runs.sqlite");
   const database = new DatabaseSync(storePath);
   const player = new TracePlayer(ops);
@@ -147,6 +153,11 @@ async function replay(ops: readonly TraceOp[], name: string): Promise<Replayed> 
       }),
     );
     await Promise.race([player.ended, player.failed]);
+    await after?.(current, threadId, async () => {
+      await current.host.stop();
+      current = port(runtime, database, storePath);
+      return current;
+    });
     return { ops, player, outcomes, events: current.events };
   } finally {
     await current.host.stop();
@@ -214,6 +225,39 @@ it.each(SCENARIOS)(
     expect(journaled).toEqual(sent.map(ownedToolStarts));
   },
 );
+
+it("starts a child thread carrying the recorded program answer as its finding, and keeps its parent", async () => {
+  let finding: unknown;
+  let child: unknown;
+  let unknownParent: Message | undefined;
+  await replay(readTrace(version, "two-messages"), "lineage", async (current, threadId, reopen) => {
+    const packed = await current.response(
+      current.dispatch("thread.chip", { id: `finding:${threadId}` }),
+    );
+    if (packed.type !== "thread.chip.result" || !packed.payload.ok)
+      throw new Error(`Finding refused: ${JSON.stringify(packed.payload)}`);
+    finding = JSON.parse(packed.payload.attachment.content);
+    unknownParent = await current.response(
+      current.dispatch("thread.start", { scope: "partition", parent: "no-such-thread" }),
+    );
+    const started = await current.response(
+      current.dispatch("thread.start", {
+        scope: "partition",
+        subject: `finding:${threadId}`,
+        parent: threadId,
+      }),
+    );
+    if (started.type !== "thread.started") throw new Error("The child did not start");
+    const reopened = await reopen();
+    const listed = await reopened.response(reopened.dispatch("threads.list", {}));
+    if (listed.type !== "threads.result") throw new Error("Threads were not listed");
+    child = listed.payload.threads.find(({ id }) => id === started.payload.threadId)?.thread;
+    expect(child).toMatchObject({ parent: threadId });
+  });
+  expect(finding).toMatchObject({ kind: "finding", scope: "program", finding: "TRACE-TWO" });
+  expect(child).toMatchObject({ scope: "partition", subject: expect.stringMatching(/^finding:/u) });
+  expect(unknownParent).toMatchObject({ type: "error" });
+});
 
 it("records a refused read outside the clone and replays the runtime abort as stopped", () => {
   const replayed = replays.get("denied-read");

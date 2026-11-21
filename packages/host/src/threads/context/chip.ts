@@ -110,6 +110,8 @@ const PLACE_TOOLS: Readonly<Record<string, string>> = {
   "place:engineering-system": "spi_template",
   "place:security": "spi_security",
   "place:releases": "spi_release_notes",
+  "place:environment": "spi_stack",
+  "place:program": "spi_brief",
 };
 
 function trim(chip: Draft, journal: SpiRedactor): PackedChip["chip"] {

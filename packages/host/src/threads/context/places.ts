@@ -61,6 +61,18 @@ export const PLACES: Readonly<Record<string, Place>> = {
     state: areas("template"),
   },
   "place:security": { place: "Security", anchor: "security", state: areas("security") },
+  "place:environment": {
+    place: "Environment",
+    anchor: "environment",
+    at: "/briefing/environment",
+    state: areas("lifecycle"),
+  },
+  "place:program": {
+    place: "Today",
+    anchor: "program",
+    at: "/briefing/today",
+    state: (view) => readStateAt(view, "/briefing/today") ?? readState([]),
+  },
   "place:releases": {
     place: "Releases",
     anchor: "releases",
@@ -68,9 +80,6 @@ export const PLACES: Readonly<Record<string, Place>> = {
     state: (view) => governedBy(readStateAt(view, "/releases/lines") ?? readState([]), "releases"),
   },
 };
-
-/** Environment and Program pack with the scopes that read them, which threads do not have yet. */
-export const UNPACKED_PLACES: readonly string[] = ["place:environment", "place:program"];
 
 export const SERVICE_PLACE = "service:";
 

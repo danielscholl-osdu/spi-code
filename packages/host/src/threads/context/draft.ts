@@ -10,7 +10,7 @@ import {
   packPlace,
   type Refusal,
 } from "./chip.js";
-import { readPlace, UNPACKED_PLACES } from "./places.js";
+import { readPlace } from "./places.js";
 import type { SpiRedactor } from "./redaction.js";
 import type { LatestSweep } from "./sweep.js";
 
@@ -27,9 +27,6 @@ export async function chipFromSweep(
 ): Promise<ChipOutcome> {
   const sweep = latest();
   if (!sweep) return refuse("No sweep has been saved.");
-  if (UNPACKED_PLACES.includes(id)) {
-    return refuse(`${id} cannot be a chip yet: it packs with the scope that reads it.`);
-  }
   const at = { sweptAt: sweep.view.sweptAt, reads: sweep.reads };
   const place = readPlace(sweep.view, id);
   if (place) return packPlace(id, place, at, redactor);
