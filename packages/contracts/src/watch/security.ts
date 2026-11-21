@@ -63,6 +63,8 @@ export const SecurityPaneSchema = z
       code: SecurityCountSchema,
     }),
     page: SecurityPageSchema,
+    /** The By rule / By repository switch's words. */
+    views: z.strictObject({ rule: z.string(), repository: z.string() }),
     lanes: z.array(SecurityLaneSchema),
   })
   .refine(({ lanes }) => lanes.map(({ id }) => id).join() === LANE_ORDER.join(), {

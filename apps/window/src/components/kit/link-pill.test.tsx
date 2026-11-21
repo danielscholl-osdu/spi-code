@@ -96,6 +96,20 @@ it("a place's own words replace the kind and number", async () => {
   expect(container.querySelector("a.kit-link")?.textContent).toBe("commit 7d269b5↗");
 });
 
+it("takes an accessible name only when the place gives one", async () => {
+  const link = {
+    kind: "other",
+    label: "CodeQL #80",
+    url: `${GH}/security/code-scanning/80`,
+  } as const;
+  const named = await mount(<LinkPill link={link} accessibleName="CodeQL #80 in entitlements" />);
+  expect(named.querySelector("a.kit-link")?.getAttribute("aria-label")).toBe(
+    "CodeQL #80 in entitlements",
+  );
+  const plain = await mount(<LinkPill link={link} />);
+  expect(plain.querySelector("a.kit-link")?.hasAttribute("aria-label")).toBe(false);
+});
+
 it("clicking a pill opens its URL through the bridge and does not reach the row", async () => {
   const spi = installSpi();
   cleanups.push(() => spi.restore());

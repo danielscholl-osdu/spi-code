@@ -6,5 +6,5 @@ import type { SecurityInput } from "./classify.js";
 
 /** The chosen lane read by repository: a row per repository with alerts, and the ones with nothing. */
 export function securityByRepository(_input: SecurityInput, _lane: SecurityLaneId): SecurityByRepository {
-  return { barMax: 0, rows: [], clean: [] };
+  return { columns: { repository: "", alerts: "", top: "" }, barMax: 0, rows: [], clean: [] };
 }

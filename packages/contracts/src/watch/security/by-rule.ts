@@ -26,6 +26,8 @@ export const SecurityRuleRowSchema = z.strictObject({
   list: SecurityListSchema,
   /** Absent for a rule that carries no severity. */
   worst: SecuritySeveritySchema.optional(),
+  /** The worst severity as drawn. */
+  severity: z.string(),
   /** The scanner's own title. */
   title: z.string(),
   sub: SecurityWordsSchema,
@@ -45,7 +47,14 @@ export const SecurityRuleRowSchema = z.strictObject({
 });
 
 export const SecurityByRuleSchema = z.strictObject({
+  /** Beside the By rule / By repository switch, in either view. */
   summary: SecurityWordsSchema,
+  columns: z.strictObject({
+    worst: z.string(),
+    rule: z.string(),
+    alerts: z.string(),
+    fix: z.string(),
+  }),
   /** The strip column's heading. */
   heading: SecurityWordsSchema,
   /** The largest count one repository holds for one rule in this lane: the ticks' scale. */

@@ -27823,7 +27823,17 @@
       "totals": [],
       "headline": [],
       "banner": [],
-      "opens": "spi"
+      "opens": "spi",
+      "barMax": 0,
+      "stub": [],
+      "legend": {
+        "high": "",
+        "rest": ""
+      }
+    },
+    "views": {
+      "rule": "By rule",
+      "repository": "By repository"
     },
     "lanes": [
       {
@@ -27845,12 +27855,23 @@
         },
         "byRule": {
           "summary": [],
+          "columns": {
+            "worst": "",
+            "rule": "",
+            "alerts": "",
+            "fix": ""
+          },
           "heading": [],
           "tickMax": 0,
           "barMax": 0,
           "rules": []
         },
         "byRepository": {
+          "columns": {
+            "repository": "",
+            "alerts": "",
+            "top": ""
+          },
           "barMax": 0,
           "rows": [],
           "clean": []
@@ -27875,12 +27896,23 @@
         },
         "byRule": {
           "summary": [],
+          "columns": {
+            "worst": "",
+            "rule": "",
+            "alerts": "",
+            "fix": ""
+          },
           "heading": [],
           "tickMax": 0,
           "barMax": 0,
           "rules": []
         },
         "byRepository": {
+          "columns": {
+            "repository": "",
+            "alerts": "",
+            "top": ""
+          },
           "barMax": 0,
           "rows": [],
           "clean": []
@@ -27905,12 +27937,23 @@
         },
         "byRule": {
           "summary": [],
+          "columns": {
+            "worst": "",
+            "rule": "",
+            "alerts": "",
+            "fix": ""
+          },
           "heading": [],
           "tickMax": 0,
           "barMax": 0,
           "rules": []
         },
         "byRepository": {
+          "columns": {
+            "repository": "",
+            "alerts": "",
+            "top": ""
+          },
           "barMax": 0,
           "rows": [],
           "clean": []

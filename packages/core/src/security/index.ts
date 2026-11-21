@@ -21,9 +21,28 @@ export {
 
 const EMPTY_LANE = {
   figure: { label: "", who: "", high: [], blocks: [], empty: [] },
-  byRule: { summary: [], heading: [], tickMax: 0, barMax: 0, rules: [] },
-  byRepository: { barMax: 0, rows: [], clean: [] },
+  byRule: {
+    summary: [],
+    columns: { worst: "", rule: "", alerts: "", fix: "" },
+    heading: [],
+    tickMax: 0,
+    barMax: 0,
+    rules: [],
+  },
+  byRepository: { columns: { repository: "", alerts: "", top: "" }, barMax: 0, rows: [], clean: [] },
 } as const satisfies Omit<SecurityLane, "id" | "total" | "high">;
+
+const EMPTY_PAGE = {
+  totals: [],
+  headline: [],
+  banner: [],
+  opens: "spi",
+  barMax: 0,
+  stub: [],
+  legend: { high: "", rest: "" },
+} as const satisfies SecurityPane["page"];
+
+const VIEWS = { rule: "By rule", repository: "By repository" } as const;
 
 function lane(input: SecurityInput, id: SecurityLaneId): SecurityLane {
   const byRule = securityByRule(input, id);
@@ -64,7 +83,8 @@ export function securityPane(source: SecuritySource): SecurityPane {
       dependabot: by("dependabot"),
       code: by("code"),
     },
-    page: read ? securityPage(input) : { totals: [], headline: [], banner: [], opens: "spi" },
+    page: read ? securityPage(input) : EMPTY_PAGE,
+    views: VIEWS,
     lanes: LANES.map((id) => (read ? lane(input, id) : { id, ...input.totals[id], ...EMPTY_LANE })),
   };
 }

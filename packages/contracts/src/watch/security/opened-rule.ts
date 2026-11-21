@@ -23,8 +23,32 @@ export const SecurityWhereSchema = z.strictObject({
   more: z.string().optional(),
 });
 
+export const SecurityAdvisorySchema = z.strictObject({
+  /** The CVE or GHSA id, drawn bold. */
+  id: z.string(),
+  /** Its severity and summary. */
+  words: SecurityWordsSchema,
+  /** Its first patched version and how many alerts it raised. */
+  fix: SecurityWordsSchema,
+});
+
+/** A package's advisories in order: the first shown, the rest behind a disclosure. */
+export const SecurityAdvisoriesSchema = z.strictObject({
+  preview: z.array(SecurityAdvisorySchema).min(1),
+  rest: z.array(SecurityAdvisorySchema),
+  /** "N more advisories" and "Fewer advisories"; absent when there is no rest. */
+  disclosure: z.strictObject({ more: SecurityWordsSchema, fewer: SecurityWordsSchema }).optional(),
+});
+
 export const SecurityOpenedRuleSchema = z.strictObject({
-  facts: z.array(z.strictObject({ label: z.string(), words: SecurityWordsSchema })),
+  facts: z.array(
+    z.strictObject({
+      label: z.string(),
+      words: SecurityWordsSchema,
+      /** The package's advisories, drawn as this fact's body. */
+      advisories: SecurityAdvisoriesSchema.optional(),
+    }),
+  ),
   /** The scanner's one-line help and CWE, when the sweep read them. */
   help: z.string().optional(),
   cwe: z.string().optional(),
@@ -36,4 +60,6 @@ export const SecurityOpenedRuleSchema = z.strictObject({
 });
 
 export type SecurityWhere = z.infer<typeof SecurityWhereSchema>;
+export type SecurityAdvisory = z.infer<typeof SecurityAdvisorySchema>;
+export type SecurityAdvisories = z.infer<typeof SecurityAdvisoriesSchema>;
 export type SecurityOpenedRule = z.infer<typeof SecurityOpenedRuleSchema>;

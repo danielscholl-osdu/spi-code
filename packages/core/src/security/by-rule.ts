@@ -11,5 +11,12 @@ export function securityByRule(
   _input: SecurityInput,
   _lane: SecurityLaneId,
 ): Omit<SecurityByRule, "rules"> & { rules: SecurityRuleHead[] } {
-  return { summary: [], heading: [], tickMax: 0, barMax: 0, rules: [] };
+  return {
+    summary: [],
+    columns: { worst: "", rule: "", alerts: "", fix: "" },
+    heading: [],
+    tickMax: 0,
+    barMax: 0,
+    rules: [],
+  };
 }

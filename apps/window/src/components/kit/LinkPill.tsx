@@ -59,10 +59,12 @@ export interface LinkPillProps {
   label?: string;
   /** Sit on the tone's surface at rest, for a pill on a neutral row. */
   filled?: boolean;
+  /** Its accessible name, where the visible words leave out what the place knows. */
+  accessibleName?: string;
 }
 
 /** An outlined pill that opens a link's source and does nothing else. */
-export function LinkPill({ link, label, filled }: LinkPillProps) {
+export function LinkPill({ link, label, filled, accessibleName }: LinkPillProps) {
   const kind = link.kind ?? "other";
   const { icon, tone } = KINDS[kind];
   const open = (event: MouseEvent) => {
@@ -75,6 +77,7 @@ export function LinkPill({ link, label, filled }: LinkPillProps) {
       className={`kit-link kit-link--${tone}`}
       data-kind={kind}
       {...(filled ? { "data-filled": "" } : {})}
+      {...(accessibleName ? { "aria-label": accessibleName } : {})}
       href={link.url}
       title={link.url}
       onClick={open}

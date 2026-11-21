@@ -39,7 +39,7 @@
             "fixed": "2.0.1",
             "advisory": "GHSA-0000-0000-0001",
             "summary": "Made-up advisory for a single-alert fixture",
-            "url": "https://github.com/Azure/osdu-spi-partition/security/dependabot/1",
+            "url": "https://github.com/example-org/partition/security/dependabot/1",
             "createdAt": "2026-11-10T00:00:00Z"
           }
         ],

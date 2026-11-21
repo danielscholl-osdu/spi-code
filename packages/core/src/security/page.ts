@@ -6,5 +6,5 @@ import type { SecurityInput } from "./classify.js";
 
 /** The line above the headline, the headline, the not-read banner and the lane the page opens on. */
 export function securityPage(_input: SecurityInput): SecurityPage {
-  return { totals: [], headline: [], banner: [], opens: "spi" };
+  return { totals: [], headline: [], banner: [], opens: "spi", barMax: 0, stub: [], legend: { high: "", rest: "" } };
 }

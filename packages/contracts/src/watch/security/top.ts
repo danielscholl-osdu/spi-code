@@ -17,6 +17,16 @@ export const SecurityPageSchema = z.strictObject({
   banner: SecurityWordsSchema,
   /** The lane the page opens on. */
   opens: SecurityLaneIdSchema,
+  /** The longest lane's alerts: the three bars' one scale. */
+  barMax: z.int().nonnegative(),
+  /** The hatched stub's tooltip and accessible name; empty when every list was read. */
+  stub: SecurityWordsSchema,
+  legend: z.strictObject({
+    high: z.string(),
+    rest: z.string(),
+    /** Absent when every list was read. */
+    unread: z.string().optional(),
+  }),
 });
 
 export const SecurityBlockSchema = z.strictObject({
@@ -25,6 +35,8 @@ export const SecurityBlockSchema = z.strictObject({
   alerts: SecurityCountSchema,
   /** High or critical, the solid part from the block's left. */
   high: z.int().nonnegative(),
+  /** A divider at each boundary between its rules, as fractions of the block from its left, in order. */
+  dividers: z.array(z.number().gt(0).lt(1)),
   /** Its tooltip and accessible name. */
   name: SecurityWordsSchema,
 });
