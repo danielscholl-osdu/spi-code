@@ -28,7 +28,7 @@ T3 Code supplies the behaviour and the look, re-made in SPI Code's kit, and none
 
 ## Scopes
 
-A thread has one scope, picked from a fixed list SPI Code seeds from the fleet it already reads: the program, the 13 services, the template and the environment. That is 16 scopes. The engine sees each as a project whose folder SPI Code owns under app data. The operator never sees the word project, a folder picker or a clone dialog, and cannot add a repository as a scope.
+A thread has one scope, picked from a fixed list SPI Code seeds from the fleet it already reads: the program, the 13 services, the template and the environment. That is 16 scopes. The engine sees each as a project whose folder, when it has one, SPI Code owns under app data; Program has none. The operator never sees the word project, a folder picker or a clone dialog, and cannot add a repository as a scope.
 
 | Scope | Folder the engine works in | Remotes |
 |---|---|---|
@@ -183,7 +183,7 @@ The sandbox has been observed on macOS only. The Windows checks (spicode-xia.17)
 | Where | What it says now |
 |---|---|
 | TH-01 | A thread has one scope of four kinds (Program, a service, Template, Environment). The item it started from is context, not identity. |
-| TH-03, PS-05 | No standing composer. Four ways in lead to one draft. A service lists its threads on a Threads tab. |
+| TH-03, PS-05 | No standing composer. Every way in leads to one draft. A service lists its threads on a Threads tab. |
 | TH-04 | No kind. Lands in decides whether there is a worktree, and can change from Asking later. |
 | TH-08 | Two access modes are carried: Supervised and Auto-accept edits. Plan mode, the terminal drawer, the diff panel, Open in editor, attachments, @ files, $ and / come later. |
 | CP-04, CP-05, NF-01 | The built-in shell and file tools are on, inside the sandbox, behind an approval. URL fetch, memory and subagent tools stay off. |
@@ -197,4 +197,4 @@ The sandbox has been observed on macOS only. The Windows checks (spicode-xia.17)
 | Today and places, Z7 | Ask about this is the one Copilot control on a row or popover. |
 | Service home | Threads nest under their service's pinned sidebar row. The service page gains a Threads tab and an Ask icon after the pin, rows gain Ask about this, and a request a thread opened shows pending until a sweep reads it. |
 
-Unchanged: the host drives Copilot through the SDK (CP-01 to CP-03), one runtime and no MCP server, the home and environment rules (CT-09), one right panel that exists only in a thread (PS-11), threads by status and the Settled shelf (PS-08, TH-07), the thread marker on an owned row (TH-05, PS-15), the model picker (CP-09), and M4's cards for program operations.
+Unchanged: the host drives Copilot through the SDK (CP-01 to CP-03), one runtime and no MCP server, the home and environment rules (CT-09), one right panel that exists only in a thread (PS-11), threads by status (PS-08, TH-07), now nested under their service with Settled at the sidebar's foot, the thread marker on an owned row (TH-05, PS-15), the model picker (CP-09), and M4's cards for program operations.

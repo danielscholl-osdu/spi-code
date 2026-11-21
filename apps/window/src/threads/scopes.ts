@@ -26,7 +26,7 @@ export function canStartIn(scope: string, tree: readonly { id: string }[] | unde
   return scope === PROGRAM || place(scope) !== undefined || treeServices(tree).includes(scope);
 }
 
-/** ⌘N's scope for a page: the open service, Template or Environment; otherwise Program. */
+/** Find's ask scope for a page: the open service, Template or Environment; otherwise Program. */
 export function scopeOfRoute(route: Route | undefined): string {
   if (route?.kind === "service") return route.id;
   return PLACE_SCOPES.find((entry) => entry.route.kind === route?.kind)?.id ?? PROGRAM;

@@ -41,7 +41,7 @@ export function askIn(
   navigate({ kind: "thread", id: NEW_THREAD });
 }
 
-/** Ask Copilot in Find: a draft holding the sentence, scoped and carrying the open row as ⌘N would. */
+/** Ask Copilot in Find: a draft holding the sentence, scoped to the page and carrying the open row. */
 export function askFromFind(text: string) {
   askIn(scopeOfRoute(parseRoute(window.location.hash)), threadStore.getState().target, text);
 }
