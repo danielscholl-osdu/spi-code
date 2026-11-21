@@ -2031,10 +2031,147 @@ export function coverage(
   };
 }
 
+/** What the old Security place drew from the security reading that the page drawn from the pane does not, and why. */
+export const SECURITY_READING_GONE: Readonly<Record<string, string>> = Object.freeze({
+  headline:
+    "The page's headline counts high alerts in shipped code across the three bars, not SPI-owned findings",
+  qualifier: "The banner names each list not read, with its Evidence link",
+  folded: "By rule draws every rule and package in the chosen bar, so none is folded",
+  "tiles/label": "The three bars name each lane in place of the tiles",
+  "tiles/counts": "Each bar states its own total and high count in place of the tiles' counts",
+  "tiles/value":
+    "Total and Upstream origin counted tests and settings with shipped code; the bars set those apart in Tests, tooling and settings",
+  "items/rung": "Security orders rules by worst severity, then high, then count, and ranks no rule",
+  "items/group": "Rules are not grouped by attention; the order says what is worst",
+  "items/sub":
+    "The row's second line counts the rule by scanner, file and severity in the page's measure",
+  "items/next":
+    "The row's fix column says what patches the package; the page offers no step until actions arrive",
+  "items/owned": "The page marks no rule as owned",
+  "items/due": "No rule carries a due time",
+});
+
+const SECURITY = home("Security", STARTS.security);
+/** A rule's name with the reading's own framing folded away: "Detected: ", "Scorecard: ", " vulnerabilities". */
+const ruleName = (title: string) =>
+  plainTitle(title)
+    .toLowerCase()
+    .replace(/^(?:detected|scorecard): /, "")
+    .replace(/ vulnerabilities$/, "")
+    .replace(/[^a-z0-9]+/g, "");
+const spreadHead = (text: string) =>
+  (text.split(" · ")[0] ?? "").replace(/\b(?:forks?|repositor(?:y|ies))\b/, "repositories");
+
+/** Each field the old Security place drew from the security reading: its home on the page, or why it is gone. */
+export function securityReadingCases(snapshot: ViewSnapshot): Reach[] {
+  const pane = snapshot.security;
+  const content = snapshot.readings.find(({ anchor }) => anchor.kind === "security")?.content;
+  if (!pane?.read || !content) return [];
+  const cases: Reach[] = [];
+  const base = "/readings/security/content";
+  const gone = (pointer: string, value: unknown, reason: keyof typeof SECURITY_READING_GONE) =>
+    cases.push({
+      pointer: `${base}/${pointer}`,
+      value: String(value),
+      home: SECURITY,
+      selector: "",
+      exempt: SECURITY_READING_GONE[reason] ?? reason,
+    });
+  gone("headline", content.headline, "headline");
+  if (content.qualifier) gone("qualifier", content.qualifier, "qualifier");
+  if (content.folded) gone("folded", content.folded, "folded");
+  content.tiles.forEach((tile, index) => {
+    gone(`tiles/${index}/label`, tile.label, "tiles/label");
+    gone(`tiles/${index}/counts`, tile.counts, "tiles/counts");
+    if (tile.label !== "High") {
+      gone(`tiles/${index}/value`, tile.value, "tiles/value");
+      return;
+    }
+    // The High tile counted high or critical in shipped SPI code, which the SPI bar words by severity.
+    cases.push({
+      pointer: `${base}/tiles/${index}/value`,
+      value: tile.value,
+      home: SECURITY,
+      selector: '.security-fig-row[data-lane="spi"] .security-fig-total span',
+      read: (element) =>
+        String((element.textContent?.match(/\d+/g) ?? []).reduce((sum, n) => sum + Number(n), 0)),
+    });
+  });
+  content.items.forEach((item, index) => {
+    const pointer = `items/${index}`;
+    const name = ruleName(item.title);
+    const lane = pane.lanes.find(({ byRule }) =>
+      byRule.rules.some(({ title }) => ruleName(title) === name),
+    );
+    const where = lane
+      ? lane.id === pane.page.opens
+        ? SECURITY
+        : home(
+            `Security, ${lane.figure.label}`,
+            STARTS.security,
+            `.security-fig-row[data-lane="${lane.id}"] .security-fig-name`,
+          )
+      : SECURITY;
+    const row = (root: ParentNode) =>
+      [...root.querySelectorAll(`.security-rules[data-lane="${lane?.id}"] .security-rule`)].find(
+        (element) =>
+          ruleName(element.querySelector(".security-rule-title")?.textContent ?? "") === name,
+      );
+    cases.push({
+      pointer: `${base}/${pointer}/title`,
+      value: name,
+      home: where,
+      selector: (root) => row(root)?.querySelector(".security-rule-title"),
+      read: (element) => ruleName(element.textContent ?? ""),
+    });
+    cases.push({
+      pointer: `${base}/${pointer}/scope`,
+      value: spreadHead(item.scope),
+      home: where,
+      selector: (root) => row(root)?.querySelector(".security-rule-spreadword"),
+      read: (element) => spreadHead(element.textContent ?? ""),
+    });
+    gone(`${pointer}/rung`, `P${item.rung}`, "items/rung");
+    gone(`${pointer}/group`, item.group, "items/group");
+    if (item.sub) gone(`${pointer}/sub`, item.sub, "items/sub");
+    if (item.next) gone(`${pointer}/next`, item.next, "items/next");
+    if (item.owned) gone(`${pointer}/owned`, "Owned", "items/owned");
+    if (item.due) gone(`${pointer}/due`, item.due.at, "items/due");
+  });
+  return cases;
+}
+
+/** Every field the old Security place drew from the security reading, by the cases' pointers. */
+export function securityReadingFields(snapshot: ViewSnapshot): string[] {
+  const content = snapshot.readings.find(({ anchor }) => anchor.kind === "security")?.content;
+  if (!snapshot.security?.read || !content) return [];
+  const base = "/readings/security/content";
+  return [
+    `${base}/headline`,
+    ...(content.qualifier ? [`${base}/qualifier`] : []),
+    ...(content.folded ? [`${base}/folded`] : []),
+    ...content.tiles.flatMap((_, i) =>
+      ["label", "value", "counts"].map((key) => `${base}/tiles/${i}/${key}`),
+    ),
+    ...content.items.flatMap((item, i) =>
+      [
+        "title",
+        "scope",
+        "rung",
+        "group",
+        ...(item.sub ? ["sub"] : []),
+        ...(item.next ? ["next"] : []),
+        ...(item.owned ? ["owned"] : []),
+        ...(item.due ? ["due"] : []),
+      ].map((key) => `${base}/items/${i}/${key}`),
+    ),
+  ];
+}
+
 /** Routes the window draws no Briefing or Releases field on, each with its reason. */
 export const ROUTE_EXEMPTIONS: Readonly<Record<string, string>> = {
   security:
-    "Security draws its own reading; on the 6 Nov sweep it holds no Briefing item, and its tiles are not Briefing fields",
+    "Security draws the security pane, and the security reading before any list was read; neither is a Briefing field, securityReadingCases covers what the old place drew, and placeFreshCases its new items",
   evidence:
     "Evidence draws reads, areas and not-read lists about Briefing items, never a Briefing field as the home of one",
   service:

@@ -1021,7 +1021,7 @@ exit 0 · 38 s</div>
   <section>
     <h2>Palettes in semantic roles</h2>
     <p>Two palettes, each in a light and a dark appearance: <b>Neutral</b>, zinc greys after T3 Code's, and <b>Warm</b>, Keelson's Shore. Neutral is the default; Settings › Appearance offers Warm beside it, and the theme follows the system unless Settings pins one. Palette and theme are independent, so the window has four looks, and every role below is defined in all four. Components name a role, after T3 Code's <code>themePalettes.ts</code>, cut to the roles this app uses plus success, agent, upstream and work, never a colour of their own.</p>
-    <p><code>upstream</code> marks what is coming from upstream GitLab: the On the horizon block, upstream chips with ⇣, an upstream wait's slot and the Upstream pin's clock when the next upstream sync is near, and nothing else. A pin's line icon is never drawn in it, the Upstream pin's included; every pin icon is muted, and the clock is a mark beside it. Chips, thread rows, the Thread tab and the toggles draw from the roles below.</p>
+    <p><code>upstream</code> marks what is coming from upstream GitLab: the On the horizon block, upstream chips with ⇣, an upstream wait's slot, the Upstream pin's clock when the next upstream sync is near, and on Security the Shipped upstream code bar, whose fix arrives by sync, and nothing else. A pin's line icon is never drawn in it, the Upstream pin's included; every pin icon is muted, and the clock is a mark beside it. Chips, thread rows, the Thread tab and the toggles draw from the roles below.</p>
     <h3>Neutral, the default</h3>
     <div class="tblwrap"><table class="tbl compact">
       <thead><tr><th style="width:17%">Role</th><th style="width:37%">Used for</th><th style="width:15%">Light</th><th style="width:15%">Dark</th><th>Tint, light · dark</th></tr></thead>
@@ -1040,7 +1040,10 @@ exit 0 · 38 s</div>
         <tr><td><code>success</code></td><td>Environment's check, applied, settled</td><td><code>#15803d</code>, text <code>#157c3b</code></td><td><code>#6ee7a0</code></td><td><code>#e3f5e8</code> · <code>#10291b</code></td></tr>
         <tr><td><code>work</code></td><td>Work under way that needs nothing: Environment's refresh mark, a popover's sweeping row</td><td><code>#0369a1</code></td><td><code>#7dd3fc</code></td><td><code>#ddeefa</code> · <code>#0f2533</code></td></tr>
         <tr><td><code>agent</code></td><td>Copilot's messages and proposals, a code thread's marker</td><td><code>#7e4cba</code></td><td><code>#c4b5fd</code></td><td></td></tr>
-        <tr><td><code>upstream</code></td><td>Upstream origin only, as above, the Upstream pin's clock included</td><td><code>#9a2680</code></td><td><code>#c463aa</code></td><td><code>#f8e3f0</code> · <code>#2d1727</code></td></tr>
+        <tr><td><code>upstream</code></td><td>Upstream origin only, as above, the Upstream pin's clock and Security's Shipped upstream code bar included</td><td><code>#9a2680</code></td><td><code>#c463aa</code></td><td><code>#f8e3f0</code> · <code>#2d1727</code></td></tr>
+        <tr><td><code>lane-spi</code></td><td>Security's Shipped SPI code: its bar, blocks, ticks and count bars. A fill, never text</td><td><code>#2a78d6</code></td><td><code>#3987e5</code></td><td>16% on <code>surface</code></td></tr>
+        <tr><td><code>lane-upstream</code></td><td>Security's Shipped upstream code, as <code>lane-spi</code>; <code>upstream</code>'s value, widened to this bar</td><td><code>#9a2680</code></td><td><code>#c463aa</code></td><td>16% on <code>surface</code></td></tr>
+        <tr><td><code>lane-tests</code></td><td>Security's Tests, tooling and settings, as <code>lane-spi</code></td><td><code>#8b8b93</code></td><td><code>#6b6b74</code></td><td>16% on <code>surface</code></td></tr>
         <tr><td><code>onFill</code></td><td>Text on a filled accent, error or warning</td><td><code>#ffffff</code></td><td><code>#0d0d0f</code></td><td></td></tr>
       </tbody>
     </table></div>
@@ -1079,7 +1082,10 @@ exit 0 · 38 s</div>
         <tr><td><code>warning</code></td><td>P1, waiting on you, a pending card, stale or cut evidence</td><td><code>yellow</code></td><td><code>#a07b3a</code></td><td><code>#e2b45c</code></td><td><code>#80622e</code> · same</td></tr>
         <tr><td><code>success</code></td><td>Environment's check, applied, settled, fresh evidence</td><td><code>green</code></td><td><code>#3a7633</code></td><td><code>#8fcf86</code></td><td><code>#356c2f</code> · same</td></tr>
         <tr><td><code>agent</code></td><td>Copilot's messages and proposals, a code thread's marker</td><td><code>magenta</code></td><td><code>#8a5cc0</code></td><td><code>#c3a2e8</code></td><td><code>#7e4cba</code> · same</td></tr>
-        <tr><td><code>upstream</code></td><td>The horizon origin mark on Today: the On the horizon block, upstream chips with ⇣, an upstream wait's slot; and the Upstream pin's clock. Never an in-system item.</td><td>magenta family, apart from <code>agent</code></td><td><code>#a33182</code></td><td><code>#fabce0</code></td><td>Same · same</td></tr>
+        <tr><td><code>upstream</code></td><td>The horizon origin mark on Today: the On the horizon block, upstream chips with ⇣, an upstream wait's slot; the Upstream pin's clock; and Security's Shipped upstream code bar. Never an in-system item.</td><td>magenta family, apart from <code>agent</code></td><td><code>#a33182</code></td><td><code>#fabce0</code></td><td>Same · same</td></tr>
+        <tr><td><code>lane-spi</code></td><td>Security's Shipped SPI code: its bar, blocks, ticks and count bars</td><td>blue, apart from <code>work</code></td><td><code>#2a78d6</code></td><td><code>#3987e5</code></td><td>None: a fill, never text</td></tr>
+        <tr><td><code>lane-upstream</code></td><td>Security's Shipped upstream code, as <code>lane-spi</code></td><td>magenta family, as <code>upstream</code></td><td><code>#a33182</code></td><td><code>#c463aa</code></td><td>None: a fill, never text</td></tr>
+        <tr><td><code>lane-tests</code></td><td>Security's Tests, tooling and settings, as <code>lane-spi</code></td><td><code>dim</code></td><td><code>#8f887a</code></td><td><code>#7d7666</code></td><td>None: a fill, never text</td></tr>
       </tbody>
     </table></div>
     <div class="swatches">

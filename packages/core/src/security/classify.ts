@@ -13,11 +13,14 @@ import type {
   Severity,
 } from "../facts.js";
 import type { Model } from "../model/index.js";
-import { type DependencyPr, forkPaths, type Paths } from "../model/repos.js";
+import { type DependencyPr, forkPaths, ownerOf, type Paths } from "../model/repos.js";
 import type { SweepReads } from "../sweep/index.js";
 
 export const LANES: readonly SecurityLaneId[] = Object.freeze(["spi", "upstream", "tests"]);
 const LISTS: readonly SecurityList[] = Object.freeze(["dependabot", "code"]);
+
+/** Whose move a path is, or a repository setting when the alert has no file. */
+export type SecurityOwner = "spi" | "upstream" | "setting";
 
 /** One open alert, classified once by its own path. */
 export interface SecurityAlert {
@@ -28,6 +31,7 @@ export interface SecurityAlert {
   key: string;
   /** Tooling or a repository setting, in the tests lane. */
   tooling: boolean;
+  owner: SecurityOwner;
   severity?: Severity;
   high: boolean;
   /** The file or manifest; absent for a repository setting. */
@@ -77,6 +81,9 @@ export const unreadList = (input: Pick<SecurityInput, "repositories">, list: Sec
 
 const heavy = (severity: Severity | undefined) => severity === "critical" || severity === "high";
 
+const ownerAt = (path: string | undefined, paths: Paths): SecurityOwner =>
+  !path ? "setting" : ownerOf(path, paths) === "upstream" ? "upstream" : "spi";
+
 function codePath(alert: CodeAlertFact): string | undefined {
   return alert.path && alert.path.toLowerCase() !== NO_FILE ? alert.path : undefined;
 }
@@ -97,6 +104,7 @@ function alertsOf(
       lane: group,
       key: `${group}:dep:${a.package.toLowerCase()}`,
       tooling: !!tooling,
+      owner: ownerAt(a.manifest, paths),
       severity: a.severity,
       high: heavy(a.severity),
       path: a.manifest,
@@ -116,6 +124,7 @@ function alertsOf(
       lane: group,
       key: `${group}:code:${a.tool}:${a.rule}`,
       tooling: !!tooling,
+      owner: ownerAt(path, paths),
       ...(a.severity ? { severity: a.severity } : {}),
       high: heavy(a.severity),
       ...(path ? { path } : {}),

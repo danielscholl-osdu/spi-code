@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { ViewSnapshotSchema } from "@spi-code/contracts";
+import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it } from "vitest";
@@ -10,9 +10,10 @@ import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { RouteView } from "../../app/routes.js";
 import { watchStore } from "../../store/watch.js";
 import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
-import Security from "./index.js";
+import { wordsText } from "./pane/Words.js";
 
 const recorded = watchFixtureText("snapshot-59d6895.json", readFixture);
+const parse = (text: string) => ViewSnapshotSchema.parse(JSON.parse(text));
 
 const container = document.createElement("div");
 let root: ReturnType<typeof createRoot>;
@@ -29,63 +30,30 @@ afterEach(async () => {
   watchStore.setState(previous);
 });
 
-it.each([
-  ["the populated security read", recorded],
-  ["November's unread security source", november],
-])(
-  "renders %s through the registered Security place without manufacturing zeroes",
-  async (_name, fixture) => {
-    const body = ViewSnapshotSchema.parse(JSON.parse(fixture));
-    watchStore.setState({ snapshot: { cursor: body.cursor, body } });
-    await act(async () => root.render(<RouteView route={{ kind: "security" }} />));
-    const reading = body.readings.find(({ anchor }) => anchor.kind === "security")?.content;
-    if (!reading) throw new Error("Missing recorded security reading");
-    expect(container.querySelector(".place-headline")?.textContent).toBe(reading.headline);
-    expect([...container.querySelectorAll(".place-tile")].map((tile) => tile.textContent)).toEqual(
-      reading.tiles.map((tile) => `${tile.label}${tile.value}${tile.counts}`),
-    );
-    expect(container.querySelectorAll(".place-item")).toHaveLength(reading.items.length);
-    for (const item of reading.items) {
-      const row = container.querySelector(`[data-item-id="${item.id}"]`);
-      expect(row?.querySelector(".place-item-title")?.textContent).toBe(item.title);
-      expect(row?.querySelector(".place-item-sub")?.textContent).toBe(item.sub);
-      expect(row?.querySelector(".place-scope")?.textContent).toBe(item.scope);
-      expect(row?.closest(".place-group")?.querySelector("h3")?.textContent).toBe(item.group);
-    }
-    expect(container.querySelector(".place-folded")?.textContent ?? null).toBe(reading.folded);
-    if (fixture === november) {
-      expect(
-        [...container.querySelectorAll(".place-tile-value")].map((tile) => tile.textContent),
-      ).toEqual(["not read yet", "not read yet", "not read yet"]);
-      expect(container.querySelector(".place-groups")).toBeNull();
-    } else {
-      for (const campaign of body.campaigns.filter(({ kind }) => kind === "security")) {
-        const row = container.querySelector(`[data-item-id="${campaign.id}"]`);
-        expect(row?.querySelector(".place-item-title")?.textContent).toMatch(/^Detected: /);
-        expect(row?.querySelector(".place-scope")?.textContent).toBe(
-          `${campaign.forks.length} forks`,
-        );
-      }
-    }
-    expect(container.textContent).not.toMatch(
-      /Threads|composer|not available yet|gate 3|fork_upstream/i,
-    );
-  },
-);
+async function route(body: ViewSnapshot | undefined) {
+  watchStore.setState({ snapshot: body ? { cursor: body.cursor, body } : null });
+  await act(async () => root.render(<RouteView route={{ kind: "security" }} />));
+}
 
-it("shows source qualifiers and removes absent content without leaving empty parts", async () => {
-  const body = ViewSnapshotSchema.parse(JSON.parse(recorded));
-  const reading = body.readings.find(({ anchor }) => anchor.kind === "security");
-  if (!reading?.content) throw new Error("Missing recorded security reading");
-  reading.content.qualifier = "One security read failed, so findings could be missing.";
-  watchStore.setState({ snapshot: { cursor: body.cursor, body } });
-  await act(async () => root.render(<Security />));
-  expect(container.querySelector(".place-qualifier")?.textContent).toBe(reading.content.qualifier);
-  reading.content = null;
-  await act(async () =>
-    watchStore.setState({ snapshot: { cursor: body.cursor + 1, body: structuredClone(body) } }),
+it("draws the Security page from the pane once a list was read, and none of the reading", async () => {
+  const body = parse(recorded);
+  if (!body.security?.read) throw new Error("The recorded snapshot read no security list");
+  await route(body);
+  expect(container.querySelector(".security-pane h1")?.textContent).toBe("Security");
+  expect(container.querySelector(".security-headline")?.textContent).toBe(
+    `${wordsText(body.security.page.totals)}${wordsText(body.security.page.headline)}`,
   );
+  expect(container.querySelector(".place-reading, .place-tile, .place-item")).toBeNull();
+});
+
+it("draws the security reading before any list was read, and the title alone with no snapshot", async () => {
+  const body = parse(november);
+  expect(body.security?.read).toBe(false);
+  await route(body);
+  const reading = body.readings.find(({ anchor }) => anchor.kind === "security")?.content;
+  expect(container.querySelector(".place-headline")?.textContent).toBe(reading?.headline);
+  expect(container.querySelector(".security-pane")).toBeNull();
+  await route(undefined);
   expect(container.querySelector("h1")?.textContent).toBe("Security");
-  expect(container.querySelector(".place-reading")).toBeNull();
-  expect(container.querySelectorAll("section")).toHaveLength(1);
+  expect(container.querySelector(".place-reading, .security-figure")).toBeNull();
 });

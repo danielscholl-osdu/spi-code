@@ -53,6 +53,7 @@ import {
 } from "./smoke-report.js";
 import { captureRepositories } from "./smoke-repositories.js";
 import { captureRollout } from "./smoke-rollout.js";
+import { captureSecurity } from "./smoke-security.js";
 import { withServiceLists } from "./smoke-service-lists.js";
 import { withSmokeServiceRuns } from "./smoke-service-runs.js";
 import { captureSidebarPins } from "./smoke-sidebar.js";
@@ -1753,6 +1754,17 @@ export async function captureSmokeViews(
       mornings.bad.snapshot,
     );
     section("Today Forks");
+    await captureSecurity(
+      {
+        window,
+        output,
+        rendered: (condition) => rendered(window, condition),
+        fixture: (type, payload) => fixture(window, type, payload),
+        setupState: ready,
+      },
+      fixturePath,
+    );
+    section("Security");
     await historyKeys(window, () => {
       fixture(window, "view.snapshot", snapshot);
       fixture(window, "setup.state", ready);

@@ -24,6 +24,7 @@ import {
   SMOKE_TIME_ZONE,
   smokeEnvironment,
 } from "./smoke-environment.js";
+import { securitySnapshots } from "./smoke-security.js";
 import { RUNS_FAILURE, RUNS_ROUTE, withSmokeServiceRuns } from "./smoke-service-runs.js";
 
 /**
@@ -1126,6 +1127,43 @@ export async function assertRenderedContrast(
     fixture(window, "view.snapshot", { ...maintenance, cursor: cursor++ });
     await rendered(window, 'document.querySelector(".env-status[data-state=maintenance]")');
     await everyShade("environment-maintenance", ".environment .env-status");
+    const security = securitySnapshots(fixturePath);
+    const securityPage = ".centre-body .security-pane";
+    fixture(window, "view.snapshot", { ...security["1116"].snapshot, cursor: cursor++ });
+    await js('location.hash = "#security"');
+    await rendered(window, `document.querySelector("${securityPage} .security-figure")`);
+    await everyShade("security", securityPage);
+    await js(
+      `document.querySelector("${securityPage} .security-rule .security-rule-title").click()`,
+    );
+    await rendered(
+      window,
+      `document.querySelector("${securityPage} .security-rule[data-open] .security-opened")`,
+    );
+    await everyShade("security-rule", securityPage);
+    await js(`document.querySelector("${securityPage} .security-views button:last-child").click()`);
+    await js(
+      `document.querySelector("${securityPage} .security-repo .security-repo-alerts").click()`,
+    );
+    await rendered(
+      window,
+      `document.querySelector("${securityPage} .security-repo[data-open] .security-repo-open")`,
+    );
+    await everyShade("security-repository", securityPage);
+    await js(
+      `document.querySelector('${securityPage} .security-fig-row[data-lane="tests"] .security-fig-name').click()`,
+    );
+    await js(
+      `document.querySelector("${securityPage} .security-views button:first-child").click()`,
+    );
+    await rendered(
+      window,
+      `document.querySelector('${securityPage} .security-rules[data-lane="tests"]')`,
+    );
+    await everyShade("security-tests", securityPage);
+    fixture(window, "view.snapshot", { ...security.partial.snapshot, cursor: cursor++ });
+    await rendered(window, `document.querySelector("${securityPage} .security-banner")`);
+    await everyShade("security-partial", securityPage);
     fixture(window, "view.snapshot", { ...nov6, cursor: cursor++ });
     await js('location.hash = "#upstream"');
     await rendered(window, 'document.querySelector(".upstream .place-reading")');

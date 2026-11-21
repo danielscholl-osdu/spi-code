@@ -16,10 +16,17 @@ const freshDestination = (place: string): Destination => {
   }
 };
 
+export const SECURITY_FRESH_ALERT_GONE =
+  "Security draws rules, not the reading's alerts, so a new alert has no chip of its own; a new Briefing item keeps its chip under the page";
+
 /** Fresh ids have a visible chip at their place. */
 export function placeFreshCases(snapshot: ViewSnapshot): Reach[] {
+  const items = new Set(
+    [...snapshot.briefing.focus, ...snapshot.briefing.rest].map(({ id }) => id),
+  );
   return (snapshot.briefing.places ?? []).flatMap((row, index) =>
     (row.place === "line" ? [] : (row.fresh?.itemIds ?? [])).map((id, at) => ({
+      ...(row.place === "security" && !items.has(id) ? { exempt: SECURITY_FRESH_ALERT_GONE } : {}),
       pointer: `/briefing/places/${index}/fresh/itemIds/${at}`,
       value: id,
       home: {

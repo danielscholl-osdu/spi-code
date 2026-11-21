@@ -19,6 +19,7 @@ const DAY_MS = 86_400_000;
 const WEEK_MS = 7 * DAY_MS;
 const COLUMNS = Object.freeze({ worst: "Worst", rule: "Rule or package", alerts: "Alerts", fix: "Fix and age" });
 const STRIP_KEYS = "Arrow keys name a repository; Enter opens it.";
+const OWNER = Object.freeze({ spi: "SPI", upstream: "upstream" });
 
 const plural = (n: number, one: string, many = `${one}s`) => (n === 1 ? one : many);
 const counted = (n: number, short: boolean, one: string, many?: string): SecurityWords => [
@@ -55,12 +56,24 @@ function severityWords(alerts: readonly SecurityAlert[], short: boolean): Securi
 
 const advisoryOf = (alert: SecurityAlert) => alert.dependabot?.advisory ?? "";
 
+/** Whose paths a tests-lane rule sits in: "SPI path", "upstream paths", "SPI and upstream paths", "SPI setting". */
+function ownerWords(alerts: readonly SecurityAlert[]): SecurityWords {
+  const paths = (["spi", "upstream"] as const).filter((owner) => alerts.some((a) => a.owner === owner));
+  const files = new Set(alerts.filter((a) => a.owner !== "setting").map((a) => `${a.repository}:${a.path}`));
+  const [only] = paths;
+  return join([
+    paths.length > 1 ? ["SPI and upstream paths"] : only ? [`${OWNER[only]} ${plural(files.size, "path")}`] : [],
+    alerts.some((a) => a.owner === "setting") ? ["SPI setting"] : [],
+  ]);
+}
+
 function sub(alerts: readonly SecurityAlert[], list: SecurityList, short: boolean): SecurityWords {
   const split = severityWords(alerts, short);
+  const owner = alerts[0]?.lane === "tests" ? ownerWords(alerts) : [];
   if (list === "code") {
     const files = new Set(alerts.filter((a) => a.path).map((a) => `${a.repository}:${a.path}`)).size;
     const tool = alerts[0]?.code?.tool ?? "";
-    return join([["Code scanning"], [tool], files ? counted(files, short, "file") : [], split]);
+    return join([["Code scanning"], [tool], files ? counted(files, short, "file") : [], split, owner]);
   }
   const advisories = new Set(alerts.map(advisoryOf));
   const [only] = alerts;
@@ -68,7 +81,7 @@ function sub(alerts: readonly SecurityAlert[], list: SecurityList, short: boolea
     advisories.size === 1 && only?.dependabot
       ? [only.dependabot.cve ?? only.dependabot.advisory]
       : counted(advisories.size, short, "advisory", "advisories");
-  return join([["Dependabot"], split, named]);
+  return join([["Dependabot"], split, named, owner]);
 }
 
 /** What patches the package: one version stated, several as a range, never the one to upgrade to. */

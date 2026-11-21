@@ -66,7 +66,8 @@ it.each(Object.keys(views) as (keyof typeof views)[])(
     watchStore.setState({ snapshot: { cursor: body.cursor, body } });
     document.body.append(container);
     await act(async () => root.render(views[place]));
-    expect(marked().sort()).toEqual([...new Set(ids)].sort());
+    const drawn = place === "security" ? [extra.id] : ids;
+    expect(marked().sort()).toEqual([...new Set(drawn)].sort());
     for (const chip of container.querySelectorAll("[data-fresh-item]")) {
       expect(chip.querySelector(".kit-chip--accent")).not.toBeNull();
       expect(chip.textContent).toBe("new");
@@ -112,7 +113,10 @@ it("registers each new chip at its place", async () => {
   expect(seeded.sort()).toEqual(["engineering", "security"]);
   const cases = placeFreshCases(body);
   expect(cases).toHaveLength(seeded.length);
-  for (const row of cases) {
+  expect(cases.filter(({ exempt }) => exempt).map(({ home }) => home.start.name)).toEqual([
+    "security",
+  ]);
+  for (const row of cases.filter(({ exempt }) => !exempt)) {
     watchStore.setState({ snapshot: { cursor: body.cursor, body } });
     document.body.append(container);
     const route = row.home.start.route;

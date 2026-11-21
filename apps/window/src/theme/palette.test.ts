@@ -20,12 +20,14 @@ function tokens(mode: Appearance, palette: "warm" | "neutral" = "warm"): Record<
     palette === "warm"
       ? `:root[data-theme="${mode}"]`
       : `:root[data-palette="neutral"][data-theme="${mode}"]`;
-  const block = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].find(([, selectors]) =>
-    selectors?.split(",").some((item) => item.trim() === selector),
-  )?.[2];
-  if (!block) throw new Error(`missing ${palette} ${mode} tokens`);
+  const blocks = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .filter(([, selectors]) => selectors?.split(",").some((item) => item.trim() === selector))
+    .map(([, , block]) => block ?? "");
+  if (blocks.length === 0) throw new Error(`missing ${palette} ${mode} tokens`);
   return Object.fromEntries(
-    [...block.matchAll(/--([\w-]+):\s*([^;]+);/g)].map(([, role, value]) => [role, value]),
+    blocks.flatMap((block) =>
+      [...block.matchAll(/--([\w-]+):\s*([^;]+);/g)].map(([, role, value]) => [role, value]),
+    ),
   );
 }
 
@@ -81,7 +83,7 @@ describe.each(["warm", "neutral"] as const)("%s", (palette) => {
 
     it("distinguishes upstream from every other palette role under CVD", () => {
       for (const [role, color] of Object.entries(theme)) {
-        if (role.startsWith("upstream")) continue;
+        if (role.startsWith("upstream") || role === "lane-upstream") continue;
         for (const [hex] of color.matchAll(/#[0-9a-f]{6}/g)) {
           for (const variant of ["upstream", "upstream-text"]) {
             expect(
@@ -122,7 +124,7 @@ describe.each(["light", "dark"] as const)("Shore design %s", (mode) => {
       design.indexOf("<h2>Shore in semantic roles"),
       design.indexOf('<div class="swatches">', design.indexOf("<h2>Shore in semantic roles")),
     );
-    for (const row of table.matchAll(/<tr><td><code>(\w+)<\/code>[\s\S]*?<\/tr>/g)) {
+    for (const row of table.matchAll(/<tr><td><code>([\w-]+)<\/code>[\s\S]*?<\/tr>/g)) {
       const role = row[1];
       if (!role || !row[0]) throw new Error("invalid design role row");
       const colors = [...row[0].matchAll(/#[0-9a-f]{6}/g)].map(([color]) => color);

@@ -1,27 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { useStore } from "zustand";
-import { navigate } from "../../app/navigation.js";
-import { treeServices } from "../../app/queue.js";
-import { Place } from "../../components/place/Place.js";
-import { placePin } from "../../store/pins.js";
-import { watchStore } from "../../store/watch.js";
+import { SecurityPane } from "./pane/Pane.js";
 
 export default function Security() {
-  const snapshot = useStore(watchStore, (state) => state.snapshot?.body);
-  const reading = snapshot?.readings.find(({ anchor }) => anchor.kind === "security") ?? {
-    anchor: { kind: "security" },
-    content: null,
-  };
-  return (
-    <Place
-      name="Security"
-      pin={placePin("security")}
-      reading={reading}
-      snapshot={snapshot}
-      services={treeServices(snapshot?.tree)}
-      onNavigate={navigate}
-    />
-  );
+  return <SecurityPane />;
 }

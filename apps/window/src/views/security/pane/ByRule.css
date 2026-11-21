@@ -23,7 +23,7 @@
 }
 .security-rules-head {
   position: sticky;
-  top: 0;
+  top: calc(-1 * var(--centre-content-padding-block));
   z-index: 2;
   padding: 6px 0 5px;
   border-bottom: 1px solid var(--border);
@@ -36,7 +36,7 @@
 }
 .security-rules-head > :first-child { padding-left: 8px; }
 
-.security-rule { border-bottom: 1px solid var(--border-soft); }
+.security-rule { border-bottom: 1px solid var(--border-soft); scroll-margin-top: 32px; }
 .security-rule[data-open] { background: var(--surface-raised); }
 .security-rule:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .security-rule-head { padding: 8px 0; cursor: pointer; }

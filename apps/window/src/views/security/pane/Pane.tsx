@@ -8,6 +8,7 @@ import { navigate } from "../../../app/navigation.js";
 import { treeServices } from "../../../app/queue.js";
 import { PaneTitle } from "../../../app/title-row.js";
 import { PinControl } from "../../../components/pin/PinControl.js";
+import { FreshItems } from "../../../components/place/FreshItems.js";
 import { Place } from "../../../components/place/Place.js";
 import { placePin } from "../../../store/pins.js";
 import { type createWatchStore, watchStore } from "../../../store/watch.js";
@@ -67,6 +68,7 @@ export function SecurityPane({
           {state.view === "rule" ? <ByRule {...props} /> : <ByRepository {...props} />}
         </>
       )}
+      <FreshItems snapshot={snapshot} place="security" />
     </section>
   );
 }

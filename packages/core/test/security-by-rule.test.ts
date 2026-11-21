@@ -73,6 +73,24 @@ describe("By rule over the 16 Nov sweep", () => {
     ]);
   });
 
+  it("ends a tests-lane rule's second line with whose paths it sits in, and no other lane's", () => {
+    const tests = lane(source, "tests").rules;
+    expect(
+      ["PyYAML", "pyjwt", "pyasn1", "Log Injection", "requests", "Branch-Protection"].map((title) =>
+        text(rule(tests, title).sub),
+      ),
+    ).toEqual([
+      "Dependabot · CVE-2020-14343 · SPI path",
+      "Dependabot · 2 critical and 10 high, 6 lower · 9 advisories · SPI paths",
+      "Dependabot · 4 advisories · upstream path",
+      "Code scanning · CodeQL · 3 files · upstream paths",
+      "Dependabot · 4 advisories · SPI and upstream paths",
+      "Code scanning · Scorecard · SPI setting",
+    ]);
+    const shipped = [...lane(source, "spi").rules, ...lane(source, "upstream").rules];
+    expect(shipped.filter((r) => /path|setting/.test(text(r.sub)))).toEqual([]);
+  });
+
   it("names the repository holding most of a rule under its strip, and a rule in one repository by name", () => {
     const upstream = lane(source, "upstream").rules;
     expect(text(upstream[0]?.spread ?? [])).toBe("3 forks · 81 in crs-conversion");

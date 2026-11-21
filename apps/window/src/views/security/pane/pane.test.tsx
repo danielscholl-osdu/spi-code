@@ -7,9 +7,12 @@ import { createRoot } from "react-dom/client";
 import { afterEach, expect, it } from "vitest";
 import november from "../../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { readFixture } from "../../../../../../scripts/watch-generated.mjs";
+import { navigate } from "../../../app/navigation.js";
+import { treeServices } from "../../../app/queue.js";
+import { Place } from "../../../components/place/Place.js";
+import { placePin } from "../../../store/pins.js";
 import { watchStore } from "../../../store/watch.js";
 import { watchFixtureText } from "../../../test-utils/watch-fixtures.test-helper.js";
-import Security from "../index.js";
 import { SecurityPane } from "./Pane.js";
 
 const recorded = watchFixtureText("snapshot-59d6895.json", readFixture);
@@ -47,7 +50,20 @@ it.each<[string, () => ViewSnapshot | undefined]>([
   const snapshot = body();
   if (snapshot?.security) expect(snapshot.security.read).toBe(false);
   watchStore.setState({ snapshot: snapshot ? { cursor: snapshot.cursor, body: snapshot } : null });
-  const place = await mount(<Security />);
+  const reading = snapshot?.readings.find(({ anchor }) => anchor.kind === "security") ?? {
+    anchor: { kind: "security" as const },
+    content: null,
+  };
+  const place = await mount(
+    <Place
+      name="Security"
+      pin={placePin("security")}
+      reading={reading}
+      snapshot={snapshot}
+      services={treeServices(snapshot?.tree)}
+      onNavigate={navigate}
+    />,
+  );
   const pane = await mount(<SecurityPane />);
   expect(pane.innerHTML).toBe(place.innerHTML);
   if (!snapshot) expect(pane.querySelector(".place-headline")).toBeNull();
