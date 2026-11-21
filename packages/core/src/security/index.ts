@@ -42,7 +42,7 @@ const EMPTY_PAGE = {
   legend: { high: "", rest: "" },
 } as const satisfies SecurityPane["page"];
 
-const VIEWS = { rule: "By rule", repository: "By repository" } as const;
+const VIEWS = Object.freeze({ rule: "By rule", repository: "By repository" });
 
 function lane(input: SecurityInput, id: SecurityLaneId): SecurityLane {
   const byRule = securityByRule(input, id);
