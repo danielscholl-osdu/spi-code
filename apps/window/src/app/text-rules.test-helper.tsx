@@ -24,6 +24,7 @@ const headlines = '.place-headline, [data-pointer$="/headline"], .release-months
 const titles = [
   ".place-item-title, .place-item-sub, .place-item-next, .template-line-text, .template-line-sub, .env-repo-line-text, .env-repo-line small, .env-muted, .template-repo-title, .service-row-title, .service-section-count, .service-row-sub, .detail-title, [data-field], .inspector-related dd, .palette-label, .inbox-row-title, .inbox-sub",
   ".today-section-head, .today-row-fork button, .today-row-what, .today-table-calm",
+  ".security-fig-label, .security-fig-who, .security-rule-title, .security-rule-sub, .security-repo-name small, .security-repo-top, .security-repo-rule-pill",
 ].join(", ");
 
 export const emoji = /\p{Emoji_Presentation}|\p{Extended_Pictographic}\uFE0F|\u20E3/u;

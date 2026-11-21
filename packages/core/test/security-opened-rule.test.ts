@@ -161,6 +161,54 @@ describe("an opened rule over the 16 Nov sweep", () => {
     expect(rule.where[0]?.needs).not.toContainEqual({ code: "2.13.4.2" });
   });
 
+  it("says no patched version yet for a manifest none of whose advisories has one", () => {
+    const data = structuredClone(source.facts.security.data ?? {});
+    for (const alerts of Object.values(data))
+      alerts.dependabot = alerts.dependabot?.map((fact) =>
+        fact.manifest === "testing/workflow-test-core/pom.xml"
+          ? { ...fact, fixed: undefined }
+          : fact,
+      );
+    const unpatched = {
+      ...source,
+      facts: { ...source.facts, security: { ...source.facts.security, data } },
+    };
+    const lines = opened(unpatched, DATABIND).where;
+    expect(lines.map(({ needs }) => needs[0])).toEqual([
+      "first patched in ",
+      "no patched version yet for ",
+    ]);
+    expect(lines[1]?.needs).toEqual(["no patched version yet for ", exact(13)]);
+  });
+
+  it("dates Open since by its alerts' whole UTC day and passes over a time it cannot read", () => {
+    const since = (times: string[]) => {
+      const mine = classify(source).alerts.filter((alert) => alert.key === CSRF);
+      const data = structuredClone(source.facts.security.data ?? {});
+      for (const alerts of Object.values(data))
+        alerts.code = alerts.code?.map((fact) => {
+          const at = mine.findIndex((alert) => alert.code?.url === fact.url);
+          return at >= 0 ? { ...fact, createdAt: times[at % times.length] ?? "" } : fact;
+        });
+      const moved = {
+        ...source,
+        facts: { ...source.facts, security: { ...source.facts.security, data } },
+      };
+      return opened(moved, CSRF).facts.find(({ label }) => label === "Open since")?.words;
+    };
+    expect(since(["2025-03-04T10:00:00Z", "2026-03-04T10:00:00Z"])).toEqual([
+      "4 Mar 2025",
+      ", newest ",
+      "4 Mar 2026",
+    ]);
+    expect(since(["not a time", "2026-03-04T10:00:00Z", "2026-03-05T10:00:00Z"])).toEqual([
+      "4 Mar",
+      ", newest ",
+      "5 Mar",
+    ]);
+    expect(since(["not a time"])).toBeUndefined();
+  });
+
   it("reads a rule with no file as a repository setting, with no file line", () => {
     const rule = opened(source, BRANCH_PROTECTION);
     expect(rule.where).toEqual([
@@ -293,7 +341,7 @@ describe("an opened rule's help and CWE", () => {
     expect(SecurityOpenedRuleSchema.parse(rule)).toEqual(rule);
   });
 
-  it("names every CWE a rule carries once, without its zero padding", () => {
+  it("names every distinct CWE on an alert once, without its zero padding", () => {
     const tags = [
       "external/cwe/cwe-079",
       "security",
@@ -305,7 +353,7 @@ describe("an opened rule's help and CWE", () => {
     expect(opened(withScanner(CSRF, { tags }), CSRF).cwe).toBe("CWE-79, CWE-116");
   });
 
-  it("gives neither field, and no empty line, to a rule with no tags or no full description", () => {
+  it("leaves out the help and the CWE each on its own when the scanner gives none, with no empty line", () => {
     const plain = opened(sweep1116Source(), CSRF);
     expect("help" in plain || "cwe" in plain).toBe(false);
     expect(plain.facts.map(({ label }) => label)).not.toContain("What it is");
@@ -331,6 +379,28 @@ describe("an opened rule's help and CWE", () => {
     for (const rule of [plain, helpOnly, tagsOnly, noCwe])
       for (const fact of rule.facts)
         expect(fact.words.length > 0 || fact.advisories !== undefined, fact.label).toBe(true);
+  });
+});
+
+describe("an opened rule's CWE across its alerts", () => {
+  it("names the CWEs of every alert, in the order first seen", () => {
+    const source = sweep1116Source();
+    const mine = classify(source).alerts.filter((alert) => alert.key === CSRF);
+    const tagged = new Map([
+      [mine[0]?.code?.url, ["external/cwe/cwe-079"]],
+      [mine[1]?.code?.url, ["external/cwe/cwe-116", "external/cwe/cwe-079"]],
+    ]);
+    const data = structuredClone(source.facts.security.data ?? {});
+    for (const alerts of Object.values(data))
+      alerts.code = alerts.code?.map((fact) => {
+        const tags = tagged.get(fact.url);
+        return tags ? (parseCodeAlert({ ...fact, tags }) as CodeAlertFact) : fact;
+      });
+    const both = {
+      ...source,
+      facts: { ...source.facts, security: { ...source.facts.security, data } },
+    };
+    expect(opened(both, CSRF).cwe).toBe("CWE-79, CWE-116");
   });
 });
 
@@ -381,20 +451,34 @@ describe("what an opened rule says is as the scanner wrote it", () => {
     }
   });
 
-  it("marks Where files and Most in verbatim only when they name every path whole", () => {
-    const paths = new Set(classify(source).alerts.flatMap(({ path }) => (path ? [path] : [])));
+  it("marks Where files and Most in verbatim only when they name their own alerts' paths whole", () => {
+    const all = classify(source).alerts;
+    const pathsOf = (key: string, repository?: string) =>
+      new Set(
+        all.flatMap((alert) =>
+          alert.key === key && alert.path && (!repository || alert.repository === repository)
+            ? [alert.path]
+            : [],
+        ),
+      );
     const named = (words: SecurityWords) =>
       words.flatMap((part) => (typeof part === "object" && "code" in part ? [part.code] : []));
-    const lines = rules.flatMap(({ rule }) => rule.where);
-    const most = rules.flatMap(({ rule }) =>
-      rule.facts.filter(({ label }) => label.startsWith("Most in")),
+    const lines = rules.flatMap(({ key, rule }) =>
+      rule.where
+        .filter(({ read }) => read)
+        .map((line) => ({ ...line, paths: pathsOf(key, line.repository) })),
+    );
+    const most = rules.flatMap(({ key, rule }) =>
+      rule.facts
+        .filter(({ label }) => label.startsWith("Most in"))
+        .map((fact) => ({ ...fact, paths: pathsOf(key) })),
     );
     for (const line of [
-      ...lines.map(({ files, verbatim }) => ({ words: files, verbatim })),
+      ...lines.map(({ files, verbatim, paths }) => ({ words: files, verbatim, paths })),
       ...most,
     ])
       expect(line.verbatim === true, JSON.stringify(line.words)).toBe(
-        named(line.words).every((path) => paths.has(path)),
+        named(line.words).every((path) => line.paths.has(path)),
       );
     expect(lines.some(({ verbatim }) => verbatim)).toBe(true);
     expect(lines.some(({ verbatim }) => !verbatim)).toBe(true);
@@ -432,6 +516,13 @@ describe("what an opened rule says is as the scanner wrote it", () => {
       most: rule.facts.find(({ label }) => label === "Most in"),
     };
   }
+
+  it("keeps one Most in spot for a path and another path that adds a line to it", () => {
+    const { most } = placed({
+      "Azure/osdu-spi-file": [ROOT, ROOT, ROOT, `${ROOT}\nextra`, `${ROOT}\nextra`],
+    });
+    expect(most?.words).toEqual([{ code: ROOT }, " in file, ", exact(3), " alerts"]);
+  });
 
   it("marks a Where line shortened to a basename as changed, though another alert's whole path is that basename", () => {
     const { where, most } = placed({ "Azure/osdu-spi-file": [DEEP, DEEP, DEEP, DEEP, ROOT] });

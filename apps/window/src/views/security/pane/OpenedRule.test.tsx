@@ -10,9 +10,10 @@ import {
 } from "@spi-code/contracts";
 import { act, useRef } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, expect, it } from "vitest";
 import { readFixture } from "../../../../../../scripts/watch-generated.mjs";
 import { watchStore } from "../../../store/watch.js";
+import { stubActEnvironment } from "../../../test-utils/harness.js";
 import { watchFixtureText } from "../../../test-utils/watch-fixtures.test-helper.js";
 import { type ThreadSummary, threadStore } from "../../../threads/store.js";
 import { OpenedRule, ruleTarget } from "./OpenedRule.js";
@@ -85,6 +86,12 @@ function Harness({ rule }: { rule: SecurityRuleRow }) {
 }
 
 const cleanups: (() => Promise<void>)[] = [];
+
+let restoreAct: () => void;
+beforeAll(() => {
+  restoreAct = stubActEnvironment();
+});
+afterAll(() => restoreAct());
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0)) await cleanup();
 });
@@ -167,4 +174,14 @@ it("shows a thread as the owner of its own rule only, settled or not", async () 
     expect(elsewhere.querySelector(".ask-about--owned")).toBeNull();
     expect(elsewhere.querySelector(".ask-about")?.textContent).toBe("✦Ask about this");
   }
+});
+
+it("gives ⌘N the opened rule while it is open, whether or not it offers Ask", async () => {
+  threadStore.getState().setTarget(null);
+  const container = await render(rule);
+  expect(threadStore.getState().target).toBeNull();
+  await act(async () => container.querySelector<HTMLButtonElement>("[data-tick]")?.click());
+  expect(threadStore.getState().target).toEqual(ruleTarget(rule));
+  for (const cleanup of cleanups.splice(0)) await cleanup();
+  expect(threadStore.getState().target).toBeNull();
 });

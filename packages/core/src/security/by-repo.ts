@@ -35,6 +35,7 @@ const rank = (alert: SecurityAlert) =>
   alert.severity ? SEVERITY_ORDER.indexOf(alert.severity) : SEVERITY_ORDER.length;
 const baseName = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 const capital = (words: string) => words.charAt(0).toUpperCase() + words.slice(1);
+const plain = (title: string) => title.replaceAll("`", "");
 
 /** A scanner's title, its backticked words as code. */
 const titleWords = (title: string): SecurityWords =>
@@ -92,6 +93,7 @@ function ruleOf(
   const short = !repository.read[list];
   const title = (list === "code" ? first?.code?.description : first?.dependabot?.package) ?? key;
   const high = alerts.filter((a) => a.high).length;
+  const critical = alerts.some((a) => a.severity === "critical");
   const n = count(alerts.length, short);
   const byFile = list === "code" && alerts.length > BY_FILE_OVER;
   return {
@@ -100,9 +102,11 @@ function ruleOf(
     words: [
       n,
       ` ${plural(alerts.length, "alert")}`,
-      ...(high > 0 && high < alerts.length ? [", ", count(high, short), " high"] : []),
+      ...(high > 0 && high < alerts.length
+        ? [", ", count(high, short), critical ? " high or critical" : " high"]
+        : []),
     ],
-    name: [`Open ${title} in By rule: `, n, ` ${plural(alerts.length, "alert")} in ${repository.name}`],
+    name: [`Open ${plain(title)} in By rule: `, n, ` ${plural(alerts.length, "alert")} in ${repository.name}`],
     alerts: byFile ? [] : [...alerts].sort(bySeverity).map((alert) => pill(alert, false)),
     files: byFile ? filesOf(alerts, short) : [],
   };
@@ -126,8 +130,9 @@ function moreWords(rules: readonly SecurityRepoRule[], short: boolean): Security
   const rest = rules.slice(TOP_RULES);
   if (rest.length === 0) return [];
   const packages = rest.filter((r) => listOf(r.key) === "dependabot").length;
-  const noun =
-    packages === 0
+  const noun = short
+    ? "rules and packages"
+    : packages === 0
       ? plural(rest.length, "rule")
       : packages === rest.length
         ? plural(rest.length, "package")

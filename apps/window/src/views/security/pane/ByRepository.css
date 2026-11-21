@@ -37,7 +37,7 @@
   text-transform: uppercase;
 }
 
-.security-repo { border-bottom: 1px solid var(--border-soft); scroll-margin-top: 32px; }
+.security-repo { border-bottom: 1px solid var(--border-soft); scroll-margin-top: var(--security-head-height); }
 .security-repo[data-open] { background: var(--surface-raised); }
 .security-repo:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .security-repo-head { padding-top: 8px; padding-bottom: 8px; cursor: pointer; }
@@ -123,7 +123,7 @@
 
 .security-repo-pills,
 .security-repo-all { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
-.security-repo-alert[data-heavy] .kit-link { font-weight: 700; }
+.security-repo-alert[data-heavy] .kit-link { color: var(--text-strong); font-weight: 700; border-width: 1.5px; }
 .security-repo-files { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .security-repo-file {
   display: grid;

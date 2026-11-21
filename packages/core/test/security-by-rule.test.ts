@@ -91,6 +91,57 @@ describe("By rule over the 16 Nov sweep", () => {
     expect(shipped.filter((r) => /path|setting/.test(text(r.sub)))).toEqual([]);
   });
 
+  it("words a tests-lane rule mixing a path and a setting, and a setting on a fork", () => {
+    const input = inputOf(source);
+    const [asSetting] = input.alerts.filter(
+      (a) => a.lane === "tests" && a.code?.description === "Log Injection",
+    );
+    const [setting] = input.alerts.filter((a) => a.owner === "setting" && a.lane === "tests");
+    expect(asSetting && setting && setting.repository !== "partition").toBe(true);
+    const edited = (alerts: SecurityInput["alerts"]) =>
+      securityByRule({ ...input, alerts }, "tests").rules;
+    const mixed = edited(
+      input.alerts.map((a) =>
+        a === asSetting ? { ...a, owner: "setting" as const, path: undefined } : a,
+      ),
+    );
+    expect(text(rule(mixed, "Log Injection").sub)).toBe(
+      "Code scanning · CodeQL · 2 files · upstream paths · SPI setting",
+    );
+    const onFork = edited(
+      input.alerts.map((a) => (a === setting ? { ...a, repository: "partition" } : a)),
+    );
+    expect(text(rule(onFork, setting?.code?.description ?? "").sub)).toBe(
+      `Code scanning · ${setting?.code?.tool} · SPI setting`,
+    );
+  });
+
+  it("leaves out a code rule's tool when the scanner names none", () => {
+    const input = inputOf(source);
+    const toolless = input.alerts.map((a) =>
+      a.lane === "spi" && a.code?.description === "Disabled Spring CSRF protection"
+        ? { ...a, code: { ...a.code, tool: "" } }
+        : a,
+    );
+    const csrf = rule(
+      securityByRule({ ...input, alerts: toolless }, "spi").rules,
+      "Disabled Spring CSRF protection",
+    );
+    expect(text(csrf.sub)).toBe("Code scanning · 22 files");
+  });
+
+  it("names a strip by the scanner's title without its backticks, and keeps the title as written", () => {
+    const input = inputOf(source);
+    const title = "Log `Injection` in `logger`";
+    const ticked = input.alerts.map((a) =>
+      a.lane === "upstream" && a.code?.description === "Log Injection"
+        ? { ...a, code: { ...a.code, description: title } }
+        : a,
+    );
+    const logs = rule(securityByRule({ ...input, alerts: ticked }, "upstream").rules, title);
+    expect(text(logs.strip)).toMatch(/^Log Injection in logger by repository: /);
+  });
+
   it("names the repository holding most of a rule under its strip, and a rule in one repository by name", () => {
     const upstream = lane(source, "upstream").rules;
     expect(text(upstream[0]?.spread ?? [])).toBe("3 forks · 81 in crs-conversion");

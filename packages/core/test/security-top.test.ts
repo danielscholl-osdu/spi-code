@@ -134,67 +134,70 @@ describe("blocks account for each lane", () => {
 
 // For each number on the top of the page: whether it carries ≥ in each sweep.
 type Numbers = (p: SecurityPane) => SecurityCount[];
-const NUMBERS: [string, Numbers, { "1116": boolean; partial: boolean; "code unread": boolean }][] =
+const NUMBERS: [
+  string,
+  Numbers,
+  { "1116": boolean; partial: boolean; retained: boolean; "code unread": boolean },
+][] = [
   [
-    [
-      "the totals line's total",
-      (p) => counts(p.page.totals).slice(0, 1),
-      { "1116": false, partial: true, "code unread": true },
-    ],
-    [
-      "its Dependabot count",
-      (p) => counts(p.page.totals).slice(1, 2),
-      { "1116": false, partial: true, "code unread": false },
-    ],
-    [
-      "its code scanning count",
-      (p) => counts(p.page.totals).slice(2, 3),
-      { "1116": false, partial: true, "code unread": true },
-    ],
-    [
-      "every headline count",
-      (p) => counts(p.page.headline),
-      { "1116": false, partial: true, "code unread": true },
-    ],
-    [
-      "each lane total",
-      (p) => p.lanes.map((l) => l.total),
-      { "1116": false, partial: true, "code unread": true },
-    ],
-    [
-      "each lane high count",
-      (p) => p.lanes.map((l) => l.high),
-      { "1116": false, partial: true, "code unread": true },
-    ],
-    [
-      "each lane's high words",
-      (p) => p.lanes.flatMap((l) => counts(l.figure.high)),
-      { "1116": false, partial: true, "code unread": true },
-    ],
-    [
-      "the grouped blocks",
-      (p) =>
-        blocks(p)
-          .filter((b) => b.rules.length > 1)
-          .map((b) => b.alerts),
-      { "1116": false, partial: true, "code unread": true },
-    ],
-    [
-      "a package's own block",
-      (p) => own(p, "dep"),
-      { "1116": false, partial: true, "code unread": false },
-    ],
-    [
-      "a code rule's own block",
-      (p) => own(p, "code"),
-      { "1116": false, partial: true, "code unread": true },
-    ],
-  ];
+    "the totals line's total",
+    (p) => counts(p.page.totals).slice(0, 1),
+    { "1116": false, partial: true, retained: true, "code unread": true },
+  ],
+  [
+    "its Dependabot count",
+    (p) => counts(p.page.totals).slice(1, 2),
+    { "1116": false, partial: true, retained: true, "code unread": false },
+  ],
+  [
+    "its code scanning count",
+    (p) => counts(p.page.totals).slice(2, 3),
+    { "1116": false, partial: true, retained: true, "code unread": true },
+  ],
+  [
+    "every headline count",
+    (p) => counts(p.page.headline),
+    { "1116": false, partial: true, retained: true, "code unread": true },
+  ],
+  [
+    "each lane total",
+    (p) => p.lanes.map((l) => l.total),
+    { "1116": false, partial: true, retained: true, "code unread": true },
+  ],
+  [
+    "each lane high count",
+    (p) => p.lanes.map((l) => l.high),
+    { "1116": false, partial: true, retained: true, "code unread": true },
+  ],
+  [
+    "each lane's high words",
+    (p) => p.lanes.flatMap((l) => counts(l.figure.high)),
+    { "1116": false, partial: true, retained: true, "code unread": true },
+  ],
+  [
+    "the grouped blocks",
+    (p) =>
+      blocks(p)
+        .filter((b) => b.rules.length > 1)
+        .map((b) => b.alerts),
+    { "1116": false, partial: true, retained: true, "code unread": true },
+  ],
+  [
+    "a package's own block",
+    (p) => own(p, "dep"),
+    { "1116": false, partial: true, retained: true, "code unread": false },
+  ],
+  [
+    "a code rule's own block",
+    (p) => own(p, "code"),
+    { "1116": false, partial: true, retained: true, "code unread": true },
+  ],
+];
 
 describe("≥ sits only on a number an unread list could change", () => {
   it.each(
     NUMBERS.flatMap(([what, pick, expected]) =>
-      (["1116", "partial", "code unread"] as const).map(
+      (["1116", "partial", "retained", "code unread"] as const).map(
         (name) => [what, name, pick, expected[name]] as const,
       ),
     ),

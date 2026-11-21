@@ -37,9 +37,9 @@ const severityWord = (alert: SecurityAlert) =>
 const capital = (text: string) => `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
 const basename = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 const dirOf = (path: string) => (path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "");
-const day = (at: string) => {
+const day = (at: number, year: boolean) => {
   const date = new Date(at);
-  return `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]}`;
+  return `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]}${year ? ` ${date.getUTCFullYear()}` : ""}`;
 };
 /** A deep path keeps its first two and last parts. */
 const shortPath = (path: string) => {
@@ -120,6 +120,7 @@ function patched(alerts: readonly SecurityAlert[], atLeast: boolean): Words {
       const rest: Words = lower > 0 ? [count(lower, atLeast), " lower"] : [];
       return [{ code: version }, " for ", ...join([heavy, rest].filter((part) => part.length > 0), " and ")];
     });
+  if (byVersion.size === 0) return ["no patched version yet for ", count(none.length, atLeast)];
   if (none.length > 0) parts.push(["none yet for ", count(none.length, atLeast)]);
   return ["first patched in ", ...join(parts)];
 }
@@ -271,18 +272,20 @@ type Scanner = Pick<SecurityOpenedRule, "help" | "cwe">;
 const helpVerbatim = (alerts: readonly SecurityAlert[]) =>
   alerts.find((alert) => alert.code?.fullDescription)?.code?.verbatim === true;
 
-/** A code rule's help and CWE, each from the first alert that carries it: retained alerts may predate both. */
+/** A code rule's help from the first alert that carries it, and every CWE its alerts carry: retained alerts may predate both. */
 function scanner(alerts: readonly SecurityAlert[]): Scanner {
   const help = alerts.find((alert) => alert.code?.fullDescription)?.code?.fullDescription;
-  const cwe = alerts
-    .map((alert) => [
-      ...new Set((alert.code?.tags ?? []).flatMap((tag) => {
-        const id = CWE_TAG.exec(tag)?.[1];
-        return id ? [`CWE-${id}`] : [];
-      })),
-    ])
-    .find((ids) => ids.length > 0);
-  return { ...(help ? { help } : {}), ...(cwe ? { cwe: cwe.join(", ") } : {}) };
+  const cwe = [
+    ...new Set(
+      alerts.flatMap((alert) =>
+        (alert.code?.tags ?? []).flatMap((tag) => {
+          const id = CWE_TAG.exec(tag)?.[1];
+          return id ? [`CWE-${id}`] : [];
+        }),
+      ),
+    ),
+  ];
+  return { ...(help ? { help } : {}), ...(cwe.length > 0 ? { cwe: cwe.join(", ") } : {}) };
 }
 
 function facts(
@@ -301,25 +304,34 @@ function facts(
     const body = advisories(alerts, short);
     if (body) out.push({ label: body.preview.length + body.rest.length === 1 ? "Advisory" : "Advisories", words: [], advisories: body, ...AS_WRITTEN });
   }
-  const times = alerts.map(({ createdAt }) => createdAt).sort();
+  const times = alerts
+    .map(({ createdAt }) => Date.parse(createdAt))
+    .filter((time) => !Number.isNaN(time))
+    .sort((a, b) => a - b);
   const [since] = times;
   const newest = times.at(-1);
-  if (since && newest)
+  if (since !== undefined && newest !== undefined) {
+    const years = new Date(since).getUTCFullYear() !== new Date(newest).getUTCFullYear();
+    const from = day(since, years);
+    const to = day(newest, years);
     out.push({
       label: "Open since",
       words: [
-        day(since),
-        ...(day(newest) === day(since) ? [] : [", newest ", day(newest)]),
+        from,
+        ...(to === from ? [] : [", newest ", to]),
         ...(short ? [" in the lists read"] : []),
       ],
       ...AS_WRITTEN,
     });
+  }
   if (first?.code) {
-    const spots = [...new Set(alerts.map(({ repository, path }) => `${repository}\n${path ?? ""}`))]
-      .map((spot) => {
-        const [repository = "", path = ""] = spot.split("\n");
-        return { repository, path, n: alerts.filter((a) => a.repository === repository && (a.path ?? "") === path).length };
-      })
+    const byPair = new Map<string, { repository: string; path: string; n: number }>();
+    for (const { repository, path = "" } of alerts) {
+      const pair = JSON.stringify([repository, path]);
+      const spot = byPair.get(pair) ?? { repository, path, n: 0 };
+      byPair.set(pair, { ...spot, n: spot.n + 1 });
+    }
+    const spots = [...byPair.values()]
       .filter(({ path, n }) => path && n >= 3 && n >= alerts.length / 5)
       .sort((a, b) => b.n - a.n || a.repository.localeCompare(b.repository) || a.path.localeCompare(b.path))
       .slice(0, 2);

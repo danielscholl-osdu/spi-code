@@ -4,8 +4,9 @@
 import { type SecurityPane as Pane, SecurityPaneSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, expect, it } from "vitest";
 import { readGenerated } from "../../../../../../scripts/watch-generated.mjs";
+import { stubActEnvironment } from "../../../test-utils/harness.js";
 import { SecurityPane } from "./Pane.js";
 
 const fixture = (name: string): Pane =>
@@ -24,6 +25,11 @@ async function mount(pane: Pane) {
   return container;
 }
 
+let restoreAct: () => void;
+beforeAll(() => {
+  restoreAct = stubActEnvironment();
+});
+afterAll(() => restoreAct());
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0)) await cleanup();
 });

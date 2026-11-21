@@ -179,7 +179,7 @@ describe.each(SECURITY_FIXTURES)("Security's context on the %s scenario", (name)
     }
   });
 
-  it("keeps every rule key whole through the redactor, so a refreshed chip still finds its rule", async () => {
+  it("keeps every rule key whole through the redactor", async () => {
     for (const rule of rulesOf(pane)) {
       const subject = `security-rule:${rule.key}`;
       expect(journalOutputRedactor.value(subject)).toBe(subject);

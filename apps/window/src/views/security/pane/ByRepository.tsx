@@ -248,7 +248,7 @@ function Row({
 /** The chosen lane by repository, with the repositories that hold nothing on one line. */
 export function ByRepository({ lane, state, actions }: SectionProps) {
   const [shown, setShown] = useState<ReadonlySet<string>>(new Set());
-  const [allClean, setAllClean] = useState(false);
+  const [cleanLane, setCleanLane] = useState<string | null>(null);
   const { columns, barMax, rows, clean, cleanShort } = lane.byRepository;
   if (rows.length === 0) return null;
   const show = (key: string) =>
@@ -277,10 +277,10 @@ export function ByRepository({ lane, state, actions }: SectionProps) {
       ))}
       {clean.length > 0 && (
         <p className="security-repos-clean">
-          {cleanShort && !allClean ? (
+          {cleanShort && cleanLane !== lane.id ? (
             <>
               <Words words={cleanShort.words} />
-              <button type="button" aria-expanded={false} onClick={() => setAllClean(true)}>
+              <button type="button" aria-expanded={false} onClick={() => setCleanLane(lane.id)}>
                 <Words words={cleanShort.more} />
               </button>
             </>

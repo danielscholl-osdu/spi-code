@@ -315,12 +315,12 @@ const SHAPES: {
     args: [
       "api",
       "--paginate",
-      "repos/Azure/osdu-spi-partition/code-scanning/alerts?state=open&per_page=100",
+      "repos/acme/widgets/code-scanning/alerts?state=open&per_page=100",
       "--jq",
       CODE_JQ,
     ],
     class: "operator",
-    github: ["Azure/osdu-spi-partition"],
+    github: ["acme/widgets"],
   },
 ];
 const codeScanning = (jq: string) => [

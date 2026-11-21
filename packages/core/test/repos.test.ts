@@ -179,7 +179,7 @@ describe("the repositories model", () => {
     expect(legal?.codeScanning).toEqual({ ours: 2, upstream: 0 });
   });
 
-  test("workflow code scanning counts each reach independently of alert order", () => {
+  describe("workflow code scanning tallies each variant of a rule independently of alert order", () => {
     const workflowRepo = "Azure/osdu-spi-workflow";
     const context = createContext({
       fleet: fleetOf([
@@ -192,54 +192,62 @@ describe("the repositories model", () => {
         },
       ]),
     });
-    const workflow = rows((f) => {
-      const alerts = f.security.data;
-      if (!alerts) throw new Error("fixture has security data");
-      alerts[workflowRepo] = {
-        code: [
-          {
-            number: 5,
-            severity: "high",
-            ruleSeverity: "error",
-            rule: "java/spring-disabled-csrf-protection",
-            description: "Disabled Spring CSRF protection",
-            tool: "CodeQL",
-            path: "provider/workflow-azure/src/test/java/org/opengroup/osdu/workflow/provider/azure/CustomOperatorMvcTest.java",
-            url: `https://github.com/${workflowRepo}/security/code-scanning/5`,
-            createdAt: "2026-09-17T14:56:55Z",
-          },
-          {
-            number: 4,
-            severity: "high",
-            ruleSeverity: "error",
-            rule: "java/spring-disabled-csrf-protection",
-            description: "Disabled Spring CSRF protection",
-            tool: "CodeQL",
-            path: "provider/workflow-azure/src/main/java/org/opengroup/osdu/workflow/provider/azure/security/AzureIstioSecurityConfig.java",
-            url: `https://github.com/${workflowRepo}/security/code-scanning/4`,
-            createdAt: "2026-09-17T14:56:55Z",
-          },
-          {
-            number: 3,
-            severity: "high",
-            ruleSeverity: "error",
-            rule: "java/spring-disabled-csrf-protection",
-            description: "Disabled Spring CSRF protection",
-            tool: "CodeQL",
-            path: "provider/workflow-azure/src/main/java/org/opengroup/osdu/workflow/provider/azure/security/AadSecurityConfig.java",
-            url: `https://github.com/${workflowRepo}/security/code-scanning/3`,
-            createdAt: "2026-09-17T14:56:55Z",
-          },
-        ],
-      };
-    }, context).find((x) => x.name === "workflow");
-    const csrf = workflow?.alerts.filter((g) => g.name === "Disabled Spring CSRF protection");
+    const csrf = (number: number, path: string) => ({
+      number,
+      severity: "high" as const,
+      ruleSeverity: "error",
+      rule: "java/spring-disabled-csrf-protection",
+      description: "Disabled Spring CSRF protection",
+      tool: "CodeQL",
+      path,
+      url: `https://github.com/${workflowRepo}/security/code-scanning/${number}`,
+      createdAt: "2026-09-17T14:56:55Z",
+    });
+    const AZURE = "provider/workflow-azure/src";
+    const TEST = csrf(5, `${AZURE}/test/java/CustomOperatorMvcTest.java`);
+    const MAIN = [
+      csrf(4, `${AZURE}/main/java/AzureIstioSecurityConfig.java`),
+      csrf(3, `${AZURE}/main/java/AadSecurityConfig.java`),
+    ];
+    const SHARED = "provider/workflow-core/src/main/java/shared";
+    const TEMPLATE = csrf(7, `${SHARED}/SyncedSecurityConfig.java`);
+    const UPSTREAM = csrf(6, "provider/workflow-core/src/main/java/WorkflowSecurityConfig.java");
+    const workflow = (code: ReturnType<typeof csrf>[]) =>
+      rows((f) => {
+        const alerts = f.security.data;
+        if (!alerts || !f.template.data) throw new Error("fixture has security and template data");
+        f.template.data.synced = { dirs: [SHARED], files: [] };
+        alerts[workflowRepo] = { code };
+      }, context).find((x) => x.name === "workflow");
+    const variants = (code: ReturnType<typeof csrf>[]) =>
+      workflow(code)
+        ?.alerts.filter((g) => g.name === "Disabled Spring CSRF protection")
+        .map((g) => ({ owner: g.owner, reach: g.reach, count: g.count, counts: g.counts }));
 
-    expect(csrf?.map((g) => ({ reach: g.reach, count: g.count, counts: g.counts }))).toEqual([
-      { reach: "shipped", count: 2, counts: { high: 2 } },
-      { reach: "tests", count: 1, counts: { high: 1 } },
-    ]);
-    expect(workflow?.codeScanning).toEqual({ ours: 2, upstream: 0 });
+    test.each([
+      ["tests first", [TEST, ...MAIN]],
+      ["shipped first", [...MAIN, TEST]],
+    ])("splits shipped from tests with %s", (_order, code) => {
+      expect(variants(code)).toEqual([
+        { owner: "spi", reach: "shipped", count: 2, counts: { high: 2 } },
+        { owner: "spi", reach: "tests", count: 1, counts: { high: 1 } },
+      ]);
+      expect(workflow(code)?.codeScanning).toEqual({ ours: 2, upstream: 0 });
+    });
+
+    test.each([
+      ["template first", [TEMPLATE, UPSTREAM]],
+      ["upstream first", [UPSTREAM, TEMPLATE]],
+    ])(
+      "splits a synced template file from an upstream file in one shipped tree with %s",
+      (_order, code) => {
+        expect(variants(code)).toEqual([
+          { owner: "template", reach: "shipped", count: 1, counts: { high: 1 } },
+          { owner: "upstream", reach: "shipped", count: 1, counts: { high: 1 } },
+        ]);
+        expect(workflow(code)?.codeScanning).toEqual({ ours: 1, upstream: 1 });
+      },
+    );
   });
 
   test("schema's highs sit in tooling and tests, not in shipped code", () => {

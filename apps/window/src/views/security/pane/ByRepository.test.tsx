@@ -4,8 +4,9 @@
 import { type SecurityPane, SecurityPaneSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, expect, it, vi } from "vitest";
 import { readFixture } from "../../../../../../scripts/watch-generated.mjs";
+import { stubActEnvironment } from "../../../test-utils/harness.js";
 import { ByRepository } from "./ByRepository.js";
 import { INITIAL_STATE, type SecurityActions } from "./state.js";
 
@@ -15,6 +16,11 @@ const fixture = (name: string): SecurityPane =>
   );
 const cleanups: (() => Promise<void>)[] = [];
 
+let restoreAct: () => void;
+beforeAll(() => {
+  restoreAct = stubActEnvironment();
+});
+afterAll(() => restoreAct());
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0)) await cleanup();
 });

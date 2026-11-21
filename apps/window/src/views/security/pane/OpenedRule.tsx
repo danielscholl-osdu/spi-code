@@ -10,11 +10,11 @@ import {
   type SecurityRuleRow,
   type SecurityWhere,
 } from "@spi-code/contracts";
-import { useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { navigate, openEvidence } from "../../../app/navigation.js";
 import { LinkPill } from "../../../components/kit/LinkPill.js";
 import { AskAboutThis, useAskAbout } from "../../../threads/AskAboutThis.js";
-import type { AskTarget } from "../../../threads/store.js";
+import { type AskTarget, threadStore } from "../../../threads/store.js";
 import { type OpenedRuleProps, REPOSITORY_ATTR } from "./state.js";
 import { Words } from "./Words.js";
 import "./OpenedRule.css";
@@ -33,7 +33,17 @@ export function ruleTarget(rule: SecurityRuleRow): AskTarget {
 /** An opened rule or package: its facts, Where, the other bars and Ask about this. */
 export function OpenedRule({ pane, state, actions, rule }: OpenedRuleProps) {
   const { facts, where, also } = rule.opened;
-  const ask = useAskAbout(ruleTarget(rule));
+  const target = ruleTarget(rule);
+  const ask = useAskAbout(target);
+  const targetKey = JSON.stringify(target);
+  useEffect(() => {
+    const registered: AskTarget = JSON.parse(targetKey);
+    threadStore.getState().setTarget(registered);
+    return () => {
+      const { target: current, setTarget } = threadStore.getState();
+      if (current?.subject === registered.subject) setTarget(null);
+    };
+  }, [targetKey]);
   return (
     <div className="security-opened">
       <dl className="security-facts">
@@ -147,6 +157,7 @@ function WhereLine({
   marked: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const id = useId();
   const attrs = { [REPOSITORY_ATTR]: line.repository };
   return (
     <div
@@ -183,9 +194,14 @@ function WhereLine({
             type="button"
             className="kit-link kit-link--muted"
             aria-expanded={open}
+            aria-labelledby={`${id}-repository ${id}-more`}
             onClick={() => setOpen(!open)}
           >
-            {line.more} {open ? "⌃" : "⌄"}
+            <span id={`${id}-repository`} hidden>
+              {line.repository}
+            </span>
+            <span id={`${id}-more`}>{line.more}</span>{" "}
+            <span aria-hidden="true">{open ? "⌃" : "⌄"}</span>
           </button>
         ) : (
           line.alerts.map((pill) => <Pill key={pill.url} pill={pill} />)

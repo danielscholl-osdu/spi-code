@@ -126,6 +126,42 @@ describe("By repository over the 16 Nov sweep", () => {
     );
   });
 
+  it("names a rule's pill by the scanner's title without its backticks", () => {
+    const input = inputOf(source);
+    const title = "Log `Injection` in `logger`";
+    const alerts = input.alerts.map((a) =>
+      a.code?.description === "Log Injection"
+        ? { ...a, code: { ...a.code, description: title } }
+        : a,
+    );
+    const workflow = row(securityByRepository({ ...input, alerts }, "upstream").rows, "workflow");
+    const logs = workflow.rules.find((r) => r.title === title);
+    expect(logs && text(logs.name)).toBe(
+      "Open Log Injection in logger in By rule: 12 alerts in workflow",
+    );
+  });
+
+  it("says high or critical on a rule that mixes a critical alert with lower ones", () => {
+    const input = inputOf(source);
+    const mixed = LANES.flatMap((lane) =>
+      securityByRepository(input, lane).rows.flatMap((r) =>
+        r.rules.map((rule) => {
+          const mine = input.alerts.filter(
+            (a) => a.repository === r.repository && a.key === rule.key,
+          );
+          return { rule, mine };
+        }),
+      ),
+    ).filter(
+      ({ mine }) => mine.some((a) => a.severity === "critical") && mine.some((a) => !a.high),
+    );
+    expect(mixed.length).toBeGreaterThan(0);
+    for (const { rule, mine } of mixed)
+      expect(text(rule.words), rule.key).toBe(
+        `${mine.length} alerts, ${mine.filter((a) => a.high).length} high or critical`,
+      );
+  });
+
   it("draws nothing for a lane with no alerts and cuts a long line of repositories with nothing", () => {
     const single = inputOf(securityCase("single"));
     expect(securityByRepository(single, "upstream")).toMatchObject({ rows: [], clean: [] });
@@ -158,7 +194,7 @@ describe("By repository while a list was not read", () => {
     const workflow = row(upstream, "workflow");
     expect([text(workflow.sub), text(workflow.top), text(workflow.unread)]).toEqual([
       "≥2 high · code scanning not read",
-      "org.jsoup:jsoup 2 · com.google.guava:guava 1 · ≥1 more package · from the lists read",
+      "org.jsoup:jsoup 2 · com.google.guava:guava 1 · ≥1 more rules and packages · from the lists read",
       "Code scanning alerts not read this sweep.",
     ]);
     expect(row(upstream, "crs-catalog")).toMatchObject({ read: true, unread: [] });

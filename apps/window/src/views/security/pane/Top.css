@@ -7,14 +7,14 @@
 }
 .security-totals { display: block; margin-bottom: 2px; color: var(--text-muted); font-size: var(--text-md); font-weight: 500; letter-spacing: 0; }
 .security-banner {
-  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0; padding: 7px 10px;
+  margin: 0; padding: 7px 10px;
   border: 1px solid var(--border); border-left: 3px solid var(--text-muted); border-radius: 6px;
   background: var(--surface-raised); color: var(--text);
 }
-.security-banner a { color: var(--accent-text); }
+.security-banner a { margin-left: 6px; color: var(--accent-text); white-space: nowrap; }
 
 .security-figure { display: flex; flex-direction: column; gap: 6px; }
-.security-figure [data-lane] { --c: var(--text-strong); --c-on: var(--surface); --c-lo: color-mix(in srgb, var(--c) 16%, var(--surface)); }
+.security-figure [data-lane] { --c: var(--text-strong); --c-lo: color-mix(in srgb, var(--c) 16%, var(--surface)); }
 .security-figure [data-lane="spi"] { --c: var(--lane-spi); }
 .security-figure [data-lane="upstream"] { --c: var(--lane-upstream); }
 .security-figure [data-lane="tests"] { --c: var(--lane-tests); }

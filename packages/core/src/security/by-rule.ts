@@ -31,6 +31,7 @@ const join = (parts: SecurityWords[], by = " · "): SecurityWords =>
 const rank = (alert: SecurityAlert) =>
   alert.severity ? SEVERITY_ORDER.indexOf(alert.severity) : SEVERITY_ORDER.length;
 const capital = (word: string) => word.charAt(0).toUpperCase() + word.slice(1);
+const plain = (title: string) => title.replaceAll("`", "");
 
 /** "3 forks" when every repository is a fork, otherwise "3 repositories". */
 function unit(input: SecurityInput, names: readonly string[], short: boolean): SecurityWords {
@@ -72,8 +73,8 @@ function sub(alerts: readonly SecurityAlert[], list: SecurityList, short: boolea
   const owner = alerts[0]?.lane === "tests" ? ownerWords(alerts) : [];
   if (list === "code") {
     const files = new Set(alerts.filter((a) => a.path).map((a) => `${a.repository}:${a.path}`)).size;
-    const tool = alerts[0]?.code?.tool ?? "";
-    return join([["Code scanning"], [tool], files ? counted(files, short, "file") : [], split, owner]);
+    const tool = alerts[0]?.code?.tool;
+    return join([["Code scanning"], tool ? [tool] : [], files ? counted(files, short, "file") : [], split, owner]);
   }
   const advisories = new Set(alerts.map(advisoryOf));
   const [only] = alerts;
@@ -188,7 +189,7 @@ function row(input: SecurityInput, key: string, alerts: readonly SecurityAlert[]
     ticks: strip,
     spread,
     strip: [
-      `${title} by repository: `,
+      `${plain(title)} by repository: `,
       ...join(
         held.map((t) => t.name),
         ", ",

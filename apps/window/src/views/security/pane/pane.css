@@ -1,6 +1,7 @@
 /* Copyright 2026, Daniel Scholl
  * SPDX-License-Identifier: MIT */
 
+.security-pane { --security-head-height: 28px; }
 .security-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 .security-summary { margin-right: auto; color: var(--text-muted); }
 .security-views { display: inline-flex; margin: 0; padding: 2px; border: 1px solid var(--border); border-radius: 6px; }
