@@ -897,6 +897,41 @@ describe("privileged Git", () => {
       data: [".github/workflows/ci.yml", "scripts/ci.yml"],
     });
     await expect(git.changedPaths(target, "HEAD", movedOut)).rejects.toThrow("Invalid object id.");
+
+    await fixtureGit(
+      target.worktree.cwd,
+      "update-index",
+      "--add",
+      "--cacheinfo",
+      `160000,${withWorkflow},.github/actions`,
+    );
+    await fixtureGit(target.worktree.cwd, ...id, "commit", "-m", "Add actions gitlink");
+    const addedGitlink = await fixtureGit(target.worktree.cwd, "rev-parse", "HEAD");
+    expect(await git.changedPaths(target, movedOut, addedGitlink)).toEqual({
+      ok: true,
+      data: [".github/actions"],
+    });
+
+    await fixtureGit(
+      target.worktree.cwd,
+      "update-index",
+      "--cacheinfo",
+      `160000,${movedOut},.github/actions`,
+    );
+    await fixtureGit(target.worktree.cwd, ...id, "commit", "-m", "Update actions gitlink");
+    const changedGitlink = await fixtureGit(target.worktree.cwd, "rev-parse", "HEAD");
+    expect(await git.changedPaths(target, addedGitlink, changedGitlink)).toEqual({
+      ok: true,
+      data: [".github/actions"],
+    });
+
+    await fixtureGit(target.worktree.cwd, "rm", "--cached", "--", ".github/actions");
+    await fixtureGit(target.worktree.cwd, ...id, "commit", "-m", "Remove actions gitlink");
+    const removedGitlink = await fixtureGit(target.worktree.cwd, "rev-parse", "HEAD");
+    expect(await git.changedPaths(target, changedGitlink, removedGitlink)).toEqual({
+      ok: true,
+      data: [".github/actions"],
+    });
   }, 60_000);
 
   it.each(["replace", "graft"] as const)(
