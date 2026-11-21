@@ -41,6 +41,7 @@
 .security-pill[data-heavy] .kit-link { color: var(--text-strong); font-weight: 650; border-width: 1.5px; }
 
 .security-opened-acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.security-opened-acts .ask-about { margin-left: 0; }
 .security-disclosure:focus-visible, .security-evidence:focus-visible, .security-where-name:focus-visible, .security-also:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 2px;
 }

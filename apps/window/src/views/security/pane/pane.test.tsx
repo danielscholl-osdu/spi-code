@@ -40,7 +40,7 @@ const withoutPane = () => {
 
 it.each<[string, () => ViewSnapshot | undefined, string | null]>([
   ["no list read", () => parse(november), "Security not read."],
-  ["a snapshot with no pane", withoutPane, null],
+  ["a snapshot with no pane", withoutPane, "Security not read."],
   ["no snapshot", () => undefined, null],
 ])("draws the title and only the pane's own words with %s", async (_name, body, headline) => {
   const snapshot = body();

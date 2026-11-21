@@ -226,6 +226,34 @@ async function doorsOpenSecurity(context: Context, snapshot: ViewSnapshot, curso
   );
 }
 
+/** Opens the first rule core offers Ask on, beside an Also button when one has it, and checks Ask sits at the left. */
+async function openAsk(context: Context, pane: SecurityPane) {
+  const eligible = pane.lanes.flatMap((lane) =>
+    lane.byRule.rules.filter(({ opened }) => opened.ask).map((rule) => ({ lane, rule })),
+  );
+  const found = eligible.find(({ rule }) => rule.opened.also.length > 0) ?? eligible[0];
+  assert(found, "No rule in the 16 Nov pane offers Ask about this");
+  const { lane, rule } = found;
+  assert(await click(context, LANE(lane.id)), `No ${lane.id} bar at 740`);
+  const row = `${PANE} .security-rule[data-security-rule=${JSON.stringify(rule.key)}]`;
+  await settle(context, `document.querySelector(${JSON.stringify(`${row} .security-rule-title`)})`);
+  assert(await click(context, `${row} .security-rule-title`), `No ${rule.key} row at 740`);
+  const ask = `${row}[data-open] .security-opened-acts .ask-about`;
+  await settle(context, `document.querySelector(${JSON.stringify(ask)})`);
+  await assertInside(context, "1116 740 opened rule with Ask");
+  assert(await reveal(context, row), "Opened rule with Ask at 740 starts under the column heads");
+  const placed: string = await context.window.webContents.executeJavaScript(`(() => {
+    const ask = document.querySelector(${JSON.stringify(ask)});
+    const box = ask.getBoundingClientRect();
+    const before = ask.previousElementSibling?.getBoundingClientRect();
+    const start = ask.parentElement.getBoundingClientRect().left;
+    const gap = parseFloat(getComputedStyle(ask.parentElement).columnGap) || 0;
+    const after = before && before.top < box.bottom && box.top < before.bottom ? before.right + gap : start;
+    return Math.abs(box.left - after) <= 1 ? "" : "Ask starts at " + box.left + ", not " + after;
+  })()`);
+  assert.equal(placed, "", `${rule.key}: Ask about this is not at the left of its row`);
+}
+
 /**
  * The Security page over the 16 Nov, partial and clean panes at each view width in both themes,
  * then an opened rule and an opened repository at 740. Every bar and view is walked for overflow
@@ -293,6 +321,15 @@ export async function captureSecurity(context: Context, fixturePath: string): Pr
       figures,
     );
     files.push("security-1116-rule-740-light.png");
+    await openAsk(context, pane);
+    await capture(
+      context,
+      "security-1116-ask-740-light.png",
+      "1116, opened rule with Ask about this, 740 px, light",
+      figures,
+    );
+    files.push("security-1116-ask-740-light.png");
+    await show(context, snapshot, pane, cursor++);
     assert(await click(context, VIEW(2)), "No By repository at 740");
     assert(await click(context, FIRST_REPOSITORY), "No repository to open at 740");
     await settle(
@@ -316,7 +353,7 @@ export async function captureSecurity(context: Context, fixturePath: string): Pr
     join(output, "security.html"),
     `<!doctype html><html lang="en"><meta charset="utf-8"><title>Security</title>
 <style>body{font:14px system-ui;margin:24px}figure{margin:24px 0}img{max-width:100%}</style>
-<h1>Security</h1><p>The 16 Nov sweep's pane, one list not read (partial) and a clean bar, at 1440, 900 and 740 × 800 in both themes, then an opened rule and an opened repository at 740. Compare with design/spi-code-security.html; design/spi-code-security.md wins where they differ.</p>
+<h1>Security</h1><p>The 16 Nov sweep's pane, one list not read (partial) and a clean bar, at 1440, 900 and 740 × 800 in both themes, then an opened rule, one with Ask about this and an opened repository at 740. Compare with design/spi-code-security.html; design/spi-code-security.md wins where they differ.</p>
 ${figures.join("\n")}`,
   );
   return files;

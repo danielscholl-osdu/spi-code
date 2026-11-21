@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { SecurityPane as Pane } from "@spi-code/contracts";
+import { type SecurityPane as Pane, SECURITY_NOT_READ } from "@spi-code/contracts";
 import { useRef } from "react";
 import { useStore } from "zustand";
 import { PaneTitle } from "../../../app/title-row.js";
@@ -27,6 +27,7 @@ export function SecurityPane({
   store?: WatchStore;
   pane?: Pane;
 }) {
+  const saved = useStore(store, (state) => state.snapshot !== null);
   const security = useStore(store, (state) => state.snapshot?.body.security);
   const pane = given ?? security;
   const root = useRef<HTMLElement>(null);
@@ -35,10 +36,18 @@ export function SecurityPane({
     return (
       <section className="place security-pane" aria-label="Security">
         <Title />
-        {pane && (
+        {pane ? (
           <div className="security-top">
             <Lead page={pane.page} />
           </div>
+        ) : (
+          saved && (
+            <div className="security-top">
+              <p className="security-headline">
+                <Words words={[...SECURITY_NOT_READ]} />
+              </p>
+            </div>
+          )
         )}
       </section>
     );

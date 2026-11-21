@@ -13,6 +13,7 @@ export * from "./security/by-repo.js";
 export * from "./security/by-rule.js";
 export * from "./security/opened-rule.js";
 export * from "./security/top.js";
+export * from "./security/words.js";
 
 /**
  * A repository whose lists were not all read this sweep.

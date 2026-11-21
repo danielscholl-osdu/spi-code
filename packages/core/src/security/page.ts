@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { SECURITY_NOT_READ } from "@spi-code/contracts";
 import type { SecurityLaneId, SecurityList, SecurityPage, SecurityWords } from "./contract.js";
 import { count, LANES, type SecurityInput, unreadList } from "./classify.js";
 import { repositoryWords, securityBarMax, securityTallies, severeWords, word } from "./figure.js";
@@ -80,7 +81,7 @@ function bannerWords(input: SecurityInput, end = ". Counts marked ≥ may be hig
 
 /** No list was read this sweep: the page says so and names each list, with no counts. */
 export function securityUnreadPage(input: SecurityInput): Pick<SecurityPage, "headline" | "banner"> {
-  return { headline: ["Security not read."], banner: bannerWords(input, ".") };
+  return { headline: [...SECURITY_NOT_READ], banner: bannerWords(input, ".") };
 }
 
 function opens(input: SecurityInput): SecurityLaneId {

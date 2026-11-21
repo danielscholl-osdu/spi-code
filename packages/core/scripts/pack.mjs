@@ -74,6 +74,11 @@ try {
       typeOnly: true,
     },
     { bindings: ["export type *"], source: "watch/security", module: "security", typeOnly: true },
+    {
+      bindings: ["import { SECURITY_NOT_READ }"],
+      source: "watch/security/words",
+      module: "security/words",
+    },
     ...["base", "by-repo", "by-rule", "opened-rule", "top"].map((name) => ({
       bindings: [],
       source: `watch/security/${name}`,
