@@ -35,6 +35,8 @@ Put the worktree path, the head and the CI run id in a bead note at each handoff
 
 The reviewer is always a different provider from the author, so Opus never builds a `risk:high` bead: the Fable seat is the same provider. Change this table through a bead when the seats change.
 
+The provider is the model's vendor, not the harness that runs it. When Codex or Claude is short of capacity, run the same model on Copilot (`acpRegistry_copilot`): GPT-6.2 Sol in place of Codex Sol, and Claude Opus 5.5 in place of the Claude seat. Record `review.provider` as the vendor (`openai`, `anthropic`), and say in the review comment that it ran on Copilot. A Copilot seat's first verdicts are compared with the native seat's record on the same kind of bead before it is relied on alone.
+
 ## Dispatch
 
 - At most 4 agents at once; a two-seat review counts as 2.
