@@ -9,7 +9,7 @@ import {
   programReading,
   releaseMonthReading,
   releasesReading,
-  securityReading,
+  securityPlace,
   serviceReading,
   upstreamReading,
 } from "@spi-code/core";
@@ -23,6 +23,7 @@ export interface ReadingContext {
   readonly campaigns: readonly Campaign[];
 }
 type PlaceReader = (anchor: Anchor, context: ReadingContext) => Reading["content"];
+type Drawn = Exclude<Anchor["kind"], "security">;
 
 // The current month's document is drawn from the calendar before any release read, so months
 // reach a reading only once a release read came back whole or kept an earlier one. A cut or
@@ -35,7 +36,7 @@ function releasesRead(input: WatchInput): boolean {
   );
 }
 
-export const readingFor: Record<Anchor["kind"], PlaceReader> = {
+export const readingFor: Record<Drawn, PlaceReader> = {
   program: (_anchor, { model, input, briefing }) =>
     programReading({
       model,
@@ -99,15 +100,26 @@ export const readingFor: Record<Anchor["kind"], PlaceReader> = {
         : undefined;
     return doc ? releaseMonthReading(doc) : null;
   },
-  security: (_anchor, { model, input, briefing, campaigns }) =>
-    securityReading({
+  campaign: (_anchor, _context) => null,
+};
+
+/** Today's Security row reads this; the snapshot carries the Security pane in its place. */
+export function securityPlaceReading(
+  model: Model,
+  input: WatchInput,
+  briefing: WatchBriefing,
+  campaigns: readonly Campaign[],
+) {
+  return {
+    anchor: { kind: "security" as const },
+    content: securityPlace({
       model,
       items: [...briefing.focus, ...briefing.rest],
       campaigns,
       reads: (input.envelopeReads ?? input.reads).security ?? [],
     }),
-  campaign: (_anchor, _context) => null,
-};
+  };
+}
 
 export function placeReadings(
   model: Model,
@@ -116,10 +128,10 @@ export function placeReadings(
   documents: readonly ReleaseDoc[],
   campaigns: readonly Campaign[],
 ): Reading[] {
-  const anchors: Anchor[] = [
-    ...(["program", "upstream", "environment", "engineering", "releases", "security"] as const).map(
-      (kind) => ({ kind }),
-    ),
+  const anchors: (Anchor & { kind: Drawn })[] = [
+    ...(["program", "upstream", "environment", "engineering", "releases"] as const).map((kind) => ({
+      kind,
+    })),
     ...model.lines.map((line) => ({
       kind: "service" as const,
       id: line.fork.id,

@@ -7,7 +7,7 @@ import { securityByRule } from "./by-rule.js";
 import { classify, count, LANES, type SecurityInput, type SecuritySource, unreadList } from "./classify.js";
 import { securityFigure } from "./figure.js";
 import { securityOpenedRule } from "./opened-rule.js";
-import { securityPage } from "./page.js";
+import { securityPage, securityUnreadPage } from "./page.js";
 
 export {
   count,
@@ -83,7 +83,7 @@ export function securityPane(source: SecuritySource): SecurityPane {
       dependabot: by("dependabot"),
       code: by("code"),
     },
-    page: read ? securityPage(input) : EMPTY_PAGE,
+    page: read ? securityPage(input) : { ...EMPTY_PAGE, ...securityUnreadPage(input) },
     views: VIEWS,
     lanes: LANES.map((id) => (read ? lane(input, id) : { id, ...input.totals[id], ...EMPTY_LANE })),
   };

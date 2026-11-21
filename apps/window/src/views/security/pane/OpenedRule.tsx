@@ -1,23 +1,39 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type {
-  SecurityAdvisories,
-  SecurityAdvisory,
-  SecurityPane,
-  SecurityPill,
-  SecurityWhere,
+import {
+  SECURITY_RULE_SUBJECT,
+  type SecurityAdvisories,
+  type SecurityAdvisory,
+  type SecurityPane,
+  type SecurityPill,
+  type SecurityRuleRow,
+  type SecurityWhere,
 } from "@spi-code/contracts";
 import { useState } from "react";
 import { navigate, openEvidence } from "../../../app/navigation.js";
 import { LinkPill } from "../../../components/kit/LinkPill.js";
+import { AskAboutThis, useAskAbout } from "../../../threads/AskAboutThis.js";
+import type { AskTarget } from "../../../threads/store.js";
 import { type OpenedRuleProps, REPOSITORY_ATTR } from "./state.js";
 import { Words } from "./Words.js";
 import "./OpenedRule.css";
 
-/** An opened rule or package: its facts and Where. */
+/** A rule's own subject, scoped to its one fork when core gives it one. */
+export function ruleTarget(rule: SecurityRuleRow): AskTarget {
+  const { ask } = rule.opened;
+  return {
+    subject: `${SECURITY_RULE_SUBJECT}${rule.key}`,
+    label: rule.title,
+    ...(ask ? { scope: ask.fork } : {}),
+    origin: `Started from Security › ${rule.title}`,
+  };
+}
+
+/** An opened rule or package: its facts, Where, the other bars and Ask about this. */
 export function OpenedRule({ pane, state, actions, rule }: OpenedRuleProps) {
   const { facts, where, also } = rule.opened;
+  const ask = useAskAbout(ruleTarget(rule));
   return (
     <div className="security-opened">
       <dl className="security-facts">
@@ -42,7 +58,7 @@ export function OpenedRule({ pane, state, actions, rule }: OpenedRuleProps) {
           />
         ))}
       </div>
-      {also.length > 0 && (
+      {(also.length > 0 || ask) && (
         <div className="security-opened-acts">
           {also.map(({ key, words }) => (
             <button
@@ -54,6 +70,7 @@ export function OpenedRule({ pane, state, actions, rule }: OpenedRuleProps) {
               <Words words={words} />
             </button>
           ))}
+          {ask && <AskAboutThis ask={ask} />}
         </div>
       )}
     </div>

@@ -13,6 +13,7 @@ import {
   unreadForksInput,
 } from "../../test/watch/snapshot-fixture.js";
 import { projectWatch, type WatchInput } from "./project.js";
+import { securityPlaceReading } from "./readings.js";
 
 const sourceOf = (input: WatchInput) => ({
   model: buildModel(input.facts, input.context.clock.now(), {}, input.context),
@@ -22,6 +23,15 @@ const sourceOf = (input: WatchInput) => ({
 const readingOf = (snapshot: ViewSnapshot, place: PlaceId) =>
   snapshot.readings.find(({ anchor }) => anchor.kind === (place === "line" ? "program" : place))
     ?.content;
+/** What the projection hands placesOf: the snapshot's readings and Today's Security row. */
+const placed = (input: WatchInput, snapshot: ViewSnapshot) => [
+  ...snapshot.readings,
+  securityPlaceReading(sourceOf(input).model, input, snapshot.briefing, snapshot.campaigns),
+];
+const placeReadingOf = (input: WatchInput, snapshot: ViewSnapshot, place: PlaceId) =>
+  placed(input, snapshot).find(
+    ({ anchor }) => anchor.kind === (place === "line" ? "program" : place),
+  )?.content;
 
 describe("Today place rows (PS-03, PS-19)", () => {
   for (const [name, fixture] of [
@@ -29,7 +39,8 @@ describe("Today place rows (PS-03, PS-19)", () => {
     ["bad", badInput],
   ] as const) {
     it(`${name}: figures use the same count as each place reading`, () => {
-      const snapshot = projectWatch(fixture());
+      const input = fixture();
+      const snapshot = projectWatch(input);
       expect(snapshot.briefing.places?.map(({ place }) => place)).toEqual([
         "line",
         "environment",
@@ -37,7 +48,7 @@ describe("Today place rows (PS-03, PS-19)", () => {
         "security",
       ]);
       for (const row of snapshot.briefing.places ?? []) {
-        const reading = readingOf(snapshot, row.place);
+        const reading = placeReadingOf(input, snapshot, row.place);
         expect(reading).toBeTruthy();
         const figure =
           row.place === "environment"
@@ -288,7 +299,7 @@ describe("Today place rows (PS-03, PS-19)", () => {
     const input = busyInput();
     const snapshot = projectWatch(input);
     const row = placesOf({
-      readings: snapshot.readings,
+      readings: placed(input, snapshot),
       areas: snapshot.areas,
       items: [...snapshot.briefing.focus, ...snapshot.briefing.rest].map((item) => ({
         ...item,
@@ -298,7 +309,7 @@ describe("Today place rows (PS-03, PS-19)", () => {
     }).find(({ place }) => place === "security");
     expect(row).toMatchObject({ mark: "nothing-due", tone: "warn" });
     expect(row?.line).toContain("none blocking today");
-    expect(Number(readingOf(snapshot, "security")?.tiles[0].value)).toBeGreaterThan(0);
+    expect(Number(placeReadingOf(input, snapshot, "security")?.tiles[0].value)).toBeGreaterThan(0);
   });
 
   it("reports unread GitHub only on the three rows that read it", () => {
@@ -403,7 +414,7 @@ describe("Today place rows (PS-03, PS-19)", () => {
     const snapshot = projectWatch(input);
     const items = [...snapshot.briefing.focus, ...snapshot.briefing.rest];
     for (const row of snapshot.briefing.places ?? []) {
-      const reading = readingOf(snapshot, row.place);
+      const reading = placeReadingOf(input, snapshot, row.place);
       const refs = new Set(reading?.itemIds);
       const expected = items.filter(
         (item) =>
@@ -414,7 +425,7 @@ describe("Today place rows (PS-03, PS-19)", () => {
           ),
       );
       expect(row.itemIds).toEqual(expected.map((item) => item.id));
-      for (const item of reading?.items ?? []) {
+      for (const item of reading && "items" in reading ? reading.items : []) {
         const source = items.find(({ id }) => id === item.id);
         if (source) expect(item.attention).toBe(source.attention);
       }
@@ -461,13 +472,14 @@ describe("Today place cards speak compactly (draft 7, Words and visuals)", () =>
     ["bad", badInput],
   ] as const) {
     it(`${name}: figures and reasons are compact and the full sentence stays the line`, () => {
-      const snapshot = projectWatch(fixture());
+      const input = fixture();
+      const snapshot = projectWatch(input);
       const rows = snapshot.briefing.places ?? [];
       expect(
         Object.fromEntries(rows.flatMap(({ place, reason }) => (reason ? [[place, reason]] : []))),
       ).toEqual(reasons[name]);
       for (const row of rows) {
-        const reading = readingOf(snapshot, row.place);
+        const reading = placeReadingOf(input, snapshot, row.place);
         if (row.reason === "Place reading is incomplete.") expect(row.line).toBe(row.reason);
         else if (row.place === "security" && row.mark === "nothing-due")
           expect(row.line).toBe("In SPI-owned shipped code, none blocking today.");
@@ -481,7 +493,7 @@ describe("Today place cards speak compactly (draft 7, Words and visuals)", () =>
         `${snapshot.briefing.environment.facts.find(({ label }) => label === "Running")?.figure} ready`,
       );
       const security = rows.find(({ place }) => place === "security");
-      const high = readingOf(snapshot, "security")?.tiles[0].value ?? "missing";
+      const high = placeReadingOf(input, snapshot, "security")?.tiles[0].value ?? "missing";
       expect(security?.figure).toBe(`${high} high or critical`);
       expect(security?.reason ?? "").not.toMatch(new RegExp(`\\b${high}\\b`));
       const line = rows.find(({ place }) => place === "line");
@@ -501,10 +513,10 @@ describe("Today place cards speak compactly (draft 7, Words and visuals)", () =>
     };
     const compact = (rows: ReturnType<typeof placesOf>) =>
       rows.map(({ place, figure, reason }) => ({ place, figure, reason }));
-    const told = placesOf({ ...base, readings: snapshot.readings });
+    const told = placesOf({ ...base, readings: placed(input, snapshot) });
     const reworded = placesOf({
       ...base,
-      readings: snapshot.readings.map((entry) =>
+      readings: placed(input, snapshot).map((entry) =>
         entry.content ? { ...entry, content: { ...entry.content, headline: "Reworded." } } : entry,
       ),
     });
@@ -556,7 +568,7 @@ describe("Today place cards speak compactly (draft 7, Words and visuals)", () =>
       const items = [...snapshot.briefing.focus, ...snapshot.briefing.rest];
       const kind = place === "line" ? "program" : place;
       const unread = placesOf({
-        readings: snapshot.readings,
+        readings: placed(input, snapshot),
         items,
         areas: snapshot.areas.map((entry) =>
           areas.includes(entry.area)
@@ -566,7 +578,7 @@ describe("Today place cards speak compactly (draft 7, Words and visuals)", () =>
         source: sourceOf(input),
       });
       const missing = placesOf({
-        readings: snapshot.readings.filter(({ anchor }) => anchor.kind !== kind),
+        readings: placed(input, snapshot).filter(({ anchor }) => anchor.kind !== kind),
         items,
         areas: snapshot.areas,
         source: sourceOf(input),

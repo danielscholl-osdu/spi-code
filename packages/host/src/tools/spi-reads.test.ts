@@ -117,6 +117,7 @@ describe("SPI read tools over the saved sweep", () => {
     expect(security).toEqual({
       place: "Security",
       sweptAt: view.sweptAt,
+      at: "/security",
       read: "not read",
       areas: [{ area: "security", state: "unread" }],
       notRead: ["security"],

@@ -16,29 +16,24 @@ const freshDestination = (place: string): Destination => {
   }
 };
 
-export const SECURITY_FRESH_ALERT_GONE =
-  "Security draws rules, not the reading's alerts, so a new alert has no chip of its own; a new Briefing item keeps its chip under the page";
-
-/** Fresh ids have a visible chip at their place. */
+/** Fresh ids have a visible chip at their place; Forks and Security draw no new-items list. */
 export function placeFreshCases(snapshot: ViewSnapshot): Reach[] {
-  const items = new Set(
-    [...snapshot.briefing.focus, ...snapshot.briefing.rest].map(({ id }) => id),
-  );
   return (snapshot.briefing.places ?? []).flatMap((row, index) =>
-    (row.place === "line" ? [] : (row.fresh?.itemIds ?? [])).map((id, at) => ({
-      ...(row.place === "security" && !items.has(id) ? { exempt: SECURITY_FRESH_ALERT_GONE } : {}),
-      pointer: `/briefing/places/${index}/fresh/itemIds/${at}`,
-      value: id,
-      home: {
-        name: `Fresh items · ${row.place}`,
-        start: {
-          name: row.place,
-          surface: freshDestination(row.place).kind,
-          route: freshDestination(row.place),
+    (row.place === "line" || row.place === "security" ? [] : (row.fresh?.itemIds ?? [])).map(
+      (id, at) => ({
+        pointer: `/briefing/places/${index}/fresh/itemIds/${at}`,
+        value: id,
+        home: {
+          name: `Fresh items · ${row.place}`,
+          start: {
+            name: row.place,
+            surface: freshDestination(row.place).kind,
+            route: freshDestination(row.place),
+          },
         },
-      },
-      selector: `[data-fresh-item=${JSON.stringify(id)}]`,
-      attribute: "data-fresh-item",
-    })),
+        selector: `[data-fresh-item=${JSON.stringify(id)}]`,
+        attribute: "data-fresh-item",
+      }),
+    ),
   );
 }

@@ -72,15 +72,15 @@ function unreadNames(input: SecurityInput, retained: boolean): SecurityWords {
   ]);
 }
 
-function bannerWords(input: SecurityInput): SecurityWords {
+function bannerWords(input: SecurityInput, end = ". Counts marked ≥ may be higher."): SecurityWords {
   if (input.unread.length === 0) return [];
   const lists = input.unread.reduce((n, entry) => n + (entry.list ? 1 : 2), 0);
-  return [
-    count(lists, false),
-    ` ${word(lists, "list")} not read: `,
-    ...unreadNames(input, true),
-    ". Counts marked ≥ may be higher.",
-  ];
+  return [count(lists, false), ` ${word(lists, "list")} not read: `, ...unreadNames(input, true), end];
+}
+
+/** No list was read this sweep: the page says so and names each list, with no counts. */
+export function securityUnreadPage(input: SecurityInput): Pick<SecurityPage, "headline" | "banner"> {
+  return { headline: ["Security not read."], banner: bannerWords(input, ".") };
 }
 
 function opens(input: SecurityInput): SecurityLaneId {

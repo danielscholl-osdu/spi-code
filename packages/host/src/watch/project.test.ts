@@ -72,9 +72,9 @@ describe("Watch projection", () => {
     );
     expect(snapshot.seen).toEqual({ cursor: null, since: [] });
     expect(snapshot.readings.map(({ anchor }) => anchor)).toEqual([
-      ...["program", "upstream", "environment", "engineering", "releases", "security"].map(
-        (kind) => ({ kind }),
-      ),
+      ...["program", "upstream", "environment", "engineering", "releases"].map((kind) => ({
+        kind,
+      })),
       ...snapshot.stations.map(({ service }) => ({ kind: "service", id: service })),
       ...snapshot.releases.lines.map(({ month }) => ({ kind: "release-month", month })),
       ...snapshot.campaigns.map(({ id }) => ({ kind: "campaign", id })),
@@ -87,8 +87,7 @@ describe("Watch projection", () => {
         anchor.kind === "service" ||
         anchor.kind === "releases" ||
         anchor.kind === "release-month" ||
-        anchor.kind === "engineering" ||
-        anchor.kind === "security"
+        anchor.kind === "engineering"
       ) {
         expect(content?.tiles).toHaveLength(anchor.kind === "environment" ? 1 : 3);
         expect(content?.items.length).toBeLessThanOrEqual(5);

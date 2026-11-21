@@ -15,7 +15,7 @@ For the Security place this file wins over its mock, [today and places](spi-code
 | 3 | Not read | One banner names each list not read, with its Evidence link. |
 | 4 | Figure | Three bars on one scale: Shipped SPI code ("Ours to fix"), Shipped upstream code ("Upstream’s to fix, the fix arrives by sync") and Tests, tooling and settings ("Not in the running service"). Each has its total and how many are high or critical. A block is a rule or package sized by its alerts. Its solid part is its share of high or critical, from the left; the rest is outlined. A list not read is a hatched stub at the end of every bar. Colour says whose move it is, never severity. A legend gives the two swatches, and Not read when a list was not read. |
 | 5 | By rule | The chosen bar, one row per rule or package: worst severity, the scanner's own title, its second line, a strip with one tick per repository, the line under the strip, a count bar, and fix and age. |
-| 6 | Opened rule | What the rule or package is, where it sits by repository and file, a pill per alert and per fix PR, the same rule in the other bars, and Ask about this. A code rule's "What it is" line is the scanner's full description on one line, cut at 300 characters, and its CWE closes the Rule line; either is left out when the scanner gives none. |
+| 6 | Opened rule | What the rule or package is, where it sits by repository and file, a pill per alert and per fix PR, the same rule in the other bars, and Ask about this after them, at the left. A code rule's "What it is" line is the scanner's full description on one line, cut at 300 characters, and its CWE closes the Rule line; either is left out when the scanner gives none. |
 | 7 | By repository | The chosen bar, one row per repository with alerts: its name, its bar and count, its total across the page and its top rules. The repositories with nothing share one line. An opened repository lists its rules as pills that open the rule in By rule. |
 
 Choosing a bar's name chooses that bar. Choosing a block chooses its bar and opens its row. Rows open in place: Security has no popovers, although today and places gives places popovers.
@@ -41,7 +41,7 @@ A list is one scanner's alerts in one repository. The sweep reads both lists of 
 | Retained from an earlier sweep because this read failed | Counted | No |
 | Read and empty | Zero | Yes |
 
-The banner names a repository and its list when one list was not read, and the repository alone when its whole read failed. When no list was read at all (before the first security read, or every read failed) the page shows what the place showed before this design for that state, and no bars.
+The banner names a repository and its list when one list was not read, and the repository alone when its whole read failed. When no list was read at all (before the first security read, or every read failed) the page shows its title, "Security not read." and the banner naming each list not read, with no counts and no bars.
 
 ≥ sits only on a number an unread list could change. A count is a number with that mark beside it, never a string with ≥ in it.
 
@@ -69,7 +69,7 @@ The line under the strip names the repository that holds most of a rule only whe
 | R6 | Shipped upstream code's subtitle reads as the mock's. |
 | R7 | The grouped block keeps ≥ in a partial sweep. |
 | R8 | A program repository opens on GitHub; a fork opens its service page. |
-| R9 | Ask about this is offered on a rule that sits in one fork, scoped to that fork as the service Security tab does. A rule in several forks or only in a program repository has no Ask until rules have a subject of their own. |
+| R9 | Each rule or package has a subject of its own, `security-rule:` and its key, so a thread asked from it owns that rule alone and its chip packs that rule's facts and Where lines. Ask about this is scoped to the rule's fork when it sits in one fork and every list it draws on was read. A rule in several forks or only in a program repository is asked in Program once Ask about this offers Program on a row with no fork (spicode-xia.39); until then it shows no Ask. |
 | R10 | The mock's Campaign button and any other action on an opened row are not built; actions are M4. |
 | R11 | Figures agree with other pages by matching measure: the service Security tab's count is alerts in shipped code, without tests; Template tallies high and critical in shipped code. |
 | R12 | No snapshot: the place's title row and nothing under it. |

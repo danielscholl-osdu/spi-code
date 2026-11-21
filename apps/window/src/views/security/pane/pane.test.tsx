@@ -7,10 +7,6 @@ import { createRoot } from "react-dom/client";
 import { afterEach, expect, it } from "vitest";
 import november from "../../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { readFixture } from "../../../../../../scripts/watch-generated.mjs";
-import { navigate } from "../../../app/navigation.js";
-import { treeServices } from "../../../app/queue.js";
-import { Place } from "../../../components/place/Place.js";
-import { placePin } from "../../../store/pins.js";
 import { watchStore } from "../../../store/watch.js";
 import { watchFixtureText } from "../../../test-utils/watch-fixtures.test-helper.js";
 import { SecurityPane } from "./Pane.js";
@@ -42,31 +38,21 @@ const withoutPane = () => {
   return body;
 };
 
-it.each<[string, () => ViewSnapshot | undefined]>([
-  ["no list read", () => parse(november)],
-  ["a snapshot with no pane", withoutPane],
-  ["no snapshot", () => undefined],
-])("draws what the Security place draws with %s", async (_name, body) => {
+it.each<[string, () => ViewSnapshot | undefined, string | null]>([
+  ["no list read", () => parse(november), "Security not read."],
+  ["a snapshot with no pane", withoutPane, null],
+  ["no snapshot", () => undefined, null],
+])("draws the title and only the pane's own words with %s", async (_name, body, headline) => {
   const snapshot = body();
   if (snapshot?.security) expect(snapshot.security.read).toBe(false);
   watchStore.setState({ snapshot: snapshot ? { cursor: snapshot.cursor, body: snapshot } : null });
-  const reading = snapshot?.readings.find(({ anchor }) => anchor.kind === "security") ?? {
-    anchor: { kind: "security" as const },
-    content: null,
-  };
-  const place = await mount(
-    <Place
-      name="Security"
-      pin={placePin("security")}
-      reading={reading}
-      snapshot={snapshot}
-      services={treeServices(snapshot?.tree)}
-      onNavigate={navigate}
-    />,
-  );
   const pane = await mount(<SecurityPane />);
-  expect(pane.innerHTML).toBe(place.innerHTML);
-  if (!snapshot) expect(pane.querySelector(".place-headline")).toBeNull();
+  expect(pane.querySelector("h1[data-place]")?.textContent).toBe("Security");
+  expect(pane.querySelector(".security-headline")?.textContent ?? null).toBe(headline);
+  expect(
+    pane.querySelector(".place-reading, .place-tile, .place-item, [data-fresh-item]"),
+  ).toBeNull();
+  expect(pane.querySelector(".security-figure, .security-views")).toBeNull();
 });
 
 it("draws the frame once a list was read, with the switch in the pane's words", async () => {

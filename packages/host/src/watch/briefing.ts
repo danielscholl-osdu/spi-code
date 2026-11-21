@@ -24,7 +24,6 @@ import {
 import { itemAttention } from "./attention.js";
 import type { WatchInput } from "./project.js";
 import type { areaEnvelopes } from "./provenance.js";
-import type { placeReadings } from "./readings.js";
 import { repositoryLines } from "./repository-lines.js";
 import { sinceStart } from "./seen.js";
 
@@ -128,7 +127,7 @@ export function settleBriefing(
   horizon: Horizon,
   model: Model,
   input: WatchInput,
-  readings: ReturnType<typeof placeReadings>,
+  readings: Parameters<typeof placesOf>[0]["readings"],
   areas: ReturnType<typeof areaEnvelopes>,
   now: Date,
 ): ReturnType<typeof placesOf> {

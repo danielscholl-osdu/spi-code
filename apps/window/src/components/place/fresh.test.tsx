@@ -42,7 +42,6 @@ afterEach(async () => {
 const views = {
   environment: <Environment />,
   engineering: <Template />,
-  security: <Security />,
 };
 const marked = () =>
   [...container.querySelectorAll<HTMLElement>("[data-fresh-item]")].map(
@@ -66,8 +65,7 @@ it.each(Object.keys(views) as (keyof typeof views)[])(
     watchStore.setState({ snapshot: { cursor: body.cursor, body } });
     document.body.append(container);
     await act(async () => root.render(views[place]));
-    const drawn = place === "security" ? [extra.id] : ids;
-    expect(marked().sort()).toEqual([...new Set(drawn)].sort());
+    expect(marked().sort()).toEqual([...new Set(ids)].sort());
     for (const chip of container.querySelectorAll("[data-fresh-item]")) {
       expect(chip.querySelector(".kit-chip--accent")).not.toBeNull();
       expect(chip.textContent).toBe("new");
@@ -96,11 +94,25 @@ it.each(Object.keys(views) as (keyof typeof views)[])(
   },
 );
 
+it("draws no new-items list on Security, which shows the pane's rules", async () => {
+  const body = loadFixture("snapshot-busy.json");
+  const row = body.briefing.places?.find(({ place }) => place === "security");
+  const extra = body.briefing.rest.find(({ cls }) => cls === "SECURITY");
+  if (!row || !extra) throw new Error("Missing recorded data");
+  row.fresh.itemIds = [extra.id];
+  watchStore.setState({ snapshot: { cursor: body.cursor, body } });
+  document.body.append(container);
+  await act(async () => root.render(<Security />));
+  expect(container.querySelector(".security-pane")).not.toBeNull();
+  expect(marked()).toEqual([]);
+  expect(container.querySelector(".place-fresh-items")).toBeNull();
+});
+
 it("registers each new chip at its place", async () => {
   const body = loadFixture("snapshot-busy.json");
   const seeded: string[] = [];
   for (const row of body.briefing.places ?? []) {
-    if (row.place === "line") continue;
+    if (row.place === "line" || row.place === "security") continue;
     const reading = body.readings.find(({ anchor }) => anchor.kind === row.place);
     if (!reading?.content) throw new Error("Missing reading");
     const item = reading.content.items[0];
@@ -110,12 +122,12 @@ it("registers each new chip at its place", async () => {
     }
   }
   // The busy sweep's Environment reading has no item: its re-run item belongs to the fork.
-  expect(seeded.sort()).toEqual(["engineering", "security"]);
+  expect(seeded.sort()).toEqual(["engineering"]);
+  const security = body.briefing.places?.find(({ place }) => place === "security");
+  if (security) security.fresh.itemIds = ["alert:fixture:new"];
   const cases = placeFreshCases(body);
   expect(cases).toHaveLength(seeded.length);
-  expect(cases.filter(({ exempt }) => exempt).map(({ home }) => home.start.name)).toEqual([
-    "security",
-  ]);
+  expect(cases.filter(({ exempt }) => exempt)).toEqual([]);
   for (const row of cases.filter(({ exempt }) => !exempt)) {
     watchStore.setState({ snapshot: { cursor: body.cursor, body } });
     document.body.append(container);

@@ -228,16 +228,15 @@ describe("a list not read", () => {
     expect(text(p.page.stub)).toBe("Not read: file");
   });
 
-  it("leaves the page empty when no list was read", () => {
+  it("says Security not read and names each list when no list was read, with no counts", () => {
     const p = pane("failed");
     expect(p.read).toBe(false);
-    expect([p.page.totals, p.page.headline, ...p.lanes.map((l) => l.figure.blocks)]).toEqual([
-      [],
-      [],
-      [],
-      [],
-      [],
-    ]);
+    expect([p.page.totals, ...p.lanes.map((l) => l.figure.blocks)]).toEqual([[], [], [], []]);
+    expect(text(p.page.headline)).toBe("Security not read.");
+    expect(text(p.page.banner)).toMatch(
+      /^30 lists not read: partition \(counted from an earlier read\), entitlements \(counted from an earlier read\), .*\.$/,
+    );
+    expect(text(p.page.banner)).not.toContain("≥");
   });
 });
 

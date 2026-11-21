@@ -17,6 +17,15 @@ import {
   unverifiedForkInput,
 } from "../../test/watch/snapshot-fixture.js";
 import { projectWatch, type WatchInput } from "./project.js";
+import { securityPlaceReading } from "./readings.js";
+
+/** The High tile Today's Security row reads. */
+function todaySecurityHigh(input: WatchInput) {
+  const snapshot = projectWatch(input);
+  const model = buildModel(input.facts, input.context.clock.now(), {}, input.context);
+  return securityPlaceReading(model, input, snapshot.briefing, snapshot.campaigns).content.tiles[0]
+    .value;
+}
 
 function visual<K extends PlaceVisual["kind"]>(input: WatchInput, place: PlaceId, kind: K) {
   const value = projectWatch(input).briefing.places?.find((row) => row.place === place)?.visual;
@@ -240,9 +249,7 @@ describe("Today place micro-visuals (PS-03, PS-09)", () => {
   it("snapshot-busy: Security columns sum to the reading and name only severe shipped rules", () => {
     const input = busyInput();
     const columns = visual(input, "security", "forkColumns");
-    const snapshot = projectWatch(input);
-    const high = snapshot.readings.find((reading) => reading.anchor.kind === "security")?.content
-      ?.tiles[0].value;
+    const high = todaySecurityHigh(input);
     expect(columns.program).toEqual({ count: 0, rules: [], text: "program: 0 high or critical" });
     expect(
       columns.columns.reduce((sum, column) => sum + (column.count ?? 0), 0) +
@@ -266,8 +273,7 @@ describe("Today place micro-visuals (PS-03, PS-09)", () => {
     expect(columns.program).toMatchObject({ count: 3 });
     expect(columns.program?.rules.length).toBeGreaterThan(0);
     expect(columns.program?.text).toContain("program: 3 high or critical");
-    const high = projectWatch(input).readings.find((reading) => reading.anchor.kind === "security")
-      ?.content?.tiles[0].value;
+    const high = todaySecurityHigh(input);
     expect(columns.columns.reduce((sum, column) => sum + (column.count ?? 0), 0)).toBe(11);
     expect(11 + (columns.program?.count ?? 0)).toBe(Number(high));
   });

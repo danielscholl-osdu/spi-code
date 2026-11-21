@@ -10,6 +10,7 @@ import { CHIP_BYTE_BUDGET, type PackedChip, packChip, TRIMMED_CHIP_KEEPS } from 
 import { addChip, chipFromSweep, MAX_CHIPS, refreshChip, snapshotChips } from "./draft.js";
 import { packFinding } from "./finding.js";
 import { PLACES } from "./places.js";
+import { wordsText } from "./security.js";
 import type { SavedSweep } from "./sweep.js";
 
 const view: ViewSnapshot = JSON.parse(readFileSync(recordedSnapshotPath, "utf8"));
@@ -157,17 +158,27 @@ describe("a place chip", () => {
     expect(legal.chip.chip.reading).toEqual(whole?.content);
   });
 
-  it("packs Security's own reading as not read, and Environment and Program as theirs", async () => {
+  it("packs Security from its pane as not read, and Environment and Program as theirs", async () => {
     const security = await chipFromSweep(() => sweepAt(view.sweptAt), "place:security", plain);
     if (!security.ok) throw new Error(security.reason);
+    expect(view.security?.read).toBe(false);
     expect(security.chip.chip).toMatchObject({
       kind: "place",
       title: "Security",
       completeness: "partial",
-      notRead: ["security"],
-      reading: view.readings.find(({ anchor }) => anchor.kind === "security")?.content,
+      reading: {
+        headline: "Security not read.",
+        banner: wordsText(view.security?.page.banner ?? []),
+      },
       areas: [{ area: "security", state: "unread" }],
+      evidence: ["/security"],
     });
+    expect(security.chip.chip.notRead).toEqual([
+      "security",
+      ...(view.security?.unread ?? []).map(
+        ({ repository }) => `Dependabot and code scanning alerts in ${repository}`,
+      ),
+    ]);
     for (const [id, title, anchor] of [
       ["place:environment", "Environment", "environment"],
       ["place:program", "Today", "program"],

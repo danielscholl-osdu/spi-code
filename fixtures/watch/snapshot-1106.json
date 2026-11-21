@@ -10517,34 +10517,6 @@
     },
     {
       "anchor": {
-        "kind": "security"
-      },
-      "content": {
-        "headline": "Security not read yet.",
-        "tiles": [
-          {
-            "label": "High",
-            "value": "not read yet",
-            "counts": "high or critical in SPI-owned shipped code · 30 lists not read yet"
-          },
-          {
-            "label": "Total",
-            "value": "not read yet",
-            "counts": "SPI-owned findings at all severities · 30 lists not read yet"
-          },
-          {
-            "label": "Upstream origin",
-            "value": "not read yet",
-            "counts": "upstream-owned findings at all severities · 30 lists not read yet"
-          }
-        ],
-        "items": [],
-        "folded": null,
-        "itemIds": []
-      }
-    },
-    {
-      "anchor": {
         "kind": "service",
         "id": "partition"
       },
@@ -27821,8 +27793,44 @@
     },
     "page": {
       "totals": [],
-      "headline": [],
-      "banner": [],
+      "headline": ["Security not read."],
+      "banner": [
+        {
+          "n": 30,
+          "atLeast": false
+        },
+        " lists not read: ",
+        "partition",
+        ", ",
+        "entitlements",
+        ", ",
+        "legal",
+        ", ",
+        "schema",
+        ", ",
+        "file",
+        ", ",
+        "storage",
+        ", ",
+        "indexer",
+        ", ",
+        "search",
+        ", ",
+        "workflow",
+        ", ",
+        "indexer-queue",
+        ", ",
+        "unit",
+        ", ",
+        "crs-catalog",
+        ", ",
+        "crs-conversion",
+        ", ",
+        "osdu-spi",
+        ", ",
+        "osdu-spi-stack",
+        "."
+      ],
       "opens": "spi",
       "barMax": 0,
       "stub": [],

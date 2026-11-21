@@ -22,6 +22,9 @@ export const SecurityWordsSchema = z.array(
 /** A rule or package in one lane, keyed as alertRows keys its rows: `spi:dep:<package>`, `tests:code:<tool>:<rule>`. */
 export const SecurityRuleKeySchema = z.string().regex(/^(spi|upstream|tests):(dep|code):.+$/);
 
+/** A rule's own subject for Ask about this and its context chip: this prefix, then its key. */
+export const SECURITY_RULE_SUBJECT = "security-rule:";
+
 /** A mark that leaves the app: an alert or a fix PR on GitHub. */
 export const SecurityPillSchema = z.strictObject({
   label: z.string(),

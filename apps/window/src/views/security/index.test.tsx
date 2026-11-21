@@ -46,14 +46,20 @@ it("draws the Security page from the pane once a list was read, and none of the 
   expect(container.querySelector(".place-reading, .place-tile, .place-item")).toBeNull();
 });
 
-it("draws the security reading before any list was read, and the title alone with no snapshot", async () => {
+it("says Security not read from the pane before any list was read, and the title alone with no snapshot", async () => {
   const body = parse(november);
-  expect(body.security?.read).toBe(false);
+  if (!body.security || body.security.read)
+    throw new Error("The 1106 snapshot read a security list");
   await route(body);
-  const reading = body.readings.find(({ anchor }) => anchor.kind === "security")?.content;
-  expect(container.querySelector(".place-headline")?.textContent).toBe(reading?.headline);
-  expect(container.querySelector(".security-pane")).toBeNull();
+  expect(container.querySelector(".security-pane h1")?.textContent).toBe("Security");
+  expect(container.querySelector(".security-headline")?.textContent).toBe("Security not read.");
+  expect(container.querySelector(".security-banner span")?.textContent).toBe(
+    wordsText(body.security.page.banner),
+  );
+  expect(container.querySelector(".place-reading, .security-figure, [data-fresh-item]")).toBeNull();
   await route(undefined);
   expect(container.querySelector("h1")?.textContent).toBe("Security");
-  expect(container.querySelector(".place-reading, .security-figure")).toBeNull();
+  expect(
+    container.querySelector(".place-reading, .security-headline, .security-figure"),
+  ).toBeNull();
 });

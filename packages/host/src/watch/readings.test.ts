@@ -141,7 +141,6 @@ describe("Watch projection", () => {
         "environment",
         "engineering",
         "releases",
-        "security",
         "service",
         "release-month",
         "campaign",
@@ -158,5 +157,6 @@ describe("Watch projection", () => {
           expect.objectContaining({ input, briefing: snapshot.briefing, campaigns: detected }),
         );
     }
+    expect(snapshot.readings.filter(({ anchor }) => anchor.kind === "security")).toEqual([]);
   });
 });

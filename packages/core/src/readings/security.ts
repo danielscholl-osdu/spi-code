@@ -9,13 +9,7 @@ import { groupUrl } from "../inspect/repo.js";
 import type { Model } from "../model/index.js";
 import { type AlertGroup, groupRank, type RepoRow, SEVERITY_ORDER } from "../model/repos.js";
 import { plural } from "../util.js";
-import {
-  NOT_READ,
-  type PlaceReading,
-  placeReading,
-  type ReadingCampaign,
-  type ReadingGroup,
-} from "./index.js";
+import { NOT_READ, plainText, type ReadingCampaign, type ReadingTile } from "./index.js";
 
 export interface SecurityReadingItem extends FocusItem {
   attention: AttentionTier;
@@ -23,7 +17,7 @@ export interface SecurityReadingItem extends FocusItem {
   due?: { at: string; before: string } | undefined;
 }
 
-export interface SecurityReadingInput {
+export interface SecurityPlaceInput {
   model: Model;
   items: readonly Omit<SecurityReadingItem, "more">[];
   campaigns: readonly ReadingCampaign[];
@@ -99,10 +93,9 @@ const attentionRank: Readonly<Record<AttentionTier, number>> = Object.freeze({
   background: 3,
 });
 
-function urgency(
-  a: Pick<SecurityReadingItem, "attention" | "due">,
-  b: Pick<SecurityReadingItem, "attention" | "due">,
-): number {
+type Urgency = Pick<SecurityReadingItem, "attention" | "due">;
+
+function urgency(a: Urgency, b: Urgency): number {
   return (
     attentionRank[a.attention] - attentionRank[b.attention] ||
     (a.due ? Date.parse(a.due.at) : Infinity) - (b.due ? Date.parse(b.due.at) : Infinity)
@@ -119,11 +112,17 @@ function keyOf(alert: AlertGroup): string {
     : `dep:${alert.name.toLowerCase()}`;
 }
 
-function ruleItem(
+interface Member extends Urgency {
+  id: string;
+  ids: string[];
+}
+
+/** One rule or package's ids on Today: its alerts, its campaign and the Briefing items it projects. */
+function ruleMember(
   findings: readonly Finding[],
-  items: SecurityReadingInput["items"],
+  items: SecurityPlaceInput["items"],
   campaigns: readonly ReadingCampaign[],
-): { item: SecurityReadingItem; rank: AlertGroup } {
+): { member: Member; rank: AlertGroup } {
   const sorted = [...findings].sort((a, b) => groupRank(a.alert, b.alert));
   const first = sorted[0];
   if (!first) throw new Error("A security rule needs at least one finding");
@@ -147,71 +146,24 @@ function ruleItem(
     )
     .sort(urgency);
   const source = projected[0];
-  const repos = [...new Set(findings.map(({ repo }) => repo.name))];
-  const programRepos = [
-    ...new Set(findings.filter(({ repo }) => repo.group !== "fork").map(({ repo }) => repo.name)),
-  ];
-  const reaches = [
-    ...new Set(
-      findings.map(({ alert: g }) =>
-        g.reach === "settings"
-          ? "repository settings"
-          : g.reach === "shipped"
-            ? "shipped code"
-            : g.reach,
-      ),
-    ),
-  ];
   const severity = SEVERITY_ORDER.find((level) =>
     findings.some(({ alert: g }) => g.severity === level),
   );
-  const name =
-    alert.source === "code" && alert.tool === "Scorecard"
-      ? `Scorecard: ${groupName(alert).replace(/-/g, " ").toLowerCase()}`
-      : groupName(alert);
-  const title = `${campaign ? "Detected: " : ""}${name}${
-    alert.source === "dependabot" ? " vulnerabilities" : ""
-  }`;
   return {
     rank: { ...alert, count, ...(severity ? { severity } : {}) },
-    item: {
-      origin: "system",
+    member: {
       id: campaign?.id ?? alertId(first),
       ids: [...new Set([...ids, ...projected.flatMap((item) => item.ids)])],
-      rung: source?.rung ?? 2,
-      cls: "SECURITY",
-      scope: campaign
-        ? [plural(campaign.forks.length, "fork"), ...programRepos].join(", ")
-        : repos.length === 1
-          ? first.repo.name
-          : plural(repos.length, "repository", "repositories"),
-      title,
-      sub: [
-        plural(count, "SPI-owned finding"),
-        severity ? `worst ${severity}` : undefined,
-        reaches.join(", "),
-      ]
-        .filter(Boolean)
-        .join(" · "),
-      cause: `${plural(count, "SPI-owned finding")} for ${name}.`,
-      effect: "",
-      next: campaign ? "" : (source?.next ?? ""),
-      verb: campaign ? "" : (source?.verb ?? ""),
-      evidence: findings.map((finding) => ({
-        label: `${finding.repo.name} findings`,
-        url: groupUrl(finding.repo, finding.alert),
-      })),
       attention: source?.attention ?? "ambient",
-      owned: source?.owned ?? false,
       ...(source?.due ? { due: source.due } : {}),
     },
   };
 }
 
-function groupOf(item: SecurityReadingItem): string {
-  if (item.attention === "interrupt") return "Needs you now";
-  if (item.due) return `Before ${item.due.before}`;
-  return item.attention === "surface" ? "Needs attention" : "In the background";
+function groupOf(member: Member): string {
+  if (member.attention === "interrupt") return "Needs you now";
+  if (member.due) return `Before ${member.due.before}`;
+  return member.attention === "surface" ? "Needs attention" : "In the background";
 }
 
 function qualifierOf(reads: readonly ReadRecord[]): string | undefined {
@@ -226,7 +178,16 @@ function qualifierOf(reads: readonly ReadRecord[]): string | undefined {
   return parts.length > 0 ? `${parts.join(" and ")}, so findings could be missing.` : undefined;
 }
 
-export function securityReading(input: SecurityReadingInput): PlaceReading<SecurityReadingItem> {
+export interface SecurityPlace {
+  headline: string;
+  qualifier?: string;
+  tiles: [ReadingTile];
+  /** Today's Security row holds these Briefing and alert ids, grouped by urgency as before. */
+  itemIds: string[];
+}
+
+/** What Today's Security place row reads; the Security page itself draws the pane. */
+export function securityPlace(input: SecurityPlaceInput): SecurityPlace {
   const rows = input.model.repositories.rows;
   const listsRead = rows.reduce(
     (sum, row) =>
@@ -239,33 +200,26 @@ export function securityReading(input: SecurityReadingInput): PlaceReading<Secur
     (sum, row) => sum + (row.vulnerabilities?.ours ?? 0) + (row.codeScanning?.ours ?? 0),
     0,
   );
-  const findings = rows.flatMap((repo) => repo.alerts.map((alert) => ({ repo, alert })));
-  const ours = findings.filter(({ alert }) => spiOwned(alert));
+  const ours = rows
+    .flatMap((repo) => repo.alerts.map((alert) => ({ repo, alert })))
+    .filter(({ alert }) => spiOwned(alert));
   const total = ours.reduce((sum, { alert }) => sum + alert.count, 0);
-  const upstream = findings
-    .filter(({ alert }) => alert.owner === "upstream")
-    .reduce((sum, { alert }) => sum + alert.count, 0);
   const rules = new Map<string, Finding[]>();
   for (const finding of ours) {
     const key = keyOf(finding.alert);
-    const members = rules.get(key) ?? [];
-    members.push(finding);
-    rules.set(key, members);
+    rules.set(key, [...(rules.get(key) ?? []), finding]);
   }
   const ranked = [...rules.values()]
-    .map((members) => ruleItem(members, input.items, input.campaigns))
-    .sort((a, b) => urgency(a.item, b.item) || groupRank(a.rank, b.rank));
-  const groups: ReadingGroup<SecurityReadingItem>[] = [];
-  for (const { item } of ranked) {
-    const group = groupOf(item);
-    const found = groups.find((entry) => entry.group === group);
-    if (found) (found.items as SecurityReadingItem[]).push(item);
-    else groups.push({ group, items: [item] });
-  }
+    .map((members) => ruleMember(members, input.items, input.campaigns))
+    .sort((a, b) => urgency(a.member, b.member) || groupRank(a.rank, b.rank));
+  const groups = new Map<string, Member[]>();
+  for (const { member } of ranked)
+    groups.set(groupOf(member), [...(groups.get(groupOf(member)) ?? []), member]);
+  const seen = new Set<string>();
+  const members = [...groups.values()].flat().filter(({ id }) => !seen.has(id) && seen.add(id));
   const qualifier = qualifierOf(input.reads);
-  return placeReading({
-    membership: true,
-    headline:
+  return {
+    headline: plainText(
       listsRead === 0
         ? `Security ${NOT_READ}.`
         : high > 0
@@ -273,26 +227,15 @@ export function securityReading(input: SecurityReadingInput): PlaceReading<Secur
           : total > 0
             ? `${plural(total, "SPI-owned finding")} ${total === 1 ? "remains" : "remain"} across the lists read.`
             : "No SPI-owned findings in the lists read.",
-    ...(qualifier ? { qualifier } : {}),
+    ),
+    ...(qualifier ? { qualifier: plainText(qualifier) } : {}),
     tiles: [
       {
         label: "High",
         value: listsRead === 0 ? NOT_READ : String(high),
-        counts: `high or critical in SPI-owned shipped code${missing}`,
-      },
-      {
-        label: "Total",
-        value: listsRead === 0 ? NOT_READ : String(total),
-        counts: `SPI-owned findings at all severities${missing}`,
-      },
-      {
-        label: "Upstream origin",
-        value: listsRead === 0 ? NOT_READ : String(upstream),
-        counts: `upstream-owned findings at all severities${missing}`,
+        counts: plainText(`high or critical in SPI-owned shipped code${missing}`),
       },
     ],
-    groups,
-    fold: (rest) =>
-      `${plural(rest.length, "more rule or package", "more rules or packages")} with SPI-owned findings.`,
-  });
+    itemIds: [...new Set(members.flatMap(({ id, ids }) => [id, ...ids]))],
+  };
 }

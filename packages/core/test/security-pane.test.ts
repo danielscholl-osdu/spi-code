@@ -193,7 +193,8 @@ describe("a list not read", () => {
     expect(pane.unread).toHaveLength(15);
     expect(pane.unread.every((entry) => entry.list === undefined)).toBe(true);
     expect(pane.alerts.total).toEqual(atLeast(411));
-    expect(pane.page.headline).toEqual([]);
+    expect(pane.page.headline).toEqual(["Security not read."]);
+    expect(pane.page.totals).toEqual([]);
     expect(
       pane.lanes.every(
         ({ byRule, byRepository, figure }) =>
@@ -212,6 +213,11 @@ describe("a list not read", () => {
     expect(pane.unread.map(({ repository, retained }) => [repository, retained])).toEqual(
       Object.keys(BY_HAND).map((name) => [name, false]),
     );
+    expect(pane.page.banner.slice(0, 2)).toEqual([
+      { n: Object.keys(BY_HAND).length * 2, atLeast: false },
+      " lists not read: ",
+    ]);
+    expect(pane.page.banner.at(-1)).toBe(".");
   });
 });
 

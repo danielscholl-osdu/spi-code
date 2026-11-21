@@ -47,6 +47,15 @@ export const securityFixturePath = (name: SecurityFixture) =>
 
 /** The 16 Nov sweep's pane, with core's security-cases.json edit of the same name applied. */
 export function securityFixture(name: SecurityFixture): SecurityPane {
+  return securitySweep(name).pane;
+}
+
+/** The pane with the security read records a sweep of that case would save; 1116 read every repository. */
+export function securitySweep(name: SecurityFixture): {
+  pane: SecurityPane;
+  records: ReadRecord[];
+  now: Date;
+} {
   const base: Facts = { ...emptyFacts(), ...json<Partial<Facts>>(core("upstream-1116.json")) };
   const now = new Date(base.sweep?.at ?? "");
   const spec: Case =
@@ -95,5 +104,15 @@ export function securityFixture(name: SecurityFixture): SecurityPane {
     clock: { now: () => now },
   });
   const model = buildModel(facts, now, {}, context);
-  return securityPane({ model, facts, reads: { security }, context, now });
+  const pane = securityPane({ model, facts, reads: { security }, context, now });
+  const records: ReadRecord[] =
+    name === "1116"
+      ? Object.keys(data).map((repo) => ({
+          source: repo,
+          object: "security",
+          observedAt: now.toISOString(),
+          completeness: { kind: "complete" },
+        }))
+      : security;
+  return { pane, records, now };
 }

@@ -14,7 +14,8 @@ import { afterEach, expect, it } from "vitest";
 import { readFixture } from "../../../../../../scripts/watch-generated.mjs";
 import { watchStore } from "../../../store/watch.js";
 import { watchFixtureText } from "../../../test-utils/watch-fixtures.test-helper.js";
-import { OpenedRule } from "./OpenedRule.js";
+import { type ThreadSummary, threadStore } from "../../../threads/store.js";
+import { OpenedRule, ruleTarget } from "./OpenedRule.js";
 import { RULE_ATTR, useSecurityState } from "./state.js";
 
 const KEY = "spi:code:CodeQL:java/spring-disabled-csrf-protection";
@@ -112,15 +113,58 @@ it("marks the repository a tick or block arrived from and moves focus to its lin
   );
 });
 
-it("offers no Ask about this on an opened single-fork rule", async () => {
+const OTHER = "spi:dep:org.example:widget";
+const owned = (subject: string, status: ThreadSummary["status"]): ThreadSummary => ({
+  id: `thread-${status}`,
+  thread: { scope: "partition", title: "Why CSRF is off", subject },
+  status,
+  sequence: 1,
+  updatedAt: 1,
+  settledAt: status === "Settled" ? 1 : null,
+  done: status === "Settled",
+});
+
+async function opened(at: SecurityRuleRow, threads: ThreadSummary[] = []) {
   const previous = watchStore.getState().snapshot;
+  const before = threadStore.getState().threads;
   watchStore.setState({ snapshot: { cursor: 1, body: snapshot } });
-  cleanups.push(async () => watchStore.setState({ snapshot: previous }));
-  const container = await render({
-    ...rule,
-    opened: { ...rule.opened, ask: { fork: "partition" } },
+  threadStore.setState({ threads });
+  cleanups.push(async () => {
+    watchStore.setState({ snapshot: previous });
+    threadStore.setState({ threads: before });
   });
+  const container = await render(at);
   await act(async () => container.querySelector<HTMLButtonElement>("[data-tick]")?.click());
-  expect(container.querySelector(".security-where-line")).not.toBeNull();
-  expect(container.querySelector(".ask-about")).toBeNull();
+  return container;
+}
+
+const single = { ...rule, opened: { ...rule.opened, ask: { fork: "partition" } } };
+
+it("offers Ask about this on a rule in one fork, under its own subject, and none without a fork", async () => {
+  expect(ruleTarget(single)).toEqual({
+    subject: `security-rule:${KEY}`,
+    label: "Disabled Spring CSRF protection",
+    scope: "partition",
+    origin: "Started from Security › Disabled Spring CSRF protection",
+  });
+  const offered = await opened(single);
+  expect(offered.querySelector(".security-opened-acts .ask-about")?.textContent).toBe(
+    "✦Ask about this",
+  );
+  const none = await opened(rule);
+  expect(none.querySelector(".ask-about")).toBeNull();
+});
+
+it("shows a thread as the owner of its own rule only, settled or not", async () => {
+  for (const status of ["Working", "Settled"] as const) {
+    const threads = [owned(`security-rule:${KEY}`, status)];
+    const own = await opened(single, threads);
+    expect(own.querySelector(".ask-about--owned")?.textContent).toBe(
+      `✦Why CSRF is off · ${status}`,
+    );
+    const other = { ...single, key: OTHER, title: "org.example:widget" };
+    const elsewhere = await opened(other, threads);
+    expect(elsewhere.querySelector(".ask-about--owned")).toBeNull();
+    expect(elsewhere.querySelector(".ask-about")?.textContent).toBe("✦Ask about this");
+  }
 });

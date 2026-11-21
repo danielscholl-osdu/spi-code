@@ -20,7 +20,7 @@ import type { AttentionInput } from "./attention.js";
 import { projectBriefing, settleBriefing } from "./briefing.js";
 import { detectedCampaigns } from "./campaigns.js";
 import { areaEnvelopes } from "./provenance.js";
-import { placeReadings } from "./readings.js";
+import { placeReadings, securityPlaceReading } from "./readings.js";
 import { recordedRuns } from "./recorded-runs.js";
 import { projectReleases } from "./releases.js";
 import { projectSecurity } from "./security.js";
@@ -93,7 +93,15 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
       input.readIntervals?.get(record) ?? input.intervals?.[area] ?? input.intervalMs,
     now,
   );
-  const places = settleBriefing(briefing, horizon, model, input, readings, areas, now);
+  const places = settleBriefing(
+    briefing,
+    horizon,
+    model,
+    input,
+    [...readings, securityPlaceReading(model, input, briefing, campaigns)],
+    areas,
+    now,
+  );
   return ViewSnapshotSchema.parse({
     cursor: input.cursor,
     sweptAt: model.sweptAt ?? now.toISOString(),

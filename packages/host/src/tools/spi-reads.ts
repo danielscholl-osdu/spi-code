@@ -5,6 +5,7 @@ import { resolvePointer, type ViewSnapshot } from "@spi-code/contracts";
 import { z } from "zod";
 import { readPlace } from "../threads/context/places.js";
 import { redactSpiText, redactSpiValue, type SpiRedactor } from "../threads/context/redaction.js";
+import { paneReading, ruleReading, unreadLists } from "../threads/context/security.js";
 import {
   areaEnvelopes,
   governedBy,
@@ -190,9 +191,32 @@ const READS: readonly SpiRead<Fields>[] = [
   }),
   define({
     metadata: metadata("spi_security"),
-    description: "Security: SPI-owned and upstream-origin findings across the forks.",
-    args: none,
-    ...place("place:security"),
+    description:
+      "Security: open alerts by lane (shipped SPI code, shipped upstream code, tests and tooling), each rule or package with its forks, fix and age, and the lists not read. With rule (a rule's key), that rule's facts and where it sits by repository and file.",
+    args: z.strictObject({ rule: z.string().min(1).optional() }),
+    read: ({ view }, { rule }) => {
+      const state = readState(areaEnvelopes(view, ["security"]));
+      const notRead = unreadLists(view.security);
+      const lists = notRead.length > 0 ? { listsNotRead: notRead } : {};
+      if (rule === undefined) {
+        const reading = paneReading(view.security, true);
+        return {
+          place: "Security",
+          at: "/security",
+          state,
+          value: { ...lists, ...(typeof reading === "string" ? { reading } : reading) },
+          lists: ["rules"],
+        };
+      }
+      const { title, at, reading } = ruleReading(view, rule);
+      return {
+        place: title,
+        at: at ?? "/security",
+        state,
+        value: { ...lists, ...(typeof reading === "string" ? { reading } : reading) },
+        lists: ["where"],
+      };
+    },
   }),
   define({
     metadata: metadata("spi_inspect"),

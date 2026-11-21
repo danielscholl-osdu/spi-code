@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { SecurityBlock, SecurityLane } from "@spi-code/contracts";
+import type { SecurityBlock, SecurityLane, SecurityPage } from "@spi-code/contracts";
 import { type CSSProperties, type RefObject, useEffect, useLayoutEffect, useRef } from "react";
 import { navigate, routeHash } from "../../../app/navigation.js";
 import type { SectionProps } from "./state.js";
@@ -13,14 +13,10 @@ const STUB_ROOM = 40;
 
 const EVIDENCE = { kind: "evidence", from: { kind: "security" } } as const;
 
-/** The line above the headline, the headline, the not-read banner and the three bars. */
-export function Top({ pane, lane, state, actions }: SectionProps) {
-  const { page } = pane;
-  const figure = useRef<HTMLDivElement>(null);
-  useFitLabels(figure);
-  const stubbed = page.stub.length > 0;
+/** The line above the headline, the headline and the not-read banner. */
+export function Lead({ page }: { page: SecurityPage }) {
   return (
-    <div className="security-top">
+    <>
       <p className="security-headline">
         <span className="security-totals">
           <Words words={page.totals} />
@@ -43,6 +39,19 @@ export function Top({ pane, lane, state, actions }: SectionProps) {
           </a>
         </p>
       )}
+    </>
+  );
+}
+
+/** The lead, then the three bars. */
+export function Top({ pane, lane, state, actions }: SectionProps) {
+  const { page } = pane;
+  const figure = useRef<HTMLDivElement>(null);
+  useFitLabels(figure);
+  const stubbed = page.stub.length > 0;
+  return (
+    <div className="security-top">
+      <Lead page={page} />
       <div ref={figure} className="security-figure">
         {pane.lanes.map((row) => (
           <div key={row.id} className="security-fig-row" data-lane={row.id}>

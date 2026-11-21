@@ -96,7 +96,7 @@ export const VIEW_SURFACES = [
     name: "Security",
     route: "security",
     place: "Security",
-    selector: ".place[aria-label=Security] .place-reading",
+    selector: ".place[aria-label=Security] .security-headline",
     designSection: "The window / Places",
     qualified: false,
   },
