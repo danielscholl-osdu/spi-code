@@ -29,8 +29,10 @@ function severity(v: unknown): Severity | undefined {
   return s && SEVERITIES.has(s) ? (s as Severity) : undefined;
 }
 
+const INVISIBLE = /(?![\t\n\v\f\r])[\p{Cc}\p{Cf}]/gu;
+
 function oneLine(v: unknown): string | undefined {
-  const text = str(v)?.replaceAll("`", "").replace(/\s+/g, " ").trim();
+  const text = str(v)?.replace(INVISIBLE, "").replaceAll("`", "").replace(/\s+/g, " ").trim();
   if (!text) return undefined;
   const chars = [...text];
   return chars.length > HELP_MAX ? `${chars.slice(0, HELP_MAX - 1).join("").trimEnd()}…` : text;

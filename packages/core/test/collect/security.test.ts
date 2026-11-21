@@ -98,6 +98,18 @@ describe("alert parsing", () => {
     }
   });
 
+  test("drops control and format characters from a rule's help before folding and the cap", () => {
+    const help = (fullDescription: string) =>
+      parseCodeAlert({ ...CODE, fullDescription })?.fullDescription;
+    expect(
+      help("Use\u202E safe\u0000 strings\u001B[31m with\u200B care\uFEFF.\u2066x\u2069\u0085"),
+    ).toBe("Use safe strings[31m with care.x");
+    expect(help("Café naïve 跨站请求伪造\tcheck")).toBe("Café naïve 跨站请求伪造 check");
+    expect(help("\u200B\u202E\u0000")).toBeUndefined();
+    const exact = "y".repeat(HELP_MAX);
+    expect(help(`\u200F${[...exact].join("\u200B")}`)).toBe(exact);
+  });
+
   test("cuts a long help at HELP_MAX characters and keeps at most 20 tags of 100 characters", () => {
     const long = parseCodeAlert({
       ...CODE,

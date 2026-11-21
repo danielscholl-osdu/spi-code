@@ -491,7 +491,7 @@ table.t th{color:var(--faint);font-weight:600;font-size:11px;letter-spacing:.06e
     <div>
       <h2>For the build</h2>
       <ul>
-        <li>No new sweep fields beyond draft 6’s: the figure, the strip and By repository all come from each alert’s repository, path, lane and severity. The one-line rule help and CWE still need <code>rule.full_description</code> and <code>rule.tags</code>.</li>
+        <li>The figure, the strip and By repository need no sweep field beyond draft 6’s: they all come from each alert’s repository, path, lane and severity. The one-line rule help and CWE come from two more, <code>rule.full_description</code> and <code>rule.tags</code>, and an opened rule shows neither when the scanner gives none.</li>
         <li>Every mark splits the same way: the solid part is the share of high or critical alerts, from a block’s left, a tick’s baseline or a count bar’s start, and the rest is a 16% mix of the lane colour into the surface inside an outline of the lane colour. No mark has a fixed middle step.</li>
         <li>The figure is on one scale across the three lanes. The Alerts column and the strip ticks are scaled to the chosen lane only, its largest rule and its largest repository count, because one lane’s rows show at a time.</li>
         <li>The block order within a lane is by alert count; the rule list keeps draft 6’s order (worst severity, then how many are high, then count).</li>

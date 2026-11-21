@@ -15,7 +15,7 @@ For the Security place this file wins over its mock, [today and places](spi-code
 | 3 | Not read | One banner names each list not read, with its Evidence link. |
 | 4 | Figure | Three bars on one scale: Shipped SPI code ("Ours to fix"), Shipped upstream code ("Upstream’s to fix, the fix arrives by sync") and Tests, tooling and settings ("Not in the running service"). Each has its total and how many are high or critical. A block is a rule or package sized by its alerts. Its solid part is its share of high or critical, from the left; the rest is outlined. A list not read is a hatched stub at the end of every bar. Colour says whose move it is, never severity. A legend gives the two swatches, and Not read when a list was not read. |
 | 5 | By rule | The chosen bar, one row per rule or package: worst severity, the scanner's own title, its second line, a strip with one tick per repository, the line under the strip, a count bar, and fix and age. |
-| 6 | Opened rule | What the rule or package is, where it sits by repository and file, a pill per alert and per fix PR, the same rule in the other bars, and Ask about this. |
+| 6 | Opened rule | What the rule or package is, where it sits by repository and file, a pill per alert and per fix PR, the same rule in the other bars, and Ask about this. A code rule's "What it is" line is the scanner's full description on one line, cut at 300 characters, and its CWE closes the Rule line; either is left out when the scanner gives none. |
 | 7 | By repository | The chosen bar, one row per repository with alerts: its name, its bar and count, its total across the page and its top rules. The repositories with nothing share one line. An opened repository lists its rules as pills that open the rule in By rule. |
 
 Choosing a bar's name chooses that bar. Choosing a block chooses its bar and opens its row. Rows open in place: Security has no popovers, although today and places gives places popovers.
@@ -63,7 +63,7 @@ The line under the strip names the repository that holds most of a rule only whe
 |---|---|
 | R1 | Fix column on a package with several advisories: "N advisories, first patched ‹lowest› to ‹highest›". One advisory states its one version. "no patched version" when no advisory has one. "N fix PRs closed unmerged" counts Dependabot PRs for the package and manifest closed unmerged. |
 | R2 | A rule in one repository while a list it draws on was not read reads "≥1 fork", with the repository named on focus or hover. |
-| R3 | Under a file heading a pill reads "CodeQL #80". The in-place expansion of a file's alerts stays. No line number, no new sweep field. |
+| R3 | Under a file heading a pill reads "CodeQL #80". The in-place expansion of a file's alerts stays. The pill carries no line number, and the sweep does not collect one. |
 | R4 | The page opens on the first shipped bar that has alerts. A clean bar keeps "Nothing open" in its bar only. |
 | R5 | The headline reads as the mock's. |
 | R6 | Shipped upstream code's subtitle reads as the mock's. |
@@ -78,4 +78,4 @@ Core computes every number and every word the page shows. The window counts, sor
 
 ## Not built
 
-The mock's switches above the window (Sweep, Fleet, Palette, Colour, Theme), its 40-repository layout test, Ink only and its notes below the window are proposal chrome. The scanner's one-line help and CWE need a sweep field and come later; until then an opened rule shows neither.
+The mock's switches above the window (Sweep, Fleet, Palette, Colour, Theme), its 40-repository layout test, Ink only and its notes below the window are proposal chrome.
