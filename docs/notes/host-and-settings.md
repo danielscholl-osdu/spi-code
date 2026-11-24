@@ -7,8 +7,15 @@ active serialized turn; a callback from an earlier turn arriving during a later
 turn cannot be distinguished. Callbacks outside a turn are logged and dropped.
 
 The host's stores borrow one `openStore` connection; only `openRunStore` owns an
-extra connection for external callers. Snapshot pruning stays outside the write
-transaction, so a daily retention failure reports an error without undoing a sweep.
+extra connection for external callers.
+
+`facts_snapshots` holds one row per fleet: each sweep deletes and reinserts it in one
+transaction, and AUTOINCREMENT keeps the cursor rising across replacements and restarts.
+Acknowledge never reads that row. The routes record the seen items and runs observation
+in `snapshots_shown` as they push a snapshot, and a shown cursor acknowledges for a day
+after it was last shown (each fleet's newest always). The v6 migration that moved stores
+to this shape is the only place the store runs VACUUM; a crash between its commit and
+the VACUUM leaves the file at its old size with the space free for reuse.
 
 The host's `setup.check` request rechecks every readiness row, bypasses the Copilot
 seat cache, and publishes `setup.state` with the check time in `checkedAt`, even

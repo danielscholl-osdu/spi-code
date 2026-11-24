@@ -1237,41 +1237,6 @@ it("reports malformed budget evidence without replacing the log", async () => {
   expect(readFileSync(log, "utf8")).toBe(contents);
 });
 
-it("prunes daily on the injected clock, retaining seven days and each fleet's latest snapshot", async () => {
-  const leases = createLeaseStore(db);
-  const snapshots = createSnapshotStore(db);
-  const old = epoch - 8 * DAY_MS;
-  leases.acquire("old", "writer", 2 * DAY_MS, old);
-  const lease = { fleet: "old", owner: "writer", fence: 1 };
-  snapshots.writeSnapshot(lease, {}, {}, old);
-  snapshots.writeSnapshot(lease, {}, {}, epoch - 7 * DAY_MS + 1);
-  snapshots.writeSnapshot(lease, {}, {}, epoch - 7 * DAY_MS + 2);
-  const first = service([], { intervalMs: 2 * DAY_MS, ttlMs: 3 * DAY_MS });
-  await first.start();
-  expect(snapshots.snapshotsSince(0).map((row) => row.cursor)).toEqual([2, 3, 4]);
-  await vi.advanceTimersByTimeAsync(DAY_MS - 1);
-  expect(snapshots.snapshotsSince(0)).toHaveLength(3);
-  await vi.advanceTimersByTimeAsync(1);
-  expect(snapshots.snapshotsSince(0).map((row) => row.cursor)).toEqual([3, 4]);
-  await first.stop();
-  await vi.advanceTimersByTimeAsync(DAY_MS);
-  expect(vi.getTimerCount()).toBe(0);
-});
-
-it("prunes on startup even as a lease contender, retaining every fleet's latest cursor", async () => {
-  const leases = createLeaseStore(db);
-  const snapshots = createSnapshotStore(db);
-  const old = epoch - 8 * DAY_MS;
-  leases.acquire("old", "writer", 100, old);
-  const lease = { fleet: "old", owner: "writer", fence: 1 };
-  snapshots.writeSnapshot(lease, {}, {}, old);
-  snapshots.writeSnapshot(lease, {}, {}, old + 1);
-  leases.acquire("test", "other holder", 3000, epoch);
-  const first = service();
-  await expect(first.start()).resolves.toBe(false);
-  expect(snapshots.snapshotsSince(0).map((row) => row.cursor)).toEqual([2]);
-});
-
 it("polls in-flight work between sweeps without overlapping a full sweep", async () => {
   const poll = vi.fn(async () => ({ changed: false, settled: false }));
   const first = service([], {
@@ -1489,7 +1454,7 @@ it("recovers a complete snapshot and cursor after SIGKILL during writeSnapshot",
     expect(observed).toEqual([auth]);
     expect(next.latest()?.cursor).toBe(2);
     expect(snapshots.latestSnapshot("test")?.fence).toBe(2);
-    expect(snapshots.snapshotsSince(0).map((snapshot) => snapshot.cursor)).toEqual([1, 2]);
+    expect(snapshots.snapshotsSince(0).map((snapshot) => snapshot.cursor)).toEqual([2]);
   } finally {
     if (child.exitCode === null && child.signalCode === null) {
       child.kill("SIGKILL");

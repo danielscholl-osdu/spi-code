@@ -190,7 +190,6 @@ export class SweepService {
   start(): Promise<boolean> {
     if (!this.started) {
       try {
-        this.snapshots.pruneSnapshots(this.now());
         try {
           this.trimBudgetLog();
         } catch (error) {
@@ -204,10 +203,7 @@ export class SweepService {
       this.scheduleSweep();
       this.scheduleForceCooldown();
       this.repeat(INFLIGHT_POLL_MS, () => this.poll());
-      this.repeat(DAY_MS, async () => {
-        this.snapshots.pruneSnapshots(this.now());
-        this.trimBudgetLog();
-      });
+      this.repeat(DAY_MS, async () => this.trimBudgetLog());
     }
     return this.sweep();
   }

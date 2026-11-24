@@ -1,14 +1,14 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createLeaseStore } from "./leases.js";
 import { openStore } from "./open.js";
-import { createSnapshotStore } from "./snapshots.js";
+import { createSnapshotStore, SHOWN_RETENTION_MS } from "./snapshots.js";
 import { openRunStore } from "./store.js";
 
 let directory: string;
@@ -138,49 +138,99 @@ it.each([1050, 1100])(
   },
 );
 
-it("prunes snapshots strictly beyond seven days but retains each fleet's latest cursor", () => {
-  let store = createSnapshotStore(db);
-  const now = Date.parse("2026-11-05T04:00:00.000Z");
-  const cutoff = now - 7 * 24 * 60 * 60 * 1000;
-  const insert = db.prepare(
-    `INSERT INTO facts_snapshots (fleet, at, facts, envelope, fence)
-       VALUES (?, ?, '{}', '{}', 1)`,
-  );
-  insert.run("a", cutoff - 1);
-  insert.run("a", cutoff);
-  insert.run("a", cutoff + 1);
-  insert.run("b", cutoff - 100);
-  insert.run("b", cutoff - 200);
-  insert.run("c", cutoff - 100);
-  insert.run("c", cutoff - 100);
-  store.pruneSnapshots(now);
-  expect(db.prepare("SELECT cursor FROM facts_snapshots ORDER BY cursor").all()).toEqual([
-    { cursor: 2 },
-    { cursor: 3 },
-    { cursor: 5 },
-    { cursor: 7 },
+it("replaces each fleet's one snapshot and keeps the cursor increasing across a reopen", () => {
+  let snapshots = createSnapshotStore(db);
+  createLeaseStore(db).acquire("b", "second", 100, 1000);
+  const b = { fleet: "b", owner: "second", fence: 1 };
+  expect(snapshots.writeSnapshot(first, { n: 1 }, {}, 1001)).toBe(1);
+  expect(snapshots.writeSnapshot(b, { n: 2 }, {}, 1002)).toBe(2);
+  expect(snapshots.writeSnapshot(first, { n: 3 }, {}, 1003)).toBe(3);
+  expect(snapshots.writeSnapshot(first, { n: 4 }, {}, 1004)).toBe(4);
+  const rows = () => db.prepare("SELECT cursor, fleet FROM facts_snapshots ORDER BY cursor").all();
+  expect(rows()).toEqual([
+    { cursor: 2, fleet: "b" },
+    { cursor: 4, fleet: "a" },
   ]);
-  store.pruneSnapshots(now);
-  expect(db.prepare("SELECT COUNT(*) AS count FROM facts_snapshots").get()?.count).toBe(4);
+  expect(snapshots.latestSnapshot("a")).toMatchObject({ cursor: 4, facts: { n: 4 }, at: 1004 });
   db.close();
   db = openStore(path);
-  store = createSnapshotStore(db);
-  store.pruneSnapshots(now + 2);
-  expect(db.prepare("SELECT cursor FROM facts_snapshots ORDER BY cursor").all()).toEqual([
-    { cursor: 3 },
-    { cursor: 5 },
-    { cursor: 7 },
+  snapshots = createSnapshotStore(db);
+  expect(snapshots.writeSnapshot(b, { n: 5 }, {}, 1005)).toBe(5);
+  expect(rows()).toEqual([
+    { cursor: 4, fleet: "a" },
+    { cursor: 5, fleet: "b" },
   ]);
 });
 
-it("rejects invalid pruning clocks without deleting snapshots", () => {
-  const store = createSnapshotStore(db);
-  db.exec(
-    `INSERT INTO facts_snapshots (fleet, at, facts, envelope, fence)
-       VALUES ('a', 0, '{}', '{}', 1), ('a', 1, '{}', '{}', 1)`,
-  );
-  for (const now of [Number.NaN, Infinity, 0.5, Number.MAX_SAFE_INTEGER + 1]) {
-    expect(() => store.pruneSnapshots(now)).toThrow(RangeError);
+it("acknowledges a shown cursor for a day after it was last shown, and each fleet's newest always", () => {
+  const snapshots = createSnapshotStore(db);
+  const t0 = Date.parse("2026-11-24T08:00:00.000Z");
+  const shown = (cursor: number) => ({ items: [{ id: `item-${cursor}` }], observedAt: cursor });
+  snapshots.recordShown("a", 1, shown(1), t0);
+  snapshots.recordShown("a", 2, shown(2), t0 + 60_000);
+  snapshots.recordShown("b", 3, shown(3), t0);
+  expect(snapshots.shownAt("a", 1, t0 + SHOWN_RETENTION_MS)).toEqual(shown(1));
+  expect(snapshots.shownAt("a", 1, t0 + SHOWN_RETENTION_MS + 1)).toBeUndefined();
+  expect(snapshots.shownAt("a", 2, t0 + 7 * SHOWN_RETENTION_MS)).toEqual(shown(2));
+  expect(snapshots.shownAt("b", 3, t0 + 7 * SHOWN_RETENTION_MS)).toEqual(shown(3));
+  for (const cursor of [0, -1, 1.5, 4, Number.NaN]) {
+    expect(snapshots.shownAt("a", cursor, t0)).toBeUndefined();
   }
-  expect(db.prepare("SELECT COUNT(*) AS count FROM facts_snapshots").get()?.count).toBe(2);
+  expect(snapshots.shownAt("b", 1, t0)).toBeUndefined();
+
+  snapshots.recordShown("a", 1, shown(1), t0 + 120_000);
+  expect(snapshots.shownAt("a", 1, t0 + SHOWN_RETENTION_MS + 1)).toEqual(shown(1));
+  snapshots.recordShown("a", 4, shown(4), t0 + SHOWN_RETENTION_MS + 120_001);
+  const kept = () => db.prepare("SELECT fleet, cursor FROM snapshots_shown ORDER BY cursor").all();
+  expect(kept()).toEqual([
+    { fleet: "b", cursor: 3 },
+    { fleet: "a", cursor: 4 },
+  ]);
+  for (const at of [Number.NaN, 0.5, Number.MIN_SAFE_INTEGER]) {
+    expect(() => snapshots.recordShown("a", 5, shown(5), at)).toThrow(RangeError);
+  }
+  expect(() => snapshots.recordShown("a", 0, shown(5), t0)).toThrow(RangeError);
+  expect(() => snapshots.recordShown("a", 5, { items: [], observedAt: 0.5 }, t0)).toThrow(
+    RangeError,
+  );
+  expect(() => snapshots.recordShown("a", 5, { items: undefined, observedAt: null }, t0)).toThrow(
+    TypeError,
+  );
+  expect(db.isTransaction).toBe(false);
+  expect(kept()).toHaveLength(2);
+});
+
+it("stays under 2 MB after a simulated week of five-minute sweeps that are each shown", () => {
+  db.close();
+  db = openStore(path);
+  db.exec("PRAGMA synchronous = OFF");
+  const snapshots = createSnapshotStore(db);
+  const start = Date.parse("2026-11-17T00:00:00.000Z");
+  const week = 7 * 24 * 60 * 60 * 1000;
+  const sweep = 5 * 60 * 1000;
+  const sweeps = week / sweep;
+  const fence = createLeaseStore(db).acquire("week", "sweeper", 2 * week, start);
+  const lease = { fleet: "week", owner: "sweeper", fence: fence ?? 0 };
+  const items = Array.from({ length: 40 }, (_, i) => ({
+    id: `item-${i}`,
+    ids: [`item-${i}`],
+    rung: 2,
+    attention: "background",
+  }));
+  let cursor = 0;
+  for (let i = 0; i < sweeps; i++) {
+    const now = start + i * sweep;
+    const facts = { sweep: i, cache: String(i % 10).repeat(96 * 1024) };
+    const envelope = { briefing: String(i % 7).repeat(24 * 1024) };
+    cursor = snapshots.writeSnapshot(lease, facts, envelope, now);
+    snapshots.recordShown("week", cursor, { items, observedAt: now }, now + 1000);
+  }
+  expect(cursor).toBe(sweeps);
+  db.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get();
+  const bytes = statSync(path).size + statSync(`${path}-wal`).size;
+  expect(bytes).toBeLessThan(2 * 1024 * 1024);
+  expect(db.prepare("SELECT COUNT(*) AS count FROM facts_snapshots").get()?.count).toBe(1);
+  expect(db.prepare("SELECT COUNT(*) AS count FROM snapshots_shown").get()?.count).toBe(
+    SHOWN_RETENTION_MS / sweep + 1,
+  );
 });

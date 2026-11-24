@@ -1,10 +1,27 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { mkdtempSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createLeaseStore } from "./leases.js";
 import { migrate } from "./migrations.js";
+import { openStore } from "./open.js";
 import { createSeenStore } from "./seen.js";
+import { createSnapshotStore } from "./snapshots.js";
+
+/** Takes a migrated database back to v5, where every sweep added a snapshot row. */
+function toV5(db: DatabaseSync): void {
+  db.exec(`
+    DROP TABLE snapshots_shown;
+    DROP INDEX facts_snapshots_fleet;
+    CREATE INDEX facts_snapshots_fleet_cursor ON facts_snapshots (fleet, cursor);
+    CREATE INDEX facts_snapshots_at ON facts_snapshots (at);
+    DELETE FROM schema_version WHERE version >= 6;
+  `);
+}
 
 const v1 = `
   CREATE TABLE schema_version (version INTEGER PRIMARY KEY) STRICT;
@@ -67,6 +84,7 @@ describe("store migrations", () => {
         "run_events",
         "runs",
         "seen_baselines",
+        "snapshots_shown",
         "thread_workspaces",
         "threads",
         "waits",
@@ -87,6 +105,7 @@ describe("store migrations", () => {
         { version: 3 },
         { version: 4 },
         { version: 5 },
+        { version: 6 },
       ]);
     },
   );
@@ -94,6 +113,7 @@ describe("store migrations", () => {
   it("keeps a v3 seen baseline readable, with no runs observation", () => {
     const db = open();
     migrate(db);
+    toV5(db);
     db.exec("ALTER TABLE seen_baselines DROP COLUMN observed_at");
     db.exec("DROP TABLE thread_workspaces");
     db.exec("DELETE FROM schema_version WHERE version >= 4");
@@ -131,6 +151,77 @@ describe("store migrations", () => {
     expect(db.prepare("SELECT * FROM run_events").all()).toEqual(events);
     db.exec("DROP TABLE facts_snapshots");
     migrate(db);
-    expect(db.prepare("SELECT MAX(version) AS version FROM schema_version").get()?.version).toBe(5);
+    expect(db.prepare("SELECT MAX(version) AS version FROM schema_version").get()?.version).toBe(6);
+  });
+});
+
+describe("the v6 snapshot migration", () => {
+  let directory: string;
+  let path: string;
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    rmSync(directory, { recursive: true, force: true });
+  });
+
+  function bytes(): number {
+    const wal = `${path}-wal`;
+    return statSync(path).size + (statSync(wal, { throwIfNoEntry: false })?.size ?? 0);
+  }
+
+  it("keeps each fleet's latest snapshot, drops the rest and shrinks the file once", () => {
+    directory = mkdtempSync(join(tmpdir(), "spi-migrate-"));
+    path = join(directory, "runs.sqlite");
+    let db = openStore(path);
+    toV5(db);
+    const insert = db.prepare(
+      "INSERT INTO facts_snapshots (fleet, at, facts, envelope, fence) VALUES (?, ?, ?, ?, 1)",
+    );
+    const fleets = ["a", "b", "c"];
+    for (let sweep = 0; sweep < 40; sweep++) {
+      for (const fleet of fleets) {
+        const facts = JSON.stringify({ fleet, sweep, cache: "x".repeat(64 * 1024) });
+        insert.run(fleet, 1000 + sweep, facts, JSON.stringify({ sweep }));
+      }
+    }
+    const latest = db
+      .prepare(
+        "SELECT * FROM facts_snapshots WHERE cursor IN (SELECT MAX(cursor) FROM facts_snapshots GROUP BY fleet) ORDER BY cursor",
+      )
+      .all();
+    expect(latest.map((row) => row.cursor)).toEqual([118, 119, 120]);
+    db.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get();
+    db.close();
+    const before = bytes();
+    expect(before).toBeGreaterThan(120 * 64 * 1024);
+
+    db = openStore(path);
+    try {
+      expect(db.prepare("SELECT * FROM facts_snapshots ORDER BY cursor").all()).toEqual(latest);
+      expect(db.prepare("SELECT COUNT(*) AS count FROM snapshots_shown").get()?.count).toBe(0);
+      expect(db.prepare("SELECT MAX(version) AS version FROM schema_version").get()?.version).toBe(
+        6,
+      );
+      expect(bytes()).toBeLessThan(before / 10);
+      createLeaseStore(db).acquire("a", "sweeper", 100, 2000);
+      const next = createSnapshotStore(db).writeSnapshot(
+        { fleet: "a", owner: "sweeper", fence: 1 },
+        {},
+        {},
+        2001,
+      );
+      expect(next).toBe(121);
+    } finally {
+      db.close();
+    }
+
+    const statements: string[] = [];
+    const execute = DatabaseSync.prototype.exec;
+    vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (this: DatabaseSync, sql) {
+      statements.push(sql);
+      execute.call(this, sql);
+    });
+    openStore(path).close();
+    expect(statements.filter((sql) => /VACUUM/i.test(sql))).toEqual([]);
   });
 });

@@ -59,6 +59,7 @@ describe("file-backed run store", () => {
       { version: 3 },
       { version: 4 },
       { version: 5 },
+      { version: 6 },
     ]);
     expect(db.prepare("PRAGMA journal_mode").get()).toEqual({ journal_mode: "wal" });
     const schema = db.prepare("SELECT name, sql FROM sqlite_schema ORDER BY name").all();
@@ -238,8 +239,8 @@ describe("file-backed run store", () => {
     ).toBeUndefined();
     db.exec("DROP TABLE run_events");
     open().close();
-    db.exec("INSERT INTO schema_version VALUES (6)");
-    expect(() => openRunStore(path)).toThrow("Unsupported schema version: 6");
+    db.exec("INSERT INTO schema_version VALUES (7)");
+    expect(() => openRunStore(path)).toThrow("Unsupported schema version: 7");
     expect(db.prepare("SELECT version FROM schema_version ORDER BY version").all()).toEqual([
       { version: 1 },
       { version: 2 },
@@ -247,6 +248,7 @@ describe("file-backed run store", () => {
       { version: 4 },
       { version: 5 },
       { version: 6 },
+      { version: 7 },
     ]);
   });
 

@@ -49,7 +49,7 @@ import { inspectResult } from "../inspect/item.js";
 import { upstreamForkResult, upstreamPlanResult } from "../inspect/upstream.js";
 import { createLeaseStore } from "../store/leases.js";
 import { createSeenStore } from "../store/seen.js";
-import { createSnapshotStore } from "../store/snapshots.js";
+import { createSnapshotStore, SHOWN_RETENTION_MS } from "../store/snapshots.js";
 import { openRunStore } from "../store/store.js";
 import { SweepService } from "../sweep/service.js";
 import { emptySweepStatus, SWEEP_SCHEDULE } from "../sweep/status.js";
@@ -977,6 +977,46 @@ describe("view.acknowledge", () => {
     const after = await subscribe(watch);
     expect(after.view.seen).toMatchObject({ cursor: second, since: [] });
     expect(current.port.sent.filter((m) => m.type === "error")).toEqual([]);
+  });
+
+  it("acknowledges a shown cursor a later sweep replaced, until a day after it was shown", async () => {
+    let clock = now;
+    const watch = new WatchRoutes({
+      db: () => db,
+      fleet,
+      ctx: { ...ctx, clock: { now: () => new Date(clock) } },
+      appData: input.appData,
+      exec: failing,
+      onError: (error) => {
+        throw error;
+      },
+    });
+    const baseline = () => createSeenStore(db).baseline(fleet)?.cursor;
+    const first = writeSnapshot();
+    await subscribe(watch);
+    expect(baseline()).toBe(first);
+    const second = writeSnapshot();
+    const shown = await subscribe(watch);
+    expect(shown.view.cursor).toBe(second);
+    const third = writeSnapshot();
+    expect(
+      createSnapshotStore(db)
+        .snapshotsSince(0)
+        .map(({ cursor }) => cursor),
+    ).toEqual([third]);
+    await shown.acknowledge(second);
+    expect(baseline()).toBe(second);
+
+    const later = await subscribe(watch);
+    expect(later.view.cursor).toBe(third);
+    clock = now + SHOWN_RETENTION_MS + 1;
+    const fourth = writeSnapshot();
+    const next = await subscribe(watch);
+    expect(next.view.cursor).toBe(fourth);
+    await later.acknowledge(third);
+    expect(baseline()).toBe(second);
+    await next.acknowledge(fourth);
+    expect(baseline()).toBe(fourth);
   });
 
   it("never clears a stopped station or lowers the Interrupt count", async () => {

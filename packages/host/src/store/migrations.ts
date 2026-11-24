@@ -3,7 +3,7 @@
 
 import type { DatabaseSync } from "node:sqlite";
 
-const migrations = [
+const migrations: Array<string | { sql: string; shrink: boolean }> = [
   `
     CREATE TABLE runs (
       id TEXT PRIMARY KEY NOT NULL,
@@ -125,9 +125,34 @@ const migrations = [
     CREATE UNIQUE INDEX thread_workspaces_branch
       ON thread_workspaces(repository, branch) WHERE deleted_at IS NULL;
   `,
+  {
+    sql: `
+      DELETE FROM facts_snapshots
+        WHERE cursor NOT IN (SELECT MAX(cursor) FROM facts_snapshots GROUP BY fleet);
+      DROP INDEX facts_snapshots_fleet_cursor;
+      DROP INDEX facts_snapshots_at;
+      CREATE UNIQUE INDEX facts_snapshots_fleet ON facts_snapshots (fleet);
+      CREATE TABLE snapshots_shown (
+        fleet TEXT NOT NULL,
+        cursor INTEGER NOT NULL CHECK (cursor > 0 AND cursor <= 9007199254740991),
+        items TEXT NOT NULL CHECK (json_valid(items)),
+        observed_at INTEGER,
+        at INTEGER NOT NULL,
+        PRIMARY KEY (fleet, cursor)
+      ) STRICT;
+    `,
+    shrink: true,
+  },
 ];
 
+/** Reclaims the pages a migration freed; VACUUM cannot run inside the migration transaction. */
+function shrink(db: DatabaseSync): void {
+  db.exec("VACUUM");
+  db.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get();
+}
+
 export function migrate(db: DatabaseSync): void {
+  let shrinkAfter = false;
   db.exec("BEGIN IMMEDIATE");
   try {
     db.exec("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY) STRICT");
@@ -139,12 +164,14 @@ export function migrate(db: DatabaseSync): void {
     }
     for (const [index, migration] of migrations.entries()) {
       if (index < versions.length) continue;
-      db.exec(migration);
+      db.exec(typeof migration === "string" ? migration : migration.sql);
       db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(index + 1);
+      shrinkAfter ||= typeof migration !== "string" && migration.shrink;
     }
     db.exec("COMMIT");
   } catch (error) {
     if (db.isTransaction) db.exec("ROLLBACK");
     throw error;
   }
+  if (shrinkAfter) shrink(db);
 }

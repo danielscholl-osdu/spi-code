@@ -13,6 +13,15 @@ export interface SnapshotRecord {
   fence: number;
 }
 
+/** What acknowledging a shown cursor records as the seen baseline. */
+export interface ShownRecord {
+  items: unknown;
+  observedAt: number | null;
+}
+
+/** A shown cursor acknowledges for this long after it was last shown; each fleet's newest always does. */
+export const SHOWN_RETENTION_MS = 24 * 60 * 60 * 1000;
+
 type SnapshotRow = Omit<SnapshotRecord, "facts" | "envelope"> & {
   facts: string;
   envelope: string;
@@ -28,11 +37,15 @@ function encode(value: unknown): string {
   return json;
 }
 
-/** Uses a migrated connection configured for WAL, synchronous=FULL and a writer-lock timeout. */
+/**
+ * One snapshot per fleet, replaced by each write; AUTOINCREMENT keeps cursors rising.
+ * Uses a migrated connection configured for WAL, synchronous=FULL and a writer-lock timeout.
+ */
 export function createSnapshotStore(db: DatabaseSync) {
   const currentLease = db.prepare(`
     SELECT 1 FROM leases WHERE fleet = ? AND owner = ? AND fence = ? AND expires_at > ?
   `);
+  const replace = db.prepare("DELETE FROM facts_snapshots WHERE fleet = ?");
   const insert = db.prepare(`
     INSERT INTO facts_snapshots (fleet, at, facts, envelope, fence) VALUES (?, ?, ?, ?, ?)
   `);
@@ -40,20 +53,20 @@ export function createSnapshotStore(db: DatabaseSync) {
     "SELECT * FROM facts_snapshots WHERE fleet = ? ORDER BY cursor DESC LIMIT 1",
   );
   const since = db.prepare("SELECT * FROM facts_snapshots WHERE cursor > ? ORDER BY cursor");
-  const at = db.prepare("SELECT * FROM facts_snapshots WHERE fleet = ? AND cursor = ?");
-  const prune = db.prepare(
-    `DELETE FROM facts_snapshots WHERE at < ?
-     AND cursor NOT IN (SELECT MAX(cursor) FROM facts_snapshots GROUP BY fleet)`,
-  );
+  const show = db.prepare(`
+    INSERT INTO snapshots_shown (fleet, cursor, items, observed_at, at) VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT (fleet, cursor) DO UPDATE SET items = excluded.items,
+      observed_at = excluded.observed_at, at = MAX(at, excluded.at)
+  `);
+  const forget = db.prepare(`
+    DELETE FROM snapshots_shown WHERE fleet = ? AND at < ?
+      AND cursor < (SELECT MAX(cursor) FROM snapshots_shown WHERE fleet = ?)
+  `);
+  const shown = db.prepare(`
+    SELECT items, observed_at FROM snapshots_shown WHERE fleet = ? AND cursor = ?
+      AND (at >= ? OR cursor = (SELECT MAX(cursor) FROM snapshots_shown WHERE fleet = ?))
+  `);
   return {
-    /** Retains seven days and each fleet's latest cursor, even if it is older. */
-    pruneSnapshots(now: number): void {
-      const cutoff = now - 7 * 24 * 60 * 60 * 1000;
-      if (!Number.isSafeInteger(now) || !Number.isSafeInteger(cutoff)) {
-        throw new RangeError("Snapshot pruning clock must be safe integer epoch milliseconds");
-      }
-      prune.run(cutoff);
-    },
     writeSnapshot(
       lease: LeaseIdentity,
       facts: unknown,
@@ -70,6 +83,7 @@ export function createSnapshotStore(db: DatabaseSync) {
         if (!currentLease.get(lease.fleet, lease.owner, lease.fence, now)) {
           throw new Error("Stale lease: snapshot write refused");
         }
+        replace.run(lease.fleet);
         const cursor = Number(
           insert.run(lease.fleet, now, factsJson, envelopeJson, lease.fence).lastInsertRowid,
         );
@@ -85,16 +99,47 @@ export function createSnapshotStore(db: DatabaseSync) {
       const row = latest.get(fleet) as SnapshotRow | undefined;
       return row === undefined ? undefined : decode(row);
     },
-    snapshotAt(fleet: string, cursor: number): SnapshotRecord | undefined {
-      if (!Number.isSafeInteger(cursor) || cursor <= 0) return undefined;
-      const row = at.get(fleet, cursor) as SnapshotRow | undefined;
-      return row === undefined ? undefined : decode(row);
-    },
     snapshotsSince(cursor: number): SnapshotRecord[] {
       if (!Number.isSafeInteger(cursor) || cursor < 0) {
         throw new RangeError("Cursor must be a non-negative safe integer");
       }
       return (since.all(cursor) as SnapshotRow[]).map(decode);
+    },
+    /** Keeps what acknowledging `cursor` needs once a later sweep has replaced its snapshot. */
+    recordShown(fleet: string, cursor: number, record: ShownRecord, at: number): void {
+      if (!Number.isSafeInteger(cursor) || cursor <= 0) {
+        throw new RangeError("Shown cursor must be a positive safe integer");
+      }
+      const cutoff = at - SHOWN_RETENTION_MS;
+      if (!Number.isSafeInteger(at) || !Number.isSafeInteger(cutoff)) {
+        throw new RangeError("Shown time must be safe integer epoch milliseconds");
+      }
+      const { observedAt } = record;
+      if (observedAt !== null && !Number.isSafeInteger(observedAt)) {
+        throw new RangeError("Shown observation must be safe milliseconds");
+      }
+      const items = encode(record.items);
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        show.run(fleet, cursor, items, observedAt, at);
+        forget.run(fleet, cutoff, fleet);
+        db.exec("COMMIT");
+      } catch (error) {
+        if (db.isTransaction) db.exec("ROLLBACK");
+        throw error;
+      }
+    },
+    /** Undefined for a cursor never shown, or shown before the retention window and since superseded. */
+    shownAt(fleet: string, cursor: number, now: number): ShownRecord | undefined {
+      if (!Number.isSafeInteger(cursor) || cursor <= 0) return undefined;
+      const cutoff = now - SHOWN_RETENTION_MS;
+      if (!Number.isSafeInteger(now) || !Number.isSafeInteger(cutoff)) return undefined;
+      const row = shown.get(fleet, cursor, cutoff, fleet) as
+        | { items: string; observed_at: number | null }
+        | undefined;
+      return row === undefined
+        ? undefined
+        : { items: JSON.parse(row.items), observedAt: row.observed_at };
     },
   };
 }

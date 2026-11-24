@@ -36,6 +36,7 @@ import {
   baselineItems,
   parseSeenItems,
   type SeenBaseline,
+  type SeenItem,
   seenBriefing,
   seenSince,
   sinceFromSweep,
@@ -86,6 +87,11 @@ interface Persisted {
   releases: unknown;
   /** The sweep state the view was projected from, unparsed. */
   state: unknown;
+}
+
+interface Shown {
+  items: SeenItem[];
+  observedAt: number | null;
 }
 
 function persisted(record: SnapshotRecord): Persisted {
@@ -326,32 +332,40 @@ export class WatchRoutes {
    * Seeds the baseline for a first push: first sight is quiet, and only what arrives after it
    * counts as arrived.
    */
-  private seed(latest: Persisted): SeenBaseline {
-    const { view } = latest;
+  private seed(cursor: number, shown: Shown): SeenBaseline {
     const now = this.options.ctx.clock.now().getTime();
-    const items = baselineItems(view.briefing);
-    const observed = this.runsObserved(latest);
-    this.seen().acknowledge(this.options.fleet, view.cursor, items, now, observed);
-    return { cursor: view.cursor, at: new Date(now).toISOString(), items };
+    this.seen().acknowledge(this.options.fleet, cursor, shown.items, now, shown.observedAt);
+    return { cursor, at: new Date(now).toISOString(), items: shown.items };
+  }
+
+  /** Keeps what acknowledging the snapshot needs, before the window can see its cursor. */
+  private show(latest: Persisted): Shown {
+    const shown = {
+      items: baselineItems(latest.view.briefing),
+      observedAt: this.runsObserved(latest),
+    };
+    this.store ??= createSnapshotStore(this.options.db());
+    this.store.recordShown(
+      this.options.fleet,
+      latest.view.cursor,
+      shown,
+      this.options.ctx.clock.now().getTime(),
+    );
+    return shown;
   }
 
   /**
    * Records the briefing the window showed at `cursor` as the seen baseline. It writes only the
-   * baseline: stations, the count and the stored snapshots are untouched. Unknown, pruned or
+   * baseline: stations, the count and the stored snapshots are untouched. Unknown, expired or
    * older cursors are ignored.
    */
   private acknowledge(cursor: number): void {
     this.store ??= createSnapshotStore(this.options.db());
-    const record = this.store.snapshotAt(this.options.fleet, cursor);
-    if (!record) return;
-    const snapshot = persisted(record);
-    this.seen().acknowledge(
-      this.options.fleet,
-      cursor,
-      baselineItems(snapshot.view.briefing),
-      this.options.ctx.clock.now().getTime(),
-      this.runsObserved(snapshot),
-    );
+    const now = this.options.ctx.clock.now().getTime();
+    const shown = this.store.shownAt(this.options.fleet, cursor, now);
+    const items = parseSeenItems(shown?.items);
+    if (!shown || !items) return;
+    this.seen().acknowledge(this.options.fleet, cursor, items, now, shown.observedAt);
   }
 
   /** The since pips rebuilt from the persisted sweep from `at`; undefined keeps the stored ones. */
@@ -371,8 +385,9 @@ export class WatchRoutes {
     const latest = this.latest();
     if (!latest || latest.view.cursor <= subscriber.cursor) return false;
     const cursor = latest.view.cursor;
+    const shown = this.show(latest);
     const prior = this.baseline();
-    const baseline = prior ?? this.seed(latest);
+    const baseline = prior ?? this.seed(cursor, shown);
     subscriber.send({
       version: PROTOCOL_VERSION,
       id: `snapshot-${cursor}`,

@@ -693,10 +693,8 @@ it("SIGKILLs the real host, resumes the same window store from its cursor, and p
       rowSurvived: true,
       sqliteIsTransaction: true,
     });
-    expect(snapshots.snapshotsSince(0).map(({ cursor }) => cursor)).toEqual([
-      firstCursor,
-      laterCursor,
-    ]);
+    expect(laterCursor).toBeGreaterThan(firstCursor);
+    expect(snapshots.snapshotsSince(0).map(({ cursor }) => cursor)).toEqual([laterCursor]);
     for (const delay of [1000, 2000, 4000, 8000, 10000, 10000]) {
       const exited = once(host ?? traffic, "exit");
       expect(host?.kill("SIGKILL")).toBe(true);

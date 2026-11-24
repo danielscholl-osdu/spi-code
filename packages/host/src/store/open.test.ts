@@ -49,6 +49,7 @@ it("returns a migrated connection with every durability pragma set explicitly", 
     { version: 3 },
     { version: 4 },
     { version: 5 },
+    { version: 6 },
   ]);
   const runs = createRunStore(db);
   runs.create({ id: "one", kind: "test", createdAt: "2026-11-12T00:00:00Z" });
