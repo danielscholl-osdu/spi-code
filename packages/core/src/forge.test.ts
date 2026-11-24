@@ -402,6 +402,8 @@ const SECONDARY_LIMIT = JSON.stringify({
   message:
     "You have exceeded a secondary rate limit. Please wait a few minutes before you try again.",
 });
+const GITHUB_TIMEOUT =
+  "Something went wrong while executing your query. This may be the result of a timeout, or it could be a GitHub bug.";
 const failed = (stdout: string, stderr: string): ExecOutput => ({ stdout, stderr, exit: 1 });
 
 describe("GraphQL reply classification", () => {
@@ -418,6 +420,24 @@ describe("GraphQL reply classification", () => {
       detail: "150 bytes of HTML",
     });
     expect(classifyGraphqlReply(NGINX_502, "")).toMatchObject({ kind: "gateway", status: 502 });
+    expect(
+      classifyGraphqlReply(
+        JSON.stringify({ message: "Bad Gateway" }),
+        "gh: Bad Gateway (HTTP 502)\n",
+      ),
+    ).toEqual({ kind: "gateway", status: 502, detail: 'JSON with no data: "Bad Gateway"' });
+    for (const status of [502, 504])
+      expect(
+        classifyGraphqlReply(
+          JSON.stringify({ data: null, errors: [{ message: GITHUB_TIMEOUT }] }),
+          `gh: HTTP ${status}\n`,
+        ),
+      ).toEqual({ kind: "gateway", status, detail: `JSON with no data: "${GITHUB_TIMEOUT}"` });
+    const partial = { data: { viewer: null }, errors: [{ message: GITHUB_TIMEOUT }] };
+    expect(classifyGraphqlReply(JSON.stringify(partial), "gh: HTTP 502\n")).toEqual({
+      kind: "json",
+      body: partial,
+    });
   });
 
   it("names secondary limits, 429s and RATE_LIMITED errors throttles", () => {

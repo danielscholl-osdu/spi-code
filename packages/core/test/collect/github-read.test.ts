@@ -496,6 +496,23 @@ describe("a request GitHub cuts short or answers with a gateway error", () => {
       failure: gatewayFailure(status),
       waits: true,
     })),
+    ...[502, 504].map((status) => ({
+      shape: `HTTP ${status} with a JSON body`,
+      stdout: JSON.stringify({
+        data: null,
+        errors: [{ message: "Something went wrong while executing your query." }],
+      }),
+      stderr: `gh: HTTP ${status}\n`,
+      failure: `gh api graphql: GitHub answered HTTP ${status} twice (JSON with no data: "Something went wrong while executing your query.", a gateway error rather than a GraphQL reply)`,
+      waits: true,
+    })),
+    {
+      shape: "HTTP 502 with gh's JSON message",
+      stdout: JSON.stringify({ message: "Bad Gateway" }),
+      stderr: "gh: Bad Gateway (HTTP 502)\n",
+      failure: `gh api graphql: GitHub answered HTTP 502 twice (JSON with no data: "Bad Gateway", a gateway error rather than a GraphQL reply)`,
+      waits: true,
+    },
   ];
   // Answers every repo in the query unless it names a heavy one, then fails the reply.
   function fixtureGh(fail: { stdout: string; stderr: string }) {

@@ -320,6 +320,10 @@ export function classifyGraphqlReply(stdout: string, stderr: string): GraphqlRep
     const text = throttleText ?? limited?.message ?? message ?? said ?? `HTTP ${status}`;
     return { kind: "throttle", detail: text, waitMs: statedWait(text) };
   }
+  if (shaped && status !== null && status >= 500 && record.data == null) {
+    const text = message ?? errors[0]?.message;
+    return { kind: "gateway", status, detail: text ? `JSON with no data: "${text}"` : "JSON with no data" };
+  }
   if (shaped) return { kind: "json", body: record, ...(message ? { message } : {}) };
   const what = !stdout.trim()
     ? "empty response"
