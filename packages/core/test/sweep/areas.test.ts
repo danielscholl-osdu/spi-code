@@ -18,7 +18,7 @@ import { RecordingExec, ReplayExec } from "../../src/exec/index.js";
 import type { ExecOutput } from "../../src/exec/port.js";
 import { emptyFacts } from "../../src/facts.js";
 import { factsSchema } from "../../src/facts-schema.js";
-import { GraphqlBudget } from "../../src/forge.js";
+import { GATEWAY_RETRY_WAIT_MS, GraphqlBudget } from "../../src/forge.js";
 import { createSweeper } from "../../src/sweep/areas.js";
 import { cacheSchema, emptyCache, pruneCache } from "../../src/sweep/cache.js";
 import { due } from "../../src/sweep/cadence.js";
@@ -1292,6 +1292,67 @@ test("partial upstream failures retain queued commits and retry the failed fork 
   expect(sweeper.facts.upstream.data?.storage?.commits).toEqual([]);
   expect(sweeper.facts.radar.data?.services.storage?.queued).toEqual([]);
   expect(sweeper.facts.radar.at).toBe(h.options.ctx.clock.now().toISOString());
+});
+
+test("a fork GitHub answers 502 twice keeps its last-good repo while the other fork reads", async () => {
+  const h = harness();
+  const rate = { cost: 2, remaining: 4000, resetAt: "2099-01-01T00:00:00Z" };
+  const ok = (data: object): ExecOutput => ({
+    stdout: JSON.stringify({ data: { ...data, spicodeBudget: rate } }),
+    stderr: "",
+    exit: 0,
+  });
+  let failStorage = false;
+  const storageSends: string[] = [];
+  h.setRoute((cmd, args) => {
+    const query = args.find((a) => a.startsWith("query=")) ?? "";
+    if (cmd !== "gh") return undefined;
+    if (query.includes("stack: repository"))
+      return ok({
+        stack: {
+          object: {
+            text: "forks:\n  - service: partition\n    repo: owner/partition\n  - service: storage\n    repo: owner/storage\n",
+          },
+        },
+        template: { object: null },
+      });
+    if (!query.includes("r_fork1:")) return undefined;
+    storageSends.push(query);
+    if (failStorage)
+      return {
+        stdout: "<html><head><title>502 Bad Gateway</title></head></html>",
+        stderr: "gh: HTTP 502\n",
+        exit: 1,
+      };
+    return ok({
+      r_fork1: { nameWithOwner: "owner/storage", url: "https://github.com/owner/storage" },
+    });
+  });
+  const sleeps: number[] = [];
+  const budget = new GraphqlBudget(h.options.ctx.clock, async (ms) => {
+    sleeps.push(ms);
+  });
+  const sweeper = createSweeper({ ...h.options, budget });
+  await sweeper.sweep();
+  const storage = structuredClone(sweeper.facts.github.data?.repos["owner/storage"]);
+  expect(storage?.repo).toBe("owner/storage");
+  failStorage = true;
+  storageSends.length = 0;
+  h.advance(1);
+  await sweeper.sweep({ force: true });
+  expect(storageSends).toHaveLength(2);
+  expect(storageSends.every((q) => !q.includes("r_fork0:"))).toBe(true);
+  expect(sleeps).toEqual([GATEWAY_RETRY_WAIT_MS]);
+  expect(sweeper.facts.github.error).toBeUndefined();
+  expect(sweeper.facts.github.data?.repos["owner/storage"]).toEqual(storage);
+  expect(sweeper.reads.github?.find((r) => r.object === "owner/storage")).toMatchObject({
+    failure: expect.stringContaining("GitHub answered HTTP 502 twice"),
+    retainedFrom: START,
+  });
+  const partition = sweeper.reads.github?.find((r) => r.object === "owner/partition");
+  expect(partition?.failure).toBeUndefined();
+  expect(partition?.retainedFrom).toBeUndefined();
+  expect(partition?.observedAt).toBe(h.options.ctx.clock.now().toISOString());
 });
 
 test("shared budget accounts attribute interleaved sweeps only their own GraphQL charges", async () => {
