@@ -6,6 +6,7 @@ import { parseGithub } from "../../src/collect/github-parse.js";
 import {
   buildQueries,
   cutsOf,
+  GITHUB_READS_AT_ONCE,
   mergeReads,
   readGithub,
   SPLIT_QUERIES_PER_SWEEP,
@@ -16,7 +17,7 @@ import { envelopeOf } from "../../src/evidence/index.js";
 import { type Exec, RecordingExec, ReplayExec } from "../../src/exec/index.js";
 import { emptyFacts } from "../../src/facts.js";
 import { factsSchema } from "../../src/facts-schema.js";
-import { Gh, type GqlError, GraphqlBudget } from "../../src/forge.js";
+import { GATEWAY_RETRY_WAIT_MS, Gh, type GqlError, GraphqlBudget } from "../../src/forge.js";
 import { buildModel } from "../../src/model/index.js";
 import { sweepReadProgress } from "../../src/sweep/sweeper.js";
 
@@ -111,15 +112,18 @@ describe("GraphQL query", () => {
       expect(q).toContain(selection);
   });
 
-  it("batches forks and includes only used fragments, leaving rate accounting to FORGE", () => {
-    const queries = buildQueries(ctx, 2);
-    expect(queries).toHaveLength(4);
+  it("reads each fork in its own query with only the fragments it uses, leaving rate accounting to FORGE", () => {
+    const queries = buildQueries(ctx);
+    expect(queries).toHaveLength(6);
     expect(queries[0]).toContain("r_template:");
     expect(queries[0]).not.toContain("fragment Fork");
-    expect(queries[1]).toContain("r_fork0:");
-    expect(queries[1]).not.toContain("r_fork2:");
-    expect(queries[1]).not.toContain("fragment Stack");
-    expect(queries[1]).not.toContain("fragment Template");
+    for (const [i, q] of queries.slice(1).entries()) {
+      expect([...q.matchAll(/(\w+): repository\(/g)].map((m) => m[1])).toEqual([`r_fork${i}`]);
+      expect(q).toContain("fragment Base");
+      expect(q).toContain("fragment Fork");
+      expect(q).not.toContain("fragment Stack");
+      expect(q).not.toContain("fragment Template");
+    }
     expect(queries.join("")).not.toContain("rateLimit");
     expect(
       mergeReads([
@@ -128,21 +132,43 @@ describe("GraphQL query", () => {
       ]),
     ).toEqual({ r_template: { a: 1 }, r_fork0: { b: 2 } });
   });
-
-  it.each([0, -1, 0.5, Number.NaN])("rejects invalid batch size %s", (size) => {
-    expect(() => buildQueries(ctx, size)).toThrow("positive integer");
-  });
 });
 
-it("replays two queries, merges repos and charges both costs only to the account", async () => {
-  await replay([response(base, 3, 97), response(forks(0, 5), 9, 88)], async (exec) => {
+it("replays one query per fork, merges repos and charges every cost only to the account", async () => {
+  const perFork = Array.from({ length: 5 }, (_, i) => response(forks(i, i + 1), 3, 94 - 3 * i));
+  await replay([response(base, 3, 97), ...perFork], async (exec) => {
     const gh = new Gh(exec, undefined, new GraphqlBudget(clock));
     const { facts, records } = await readGithub(gh, ctx, parse);
     expect(facts).toEqual({ ...base, ...forks(0, 5) });
     expect(records).toHaveLength(8);
     expect(records.every((r) => !r.failure && r.completeness.kind === "complete")).toBe(true);
-    expect(gh.budget.snapshot()).toEqual({ spent: 12, remaining: 88, resetAt, calls: 2 });
+    expect(gh.budget.snapshot()).toMatchObject({ spent: 18, resetAt, calls: 6 });
   });
+});
+
+it("keeps at most GITHUB_READS_AT_ONCE requests in flight across a 13-fork fleet", async () => {
+  let inFlight = 0;
+  let most = 0;
+  const sent: string[][] = [];
+  const gh = {
+    graphql: async <T>(query: string) => {
+      const aliases = [...query.matchAll(/(\w+): repository\(/g)].map((m) => m[1] ?? "");
+      sent.push(aliases);
+      inFlight++;
+      most = Math.max(most, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      inFlight--;
+      const data = Object.fromEntries(aliases.map((alias) => [alias, { nameWithOwner: alias }]));
+      return { data: data as T, errors: [] };
+    },
+  };
+  const { records } = await readGithub(gh, context(13), parse);
+  expect(most).toBe(GITHUB_READS_AT_ONCE);
+  expect(sent).toEqual([
+    ["r_template", "r_stack", "p_0"],
+    ...Array.from({ length: 13 }, (_, i) => [`r_fork${i}`]),
+  ]);
+  expect(records.every((r) => !r.failure)).toBe(true);
 });
 
 it("keeps missing PR-head and main markers absent and the GitHub area fresh", async () => {
@@ -320,8 +346,9 @@ it("queries and reports the context stack rather than the default repository", a
 });
 
 it("marks a truncated pulls connection cut without affecting other repos", async () => {
-  const raw = { ...forks(0, 5), r_fork0: { pullRequests: { totalCount: 41, nodes: [{}] } } };
-  await replay([response(base, 3, 97), response(raw, 9, 88)], async (exec) => {
+  const cut = response({ r_fork0: { pullRequests: { totalCount: 41, nodes: [{}] } } }, 3, 94);
+  const rest = Array.from({ length: 4 }, (_, i) => response(forks(i + 1, i + 2), 3, 91 - 3 * i));
+  await replay([response(base, 3, 97), cut, ...rest], async (exec) => {
     const { records } = await readGithub(
       new Gh(exec, undefined, new GraphqlBudget(clock)),
       ctx,
@@ -340,24 +367,23 @@ it("marks a truncated pulls connection cut without affecting other repos", async
   });
 });
 
-it("a failed batch reports failures only for its five repos and leaves the rest fresh", async () => {
+it("a failed fork reports a failure only for itself and leaves the rest fresh", async () => {
   const failed = {
-    stdout: JSON.stringify({ errors: [{ message: "batch unavailable" }] }),
+    stdout: JSON.stringify({ errors: [{ message: "fork unavailable" }] }),
     stderr: "",
     exit: 1,
   };
-  await replay([response(base, 3, 97), failed, response(forks(5, 6), 2, 93)], async (exec) => {
+  const rest = Array.from({ length: 5 }, (_, i) => response(forks(i + 1, i + 2), 3, 94 - 3 * i));
+  await replay([response(base, 3, 97), failed, ...rest], async (exec) => {
     const { facts, records } = await readGithub(
       new Gh(exec, undefined, new GraphqlBudget(clock)),
       context(6),
       parse,
     );
-    expect(facts).toEqual({ ...base, ...forks(5, 6) });
-    expect(records.filter((r) => r.failure).map((r) => r.object)).toEqual(
-      Array.from({ length: 5 }, (_, i) => `example/fork${i}`),
-    );
+    expect(facts).toEqual({ ...base, ...forks(1, 6) });
+    expect(records.filter((r) => r.failure).map((r) => r.object)).toEqual(["example/fork0"]);
     const fresh = records.filter((r) => !r.failure);
-    expect(fresh).toHaveLength(4);
+    expect(fresh).toHaveLength(8);
     expect(envelopeOf(fresh, { intervalMs: 300_000, now: Date.parse(now) }).state).toBe("fresh");
   });
 });
@@ -430,25 +456,7 @@ it("encodes repository names so a malformed repo cannot alter the query", () => 
   expect(q).not.toContain('evil: repository(owner: "c');
 });
 
-it("uses the supplied batch size for queries and batch numbering", async () => {
-  const seen: string[] = [];
-  const gh = {
-    graphql: async <T>(query: string) => {
-      seen.push(query);
-      const data = query.includes("r_template:")
-        ? base
-        : Object.fromEntries(
-            [...query.matchAll(/(r_fork\d+):/g)].map((m) => [m[1], { nameWithOwner: "x" }]),
-          );
-      return { data: data as T, errors: [] };
-    },
-  };
-  const { records } = await readGithub(gh, context(4), parse, 2);
-  expect(seen).toHaveLength(3);
-  expect(records.every((r) => !r.failure)).toBe(true);
-});
-
-describe("a batch GitHub cuts short", () => {
+describe("a request GitHub cuts short or answers with a gateway error", () => {
   const services = ["storage", "indexer", "search", "workflow", "queue"];
   const busy = (heavy: readonly string[]) =>
     createContext({
@@ -461,16 +469,44 @@ describe("a batch GitHub cuts short", () => {
         })),
       ),
     });
-  // Answers every repo in the query unless it names a heavy one, then cuts the reply.
-  function fixtureGh(cut: string) {
+  const gatewayPage = (status: number) =>
+    `<html><head><title>${status} Bad Gateway</title></head><body><h1>${status}</h1></body></html>`;
+  const gatewayFailure = (status: number) =>
+    `gh api graphql: GitHub answered HTTP ${status} twice (${gatewayPage(status).length} bytes of HTML, a gateway error rather than a GraphQL reply)`;
+  const replies = [
+    {
+      shape: "cut empty",
+      stdout: "",
+      stderr: "",
+      failure: "gh api graphql: GitHub cut the response short twice (exit 1, empty response)",
+      waits: false,
+    },
+    {
+      shape: "cut mid-body",
+      stdout: "{".repeat(54881),
+      stderr: "",
+      failure:
+        "gh api graphql: GitHub cut the response short twice (exit 1, 54881 bytes that were not JSON)",
+      waits: false,
+    },
+    ...[502, 504].map((status) => ({
+      shape: `HTTP ${status}`,
+      stdout: gatewayPage(status),
+      stderr: `gh: HTTP ${status}\n`,
+      failure: gatewayFailure(status),
+      waits: true,
+    })),
+  ];
+  // Answers every repo in the query unless it names a heavy one, then fails the reply.
+  function fixtureGh(fail: { stdout: string; stderr: string }) {
     const sent: string[][] = [];
+    const sleeps: number[] = [];
     const exec = new RecordingExec(
       async (_cmd, args) => {
         const q = args.find((a) => a.startsWith("query=")) ?? "";
         const aliases = [...q.matchAll(/(\w+): repository\(owner: "\w+", name: "([^"]+)"/g)];
         sent.push(aliases.map((m) => m[2] ?? ""));
-        if (aliases.some((m) => m[2]?.startsWith("heavy-")))
-          return { stdout: cut, stderr: "", exit: 1 };
+        if (aliases.some((m) => m[2]?.includes("heavy-"))) return { ...fail, exit: 1 };
         const data = Object.fromEntries(
           aliases.map((m) => [m[1], { nameWithOwner: `example/${m[2]}` }]),
         );
@@ -478,69 +514,76 @@ describe("a batch GitHub cuts short", () => {
       },
       () => {},
     );
-    return { gh: new Gh(exec, undefined, new GraphqlBudget(clock)), sent };
+    const budget = new GraphqlBudget(clock, async (ms) => {
+      sleeps.push(ms);
+    });
+    return { gh: new Gh(exec, undefined, budget), sent, sleeps };
   }
-
-  it.each([
-    ["empty", "", "empty response"],
-    ["mid-body", "{".repeat(54881), "54881 bytes that were not JSON"],
-  ])("splits a batch cut %s so only the heavy repo fails", async (_shape, cut, detail) => {
-    const ctx = busy(["search"]);
-    const { gh } = fixtureGh(cut);
-    const { facts, records } = await readGithub(gh, ctx, parse);
-    const failed = records.filter((r) => r.failure);
-    expect(failed).toEqual([
-      expect.objectContaining({
-        object: "example/heavy-search",
-        failure: `gh api graphql: GitHub cut the response short twice (exit 1, ${detail})`,
-      }),
-    ]);
-    for (const id of ["storage", "indexer", "workflow", "queue"])
-      expect(Object.values(facts)).toContainEqual({ nameWithOwner: `example/${id}` });
-    expect(
-      sweepReadProgress("github", records, now, undefined, undefined, ctx.fleet),
-    ).toMatchObject({
-      state: "cut",
-      failed: { count: 1, services: ["search"] },
-    });
-  });
-
-  it("pins the requests for five repos with one heavy", async () => {
-    const { gh, sent } = fixtureGh("");
-    await readGithub(gh, busy(["storage"]), parse);
-    const forkReads = sent.filter((names) => !names.includes("osdu-spi"));
-    expect(forkReads).toEqual([
-      ["heavy-storage", "indexer", "search", "workflow", "queue"],
-      ["heavy-storage", "indexer", "search", "workflow", "queue"],
-      ["heavy-storage", "indexer", "search"],
-      ["workflow", "queue"],
-      ["heavy-storage", "indexer"],
-      ["search"],
-      ["heavy-storage"],
-      ["indexer"],
-      ["heavy-storage"],
-    ]);
-    expect(sent).toHaveLength(10);
-  });
-
-  it("stops splitting at the sweep's limit and fails the rest by their own half", async () => {
-    const ctx = createContext({
+  const sharedHeavy = (planned: readonly string[]) =>
+    createContext({
       clock,
-      fleet: fleetOf(
-        Array.from({ length: 15 }, (_, i) => ({
-          id: `svc${i}`,
-          repo: `example/heavy-svc${i}`,
-          upstream: `upstream/svc${i}`,
-        })),
-      ),
+      stackRepo: "example/heavy-stack",
+      fleet: fleetOf(planned.map((id) => ({ id, upstream: `upstream/${id}` }))),
     });
-    const { gh, sent } = fixtureGh("");
-    const { records } = await readGithub(gh, ctx, parse);
-    const forkReads = sent.filter((names) => !names.includes("osdu-spi"));
-    expect(forkReads.length).toBeLessThanOrEqual(3 * 2 + SPLIT_QUERIES_PER_SWEEP * 2);
-    expect(records.filter((r) => r.failure)).toHaveLength(15);
-    expect(records.every((r) => r.object.includes("heavy-") === !!r.failure)).toBe(true);
-  });
+
+  it.each(replies)(
+    "fails only the fork whose own request is $shape, and reads the others",
+    async ({ stdout, stderr, failure, waits }) => {
+      const ctx = busy(["search"]);
+      const { gh, sent, sleeps } = fixtureGh({ stdout, stderr });
+      const { facts, records } = await readGithub(gh, ctx, parse);
+      expect(records.filter((r) => r.failure)).toEqual([
+        expect.objectContaining({ object: "example/heavy-search", failure }),
+      ]);
+      for (const id of ["storage", "indexer", "workflow", "queue"])
+        expect(Object.values(facts)).toContainEqual({ nameWithOwner: `example/${id}` });
+      expect(sent.filter((names) => names.includes("heavy-search"))).toEqual([
+        ["heavy-search"],
+        ["heavy-search"],
+      ]);
+      expect(sleeps).toEqual(waits ? [GATEWAY_RETRY_WAIT_MS] : []);
+      expect(
+        sweepReadProgress("github", records, now, undefined, undefined, ctx.fleet),
+      ).toMatchObject({ failed: { count: 1, services: ["search"] } });
+    },
+  );
+
+  it.each(replies)(
+    "splits the shared request around a heavy repo when it is $shape",
+    async ({ stdout, stderr, failure, waits }) => {
+      const { gh, sent, sleeps } = fixtureGh({ stdout, stderr });
+      const { records } = await readGithub(gh, sharedHeavy(["a", "b", "c"]), parse);
+      const shared = ["osdu-spi", "heavy-stack", "osdu-spi-a", "osdu-spi-b", "osdu-spi-c"];
+      expect(sent).toEqual([
+        shared,
+        shared,
+        ["osdu-spi", "heavy-stack", "osdu-spi-a"],
+        ["osdu-spi", "heavy-stack"],
+        ["osdu-spi"],
+        ["heavy-stack"],
+        ["heavy-stack"],
+        ["osdu-spi-a"],
+        ["osdu-spi-b", "osdu-spi-c"],
+      ]);
+      expect(records.filter((r) => r.failure)).toEqual([
+        expect.objectContaining({ object: "example/heavy-stack", failure }),
+      ]);
+      expect(sleeps).toEqual(waits ? [GATEWAY_RETRY_WAIT_MS, GATEWAY_RETRY_WAIT_MS] : []);
+    },
+  );
+
+  it.each(replies)(
+    "stops splitting a request that is $shape at the sweep's limit",
+    async ({ stdout, stderr }) => {
+      const planned = Array.from({ length: 15 }, (_, i) => `heavy-${i}`);
+      const { gh, sent } = fixtureGh({ stdout, stderr });
+      const { records } = await readGithub(gh, sharedHeavy(planned), parse);
+      expect(sent.length).toBeLessThanOrEqual(2 + SPLIT_QUERIES_PER_SWEEP * 2);
+      const heavy = records.filter((r) => r.object.includes("heavy-"));
+      expect(heavy).toHaveLength(16);
+      expect(heavy.every((r) => r.failure)).toBe(true);
+    },
+  );
 });
 
 it("reads only the 20 most recent closed issues alongside the untouched halt history", async () => {

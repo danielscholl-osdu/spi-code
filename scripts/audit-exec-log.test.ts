@@ -365,8 +365,7 @@ describe("call shapes", () => {
     });
     expect(read).toEqual([
       ["Azure/osdu-spi", "Azure/osdu-spi-planned", "Azure/osdu-spi-stack"],
-      forks.slice(0, 5).map((f) => f.repo),
-      forks.slice(5).map((f) => f.repo),
+      ...forks.map((f) => [f.repo]),
     ]);
   });
 

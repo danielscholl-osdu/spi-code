@@ -16,6 +16,7 @@ import {
 import type { CoreContext } from "../context.js";
 import type { ReadCompleteness, ReadRecord } from "../evidence/index.js";
 import { ForgeError, type Gh, type GqlError } from "../forge.js";
+import { pool } from "../util.js";
 
 const PULLS = `pullRequests(states: OPEN, first: 40, orderBy: {field: CREATED_AT, direction: DESC}) { totalCount nodes {
   number title url createdAt updatedAt isDraft headRefName baseRefName headRefOid mergeStateStatus reviewDecision
@@ -90,10 +91,13 @@ function repoField(alias: string, repo: string, spread: string): string {
   return `${alias}: repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(name)}) { ${spread} }`;
 }
 
-export const FORKS_PER_QUERY = 5;
+/** Most GraphQL requests one GitHub read keeps in flight. Each fork is its own request, so a
+ * slow fork stays well under GitHub's time limit and fails alone. */
+export const GITHUB_READS_AT_ONCE = 4;
 
-/** Most queries one sweep may spend splitting cut batches: enough to isolate two heavy
- * repos in full fork batches. A half past the limit records its own failure for its repos. */
+/** Most queries one sweep may spend splitting a cut or gateway-failed request: enough to isolate
+ * two heavy repos in the shared template, stack and planned request. A half past the limit
+ * records its own failure for its repos. */
 export const SPLIT_QUERIES_PER_SWEEP = 12;
 
 interface Field {
@@ -113,26 +117,22 @@ function query(fields: readonly Field[]): string {
   return `query {\n  ${body}\n}\n${used}`;
 }
 
-function batches(ctx: CoreContext, perQuery: number): Field[][] {
-  if (!Number.isSafeInteger(perQuery) || perQuery < 1)
-    throw new RangeError("perQuery must be a positive integer");
+function batches(ctx: CoreContext): Field[][] {
   const field = (alias: string, repo: string, spread: string): Field => ({
     alias, repo, text: repoField(alias, repo, spread),
   });
-  const forks = ctx.fleet.forks.map((f, i) => field(`r_fork${i}`, f.repo, "...Base ...Fork"));
-  const out = [
+  return [
     [
       field("r_template", TEMPLATE_REPO, "...Base ...Template"),
       field("r_stack", ctx.stackRepo, "...Base ...Stack"),
       ...ctx.fleet.planned.map((p, i) => field(`p_${i}`, plannedRepo(p), "nameWithOwner")),
     ],
+    ...ctx.fleet.forks.map((f, i) => [field(`r_fork${i}`, f.repo, "...Base ...Fork")]),
   ];
-  for (let i = 0; i < forks.length; i += perQuery) out.push(forks.slice(i, i + perQuery));
-  return out;
 }
 
-export function buildQueries(ctx: CoreContext, perQuery = FORKS_PER_QUERY): string[] {
-  return batches(ctx, perQuery).map(query);
+export function buildQueries(ctx: CoreContext): string[] {
+  return batches(ctx).map(query);
 }
 
 export function mergeReads(reads: Record<string, unknown>[]): Record<string, unknown> {
@@ -189,23 +189,22 @@ export async function readGithub<T>(
   gh: Pick<Gh, "graphql">,
   ctx: CoreContext,
   parse: (raw: Record<string, unknown>, ctx: CoreContext) => T,
-  perQuery = FORKS_PER_QUERY,
 ): Promise<{ facts: T; records: ReadRecord[] }> {
   let splits = SPLIT_QUERIES_PER_SWEEP;
-  // A cut batch is split in halves down to one repo, so one repo too heavy to read fails alone.
+  // A request cut short or failed at the gateway is split in halves down to one repo, so one
+  // repo too heavy to read fails alone. Halves go in turn, inside the caller's in-flight slot.
   async function read(fields: readonly Field[], split: boolean): Promise<Read[]> {
     try {
-      const result = await gh.graphql<Record<string, unknown>>(query(fields), 1, { retryCut: !split });
+      const result = await gh.graphql<Record<string, unknown>>(query(fields), 1, { resend: !split });
       return [{ fields, ...result, observedAt: ctx.clock.now().toISOString() }];
     } catch (error) {
-      if (fields.length > 1 && error instanceof ForgeError && error.kind === "cut" && splits >= 2) {
+      const splittable = error instanceof ForgeError && (error.kind === "cut" || error.kind === "gateway");
+      if (fields.length > 1 && splittable && splits >= 2) {
         splits -= 2;
         const half = Math.ceil(fields.length / 2);
-        const halves = await Promise.all([
-          read(fields.slice(0, half), half > 1),
-          read(fields.slice(half), fields.length - half > 1),
-        ]);
-        return halves.flat();
+        const first = await read(fields.slice(0, half), half > 1);
+        const second = await read(fields.slice(half), fields.length - half > 1);
+        return [...first, ...second];
       }
       return [{
         fields,
@@ -215,7 +214,7 @@ export async function readGithub<T>(
       }];
     }
   }
-  const reads = (await Promise.all(batches(ctx, perQuery).map((b) => read(b, false)))).flat();
+  const reads = (await pool(batches(ctx), GITHUB_READS_AT_ONCE, (b) => read(b, false))).flat();
   const data = mergeReads(reads.map((read) => read.data));
   const records = reads.flatMap((result) => result.fields.flatMap(({ alias, repo }): ReadRecord[] => {
     const raw = result.data[alias];

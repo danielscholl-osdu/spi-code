@@ -48,9 +48,12 @@ export interface GraphqlThrottle {
 export type GraphqlThrottleHook = (event: GraphqlThrottle) => void;
 const realSleep: Sleep = (ms) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/** How long one sweep may spend, in total, waiting out GitHub throttles: well under the
- * five-minute sweep interval, so a throttled sweep ends before the next is due. */
+/** How long one sweep may spend, in total, waiting out GitHub throttles and gateway errors: well
+ * under the five-minute sweep interval, so a throttled sweep ends before the next is due. */
 export const THROTTLE_WAIT_ALLOWANCE_MS = 90_000;
+
+/** How long a GraphQL request GitHub answered with a gateway error waits before its one resend. */
+export const GATEWAY_RETRY_WAIT_MS = 5_000;
 
 export class GraphqlBudget {
   private queue: Promise<void> = Promise.resolve();
@@ -100,6 +103,15 @@ export class GraphqlBudget {
    * is left fails the reservation without sending it, and the hold itself stays in place. */
   allowThrottleWait(ms: number): void {
     this.allowance = { ms };
+  }
+
+  /** Sleeps `ms` out of this scope's throttle allowance; false, without sleeping, when the
+   * allowance has less than that left. */
+  async pause(ms: number): Promise<boolean> {
+    if (ms > this.allowance.ms) return false;
+    this.allowance.ms -= ms;
+    await this.sleep(ms);
+    return true;
   }
 
   /** The shared hold when it outlasts this scope's remaining throttle allowance. */
@@ -354,14 +366,19 @@ export class Gh {
     return res.data;
   }
 
-  /** A cut reply is sent again once unless `retryCut` is false, for callers that split the query instead. */
+  /** A cut or gateway reply is sent again once unless `resend` is false, for callers that split
+   * the query instead. A gateway resend first waits GATEWAY_RETRY_WAIT_MS out of the budget's
+   * throttle allowance, and is not sent when the allowance cannot cover it. */
   async graphql<T>(
-    query: string, estimate = 1, { retryCut = true }: { retryCut?: boolean } = {},
+    query: string, estimate = 1, { resend = true }: { resend?: boolean } = {},
   ): Promise<{ data: T; errors: GqlError[] }> {
     const prepared = budgetQuery(query);
     let exitCode: number | null = null;
     let failed: Exclude<GraphqlReply, { kind: "json" }> = { kind: "cut", detail: "empty response" };
+    let sent = 0;
     for (let attempt = 0; attempt < 2; attempt++) {
+      if (failed.kind === "gateway" && !(await this.budget.pause(GATEWAY_RETRY_WAIT_MS))) break;
+      sent++;
       const reply = await this.budget.run(estimate, async () => {
         this.counter.calls++;
         const res = await this.exec.runText("gh", ["api", "graphql", "-f", `query=${prepared.query}`], {
@@ -381,7 +398,7 @@ export class Gh {
       });
       if (reply.kind !== "json") {
         failed = reply;
-        if (reply.kind === "cut" && !retryCut) break;
+        if ((reply.kind === "cut" || reply.kind === "gateway") && !resend) break;
         continue;
       }
       const body = reply.body as { data?: T & Record<string, unknown> | null; errors?: GqlError[] };
@@ -400,12 +417,12 @@ export class Gh {
     }
     if (failed.kind === "gateway") {
       throw new ForgeError(
-        `gh api graphql: GitHub answered HTTP ${failed.status} twice (${failed.detail}, a gateway error rather than a GraphQL reply)`,
+        `gh api graphql: GitHub answered HTTP ${failed.status}${sent > 1 ? " twice" : ""} (${failed.detail}, a gateway error rather than a GraphQL reply${resend && sent < 2 ? "; no wait left in this sweep to resend it" : ""})`,
         exitCode, "gateway",
       );
     }
     throw new ForgeError(
-      `gh api graphql: GitHub cut the response short${retryCut ? " twice" : ""} (exit ${exitCode}, ${failed.detail})`,
+      `gh api graphql: GitHub cut the response short${sent > 1 ? " twice" : ""} (exit ${exitCode}, ${failed.detail})`,
       exitCode, "cut",
     );
   }

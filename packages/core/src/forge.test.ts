@@ -10,6 +10,7 @@ import {
   classifyGraphqlReply,
   encodeProject,
   ForgeError,
+  GATEWAY_RETRY_WAIT_MS,
   Gh,
   Glab,
   GraphqlBudget,
@@ -139,16 +140,36 @@ describe("forge replay", () => {
     });
   });
 
-  it("sends a cut query once when the caller will split it instead", async () => {
-    await replay([output("", 1)], async (exec) => {
-      const gh = new Gh(exec);
-      await expect(gh.graphql(query, 1, { retryCut: false })).rejects.toMatchObject({
-        kind: "cut",
-        message: "gh api graphql: GitHub cut the response short (exit 1, empty response)",
+  it.each([
+    {
+      reply: output("", 1),
+      kind: "cut",
+      message: "gh api graphql: GitHub cut the response short (exit 1, empty response)",
+    },
+    {
+      reply: { stdout: NGINX_502, stderr: "gh: HTTP 502\n", exit: 1 },
+      kind: "gateway",
+      message:
+        "gh api graphql: GitHub answered HTTP 502 (150 bytes of HTML, a gateway error rather than a GraphQL reply)",
+    },
+  ])(
+    "sends a $kind query once, without waiting, when the caller will split it instead",
+    async ({ reply, kind, message }) => {
+      await replay([reply], async (exec) => {
+        const sleeps: number[] = [];
+        const budget = new GraphqlBudget(undefined, async (ms) => {
+          sleeps.push(ms);
+        });
+        const gh = new Gh(exec, undefined, budget);
+        await expect(gh.graphql(query, 1, { resend: false })).rejects.toMatchObject({
+          kind,
+          message,
+        });
+        expect(gh.budget.snapshot()).toMatchObject({ spent: 1, calls: 1 });
+        expect(sleeps).toEqual([]);
       });
-      expect(gh.budget.snapshot()).toMatchObject({ spent: 1, calls: 1 });
-    });
-  });
+    },
+  );
 
   it("queues concurrent clients on one budget until reset when the second estimate exceeds remaining", async () => {
     vi.useFakeTimers();
@@ -436,7 +457,7 @@ describe("GraphQL reply classification", () => {
     await replay(
       [failed(NGINX_502, "gh: HTTP 502\n"), failed(NGINX_502, "gh: HTTP 502\n")],
       async (exec) => {
-        const gh = new Gh(exec);
+        const gh = new Gh(exec, undefined, new GraphqlBudget(undefined, async () => {}));
         const error = await gh.graphql(query).catch((caught: unknown) => caught);
         expect(error).toBeInstanceOf(ForgeError);
         expect((error as ForgeError).kind).toBe("gateway");
@@ -577,6 +598,34 @@ describe("GraphQL throttle holds", () => {
     patient.allowThrottleWait(200_000);
     await settle(new Gh(exec, undefined, patient).graphql(query));
     expect(calls).toEqual([0, 180_000]);
+  });
+
+  it.each([502, 504])(
+    "waits before the one resend of a request GitHub answered %s",
+    async (status) => {
+      const gateway = failed(NGINX_502, `gh: HTTP ${status}\n`);
+      const { calls, exec, budget } = timed((call) => (call === 1 ? gateway : output(body(1, 41))));
+      const gh = new Gh(exec, undefined, budget.scope());
+      const result = await settle(gh.graphql<{ viewer: { login: string } }>(query));
+      expect(result.data.viewer.login).toBe("someone");
+      expect(calls).toEqual([0, GATEWAY_RETRY_WAIT_MS]);
+    },
+  );
+
+  it("spends gateway waits from the sweep's allowance and stops resending when it runs out", async () => {
+    const { calls, exec, budget } = timed(() => failed(NGINX_502, "gh: HTTP 502\n"));
+    const sweep = budget.scope();
+    sweep.allowThrottleWait(GATEWAY_RETRY_WAIT_MS);
+    const gh = new Gh(exec, undefined, sweep);
+    const first = await settle(gh.graphql(query).catch((caught: unknown) => caught));
+    expect(first).toMatchObject({ kind: "gateway", message: expect.stringContaining("502 twice") });
+    const second = await settle(gh.graphql(query).catch((caught: unknown) => caught));
+    expect(second).toMatchObject({
+      kind: "gateway",
+      message:
+        "gh api graphql: GitHub answered HTTP 502 (150 bytes of HTML, a gateway error rather than a GraphQL reply; no wait left in this sweep to resend it)",
+    });
+    expect(calls).toEqual([0, GATEWAY_RETRY_WAIT_MS, GATEWAY_RETRY_WAIT_MS]);
   });
 
   it.each([60, 120])(
