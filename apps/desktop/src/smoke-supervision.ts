@@ -202,7 +202,6 @@ export async function exerciseSupervision(options: {
     const scan = await assertNoProcessListeners(process.pid, hello.payload.pid);
     options.listeners.push(...scan.listeners);
     const persistedCursors = smokeSnapshotCursors(storePath);
-    assert(resumedCursor > firstCursor);
     assert.deepEqual(persistedCursors, [resumedCursor]);
 
     // Keep the real first backoff; bound the remaining crash-budget exercise.

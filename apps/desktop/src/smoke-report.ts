@@ -680,10 +680,7 @@ export function assertSmokeReport(value: unknown): asserts value is SmokeReport 
     Number.isSafeInteger(supervision.resumedCursor) &&
       Number(supervision.resumedCursor) > Number(supervision.fromCursor),
   );
-  assert.deepEqual(supervision.persistedCursors, [
-    supervision.fromCursor,
-    supervision.resumedCursor,
-  ]);
+  assert.deepEqual(supervision.persistedCursors, [supervision.resumedCursor]);
   assert.equal(supervision.sameRenderer, true);
   assert.equal(supervision.freshChannel, true);
   assert.equal(supervision.giveUpAcrossReload, true);
