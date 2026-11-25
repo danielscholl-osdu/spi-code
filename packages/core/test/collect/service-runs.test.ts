@@ -190,17 +190,24 @@ test.each([
   expect(facts[repo]?.read.failure).toBeTruthy();
 });
 
-test("marks 60 runs as cut even if the forge says there are exactly 60", async () => {
-  const runs = Array.from({ length: 60 }, (_, index) => run(index + 1));
-  const { facts, view, paths } = await fixture({ total: 60, runs });
-  expect(paths).toHaveLength(1);
-  expect(facts[repo]?.read.completeness).toMatchObject({ kind: "cut", read: 60, total: 60 });
-  expect(view).toMatchObject({ kind: "read", cut: true, count: 0 });
-  expect(view.kind === "read" && view.workflows[0]?.runs).toHaveLength(60);
-});
+test.each([
+  ["exactly 60", 60],
+  ["more than 60", 471],
+])(
+  "holds a full page of 60 as the tab's bound when the forge says there are %s",
+  async (_label, total) => {
+    const runs = Array.from({ length: 60 }, (_, index) => run(index + 1));
+    const { facts, view, paths } = await fixture({ total, runs });
+    expect(paths).toHaveLength(1);
+    expect(facts[repo]?.read.completeness).toEqual({ kind: "complete" });
+    expect(view).toMatchObject({ kind: "read", cut: true, count: 0 });
+    expect(view.kind === "read" && view.workflows[0]?.runs).toHaveLength(60);
+  },
+);
 
-test("preserves a cut when the forge returns no runs", async () => {
-  const { view } = await fixture({ total: 1, runs: [] });
+test("reports a short page as cut and preserves the history cut", async () => {
+  const { facts, view } = await fixture({ total: 1, runs: [] });
+  expect(facts[repo]?.read.completeness).toMatchObject({ kind: "cut", read: 0, total: 1 });
   expect(view).toMatchObject({ kind: "read", cut: true, workflows: [] });
 });
 

@@ -78,8 +78,10 @@ export async function readServiceRuns(
       return [repo, { history: prior, read: { ...read, failure: errorText(error) }, jobs }];
     }
     const runs = page.runs.filter((run) => Date.parse(run.createdAt) >= cutoff);
-    const cut = page.runs.length === LIMIT || page.total > runs.length;
-    const completeness: ReadRecord["completeness"] = cut ? {
+    const full = page.runs.length === LIMIT;
+    const cut = full || page.total > runs.length;
+    // A full page is the Runs tab's designed bound, not a short read; only a short page is incomplete.
+    const completeness: ReadRecord["completeness"] = cut && !full ? {
       kind: "cut", read: runs.length, total: page.total, reason: "Recent workflow runs history limited",
     } : { kind: "complete" };
     const priorFailures = prior?.failures ?? [];
