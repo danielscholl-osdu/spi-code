@@ -313,6 +313,13 @@ test("a queued retry on main keeps the known failure through a later pass on ano
       },
     ],
   });
+  const unchanged = await fixture(
+    { total: 2, runs: [passedOnPr, retry] },
+    () => new Error("carried failure read again"),
+    second.facts,
+  );
+  expect(unchanged.paths).toHaveLength(1);
+  expect(unchanged.facts[repo]?.history?.failures).toEqual(second.facts[repo]?.history?.failures);
 });
 
 test("keeps the last observed failure by workflow across later runs and an unread sweep", async () => {
