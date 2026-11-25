@@ -253,6 +253,50 @@ describe("window reading contract", () => {
   });
 });
 
+describe("a saved Runs view", () => {
+  it("replays a strip saved before it carried a label, read as its latest run on any branch", () => {
+    const strip = (id: number, startedAt: string, result: string) => ({
+      id,
+      workflowId: 31,
+      name: "Validation",
+      attempt: 1,
+      status: "completed",
+      conclusion: result,
+      createdAt: "2026-11-16T08:00:00Z",
+      startedAt,
+      url: `https://github.com/org/search/actions/runs/${id}`,
+      result,
+      tone: result === "failure" ? "error" : "success",
+    });
+    const runHistory = {
+      kind: "read",
+      count: 0,
+      cut: false,
+      workflows: [
+        {
+          id: 31,
+          name: "Validation",
+          runs: [
+            strip(1, "2026-11-16T08:06:00Z", "failure"),
+            strip(2, "2026-11-16T08:09:00Z", "success"),
+          ],
+        },
+      ],
+      failing: [],
+    };
+    const services = snapshot.services?.map((service, index) =>
+      index === 0 ? { ...service, runHistory } : service,
+    );
+    const replayed = ViewSnapshotSchema.parse({ ...snapshot, services }).services?.[0]?.runHistory;
+    if (replayed?.kind !== "read") throw new Error("Runs must be read");
+    expect(replayed.workflows[0]?.label).toEqual({
+      result: "success",
+      tone: "success",
+      at: "2026-11-16T08:09:00Z",
+    });
+  });
+});
+
 describe("resolvePointer", () => {
   it("follows RFC 6901 escapes and canonical array indices", () => {
     const document = { "a/b": { "m~n": [10, 20] } };

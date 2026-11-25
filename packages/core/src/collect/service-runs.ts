@@ -112,11 +112,15 @@ export async function readServiceRuns(
         }
       }
       const failed = workflowFailure(group);
-      if (!failed) continue;
-      const carried = carriedByRun.get(failed) ?? previousJobs.get(jobsKey(failed));
-      const path = failed.path ?? group.find((run) => run.path)?.path;
-      const run = path && !failed.path ? { ...failed, path } : failed;
-      failures.push(carried ? { ...carried, run } : await readFailure(gh, ctx, repo, run, jobCache, jobs));
+      const retried = priorFailures.filter(({ run }) => run !== failed && group.includes(run) &&
+        group.some(({ id, attempt }) => id === run.id && attempt > run.attempt) &&
+        workflowFailure(group.filter(({ branch }) => branch === run.branch)) === run);
+      for (const decided of [...(failed ? [failed] : []), ...retried.map(({ run }) => run)]) {
+        const carried = carriedByRun.get(decided) ?? previousJobs.get(jobsKey(decided));
+        const path = decided.path ?? group.find((run) => run.path)?.path;
+        const run = path && !decided.path ? { ...decided, path } : decided;
+        failures.push(carried ? { ...carried, run } : await readFailure(gh, ctx, repo, run, jobCache, jobs));
+      }
     }
     const historyCut = cut || workflowReads.some(({ failure }) => failure !== undefined);
     return [repo, {

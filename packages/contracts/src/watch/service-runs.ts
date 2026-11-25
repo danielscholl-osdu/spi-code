@@ -21,6 +21,19 @@ const RunSchema = z.strictObject({
   tone: z.enum(["error", "success", "work", "neutral"]),
 });
 
+const LabelSchema = z.strictObject({
+  result: RunSchema.shape.result,
+  tone: RunSchema.shape.tone,
+  at: ObservedAtSchema,
+  branch: IdentifierSchema.optional(),
+});
+
+/** A view saved before strips carried a label names no branch, so it reads its latest run on any branch. */
+function unscopedLabel(runs: readonly z.infer<typeof RunSchema>[]): z.infer<typeof LabelSchema> {
+  const { result, tone, startedAt, createdAt } = runs[runs.length - 1] as z.infer<typeof RunSchema>;
+  return { result, tone, at: startedAt ?? createdAt };
+}
+
 export const ServiceRunsSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("unread"), count: z.null() }),
   z.strictObject({
@@ -28,18 +41,18 @@ export const ServiceRunsSchema = z.discriminatedUnion("kind", [
     count: z.int().nonnegative(),
     cut: z.boolean(),
     workflows: z.array(
-      z.strictObject({
-        id: z.int().positive(),
-        name: IdentifierSchema,
-        runs: z.array(RunSchema).min(1),
-        label: z.strictObject({
-          result: RunSchema.shape.result,
-          tone: RunSchema.shape.tone,
-          at: ObservedAtSchema,
-          branch: IdentifierSchema.optional(),
-        }),
-        automation: z.literal(true).optional(),
-      }),
+      z
+        .strictObject({
+          id: z.int().positive(),
+          name: IdentifierSchema,
+          runs: z.array(RunSchema).min(1),
+          label: LabelSchema.optional(),
+          automation: z.literal(true).optional(),
+        })
+        .transform(({ label, ...workflow }) => ({
+          ...workflow,
+          label: label ?? unscopedLabel(workflow.runs),
+        })),
     ),
     failing: z.array(
       z.strictObject({

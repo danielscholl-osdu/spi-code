@@ -292,6 +292,29 @@ test("a retry of the same run retains the observed failure until it passes", asy
   expect(passed.paths).toHaveLength(1);
 });
 
+test("a queued retry on main keeps the known failure through a later pass on another branch", async () => {
+  const failed = run(1, { branch: "main", conclusion: "failure" });
+  const first = await fixture({ total: 1, runs: [failed] });
+  const retry = { ...failed, attempt: 2, status: "queued", conclusion: null, startedAt: null };
+  const passedOnPr = run(2, { branch: "feature/search", startedAt: "2026-11-16T06:00:00Z" });
+  const second = await fixture({ total: 2, runs: [passedOnPr, retry] }, undefined, first.facts);
+  expect(second.paths).toHaveLength(1);
+  expect(second.view).toMatchObject({
+    count: 1,
+    failing: [{ run: { id: 1, attempt: 1 }, job: "Build", step: "Run Maven" }],
+    workflows: [
+      {
+        runs: [
+          { id: 1, attempt: 1, tone: "error" },
+          { id: 1, attempt: 2, result: "queued" },
+          { id: 2, result: "success" },
+        ],
+        label: { result: "failure", branch: "main" },
+      },
+    ],
+  });
+});
+
 test("keeps the last observed failure by workflow across later runs and an unread sweep", async () => {
   const failed = run(1, { conclusion: "failure" });
   const later = { startedAt: "2026-11-16T06:00:00Z" };

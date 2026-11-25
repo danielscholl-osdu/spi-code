@@ -50,8 +50,16 @@ export function serviceRuns(fact: ServiceRunsFact | undefined, mainRed?: Pick<Ma
   if (mainWorkflowId !== undefined) failingIds.add(mainWorkflowId);
   const onPage = new Set(runs.map(({ id }) => id));
   const listed = new Set(runs.map(({ id, attempt }) => `${id}#${attempt}`));
-  const earlierAttempts = failures.map(({ run }) => run)
-    .filter(({ id, attempt }) => onPage.has(id) && !listed.has(`${id}#${attempt}`));
+  const retriedMain = mainRun && mainWorkflowId !== undefined && {
+    id: mainRun.id, workflowId: mainWorkflowId, name: mainRun.name,
+    ...(mainRun.path ? { path: mainRun.path } : {}), ...(mainRun.branch ? { branch: mainRun.branch } : {}),
+    attempt: mainRun.attempt, status: mainRun.status,
+    ...(mainRun.conclusion ? { conclusion: mainRun.conclusion } : {}),
+    createdAt: mainRun.createdAt, updatedAt: mainRun.updatedAt, url: mainRun.url,
+  } satisfies ServiceRun;
+  const earlierAttempts = [...failures.map(({ run }) => run), ...(retriedMain ? [retriedMain] : [])]
+    .filter(({ id, attempt }, index, all) => onPage.has(id) && !listed.has(`${id}#${attempt}`) &&
+      all.findIndex((other) => other.id === id && other.attempt === attempt) === index);
   const workflows = workflowGroups([...runs, ...earlierAttempts]).flatMap((group) => {
     const sorted = attemptsInOrder(group);
     const newest = sorted.at(-1);
@@ -72,7 +80,7 @@ export function serviceRuns(fact: ServiceRunsFact | undefined, mainRed?: Pick<Ma
   const failing = failures.map(({ run, ...cause }) => ({
     ...(isMain(run) && !cause.job ? { ...cause, ...mainJob } : cause),
     run: displayRun(run),
-    ...(main && run.workflowId === mainWorkflowId ? { main } : {}),
+    ...(main && isMain(run) ? { main } : {}),
   }));
   const mainOnly = main && mainRun && !failing.some((entry) => entry.main) ? [{
     ...mainJob,

@@ -35,3 +35,19 @@ test.each([
 ] as const)("reduces %s by start time and attempt", (_case, runs, expected) => {
   expect(workflowFailure(runs)).toBe(expected);
 });
+
+test("resolves each run's decisive attempt before comparing runs, in any input order", () => {
+  const firstAttempt = { ...run(10, "failure"), startedAt: "2026-11-17T16:10:00Z", id: 1 };
+  const passingRetry = { ...run(8, "success", 2), id: 1 };
+  const otherRun = { ...run(9, "failure"), id: 2 };
+  for (const order of [
+    [firstAttempt, passingRetry, otherRun],
+    [firstAttempt, otherRun, passingRetry],
+    [passingRetry, firstAttempt, otherRun],
+    [passingRetry, otherRun, firstAttempt],
+    [otherRun, firstAttempt, passingRetry],
+    [otherRun, passingRetry, firstAttempt],
+  ]) {
+    expect(workflowFailure(order)).toBeUndefined();
+  }
+});

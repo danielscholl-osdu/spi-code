@@ -51,33 +51,36 @@ test("keeps Main's proving run and Blocked run evidence together across bounded 
   };
   const pass = { ...active, conclusion: "success" };
 
-  for (const { runs, failures, displayed, cause } of [
-    { runs: [pass], failures: [], displayed: fail, cause: named },
-    { runs: [fail], failures: [{ run: fail }], displayed: fail, cause: named },
-    { runs: [active], failures: [{ run: active }], displayed: active, cause: {} },
-    { runs: [], failures: [], displayed: fail, cause: named },
+  for (const { runs, failures } of [
+    { runs: [pass], failures: [] },
+    { runs: [fail], failures: [{ run: fail }] },
+    { runs: [], failures: [] },
   ]) {
     const history = schema.parse(serviceRuns(fact({ cut: true, runs, failures }), mainRed));
-    expect(history).toMatchObject({
-      kind: "read",
-      count: 1,
-      failing: [
-        {
-          run: { id: displayed.id, attempt: displayed.attempt, name: displayed.name },
-          main: { id: proof.id, attempt: proof.attempt, url: runUrl, failedAt: blocked?.since },
-        },
-      ],
-    });
-    if (history.kind === "read") {
-      expect({ job: history.failing[0]?.job, step: history.failing[0]?.step }).toEqual({
-        job: undefined,
-        step: undefined,
-        ...cause,
-      });
-    }
     if (history.kind !== "read") throw new Error("Runs must be read");
-    expect(history.failing).toHaveLength(1);
+    expect(history.failing).toEqual([
+      expect.objectContaining({
+        ...named,
+        run: expect.objectContaining({ id: fail.id, attempt: fail.attempt, name: fail.name }),
+        main: { id: proof.id, attempt: proof.attempt, url: runUrl, failedAt: blocked?.since },
+      }),
+    ]);
     expect(history.failing[0]?.run.workflowId).toBe(failures.length ? 31 : undefined);
+  }
+
+  const prFailure = schema.parse(
+    serviceRuns(fact({ cut: true, runs: [active], failures: [{ run: active }] }), mainRed),
+  );
+  expect(prFailure).toMatchObject({
+    count: 2,
+    failing: [
+      { run: { id: fail.id }, ...named, main: { id: proof.id, failedAt: blocked?.since } },
+      { run: { id: active.id } },
+    ],
+  });
+  if (prFailure.kind === "read") {
+    expect(prFailure.failing[1]).not.toHaveProperty("main");
+    expect(prFailure.failing[1]).not.toHaveProperty("job");
   }
 
   const onMain = { ...fail, branch: "main", updatedAt: failed.updatedAt };
@@ -93,6 +96,24 @@ test("keeps Main's proving run and Blocked run evidence together across bounded 
     branch: "main",
   });
   expect(indexer.failing).toMatchObject([{ ...named, main: { failedAt: blocked?.since } }]);
+
+  const retry = { ...onMain, attempt: proof.attempt + 1, status: "queued", conclusion: undefined };
+  const retried = schema.parse(
+    serviceRuns(fact({ cut: true, runs: [retry, passedOnPr], failures: [] }), mainRed),
+  );
+  expect(retried).toMatchObject({
+    workflows: [
+      {
+        runs: [
+          { id: proof.id, attempt: proof.attempt, tone: "error" },
+          { id: proof.id, attempt: retry.attempt, result: "queued" },
+          { id: passedOnPr.id, result: "success" },
+        ],
+        label: { result: "failure", at: blocked?.since, branch: "main" },
+      },
+    ],
+    failing: [{ ...named, main: { id: proof.id } }],
+  });
 
   const page = fact({ cut: true, runs: [pass], failures: [] });
   expect(serviceRuns(page)).toMatchObject({ count: 0, failing: [] });
