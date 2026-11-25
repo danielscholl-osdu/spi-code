@@ -531,7 +531,7 @@ async function captureSweepRulings(
     join(output, `service-doors-incomplete-${appearance}.png`),
   );
   await show(
-    withRedMain(structuredClone(recorded), "indexer"),
+    withRedMain(structuredClone(retained), "indexer"),
     cursor + 1,
     `#service/indexer/overview/${encodeURIComponent("main:indexer")}`,
   );
