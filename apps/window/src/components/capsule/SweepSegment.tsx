@@ -6,6 +6,7 @@ import { blocksWatch } from "@spi-code/contracts";
 import { useId, useState } from "react";
 import { useStore } from "zustand";
 import { openEvidence } from "../../app/navigation.js";
+import { openReadiness } from "../../settings/readiness.js";
 import { watchStore } from "../../store/watch.js";
 import { clockTime } from "../../time.js";
 import { useNow } from "../evidence/useNow.js";
@@ -13,7 +14,7 @@ import { sourceName, sweepSources } from "../evidence/words.js";
 import { Icon } from "../icons/Icon.js";
 import { useSidebar } from "../sidebar/ui-sidebar.js";
 import { revealFirstSweep } from "../sweep/reveal.js";
-import { settled, sourceOutcome } from "../sweep/words.js";
+import { readinessCanFix, settled, sourceOutcome } from "../sweep/words.js";
 import "../sweep/sweep.css";
 import { sourceState, sweepFill, sweepSegment } from "./sweep.js";
 import "./capsule.css";
@@ -33,7 +34,7 @@ function restLine(fine: number, unread: number, listed: number): string | null {
 }
 
 function SweepPopover({ now, onClose }: { now: number; onClose(): void }) {
-  const { snapshot, progress, sweep, sweepRequest, sweepRequestError, setup } =
+  const { snapshot, progress, completed, sweep, sweepRequest, sweepRequestError, setup } =
     useStore(watchStore);
   const { isMobile, setOpenMobile } = useSidebar();
   const body = snapshot?.body ?? null;
@@ -52,6 +53,15 @@ function SweepPopover({ now, onClose }: { now: number; onClose(): void }) {
   const nextSweep =
     sweep?.nextSweepAt && Date.parse(sweep.nextSweepAt) > now ? sweep.nextSweepAt : null;
   const stopped = progress?.outcome === "failed" || progress?.outcome === "cancelled";
+  const fixable = (key: string) =>
+    [progress, completed].some(
+      (list) =>
+        list?.sources.some(
+          (source) =>
+            source.source === key && source.state === "failed" && readinessCanFix(source.code),
+        ) ||
+        (list?.outcome === "failed" && list.source === key && readinessCanFix(list.code)),
+    );
   const blocked =
     sweep === null ||
     !setup?.watchReady ||
@@ -115,7 +125,21 @@ function SweepPopover({ now, onClose }: { now: number; onClose(): void }) {
                 {MARK[state.tone as keyof typeof MARK]}
               </span>
               <span className="capsule-pop-name">{name}</span>
-              <span className="capsule-pop-state">{state.text}</span>
+              <span className="capsule-pop-state">
+                {state.text}
+                {state.tone === "bad" && fixable(key) && (
+                  <button
+                    type="button"
+                    className="capsule-pop-fix"
+                    onClick={() => {
+                      onClose();
+                      openReadiness();
+                    }}
+                  >
+                    Open Settings
+                  </button>
+                )}
+              </span>
             </div>
           ))}
           {rest && (

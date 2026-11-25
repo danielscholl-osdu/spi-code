@@ -9,6 +9,7 @@ import {
   type Envelope,
   type InspectResult,
   type ReadRecord,
+  type SweepProgress,
   SweepProgressSchema,
   SweepReasonCodeSchema,
   type SweepStatus,
@@ -807,7 +808,7 @@ it("keeps not-due sources neutral and says a read reused older data, in the 11:1
   }
 });
 
-it("splits the Evidence page's sources into read this sweep and carried, a cut read never checked", async () => {
+it("splits the Evidence page's sources into read this sweep and not, a cut read never checked", async () => {
   const { body, list, now: at } = sweep1119();
   const cut = { kind: "cut", reason: "page_limit", read: 60, total: 471 } as const;
   const areas = body.areas.map((entry) =>
@@ -844,7 +845,7 @@ it("splits the Evidence page's sources into read this sweep and carried, a cut r
         .find(([source]) => source === "runs")
         ?.slice(1),
     ).toEqual(["⚠", expect.stringMatching(/60 of 471 read/)]);
-    const carried = group("Carried from earlier");
+    const carried = group("Not read this sweep");
     expect(carried.map(([source]) => source)).toEqual([
       "upstream",
       "radar",
@@ -859,6 +860,68 @@ it("splits the Evidence page's sources into read this sweep and carried, a cut r
     await view.cleanup();
   }
 });
+
+it.each([
+  [
+    false,
+    ["details"],
+    [
+      "auth",
+      "fleet",
+      "github",
+      "runs",
+      "approvals",
+      "lifecycle",
+      "template",
+      "upstream",
+      "radar",
+      "security",
+      "releases",
+    ],
+  ],
+  [true, [], []],
+] as const)(
+  "puts a deferred source under not read this sweep, and keeps a first sweep (%s) in one list in sweep order",
+  async (first, notRead, read) => {
+    const { body, now: at } = sweep1119();
+    const begun = midSweep({ first });
+    const list = {
+      ...begun,
+      outcome: "committed",
+      sources: begun.sources.map((source) =>
+        source.source === "radar"
+          ? { source: "radar", state: "skipped", reason: "not due" }
+          : source.state === "reading" || source.state === "waiting"
+            ? {
+                source: source.source,
+                state: "read",
+                startedAt: begun.startedAt,
+                endedAt: begun.startedAt,
+              }
+            : source,
+      ),
+    } as SweepProgress;
+    const view = await render(
+      <SweepEvidence snapshot={body} sweep={null} completed={list} now={at} observed />,
+    );
+    try {
+      const article = view.container.querySelector('[data-evidence="sweep"]') as HTMLElement;
+      const keys = (label: string) =>
+        [...article.querySelectorAll(`ul[aria-label="${label}"] .sweep-row`)].map((row) =>
+          row.getAttribute("data-source"),
+        );
+      if (first) {
+        expect(keys("Sources")).toEqual(list.sources.map(({ source }) => source));
+        expect(keys("Read this sweep")).toEqual([]);
+      } else {
+        expect(keys("Read this sweep")).toEqual(read.filter((key) => key !== "radar"));
+        expect(keys("Not read this sweep")).toEqual([...notRead, "radar"]);
+      }
+    } finally {
+      await view.cleanup();
+    }
+  },
+);
 
 it.each([
   ["failed", "bad", "not due · last read failed · showing data from 13\u00a0min ago"],

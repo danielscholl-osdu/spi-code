@@ -29,6 +29,7 @@
 .capsule-pop-state { grid-column: 2; font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
 .capsule-pop-row[data-tone="warn"] :is(.capsule-pop-mark, .capsule-pop-state) { color: var(--warning-text); }
 .capsule-pop-row[data-tone="bad"] :is(.capsule-pop-mark, .capsule-pop-state) { color: var(--error-text); }
+.capsule-pop-fix { margin-left: 8px; padding: 0; border: 0; background: transparent; color: var(--accent-text); font: inherit; font-weight: 500; }
 .capsule-pop-alert { margin: 0; padding: 8px 12px; border-top: 1px solid var(--border-soft); color: var(--error-text); }
 .capsule-pop-foot { display: flex; align-items: center; gap: 8px; padding: 6px 10px 6px 6px; border-top: 1px solid var(--border-soft); }
 .capsule-spacer { flex: 1; }

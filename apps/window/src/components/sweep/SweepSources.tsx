@@ -82,7 +82,10 @@ export function SweepSources({
         outcome: SourceOutcome,
       ) => { outcome: SourceOutcome; title?: string | undefined })
     | undefined;
-  /** Heads the sources this sweep read apart from those it carried from an earlier read. */
+  /**
+   * Heads the sources this sweep read apart from those it did not; a first sweep keeps one list in
+   * sweep order.
+   */
   split?: boolean;
 }) {
   const end = sweepEnd(progress, now);
@@ -146,8 +149,10 @@ export function SweepSources({
       </li>
     );
   };
-  const read = rows.filter(({ source }) => source.state !== "skipped");
-  const carried = rows.filter(({ source }) => source.state === "skipped");
+  const notRead = ({ source }: (typeof rows)[number]) =>
+    source.state === "skipped" || source.state === "deferred";
+  const read = rows.filter((entry) => !notRead(entry));
+  const carried = rows.filter(notRead);
   return (
     <div className="sweep-sources">
       {meta && (
@@ -167,7 +172,7 @@ export function SweepSources({
           <span key={source.source} className="sweep-segment" data-tone={outcome.tone} />
         ))}
       </div>
-      {split ? (
+      {split && !progress.first ? (
         <>
           <div className="sweep-group">
             <h3>Read this sweep</h3>
@@ -181,21 +186,24 @@ export function SweepSources({
           {carried.length > 0 && (
             <>
               <div className="sweep-group">
-                <h3>Carried from earlier</h3>
+                <h3>Not read this sweep</h3>
                 <span>
                   {carried.length} {carried.length === 1 ? "source" : "sources"}
                 </span>
               </div>
-              <ul className="sweep-rows" aria-label="Carried from earlier" data-carried="">
+              <ul className="sweep-rows" aria-label="Not read this sweep" data-carried="">
                 {carried.map(row)}
               </ul>
             </>
           )}
         </>
       ) : (
-        <ul className="sweep-rows" aria-label="Sources">
-          {rows.map(row)}
-        </ul>
+        <>
+          {split && <h3>Sources</h3>}
+          <ul className="sweep-rows" aria-label="Sources">
+            {rows.map(row)}
+          </ul>
+        </>
       )}
     </div>
   );

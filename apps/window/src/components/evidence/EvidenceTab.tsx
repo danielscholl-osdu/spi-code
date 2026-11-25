@@ -272,8 +272,8 @@ function evidenceOutcome(
 }
 
 /** Today's caveat words for a source whose read failed or was cut. */
-function caveatWords(envelope: Envelope): string {
-  if (envelope.state === "failed") return "read failed";
+function caveatWords(envelope: Envelope, partial: boolean): string {
+  if (envelope.state === "failed" && !partial) return "read failed";
   if (envelope.state !== "unread" && envelope.completeness.kind === "cut")
     return `was read only in part: ${envelope.completeness.read.toLocaleString("en-US")} of ${envelope.completeness.total.toLocaleString("en-US")}`;
   return "was read only in part";
@@ -447,10 +447,10 @@ export function SweepEvidence({
             {caveats.map(({ key, name, envelope }) => (
               <li key={key} data-caveat={key}>
                 <span className="evidence-band-mark" aria-hidden="true">
-                  {envelope.state === "failed" ? "✕" : "⚠"}
+                  {envelope.state === "failed" && !cut.has(key) ? "✕" : "⚠"}
                 </span>
                 <span>
-                  <b>{name}</b> {caveatWords(envelope)}; items from it may be missing.
+                  <b>{name}</b> {caveatWords(envelope, cut.has(key))}; items from it may be missing.
                 </span>
               </li>
             ))}

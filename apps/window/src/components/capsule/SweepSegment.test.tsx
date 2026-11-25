@@ -9,6 +9,7 @@ import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { parseRoute, setOpenSelection } from "../../app/navigation.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
+import { OPEN_READINESS_EVENT } from "../../settings/readiness.js";
 import { PINS_STORAGE_KEY } from "../../store/pins.js";
 import { watchStore } from "../../store/watch.js";
 import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
@@ -134,6 +135,55 @@ it("words the footer by what is wrong, lists only that in the popover, and opens
   expect(window.location.hash).toBe("#evidence?from=today");
   expect(container.querySelector('.centre-body [data-evidence="sweep"]')).not.toBeNull();
   expect(container.querySelector('#app-right-panel [data-evidence="sweep"]')).toBeNull();
+});
+
+it("offers Open Settings beside a failed source only when Readiness can fix it", async () => {
+  const body = fixture();
+  body.areas = body.areas.map((entry) =>
+    entry.area === "upstream" || entry.area === "radar"
+      ? {
+          ...entry,
+          envelope: {
+            source: entry.area,
+            state: "failed",
+            observedAt: body.sweptAt,
+            completeness: { kind: "complete" },
+          },
+        }
+      : entry,
+  );
+  show(body);
+  const first = midSweep();
+  watchStore.setState({
+    completed: {
+      ...first,
+      outcome: "committed",
+      sources: first.sources.map((source) =>
+        source.source === "radar"
+          ? { ...source, state: "failed", endedAt: after(120), code: "timeout", reason: "late" }
+          : source.state === "reading" || source.state === "waiting"
+            ? { source: source.source, state: "read", startedAt: after(120), endedAt: after(128) }
+            : source,
+      ),
+    } as never,
+  });
+  const opened = vi.fn();
+  window.addEventListener(OPEN_READINESS_EVENT, opened);
+  try {
+    await mount();
+    await openPopover();
+    const fix = (key: string) =>
+      popover()?.querySelector(
+        `[data-source="${key}"] .capsule-pop-fix`,
+      ) as HTMLButtonElement | null;
+    expect(fix("radar")).toBeNull();
+    expect(fix("upstream")?.textContent).toBe("Open Settings");
+    await act(async () => fix("upstream")?.click());
+    expect(opened).toHaveBeenCalledOnce();
+    expect(popover()).toBeNull();
+  } finally {
+    window.removeEventListener(OPEN_READINESS_EVENT, opened);
+  }
 });
 
 it("opens Evidence for what is open on the page, and the whole sweep from Evidence", async () => {
