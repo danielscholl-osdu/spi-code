@@ -48,11 +48,15 @@ const OverviewRowSchema = z.strictObject({
   /** What a Can wait PR needs before it can merge. */
   gate: z.string().optional(),
   /** A failed run's workflow › job › step, a short reason and core's verdict word. */
-  failure: z.strictObject({
-    path: z.string(),
-    reason: z.string().optional(),
-    verdict: z.string(),
-  }).optional(),
+  failure: z
+    .strictObject({
+      path: z.string(),
+      reason: z.string().optional(),
+      verdict: z.string(),
+    })
+    .optional(),
+  /** The failed attempt's failed jobs, for the opened row. */
+  jobs: z.string().optional(),
   /** The proof a row folded into this one carries. */
   evidence: z.string().optional(),
   /** The next move as one sentence. */

@@ -122,7 +122,7 @@ it("opens a station's row and a door's row on Overview with focus on it", async 
   expect(openRow()).toBe("sync-run:search");
   expect(document.activeElement).toBe(head("sync-run:search"));
   expect(head("sync-run:search")?.getAttribute("aria-expanded")).toBe("true");
-  expect($("li[data-open] .opened-body")?.textContent).toContain("Sync Upstream failed");
+  expect($("li[data-open] .service-row-cause")?.textContent).toContain("Sync Upstream failed");
 
   const door = "can:repositories:https://github.com/Azure/osdu-spi-search/pull/68";
   await click('button[data-door="dependabot"]');
@@ -502,4 +502,124 @@ it("gives an Overview row the age Today gives it, with its clock time on hover",
   expect(age?.textContent).toBe(ageInOneUnit(member.age));
   expect(age?.textContent).toBe("2d");
   expect(age?.getAttribute("title")).toBe(when(since, { now: Date.now() }));
+});
+
+function indexerRed(rerunning = false) {
+  const body = sixteenth();
+  const home = body.services?.find(({ service }) => service === "indexer")?.home;
+  if (!home) throw new Error("indexer missing");
+  const run = "https://github.com/Azure/osdu-spi-indexer/actions/runs/18842";
+  const attempt = rerunning ? 2 : 1;
+  home.stations = home.stations.map((station) =>
+    station.id === "main"
+      ? {
+          id: "main",
+          state: "stopped",
+          word: "Red",
+          line: rerunning ? "Validation re-running · attempt 2" : "Validation failed 08:46",
+          row: "main:indexer",
+        }
+      : station,
+  );
+  const [sync, ...rest] = home.overview;
+  if (!sync) throw new Error("indexer rows missing");
+  home.overview = [
+    {
+      id: "main:indexer",
+      section: "blocked",
+      headline: "Main build failed",
+      cause: "Validation failed on main.",
+      steps: [],
+      links: [
+        { label: `Attempt ${attempt}`, url: `${run}/attempts/${attempt}`, kind: "run" },
+        {
+          label: "Deployments",
+          url: "https://github.com/Azure/osdu-spi-indexer/deployments",
+          kind: "deploy",
+        },
+      ],
+      failure: {
+        path: "Validation › Deploy and Test › Prove",
+        reason: "environment timeout",
+        verdict: "Environment",
+      },
+      evidence: "Lane deploy failed 08:44 in attempt 1",
+      jobs: "Failed in attempt 1: Deploy and Test (Prove). Validation Summary repeats it.",
+      next: rerunning
+        ? "Re-run in flight (attempt 2). If it fails again, diagnose the failed jobs."
+        : "Re-run the failed jobs once. If it fails again, diagnose.",
+      ...(rerunning ? { rerunning: true as const } : {}),
+    },
+    { ...sync, next: "Read halt issue #72, then open the failed Sync Upstream run." },
+    ...rest.map((row) =>
+      row.section === "waiting" ? { ...row, next: "Update the integration PR's branch." } : row,
+    ),
+  ];
+  return body;
+}
+
+it("draws the indexer's red Main first in Blocked with its cause, evidence and Next, and only it washed", async () => {
+  await mount(indexerRed(), "#service/indexer");
+  const rows = [
+    ...container.querySelectorAll<HTMLElement>('[data-section="blocked"] li[data-row]'),
+  ];
+  expect(rows.map((row) => row.dataset.row)).toEqual(["main:indexer", "sync-run:indexer"]);
+  expect(container.querySelectorAll("li[data-lead]")).toHaveLength(1);
+  const main = $('li[data-row="main:indexer"]');
+  expect(main?.hasAttribute("data-lead")).toBe(true);
+  expect(main?.querySelector(".service-row-cause")?.textContent).toBe(
+    "Validation › Deploy and Test › Prove · environment timeout Environment",
+  );
+  expect(main?.querySelector(".service-row-verdict")?.textContent).toBe("Environment");
+  expect(main?.querySelector(".service-row-evidence")?.textContent).toBe(
+    "Lane deploy failed 08:44 in attempt 1",
+  );
+  expect(main?.querySelector(".service-row-next")?.textContent).toBe(
+    "→Re-run the failed jobs once. If it fails again, diagnose.",
+  );
+  expect(main?.querySelector(".service-row-open .kit-link")?.textContent).toContain("Attempt 1");
+  expect($('li[data-row="sync-run:indexer"] .service-row-next')?.textContent).toContain(
+    "halt issue #72",
+  );
+  expect($('li[data-row="gate2:indexer"] .service-row-cause')?.textContent).not.toBe("");
+  expect($('li[data-row="gate2:indexer"] .service-row-next')).not.toBeNull();
+  expect($(".service-row-spin")).toBeNull();
+
+  expect($('[data-station="main"]')?.textContent).toContain("Validation failed 08:46");
+  await click('button[data-station="main"]');
+  expect(openRow()).toBe("main:indexer");
+  expect(document.activeElement).toBe(head("main:indexer"));
+  const body = $('li[data-row="main:indexer"] .opened-body');
+  expect(body?.textContent).toContain("Failed in attempt 1: Deploy and Test (Prove).");
+  expect(body?.textContent).not.toContain("Re-run the failed jobs");
+});
+
+it("folds Shared work and Can wait to one focusable line each that opens its rows", async () => {
+  await mount(indexerRed(), "#service/indexer");
+  const folds = [...container.querySelectorAll<HTMLButtonElement>(".service-fold-head")];
+  expect(folds.map((fold) => fold.textContent)).toEqual([
+    "Shared work · 23 upstream provider changes to port · Counted on Upstream▸",
+    expect.stringMatching(/^Can wait 7 · Alert · PR #33 · Issue #63 · /),
+  ]);
+  expect(folds.map((fold) => fold.getAttribute("aria-expanded"))).toEqual(["false", "false"]);
+  expect($('[data-section="can-wait"] li[data-row]')).toBeNull();
+  await act(async () => folds[1]?.click());
+  expect(folds[1]?.getAttribute("aria-expanded")).toBe("true");
+  expect(
+    container.querySelectorAll('.service-fold[data-section="can-wait"] li[data-row]'),
+  ).toHaveLength(7);
+
+  await click('button[data-door="release"]');
+  expect(openRow()).toBe("can:releases:https://github.com/Azure/osdu-spi-indexer/pull/33");
+});
+
+it("keeps a rerun in flight Blocked on attempt 2 with its spinner", async () => {
+  await mount(indexerRed(true), "#service/indexer");
+  const main = $('li[data-row="main:indexer"]');
+  expect(main?.closest('[data-section="blocked"]')).not.toBeNull();
+  expect(main?.querySelector(".service-row-open .kit-link")?.textContent).toContain("Attempt 2");
+  expect(
+    main?.querySelector(".service-row-next .service-row-spin")?.getAttribute("aria-hidden"),
+  ).toBe("true");
+  expect($('[data-station="main"]')?.textContent).toContain("Validation re-running · attempt 2");
 });

@@ -12645,7 +12645,8 @@
               }
             ],
             "since": "2026-09-16T12:39:01.000+00:00",
-            "age": "51d"
+            "age": "51d",
+            "next": "Pre-classify: add schemathesis-tests to top_level in .github/upstream-filter.yml before the next Sync Upstream."
           },
           {
             "id": "rollout:partition",
@@ -14329,7 +14330,8 @@
               }
             ],
             "since": "2026-11-05T16:30:59Z",
-            "age": "21h"
+            "age": "21h",
+            "next": "Resolve the conflict named in the issue on the fork, then dispatch the cascade."
           },
           {
             "id": "release-red:Azure/osdu-spi-entitlements#89",
@@ -14351,7 +14353,8 @@
               }
             ],
             "since": "2026-10-20T18:45:39Z",
-            "age": "16d"
+            "age": "16d",
+            "next": "Open the failed job (📊 Code Coverage › Setup Maven); the reason is in the cause above."
           },
           {
             "id": "rollout:entitlements",
@@ -15958,7 +15961,8 @@
               }
             ],
             "since": "2026-08-28T16:55:18.000+00:00",
-            "age": "69d"
+            "age": "69d",
+            "next": "Absorb os-core-common 8.4.1-boot4-SNAPSHOT on the fork before the next Sync Upstream carries it."
           },
           {
             "id": "rollout:legal",
@@ -17147,7 +17151,8 @@
               }
             ],
             "since": "2026-09-16T16:33:50.000+00:00",
-            "age": "50d"
+            "age": "50d",
+            "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
           },
           {
             "id": "rollout:schema",
@@ -18414,7 +18419,8 @@
               }
             ],
             "since": "2026-09-10T18:42:42.000+00:00",
-            "age": "56d"
+            "age": "56d",
+            "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
           },
           {
             "id": "rollout:file",
@@ -19777,7 +19783,8 @@
               }
             ],
             "since": "2026-11-05T00:29:19Z",
-            "age": "1d 13h"
+            "age": "1d 13h",
+            "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58. Review the sync PR on GitHub and merge it."
           },
           {
             "id": "rollout:storage",
@@ -20908,7 +20915,8 @@
               }
             ],
             "since": "2026-11-05T00:33:17Z",
-            "age": "1d 13h"
+            "age": "1d 13h",
+            "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58. Review the sync PR on GitHub and merge it."
           },
           {
             "id": "rollout:indexer",
@@ -22007,7 +22015,8 @@
               }
             ],
             "since": "2026-09-15T14:42:23.000+00:00",
-            "age": "51d"
+            "age": "51d",
+            "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
           },
           {
             "id": "rollout:search",
@@ -23121,7 +23130,8 @@
               }
             ],
             "since": "2026-09-23T14:35:24.000+00:00",
-            "age": "43d"
+            "age": "43d",
+            "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
           },
           {
             "id": "rollout:workflow",
@@ -24105,7 +24115,8 @@
               }
             ],
             "since": "2026-11-05T00:19:54Z",
-            "age": "1d 13h"
+            "age": "1d 13h",
+            "next": "Review the sync PR on GitHub and merge it."
           },
           {
             "id": "rollout:indexer-queue",
@@ -25151,7 +25162,8 @@
               }
             ],
             "since": "2026-09-18T13:46:20.000+00:00",
-            "age": "49d"
+            "age": "49d",
+            "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
           },
           {
             "id": "rollout:unit",
@@ -26928,7 +26940,8 @@
               }
             ],
             "since": "2026-09-17T15:59:17.000+00:00",
-            "age": "49d"
+            "age": "49d",
+            "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
           },
           {
             "id": "rollout:crs-conversion",

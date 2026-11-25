@@ -11,6 +11,7 @@ import {
   PROTOCOL_VERSION,
   parseMessage,
   type SetupState,
+  type ViewSnapshot,
   ViewSnapshotSchema,
 } from "@spi-code/contracts";
 import type { BrowserWindow, IpcMainEvent } from "electron";
@@ -818,11 +819,43 @@ const FIND: Required = { rest: FIND_ROWS, hover: FIND_ROWS };
 const TOP_PINNED = pinControl("Upstream", true);
 const TOP_UNPINNED = pinControl(FIND_UNPINNED, false);
 const BLOCKED_ROW = "conflict:entitlements:121";
+const RED_MAIN = {
+  path: "Validation › Deploy and Test › Prove",
+  evidence: "Lane deploy failed 08:44 in attempt 1",
+};
 const SERVICE_BLOCKED = [
   { selector: "[data-state=stopped]", text: "Integration" },
-  { selector: "[data-state=green]", text: "Main" },
+  { selector: "[data-state=stopped]", text: "Main" },
   { selector: "service-section-head", text: "Blocked" },
+  { selector: "service-row-path", text: RED_MAIN.path },
+  { selector: "service-row-verdict", text: "Environment" },
+  { selector: "service-row-evidence", text: RED_MAIN.evidence },
 ];
+
+/** A washed red Main row on the pinned stopped fork, so its muted cause and evidence lines are measured. */
+function withRedMain(snapshot: ViewSnapshot): ViewSnapshot {
+  const home = snapshot.services?.find(({ service }) => service === PINNED_STOPPED)?.home;
+  if (!home) return snapshot;
+  const id = `main:${PINNED_STOPPED}`;
+  const url = `https://github.com/Azure/osdu-spi-${PINNED_STOPPED}/actions/runs/18842/attempts/1`;
+  home.stations = home.stations.map((station) =>
+    station.id === "main"
+      ? { id: "main", state: "stopped", word: "Red", line: "Validation failed 08:46", row: id }
+      : station,
+  );
+  home.overview.unshift({
+    id,
+    section: "blocked",
+    headline: "Main build failed",
+    cause: "Validation failed on main.",
+    steps: [],
+    links: [{ label: "Attempt 1", url, kind: "run" }],
+    failure: { path: RED_MAIN.path, reason: "environment timeout", verdict: "Environment" },
+    evidence: RED_MAIN.evidence,
+    next: "Re-run the failed jobs once. If it fails again, diagnose.",
+  });
+  return snapshot;
+}
 const SERVICE_CLOCK = "storage";
 const SERVICE_CLOCK_WORDS = [{ selector: "[data-state=waiting-on-clock]", text: "Upstream" }];
 const SERVICE_WAITING = [
@@ -859,7 +892,7 @@ export async function assertRenderedContrast(
   const js = <T>(source: string): Promise<T> => window.webContents.executeJavaScript(source);
   const read = (path: string) => ViewSnapshotSchema.parse(JSON.parse(readFileSync(path, "utf8")));
   const checkedAt = "2026-11-06T15:04:00.000Z";
-  const nov6 = withSmokeServiceRuns(read(fixturePath));
+  const nov6 = withRedMain(withSmokeServiceRuns(read(fixturePath)));
   nov6.briefing.nextSyncAt = new Date(Date.parse(checkedAt) + 100 * 60_000).toISOString();
   const mornings = Object.entries(morningPaths).map(
     ([morning, path]) => [morning, read(path)] as const,

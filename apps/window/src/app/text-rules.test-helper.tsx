@@ -20,11 +20,14 @@ vi.hoisted(() => {
 const internal = /\bfork_upstream\b|\bgate\s+\d+\b|\bpresses\b|\bcut\b|\bclones?\b/i;
 const machineTime = /\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}|\bUTC\b/;
 const placeholder = /not available yet|No settled threads yet|ships in M[3-9]/i;
+const ROW_LINES = ".service-row-cause, .service-row-evidence, .service-row-next";
 const headlines = '.place-headline, [data-pointer$="/headline"], .release-months td:nth-child(3)';
 const titles = [
   ".place-item-title, .place-item-sub, .place-item-next, .template-line-text, .template-line-sub, .env-repo-line-text, .env-repo-line small, .env-muted, .template-repo-title, .service-row-title, .service-section-count, .service-row-sub, .detail-title, [data-field], .inspector-related dd, .palette-label, .inbox-row-title, .inbox-sub",
   ".today-section-head, .today-row-fork button, .today-row-what, .today-table-calm",
   ".security-fig-label, .security-fig-who, .security-rule-title, .security-rule-sub, .security-repo-name small, .security-repo-top, .security-repo-rule-pill",
+  ROW_LINES,
+  ".service-fold-head",
 ].join(", ");
 
 export const emoji = /\p{Emoji_Presentation}|\p{Extended_Pictographic}\uFE0F|\u20E3/u;
@@ -66,6 +69,13 @@ export function violations(scope: ParentNode): string[] {
   }
   for (const element of scope.querySelectorAll(titles))
     if (emoji.test(element.textContent ?? "")) failures.push(`emoji: ${element.textContent}`);
+  for (const element of scope.querySelectorAll(ROW_LINES))
+    if (
+      /^\s*(?:→\s*)?(?:cause|evidence|next|verdict|reason|check|job|run)\s*:/i.test(
+        element.textContent ?? "",
+      )
+    )
+      failures.push(`field label: ${element.textContent}`);
   for (const element of scope.querySelectorAll(
     "[data-slot=sidebar-footer] [data-sweep-display], .sidebar-mark",
   ))

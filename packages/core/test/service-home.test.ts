@@ -793,20 +793,36 @@ describe("a red Main", () => {
     const deploy = jobs.find((job) => job.name === "Deploy and Test");
     const summary = jobs.find((job) => job.name === "Validation Summary");
     if (!deploy || !summary) throw new Error("Search main jobs missing");
-    Object.assign(deploy, { conclusion: "failure", failedStep: "Prove", environment: ["environment timeout"] });
+    Object.assign(deploy, {
+      conclusion: "failure",
+      failedStep: "Prove",
+      environment: ["environment timeout"],
+    });
     Object.assign(summary, { conclusion: "failure", environment: [] });
     for (const job of jobs) job.environment ??= [];
     runs.main = [failed, ...runs.main.slice(1)];
-    github.deployments = [{
-      createdAt: "2026-11-17T19:30:00Z", ref: "main", sha: head.sha, state: "FAILURE",
-      statusAt: "2026-11-17T19:44:00Z", runUrl: head.url, jobId: deploy.id, ...deployment,
-    }];
+    github.deployments = [
+      {
+        createdAt: "2026-11-17T19:30:00Z",
+        ref: "main",
+        sha: head.sha,
+        state: "FAILURE",
+        statusAt: "2026-11-17T19:44:00Z",
+        runUrl: head.url,
+        jobId: deploy.id,
+        ...deployment,
+      },
+    ];
     return { facts, runs, head: failed, jobs };
   }
   const yours = (result: ReturnType<typeof project>) =>
     result.home.overview.filter(({ section }) => section === "blocked" || section === "waiting");
   const members = (result: ReturnType<typeof project>) =>
-    result.lines.flatMap(({ members }) => members).filter(({ fork }) => fork === service).map(({ id }) => id).sort();
+    result.lines
+      .flatMap(({ members }) => members)
+      .filter(({ fork }) => fork === service)
+      .map(({ id }) => id)
+      .sort();
 
   test("leads Blocked with its attempt, cause, verdict, Next and the lane deploy it folded on proof", () => {
     const { facts, head } = redMain();
@@ -815,35 +831,68 @@ describe("a red Main", () => {
     expect(row).toMatchObject({
       id: "main:search",
       section: "blocked",
-      failure: { path: "Validation › Deploy and Test › Prove", reason: "environment timeout", verdict: "Environment" },
+      failure: {
+        path: "Validation › Deploy and Test › Prove",
+        reason: "environment timeout",
+        verdict: "Environment",
+      },
       evidence: expect.stringMatching(/^Lane deploy failed \S+ in attempt 1$/),
+      jobs: "Failed in attempt 1: Deploy and Test (Prove). Validation Summary repeats it.",
       next: "Re-run the failed jobs once. If it fails again, diagnose.",
     });
-    expect(row?.links[0]).toEqual({ label: "Attempt 1", url: `${head.url}/attempts/1`, kind: "run" });
+    expect(row?.links[0]).toEqual({
+      label: "Attempt 1",
+      url: `${head.url}/attempts/1`,
+      kind: "run",
+    });
     expect(result.model.queue.items.some(({ id }) => id === "lane-deploy:search")).toBe(false);
-    expect(members(result)).toEqual(yours(result).map(({ id }) => id).sort());
-    expect(result.home.mark).toMatchObject({ kind: "count", count: yours(result).length, tone: "error" });
-    expect(result.station("main")).toMatchObject({ state: "stopped", word: "Red", row: "main:search" });
+    expect(members(result)).toEqual(
+      yours(result)
+        .map(({ id }) => id)
+        .sort(),
+    );
+    expect(result.home.mark).toMatchObject({
+      kind: "count",
+      count: yours(result).length,
+      tone: "error",
+    });
+    expect(result.station("main")).toMatchObject({
+      state: "stopped",
+      word: "Red",
+      row: "main:search",
+    });
     expect(result.station("main")?.line).toMatch(/^Validation failed /);
   });
 
   test.each([
     ["a shared commit alone", { jobId: undefined }],
     ["a job of another attempt", { jobId: 1 }],
-    ["another repository's run", { runUrl: "https://github.com/Azure/osdu-spi-legal/actions/runs/42747639175" }],
+    [
+      "another repository's run",
+      { runUrl: "https://github.com/Azure/osdu-spi-legal/actions/runs/42747639175" },
+    ],
   ])("keeps both rows and counts on %s", (_, deployment) => {
     const { facts } = redMain(deployment);
     const result = project(facts, now);
-    expect(result.home.overview.find(({ id }) => id === "main:search")).not.toHaveProperty("evidence");
+    expect(result.home.overview.find(({ id }) => id === "main:search")).not.toHaveProperty(
+      "evidence",
+    );
     expect(result.model.queue.items.some(({ id }) => id === "lane-deploy:search")).toBe(true);
     expect(members(result)).toContain("lane-deploy:search");
-    expect(members(result)).toEqual(yours(result).map(({ id }) => id).sort());
+    expect(members(result)).toEqual(
+      yours(result)
+        .map(({ id }) => id)
+        .sort(),
+    );
     expect(result.home.mark).toMatchObject({ kind: "count", count: yours(result).length });
   });
 
   test("stays Blocked on the failed attempt while attempt 2 runs, and never offers a rerun on an unread list", () => {
     const { facts, runs, head, jobs } = redMain();
-    runs.main = [{ ...head, status: "in_progress", conclusion: undefined, attempt: 2 }, ...runs.main.slice(1)];
+    runs.main = [
+      { ...head, status: "in_progress", conclusion: undefined, attempt: 2 },
+      ...runs.main.slice(1),
+    ];
     runs.mainRunJobs = { [`${head.id}#1`]: jobs };
     const flying = project(facts, now);
     expect(flying.home.overview[0]).toMatchObject({
@@ -853,8 +902,14 @@ describe("a red Main", () => {
       failure: { verdict: "Environment" },
       next: "Re-run in flight (attempt 2). If it fails again, diagnose the failed jobs.",
     });
-    expect(flying.home.overview[0]?.links[0]).toMatchObject({ label: "Attempt 2", url: `${head.url}/attempts/2` });
-    expect(flying.station("main")).toMatchObject({ state: "stopped", line: "Validation re-running · attempt 2" });
+    expect(flying.home.overview[0]?.links[0]).toMatchObject({
+      label: "Attempt 2",
+      url: `${head.url}/attempts/2`,
+    });
+    expect(flying.station("main")).toMatchObject({
+      state: "stopped",
+      line: "Validation re-running · attempt 2",
+    });
 
     runs.main = [head, ...runs.main.slice(1)];
     runs.mainRunJobs = { [head.id]: jobs };

@@ -114,7 +114,10 @@ describe("Today's situation lines", () => {
           ).toHaveLength(1);
           const links = rows.find((row) => row.id === member.id)?.links;
           if (member.primary && member.id.startsWith("main:")) {
-            expect(links?.[0], name).toMatchObject({ kind: "run", url: expect.stringMatching(/\/attempts\/\d+$/) });
+            expect(links?.[0], name).toMatchObject({
+              kind: "run",
+              url: expect.stringMatching(/\/attempts\/\d+$/),
+            });
             expect(links, name).toContainEqual(member.primary);
           } else if (member.primary) expect(links?.[0], name).toEqual(member.primary);
         }

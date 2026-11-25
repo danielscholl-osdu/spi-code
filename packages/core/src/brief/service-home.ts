@@ -10,7 +10,7 @@ import { prVerdict } from "../model/checks.js";
 import type { Model } from "../model/index.js";
 import type { LineModel, StationId } from "../model/lines.js";
 import type { QueueItem } from "../model/queue.js";
-import type { RerunJudgement } from "../model/rerun-rule.js";
+import { failedJobs, type RerunJudgement, SUMMARY_JOB } from "../model/rerun-rule.js";
 import { compareVersions } from "../model/releases.js";
 import { prSubstate, stationSubstateOf } from "../model/substate.js";
 import type { UpFork } from "../model/upstream.js";
@@ -130,6 +130,11 @@ function failedRun(
   const job = rerun.job;
   const attempt = rerun.later ?? rerun.attempt;
   const pill = { label: `Attempt ${attempt}`, url: `${run.url}/attempts/${attempt}`, kind: "run" as const };
+  const failed = failedJobs(line.mainRed?.jobs).map((job) => job.failedStep ? `${job.name} (${job.failedStep})` : job.name);
+  const summary = line.mainRed?.jobs.some((job) => job.name === SUMMARY_JOB && job.conclusion === "failure");
+  const jobs = failed.length > 0
+    ? `Failed in attempt ${rerun.attempt}: ${failed.join(", ")}.${summary ? ` ${SUMMARY_JOB} repeats it.` : ""}`
+    : undefined;
   return {
     links: [pill, ...links.filter(({ url }) => url !== pill.url)],
     failure: {
@@ -137,6 +142,7 @@ function failedRun(
       ...(rerun.reason ? { reason: rerun.reason } : {}),
       verdict: rerun.verdict,
     },
+    ...(jobs ? { jobs } : {}),
     ...(folded ? { evidence: `Lane deploy failed ${clockWord(folded.at, input.now)} in attempt ${folded.attempt}` } : {}),
     ...(rerun.state === "in-flight" ? { rerunning: true as const } : {}),
   };
