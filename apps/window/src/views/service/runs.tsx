@@ -42,7 +42,13 @@ function FailureRow({
       {main && (
         <span className="service-run-attempt">
           <span>
-            on main · failed <time dateTime={main.failedAt}>{when(main.failedAt, { now })}</time>
+            on main
+            {main.failedAt && (
+              <>
+                {" "}
+                · failed <time dateTime={main.failedAt}>{when(main.failedAt, { now })}</time>
+              </>
+            )}
           </span>
           <LinkPill link={{ kind: "run", label: "Run", url: main.url }} />
         </span>

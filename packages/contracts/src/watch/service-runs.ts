@@ -64,7 +64,7 @@ export const ServiceRunsSchema = z.discriminatedUnion("kind", [
             id: RunSchema.shape.id,
             attempt: RunSchema.shape.attempt,
             url: RunSchema.shape.url,
-            failedAt: ObservedAtSchema,
+            failedAt: ObservedAtSchema.optional(),
           })
           .optional(),
       }),

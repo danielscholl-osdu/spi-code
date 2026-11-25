@@ -976,4 +976,39 @@ describe("a red Main", () => {
       next: "Cause not read yet. Open the run attempt, or ask Copilot to diagnose.",
     });
   });
+
+  test.each([
+    ["counts its age from attempt 1's failure", failedAt, { since: failedAt, age: "14m" }],
+    ["shows no age when no failed job's end was read", undefined, {}],
+  ])("while attempt 2 runs, %s", (_, completedAt, age) => {
+    const { facts, runs, head, jobs } = redMain();
+    runs.main = [
+      {
+        ...head,
+        status: "in_progress",
+        conclusion: undefined,
+        attempt: 2,
+        updatedAt: "2026-11-17T19:58:00Z",
+      },
+      ...runs.main.slice(1),
+    ];
+    for (const job of jobs) {
+      if (job.conclusion !== "failure") continue;
+      if (job.name === "Validation Summary") job.completedAt = "2026-11-17T19:59:00Z";
+      else if (completedAt) job.completedAt = completedAt;
+      else delete job.completedAt;
+    }
+    runs.mainRunJobs = { [`${head.id}#1`]: jobs };
+    const result = project(facts, now);
+    const row = result.home.overview.find(({ id }) => id === "main:search");
+    expect(row).toMatchObject({ section: "blocked", rerunning: true });
+    expect({ since: row?.since, age: row?.age }).toEqual({
+      since: undefined,
+      age: undefined,
+      ...age,
+    });
+    expect(result.model.lines.find(({ fork }) => fork.repo === repo)?.mainRed?.failedAt).toBe(
+      completedAt,
+    );
+  });
 });

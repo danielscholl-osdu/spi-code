@@ -32,7 +32,7 @@ import {
 } from "./stack.js";
 import { predates, type TemplateModel } from "./template.js";
 import { syncSplit, type UpFork } from "./upstream.js";
-import { runFailedAt, workflowFailure } from "./workflow-failure.js";
+import { workflowFailure } from "./workflow-failure.js";
 import type { RerunJudgement } from "./rerun-rule.js";
 
 export type Rung = 0 | 1 | 2;
@@ -601,7 +601,7 @@ function lineItems(line: LineModel, runs: ForkRuns | undefined, stack: StackMode
       rung: 0,
       scope: svc,
       text: `main red: ${m.job?.name ?? "Validation"}${m.job?.failedStep ? ` › ${m.job.failedStep}` : ""} failed on ${short(m.run.sha)}${m.job?.reason ? ` (${summarizeReason(m.job.reason)})` : ""}`,
-      since: runFailedAt(m.run),
+      ...(m.failedAt ? { since: m.failedAt } : {}),
       url: m.job?.url ?? m.run.url,
       effects: [],
       cause: [

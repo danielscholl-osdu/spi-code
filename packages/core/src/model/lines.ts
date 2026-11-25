@@ -27,6 +27,7 @@ import {
 } from "./attribution.js";
 import { javaBuilt, provingRun, prVerdict } from "./checks.js";
 import { failedJobs, type RerunJudgement, rerunRule, SUMMARY_JOB } from "./rerun-rule.js";
+import { runFailedAt } from "./workflow-failure.js";
 import { type LineHistory, lineHistory, windowDays } from "./history.js";
 import { certainText, type Prediction, type Verdict } from "./radar.js";
 import type { StackModel } from "./stack.js";
@@ -94,6 +95,8 @@ export interface MainFailure {
   cls: FailureClass;
   jobs: JobDetail[];
   jobsComplete: boolean;
+  // When the failed attempt reached its result; absent when no failed job's completion was read.
+  failedAt?: string;
   // A later attempt of the failed run, queued or running.
   later?: number;
   // The whole attempt judged once; job and cls name its decisive job.
@@ -222,18 +225,23 @@ const jobsKey = (run: Pick<RunFact, "id" | "attempt">) => `${run.id}#${run.attem
 
 // A failed attempt stays the decisive failure while its re-run is queued or running; a cut listing that
 // still shows a failed job proves the failure without proving Java Build ran.
-function rerunning(runs: ForkRuns | undefined): { run: RunFact; jobs: JobDetail[]; later: number } | undefined {
+function rerunning(
+  runs: ForkRuns | undefined,
+): { run: RunFact; jobs: JobDetail[]; later: number; failedAt: string | undefined } | undefined {
   const newest = runs?.main[0];
   if (!newest || newest.status === "completed" || newest.attempt < 2) return undefined;
   const run = { ...newest, attempt: newest.attempt - 1, status: "completed", conclusion: "failure" };
   const jobs = runs?.mainRunJobs?.[jobsKey(run)];
-  const proven = jobs && failedJobs(jobs).length > 0 &&
+  const failed = failedJobs(jobs);
+  const proven = jobs && failed.length > 0 &&
     (javaBuilt(jobs) || (runs?.mainJobsCut ?? []).includes(jobsKey(run)));
-  return proven ? { run, jobs, later: newest.attempt } : undefined;
+  const ends = failed.flatMap(({ completedAt }) => completedAt && Number.isFinite(Date.parse(completedAt)) ? [completedAt] : []);
+  const failedAt = ends.sort((a, b) => Date.parse(a) - Date.parse(b)).at(-1);
+  return proven ? { run, jobs, later: newest.attempt, failedAt } : undefined;
 }
 
 function mainFailure(
-  proof: { run: RunFact; jobs: JobDetail[]; later?: number } | undefined,
+  proof: { run: RunFact; jobs: JobDetail[]; later?: number; failedAt?: string | undefined } | undefined,
   cut: readonly string[] = [],
   deployable = false,
 ): MainFailure | undefined {
@@ -254,9 +262,10 @@ function mainFailure(
   });
   const job = rerun.job ?? proof.jobs.find((j) => j.conclusion === "failure" && j.name !== SUMMARY_JOB);
   const cls = rerun.state === "real" && rerun.cls ? rerun.cls : job ? classOf(job.name, "human", job.failedStep, job) : "UNREAD";
+  const failedAt = proof.later ? proof.failedAt : runFailedAt(run);
   return {
     run, job, jobsRead: proof.jobs.length > 0, cls, jobs: proof.jobs,
-    jobsComplete, ...(proof.later ? { later: proof.later } : {}), rerun,
+    jobsComplete, ...(failedAt ? { failedAt } : {}), ...(proof.later ? { later: proof.later } : {}), rerun,
   };
 }
 

@@ -3,7 +3,7 @@
 
 import type { RunFact } from "../facts.js";
 import type { MainFailure } from "../model/lines.js";
-import { runFailedAt, workflowRunFailed } from "../model/workflow-failure.js";
+import { workflowRunFailed } from "../model/workflow-failure.js";
 import { readRunHistory, type ServiceRun, type ServiceRunsFact, workflowGroups, workflowPath } from "../service-runs.js";
 
 const WORK_STATES: ReadonlySet<string> = new Set(["in_progress", "queued", "waiting", "pending"]);
@@ -37,7 +37,7 @@ function stripLabel(runs: readonly ServiceRun[]) {
   return { result, tone, at, ...(run.branch ? { branch: run.branch } : {}) };
 }
 
-export function serviceRuns(fact: ServiceRunsFact | undefined, mainRed?: Pick<MainFailure, "run" | "job">) {
+export function serviceRuns(fact: ServiceRunsFact | undefined, mainRed?: Pick<MainFailure, "run" | "job" | "failedAt">) {
   const history = readRunHistory(fact);
   if (!history) return { kind: "unread", count: null } as const;
   const mainRun: RunFact | undefined = mainRed?.run;
@@ -55,7 +55,7 @@ export function serviceRuns(fact: ServiceRunsFact | undefined, mainRed?: Pick<Ma
     ...(mainRun.path ? { path: mainRun.path } : {}), ...(mainRun.branch ? { branch: mainRun.branch } : {}),
     attempt: mainRun.attempt, status: mainRun.status,
     ...(mainRun.conclusion ? { conclusion: mainRun.conclusion } : {}),
-    createdAt: mainRun.createdAt, updatedAt: mainRun.updatedAt, url: mainRun.url,
+    createdAt: mainRun.createdAt, ...(mainRed?.failedAt ? { updatedAt: mainRed.failedAt } : {}), url: mainRun.url,
   } satisfies ServiceRun;
   const earlierAttempts = [...failures.map(({ run }) => run), ...(retriedMain ? [retriedMain] : [])]
     .filter(({ id, attempt }, index, all) => onPage.has(id) && !listed.has(`${id}#${attempt}`) &&
@@ -71,7 +71,7 @@ export function serviceRuns(fact: ServiceRunsFact | undefined, mainRed?: Pick<Ma
   }).sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name) || a.id - b.id)
     .map(({ rank, ...workflow }) => rank === 2 ? { ...workflow, automation: true as const } : workflow);
   const main = mainRun &&
-    { id: mainRun.id, attempt: mainRun.attempt, url: mainRun.url, failedAt: runFailedAt(mainRun) };
+    { id: mainRun.id, attempt: mainRun.attempt, url: mainRun.url, ...(mainRed?.failedAt ? { failedAt: mainRed.failedAt } : {}) };
   const mainJob = mainRed?.job && {
     job: mainRed.job.name,
     ...(mainRed.job.failedStep ? { step: mainRed.job.failedStep } : {}),
