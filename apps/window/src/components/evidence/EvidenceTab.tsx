@@ -390,7 +390,7 @@ export function SweepEvidence({
   const tone =
     observed &&
     line.tone === "bad" &&
-    sources.every(({ key, envelope }) => envelope.state !== "failed" || cut.has(key))
+    sources.every(({ key, envelope }) => envelope.state !== "failed" || partial(key))
       ? "warn"
       : line.tone;
   const fact = (source: string) => {

@@ -927,55 +927,61 @@ it.each([
   [
     "the sweep that supplied the snapshot",
     -60_000,
+    "warn",
     "⚠Template was read only in part; items from it may be missing.",
   ],
   [
     "a later sweep that never saved",
     60_000,
+    "bad",
     "✕Template read failed; items from it may be missing.",
   ],
-] as const)("words a failed read partial in the band only from %s", async (_, offset, band) => {
-  const { body, now: at } = sweep1119();
-  const areas = body.areas.map((entry) =>
-    entry.area === "template"
-      ? {
-          ...entry,
-          envelope: {
-            source: "template",
-            state: "failed",
-            completeness: { kind: "complete" },
-          } as Envelope,
-        }
-      : entry,
-  );
-  const progress = {
-    ...midSweep({
-      first: false,
-      startedAt: new Date(Date.parse(body.sweptAt) + offset).toISOString(),
-    }),
-    outcome: "failed",
-    code: "timeout",
-    failure: "GitLab did not answer in time.",
-    source: "radar",
-    nextAttemptAt: null,
-  } as SweepProgress;
-  const view = await render(
-    <SweepEvidence
-      snapshot={{ ...body, areas }}
-      sweep={null}
-      progress={progress}
-      now={at}
-      observed
-    />,
-  );
-  try {
-    expect(view.container.querySelector(".evidence-band [data-caveat=template]")?.textContent).toBe(
-      band,
+] as const)(
+  "words and tones a failed read partial in the band only from %s",
+  async (_, offset, tone, band) => {
+    const { body, now: at } = sweep1119();
+    const areas = body.areas.map((entry) =>
+      entry.area === "template"
+        ? {
+            ...entry,
+            envelope: {
+              source: "template",
+              state: "failed",
+              completeness: { kind: "complete" },
+            } as Envelope,
+          }
+        : entry,
     );
-  } finally {
-    await view.cleanup();
-  }
-});
+    const progress = {
+      ...midSweep({
+        first: false,
+        startedAt: new Date(Date.parse(body.sweptAt) + offset).toISOString(),
+      }),
+      outcome: "failed",
+      code: "timeout",
+      failure: "GitLab did not answer in time.",
+      source: "radar",
+      nextAttemptAt: null,
+    } as SweepProgress;
+    const view = await render(
+      <SweepEvidence
+        snapshot={{ ...body, areas }}
+        sweep={null}
+        progress={progress}
+        now={at}
+        observed
+      />,
+    );
+    try {
+      expect(
+        view.container.querySelector(".evidence-band [data-caveat=template]")?.textContent,
+      ).toBe(band);
+      expect(view.container.querySelector(".evidence-band")?.getAttribute("data-tone")).toBe(tone);
+    } finally {
+      await view.cleanup();
+    }
+  },
+);
 
 it.each([
   ["failed", "bad", "not due · last read failed · showing data from 13\u00a0min ago"],
