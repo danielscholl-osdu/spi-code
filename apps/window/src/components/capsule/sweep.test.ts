@@ -4,7 +4,7 @@
 import { AREAS, type Envelope } from "@spi-code/contracts";
 import { expect, it } from "vitest";
 import { after, midSweep, SWEEP_START } from "../sweep/test-helper.js";
-import { shortWhen, sourceState, sweepFill, sweepSegment, sweepTone } from "./sweep.js";
+import { sourceState, sweepFill, sweepSegment, sweepTone, sweepWords } from "./sweep.js";
 
 const sweptAt = after(-60);
 const fresh = (source: string): Envelope => ({
@@ -40,6 +40,14 @@ it.each([
 it.each([
   ["no snapshot, no progress", null, null, "fine", "Not swept", "Waiting for the first sweep"],
   [
+    "a settled sweep with every area fresh",
+    snapshot(),
+    null,
+    "fine",
+    undefined,
+    /^Swept \S+ · all areas read$/,
+  ],
+  [
     "a first sweep running",
     null,
     midSweep(),
@@ -68,7 +76,7 @@ it.each([
     snapshot(),
     midSweep({ first: false }),
     "run",
-    "Sweeping",
+    "9 of 12",
     /^Swept \S+ · sweeping, 9 of 12 sources done$/,
   ],
   [
@@ -76,7 +84,7 @@ it.each([
     snapshot(),
     midSweep(),
     "run",
-    "Sweeping",
+    "9 of 12",
     /sweeping, 9 of 12 sources done$/,
   ],
 ] as const)("reads %s", (_, body, progress, tone, text, sentence) => {
@@ -104,40 +112,35 @@ it.each([
 });
 
 it.each([
-  ["unread", { source: "runs", state: "unread" } as Envelope, /^not read yet$/, "fine"],
+  ["unread", { source: "runs", state: "unread" } as Envelope, /^not read yet$/, "unread"],
   ["fresh", at("fresh"), /^read \d\d:\d\d$/, "fine"],
-  ["stale", at("stale"), /^stale, read \d\d:\d\d$/, "warn"],
-  ["incomplete", at("incomplete"), /^incomplete, read \d\d:\d\d$/, "warn"],
-  ["cut", at("incomplete", { completeness: cut }), /^cut, read \d\d:\d\d$/, "warn"],
-  ["failed with a last read", at("failed"), /^failed, last read \d\d:\d\d$/, "bad"],
+  ["stale", at("stale"), /^stale · read \d\d:\d\d$/, "warn"],
+  ["incomplete", at("incomplete"), /^incomplete · read \d\d:\d\d$/, "warn"],
+  ["cut", at("incomplete", { completeness: cut }), /^read in part · 1 of 3$/, "warn"],
+  ["failed with a last read", at("failed"), /^failed · showing \d\d:\d\d$/, "bad"],
   [
     "failed with nothing retained",
     { source: "runs", state: "failed", completeness: { kind: "complete" } } as Envelope,
     /^failed$/,
     "bad",
   ],
-  ["failed and cut", at("failed", { completeness: cut }), /^failed, last read/, "bad"],
+  ["failed and cut", at("failed", { completeness: cut }), /^failed · showing/, "bad"],
 ] as const)("states a %s source from its envelope", (_, envelope, text, tone) => {
   const state = sourceState(envelope, now);
   expect(state.text).toMatch(text);
   expect(state.tone).toBe(tone);
 });
 
-const base = new Date(2026, 10, 13, 20, 0).getTime();
-const ahead = (ms: number) => new Date(base + ms).toISOString();
-
 it.each([
-  ["later today", ahead(3 * 3_600_000 + 59 * 60_000), "23:59 · in 3h"],
-  ["within the hour", ahead(40 * 60_000 + 30_000), "20:40 · in 40m"],
-  ["under a minute", ahead(10_000), "20:00 · in 1m"],
-  ["tomorrow", ahead(22 * 3_600_000 + 10 * 60_000), "Sat 18:10 · in 22h"],
-  ["in three days", ahead(3 * 86_400_000), "Mon 20:00 · in 3d"],
-  ["over a week out", ahead(8 * 86_400_000), "11-21 20:00 · in 8d"],
-  ["past", ahead(-60_000), null],
-  ["now", ahead(0), null],
-  ["unknown", undefined, null],
-  ["empty", "", null],
-  ["unparseable", "soon", null],
-] as const)("reads the next upstream sync short: %s", (_, at, text) => {
-  expect(shortWhen(at, base)).toBe(text);
+  ["every area fresh", [], undefined],
+  ["an unread area", [{ source: "runs", state: "unread" } as Envelope], undefined],
+  ["two stale areas", [at("stale"), at("stale")], "2 stale"],
+  [
+    "a cut area over a stale one",
+    [at("stale"), at("incomplete", { completeness: cut })],
+    "1 incomplete",
+  ],
+  ["a failed area over stale and cut", [at("stale"), at("failed"), at("incomplete")], "1 failed"],
+] as const)("words the settled footer by its worst kind: %s", (_, worse, words) => {
+  expect(sweepWords([...AREAS.map(fresh), ...worse])).toBe(words);
 });

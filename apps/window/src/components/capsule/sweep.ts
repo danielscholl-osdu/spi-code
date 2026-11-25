@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { Envelope, SweepProgress } from "@spi-code/contracts";
-import { clockTime, dayLine } from "../../time.js";
+import { clockTime } from "../../time.js";
 import type { SweepLineSnapshot } from "../evidence/SweepLine.js";
 import { freshnessGlyph, sweepSources } from "../evidence/words.js";
 import { settled } from "../sweep/words.js";
@@ -12,11 +12,27 @@ export type SweepTone = "fine" | "warn" | "bad" | "run";
 export type SweepSegmentView = {
   tone: SweepTone;
   icon: "refresh" | "alert" | "loader";
-  /** The words beside the icon; absent when the sweep time stands there instead. */
+  /** The words beside the icon; absent when every source is fine, so the icon stands alone. */
   text?: string;
-  sweptAt?: string;
   sentence: string;
 };
+
+/** What the footer says of a settled sweep: the worst kind's count, or nothing when all is fine. */
+export function sweepWords(sources: readonly Envelope[]): string | undefined {
+  let failed = 0;
+  let incomplete = 0;
+  let stale = 0;
+  for (const envelope of sources) {
+    if (envelope.state === "failed") failed++;
+    else if (envelope.state === "unread") continue;
+    else if (envelope.state === "incomplete" || envelope.completeness.kind === "cut") incomplete++;
+    else if (envelope.state === "stale") stale++;
+  }
+  if (failed > 0) return `${failed} failed`;
+  if (incomplete > 0) return `${incomplete} incomplete`;
+  if (stale > 0) return `${stale} stale`;
+  return undefined;
+}
 
 /** The worst area wins: failed, then stale, incomplete or cut, then fine. */
 export function sweepTone(sources: readonly Envelope[]): Exclude<SweepTone, "run"> {
@@ -74,15 +90,16 @@ export function sweepSegment(
     return {
       tone: "run",
       icon: "loader",
-      text: "Sweeping",
+      text: count(live),
       sentence: `Swept ${clockTime(snapshot.sweptAt, { now })} · sweeping, ${count(live)} sources done${tail}`,
     };
   const sources = sweepSources(snapshot).map(({ envelope }) => envelope);
   const tone = sweepTone(sources);
+  const words = sweepWords(sources);
   return {
     tone,
     icon: tone === "fine" ? "refresh" : "alert",
-    sweptAt: snapshot.sweptAt,
+    ...(words ? { text: words } : {}),
     sentence: `${freshnessGlyph({ sources, sweptAt: snapshot.sweptAt, now }).text}${tail}`,
   };
 }
@@ -94,41 +111,24 @@ export function sweepFill(progress: SweepProgress | null | undefined): number | 
   return settled(live) / live.sources.length;
 }
 
-/** One source's state in the popover, from its area envelope. */
+/** One source's state in the popover, from its area envelope; only warn and bad are listed. */
 export function sourceState(
   envelope: Envelope,
   now: number,
-): { text: string; tone: "fine" | "warn" | "bad" } {
-  if (envelope.state === "unread") return { text: "not read yet", tone: "fine" };
+): { text: string; tone: "fine" | "warn" | "bad" | "unread" } {
+  if (envelope.state === "unread") return { text: "not read yet", tone: "unread" };
   const at = envelope.observedAt ? clockTime(envelope.observedAt, { now, hint: false }) : null;
   const read = at ? `read ${at}` : "read";
   if (envelope.state === "failed")
-    return { text: at ? `failed, last ${read}` : "failed", tone: "bad" };
-  if (envelope.completeness.kind === "cut") return { text: `cut, ${read}`, tone: "warn" };
-  if (envelope.state === "incomplete") return { text: `incomplete, ${read}`, tone: "warn" };
-  if (envelope.state === "stale") return { text: `stale, ${read}`, tone: "warn" };
+    return { text: at ? `failed · showing ${at}` : "failed", tone: "bad" };
+  if (envelope.completeness.kind === "cut") {
+    const { read: got, total } = envelope.completeness;
+    return {
+      text: `read in part · ${got.toLocaleString("en-US")} of ${total.toLocaleString("en-US")}`,
+      tone: "warn",
+    };
+  }
+  if (envelope.state === "incomplete") return { text: `incomplete · ${read}`, tone: "warn" };
+  if (envelope.state === "stale") return { text: `stale · ${read}`, tone: "warn" };
   return { text: read, tone: "fine" };
-}
-
-const DAY_MS = 86_400_000;
-
-/**
- * A time still to come in its short form: `18:00 · in 40m` today, `Sat 18:00 · in 22h` this week,
- * `11-21 18:00 · in 8d` beyond it. Null when the time is unknown or already past.
- */
-export function shortWhen(at: string | null | undefined, now: number): string | null {
-  const time = at ? Date.parse(at) : Number.NaN;
-  if (!at || !(time > now)) return null;
-  const clock = clockTime(at, { now: time, hint: false });
-  const dated = clockTime(at, { now, hint: false });
-  const ahead = time - now;
-  const day = dated === clock ? "" : ahead < 6 * DAY_MS ? `${dayLine(at).slice(0, 3)} ` : "";
-  const minutes = Math.max(1, Math.floor(ahead / 60_000));
-  const until =
-    minutes < 60
-      ? `${minutes}m`
-      : minutes < 48 * 60
-        ? `${Math.floor(minutes / 60)}h`
-        : `${Math.floor(ahead / DAY_MS)}d`;
-  return `${day}${day ? clock : dated} · in ${until}`;
 }

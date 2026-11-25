@@ -136,7 +136,7 @@ afterEach(() => {
 
 it("shows Release lines read by this sweep as read just now in Evidence, the header and Settings", async () => {
   const view = await shown(sweep());
-  expect(view.evidence).toEqual(["ok", "read · 0\u00a0s"]);
+  expect(view.evidence).toEqual(["ok", "read · <1\u00a0s"]);
   expect(view.line).toBe("all fresh");
   expect(view.header).toContain("all areas read");
   expect(view.settings).toEqual([

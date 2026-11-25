@@ -61,3 +61,10 @@ button.evidence-chip { border-style: solid; cursor: pointer; }
 .evidence-reads li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--border-soft); }
 .evidence-read-object { overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--text-sm); }
 .evidence-read-time { color: var(--text-muted); font-variant-numeric: tabular-nums; text-align: right; }
+
+.evidence-page [data-evidence="sweep"] { max-width: 760px; }
+.evidence-band { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 12px; padding: 10px 12px; border-radius: 8px; list-style: none; background: var(--warning-surface); color: var(--warning-text); }
+.evidence-band[data-tone="bad"] { background: var(--error-surface); color: var(--error-text); }
+.evidence-band li { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 8px; }
+.evidence-band-mark { font-weight: 700; }
+.evidence-band b { font-weight: 600; }

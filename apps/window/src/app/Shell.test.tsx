@@ -600,15 +600,17 @@ it("updates the footer sweep from the live areas with the worst tone, and opens 
         }),
       );
       expect(line()?.getAttribute("data-tone")).toBe(tone);
-      expect(line()?.querySelector("[data-sweep-display]")?.textContent).toMatch(
-        /^(\d\d-\d\d )?\d\d:\d\d/,
+      expect(line()?.querySelector("[data-sweep-display]")?.textContent ?? null).toBe(
+        tone === "fine" ? null : words,
       );
       const name = document.getElementById(
         line()?.getAttribute("aria-labelledby") ?? "",
       )?.textContent;
       if (words === null) expect(name).toContain("all areas read");
       else expect(name).toContain(words);
-      expect(line()?.querySelector("[data-sweep-display]")?.textContent).not.toContain("inferred");
+      expect(line()?.querySelector("[data-sweep-display]")?.textContent ?? "").not.toContain(
+        "inferred",
+      );
     }
     expect(container.querySelector("#app-right-panel")).toBeNull();
     await act(async () => line()?.click());

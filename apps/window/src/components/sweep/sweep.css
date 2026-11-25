@@ -167,3 +167,23 @@
 [data-layout="narrow"] .sweep-outcome {
   grid-column: 2;
 }
+.sweep-group {
+  display: flex;
+  align-items: baseline;
+  margin: 16px 0 2px;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+.sweep-group > h3 {
+  margin: 0;
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.sweep-group > span {
+  margin-left: auto;
+}
+.sweep-rows[data-carried] .sweep-name {
+  color: var(--text);
+}

@@ -115,9 +115,12 @@ it("reads the Sweep budget reset and the sweep line as local clock times with IS
     expect(clockTime(resetAt, { now, timeZone: "America/Chicago" })).toBe(
       "11-08 00:22 (in 32\u00a0min)",
     );
-    expect(container.querySelector("[data-sweep-line] time")?.getAttribute("datetime")).toBe(
-      body.sweptAt,
-    );
+    await act(async () => container.querySelector<HTMLElement>("[data-sweep-line]")?.click());
+    expect(
+      document
+        .querySelector("[data-sweep-popover] .capsule-pop-title time")
+        ?.getAttribute("datetime"),
+    ).toBe(body.sweptAt);
     assertRules("Sweep with a budget reset");
   } finally {
     vi.useRealTimers();

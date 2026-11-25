@@ -233,12 +233,13 @@ it.each([
     const name = `Swept ${clockTime(sweptAt)} · ${counts}`;
     expect(freshnessGlyph({ sources, sweptAt })).toEqual({ text: name, tail, tone });
     const capsule = tone === "bad" || tone === "warn" ? tone : "fine";
-    expect(sweepSegment(body, null, null, Date.now())).toEqual({
+    const segment = sweepSegment(body, null, null, Date.now());
+    expect(segment).toMatchObject({
       tone: capsule,
       icon: capsule === "fine" ? "refresh" : "alert",
-      sweptAt,
       sentence: name,
     });
+    expect(segment.text === undefined).toBe(capsule === "fine");
     const onOpen = vi.fn();
     const view = await render(<SweepLine snapshot={body} onOpen={onOpen} />);
     try {
@@ -307,6 +308,30 @@ it.each([
     }
   },
 );
+
+it.each([
+  [
+    "an item read worse than its area",
+    { kind: "cut", reason: "page_limit", read: 60, total: 471 },
+    "incomplete",
+  ],
+  ["an item read no worse than its area", { kind: "complete" }, "fresh"],
+] as const)("lists each source once, %s", (_, completeness, state) => {
+  const runs = {
+    source: "runs",
+    state: completeness.kind === "cut" ? "incomplete" : "fresh",
+    observedAt: sweptAt,
+    completeness,
+  } as Envelope;
+  const body = {
+    ...snapshot(areas()),
+    provenance: [{ path: "/forks/0/runs", areas: ["runs" as const], envelope: runs }],
+  };
+  const sources = sweepSources(body);
+  expect(sources.filter(({ key }) => key === "runs")).toHaveLength(1);
+  expect(sources.find(({ key }) => key === "runs")?.envelope.state).toBe(state);
+  expect(sources).toHaveLength(11);
+});
 
 it("waits in muted words before the first sweep", async () => {
   const view = await render(<SweepLine snapshot={null} onOpen={() => {}} />);
@@ -754,7 +779,7 @@ it("keeps not-due sources neutral and says a read reused older data, in the 11:1
     expect(article.querySelector(".evidence-line")?.textContent).toBe("2 areas incomplete");
     expect(sourceRows(article)).toEqual([
       ["Sign-in", "ok", "read · 2\u00a0s"],
-      ["Fleet membership", "ok", "read · 0\u00a0s · cached from 14\u00a0min ago"],
+      ["Fleet membership", "ok", "read · <1\u00a0s · cached from 14\u00a0min ago"],
       ["GitHub issues and PRs", "ok", "read · 9\u00a0s"],
       ["Workflow runs", "ok", "read · 14\u00a0s · cached from 14\u00a0min ago"],
       ["Run approvals", "ok", "read · 6\u00a0s"],
@@ -763,8 +788,8 @@ it("keeps not-due sources neutral and says a read reused older data, in the 11:1
         "warn",
         "read · 3\u00a0s · 1 job log cut short; rest read · cached from 13\u00a0min ago",
       ],
-      ["Template", "ok", "read · 0\u00a0s · cached from 13\u00a0min ago"],
-      ["Run details", "ok", "read · 0\u00a0s · cached from 8\u00a0min ago"],
+      ["Template", "ok", "read · <1\u00a0s · cached from 13\u00a0min ago"],
+      ["Run details", "ok", "read · <1\u00a0s · cached from 8\u00a0min ago"],
       ["Upstream GitLab", "idle", "not due · last read 13\u00a0min ago"],
       [
         "Upstream radar",
@@ -777,6 +802,59 @@ it("keeps not-due sources neutral and says a read reused older data, in the 11:1
     expect(
       [...article.querySelectorAll(".sweep-segment")].map((s) => s.getAttribute("data-tone")),
     ).toEqual(["ok", "ok", "ok", "ok", "ok", "warn", "ok", "ok", "idle", "warn", "idle", "idle"]);
+  } finally {
+    await view.cleanup();
+  }
+});
+
+it("splits the Evidence page's sources into read this sweep and carried, a cut read never checked", async () => {
+  const { body, list, now: at } = sweep1119();
+  const cut = { kind: "cut", reason: "page_limit", read: 60, total: 471 } as const;
+  const areas = body.areas.map((entry) =>
+    entry.area === "runs"
+      ? {
+          ...entry,
+          envelope: { ...entry.envelope, state: "incomplete", completeness: cut } as Envelope,
+        }
+      : entry,
+  );
+  const view = await render(
+    <SweepEvidence snapshot={{ ...body, areas }} sweep={null} completed={list} now={at} observed />,
+  );
+  try {
+    const article = view.container.querySelector('[data-evidence="sweep"]') as HTMLElement;
+    const group = (label: string) =>
+      [...article.querySelectorAll(`ul[aria-label="${label}"] .sweep-row`)].map((row) => [
+        row.getAttribute("data-source"),
+        row.querySelector(".sweep-mark")?.textContent,
+        row.querySelector(".sweep-outcome")?.textContent,
+      ]);
+    expect(group("Read this sweep").map(([source]) => source)).toEqual([
+      "auth",
+      "fleet",
+      "github",
+      "runs",
+      "approvals",
+      "lifecycle",
+      "template",
+      "details",
+    ]);
+    expect(
+      group("Read this sweep")
+        .find(([source]) => source === "runs")
+        ?.slice(1),
+    ).toEqual(["⚠", expect.stringMatching(/60 of 471 read/)]);
+    const carried = group("Carried from earlier");
+    expect(carried.map(([source]) => source)).toEqual([
+      "upstream",
+      "radar",
+      "security",
+      "releases",
+    ]);
+    expect(carried.every(([, , outcome]) => /^last read \d\d:\d\d/.test(outcome ?? ""))).toBe(true);
+    expect(article.querySelector(".evidence-band [data-caveat=runs]")?.textContent).toBe(
+      "⚠Workflow runs was read only in part: 60 of 471; items from it may be missing.",
+    );
   } finally {
     await view.cleanup();
   }

@@ -358,9 +358,9 @@ it("says the 17 Nov partial GitHub failure once, in amber, with no Failed reads 
   const text = view.page?.textContent ?? "";
   expect(text.split(SERVICES.join(", ")).length - 1).toBe(1);
   expect(text.split("timed out").length - 1).toBe(1);
-  expect(view.headings()).toEqual(["Sources"]);
+  expect(view.headings()).toEqual(["Read this sweep"]);
   expect(view.page?.querySelector(".evidence-failures")).toBeNull();
-  expect(view.page?.querySelector(".evidence-line")?.getAttribute("data-tone")).toBe("warn");
+  expect(view.page?.querySelector(".evidence-band")?.getAttribute("data-tone")).toBe("warn");
   expect(view.page?.querySelectorAll('[data-tone="bad"]')).toHaveLength(0);
   expect(github.title).toContain(`Read failed, kept data observed ${clock(40)}`);
   expect(text).not.toMatch(UNSAID);
@@ -373,7 +373,7 @@ it("keeps a failure no source row shows in Failed reads", async () => {
     { ...partial, reads: [...partial.reads, saving] },
     partialSweep,
   );
-  expect(view.headings()).toEqual(["Sources", "Failed reads"]);
+  expect(view.headings()).toEqual(["Read this sweep", "Failed reads"]);
   expect(
     [...(view.page?.querySelectorAll(".evidence-failure") ?? [])].map((row) =>
       row.getAttribute("aria-label"),
@@ -437,7 +437,7 @@ it.each([
     "not due this sweep",
     "details",
     "idle",
-    `not due · from ${clock(14)}`,
+    `last read ${clock(14)}`,
     `Fresh, observed ${clock(14)}, 14 min before the sweep ended, complete.`,
   ],
   [

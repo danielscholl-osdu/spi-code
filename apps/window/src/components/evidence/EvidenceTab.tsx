@@ -240,10 +240,43 @@ function evidenceOutcome(
             ? `${envelope.completeness.read.toLocaleString("en-US")} of ${envelope.completeness.total.toLocaleString("en-US")} read`
             : undefined,
         ].filter((part): part is string => part !== undefined);
+  if (source.state === "skipped" && envelope.state !== "unread" && envelope.state !== "failed") {
+    const rest = cut.text.replace(/^not due(?: · )?/, "");
+    const last = envelope.observedAt
+      ? `last read ${clockTime(envelope.observedAt, { now, hint: false })}`
+      : "not due";
+    const counted =
+      envelope.completeness.kind === "cut"
+        ? `${envelope.completeness.read.toLocaleString("en-US")} of ${envelope.completeness.total.toLocaleString("en-US")} read`
+        : undefined;
+    return {
+      outcome: {
+        ...cut,
+        text: [last, envelope.state === "stale" ? "stale" : undefined, rest, counted]
+          .filter(Boolean)
+          .join(" · "),
+      },
+      title,
+    };
+  }
+  const partial =
+    source.state === "read" && envelope.state !== "unread" && envelope.completeness.kind === "cut";
   return {
-    outcome: { ...cut, text: [cut.text, ...extra].join(" · ") },
+    outcome: {
+      ...cut,
+      ...(partial ? { mark: "⚠", tone: "warn" as const } : {}),
+      text: [cut.text, ...extra].join(" · "),
+    },
     title,
   };
+}
+
+/** Today's caveat words for a source whose read failed or was cut. */
+function caveatWords(envelope: Envelope): string {
+  if (envelope.state === "failed") return "read failed";
+  if (envelope.state !== "unread" && envelope.completeness.kind === "cut")
+    return `was read only in part: ${envelope.completeness.read.toLocaleString("en-US")} of ${envelope.completeness.total.toLocaleString("en-US")}`;
+  return "was read only in part";
 }
 
 const LIST: Readonly<Record<SweepProgress["outcome"], string>> = {
@@ -349,6 +382,9 @@ export function SweepEvidence({
   const uncarried = groups.filter((group) => group.row === undefined);
   // A failed area this sweep partly read is amber, as its row is.
   const cut = new Set(list?.sources.filter(partlyRead).map(({ source }) => source));
+  const caveats = sources.filter(
+    ({ envelope }) => envelope.state === "failed" || envelope.state === "incomplete",
+  );
   const tone =
     observed &&
     line.tone === "bad" &&
@@ -405,14 +441,28 @@ export function SweepEvidence({
         </div>
         {!live && <SweepNow onOpenReadiness={onOpenSettings} />}
       </header>
-      {!live && (
-        <p className="evidence-line" data-tone={tone}>
-          {line.text}
-        </p>
-      )}
+      {!live &&
+        (observed && caveats.length > 0 ? (
+          <ul className="evidence-band" data-tone={tone} role="note">
+            {caveats.map(({ key, name, envelope }) => (
+              <li key={key} data-caveat={key}>
+                <span className="evidence-band-mark" aria-hidden="true">
+                  {envelope.state === "failed" ? "✕" : "⚠"}
+                </span>
+                <span>
+                  <b>{name}</b> {caveatWords(envelope)}; items from it may be missing.
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="evidence-line" data-tone={tone}>
+            {line.text}
+          </p>
+        ))}
       {list ? (
         <section data-sweep-list={LIST[list.outcome]} aria-label="Sources">
-          <h3>Sources</h3>
+          {!observed && <h3>Sources</h3>}
           {list.outcome === "failed" && (
             <p className="evidence-line" data-tone="bad" data-sweep-outcome="failed">
               This sweep stopped. <SweepStopped progress={list} now={at} />
@@ -431,6 +481,7 @@ export function SweepEvidence({
             fact={observed ? undefined : fact}
             envelope={(source) => envelopes.get(source)}
             describe={observed ? describe : undefined}
+            split={observed}
           />
           {unlisted.length > 0 && (
             <EnvelopeRows

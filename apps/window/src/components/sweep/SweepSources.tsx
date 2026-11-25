@@ -68,6 +68,7 @@ export function SweepSources({
   fact,
   envelope,
   describe,
+  split = false,
 }: {
   progress: SweepProgress;
   now: number;
@@ -81,6 +82,8 @@ export function SweepSources({
         outcome: SourceOutcome,
       ) => { outcome: SourceOutcome; title?: string | undefined })
     | undefined;
+  /** Heads the sources this sweep read apart from those it carried from an earlier read. */
+  split?: boolean;
 }) {
   const end = sweepEnd(progress, now);
   const running = progress.outcome === "running";
@@ -95,6 +98,56 @@ export function SweepSources({
     const outcome = outcomeOf(progress, source, end, envelope?.(source.source));
     return { source, ...(describe?.(source, outcome) ?? { outcome }) };
   });
+  const row = ({ source, outcome, title }: (typeof rows)[number]) => {
+    const failed = outcome.tone === "bad";
+    const signin = failed && readinessCanFix(outcome.code);
+    const extra = fact?.(source.source);
+    const why =
+      outcome.why &&
+      (running && failed && !signin
+        ? `${sentence(outcome.why)} Today will say what is missing.`
+        : sentence(outcome.why));
+    return (
+      <li
+        key={source.source}
+        className="sweep-row"
+        data-source={source.source}
+        data-tone={outcome.tone}
+        {...(title
+          ? {
+              "aria-label": `${sourceName(source.source)} · ${outcomeLine(outcome, now)}. ${title}`,
+            }
+          : {})}
+      >
+        <span className="sweep-mark" aria-hidden="true">
+          {outcome.mark}
+        </span>
+        <span className="sweep-name">{sourceName(source.source)}</span>
+        <span className="sweep-what">{sourceReads(source.source) ?? ""}</span>
+        <span
+          className="sweep-outcome"
+          title={title ?? outcome.detail}
+          aria-description={title ? undefined : outcome.detail}
+        >
+          <Outcome outcome={outcome} now={now} />
+          {extra && <> · {extra}</>}
+          {stopped && failed && why && ` · ${why}`}
+        </span>
+        {why && (!(stopped && failed) || (progress.first && signin)) && (
+          <span className="sweep-why">
+            {!(stopped && failed) && why}
+            {signin && (
+              <button type="button" onClick={onOpenSettings}>
+                Open Settings
+              </button>
+            )}
+          </span>
+        )}
+      </li>
+    );
+  };
+  const read = rows.filter(({ source }) => source.state !== "skipped");
+  const carried = rows.filter(({ source }) => source.state === "skipped");
   return (
     <div className="sweep-sources">
       {meta && (
@@ -114,56 +167,36 @@ export function SweepSources({
           <span key={source.source} className="sweep-segment" data-tone={outcome.tone} />
         ))}
       </div>
-      <ul className="sweep-rows" aria-label="Sources">
-        {rows.map(({ source, outcome, title }) => {
-          const failed = outcome.tone === "bad";
-          const signin = failed && readinessCanFix(outcome.code);
-          const extra = fact?.(source.source);
-          const why =
-            outcome.why &&
-            (running && failed && !signin
-              ? `${sentence(outcome.why)} Today will say what is missing.`
-              : sentence(outcome.why));
-          return (
-            <li
-              key={source.source}
-              className="sweep-row"
-              data-source={source.source}
-              data-tone={outcome.tone}
-              {...(title
-                ? {
-                    "aria-label": `${sourceName(source.source)} · ${outcomeLine(outcome, now)}. ${title}`,
-                  }
-                : {})}
-            >
-              <span className="sweep-mark" aria-hidden="true">
-                {outcome.mark}
-              </span>
-              <span className="sweep-name">{sourceName(source.source)}</span>
-              <span className="sweep-what">{sourceReads(source.source) ?? ""}</span>
-              <span
-                className="sweep-outcome"
-                title={title ?? outcome.detail}
-                aria-description={title ? undefined : outcome.detail}
-              >
-                <Outcome outcome={outcome} now={now} />
-                {extra && <> · {extra}</>}
-                {stopped && failed && why && ` · ${why}`}
-              </span>
-              {why && (!(stopped && failed) || (progress.first && signin)) && (
-                <span className="sweep-why">
-                  {!(stopped && failed) && why}
-                  {signin && (
-                    <button type="button" onClick={onOpenSettings}>
-                      Open Settings
-                    </button>
-                  )}
+      {split ? (
+        <>
+          <div className="sweep-group">
+            <h3>Read this sweep</h3>
+            <span>
+              {read.length} {read.length === 1 ? "source" : "sources"}
+            </span>
+          </div>
+          <ul className="sweep-rows" aria-label="Read this sweep">
+            {read.map(row)}
+          </ul>
+          {carried.length > 0 && (
+            <>
+              <div className="sweep-group">
+                <h3>Carried from earlier</h3>
+                <span>
+                  {carried.length} {carried.length === 1 ? "source" : "sources"}
                 </span>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+              </div>
+              <ul className="sweep-rows" aria-label="Carried from earlier" data-carried="">
+                {carried.map(row)}
+              </ul>
+            </>
+          )}
+        </>
+      ) : (
+        <ul className="sweep-rows" aria-label="Sources">
+          {rows.map(row)}
+        </ul>
+      )}
     </div>
   );
 }

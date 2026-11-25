@@ -266,6 +266,8 @@ export function everyInferred(envelopes: readonly { inferred?: boolean | undefin
 
 export type EvidenceSource = { key: string; name: string; envelope: Envelope };
 
+const unreadEnvelope = (source: string): Envelope => ({ source, state: "unread" });
+
 /**
  * One envelope per supplemental source: its worst read, inferred only when every read of it is.
  */
@@ -293,21 +295,22 @@ export function bySource(
 }
 
 /**
- * Every source a sweep draws from: the eleven areas in appendix C order (an area the snapshot
- * omits reads as not read yet), then each collector outside the areas once.
+ * Every source a sweep draws from, once each: the eleven areas in appendix C order (an area the
+ * snapshot omits reads as not read yet, and an item read worse than its area wins), then each
+ * collector outside the areas.
  */
 export function sweepSources(
   snapshot: Pick<ViewSnapshot, "areas" | "provenance">,
 ): EvidenceSource[] {
-  const areas = AREAS.map((area) => ({
-    key: area,
-    name: AREA_NAMES[area],
-    envelope: snapshot.areas.find((entry) => entry.area === area)?.envelope ?? {
-      source: area,
-      state: "unread" as const,
-    },
-  }));
   const extra = bySource(snapshot.provenance);
+  const areas = AREAS.map((area) => {
+    const own = snapshot.areas.find((entry) => entry.area === area)?.envelope;
+    const item = extra.get(area);
+    extra.delete(area);
+    const envelope =
+      own && item ? (byWorst(item, own) < 0 ? item : own) : (own ?? item ?? unreadEnvelope(area));
+    return { key: area, name: AREA_NAMES[area], envelope };
+  });
   return [
     ...areas,
     ...[...extra].map(([source, envelope]) => ({

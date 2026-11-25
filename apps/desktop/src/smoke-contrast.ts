@@ -1087,7 +1087,7 @@ export async function assertRenderedContrast(
     );
     await shade({ palette: "warm", theme: "light" });
     await everyShade("today", ".today", PINNED);
-    const sweepRequired = { selector: "capsule-sweep-text", text: "08:02" };
+    const sweepRequired = { selector: "capsule-sweep-text", text: "1 failed" };
     await everyShade("footer-sweep", "[data-slot=sidebar-footer] [data-sweep-line]", {
       rest: [sweepRequired],
       hover: [sweepRequired],

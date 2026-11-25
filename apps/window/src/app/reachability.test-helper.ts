@@ -136,7 +136,6 @@ function home(name: string, from: Start, step?: Selector): Home {
 }
 
 const TODAY = home("Today", STARTS.today);
-const STRIP = home("Footer sweep", STARTS.strip);
 const PINS = home("Pinned", STARTS.today);
 const FORKS = home("Today, Forks", STARTS.forks);
 const UNFOLDED = home("Today, Forks unfolded", STARTS.forks, ".forks-fold");
@@ -232,8 +231,8 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
   add(
     "/briefing/sweptAt",
     briefing.sweptAt,
-    STRIP,
-    "[data-slot=sidebar-footer] [data-sweep-line] time",
+    home("Footer sweep, open", STARTS.strip, "[data-slot=sidebar-footer] [data-sweep-line]"),
+    () => document.querySelector("[data-sweep-popover] .capsule-pop-title time"),
     {
       attribute: "dateTime",
     },
