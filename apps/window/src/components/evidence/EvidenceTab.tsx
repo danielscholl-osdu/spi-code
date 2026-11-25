@@ -382,6 +382,8 @@ export function SweepEvidence({
   const uncarried = groups.filter((group) => group.row === undefined);
   // A failed area this sweep partly read is amber, as its row is.
   const cut = new Set(list?.sources.filter(partlyRead).map(({ source }) => source));
+  // Only the sweep that supplied the snapshot can say its failed read was partial.
+  const partial = (key: string) => own && cut.has(key);
   const caveats = sources.filter(
     ({ envelope }) => envelope.state === "failed" || envelope.state === "incomplete",
   );
@@ -447,10 +449,10 @@ export function SweepEvidence({
             {caveats.map(({ key, name, envelope }) => (
               <li key={key} data-caveat={key}>
                 <span className="evidence-band-mark" aria-hidden="true">
-                  {envelope.state === "failed" && !cut.has(key) ? "✕" : "⚠"}
+                  {envelope.state === "failed" && !partial(key) ? "✕" : "⚠"}
                 </span>
                 <span>
-                  <b>{name}</b> {caveatWords(envelope, cut.has(key))}; items from it may be missing.
+                  <b>{name}</b> {caveatWords(envelope, partial(key))}; items from it may be missing.
                 </span>
               </li>
             ))}
