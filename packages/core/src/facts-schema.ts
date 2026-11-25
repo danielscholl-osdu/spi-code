@@ -105,6 +105,7 @@ const releaseFact = z.object({ tag: z.string(), at: z.string(), url: z.string() 
 const deploymentFact = z.object({
   id: z.string().optional(),
   runUrl: z.string().optional(),
+  jobId: z.int().positive().optional(),
   deploymentUrl: z.string().optional(),
   createdAt: z.string(),
   ref: z.string().optional(),
@@ -220,6 +221,7 @@ const forkRuns = z.object({
   cascadeReadAt: z.string().nullable().optional(),
   main: z.array(runFact),
   mainRunJobs: jobsByRun.optional(),
+  mainJobsCut: z.array(z.string()).optional(),
   cascadeRunJobs: jobsByRun.optional(),
   syncRunJobs: jobsByRun.optional(),
   integration: commitAt.optional(),

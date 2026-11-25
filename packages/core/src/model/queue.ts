@@ -33,6 +33,7 @@ import {
 import { predates, type TemplateModel } from "./template.js";
 import { syncSplit, type UpFork } from "./upstream.js";
 import { runFailedAt, workflowFailure } from "./workflow-failure.js";
+import { failedJobs, type RerunJudgement, rerunRule } from "./rerun-rule.js";
 
 export type Rung = 0 | 1 | 2;
 
@@ -129,6 +130,10 @@ export interface QueueItem {
   blocks: number;
   // What to do about the runs the item folds: re-run once for the environment, or stop the line.
   judgement?: Judgement;
+  // A failed main run's rerun eligibility.
+  rerun?: RerunJudgement;
+  // A row folded into this one on proof of the same repository, run id and attempt.
+  folded?: { kind: "lane-deploy"; at: string; attempt: number };
   // Inputs the item's words do not show, such as PR heads, for its fingerprint.
   inputs?: string[];
   // Its inputs, so a dismissal holds only until they change.
@@ -425,11 +430,17 @@ function lineItems(line: LineModel, runs: ForkRuns | undefined, stack: StackMode
   const explained = deployment?.sha && line.prs.some((p) =>
     p.pr.headSha === deployment.sha && p.failures.some((f) => !f.hidden),
   );
+  const laneFailed = deployment && (deployment.state === "FAILURE" || deployment.state === "ERROR");
+  const mainItem = line.mainRed && line.mainRed.cls !== "ENV" ? line.mainRed : undefined;
+  const folds = laneFailed && mainItem && deployment.jobId !== undefined &&
+    deployment.runUrl === `${line.url}/actions/runs/${mainItem.run.id}` &&
+    failedJobs(mainItem.jobs).some((job) => job.id === deployment.jobId);
   if (
     stack.deployable.state !== "no" &&
     deployment &&
     (deployment.state === "FAILURE" || deployment.state === "ERROR") &&
-    !explained
+    !explained &&
+    !folds
   ) {
     const url = `${line.url}/deployments`;
     items.push({
@@ -581,8 +592,12 @@ function lineItems(line: LineModel, runs: ForkRuns | undefined, stack: StackMode
       blocks: 1,
     });
   }
-  if (line.mainRed && line.mainRed.cls !== "ENV") {
-    const m = line.mainRed;
+  if (mainItem) {
+    const m = mainItem;
+    const rerun = rerunRule({
+      attempt: m.run.attempt, jobs: m.jobs, complete: m.jobsComplete,
+      deployable: stack.deployable.state === "yes", ...(m.later ? { later: m.later } : {}),
+    });
     items.push({
       id: `main:${svc}`,
       kind: "main",
@@ -609,7 +624,11 @@ function lineItems(line: LineModel, runs: ForkRuns | undefined, stack: StackMode
           : []),
         ...(m.job?.reason ? [{ label: "reason", value: clip(m.job.reason, FACT_MAX) }] : []),
       ],
-      cls: m.cls,
+      cls: rerun.state === "real" && rerun.cls ? rerun.cls : m.cls,
+      rerun,
+      ...(folds && deployment
+        ? { folded: { kind: "lane-deploy" as const, at: deployment.statusAt ?? deployment.createdAt, attempt: m.run.attempt } }
+        : {}),
       incident: true,
       blocks: 1,
     });

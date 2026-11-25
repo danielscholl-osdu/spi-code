@@ -99,6 +99,8 @@ export type DeploymentRead = "unread" | "complete" | "capped";
 export interface DeploymentFact {
   id?: string;
   runUrl?: string;
+  // The job the deployment ran in; job ids are unique to one run attempt.
+  jobId?: number;
   deploymentUrl?: string;
   createdAt: string;
   ref?: string;
@@ -226,6 +228,8 @@ export interface ForkRuns {
   main: RunFact[];
   // Jobs of the completed main runs read, newest first, by run id.
   mainRunJobs?: Record<string, JobDetail[]>;
+  // Run attempts ("id#attempt") whose job list was cut or failed to read.
+  mainJobsCut?: string[];
   // Jobs of the newest cascade run, read only when it failed.
   cascadeRunJobs?: Record<string, JobDetail[]>;
   /** Latest failed Sync Upstream attempt, keyed by run id and attempt. */

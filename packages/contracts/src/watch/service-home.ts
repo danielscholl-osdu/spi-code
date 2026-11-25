@@ -47,6 +47,18 @@ const OverviewRowSchema = z.strictObject({
   age: z.string().optional(),
   /** What a Can wait PR needs before it can merge. */
   gate: z.string().optional(),
+  /** A failed run's workflow › job › step, a short reason and core's verdict word. */
+  failure: z.strictObject({
+    path: z.string(),
+    reason: z.string().optional(),
+    verdict: z.string(),
+  }).optional(),
+  /** The proof a row folded into this one carries. */
+  evidence: z.string().optional(),
+  /** The next move as one sentence. */
+  next: z.string().optional(),
+  /** A re-run of the failed attempt is queued or running. */
+  rerunning: z.literal(true).optional(),
 });
 const MarkSchema = z.discriminatedUnion("kind", [
   z.strictObject({

@@ -9,6 +9,8 @@ import { cascadeMonitor } from "../model/cascade-monitor.js";
 import { prVerdict } from "../model/checks.js";
 import type { Model } from "../model/index.js";
 import type { LineModel, StationId } from "../model/lines.js";
+import type { QueueItem } from "../model/queue.js";
+import type { RerunJudgement } from "../model/rerun-rule.js";
 import { compareVersions } from "../model/releases.js";
 import { prSubstate, stationSubstateOf } from "../model/substate.js";
 import type { UpFork } from "../model/upstream.js";
@@ -55,6 +57,8 @@ function overviewOf(input: HomeInput, line: LineModel): ServiceHomeRow[] {
   const { model, facts, items, lines, canWait } = input;
   const svc = line.fork.id;
   const evidence = new Map(items.map((item) => [item.id, item.evidence]));
+  const nextOf = new Map(items.map((item) => [item.id, item.next]));
+  const queued = new Map(model.queue.items.map((item) => [item.id, item]));
   const rows: ServiceHomeRow[] = [];
   const owe = model.radar.services[svc]?.ports?.owed.length;
   for (const { section, headline, members } of lines) {
@@ -64,10 +68,14 @@ function overviewOf(input: HomeInput, line: LineModel): ServiceHomeRow[] {
       const links = new Map((member.primary ? [member.primary] : []).map((link) => [link.url, link]));
       const extra = member.ids.filter((id) => id !== member.blockedBy).flatMap((id) => evidence.get(id) ?? []);
       for (const link of extra) if (!links.has(link.url)) links.set(link.url, { ...link, kind: link.kind ?? "other" });
+      const next = member.steps.length > 0 ? member.steps.join(" ") : nextOf.get(member.id);
+      const main = queued.get(member.id);
       rows.push({
         id: member.id, section: shared ? "shared" : section, headline,
         cause: member.cause, effect: member.effect, steps: member.steps, links: [...links.values()],
         ...(member.since ? { since: member.since } : {}),
+        ...(next && !shared ? { next } : {}),
+        ...(main?.kind === "main" && main.rerun ? failedRun(input, line, main.rerun, main.folded, [...links.values()]) : {}),
       });
     }
   }
@@ -104,11 +112,34 @@ function overviewOf(input: HomeInput, line: LineModel): ServiceHomeRow[] {
       }
     }
   }
-  return rows.sort((a, b) => overviewOrder[a.section] - overviewOrder[b.section] || oldest(a, b))
+  const leads = (row: ServiceHomeRow) => (row.id === `main:${svc}` ? 0 : 1);
+  return rows.sort((a, b) => overviewOrder[a.section] - overviewOrder[b.section] || leads(a) - leads(b) || oldest(a, b))
     .map((row) => {
       const since = age(row.since, input.now);
       return since ? { ...row, age: since } : row;
     });
+}
+
+// The red Main row: its failed attempt is the pill, its cause names the job, and a proven fold its evidence.
+function failedRun(
+  input: HomeInput, line: LineModel, rerun: RerunJudgement,
+  folded: QueueItem["folded"], links: ServiceHomeRow["links"],
+): Partial<ServiceHomeRow> {
+  const run = line.mainRed?.run;
+  if (!run) return {};
+  const job = rerun.job;
+  const attempt = rerun.later ?? rerun.attempt;
+  const pill = { label: `Attempt ${attempt}`, url: `${run.url}/attempts/${attempt}`, kind: "run" as const };
+  return {
+    links: [pill, ...links.filter(({ url }) => url !== pill.url)],
+    failure: {
+      path: [run.name || "Validation", job?.name, job?.failedStep].filter(Boolean).join(" › "),
+      ...(rerun.reason ? { reason: rerun.reason } : {}),
+      verdict: rerun.verdict,
+    },
+    ...(folded ? { evidence: `Lane deploy failed ${clockWord(folded.at, input.now)} in attempt ${folded.attempt}` } : {}),
+    ...(rerun.state === "in-flight" ? { rerunning: true as const } : {}),
+  };
 }
 
 function mergeToMain(line: LineModel) {
@@ -231,15 +262,17 @@ function stationsOf(
   }
   const last = mergeToMain(line);
   const mainRun = runs?.main[0];
-  const mainState = mainRun && mainRun.status !== "completed" ? "in-progress"
-    : runsRead && line.mainRed ? "stopped"
+  const red = runsRead ? line.mainRed : undefined;
+  const mainState = red ? "stopped"
+    : mainRun && mainRun.status !== "completed" ? "in-progress"
     : runsRead && line.mainRun?.conclusion === "success" ? "green" : "unread";
   const main: ServiceHomeStation = {
     id: "main", state: mainState, word: {
       "in-progress": "Running", stopped: "Red", green: "Green", unread: "Not read",
     }[mainState],
     ...(last ? { lastMerge: last } : {}),
-    line: last ? `PR #${last.number} merged ${clockWord(last.at, now)}`
+    line: red ? (red.later ? `${red.run.name} re-running · attempt ${red.later}` : `${red.run.name} failed ${clockWord(red.run.updatedAt, now)}`)
+      : last ? `PR #${last.number} merged ${clockWord(last.at, now)}`
       : line.past ? "No recent merge" : "Last merge not read",
   };
   return [upstream, sync, integration, main].map(attach);

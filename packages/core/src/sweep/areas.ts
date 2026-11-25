@@ -195,6 +195,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
     const retained = retain(result.data, facts.runs.data, result.reads, reads.runs ?? [], (r) => r.source);
     for (const [repo, entry] of Object.entries(retained.data)) {
       if (retained.reads.some((r) => r.source === repo && r.failure)) continue;
+      const cut = new Set<string>();
       const readJobs = async (run: typeof entry.main[number], listingOnly = false) => {
         const key = jobsKey(run);
         const known = cache.lifecycle.runJobs[key];
@@ -205,6 +206,8 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
         const jobs = await readRunJobs(gh, cache.details, repo, run, ctx, known, listingOnly);
         cache.details = jobs.cache;
         result.reads.push(...jobs.reads);
+        const listing = jobs.reads.find((r) => r.object.includes(`/runs/${run.id}/attempts/${run.attempt}/jobs`));
+        if (!listingOnly && (!listing || listing.failure || listing.completeness.kind !== "complete")) cut.add(key);
         if (jobs.data) cache.lifecycle.runJobs[key] = { data: jobs.data, reads: jobs.reads };
         return listingOnly && !settledJobReads(jobs.reads) ? undefined : jobs.data;
       };
@@ -215,12 +218,20 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
         if (jobs) entry.syncRunJobs = { [jobsKey(failedSync)]: jobs };
       }
       entry.mainRunJobs = {};
+      const newest = entry.main[0];
+      if (newest && newest.status !== "completed" && newest.attempt > 1) {
+        const failed = { ...newest, attempt: newest.attempt - 1 };
+        const jobs = await readJobs(failed);
+        if (jobs) entry.mainRunJobs[jobsKey(failed)] = jobs;
+      }
       for (const run of entry.main.filter((r) => r.status === "completed").slice(0, 5)) {
         const jobs = await readJobs(run);
         if (!jobs) break;
         entry.mainRunJobs[run.id] = jobs;
         if (javaBuilt(jobs)) break;
       }
+      if (cut.size > 0) entry.mainJobsCut = [...cut];
+      else delete entry.mainJobsCut;
       const cascade = entry.cascade[0];
       if (cascade?.status === "completed" && cascade.conclusion === "failure") {
         const jobs = await readJobs(cascade);

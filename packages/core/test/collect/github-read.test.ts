@@ -764,11 +764,13 @@ it.each([
             id: "DEP_7",
             ref: "main",
             runUrl: "https://github.com/example/fork0/actions/runs/12",
+            jobId: 34,
             deploymentUrl: "https://github.com/example/fork0/deployments/spi-stack",
           },
           { id: "DEP_8" },
         ]);
         expect(deployments?.[1]).not.toHaveProperty("runUrl");
+        expect(deployments?.[1]).not.toHaveProperty("jobId");
         expect(deployments?.[1]).not.toHaveProperty("deploymentUrl");
       } else {
         expect(deployments).toEqual([]);

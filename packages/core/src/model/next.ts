@@ -6,6 +6,7 @@ import type { FailureClass } from "./attribution.js";
 import type { ItemKind, QueueItem } from "./queue.js";
 import { APP_VOICE, type Voice } from "../voice.js";
 import { pullFailure } from "./reason.js";
+import { rerunNext } from "./rerun-rule.js";
 
 export type ItemClass =
   | FailureClass
@@ -179,6 +180,9 @@ export function nextText(
 ): string {
   if (item.judgement && (item.kind === "lanes" || item.kind === "template-red")) {
     return judgedNext(item, item.judgement, voice);
+  }
+  if (item.kind === "main" && item.rerun) {
+    return rerunNext(item.rerun, failureNext(item, voice), "main");
   }
   switch (item.kind) {
     case "halt":

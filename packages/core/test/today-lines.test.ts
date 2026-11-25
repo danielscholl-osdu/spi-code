@@ -112,10 +112,11 @@ describe("Today's situation lines", () => {
             rows.filter((row) => row.id === member.id),
             name,
           ).toHaveLength(1);
-          if (member.primary)
-            expect(rows.find((row) => row.id === member.id)?.links[0], name).toEqual(
-              member.primary,
-            );
+          const links = rows.find((row) => row.id === member.id)?.links;
+          if (member.primary && member.id.startsWith("main:")) {
+            expect(links?.[0], name).toMatchObject({ kind: "run", url: expect.stringMatching(/\/attempts\/\d+$/) });
+            expect(links, name).toContainEqual(member.primary);
+          } else if (member.primary) expect(links?.[0], name).toEqual(member.primary);
         }
       }
       for (const { service, home } of services) {

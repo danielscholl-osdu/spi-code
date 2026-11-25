@@ -258,12 +258,15 @@ function parseDeployments(repo: string, raw: RawRepo["deployments"]): Deployment
   return (raw?.nodes ?? []).flatMap((d) => {
     if (!d) return [];
     const log = d.latestStatus?.logUrl;
-    const run = log?.toLowerCase().startsWith(runs.toLowerCase())
-      ? /^(\d+)(?:\/job\/\d+)?\/?(?:[?#].*)?$/.exec(log.slice(runs.length))?.[1]
+    const match = log?.toLowerCase().startsWith(runs.toLowerCase())
+      ? /^(\d+)(?:\/job\/(\d+))?\/?(?:[?#].*)?$/.exec(log.slice(runs.length))
       : undefined;
+    const run = match?.[1];
+    const job = Number(match?.[2]);
     return [{
       ...(d.id ? { id: d.id } : {}),
       ...(run ? { runUrl: runs + run } : {}),
+      ...(Number.isSafeInteger(job) && job > 0 ? { jobId: job } : {}),
       ...(d.databaseId && Number.isSafeInteger(d.databaseId) && d.databaseId > 0
         ? { deploymentUrl: `https://github.com/${repo}/deployments/${LANE_ENVIRONMENT}` }
         : {}),
