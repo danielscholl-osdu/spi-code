@@ -53,6 +53,15 @@ const oldest = (a: ServiceHomeRow, b: ServiceHomeRow) =>
   (a.since ? Date.parse(a.since) : Infinity) - (b.since ? Date.parse(b.since) : Infinity);
 const overviewOrder = Object.freeze({ blocked: 0, waiting: 1, shared: 2, "can-wait": 3 });
 
+function causeBeside(headline: string, cause: string): string {
+  const head = headline.trim().toLowerCase();
+  const said = cause.trim().replace(/\.$/, "").toLowerCase();
+  if (said === head) return "";
+  if (!said.startsWith(`${head}: `)) return cause;
+  const rest = cause.trim().slice(head.length + 2);
+  return rest.charAt(0).toUpperCase() + rest.slice(1);
+}
+
 function overviewOf(input: HomeInput, line: LineModel): ServiceHomeRow[] {
   const { model, facts, items, lines, canWait } = input;
   const svc = line.fork.id;
@@ -68,13 +77,16 @@ function overviewOf(input: HomeInput, line: LineModel): ServiceHomeRow[] {
       const links = new Map((member.primary ? [member.primary] : []).map((link) => [link.url, link]));
       const extra = member.ids.filter((id) => id !== member.blockedBy).flatMap((id) => evidence.get(id) ?? []);
       for (const link of extra) if (!links.has(link.url)) links.set(link.url, { ...link, kind: link.kind ?? "other" });
-      const next = member.steps.length > 0 ? member.steps.join(" ") : nextOf.get(member.id);
+      const own = member.steps.length > 0 ? member.steps.join(" ") : nextOf.get(member.id);
+      // A member with no queue item, such as a template rollout PR, carries its move as its cause.
+      const next = shared ? undefined : own ?? member.cause;
+      const cause = !shared && own === undefined ? "" : causeBeside(headline, member.cause);
       const main = queued.get(member.id);
       rows.push({
         id: member.id, section: shared ? "shared" : section, headline,
-        cause: member.cause, effect: member.effect, steps: member.steps, links: [...links.values()],
+        cause, effect: member.effect, steps: member.steps, links: [...links.values()],
         ...(member.since ? { since: member.since } : {}),
-        ...(next && !shared ? { next } : {}),
+        ...(next ? { next } : {}),
         ...(main?.kind === "main" && main.rerun ? failedRun(input, line, main.rerun, main.folded, [...links.values()]) : {}),
       });
     }

@@ -12652,7 +12652,7 @@
             "id": "rollout:partition",
             "section": "waiting",
             "headline": "Template 7d269b5 not synced yet",
-            "cause": "Review the template sync PR.",
+            "cause": "",
             "effect": "",
             "steps": [],
             "links": [
@@ -12663,7 +12663,8 @@
               }
             ],
             "since": "2026-11-06T08:03:42Z",
-            "age": "5h"
+            "age": "5h",
+            "next": "Review the template sync PR."
           },
           {
             "id": "port:entitlements",
@@ -14337,7 +14338,7 @@
             "id": "release-red:Azure/osdu-spi-entitlements#89",
             "section": "waiting",
             "headline": "Release PR #89 fails 📊 Code Coverage",
-            "cause": "Release PR #89 fails 📊 Code Coverage.",
+            "cause": "",
             "effect": "Nothing else waits on it.",
             "steps": [],
             "links": [
@@ -14360,7 +14361,7 @@
             "id": "rollout:entitlements",
             "section": "waiting",
             "headline": "Template 7d269b5 not synced yet",
-            "cause": "Review the template sync PR.",
+            "cause": "",
             "effect": "",
             "steps": [],
             "links": [
@@ -14371,7 +14372,8 @@
               }
             ],
             "since": "2026-11-06T08:11:20Z",
-            "age": "5h"
+            "age": "5h",
+            "next": "Review the template sync PR."
           },
           {
             "id": "port:entitlements",
@@ -15968,7 +15970,7 @@
             "id": "rollout:legal",
             "section": "waiting",
             "headline": "Template 7d269b5 not synced yet",
-            "cause": "Review the template sync PR.",
+            "cause": "",
             "effect": "",
             "steps": [],
             "links": [
@@ -15979,7 +15981,8 @@
               }
             ],
             "since": "2026-11-06T08:11:14Z",
-            "age": "5h"
+            "age": "5h",
+            "next": "Review the template sync PR."
           },
           {
             "id": "port:entitlements",
@@ -17158,7 +17161,7 @@
             "id": "rollout:schema",
             "section": "waiting",
             "headline": "Template 7d269b5 not synced yet",
-            "cause": "Review the template sync PR.",
+            "cause": "",
             "effect": "",
             "steps": [],
             "links": [
@@ -17169,7 +17172,8 @@
               }
             ],
             "since": "2026-11-06T08:13:54Z",
-            "age": "5h"
+            "age": "5h",
+            "next": "Review the template sync PR."
           },
           {
             "id": "port:entitlements",
@@ -18426,7 +18430,7 @@
             "id": "rollout:file",
             "section": "waiting",
             "headline": "Template 7d269b5 not synced yet",
-            "cause": "Review the template sync PR.",
+            "cause": "",
             "effect": "",
             "steps": [],
             "links": [
@@ -18437,7 +18441,8 @@
               }
             ],
             "since": "2026-11-06T08:10:29Z",
-            "age": "5h"
+            "age": "5h",
+            "next": "Review the template sync PR."
           },
           {
             "id": "port:entitlements",
@@ -19790,7 +19795,7 @@
             "id": "rollout:storage",
             "section": "waiting",
             "headline": "Template 7d269b5 not synced yet",
-            "cause": "Review the template sync PR.",
+            "cause": "",
             "effect": "",
             "steps": [],
             "links": [
@@ -19801,7 +19806,8 @@
               }
             ],
             "since": "2026-11-06T08:08:35Z",
-            "age": "5h"
+            "age": "5h",
+            "next": "Review the template sync PR."
           },
           {
             "id": "port:entitlements",
@@ -20922,7 +20928,7 @@
             "id": "rollout:indexer",
             "section": "waiting",
             "headline": "Template 7d269b5 not synced yet",
-            "cause": "Review the template sync PR.",
+            "cause": "",
             "effect": "",
             "steps": [],
             "links": [
@@ -20933,7 +20939,8 @@
               }
             ],
             "since": "2026-11-06T08:07:07Z",
-            "age": "5h"
+            "age": "5h",
+            "next": "Review the template sync PR."
           },
           {
             "id": "port:entitlements",
@@ -22022,7 +22029,7 @@
             "id": "rollout:search",
             "section": "waiting",
             "headline": "Template 7d269b5 not synced yet",
-            "cause": "Review the template sync PR.",
+            "cause": "",
             "effect": "",
             "steps": [],
             "links": [
@@ -22033,7 +22040,8 @@
               }
             ],
             "since": "2026-11-06T08:17:26Z",
-            "age": "5h"
+            "age": "5h",
+            "next": "Review the template sync PR."
           },
           {
             "id": "port:entitlements",
@@ -23137,7 +23145,7 @@
             "id": "rollout:workflow",
             "section": "waiting",
             "headline": "Template 7d269b5 not synced yet",
-            "cause": "Review the template sync PR.",
+            "cause": "",
             "effect": "",
             "steps": [],
             "links": [
@@ -23148,7 +23156,8 @@
               }
             ],
             "since": "2026-11-06T08:15:40Z",
-            "age": "5h"
+            "age": "5h",
+            "next": "Review the template sync PR."
           },
           {
             "id": "port:entitlements",
@@ -24122,7 +24131,7 @@
             "id": "rollout:indexer-queue",
             "section": "waiting",
             "headline": "Template 7d269b5 not synced yet",
-            "cause": "Review the template sync PR.",
+            "cause": "",
             "effect": "",
             "steps": [],
             "links": [
@@ -24133,7 +24142,8 @@
               }
             ],
             "since": "2026-11-06T08:04:55Z",
-            "age": "5h"
+            "age": "5h",
+            "next": "Review the template sync PR."
           },
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-indexer-queue/pull/45",
@@ -25169,7 +25179,7 @@
             "id": "rollout:unit",
             "section": "waiting",
             "headline": "Template 7d269b5 not synced yet",
-            "cause": "Review the template sync PR.",
+            "cause": "",
             "effect": "",
             "steps": [],
             "links": [
@@ -25180,7 +25190,8 @@
               }
             ],
             "since": "2026-11-06T08:11:54Z",
-            "age": "5h"
+            "age": "5h",
+            "next": "Review the template sync PR."
           },
           {
             "id": "port:entitlements",
@@ -26071,7 +26082,7 @@
             "id": "rollout:crs-catalog",
             "section": "waiting",
             "headline": "Template 7d269b5 not synced yet",
-            "cause": "Review the template sync PR.",
+            "cause": "",
             "effect": "",
             "steps": [],
             "links": [
@@ -26082,7 +26093,8 @@
               }
             ],
             "since": "2026-11-06T08:12:11Z",
-            "age": "5h"
+            "age": "5h",
+            "next": "Review the template sync PR."
           },
           {
             "id": "port:entitlements",
@@ -26947,7 +26959,7 @@
             "id": "rollout:crs-conversion",
             "section": "waiting",
             "headline": "Template 7d269b5 not synced yet",
-            "cause": "Review the template sync PR.",
+            "cause": "",
             "effect": "",
             "steps": [],
             "links": [
@@ -26958,7 +26970,8 @@
               }
             ],
             "since": "2026-11-06T08:13:48Z",
-            "age": "5h"
+            "age": "5h",
+            "next": "Review the template sync PR."
           },
           {
             "id": "port:entitlements",

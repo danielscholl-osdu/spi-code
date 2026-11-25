@@ -1012,3 +1012,74 @@ describe("a red Main", () => {
     );
   });
 });
+
+describe("an Overview row's cause", () => {
+  test("drops the headline it repeats and keeps what it adds", () => {
+    const { facts, github } = handBuilt();
+    github.issues = [issue({ labels: ["upstream-sync", "cascade-failed"] })];
+    const { home, homes } = project(facts);
+    expect(home.overview.find(({ id }) => id === `cascade:${service}`)).toMatchObject({
+      cause: "Tracking issue labeled cascade-failed.",
+      next: expect.any(String),
+    });
+    expect(
+      homes.get("indexer")?.overview.find(({ id }) => id === "sync-run:indexer"),
+    ).toMatchObject({
+      headline: "Sync Upstream failed with halt issue #72 open",
+      cause: "",
+      next: "Read halt issue #72, then open the failed Sync Upstream run.",
+    });
+  });
+
+  test("of a template rollout PR becomes its next move", () => {
+    const facts = sweep1116Facts();
+    const model = buildModel(facts, sweep, { dismissed: [] }, context);
+    const items = sweep1116Items(model);
+    const lines = todayLines(model, items, sweep, context);
+    const { canWait } = todaySummary({
+      model,
+      facts,
+      items,
+      lines,
+      since: undefined,
+      now: sweep,
+      context,
+    });
+    const prUrl = `${url}/pull/101`;
+    const waiting = lines.find(({ section }) => section === "waiting");
+    if (!waiting) throw new Error("a Waiting line");
+    lines.push({
+      ...waiting,
+      headline: "Template db4159d not synced yet",
+      members: [
+        {
+          id: `rollout:${service}`,
+          ids: [`rollout:${service}`],
+          fork: service,
+          station: "template",
+          subject: prUrl,
+          primary: { kind: "pr", label: "PR #101", url: prUrl },
+          cause: "Review the template sync PR.",
+          effect: "",
+          steps: [],
+          evidence: { areas: [], attributed: "sweep", notRead: [] },
+        },
+      ],
+    });
+    const home = serviceHome({
+      model,
+      facts,
+      lines,
+      items,
+      canWait,
+      versions: [],
+      now: sweep,
+      reads: {},
+    }).get(service);
+    expect(home?.overview.find(({ id }) => id === `rollout:${service}`)).toMatchObject({
+      section: "waiting",
+      cause: "",
+      next: "Review the template sync PR.",
+    });
+  });
+});

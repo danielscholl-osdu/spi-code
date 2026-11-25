@@ -48,17 +48,19 @@ function RowLines({ row }: { row: ServiceHomeRow }) {
   const { failure } = row;
   return (
     <>
-      <p className="service-row-cause">
-        {failure ? (
-          <>
-            <span className="service-row-path">{plainTitle(failure.path)}</span>
-            {failure.reason && ` · ${plainTitle(failure.reason)}`}{" "}
-            <span className="service-row-verdict">{failure.verdict}</span>
-          </>
-        ) : (
-          plainTitle(row.cause)
-        )}
-      </p>
+      {(failure || row.cause) && (
+        <p className="service-row-cause">
+          {failure ? (
+            <>
+              <span className="service-row-path">{plainTitle(failure.path)}</span>
+              {failure.reason && ` · ${plainTitle(failure.reason)}`}{" "}
+              <span className="service-row-verdict">{failure.verdict}</span>
+            </>
+          ) : (
+            plainTitle(row.cause)
+          )}
+        </p>
+      )}
       {row.evidence && <p className="service-row-evidence">{plainTitle(row.evidence)}</p>}
       {row.next && (
         <p className="service-row-next">
