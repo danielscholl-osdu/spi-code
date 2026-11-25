@@ -1,0 +1,233 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<title>Service Overview Draft 1</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--border:#d4d4d8;--card:#ffffff;--foreground:#27272a;--background:#f4f4f5;--muted-foreground:#52525b;--radius:10px}
+body{margin:0;padding:24px;max-width:760px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;background:#f4f4f5;color:#27272a}
+.mock{
+  --w-page:#faf8f4; --w-surface:#fffdf9; --w-raised:#f3efe7;
+  --w-border:#e3ddd1; --w-border-soft:#ece7dd;
+  --w-text:#2a2723; --w-strong:#14120f; --w-muted:#665f4f;
+  --w-error:#b2412b; --w-error-surface:#f7e2da; --w-error-edge:#e9b9aa;
+  --w-warning:#94600e; --w-warning-surface:#f8ecd1;
+  --w-accent:#1d7a6c; --w-accent-text:#1b7366; --w-accent-surface:#e3f1ed;
+  --w-work:#2d6aa3;
+  --w-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+  background:var(--w-page); color:var(--w-text); font-size:13px; line-height:1.45;
+  border:1px solid var(--w-border); border-radius:var(--radius,10px); padding:16px;
+}
+.mock *{box-sizing:border-box}
+.mock a,.mock button{font:inherit}
+.switch{display:flex;gap:6px;margin:0 0 12px;flex-wrap:wrap}
+.switch button{font:inherit;font-size:12px;border:1px solid var(--border);background:var(--card);color:var(--foreground);border-radius:999px;padding:3px 11px;cursor:pointer}
+.switch button[aria-pressed=true]{background:var(--foreground);color:var(--background);border-color:var(--foreground)}
+
+.top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid var(--w-border-soft)}
+.top b{font-size:15px;color:var(--w-strong)}
+.pill{display:inline-flex;align-items:center;gap:3px;border:1px solid currentColor;border-radius:999px;padding:0 7px;font-size:11.5px;line-height:18px;white-space:nowrap;text-decoration:none;background:transparent;cursor:pointer}
+.pill.repo,.pill.run{color:var(--w-text);border-color:var(--w-border)}
+.pill.pr{color:var(--w-accent)} .pill.issue{color:var(--w-work)}
+.pill.primary{color:var(--w-error);border-color:var(--w-error-edge);background:var(--w-surface);font-weight:600}
+.pill.op{color:var(--w-accent-text);background:var(--w-accent-surface);border-color:transparent;font-weight:600}
+.kbd{font-family:var(--w-mono);font-size:10px;color:var(--w-muted);border:1px solid var(--w-border);border-radius:4px;padding:0 3px;margin-left:4px}
+.ver{color:var(--w-muted);font-size:12.5px}
+
+.flow{display:grid;grid-template-columns:1fr 1fr 1fr 1.1fr;gap:10px;margin:14px 0 6px}
+.st{border:1px solid var(--w-border);border-radius:8px;padding:7px 10px;background:var(--w-surface);min-width:0}
+.st .k{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--w-muted);font-weight:600}
+.st .v{font-weight:600;color:var(--w-strong)}
+.st .s{font-size:12px;color:var(--w-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st.red{background:var(--w-error-surface);border-color:var(--w-error-edge)}
+.st.red .k,.st.red .v,.st.red .s{color:var(--w-error)}
+.doors{font-size:12px;color:var(--w-muted);margin:0 0 12px;display:flex;gap:16px;flex-wrap:wrap}
+.doors b{color:var(--w-text)}
+
+.tabs{display:flex;gap:18px;border-bottom:1px solid var(--w-border-soft);margin-bottom:12px;font-size:13px;color:var(--w-muted);flex-wrap:wrap}
+.tabs span{padding:6px 0}
+.tabs .on{color:var(--w-strong);font-weight:600;box-shadow:inset 0 -2px 0 var(--w-strong)}
+.tabs .n{font-size:11px;background:var(--w-raised);border-radius:999px;padding:0 6px;margin-left:3px}
+
+.sec{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;margin:14px 0 6px}
+.dot{width:7px;height:7px;border-radius:50%}
+.sec.b .dot{background:var(--w-error)} .sec.w .dot{background:var(--w-warning)}
+.sec .c{color:var(--w-muted);font-weight:500}
+
+.list{border:1px solid var(--w-border);border-radius:8px;background:var(--w-surface);overflow:hidden}
+.row{position:relative;padding:9px 12px 10px 15px;border-top:1px solid var(--w-border-soft)}
+.row:first-child{border-top:0}
+.row::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px}
+.row.blk::before{background:var(--w-error)} .row.wt::before{background:var(--w-warning)}
+.row.lead{background:linear-gradient(90deg,var(--w-error-surface),var(--w-surface) 75%)}
+.h{display:flex;align-items:center;gap:8px}
+.h .t{all:unset;font-weight:600;color:var(--w-strong);flex:1;min-width:0;cursor:pointer}
+.h .t::after{content:" ▾";color:var(--w-muted);font-weight:400;font-size:11px}
+.h .t[aria-expanded=true]::after{content:" ▴"}
+.h .age{font-size:12px;color:var(--w-muted);width:30px;text-align:right;font-variant-numeric:tabular-nums}
+.cause{font-size:12px;color:var(--w-muted);margin-top:2px}
+.cause .p{font-family:var(--w-mono);font-size:11.5px}
+.cause .verdict{color:var(--w-text);border:1px solid var(--w-border);border-radius:4px;padding:0 5px;font-size:11px;margin-left:2px;background:var(--w-raised)}
+.ev{font-size:12px;color:var(--w-muted);margin-top:1px}
+.next{display:flex;align-items:baseline;gap:8px;margin-top:5px;font-size:13px}
+.next .arr{color:var(--w-muted);font-weight:600}
+.spin{display:inline-block;width:10px;height:10px;border:2px solid var(--w-accent-surface);border-top-color:var(--w-accent);border-radius:50%;animation:sp 1s linear infinite;vertical-align:-1px;margin-right:4px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none;border-color:var(--w-accent)}}
+
+.body{display:none;margin:9px 0 0;padding-top:9px;border-top:1px dashed var(--w-border)}
+.row.open .body{display:block}
+.body p{margin:0 0 7px;font-size:12.5px}
+.acts{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ask{all:unset;font-size:12px;color:var(--w-text);border-bottom:1px dotted var(--w-muted);cursor:pointer;margin-left:4px}
+.card{display:none;margin:10px 0 0;border:1px solid var(--w-border);border-left:3px solid var(--w-warning);border-radius:8px;background:var(--w-surface);padding:9px 11px}
+.card .hd{display:flex;justify-content:space-between;gap:8px}
+.card .hd b{color:var(--w-strong)}
+.card .stt{font-size:11.5px;color:var(--w-warning);font-weight:600;white-space:nowrap}
+.card .cb{font-size:12px;color:var(--w-muted);margin:3px 0 8px}
+.card .ca{display:flex;gap:6px;justify-content:flex-end}
+.btn{border-radius:6px;padding:3px 11px;cursor:pointer;font-size:12px;border:1px solid var(--w-border);background:var(--w-surface);color:var(--w-text)}
+.btn.pri{background:var(--w-accent);border-color:var(--w-accent);color:#fff;font-weight:600}
+
+.fold{all:unset;box-sizing:border-box;display:flex;width:100%;justify-content:space-between;padding:8px 12px;color:var(--w-muted);font-size:12.5px;cursor:pointer;border-top:1px solid var(--w-border-soft)}
+.fold:first-child{border-top:0}
+.fold b{color:var(--w-text);font-weight:600}
+.fold[aria-expanded=true] .chev{transform:rotate(90deg)}
+.chev{display:inline-block}
+.foldbody{padding:0 12px 8px;font-size:12.5px}
+.foldbody div{display:flex;gap:8px;align-items:center;padding:5px 0;border-top:1px solid var(--w-border-soft)}
+.foldbody .age{margin-left:auto;font-size:12px;color:var(--w-muted)}
+
+.mode{display:none}
+.mock[data-mode=now] .m-now,.mock[data-mode=m4] .m-m4,.mock[data-mode=held] .m-held,.mock[data-mode=fly] .m-fly{display:revert}
+.mock[data-card=on] .card{display:block}
+
+.notes{margin:14px 2px 0;display:grid;gap:8px;font-size:13px}
+.notes div{display:grid;grid-template-columns:22px 1fr;gap:6px}
+.notes b.n{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1px solid var(--border);font-size:11px}
+.notes .m{color:var(--muted-foreground)}
+.mock :focus-visible{outline:2px solid var(--w-accent);outline-offset:2px}
+.mock .fold:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--w-accent)}
+.st.btn-st{all:unset;box-sizing:border-box;border:1px solid var(--w-error-edge);border-radius:8px;padding:7px 10px;background:var(--w-error-surface);min-width:0;cursor:pointer}
+@media (max-width:560px){.flow{grid-template-columns:1fr 1fr}}
+</style></head>
+<body>
+<div class="switch" role="group" aria-label="State">
+  <button data-m="now" aria-pressed="true">Now · before M4</button>
+  <button data-m="m4" aria-pressed="false">At M4</button>
+  <button data-m="held" aria-pressed="false">At M4 · environment held</button>
+  <button data-m="fly" aria-pressed="false">Rerun in flight</button>
+</div>
+
+<div class="mock" id="mock" data-mode="now" data-card="off">
+  <div class="top">
+    <b>indexer</b>
+    <a class="pill repo" href="#">Azure/osdu-spi-indexer ↗</a>
+    <span class="ver">v1.4.0 → 1.4.1 · patch</span>
+    <a class="pill pr" href="#">PR #33 ↗</a>
+    <span class="pill repo">behind</span>
+  </div>
+
+  <div class="flow">
+    <div class="st"><div class="k">Upstream</div><div class="v">Sync current</div><div class="s">next sync 18:00</div></div>
+    <div class="st"><div class="k">Sync PR</div><div class="v">None open</div><div class="s">&nbsp;</div></div>
+    <div class="st red"><div class="k">× Integration</div><div class="v">Stopped</div><div class="s">merge conflict · Sat</div></div>
+    <button class="st red btn-st" id="mainst" aria-label="Main is red, open its row"><div class="k">× Main</div><div class="v">Red</div>
+      <div class="s"><span class="mode m-now m-m4 m-held">Validation failed 08:46</span><span class="mode m-fly">Validation re-running · attempt 2</span></div></button>
+  </div>
+  <div class="doors"><span>Template <b>1 open</b></span><span>Release <b>1 open</b></span><span>Other PRs <b>None open</b></span><span>Dependabot <b>1 open</b></span></div>
+
+  <div class="tabs"><span class="on">Overview</span><span>Upstream<span class="n">3</span></span><span>Pull requests<span class="n">3</span></span><span>Issues</span><span>Runs<span class="n">2</span></span><span>Security<span class="n">2</span></span><span>Threads</span></div>
+
+  <div class="sec b"><span class="dot"></span>Blocked <span class="c">2</span></div>
+  <div class="list">
+    <div class="row blk lead open" id="main">
+      <div class="h">
+        <button class="t" aria-expanded="true">Main is red</button>
+        <a class="pill primary mode m-now m-m4 m-held" href="#">▶ Attempt 1 ↗<span class="kbd">⌘↵</span></a>
+        <a class="pill primary mode m-fly" href="#">▶ Attempt 2 ↗<span class="kbd">⌘↵</span></a>
+        <span class="age"><span class="mode m-now m-m4 m-held">13m</span><span class="mode m-fly">15m</span></span>
+      </div>
+      <div class="cause"><span class="p">Validation › Deploy and Test › Prove</span> · <span class="mode m-now m-m4 m-fly">environment timeout</span><span class="mode m-held">stack not deployable</span> <span class="verdict">Environment</span></div>
+      <div class="ev">Lane deploy failed 08:44 in attempt 1<span class="mode m-now m-m4"> · Environment deployable again since 08:52</span><span class="mode m-held"> · Environment held for maintenance</span></div>
+      <div class="next">
+        <span class="arr" aria-hidden="true">→</span>
+        <span class="mode m-now m-m4">Re-run the failed jobs once. If it fails again, diagnose.</span>
+        <span class="mode m-held">Re-run the failed jobs once the environment reads deployable.</span>
+        <span class="mode m-fly"><span class="spin" aria-hidden="true"></span>Re-run in flight, attempt 2 running 2m. If it fails again, diagnose the failed jobs.</span>
+      </div>
+      <div class="body">
+        <p>Failed in attempt 1: Deploy and Test (Prove). Validation Summary repeats it.</p>
+        <div class="acts">
+          <button class="pill op mode m-m4" data-card>▸ Re-run failed jobs</button>
+          <button class="pill op mode m-held" data-card>▸ Re-run when deployable</button>
+          <a class="pill run" href="#">Deployments ↗</a>
+          <a class="pill run" href="#">Runs tab</a>
+          <button class="ask">Ask about this</button>
+        </div>
+        <div class="card" role="group" aria-label="Approval card" tabindex="-1" id="card">
+          <div class="hd"><b>Re-run failed jobs</b><span class="stt"><span class="mode m-m4">Pending · Change</span><span class="mode m-held">Pending · waits for deployable</span></span></div>
+          <div class="cb">
+            <span class="mode m-m4">rerun · Validation run 18842, attempt 1: Deploy and Test. Runs only if this is still the run that turned main red and no newer Validation run on main is queued or running.</span>
+            <span class="mode m-held">rerun · Validation run 18842, attempt 1: Deploy and Test. Waits until the environment reads deployable, then checks again that this is still the run that turned main red and no newer Validation run on main is queued or running.</span>
+          </div>
+          <div class="ca"><button class="btn" id="decline">Decline</button><button class="btn pri">Approve</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="row blk">
+      <div class="h"><button class="t" aria-expanded="false">Cascade stopped</button><a class="pill issue" href="#">⊙ Issue #86 ↗</a><span class="age">4d</span></div>
+      <div class="cause"><span class="p">Cascade Integration › Merge upstream into fork_integration</span> · conflict</div>
+      <div class="next"><span class="arr" aria-hidden="true">→</span><span>Resolve the conflict named in the issue on the fork, then dispatch the cascade.</span></div>
+      <div class="body"><div class="acts"><a class="pill run" href="#">Cascade run ↗</a><button class="ask">Ask about this</button></div></div>
+    </div>
+  </div>
+
+  <div class="sec w"><span class="dot"></span>Waiting on you <span class="c">1</span></div>
+  <div class="list">
+    <div class="row wt">
+      <div class="h"><button class="t" aria-expanded="false">Template db4159d not synced yet</button><a class="pill pr" href="#">PR #101 ↗</a><span class="age">6h</span></div>
+      <div class="cause">Sync Template opened PR #101 at 02:07</div>
+      <div class="next"><span class="arr" aria-hidden="true">→</span><span>Review PR #101 on GitHub.</span></div>
+      <div class="body"><div class="acts"><a class="pill run" href="#">Template ↗</a><button class="ask">Ask about this</button></div></div>
+    </div>
+  </div>
+
+  <div class="list" style="margin-top:14px">
+    <button class="fold" aria-expanded="false" aria-controls="f-shared"><span><b>Shared work</b> · 23 upstream provider changes to port · Counted on Upstream</span><span class="chev" aria-hidden="true">▸</span></button>
+    <div class="foldbody" id="f-shared" hidden><div>23 upstream provider changes to port <a class="pill pr" style="color:#9d2d7c" href="#">MR !968 ↗</a> <span class="age">72d</span></div></div>
+    <button class="fold" aria-expanded="false" aria-controls="f-wait"><span><b>Can wait 3</b> · CSRF alert · Release PR #33 · Dependabot PR #97</span><span class="chev" aria-hidden="true">▸</span></button>
+    <div class="foldbody" id="f-wait" hidden>
+      <div>Disabled Spring CSRF protection <a class="pill run" href="#">Alert ↗</a> <span class="age">42d</span></div>
+      <div>Chore: release 1.4.1 · review required <a class="pill pr" href="#">PR #33 ↗</a> <span class="age">33d</span></div>
+      <div>Bump io.netty:netty-transport to 4.1.141.Final · review required <a class="pill pr" href="#">PR #97 ↗</a> <span class="age">2d</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="notes">
+  <div><b class="n">1</b><span><b>A closed row explains itself.</b> <span class="m">Headline and primary source, then cause in muted type with a verdict tag, an evidence line when there is one, and → the next move. No field labels.</span></span></div>
+  <div><b class="n">2</b><span><b>The opened row is where you act.</b> <span class="m">Its action row holds the ▸ operation at M4 (the kit's tinted pill), the other sources, and Ask about this. The card opens at the row's foot and takes focus; Decline returns it.</span></span></div>
+  <div><b class="n">3</b><span><b>One place is loud.</b> <span class="m">Only the row that explains red Main is washed. Other rows carry a thin edge in their section colour.</span></span></div>
+  <div><b class="n">4</b><span><b>States stay honest.</b> <span class="m">Held offers the rerun only as a wait. In flight drops the operation, points the pill at attempt 2, and keeps the row Blocked until a result lands. The evidence line names attempt 1 throughout.</span></span></div>
+</div>
+
+<script>
+const mock=document.getElementById('mock'), card=document.getElementById('card');
+document.querySelectorAll('.switch button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.switch button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  mock.dataset.mode=b.dataset.m; mock.dataset.card='off';
+});
+document.querySelectorAll('.h .t').forEach(t=>t.onclick=()=>{
+  const row=t.closest('.row'); const open=row.classList.toggle('open'); t.setAttribute('aria-expanded',open);
+});
+document.querySelectorAll('.fold').forEach(f=>f.onclick=()=>{
+  const open=f.getAttribute('aria-expanded')!=='true'; f.setAttribute('aria-expanded',open);
+  document.getElementById(f.getAttribute('aria-controls')).hidden=!open;
+});
+document.getElementById('mainst').onclick=()=>{const r=document.getElementById('main');r.classList.add('open');const t=r.querySelector('.t');t.setAttribute('aria-expanded',true);t.focus();};
+let opener=null;
+document.querySelectorAll('[data-card]').forEach(b=>b.onclick=()=>{opener=b; mock.dataset.card='on'; card.focus();});
+document.getElementById('decline').onclick=()=>{mock.dataset.card='off'; opener&&opener.focus();};
+</script>
+</body></html>

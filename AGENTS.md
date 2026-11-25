@@ -8,7 +8,7 @@ A macOS and Windows desktop app for running the OSDU SPI program, with GitHub Co
 - `design/spi-code-window-layout.html`: the window's layout (the top row, flush and resizable panes in a width budget, where rows and popovers open, and the Settings dialog with Readiness and Appearance)
 - `design/spi-code-visual-design.html`: the palette, the component kit, the thread and hand-off design, and the T3 Code source map
 - `design/spi-code-today-and-places.md` with its mock `design/spi-code-today-and-places.html`: the settled Today table, rows that open in place, popovers on the places, the Evidence page, and no side panel outside a thread
-- `design/spi-code-service-home.md` with its mock `design/spi-code-service-home.html`: the home of one fork, its pinned sidebar row and search result, and Today with the fleet flow and Forks tab
+- `design/spi-code-service-home.md` with its mocks `design/spi-code-service-home.html` and `design/spi-code-service-overview.html` (Overview's rows, cause and next move): the home of one fork, its pinned sidebar row and search result, and Today with the fleet flow and Forks tab
 - `design/spi-code-environment.md` with its mock `design/spi-code-environment.html`: the Environment place, who has the environment and for how long, its timeline and its Stack lanes
 - `design/spi-code-threads.md` with its mock `design/spi-code-threads.html`: threads, their scopes and Lands in, how a thread starts, what Copilot is told, and what Copilot may do in the sandbox
 - `design/spi-code-security.md` with its mock `design/spi-code-security.html`: the Security place, where open alerts pile up by rule and by repository, what is not read and where ≥ sits
