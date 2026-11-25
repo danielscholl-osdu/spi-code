@@ -191,7 +191,7 @@ const RUN_FIELDS =
 const RUNS_JQ = `{total: .total_count, runs: [.workflow_runs[] | ${RUN_FIELDS}]}`;
 const SERVICE_RUN_PAGE = `${REPO}actions/runs\\?per_page=60&created=%3E%3D\\d{4}-\\d\\d-\\d\\dT\\d\\d%3A\\d\\d%3A\\d\\dZ`;
 const SERVICE_RUN_JQ =
-  "{total: .total_count, runs: [.workflow_runs[] | {id, workflowId: .workflow_id, name, path, attempt: .run_attempt, status, conclusion, createdAt: .created_at, startedAt: .run_started_at, url: .html_url}]}";
+  "{total: .total_count, runs: [.workflow_runs[] | {id, workflowId: .workflow_id, name, path, branch: .head_branch, attempt: .run_attempt, status, conclusion, createdAt: .created_at, startedAt: .run_started_at, updatedAt: .updated_at, url: .html_url}]}";
 const JOB_JQ =
   "{id, name, status, conclusion, started_at, completed_at, html_url, run_attempt, steps: [(.steps // [])[] | {number, name, status, conclusion, started_at, completed_at}]}";
 const COMPARE_JQ =

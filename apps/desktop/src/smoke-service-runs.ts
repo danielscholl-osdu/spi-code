@@ -8,7 +8,13 @@ export const RUNS_FAILURE = ".service-page[aria-label=search] .service-run-failu
 
 export function withSmokeServiceRuns(snapshot: ViewSnapshot): ViewSnapshot {
   const end = Date.parse(snapshot.sweptAt);
-  function entry(workflowId: number, name: string, index: number, result: string) {
+  function entry(
+    workflowId: number,
+    name: string,
+    index: number,
+    result: string,
+    branch: string | undefined,
+  ) {
     const id = 42100000000 + workflowId * 100 + index;
     const startedAt = new Date(end - index * 8 * 60 * 60 * 1000).toISOString();
     const pending = result === "in_progress" || result === "queued";
@@ -16,6 +22,7 @@ export function withSmokeServiceRuns(snapshot: ViewSnapshot): ViewSnapshot {
       id,
       workflowId,
       name,
+      ...(branch ? { branch } : {}),
       attempt: 1,
       status: pending ? result : "completed",
       ...(pending ? {} : { conclusion: result }),
@@ -35,19 +42,31 @@ export function withSmokeServiceRuns(snapshot: ViewSnapshot): ViewSnapshot {
   }
   const scenarios = [
     ["Sync Upstream", ["success", "success", "success", "failure", "in_progress"]],
-    ["Validation", ["success", "failure", "success", "cancelled", "skipped", "success"]],
+    ["Validation", ["success", "success", "cancelled", "skipped", "success", "failure"]],
     ["Cascade Integration", ["success", "success", "success", "success"]],
-    ["Publish dependency reports for the release branch", ["success", "queued"]],
+    ["Publish dependency reports for the release branch", ["queued", "in_progress"]],
     ["Sync Template", ["success", "success", "success", "success", "success", "success"]],
     ["Copilot Code Review", ["success"]],
     ["Dependabot Updates", ["success", "success"]],
   ] as const;
   const workflows = scenarios.map(([name, results], index) => {
     const id = index + 1;
+    const branch = index === 3 ? undefined : "main";
+    const runs = results.map((result, at) => entry(id, name, results.length - at, result, branch));
+    const shown =
+      runs.filter(({ result }) => result === "success" || result === "failure").at(-1) ??
+      runs.at(-1);
+    if (!shown) throw new Error(`Runs capture requires a run of ${name}`);
     return {
       id,
       name,
-      runs: results.map((result, at) => entry(id, name, results.length - at, result)),
+      runs,
+      label: {
+        result: shown.result,
+        tone: shown.tone,
+        at: shown.startedAt,
+        ...(branch ? { branch } : {}),
+      },
       ...(index >= 5 ? { automation: true as const } : {}),
     };
   });
@@ -82,6 +101,8 @@ export function withSmokeServiceRuns(snapshot: ViewSnapshot): ViewSnapshot {
                 { run: failed, job: "Sync upstream", step: "Update upstream branch" },
                 {
                   run: main,
+                  job: "Deploy and Test",
+                  step: "Prove",
                   main: {
                     id: main.id,
                     attempt: main.attempt,

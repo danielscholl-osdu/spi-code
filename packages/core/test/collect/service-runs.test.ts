@@ -72,7 +72,10 @@ async function fixture(
         expect(args[0]).toBe("api");
         const path = args[1] ?? "";
         paths.push(path);
-        if (!path.includes("/jobs?")) expect(args[3]).toMatch(/\bpath\b/);
+        if (!path.includes("/jobs?")) {
+          for (const field of [/\bpath\b/, /\.head_branch\b/, /\.updated_at\b/])
+            expect(args[3]).toMatch(field);
+        }
         const reply = path.includes("/jobs?")
           ? jobsFor(path)
           : path === workflowRunsPath
@@ -118,6 +121,43 @@ test("parses one bounded page, groups by workflow ID and orders by start time", 
         runs: [{ id: 3, result: "queued", tone: "work", startedAt: undefined }],
       },
     ],
+  });
+});
+
+test("labels a strip with its latest decisive result on main, not a later pass on a PR branch", async () => {
+  const failedOnMain = run(1, {
+    branch: "main",
+    conclusion: "failure",
+    createdAt: "2026-11-16T08:05:00Z",
+    startedAt: "2026-11-16T08:06:00Z",
+    updatedAt: "2026-11-16T08:46:00Z",
+  });
+  const passedOnPr = [9, 20].map((minute, index) =>
+    run(2 + index, {
+      branch: "feature/search",
+      createdAt: `2026-11-16T08:${String(minute).padStart(2, "0")}:00Z`,
+      startedAt: `2026-11-16T08:${String(minute).padStart(2, "0")}:00Z`,
+      updatedAt: "2026-11-16T08:30:00Z",
+    }),
+  );
+  const { view } = await fixture({ total: 3, runs: [...passedOnPr, failedOnMain] });
+  expect(view).toMatchObject({
+    workflows: [
+      {
+        runs: [{ id: 1, branch: "main" }, { id: 2 }, { id: 3 }],
+        label: { result: "failure", tone: "error", at: "2026-11-16T08:46:00Z", branch: "main" },
+      },
+    ],
+  });
+  const { view: unscoped } = await fixture({
+    total: 3,
+    runs: [failedOnMain, ...passedOnPr].map((entry) => ({ ...entry, branch: null })),
+  });
+  if (unscoped.kind !== "read") throw new Error("Runs must be read");
+  expect(unscoped.workflows[0]?.label).toEqual({
+    result: "success",
+    tone: "success",
+    at: "2026-11-16T08:30:00Z",
   });
 });
 
@@ -225,11 +265,22 @@ test("a retry of the same run retains the observed failure until it passes", asy
     undefined,
     running.facts,
   );
-  for (const result of [running, cancelled]) {
+  for (const [result, retried] of [
+    [running, "in_progress"],
+    [cancelled, "cancelled"],
+  ] as const) {
     expect(result.view).toMatchObject({
       count: 1,
       failing: [{ run: { id: 1, attempt: 1 }, step: "Run Maven" }],
-      workflows: [{ runs: [{ id: 1, attempt: 2 }] }],
+      workflows: [
+        {
+          runs: [
+            { id: 1, attempt: 1, tone: "error" },
+            { id: 1, attempt: 2, result: retried },
+          ],
+          label: { result: "failure", tone: "error" },
+        },
+      ],
     });
   }
   const passed = await fixture(

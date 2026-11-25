@@ -24,6 +24,14 @@ test.each([
   ["a cancelled run after a success", [cancelled, run(19, "success")], undefined],
   ["no finished runs", [running], undefined],
   ["two attempts of the same run", [retry, failed], undefined],
+  [
+    "a passing retry whose start is unread",
+    [
+      { ...run(19, "success", 2), id: 7 },
+      { ...run(20, "failure"), id: 7 },
+    ],
+    undefined,
+  ],
 ] as const)("reduces %s by start time and attempt", (_case, runs, expected) => {
   expect(workflowFailure(runs)).toBe(expected);
 });

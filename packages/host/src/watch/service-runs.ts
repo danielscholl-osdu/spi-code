@@ -11,7 +11,7 @@ export function projectServiceRuns(facts: Facts, line: LineModel, home: ServiceH
   const main = home?.stations.find(({ id }) => id === "main");
   return fact
     ? {
-        runHistory: serviceRuns(fact, main?.state === "stopped" ? line.mainRed?.run : undefined),
+        runHistory: serviceRuns(fact, main?.state === "stopped" ? line.mainRed : undefined),
       }
     : {};
 }

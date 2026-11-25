@@ -30,9 +30,7 @@ function FailureRow({
       <strong className="service-run-name" title={run.name}>
         {run.name}
       </strong>
-      {(!onMain || job || step) && (
-        <span>{[job, step ?? "Failing step unavailable"].filter(Boolean).join(" · ")}</span>
-      )}
+      <span>{`› ${[job, step ?? "Failing step unavailable"].filter(Boolean).join(" › ")}`}</span>
       {!onMain && (
         <span className="service-run-attempt">
           <time dateTime={startedAt}>{when(startedAt, { now })}</time>
@@ -54,13 +52,13 @@ function FailureRow({
 }
 
 function WorkflowRow({
-  workflow: { name, runs },
+  workflow: { name, runs, label },
   now,
 }: {
   workflow: ReadHistory["workflows"][number];
   now: number;
 }) {
-  const latest = runs.at(-1);
+  const retried = new Set(runs.filter(({ attempt }) => attempt > 1).map(({ id }) => id));
   return (
     <li className="service-run-workflow">
       <strong className="service-run-name" title={name}>
@@ -69,18 +67,28 @@ function WorkflowRow({
       <div className="service-run-strip">
         {runs.map((run) => {
           const time = when(run.startedAt ?? run.createdAt, { now });
-          const label = [name, time, resultWord(run.result), "↗"].join(" · ");
+          const attempts = retried.has(run.id);
+          const url = attempts ? `${run.url}/attempts/${run.attempt}` : run.url;
+          const label = [
+            name,
+            time,
+            resultWord(run.result),
+            attempts ? `attempt ${run.attempt}` : "",
+            "↗",
+          ]
+            .filter(Boolean)
+            .join(" · ");
           return (
             <a
-              key={run.id}
+              key={`${run.id}#${run.attempt}`}
               className="service-run-square"
               data-state={run.tone}
               data-result={run.result}
-              href={run.url}
+              href={url}
               title={label}
               onClick={(event) => {
                 event.preventDefault();
-                void window.spi?.openExternal(run.url);
+                void window.spi?.openExternal(url);
               }}
             >
               <span className="service-run-square-label">{label}</span>
@@ -88,14 +96,11 @@ function WorkflowRow({
           );
         })}
       </div>
-      {latest && (
-        <span className="service-run-latest" data-state={latest.tone}>
-          {resultWord(latest.result)}{" "}
-          <time dateTime={latest.startedAt ?? latest.createdAt}>
-            {when(latest.startedAt ?? latest.createdAt, { now })}
-          </time>
-        </span>
-      )}
+      <span className="service-run-latest" data-state={label.tone}>
+        {resultWord(label.result)}
+        {label.branch ? ` on ${label.branch}` : " · any branch"}{" "}
+        <time dateTime={label.at}>{when(label.at, { now })}</time>
+      </span>
     </li>
   );
 }

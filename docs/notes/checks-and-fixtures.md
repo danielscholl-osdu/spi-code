@@ -97,7 +97,7 @@ Cascade Monitor runs on UTC hour boundaries, with 15 minutes for dispatch.
 Station lines are core's words (`clockWord`: en-US "Nov 9", a seven-day window); the window's
 `when()` writes "9 Nov" within six calendar days. They disagree beyond a week until core moves.
 
-The repository-wide Actions run list reports the current attempt. The Runs tab can carry an observed failure into a retry of the same run from an earlier sweep. Replaying sweeps taken before the dedicated read leaves Runs unread.
+The repository-wide Actions run list reports the current attempt. The Runs tab can carry an observed failure into a retry of the same run from an earlier sweep. Replaying sweeps taken before the dedicated read leaves Runs unread. That carried failure is the only record of the earlier attempt, so its strip square comes from the carry, and a run's attempts compare by attempt number alone: a queued retry's start can read earlier than attempt 1's. The listing's `head_branch` is what scopes a strip's label to main; a sweep without it labels the strip "any branch".
 The service's closed-issues connection orders by GitHub's update time and displays the
 recorded close time. The Nov 6 and Nov 16 sweeps predate that connection and the reviewer
 connections, so their replay can show open issue counts and PR history with those reads absent.

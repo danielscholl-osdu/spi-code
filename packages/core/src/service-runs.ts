@@ -9,11 +9,13 @@ export const serviceRun = z.object({
   workflowId: z.int().positive(),
   name: z.string().trim().min(1),
   path: z.string().min(1).optional(),
+  branch: z.string().min(1).optional(),
   attempt: z.int().positive(),
   status: z.string().min(1),
   conclusion: z.string().optional(),
   createdAt: z.iso.datetime({ offset: true }),
   startedAt: z.iso.datetime({ offset: true }).optional(),
+  updatedAt: z.iso.datetime({ offset: true }).optional(),
   url: z.url({ protocol: /^https$/, hostname: /^github\.com$/ }),
 });
 

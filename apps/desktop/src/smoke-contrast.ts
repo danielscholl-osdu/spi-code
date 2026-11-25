@@ -1206,9 +1206,10 @@ export async function assertRenderedContrast(
     await everyShade("service-runs", ".service-runs", {
       rest: [
         { selector: "service-run-failure", text: "Sync Upstream" },
-        { selector: "service-run-failure", text: "Sync upstream · Update upstream branch" },
-        { selector: "service-run-latest", text: "in progress" },
-        { selector: "service-run-latest", text: "success" },
+        { selector: "service-run-failure", text: "› Sync upstream › Update upstream branch" },
+        { selector: "service-run-failure", text: "› Deploy and Test › Prove" },
+        { selector: "service-run-latest", text: "in progress · any branch" },
+        { selector: "service-run-latest", text: "success on main" },
       ],
     });
     await js(`location.hash = "#service/${FIND_UNPINNED}"`);

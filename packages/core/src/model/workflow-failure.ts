@@ -10,8 +10,19 @@ export function workflowRunFailed(run: Pick<RunFact, "status" | "conclusion">): 
 }
 
 type WorkflowAttempt = Pick<RunFact, "createdAt" | "attempt" | "status" | "conclusion"> & {
+  id?: number;
   startedAt?: string | undefined;
 };
+
+/** When a completed run reached its result. */
+export function runFailedAt(run: Pick<RunFact, "updatedAt">): string {
+  return run.updatedAt;
+}
+
+function laterAttempt(run: WorkflowAttempt, than: WorkflowAttempt, at: number, thanAt: number) {
+  if (run.id !== undefined && run.id === than.id) return run.attempt > than.attempt;
+  return at > thanAt || (at === thanAt && run.attempt > than.attempt);
+}
 
 /** The failure still active in one workflow's runs, if no later attempt succeeded. */
 export function workflowFailure<T extends WorkflowAttempt>(runs: readonly T[]): T | undefined {
@@ -21,7 +32,7 @@ export function workflowFailure<T extends WorkflowAttempt>(runs: readonly T[]): 
     if (run.status !== "completed" ||
         (run.conclusion !== "success" && !workflowRunFailed(run))) continue;
     const at = Date.parse(run.startedAt ?? run.createdAt);
-    if (!latest || at > latestAt || (at === latestAt && run.attempt > latest.attempt)) {
+    if (!latest || laterAttempt(run, latest, at, latestAt)) {
       latest = run;
       latestAt = at;
     }

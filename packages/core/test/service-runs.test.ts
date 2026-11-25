@@ -29,13 +29,18 @@ test("keeps Main's proving run and Blocked run evidence together across bounded 
   if (!failed || !job) throw new Error("Expected search's proving run and Java Build job");
   failed.conclusion = "failure";
   job.conclusion = "failure";
+  job.failedStep = "Build with Maven";
+  failed.updatedAt = new Date(Date.parse(failed.createdAt) + 40 * 60_000).toISOString();
   const model = sweep1116Model(facts);
-  const proof = model.lines.find(({ fork }) => fork.repo === repo)?.mainRed?.run;
-  if (!proof) throw new Error("Main must be red");
+  const mainRed = model.lines.find(({ fork }) => fork.repo === repo)?.mainRed;
+  const proof = mainRed?.run;
+  if (!mainRed?.job || !proof) throw new Error("Main must be red with a failed job");
   const blocked = model.queue.items.find(({ id }) => id === "main:search");
   const runUrl = blocked?.cause.find(({ label }) => label === "run")?.url;
   expect(blocked?.url).toBe(job.url);
   expect(runUrl).toBe(proof.url);
+  expect(blocked?.since).toBe(failed.updatedAt);
+  const named = { job: mainRed.job.name, step: mainRed.job.failedStep };
   const fail = serviceRun.parse({ ...proof, workflowId: 31 });
   const active = {
     ...fail,
@@ -46,31 +51,52 @@ test("keeps Main's proving run and Blocked run evidence together across bounded 
   };
   const pass = { ...active, conclusion: "success" };
 
-  for (const { runs, failures, displayed } of [
-    { runs: [pass], failures: [], displayed: fail },
-    { runs: [fail], failures: [{ run: fail }], displayed: fail },
-    { runs: [active], failures: [{ run: active }], displayed: active },
-    { runs: [], failures: [], displayed: fail },
+  for (const { runs, failures, displayed, cause } of [
+    { runs: [pass], failures: [], displayed: fail, cause: named },
+    { runs: [fail], failures: [{ run: fail }], displayed: fail, cause: named },
+    { runs: [active], failures: [{ run: active }], displayed: active, cause: {} },
+    { runs: [], failures: [], displayed: fail, cause: named },
   ]) {
-    const history = schema.parse(serviceRuns(fact({ cut: true, runs, failures }), proof));
+    const history = schema.parse(serviceRuns(fact({ cut: true, runs, failures }), mainRed));
     expect(history).toMatchObject({
       kind: "read",
       count: 1,
       failing: [
         {
           run: { id: displayed.id, attempt: displayed.attempt, name: displayed.name },
-          main: { id: proof.id, attempt: proof.attempt, url: runUrl, failedAt: proof.updatedAt },
+          main: { id: proof.id, attempt: proof.attempt, url: runUrl, failedAt: blocked?.since },
         },
       ],
     });
+    if (history.kind === "read") {
+      expect({ job: history.failing[0]?.job, step: history.failing[0]?.step }).toEqual({
+        job: undefined,
+        step: undefined,
+        ...cause,
+      });
+    }
     if (history.kind !== "read") throw new Error("Runs must be read");
     expect(history.failing).toHaveLength(1);
     expect(history.failing[0]?.run.workflowId).toBe(failures.length ? 31 : undefined);
   }
 
+  const onMain = { ...fail, branch: "main", updatedAt: failed.updatedAt };
+  const passedOnPr = { ...pass, branch: "pull-request", startedAt: later };
+  const indexer = schema.parse(
+    serviceRuns(fact({ cut: true, runs: [onMain, passedOnPr], failures: [] }), mainRed),
+  );
+  if (indexer.kind !== "read") throw new Error("Runs must be read");
+  expect(indexer.workflows[0]?.label).toEqual({
+    result: "failure",
+    tone: "error",
+    at: blocked?.since,
+    branch: "main",
+  });
+  expect(indexer.failing).toMatchObject([{ ...named, main: { failedAt: blocked?.since } }]);
+
   const page = fact({ cut: true, runs: [pass], failures: [] });
   expect(serviceRuns(page)).toMatchObject({ count: 0, failing: [] });
-  expect(serviceRuns({ ...page, read: { ...page.read, failure: "not read" } }, proof)).toEqual({
+  expect(serviceRuns({ ...page, read: { ...page.read, failure: "not read" } }, mainRed)).toEqual({
     kind: "unread",
     count: null,
   });

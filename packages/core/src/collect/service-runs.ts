@@ -13,7 +13,7 @@ import { jobsKey, type LifecycleState, readRunJobs, settledJobReads } from "./li
 const LIMIT = 60;
 const WORKFLOW_LIMIT = 10;
 const WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
-const PAGE_JQ = '{total: .total_count, runs: [.workflow_runs[] | {id, workflowId: .workflow_id, name, path, attempt: .run_attempt, status, conclusion, createdAt: .created_at, startedAt: .run_started_at, url: .html_url}]}';
+const PAGE_JQ = '{total: .total_count, runs: [.workflow_runs[] | {id, workflowId: .workflow_id, name, path, branch: .head_branch, attempt: .run_attempt, status, conclusion, createdAt: .created_at, startedAt: .run_started_at, updatedAt: .updated_at, url: .html_url}]}';
 const pageSchema = z.object({
   total: z.int().nonnegative(),
   runs: z.array(serviceRun.extend({
@@ -21,6 +21,8 @@ const pageSchema = z.object({
     path: z.string().trim().nullish().transform((value) => value || undefined),
     status: serviceRun.shape.status.nullish().transform((value) => value ?? "unknown"),
     startedAt: serviceRun.shape.startedAt.unwrap().nullish().transform((value) => value ?? undefined),
+    updatedAt: serviceRun.shape.updatedAt.unwrap().nullish().transform((value) => value ?? undefined),
+    branch: z.string().trim().nullish().transform((value) => value || undefined),
     conclusion: z.string().nullish().transform((value) => value ?? undefined),
   }).transform(({ name, ...run }) => ({ ...run, name: name || `Workflow #${run.workflowId}` }))).max(LIMIT),
 }).refine(({ total, runs }) => total >= runs.length && new Set(runs.map(({ id }) => id)).size === runs.length,
