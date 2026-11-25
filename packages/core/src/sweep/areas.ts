@@ -206,8 +206,9 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
         const jobs = await readRunJobs(gh, cache.details, repo, run, ctx, known, listingOnly);
         cache.details = jobs.cache;
         result.reads.push(...jobs.reads);
-        const listing = jobs.reads.find((r) => r.object.includes(`/runs/${run.id}/attempts/${run.attempt}/jobs`));
-        if (!listingOnly && (!listing || listing.failure || listing.completeness.kind !== "complete")) cut.add(key);
+        const listing = jobs.reads.filter((r) => r.object.includes(`/runs/${run.id}/attempts/${run.attempt}/jobs`));
+        if (!listingOnly && (listing.length === 0 || listing.some((r) => r.failure || r.completeness.kind !== "complete")))
+          cut.add(key);
         if (jobs.data) cache.lifecycle.runJobs[key] = { data: jobs.data, reads: jobs.reads };
         return listingOnly && !settledJobReads(jobs.reads) ? undefined : jobs.data;
       };

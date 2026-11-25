@@ -1535,3 +1535,71 @@ test("a GitHub throttle longer than the sweep may wait defers the remaining Grap
   );
   expect(throttled).toHaveLength(1);
 });
+
+test("a main run re-running reads its failed attempt's jobs, and a cut listing is marked cut", async () => {
+  const h = harness();
+  const repo = "owner/partition";
+  let total = 3;
+  const job = (id: number, name: string, conclusion: string) => ({
+    id,
+    name,
+    status: "completed",
+    conclusion,
+    started_at: START,
+    completed_at: START,
+    html_url: "u",
+    steps: [],
+    run_attempt: 1,
+  });
+  h.setRoute((_cmd, args) => {
+    const path = args[1] ?? "";
+    if (path.includes("/workflows/validate.yml/runs?"))
+      return {
+        stdout: JSON.stringify({
+          total: 1,
+          runs: [
+            {
+              id: 77,
+              name: "Validation",
+              path: "validate.yml",
+              event: "push",
+              status: "in_progress",
+              conclusion: null,
+              created_at: START,
+              updated_at: START,
+              head_branch: "main",
+              head_sha: "main",
+              display_title: "Validation",
+              html_url: "u",
+              run_attempt: 2,
+            },
+          ],
+        }),
+        stderr: "",
+        exit: 0,
+      };
+    if (!path.includes("/runs/77/attempts/")) return;
+    return {
+      stdout: JSON.stringify({
+        total,
+        jobs: path.includes("/attempts/1/")
+          ? [job(1, "Java Build", "success"), job(2, "Deploy and Test", "failure")]
+          : [],
+      }),
+      stderr: "",
+      exit: 0,
+    };
+  });
+  const sweeper = createSweeper(h.options);
+  const runs = () => sweeper.facts.runs.data?.[repo];
+  await sweeper.sweep();
+  expect(runs()?.mainJobsCut).toEqual(["77#1"]);
+
+  total = 2;
+  await sweeper.sweep();
+  expect(runs()?.mainRunJobs?.["77#1"]?.map(({ name }) => name)).toEqual([
+    "Java Build",
+    "Deploy and Test",
+  ]);
+  expect(runs()?.mainJobsCut).toBeUndefined();
+});
