@@ -26,7 +26,7 @@ import {
   toolchainText,
 } from "./attribution.js";
 import { javaBuilt, provingRun, prVerdict } from "./checks.js";
-import { failedJobs, SUMMARY_JOB } from "./rerun-rule.js";
+import { failedJobs, type RerunJudgement, rerunRule, SUMMARY_JOB } from "./rerun-rule.js";
 import { type LineHistory, lineHistory, windowDays } from "./history.js";
 import { certainText, type Prediction, type Verdict } from "./radar.js";
 import type { StackModel } from "./stack.js";
@@ -96,6 +96,8 @@ export interface MainFailure {
   jobsComplete: boolean;
   // A later attempt of the failed run, queued or running.
   later?: number;
+  // The whole attempt judged once; job and cls name its decisive job.
+  rerun: RerunJudgement;
 }
 
 export interface LineModel {
@@ -218,18 +220,22 @@ function failureText(f: Failure | undefined): string {
 
 const jobsKey = (run: Pick<RunFact, "id" | "attempt">) => `${run.id}#${run.attempt}`;
 
-// A failed attempt stays the decisive failure while its re-run is queued or running.
+// A failed attempt stays the decisive failure while its re-run is queued or running; a cut listing that
+// still shows a failed job proves the failure without proving Java Build ran.
 function rerunning(runs: ForkRuns | undefined): { run: RunFact; jobs: JobDetail[]; later: number } | undefined {
   const newest = runs?.main[0];
   if (!newest || newest.status === "completed" || newest.attempt < 2) return undefined;
   const run = { ...newest, attempt: newest.attempt - 1, status: "completed", conclusion: "failure" };
   const jobs = runs?.mainRunJobs?.[jobsKey(run)];
-  return jobs && javaBuilt(jobs) && failedJobs(jobs).length > 0 ? { run, jobs, later: newest.attempt } : undefined;
+  const proven = jobs && failedJobs(jobs).length > 0 &&
+    (javaBuilt(jobs) || (runs?.mainJobsCut ?? []).includes(jobsKey(run)));
+  return proven ? { run, jobs, later: newest.attempt } : undefined;
 }
 
 function mainFailure(
   proof: { run: RunFact; jobs: JobDetail[]; later?: number } | undefined,
   cut: readonly string[] = [],
+  deployable = false,
 ): MainFailure | undefined {
   const run = proof?.run;
   if (
@@ -241,11 +247,16 @@ function mainFailure(
   ) {
     return undefined;
   }
-  const job = proof.jobs.find((j) => j.conclusion === "failure" && j.name !== SUMMARY_JOB);
-  const cls = job ? classOf(job.name, "human", job.failedStep, job) : "UNREAD";
+  const jobsComplete = !cut.includes(jobsKey(run));
+  const rerun = rerunRule({
+    attempt: run.attempt, jobs: proof.jobs, complete: jobsComplete, deployable,
+    ...(proof.later ? { later: proof.later } : {}),
+  });
+  const job = rerun.job ?? proof.jobs.find((j) => j.conclusion === "failure" && j.name !== SUMMARY_JOB);
+  const cls = rerun.state === "real" && rerun.cls ? rerun.cls : job ? classOf(job.name, "human", job.failedStep, job) : "UNREAD";
   return {
     run, job, jobsRead: proof.jobs.length > 0, cls, jobs: proof.jobs,
-    jobsComplete: !cut.includes(jobsKey(run)), ...(proof.later ? { later: proof.later } : {}),
+    jobsComplete, ...(proof.later ? { later: proof.later } : {}), rerun,
   };
 }
 
@@ -299,7 +310,7 @@ export function buildLine(input: {
     ) ?? [];
   const labelsIssue = issues.find((i) => /Label Configuration Update Required/i.test(i.title));
   const proof = rerunning(runs) ?? provingRun(runs);
-  const mainRed = mainFailure(proof, runs?.mainJobsCut);
+  const mainRed = mainFailure(proof, runs?.mainJobsCut, stack.deployable.state === "yes");
   const syncRun = runs?.sync.find((r) => r.status === "completed");
   const templateRun = runs?.template.find((r) => r.status === "completed");
   const cascadeRunning = runs?.cascade.some((r) => r.status !== "completed") ?? false;

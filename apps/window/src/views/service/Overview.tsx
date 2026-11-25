@@ -199,7 +199,13 @@ export function Overview({ id, home, snapshot, row: open, focus }: TabProps) {
       {folds.length > 0 && (
         <ul className="service-section-box service-folds">
           {folds.map((fold) => (
-            <Fold key={fold.id} fold={fold} open={open} item={item} />
+            <Fold
+              key={fold.id}
+              fold={fold}
+              open={open}
+              item={item}
+              close={() => toggle(undefined)}
+            />
           ))}
         </ul>
       )}
@@ -212,10 +218,12 @@ function Fold({
   fold,
   open,
   item,
+  close,
 }: {
   fold: { id: string; label: string; count: boolean; rows: ServiceHomeRow[] };
   open: string | undefined;
   item: (row: ServiceHomeRow) => ReactNode;
+  close: () => void;
 }) {
   const holds = fold.rows.some((row) => row.id === open);
   const [expanded, setExpanded] = useState(holds);
@@ -234,7 +242,10 @@ function Fold({
         className="service-fold-head"
         aria-expanded={shown}
         {...(shown ? { "aria-controls": body } : {})}
-        onClick={() => setExpanded(!shown)}
+        onClick={() => {
+          if (shown && holds) close();
+          setExpanded(!shown);
+        }}
       >
         <span className="service-fold-words">
           <b>

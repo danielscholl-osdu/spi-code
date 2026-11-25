@@ -862,6 +862,53 @@ describe("a red Main", () => {
       row: "main:search",
     });
     expect(result.station("main")?.line).toMatch(/^Validation failed /);
+    expect(row?.links).toContainEqual({
+      label: "Deployments",
+      url: `${url}/deployments`,
+      kind: "deploy",
+    });
+  });
+
+  test("raises its row when the only failed job is environment class", () => {
+    const { facts, jobs } = redMain();
+    const deploy = jobs.find((job) => job.name === "Deploy and Test");
+    if (deploy) deploy.failedStep = "Borrow";
+    const result = project(facts, now);
+    expect(result.home.overview[0]).toMatchObject({
+      id: "main:search",
+      failure: { path: "Validation › Deploy and Test › Borrow", verdict: "Environment" },
+    });
+    expect(result.station("main")).toMatchObject({ state: "stopped", row: "main:search" });
+  });
+
+  test("judges a mixed attempt Real on its decisive job whatever failed first, and keeps the lane deploy its own row", () => {
+    const { facts, runs, head, jobs } = redMain();
+    const deploy = jobs.find((job) => job.name === "Deploy and Test");
+    if (!deploy) throw new Error("Search deploy job missing");
+    deploy.failedStep = "Borrow";
+    const access = {
+      ...deploy,
+      id: deploy.id + 1,
+      environment: [],
+      reason: "pull ghcr.io/azure/osdu-spi-search:1: manifest unknown",
+    };
+    jobs.splice(jobs.indexOf(deploy) + 1, 0, access);
+    runs.mainRunJobs = { [head.id]: jobs };
+    const result = project(facts, now);
+    const row = result.home.overview.find(({ id }) => id === "main:search");
+    expect(row).toMatchObject({
+      section: "blocked",
+      failure: { path: "Validation › Deploy and Test › Borrow", verdict: "Real" },
+      next: expect.stringContaining("osdu-spi-search cannot be pulled (manifest unknown)"),
+    });
+    expect(row).not.toHaveProperty("evidence");
+    expect(result.station("main")).toMatchObject({ state: "stopped", row: "main:search" });
+    expect(members(result)).toContain("lane-deploy:search");
+    expect(members(result)).toEqual(
+      yours(result)
+        .map(({ id }) => id)
+        .sort(),
+    );
   });
 
   test.each([
@@ -911,9 +958,19 @@ describe("a red Main", () => {
       line: "Validation re-running · attempt 2",
     });
 
+    runs.mainRunJobs = { [`${head.id}#1`]: jobs.filter(({ name }) => name !== "Java Build") };
+    runs.mainJobsCut = [`${head.id}#1`];
+    const partial = project(facts, now);
+    expect(partial.home.overview[0]).toMatchObject({
+      id: "main:search",
+      section: "blocked",
+      rerunning: true,
+      failure: { verdict: "Not read" },
+    });
+    expect(partial.station("main")).toMatchObject({ state: "stopped", row: "main:search" });
+
     runs.main = [head, ...runs.main.slice(1)];
     runs.mainRunJobs = { [head.id]: jobs };
-    runs.mainJobsCut = [`${head.id}#1`];
     expect(project(facts, now).home.overview[0]).toMatchObject({
       failure: { verdict: "Not read" },
       next: "Cause not read yet. Open the run attempt, or ask Copilot to diagnose.",

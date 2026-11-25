@@ -136,7 +136,10 @@ function failedRun(
     ? `Failed in attempt ${rerun.attempt}: ${failed.join(", ")}.${summary ? ` ${SUMMARY_JOB} repeats it.` : ""}`
     : undefined;
   return {
-    links: [pill, ...links.filter(({ url }) => url !== pill.url)],
+    links: [
+      pill, ...links.filter(({ url }) => url !== pill.url && url !== folded?.url),
+      ...(folded ? [{ label: "Deployments", url: folded.url, kind: "deploy" as const }] : []),
+    ],
     failure: {
       path: [run.name || "Validation", job?.name, job?.failedStep].filter(Boolean).join(" › "),
       ...(rerun.reason ? { reason: rerun.reason } : {}),

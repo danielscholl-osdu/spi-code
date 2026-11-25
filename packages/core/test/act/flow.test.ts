@@ -176,6 +176,31 @@ describe("flow action planning", () => {
     ]);
   });
 
+  test.each([
+    ["a real job beside the Environment one", false],
+    ["an attempt whose job list was cut", true],
+  ])("with %s, main is never re-run", (_, cut) => {
+    const f = settled(fixtureFacts());
+    const real = {
+      ...job([]),
+      id: 8,
+      name: "Java Build",
+      failedStep: "Build",
+      reason: "compilation failure",
+    };
+    const id = merged(f, "partition", {
+      conclusion: "failure",
+      jobs: cut
+        ? [job(["Shared environment did not answer within 20m"])]
+        : [job(["Shared environment did not answer within 20m"]), real],
+    });
+    const runs = f.runs.data?.["Azure/osdu-spi-partition"];
+    if (cut && runs) runs.mainJobsCut = [`${id}#1`];
+    const m = model(f);
+    expect(m.rollout?.envReruns).toEqual([]);
+    expect(actions(m).primary.label).not.toMatch(/^Re-run/);
+  });
+
   test("offers Fleet Release with publish off and no secondary actions", () => {
     const f = doneFacts();
     const { primary: release, secondary } = actions(model(f));

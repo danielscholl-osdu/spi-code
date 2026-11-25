@@ -5,6 +5,7 @@ import { forkOf, githubUrl, SYNC_UPSTREAM_CRON, TEMPLATE_REPO } from "../config.
 import type { CoreContext } from "../context.js";
 import type { ForkRuns, JobDetail, PastPrFact, RunFact, TemplateChange } from "../facts.js";
 import { type Judgement, judgeRun, type OrderRule } from "../rollout.js";
+import { failedJobs, type RerunJudgement, rerunRule } from "./rerun-rule.js";
 import { names, stamp, timeClause } from "../util.js";
 import { classifyPr } from "./attribution.js";
 import { latestChecks } from "./checks.js";
@@ -164,6 +165,12 @@ function lastGoodBefore(runs: ForkRuns | undefined, at: string): RolloutFork["la
     (r) => r.conclusion === "success" && Date.parse(r.createdAt) < Date.parse(at),
   );
   return run ? { sha: run.sha, at: run.createdAt, url: run.url } : undefined;
+}
+
+// The lanes judge a main run by the same rule as main: a real job or an unread list is never re-run.
+function judgementOf(rerun: RerunJudgement | undefined, failed: readonly JobDetail[]): Judgement | undefined {
+  if (!rerun || rerun.state === "not-read") return undefined;
+  return rerun.state === "real" ? { class: "real", response: "stop" } : judgeRun(failed);
 }
 
 function mainCell(run: RunFact | undefined, judgement: Judgement | undefined, now: Date, context: CoreContext): Cell {
@@ -346,13 +353,17 @@ export function buildRollout(input: {
     const merge = lastMerge(line?.past);
     const run = merge?.mergedAt ? mergeRun(forkRuns, merge.mergedAt) : undefined;
     const jobs = run ? forkRuns?.mainRunJobs?.[String(run.id)] : undefined;
-    const failed = (jobs ?? []).filter(
-      (j) => j.conclusion === "failure" && j.name !== "Validation Summary",
-    );
-    const judgement =
+    const failed = failedJobs(jobs);
+    const rerun =
       run?.status === "completed" && run.conclusion === "failure" && failed.length > 0
-        ? judgeRun(failed)
+        ? rerunRule({
+            attempt: run.attempt,
+            jobs,
+            complete: !forkRuns?.mainJobsCut?.includes(`${run.id}#${run.attempt}`),
+            deployable: !input.held,
+          })
         : undefined;
+    const judgement = judgementOf(rerun, failed);
     const recent =
       !!merge?.mergedAt && now.getTime() - Date.parse(merge.mergedAt) <= STOP_WINDOW_MS;
     const v = validationCell(row, carries);

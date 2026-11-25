@@ -611,6 +611,14 @@ it("folds Shared work and Can wait to one focusable line each that opens its row
 
   await click('button[data-door="release"]');
   expect(openRow()).toBe("can:releases:https://github.com/Azure/osdu-spi-indexer/pull/33");
+
+  await click('.service-fold[data-section="can-wait"] .service-fold-head');
+  expect(openRow()).toBeUndefined();
+  expect(
+    $('.service-fold[data-section="can-wait"] .service-fold-head')?.getAttribute("aria-expanded"),
+  ).toBe("false");
+  await click('button[data-door="release"]');
+  expect(openRow()).toBe("can:releases:https://github.com/Azure/osdu-spi-indexer/pull/33");
 });
 
 it("keeps a rerun in flight Blocked on attempt 2 with its spinner", async () => {
