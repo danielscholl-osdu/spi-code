@@ -42,6 +42,7 @@ import {
   type Morning,
   membersText,
 } from "./smoke-mornings.js";
+import { withRedMain } from "./smoke-red-main.js";
 import {
   assertSmokeShot,
   assertSmokeViews,
@@ -529,7 +530,17 @@ async function captureSweepRulings(
       document.querySelector('${search} [data-door="unread"]')`,
     join(output, `service-doors-incomplete-${appearance}.png`),
   );
-  await show(recorded, cursor + 1, "#service/entitlements");
+  await show(
+    withRedMain(structuredClone(recorded), "indexer"),
+    cursor + 1,
+    `#service/indexer/overview/${encodeURIComponent("main:indexer")}`,
+  );
+  await captureSettled(
+    window,
+    `document.querySelector('.service-page[aria-label="indexer"] li[data-lead][data-open] .service-row-evidence')`,
+    join(output, `service-red-main-${appearance}.png`),
+  );
+  await show(recorded, cursor + 2, "#service/entitlements");
   await captureSettled(
     window,
     `document.querySelector('.service-page[aria-label="entitlements"] [data-station="upstream"][data-state="stopped"] .flow-word')?.textContent === "Sync halted"`,
