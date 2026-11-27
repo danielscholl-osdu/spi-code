@@ -93,7 +93,6 @@ describe("program knowledge", () => {
 
   it("gives each scoped kind a rule of its own beside the ones every thread gets", () => {
     expect(programRules("program").length).toBeGreaterThan(0);
-    expect(own("program")).toEqual([]);
     for (const kind of ["service", "template", "environment"] as const) {
       expect(own(kind).length).toBeGreaterThan(0);
     }

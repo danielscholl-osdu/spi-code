@@ -39,7 +39,7 @@ const RULES: readonly Rule[] = [
     text: "The shared backing environment exists for the forks' Deploy and Test lanes, and no person holds a role on it. Judge trouble there by the lanes it blocks. When several forks fail the same way at once, suspect the environment before any fork.",
   },
   {
-    text: "Every fork pull request and every merge to main borrows that environment, and nothing queues lanes across forks. Never suggest dispatching or re-running across the fleet at once; the template's .github/fleet/rollout.json sets how many lanes may run.",
+    text: "A fork pull request or merge to main that changes what is built borrows that environment; one that changes only workflows, docs or legal notices does not. Nothing queues lanes across forks. Never suggest dispatching or re-running across the fleet at once; the template's .github/fleet/rollout.json sets how many lanes may run.",
   },
   {
     text: "A failure annotated Environment is the environment's: one re-run, after the other lanes drain. Any other failure, and an environment failure already re-run once, belongs to the change.",
@@ -74,7 +74,7 @@ const RULES: readonly Rule[] = [
   },
   {
     kinds: ["template"],
-    text: "A template change reaches every fork through the daily template sync from the template's main, not from its release, and each fork then borrows the environment. Say how the change will be paced before proposing it.",
+    text: "A template change reaches every fork through the daily template sync from the template's main, not from its release. A sync that changes only workflows borrows no environment; one that changes what is built, such as build/, borrows it in each fork. Say how the change will be paced before proposing it.",
   },
   {
     kinds: ["template"],
@@ -197,7 +197,7 @@ const GUIDES: readonly Guide[] = [
     checked: STACK_CHECK,
     steps: [
       "The lifecycle runs in the stack repository: Environment Refresh on weekdays at 04:00 UTC, Environment Upgrade when a change to ops/environments/shared.yaml merges to main, and Environment Reset only by hand.",
-      "Each run sets maintenance while it works, and only its own verification clears it. A failed run therefore leaves maintenance set and every fork's lane refused. Maintenance is fail-closed: the fix is a run that passes, never clearing the flag by hand.",
+      "Each run sets maintenance while it works and clears it only after its own verification passes. A run that fails before that leaves maintenance set and every fork's lane refused. One that fails later, loading data, has already cleared it, so read the environment's current state from the sweep instead of inferring it from the run's result. Maintenance is fail-closed: the fix is a run that passes, never clearing the flag by hand.",
       [
         "When a run failed:",
         "1. Read its first attempt before any re-run. A later attempt can fail only because the first already changed maintenance.",
