@@ -5,14 +5,18 @@ import { KNOWN_SERVICES } from "@spi-code/core";
 import type { ToolOutputRedactor } from "@spi-code/threads";
 import { describe, expect, it } from "vitest";
 import { ScopeRegistry } from "../../scopes/registry.js";
+import { spiGuideTool } from "../../tools/spi-guide.js";
 import { offeredTools, spiReadTools } from "../../tools/spi-reads.js";
+import { allGuides, guidesFor, programRules, type ScopeKind } from "./knowledge.js";
 import { threadContext } from "./provider.js";
 
 const plain: Pick<ToolOutputRedactor, "text" | "value"> = {
   text: (text) => text,
   value: (value) => value,
 };
-const tools = offeredTools(spiReadTools(() => undefined, plain));
+const reads = offeredTools(spiReadTools(() => undefined, plain));
+const tools = [...reads, ...offeredTools([spiGuideTool()])];
+const INSTRUCTION_BYTE_BUDGET = 9_000;
 const scopes = new ScopeRegistry();
 const prepare = (scope: string, offered = tools, registry = scopes) =>
   threadContext({ scopes: registry, tools: offered, redactor: plain }).prepare({
@@ -50,6 +54,75 @@ describe("scope instructions", () => {
     expect(narrowed).toContain(scopes.lookup(first.id)?.title ?? first.id);
     const retired = scopes.lookup(second.id);
     expect(retired?.kind === "service" && narrowed.includes(retired.origin.repo)).toBe(false);
+  });
+});
+
+describe("program knowledge", () => {
+  const KINDS: readonly [ScopeKind, string][] = [
+    ["program", "program"],
+    ["service", "legal"],
+    ["template", "template"],
+    ["environment", "environment"],
+  ];
+  // A rule written for some kinds only, keyed by the first kind that has it.
+  const own = (kind: ScopeKind) =>
+    programRules(kind).filter((rule) => !programRules("program").includes(rule));
+
+  it.each(KINDS)("a %s thread carries its rules and no other kind's", (kind, scope) => {
+    const text = prepare(scope);
+    for (const rule of programRules(kind)) expect(text).toContain(`- ${rule}`);
+    for (const [other] of KINDS) {
+      for (const rule of own(other)) {
+        if (!programRules(kind).includes(rule)) expect(text).not.toContain(rule);
+      }
+    }
+  });
+
+  it("sends a rule written for one kind of scope to that kind alone", () => {
+    const only: Record<Exclude<ScopeKind, "program">, string> = {
+      service: "The root pom and the shared modules are upstream's.",
+      template: "Never patch one fork by hand to get a template change green.",
+      environment: "The stack repository merges by squash only",
+    };
+    for (const [kind, scope] of KINDS) {
+      for (const [owner, rule] of Object.entries(only)) {
+        expect(prepare(scope).includes(rule)).toBe(owner === kind);
+      }
+    }
+  });
+
+  it("gives each scoped kind a rule of its own beside the ones every thread gets", () => {
+    expect(programRules("program").length).toBeGreaterThan(0);
+    expect(own("program")).toEqual([]);
+    for (const kind of ["service", "template", "environment"] as const) {
+      expect(own(kind).length).toBeGreaterThan(0);
+    }
+  });
+
+  it.each(KINDS)("a %s thread lists its guides by id, never their steps", (kind, scope) => {
+    const text = prepare(scope);
+    const listed = guidesFor(kind);
+    expect(listed.length).toBeGreaterThan(0);
+    for (const guide of allGuides()) {
+      const line = `- ${guide.id}: when ${guide.when}.`;
+      if (listed.includes(guide)) expect(text).toContain(line);
+      else expect(text).not.toContain(line);
+      expect(text).not.toContain(guide.steps);
+      expect(text).not.toContain(guide.steps.split("\n\n")[0]);
+    }
+  });
+
+  it("names no guide when the tool that reads one is not offered", () => {
+    for (const [, scope] of KINDS) {
+      const text = prepare(scope, reads);
+      expect(text).not.toContain("Guides hold the steps");
+      for (const guide of allGuides()) expect(text).not.toContain(`- ${guide.id}: when `);
+      expect(text).toContain("Program rules, learned running this program:");
+    }
+  });
+
+  it.each(KINDS)("keeps a %s thread's instructions inside the budget", (_kind, scope) => {
+    expect(Buffer.byteLength(prepare(scope))).toBeLessThanOrEqual(INSTRUCTION_BYTE_BUDGET);
   });
 });
 

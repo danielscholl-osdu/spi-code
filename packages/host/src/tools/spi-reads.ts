@@ -3,6 +3,7 @@
 
 import { resolvePointer, type ViewSnapshot } from "@spi-code/contracts";
 import { z } from "zod";
+import { SPI_GUIDE } from "../threads/context/knowledge.js";
 import { readPlace } from "../threads/context/places.js";
 import { redactSpiText, redactSpiValue, type SpiRedactor } from "../threads/context/redaction.js";
 import {
@@ -286,7 +287,10 @@ const READS: readonly SpiRead<Fields>[] = [
 ];
 
 export function isSpiReadTool(name: string): boolean {
-  return READS.some(({ metadata }) => metadata.name === name && metadata.tier === "Read");
+  return (
+    name === SPI_GUIDE ||
+    READS.some(({ metadata }) => metadata.name === name && metadata.tier === "Read")
+  );
 }
 
 /** Whole items only: each named list (`key` or `key.list`) keeps what fits, in order, and says what it left out. */

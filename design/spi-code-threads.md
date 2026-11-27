@@ -74,10 +74,14 @@ The tag is a warning and blocks nothing: some fork changes touch an upstream-own
 | Scope instructions | The scope's repositories and remotes, the branch model (upstream, sync, integration, main), which paths the fork owns, where each kind of change lands, and that SPI tools answer program questions faster than re-reading GitHub | Every thread | The session's instructions, resent only when they change |
 | What the operator was looking at | The place, opened row or popover the thread started from, packed as PS-14's context chip. Never a raw log, diff or issue body | On the first message, and whenever the operator adds one with @ | A draft chip in the composer that can be removed; snapshotted onto the message when sent |
 | SPI tools | Reads over the last sweep: Today, a service's home, Upstream, Template, Environment, Releases, Security, one item by id, and the evidence behind a value | When Copilot asks | Tools the host registers on the session. No server is involved |
+| Program rules | Standing rules learned running the program: the names for the Sync to Main PR and a release, what a release waits for, how the shared backing environment is judged and paced, whose failure an Environment annotation is, and what may be written into a public repository. A service, Template or Environment thread adds the rules for its own repository | Every thread | With the scope instructions |
+| Guides | The steps for work that recurs: a cascade that stopped, a filter change, release readiness, a fleet rollout, a library line and an environment that refuses lanes. The instructions name each guide for the scope and when to use it, never its steps. Each guide says what it was checked against and when | When Copilot asks | `spi_guide`, an SPI tool that reads no sweep |
 
 The packed chip is what the host's inspect already returns for a row or popover. The SPI tools say when the snapshot was read. For anything deeper, Copilot reads the code in the thread's folder with its file tools, and the work log shows each call; running git there waits for commands (spicode-7ay). A fresher read of GitHub or GitLab is an SPI tool the host answers (ruling T1).
 
 A message carries up to eight chips. Each is at most 6,000 UTF-8 bytes, about 2,000 tokens on the measured chips. A trimmed chip keeps its identity, what the sweep could say, and the evidence references that fit. It counts any references left out and names the SPI tool for the rest.
+
+Rules and guides hold what stays true between sweeps. A failure's signature is not one of them: a failure is classified where it is raised, and the sweep carries the result. Neither names a person, a tenant or a subscription.
 
 SPI tools only read. Program operations that write (dispatch, re-run, merge) are not offered to a thread and arrive with M4 as typed tools that raise a card.
 

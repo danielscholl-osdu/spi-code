@@ -13,6 +13,7 @@ import type { CopilotRuntime } from "../copilot/runtime.js";
 import type { CommitIdentity, PrivilegedGit } from "../scopes/git.js";
 import type { ScopeRegistry } from "../scopes/registry.js";
 import type { ScopeWorkspaces } from "../scopes/workspace.js";
+import { spiGuideTool } from "../tools/spi-guide.js";
 import { offeredTools, spiReadTools, spiToolProvider } from "../tools/spi-reads.js";
 import { type AskingTurnWorkspace, CopilotThreadAdapter } from "./adapter.js";
 import {
@@ -129,7 +130,7 @@ export function openThreadHost(options: ThreadHostOptions) {
       return adapter;
     };
     let workspaces: ScopeWorkspaces | undefined;
-    const tools = spiReadTools(options.savedSweep, spiRedactor);
+    const tools = [...spiReadTools(options.savedSweep, spiRedactor), spiGuideTool()];
     const engine = new ThreadEngine<Tool>(db, {
       runtime: { run: async (input, events) => (await getAdapter()).run(input, events) },
       workspace: {
