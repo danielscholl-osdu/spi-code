@@ -81,10 +81,7 @@ describe("the 16 Nov sweep", () => {
   });
 
   test("a move on several objects names no subject", () => {
-    expect(items.filter((i) => !i.subject).map((i) => i.id)).toEqual([
-      "rollout",
-      "stack:lanes",
-    ]);
+    expect(items.filter((i) => !i.subject).map((i) => i.id)).toEqual(["rollout", "stack:lanes"]);
   });
 
   test("each red release/upstream PR waits on the lanes item that folded its failed lane", () => {
