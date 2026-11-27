@@ -13,7 +13,7 @@ describe("the 16 Nov sweep", () => {
   const items = sweep1116Items();
   const byId = new Map(items.map((i) => [i.id, i]));
 
-  test("core reads the 24 items on the 16 Nov sweep, in order", () => {
+  test("core reads the 23 items on the 16 Nov sweep, in order", () => {
     expect(items.map((i) => [i.id, i.verb])).toEqual([
       ["halt:crs-conversion", "Classify entry"],
       ["sync-run:search", "Investigate"],
@@ -38,7 +38,6 @@ describe("the 16 Nov sweep", () => {
       ["gate2:entitlements", "Merge"],
       ["gate2:schema", "Merge"],
       ["gate2:indexer", "Merge"],
-      ["port:entitlements", "Port"],
     ]);
   });
 
@@ -85,7 +84,6 @@ describe("the 16 Nov sweep", () => {
     expect(items.filter((i) => !i.subject).map((i) => i.id)).toEqual([
       "rollout",
       "stack:lanes",
-      "port:entitlements",
     ]);
   });
 
@@ -145,7 +143,7 @@ describe("the 16 Nov sweep", () => {
   test("every evidence link carries the kind its URL names", () => {
     expect(items.flatMap((i) => i.evidence).filter((l) => l.kind !== linkKind(l.url))).toEqual([]);
     expect(new Set(items.flatMap((i) => i.evidence.map((l) => l.kind)))).toEqual(
-      new Set(["issue", "run", "commit", "compare", "job", "pr", "other", "deploy", "mr"]),
+      new Set(["issue", "run", "commit", "compare", "job", "pr", "other", "deploy"]),
     );
   });
 });

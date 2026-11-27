@@ -419,7 +419,7 @@ describe("Watch projection", () => {
       "+14s item gate1:indexer",
       "+15s item gate1:storage",
       "+16s item gate1:indexer-queue",
-      "+17s item port:entitlements",
+      "+17s item port:unit",
       "+18s environment",
       "+19s service partition",
       "+20s service entitlements",

@@ -94,8 +94,28 @@ describe("the port ledger", () => {
         deleted: ["provider/entitlements-v2-azure/src/Old.java"],
       });
     });
-    expect(owed(m)).toMatchObject({ entitlements: [963, 956, 970] });
+    expect(owed(m)).toMatchObject({ entitlements: [970] });
     expect(m.radar.services.entitlements?.removal).toBe("fork-only");
+  });
+
+  test("a fork-only service owes nothing merged before the removal, so it has no port item", () => {
+    const m = model((f) => {
+      const ent = f.radar.data?.services.entitlements;
+      if (!ent?.merged) throw new Error("fixture has entitlements merged MRs");
+      const gone = ["provider/entitlements-v2-azure/pom.xml"];
+      ent.merged.push({
+        iid: 969,
+        title: "chore: remove Azure provider and Azure CI/CD",
+        url: "u",
+        mergedAt: "2026-10-20T00:00:00Z",
+        headSha: "f00",
+        paths: gone,
+        deleted: gone,
+      });
+    });
+    expect(m.radar.services.entitlements?.ports).toEqual({ owed: [], ported: [] });
+    expect(m.queue.items.some((i) => i.id === "port:entitlements")).toBe(false);
+    expect(owed(m)).toMatchObject({ legal: [783] });
   });
 
   test("an unread fork PR list or merged diff leaves the ledger unmeasured: '?' and no item", () => {

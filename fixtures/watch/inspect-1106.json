@@ -2774,41 +2774,16 @@
     ]
   },
   {
-    "id": "port:entitlements",
-    "title": "entitlements · upstream change owed a port",
+    "id": "port:unit",
+    "title": "unit · upstream change owed a port",
     "class": "PORT",
-    "cause": "Upstream changed provider/entitlements-v2-azure and testing/entitlements-v2-test-azure since the seed, and no fork PR cites the MR.",
-    "effect": "!968 · Entitlements - migration to java 25 · merged 2026-10-16T14:05:13.000Z. !967 · Resolve \"[Venus] CI-friendly Maven versions for Entitlements\" · merged 2026-10-16T07:31:56.000Z. !963 · Merge forward 'fix/cve-critical-high-tomcat-netty' (!962) from release/0.30 · merged 2026-09-14T14:02:39.000Z.",
-    "next": "Port !968 into provider/entitlements-v2-azure; cite the MR URL in the PR body.",
-    "why": "Seeded: 2026-09-14; Owed: !968 (provider/entitlements-v2-azure), !967 (provider/entitlements-v2-azure and testing/entitlements-v2-test-azure), !963 (testing/entitlements-v2-test-azure), !956 (provider/entitlements-v2-azure); Match: a fork PR whose body or a commit message cites the MR's GitLab URL",
+    "cause": "Upstream changed provider/unit-azure since the seed, and no fork PR cites the MR.",
+    "effect": "!503 · M28: Spring Boot 4 / Spring 7 on Java 25 (vulnerability remediation) · merged 2026-11-06T06:19:09.000Z. !498 · Schemathesis issues fix · merged 2026-10-29T10:19:47.000Z. !497 · Resolve \"[Venus] CI-friendly Maven versions for Unit\" · merged 2026-10-16T09:59:15.000Z.",
+    "next": "Port !503 into provider/unit-azure; cite the MR URL in the PR body.",
+    "why": "Seeded: 2026-10-13; Owed: !503 (provider/unit-azure), !498 (provider/unit-azure), !497 (provider/unit-azure); Match: a fork PR whose body or a commit message cites the MR's GitLab URL",
     "evidence": [],
     "notRead": [],
     "related": [
-      {
-        "text": "partition",
-        "state": "2 owed",
-        "inspect": "port:partition"
-      },
-      {
-        "text": "legal",
-        "state": "2 owed",
-        "inspect": "port:legal"
-      },
-      {
-        "text": "schema",
-        "state": "1 owed",
-        "inspect": "port:schema"
-      },
-      {
-        "text": "file",
-        "state": "1 owed",
-        "inspect": "port:file"
-      },
-      {
-        "text": "storage",
-        "state": "1 owed",
-        "inspect": "port:storage"
-      },
       {
         "text": "indexer",
         "state": "3 owed",
@@ -2823,11 +2798,6 @@
         "text": "workflow",
         "state": "2 owed",
         "inspect": "port:workflow"
-      },
-      {
-        "text": "unit",
-        "state": "3 owed",
-        "inspect": "port:unit"
       },
       {
         "text": "crs-catalog",
@@ -4012,41 +3982,11 @@
     "title": "Provider changes to port",
     "class": "PORT",
     "cause": "Provider changes to port",
-    "effect": "23 merged MRs · partition 2, entitlements 4, legal 2, schema 1, file 1, storage 1, indexer 3, search 2, workflow 2, unit 3, crs-catalog 1, crs-conversion 1",
+    "effect": "12 merged MRs · indexer 3, search 2, workflow 2, unit 3, crs-catalog 1, crs-conversion 1",
     "next": "Port each MR into its fork-owned tree and cite the MR URL in the PR body.",
-    "why": "52d",
+    "why": "21d",
     "evidence": [],
     "related": [
-      {
-        "text": "partition",
-        "state": "certain · 2 owed",
-        "url": "https://community.opengroup.org/osdu/platform/system/partition/-/merge_requests/832"
-      },
-      {
-        "text": "entitlements",
-        "state": "certain · 4 owed",
-        "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968"
-      },
-      {
-        "text": "legal",
-        "state": "certain · 2 owed",
-        "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/merge_requests/787"
-      },
-      {
-        "text": "schema",
-        "state": "certain · 1 owed",
-        "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/merge_requests/871"
-      },
-      {
-        "text": "file",
-        "state": "certain · 1 owed",
-        "url": "https://community.opengroup.org/osdu/platform/system/file/-/merge_requests/754"
-      },
-      {
-        "text": "storage",
-        "state": "certain · 1 owed",
-        "url": "https://community.opengroup.org/osdu/platform/system/storage/-/merge_requests/1229"
-      },
       {
         "text": "indexer",
         "state": "certain · 3 owed",
@@ -4078,9 +4018,9 @@
         "url": "https://community.opengroup.org/osdu/platform/system/reference/crs-conversion-service/-/merge_requests/555"
       },
       {
-        "text": "23 upstream provider changes not ported",
+        "text": "12 upstream provider changes not ported",
         "state": "PORT",
-        "inspect": "port:entitlements"
+        "inspect": "port:unit"
       }
     ],
     "approval": null,

@@ -288,6 +288,23 @@ function gather(
   );
 }
 
+// When the first merged upstream MR deleted the fork's Azure provider tree; undefined while none has.
+function removedAt(
+  filter: UpstreamFilter,
+  merged: readonly { mergedAt: string; paths?: string[]; deleted?: string[] }[],
+): string | undefined {
+  const tree = forkOwned(filter).find((p) => p.startsWith("provider/"));
+  if (!tree) return undefined;
+  const under = (p: string) => p.startsWith(`${tree}/`);
+  return merged
+    .filter((m) => {
+      const touched = (m.paths ?? []).filter(under);
+      return touched.length > 0 && touched.every((p) => (m.deleted ?? []).includes(p));
+    })
+    .map((m) => m.mergedAt)
+    .sort((a, b) => Date.parse(a) - Date.parse(b))[0];
+}
+
 export function portLedger(
   service: RadarFacts["services"][string],
   filter: UpstreamFilter,
@@ -298,7 +315,10 @@ export function portLedger(
   for (const pr of forkPrs) for (const ref of pr.refs) cited.set(ref.toLowerCase(), pr.url);
   const owed: OwedMr[] = [];
   const ported: PortLedger["ported"] = [];
+  // Once upstream deletes the provider tree there is no upstream copy to drift from.
+  const removed = removedAt(filter, merged);
   for (const m of merged) {
+    if (removed && Date.parse(m.mergedAt) <= Date.parse(removed)) continue;
     const hits = (m.paths ?? [])
       .map((p) => ({ p, v: classifyPath(filter, p) }))
       .filter((x) => x.v.bucket === "Port");
@@ -423,16 +443,8 @@ export function removalStage(
   facts: RadarFacts | undefined,
 ): RemovalStage | undefined {
   const text = facts?.filters[fork.id]?.text;
-  const tree = text
-    ? forkOwned(parseFilter(text)).find((p) => p.startsWith("provider/"))
-    : undefined;
   const merged = facts?.services[fork.id]?.merged ?? [];
-  const under = (p: string) => !!tree && p.startsWith(`${tree}/`);
-  const removed = merged.some((m) => {
-    const touched = (m.paths ?? []).filter(under);
-    return touched.length > 0 && touched.every((p) => (m.deleted ?? []).includes(p));
-  });
-  if (removed) return "fork-only";
+  if (text && removedAt(parseFilter(text), merged)) return "fork-only";
   return facts?.removal?.labels[fork.upstream];
 }
 

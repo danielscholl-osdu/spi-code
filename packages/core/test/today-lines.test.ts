@@ -58,20 +58,20 @@ function snapshotAt(path: string) {
 }
 
 describe("Today's situation lines", () => {
-  test("16 Nov has 11 lines and 19 members, and all mornings put the same members in fork homes", () => {
-    expect(lines).toHaveLength(11);
-    expect(lines.flatMap((line) => line.members)).toHaveLength(19);
+  test("16 Nov has 10 lines and 18 members, and all mornings put the same members in fork homes", () => {
+    expect(lines).toHaveLength(10);
+    expect(lines.flatMap((line) => line.members)).toHaveLength(18);
     expect(
       lines.filter((line) => line.section === "blocked").flatMap((l) => l.members),
     ).toHaveLength(3);
     expect(
       lines.filter((line) => line.section === "waiting").flatMap((l) => l.members),
-    ).toHaveLength(16);
+    ).toHaveLength(15);
     expect(
       lines
         .flatMap(({ members }) => members)
         .filter(({ ids }) => ids.some((id) => id.startsWith("port:"))),
-    ).toHaveLength(1);
+    ).toHaveLength(0);
     const fixtures = recordedMornings();
     expect(fixtures.map(({ name }) => name)).toEqual(
       expect.arrayContaining([

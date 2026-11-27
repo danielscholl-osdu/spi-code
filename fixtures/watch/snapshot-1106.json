@@ -1000,42 +1000,36 @@
         ]
       },
       {
-        "id": "waiting:port:entitlements",
+        "id": "waiting:port:unit",
         "section": "waiting",
-        "subject": "12 forks",
-        "headline": "23 upstream provider changes to port",
+        "subject": "6 forks",
+        "headline": "12 upstream provider changes to port",
         "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
-        "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+        "effect": "Until each MR is ported, unit, indexer, search, workflow, crs-conversion and crs-catalog drift from upstream.",
         "steps": [],
-        "age": "52d",
+        "age": "21d",
         "members": [
           {
-            "id": "port:entitlements",
+            "id": "port:unit",
             "ids": [
-              "port:entitlements",
               "port:unit",
               "port:indexer",
-              "port:legal",
-              "port:partition",
               "port:search",
               "port:workflow",
               "port:crs-conversion",
-              "port:file",
-              "port:schema",
-              "port:crs-catalog",
-              "port:storage"
+              "port:crs-catalog"
             ],
-            "fork": "12 forks",
+            "fork": "6 forks",
             "home": "upstream",
             "primary": {
-              "label": "!968",
-              "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+              "label": "!503",
+              "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/503",
               "kind": "mr"
             },
-            "since": "2026-09-14T14:02:39Z",
-            "age": "52d",
+            "since": "2026-10-16T09:59:15Z",
+            "age": "21d",
             "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
-            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+            "effect": "Until each MR is ported, unit, indexer, search, workflow, crs-conversion and crs-catalog drift from upstream.",
             "steps": [],
             "evidence": {
               "areas": [
@@ -2331,50 +2325,44 @@
         "owned": false
       },
       {
-        "id": "port:entitlements",
+        "id": "port:unit",
         "ids": [
-          "port:entitlements",
           "port:unit",
           "port:indexer",
-          "port:legal",
-          "port:partition",
           "port:search",
           "port:workflow",
           "port:crs-conversion",
-          "port:file",
-          "port:schema",
-          "port:crs-catalog",
-          "port:storage"
+          "port:crs-catalog"
         ],
         "origin": "upstream",
         "rung": 1,
         "cls": "PORT",
-        "scope": "12 forks",
-        "title": "23 upstream provider changes not ported",
-        "sub": "entitlements 4 · unit 3 · indexer 3 · legal 2 · partition 2 · search 2 · workflow 2 · crs-conversion 1 · file 1 · schema 1 · crs-catalog 1 · storage 1",
+        "scope": "6 forks",
+        "title": "12 upstream provider changes not ported",
+        "sub": "unit 3 · indexer 3 · search 2 · workflow 2 · crs-conversion 1 · crs-catalog 1",
         "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
-        "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
-        "next": "Port !968 into provider/entitlements-v2-azure; cite the MR URL in the PR body.",
+        "effect": "Until each MR is ported, unit, indexer, search, workflow, crs-conversion and crs-catalog drift from upstream.",
+        "next": "Port !503 into provider/unit-azure; cite the MR URL in the PR body.",
         "verb": "Port",
         "evidence": [
           {
-            "label": "!968",
-            "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+            "label": "!503",
+            "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/503",
             "kind": "mr"
           },
           {
-            "label": "!967",
-            "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
+            "label": "!498",
+            "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/498",
             "kind": "mr"
           },
           {
-            "label": "!963",
-            "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
+            "label": "!497",
+            "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/497",
             "kind": "mr"
           },
           {
-            "label": "!956",
-            "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
+            "label": "!1030",
+            "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/merge_requests/1030",
             "kind": "mr"
           }
         ],
@@ -2615,38 +2603,8 @@
         "id": "port",
         "kind": "port",
         "title": "Provider changes to port",
-        "sub": "23 merged MRs · partition 2, entitlements 4, legal 2, schema 1, file 1, storage 1, indexer 3, search 2, workflow 2, unit 3, crs-catalog 1, crs-conversion 1",
+        "sub": "12 merged MRs · indexer 3, search 2, workflow 2, unit 3, crs-catalog 1, crs-conversion 1",
         "certain": [
-          {
-            "fork": "partition",
-            "state": "2 owed",
-            "url": "https://community.opengroup.org/osdu/platform/system/partition/-/merge_requests/832"
-          },
-          {
-            "fork": "entitlements",
-            "state": "4 owed",
-            "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968"
-          },
-          {
-            "fork": "legal",
-            "state": "2 owed",
-            "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/merge_requests/787"
-          },
-          {
-            "fork": "schema",
-            "state": "1 owed",
-            "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/merge_requests/871"
-          },
-          {
-            "fork": "file",
-            "state": "1 owed",
-            "url": "https://community.opengroup.org/osdu/platform/system/file/-/merge_requests/754"
-          },
-          {
-            "fork": "storage",
-            "state": "1 owed",
-            "url": "https://community.opengroup.org/osdu/platform/system/storage/-/merge_requests/1229"
-          },
           {
             "fork": "indexer",
             "state": "3 owed",
@@ -2680,10 +2638,10 @@
         ],
         "possible": [],
         "exposed": [],
-        "when": "52d",
+        "when": "21d",
         "tone": "neutral",
         "next": "Port each MR into its fork-owned tree and cite the MR URL in the PR body.",
-        "inspect": "port:entitlements"
+        "inspect": "port:unit"
       },
       {
         "id": "deadline:azure-removal",
@@ -3074,33 +3032,9 @@
         "text": "5 need you before they land · 3 to watch"
       },
       "owed": {
-        "itemIds": ["port:entitlements"],
-        "count": 23,
+        "itemIds": ["port:unit"],
+        "count": 12,
         "services": [
-          {
-            "service": "partition",
-            "count": 2
-          },
-          {
-            "service": "entitlements",
-            "count": 4
-          },
-          {
-            "service": "legal",
-            "count": 2
-          },
-          {
-            "service": "schema",
-            "count": 1
-          },
-          {
-            "service": "file",
-            "count": 1
-          },
-          {
-            "service": "storage",
-            "count": 1
-          },
           {
             "service": "indexer",
             "count": 3
@@ -3126,7 +3060,7 @@
             "count": 1
           }
         ],
-        "text": "23 upstream changes not ported · 12 forks"
+        "text": "12 upstream changes not ported · 6 forks"
       }
     },
     "flow": {
@@ -12667,38 +12601,6 @@
             "next": "Review the template sync PR."
           },
           {
-            "id": "port:entitlements",
-            "section": "shared",
-            "headline": "23 upstream provider changes to port",
-            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
-            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
-            "steps": [],
-            "links": [
-              {
-                "label": "!968",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
-                "kind": "mr"
-              },
-              {
-                "label": "!967",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
-                "kind": "mr"
-              },
-              {
-                "label": "!963",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
-                "kind": "mr"
-              },
-              {
-                "label": "!956",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
-                "kind": "mr"
-              }
-            ],
-            "since": "2026-09-14T14:02:39Z",
-            "age": "52d"
-          },
-          {
             "id": "can:releases:https://github.com/Azure/osdu-spi-partition/pull/198",
             "section": "can-wait",
             "headline": "Chore: release 1.3.4",
@@ -13915,26 +13817,11 @@
       },
       "upstreamSecurity": {
         "upstream": {
-          "count": 2,
+          "count": 0,
           "toPort": {
             "read": true,
             "at": "2026-11-06T14:03:10.309Z",
-            "mrs": [
-              {
-                "iid": 832,
-                "title": "Resolve \"[Venus] CI-friendly Maven versions for Partition\"",
-                "url": "https://community.opengroup.org/osdu/platform/system/partition/-/merge_requests/832",
-                "mergedAt": "2026-10-16T07:30:15Z",
-                "trees": ["provider/partition-azure", "testing/partition-test-azure"]
-              },
-              {
-                "iid": 830,
-                "title": "Partition  - migration to java 25",
-                "url": "https://community.opengroup.org/osdu/platform/system/partition/-/merge_requests/830",
-                "mergedAt": "2026-10-14T06:03:40Z",
-                "trees": ["provider/partition-azure"]
-              }
-            ]
+            "mrs": []
           },
           "nextSync": {
             "read": true,
@@ -14374,38 +14261,6 @@
             "since": "2026-11-06T08:11:20Z",
             "age": "5h",
             "next": "Review the template sync PR."
-          },
-          {
-            "id": "port:entitlements",
-            "section": "shared",
-            "headline": "23 upstream provider changes to port",
-            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
-            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
-            "steps": [],
-            "links": [
-              {
-                "label": "!968",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
-                "kind": "mr"
-              },
-              {
-                "label": "!967",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
-                "kind": "mr"
-              },
-              {
-                "label": "!963",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
-                "kind": "mr"
-              },
-              {
-                "label": "!956",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
-                "kind": "mr"
-              }
-            ],
-            "since": "2026-09-14T14:02:39Z",
-            "age": "52d"
           }
         ],
         "mark": {
@@ -15572,40 +15427,11 @@
       },
       "upstreamSecurity": {
         "upstream": {
-          "count": 4,
+          "count": 0,
           "toPort": {
             "read": true,
             "at": "2026-11-06T14:03:10.309Z",
-            "mrs": [
-              {
-                "iid": 968,
-                "title": "Entitlements - migration to java 25",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
-                "mergedAt": "2026-10-16T14:05:13Z",
-                "trees": ["provider/entitlements-v2-azure"]
-              },
-              {
-                "iid": 967,
-                "title": "Resolve \"[Venus] CI-friendly Maven versions for Entitlements\"",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
-                "mergedAt": "2026-10-16T07:31:56Z",
-                "trees": ["provider/entitlements-v2-azure", "testing/entitlements-v2-test-azure"]
-              },
-              {
-                "iid": 956,
-                "title": "Fix schemathesis issues",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
-                "mergedAt": "2026-10-07T09:52:03Z",
-                "trees": ["provider/entitlements-v2-azure"]
-              },
-              {
-                "iid": 963,
-                "title": "Merge forward 'fix/cve-critical-high-tomcat-netty' (!962) from release/0.30",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
-                "mergedAt": "2026-09-14T14:02:39Z",
-                "trees": ["testing/entitlements-v2-test-azure"]
-              }
-            ]
+            "mrs": []
           },
           "nextSync": {
             "read": true,
@@ -15983,38 +15809,6 @@
             "since": "2026-11-06T08:11:14Z",
             "age": "5h",
             "next": "Review the template sync PR."
-          },
-          {
-            "id": "port:entitlements",
-            "section": "shared",
-            "headline": "23 upstream provider changes to port",
-            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
-            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
-            "steps": [],
-            "links": [
-              {
-                "label": "!968",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
-                "kind": "mr"
-              },
-              {
-                "label": "!967",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
-                "kind": "mr"
-              },
-              {
-                "label": "!963",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
-                "kind": "mr"
-              },
-              {
-                "label": "!956",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
-                "kind": "mr"
-              }
-            ],
-            "since": "2026-09-14T14:02:39Z",
-            "age": "52d"
           },
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-legal/pull/48",
@@ -16681,26 +16475,11 @@
       },
       "upstreamSecurity": {
         "upstream": {
-          "count": 2,
+          "count": 0,
           "toPort": {
             "read": true,
             "at": "2026-11-06T14:03:10.309Z",
-            "mrs": [
-              {
-                "iid": 787,
-                "title": "Resolve \"[Venus] CI-friendly Maven versions for Legal\"",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/merge_requests/787",
-                "mergedAt": "2026-10-16T11:02:05Z",
-                "trees": ["provider/legal-azure", "testing/legal-test-azure"]
-              },
-              {
-                "iid": 783,
-                "title": "Legal - migration to java 25",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/merge_requests/783",
-                "mergedAt": "2026-10-07T08:05:28Z",
-                "trees": ["provider/legal-azure"]
-              }
-            ]
+            "mrs": []
           },
           "nextSync": {
             "read": true,
@@ -17174,38 +16953,6 @@
             "since": "2026-11-06T08:13:54Z",
             "age": "5h",
             "next": "Review the template sync PR."
-          },
-          {
-            "id": "port:entitlements",
-            "section": "shared",
-            "headline": "23 upstream provider changes to port",
-            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
-            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
-            "steps": [],
-            "links": [
-              {
-                "label": "!968",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
-                "kind": "mr"
-              },
-              {
-                "label": "!967",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
-                "kind": "mr"
-              },
-              {
-                "label": "!963",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
-                "kind": "mr"
-              },
-              {
-                "label": "!956",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
-                "kind": "mr"
-              }
-            ],
-            "since": "2026-09-14T14:02:39Z",
-            "age": "52d"
           },
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-schema/pull/40",
@@ -17960,19 +17707,11 @@
       },
       "upstreamSecurity": {
         "upstream": {
-          "count": 1,
+          "count": 0,
           "toPort": {
             "read": true,
             "at": "2026-11-06T14:03:10.309Z",
-            "mrs": [
-              {
-                "iid": 871,
-                "title": "Resolve \"[Venus] CI-friendly Maven versions for Schema\"",
-                "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/merge_requests/871",
-                "mergedAt": "2026-10-16T11:19:29Z",
-                "trees": ["provider/schema-azure", "testing/schema-test-azure"]
-              }
-            ]
+            "mrs": []
           },
           "nextSync": {
             "read": true,
@@ -18443,38 +18182,6 @@
             "since": "2026-11-06T08:10:29Z",
             "age": "5h",
             "next": "Review the template sync PR."
-          },
-          {
-            "id": "port:entitlements",
-            "section": "shared",
-            "headline": "23 upstream provider changes to port",
-            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
-            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
-            "steps": [],
-            "links": [
-              {
-                "label": "!968",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
-                "kind": "mr"
-              },
-              {
-                "label": "!967",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
-                "kind": "mr"
-              },
-              {
-                "label": "!963",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
-                "kind": "mr"
-              },
-              {
-                "label": "!956",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
-                "kind": "mr"
-              }
-            ],
-            "since": "2026-09-14T14:02:39Z",
-            "age": "52d"
           },
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-file/pull/55",
@@ -19381,19 +19088,11 @@
       },
       "upstreamSecurity": {
         "upstream": {
-          "count": 1,
+          "count": 0,
           "toPort": {
             "read": true,
             "at": "2026-11-06T14:03:10.309Z",
-            "mrs": [
-              {
-                "iid": 754,
-                "title": "Resolve \"[Venus] CI-friendly Maven versions for File\"",
-                "url": "https://community.opengroup.org/osdu/platform/system/file/-/merge_requests/754",
-                "mergedAt": "2026-10-16T10:59:56Z",
-                "trees": ["provider/file-azure", "testing/file-test-azure"]
-              }
-            ]
+            "mrs": []
           },
           "nextSync": {
             "read": true,
@@ -19808,38 +19507,6 @@
             "since": "2026-11-06T08:08:35Z",
             "age": "5h",
             "next": "Review the template sync PR."
-          },
-          {
-            "id": "port:entitlements",
-            "section": "shared",
-            "headline": "23 upstream provider changes to port",
-            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
-            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
-            "steps": [],
-            "links": [
-              {
-                "label": "!968",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
-                "kind": "mr"
-              },
-              {
-                "label": "!967",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
-                "kind": "mr"
-              },
-              {
-                "label": "!963",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
-                "kind": "mr"
-              },
-              {
-                "label": "!956",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
-                "kind": "mr"
-              }
-            ],
-            "since": "2026-09-14T14:02:39Z",
-            "age": "52d"
           },
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-storage/pull/57",
@@ -20500,19 +20167,11 @@
       },
       "upstreamSecurity": {
         "upstream": {
-          "count": 1,
+          "count": 0,
           "toPort": {
             "read": true,
             "at": "2026-11-06T14:03:10.309Z",
-            "mrs": [
-              {
-                "iid": 1229,
-                "title": "Enable x-collaboration header support by default",
-                "url": "https://community.opengroup.org/osdu/platform/system/storage/-/merge_requests/1229",
-                "mergedAt": "2026-10-22T09:21:59Z",
-                "trees": ["provider/storage-azure", "testing/storage-test-azure"]
-              }
-            ]
+            "mrs": []
           },
           "nextSync": {
             "read": true,
@@ -20943,36 +20602,36 @@
             "next": "Review the template sync PR."
           },
           {
-            "id": "port:entitlements",
+            "id": "port:unit",
             "section": "shared",
-            "headline": "23 upstream provider changes to port",
+            "headline": "12 upstream provider changes to port",
             "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
-            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+            "effect": "Until each MR is ported, unit, indexer, search, workflow, crs-conversion and crs-catalog drift from upstream.",
             "steps": [],
             "links": [
               {
-                "label": "!968",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+                "label": "!503",
+                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/503",
                 "kind": "mr"
               },
               {
-                "label": "!967",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
+                "label": "!498",
+                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/498",
                 "kind": "mr"
               },
               {
-                "label": "!963",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
+                "label": "!497",
+                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/497",
                 "kind": "mr"
               },
               {
-                "label": "!956",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
+                "label": "!1030",
+                "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/merge_requests/1030",
                 "kind": "mr"
               }
             ],
-            "since": "2026-09-14T14:02:39Z",
-            "age": "52d"
+            "since": "2026-10-16T09:59:15Z",
+            "age": "21d"
           },
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-indexer/pull/33",
@@ -22044,36 +21703,36 @@
             "next": "Review the template sync PR."
           },
           {
-            "id": "port:entitlements",
+            "id": "port:unit",
             "section": "shared",
-            "headline": "23 upstream provider changes to port",
+            "headline": "12 upstream provider changes to port",
             "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
-            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+            "effect": "Until each MR is ported, unit, indexer, search, workflow, crs-conversion and crs-catalog drift from upstream.",
             "steps": [],
             "links": [
               {
-                "label": "!968",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+                "label": "!503",
+                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/503",
                 "kind": "mr"
               },
               {
-                "label": "!967",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
+                "label": "!498",
+                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/498",
                 "kind": "mr"
               },
               {
-                "label": "!963",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
+                "label": "!497",
+                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/497",
                 "kind": "mr"
               },
               {
-                "label": "!956",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
+                "label": "!1030",
+                "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/merge_requests/1030",
                 "kind": "mr"
               }
             ],
-            "since": "2026-09-14T14:02:39Z",
-            "age": "52d"
+            "since": "2026-10-16T09:59:15Z",
+            "age": "21d"
           },
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-search/pull/29",
@@ -23160,36 +22819,36 @@
             "next": "Review the template sync PR."
           },
           {
-            "id": "port:entitlements",
+            "id": "port:unit",
             "section": "shared",
-            "headline": "23 upstream provider changes to port",
+            "headline": "12 upstream provider changes to port",
             "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
-            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+            "effect": "Until each MR is ported, unit, indexer, search, workflow, crs-conversion and crs-catalog drift from upstream.",
             "steps": [],
             "links": [
               {
-                "label": "!968",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+                "label": "!503",
+                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/503",
                 "kind": "mr"
               },
               {
-                "label": "!967",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
+                "label": "!498",
+                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/498",
                 "kind": "mr"
               },
               {
-                "label": "!963",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
+                "label": "!497",
+                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/497",
                 "kind": "mr"
               },
               {
-                "label": "!956",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
+                "label": "!1030",
+                "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/merge_requests/1030",
                 "kind": "mr"
               }
             ],
-            "since": "2026-09-14T14:02:39Z",
-            "age": "52d"
+            "since": "2026-10-16T09:59:15Z",
+            "age": "21d"
           },
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-workflow/pull/38",
@@ -25194,36 +24853,36 @@
             "next": "Review the template sync PR."
           },
           {
-            "id": "port:entitlements",
+            "id": "port:unit",
             "section": "shared",
-            "headline": "23 upstream provider changes to port",
+            "headline": "12 upstream provider changes to port",
             "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
-            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+            "effect": "Until each MR is ported, unit, indexer, search, workflow, crs-conversion and crs-catalog drift from upstream.",
             "steps": [],
             "links": [
               {
-                "label": "!968",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+                "label": "!503",
+                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/503",
                 "kind": "mr"
               },
               {
-                "label": "!967",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
+                "label": "!498",
+                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/498",
                 "kind": "mr"
               },
               {
-                "label": "!963",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
+                "label": "!497",
+                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/497",
                 "kind": "mr"
               },
               {
-                "label": "!956",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
+                "label": "!1030",
+                "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/merge_requests/1030",
                 "kind": "mr"
               }
             ],
-            "since": "2026-09-14T14:02:39Z",
-            "age": "52d"
+            "since": "2026-10-16T09:59:15Z",
+            "age": "21d"
           },
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-unit/pull/21",
@@ -26097,36 +25756,36 @@
             "next": "Review the template sync PR."
           },
           {
-            "id": "port:entitlements",
+            "id": "port:unit",
             "section": "shared",
-            "headline": "23 upstream provider changes to port",
+            "headline": "12 upstream provider changes to port",
             "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
-            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+            "effect": "Until each MR is ported, unit, indexer, search, workflow, crs-conversion and crs-catalog drift from upstream.",
             "steps": [],
             "links": [
               {
-                "label": "!968",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+                "label": "!503",
+                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/503",
                 "kind": "mr"
               },
               {
-                "label": "!967",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
+                "label": "!498",
+                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/498",
                 "kind": "mr"
               },
               {
-                "label": "!963",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
+                "label": "!497",
+                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/497",
                 "kind": "mr"
               },
               {
-                "label": "!956",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
+                "label": "!1030",
+                "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/merge_requests/1030",
                 "kind": "mr"
               }
             ],
-            "since": "2026-09-14T14:02:39Z",
-            "age": "52d"
+            "since": "2026-10-16T09:59:15Z",
+            "age": "21d"
           },
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-crs-catalog/pull/19",
@@ -26974,36 +26633,36 @@
             "next": "Review the template sync PR."
           },
           {
-            "id": "port:entitlements",
+            "id": "port:unit",
             "section": "shared",
-            "headline": "23 upstream provider changes to port",
+            "headline": "12 upstream provider changes to port",
             "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
-            "effect": "Until each MR is ported, entitlements, unit, indexer, legal, partition, search, workflow, crs-conversion, file, schema, crs-catalog and storage drift from upstream.",
+            "effect": "Until each MR is ported, unit, indexer, search, workflow, crs-conversion and crs-catalog drift from upstream.",
             "steps": [],
             "links": [
               {
-                "label": "!968",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968",
+                "label": "!503",
+                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/503",
                 "kind": "mr"
               },
               {
-                "label": "!967",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/967",
+                "label": "!498",
+                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/498",
                 "kind": "mr"
               },
               {
-                "label": "!963",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963",
+                "label": "!497",
+                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/497",
                 "kind": "mr"
               },
               {
-                "label": "!956",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956",
+                "label": "!1030",
+                "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/merge_requests/1030",
                 "kind": "mr"
               }
             ],
-            "since": "2026-09-14T14:02:39Z",
-            "age": "52d"
+            "since": "2026-10-16T09:59:15Z",
+            "age": "21d"
           },
           {
             "id": "can:releases:https://github.com/Azure/osdu-spi-crs-conversion/pull/17",
