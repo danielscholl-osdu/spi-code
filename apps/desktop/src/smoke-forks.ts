@@ -143,15 +143,24 @@ async function captureStickyForks(
   const file = `forks-sticky-${unread ? "unread-hover-" : ""}${theme}.png`;
   const rows = await window.webContents.executeJavaScript(stickyRowsScript);
   assert(rows.length > 4, `${file}: the 900px Forks capture shows its rows`);
-  const image = await window.webContents.capturePage();
-  const png = image.toPNG();
-  const size = image.getSize();
-  const bitmap = image.toBitmap();
-  writeFileSync(join(output, file), png);
-  assertSmokeImage(file, { ...size, bitmap, bytes: png.length });
-  const scale = size.width / (await window.webContents.executeJavaScript("innerWidth"));
+  const scale = (width: number) =>
+    window.webContents.executeJavaScript("innerWidth").then((inner: number) => width / inner);
+  let faults: string[] = [];
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const image = await window.webContents.capturePage();
+    const png = image.toPNG();
+    const size = image.getSize();
+    const bitmap = image.toBitmap();
+    writeFileSync(join(output, file), png);
+    assertSmokeImage(file, { ...size, bitmap, bytes: png.length });
+    faults = stickyFaults({ width: size.width, bitmap }, await scale(size.width), rows);
+    if (!faults.length) break;
+    console.log(`${file}: capture ${attempt} not yet painted: ${faults.join("; ")}`);
+    await new Promise((settle) => setTimeout(settle, 250));
+    await rendered("true");
+  }
   assert.deepEqual(
-    stickyFaults({ width: size.width, bitmap }, scale, rows),
+    faults,
     [],
     `${file}: every row in view draws its own toggle and name over the scrolled columns`,
   );
