@@ -99,7 +99,8 @@
   }
 }
 
-.today { container-name: today; container-type: inline-size; overflow-anchor: none; }
+/* Yours can scroll where Forks does not; the reserved gutter keeps the flow's box the same on both. */
+.today { container-name: today; container-type: inline-size; overflow-anchor: none; scrollbar-gutter: stable; }
 
 .today-tabrow { display: flex; flex-wrap: wrap; align-items: center; gap: 0 12px; margin: 18px 0 14px; border-bottom: 1px solid var(--border); }
 .today-tabs { display: flex; gap: 2px; overflow-x: auto; overflow-y: hidden; }
