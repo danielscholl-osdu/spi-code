@@ -68,16 +68,12 @@ describe.each(NAMES)("on the %s morning", (name) => {
     const frame = container.querySelector(".today .place-reading.today-frame");
     expect(frame).not.toBeNull();
     const fleet = body.briefing.today?.fleet;
-    const unread =
-      fleet && [...fleet.stations, ...fleet.doors].some(({ notRead }) => notRead.length);
     expect(
       [...(frame?.children ?? [])].map((child) => child.className || child.getAttribute("role")),
-    ).toEqual([
-      ...(fleet ? ["flow-wrap"] : []),
-      ...(unread ? ["today-not-read"] : []),
-      "today-tabs",
-      "tabpanel",
-    ]);
+    ).toEqual([...(fleet ? ["fleet"] : []), "today-tabs", "tabpanel"]);
+    expect(frame?.querySelector(".fleet > .today-not-read") !== null).toBe(
+      (fleet?.notRead.length ?? 0) > 0,
+    );
     const order = ["blocked", "waiting", "can-wait"];
     const sections = [...(frame?.querySelectorAll<HTMLElement>(".today-section") ?? [])].map(
       ({ dataset }) => dataset.section ?? "",

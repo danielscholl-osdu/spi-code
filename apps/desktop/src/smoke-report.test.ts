@@ -1065,12 +1065,13 @@ it("lists Today on calm, busy and bad at 1440 and 740, busy also at 1000, a row 
     mornings.map(
       ({ surface, viewportWidth, appearance }) => `${surface}/${viewportWidth}/${appearance}`,
     ),
-  ).toHaveLength(24);
+  ).toHaveLength(26);
   const surfaces: [string, number[]][] = [
     ...["calm", "busy", "bad"].flatMap((morning): [string, number[]][] => [
       [`today-${morning}`, morning === "busy" ? [1440, 1000, 740] : [1440, 740]],
       [`today-${morning}-open`, [1440]],
     ]),
+    ["today-busy-centre", [752]],
     ["today-busy-sync", [1440]],
     ["today-busy-activity", [1440]],
   ];

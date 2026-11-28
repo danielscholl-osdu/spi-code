@@ -113,6 +113,7 @@ export const MORNING_SURFACES = [
       widths: [1440],
     },
   ]),
+  { id: "today-busy-centre", morning: "busy", view: "yours", open: false, widths: [752] },
   { id: "today-busy-sync", morning: "busy", view: "sync", open: false, widths: [1440] },
   { id: "today-busy-activity", morning: "busy", view: "activity", open: false, widths: [1440] },
 ] satisfies {

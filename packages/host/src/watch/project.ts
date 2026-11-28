@@ -83,6 +83,7 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
     briefing.nextSyncAt,
     briefing.today.causes,
     briefing.lines,
+    { upstream: model.upstream.forks, deployments: model.forkDeployments },
   );
   releases.today = today;
   const platform = platformReleased(documents, input.facts, input.context);

@@ -1,0 +1,57 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+.fleet { max-width: var(--centre-content-max-width); container-name: fleet; container-type: inline-size; }
+.fleet-flow { display: grid; grid-template-columns: minmax(0, 1fr) 22px 116px 18px 176px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.fleet-lanes { display: flex; flex-direction: column; min-width: 0; }
+.fleet-lane { position: relative; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); padding: 4px; }
+.fleet-lane--stations { column-gap: 12px; padding-bottom: 11px; }
+.fleet-lane--stations > .fleet-slot { grid-column: span 4; }
+.fleet-lane--doors { border-top: 1px dashed var(--border); padding-top: 9px; }
+.fleet-lane--doors > .fleet-slot { grid-column: span 3; }
+.fleet-legend { position: absolute; top: -7px; right: 10px; padding: 0 6px; background: var(--surface); color: var(--text-muted); font-size: var(--text-xs); font-weight: 600; letter-spacing: .08em; line-height: 12px; text-transform: uppercase; }
+.fleet-join { display: flex; flex-direction: column; }
+.fleet-join span, .fleet-sep { display: flex; flex: 1; align-items: center; justify-content: center; color: var(--text-muted); font-size: var(--text-sm); }
+
+.fleet-slot { position: relative; display: flex; flex-direction: column; min-width: 0; }
+.fleet-slot > .fleet-cell { flex: 1; }
+.fleet-flow > .fleet-slot { justify-content: center; }
+.fleet-flow > .fleet-slot > .fleet-cell { flex: none; }
+.fleet-arrow { position: absolute; top: 50%; right: -13px; transform: translateY(-50%); color: var(--text-muted); font-size: var(--text-sm); }
+
+.fleet-cell { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 2px; min-width: 0; margin: 0 5px; padding: 6px 9px; border: 1.5px solid transparent; border-radius: 6px; background: transparent; color: var(--text); font: inherit; text-align: left; text-decoration: none; white-space: nowrap; }
+.fleet-cell--big { margin: 4px 0; padding: 6px 12px; }
+a.fleet-cell, button.fleet-cell { cursor: pointer; }
+a.fleet-cell:hover { border-color: var(--border); color: var(--text-strong); }
+.fleet-label { color: var(--text-muted); font-size: var(--text-xs); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.fleet-value { color: var(--text-strong); font-size: var(--text-md); font-weight: 500; }
+.fleet-value--none { color: var(--text-muted); font-size: 22px; font-weight: 700; line-height: 18px; }
+.fleet-value--unread { color: var(--warning-text); font-weight: 600; }
+.fleet-value--bad { color: var(--error-text); font-weight: 650; }
+.fleet-more, .fleet-sub { color: var(--text-muted); font-size: var(--text-sm); font-weight: 400; }
+.fleet-go { color: var(--text-muted); font-weight: 400; }
+.fleet-tick { color: var(--success-text); font-weight: 700; }
+
+.fleet-cell--error { border-color: var(--error); background: var(--error-surface); }
+.fleet-cell--warning { border-color: var(--warning); background: var(--warning-surface); }
+.fleet-cell--error :is(.fleet-label, .fleet-value, .fleet-more, .fleet-go) { color: var(--error-text); }
+.fleet-cell--warning :is(.fleet-label, .fleet-value, .fleet-more, .fleet-go) { color: var(--warning-text); }
+.fleet-cell--error .fleet-value, .fleet-cell--warning .fleet-value { font-weight: 650; }
+.fleet-cell[aria-pressed="true"] { outline: 2px solid var(--text-strong); outline-offset: -1px; }
+
+.fleet-gap { position: absolute; top: 4px; right: 11px; display: inline-flex; align-items: center; gap: 3px; height: 22px; padding: 0 8px; border: 1px solid var(--warning); border-radius: 11px; background: var(--warning-surface); color: var(--warning-text); font-size: var(--text-sm); font-weight: 700; text-decoration: none; }
+.fleet-gap:hover { border-color: var(--warning-text); }
+.fleet-slot--plain > .fleet-gap { top: 0; right: auto; left: calc(22px + var(--l) * 8.1px); height: 20px; padding: 0 6px; }
+.fleet-flow > .fleet-slot > .fleet-gap { top: 50%; margin-top: -31px; }
+.fleet-flow > .fleet-slot--plain > .fleet-gap { left: calc(20px + var(--l) * 8.1px); }
+
+.fleet-not-read { margin: 10px 0 0; }
+.fleet-not-read a { color: var(--accent-text); }
+
+@container fleet (width < 760px) {
+  .fleet-flow { grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr); }
+  .fleet-lanes { grid-column: 1 / -1; }
+  .fleet-join { display: none; }
+  .fleet-lane--doors > .fleet-slot { grid-column: span 6; }
+  .fleet-cell { white-space: normal; }
+}

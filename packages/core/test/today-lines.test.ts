@@ -274,7 +274,7 @@ describe("Today's situation lines", () => {
       "indexer",
       "indexer-queue",
     ]);
-    expect(fleet?.environment).toEqual({ state: "ready", version: "v0.35.5" });
+    expect(fleet?.environment).toEqual({ state: "ready", version: "v0.35.5", notRead: [] });
     const causes = snapshot.briefing.today?.causes?.rows ?? [];
     expect(
       fleet?.doors.map(({ id, count, target }) => [

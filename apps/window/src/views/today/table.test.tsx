@@ -113,10 +113,19 @@ const memberIds = () =>
   [...container.querySelectorAll<HTMLElement>("[data-section] tr.today-row[data-item-id]")].map(
     ({ dataset }) => dataset.itemId,
   );
-const station = (id: string) => container.querySelector<HTMLElement>(`[data-station=${id}]`);
-const door = (id: string) => container.querySelector<HTMLElement>(`[data-door=${id}]`);
+const station = (id: string) =>
+  container.querySelector<HTMLElement>(`.fleet-cell[data-station=${id}]`);
+const door = (id: string) => container.querySelector<HTMLElement>(`.fleet-cell[data-door=${id}]`);
 const tab = (id: string) => container.querySelector<HTMLElement>(`[data-today-tab=${id}]`);
 const route = () => parseRoute(window.location.hash);
+const value = (id: string) =>
+  (station(id) ?? door(id))
+    ?.querySelector(".fleet-value")
+    ?.textContent?.replace(/\s+/g, " ")
+    .trim();
+const readout = (id: string) => [value(id), station(id)?.querySelector(".fleet-sub")?.textContent];
+const chip = (id: string) =>
+  (station(id) ?? door(id))?.parentElement?.querySelector<HTMLAnchorElement>(".fleet-gap");
 
 it("draws 16 Nov as 3 Blocked and 16 Waiting on you in 11 rows, with no verb", async () => {
   await render();
@@ -521,7 +530,7 @@ describe("the fleet flow filters Yours", () => {
     }
   });
 
-  it("Integration's second line keeps the cascade wait through a partial read and names those forks", async () => {
+  it("Integration keeps the cascade wait through a partial read and names those forks", async () => {
     const body = whole();
     const integration = body.briefing.today?.fleet?.stations.find(({ id }) => id === "integration");
     if (!integration) throw new Error("16 Nov has its Integration figure");
@@ -534,71 +543,62 @@ describe("the fleet flow filters Yours", () => {
       waitingOnClock: ["search"],
     });
     await render(body, "#today/yours/integration");
-    expect(station("integration")?.querySelector(".flow-word")?.textContent).toBe("⌀ not read");
-    expect(station("integration")?.querySelector(".flow-line")?.textContent).toBe(
-      "1 waiting for cascade",
-    );
+    expect(value("integration")).toBe("1 waiting for cascade");
+    expect(chip("integration")?.title).toBe("Integration PRs not read on file · opens Evidence");
     expect(container.querySelector(".today-filter-note")?.textContent).toBe(
       "Waiting for cascade on search.",
     );
     expect(memberIds().sort()).toEqual(atStation(body, "integration").sort());
   });
 
-  it("a station claims red only for its red PRs, and Main counts only the forks proved green", async () => {
+  it("Main reads green only when every fork was read green, and red over its green count", async () => {
     const body = whole();
     const stations = body.briefing.today?.fleet?.stations ?? [];
     const integration = stations.find(({ id }) => id === "integration");
     const main = stations.find(({ id }) => id === "main");
     if (!integration || !main) throw new Error("16 Nov has its Integration and Main figures");
-    Object.assign(integration, { count: 1, forks: ["unit"], stopped: ["search"], red: [] });
-    Object.assign(main, {
-      count: 11,
-      forks: main.forks.slice(0, 11),
-      notRead: ["file", "unit"],
-      inProgress: ["legal"],
-    });
     await render(body);
-    const words = () => [
-      station("main")?.querySelector(".flow-word")?.textContent,
-      station("main")?.querySelector(".flow-line")?.textContent,
-    ];
-    expect(station("integration")?.querySelector(".flow-line")).toBeNull();
-    expect(words()).toEqual(["11 green", "1 running"]);
-    expect(station("main")?.textContent).not.toMatch(/13|⌀|fine/);
-    expect(station("main")?.querySelector(".flow-say")?.textContent).toBe(", some forks not read");
+    expect(readout("main")).toEqual(["✓ Green", "13 forks"]);
+    await unmount();
+    container.remove();
+
+    Object.assign(main, { count: 11, forks: main.forks.slice(0, 11), notRead: ["file", "unit"] });
+    await render(body);
+    expect(readout("main")).toEqual(["11 green", undefined]);
+    expect(chip("main")?.title).toBe("Main runs not read on file and unit · opens Evidence");
     await unmount();
     container.remove();
 
     Object.assign(integration, { stopped: ["unit"], red: ["unit"] });
     Object.assign(main, { stopped: ["search"] });
     await render(body);
-    expect(station("integration")?.querySelector(".flow-line")?.textContent).toBe("1 red");
-    expect(words()).toEqual(["1 red", "11 green · 1 running"]);
-    expect(station("main")?.dataset.state).toBe("stopped");
+    expect(value("integration")).toBe(`${integration.count} PRs · 1 red`);
+    expect(readout("main")).toEqual(["1 red", "11 green"]);
+    expect(station("main")?.querySelector(".fleet-value--bad")).not.toBeNull();
     await unmount();
     container.remove();
 
-    Object.assign(main, { count: 0, forks: [], inProgress: [] });
+    Object.assign(main, { count: 0, forks: [], stopped: [] });
     await render(body);
-    expect(words()).toEqual(["1 red", "⌀ not read"]);
-    expect(station("main")?.querySelector(".flow-say")?.textContent).toBe(
-      ", blocked, some forks not read",
-    );
+    expect(station("main")?.dataset.kind).toBe("not-read");
+    expect(station("main")?.textContent).not.toMatch(/Green|green|·/);
   });
 
   it.each([
-    ["later today", 18, "next sync 18:00"],
-    ["on another day this week", 19, "next sync Thu 18:00"],
-  ] as const)("Upstream names a next sync %s by the shared time words", async (_, day, line) => {
+    ["later today", 18, "· 18:00"],
+    ["on another day this week", 19, "· Thu 18:00"],
+  ] as const)("Upstream counts forks behind with a next sync %s", async (_, day, more) => {
     vi.useFakeTimers({ toFake: ["Date"] });
     try {
       vi.setSystemTime(new Date(2026, 10, 18, 9, 0));
       const body = whole();
       const fleet = body.briefing.today?.fleet;
-      if (!fleet) throw new Error("16 Nov has its fleet");
+      const upstream = fleet?.stations.find(({ id }) => id === "upstream");
+      if (!fleet || !upstream) throw new Error("16 Nov has its fleet");
       fleet.nextSyncAt = new Date(2026, 10, day, 18, 0).toISOString();
+      Object.assign(upstream, { count: 0, forks: [], stopped: [], behind: ["file", "unit"] });
       await render(body);
-      expect(station("upstream")?.querySelector(".flow-line")?.textContent).toBe(line);
+      expect(value("upstream")).toBe(`2 forks behind ${more}`);
     } finally {
       vi.useRealTimers();
     }
@@ -612,65 +612,41 @@ describe("the fleet flow filters Yours", () => {
     expect(memberIds()).toHaveLength(3);
   });
 
-  it("Main is not a button and Environment opens Environment", async () => {
-    await render(whole());
-    expect(station("main")?.tagName).toBe("DIV");
-    await click(station("environment"));
-    expect(route()).toEqual({ kind: "environment" });
-  });
-
-  it.each(["#today", "#today/yours/sync", "#today/activity"])(
-    "at %s says not read once, under the flow, naming every figure's unread forks",
-    async (hash) => {
+  it.each([
+    ["#today", false],
+    ["#today/yours/sync", false],
+    ["#today/activity", false],
+    ["#today", true],
+  ])(
+    "at %s says what was not read once, under the flow, by core's names (past four: %s)",
+    async (hash, many) => {
       const body = whole();
       const fleet = body.briefing.today?.fleet;
-      const sync = fleet?.stations.find(({ id }) => id === "sync");
-      const main = fleet?.stations.find(({ id }) => id === "main");
-      const template = fleet?.doors.find(({ id }) => id === "template");
-      if (!sync || !main || !template) throw new Error("16 Nov has its Sync PR, Main and Template");
-      sync.notRead = ["file"];
-      Object.assign(main, { count: 12, forks: main.forks.slice(0, 12), notRead: ["unit"] });
-      template.notRead = ["unit", "file"];
+      if (!fleet) throw new Error("16 Nov has its fleet");
+      fleet.notRead = many
+        ? [
+            "file's main run",
+            "unit's deployment",
+            "legal's upstream",
+            "schema's main run",
+            "search's upstream",
+          ]
+        : ["file's pull requests", "unit's pull requests and main run"];
       await render(body, hash);
       const lines = container.querySelectorAll(".today-not-read");
       expect(lines).toHaveLength(1);
-      expect(lines[0]?.previousElementSibling?.className).toBe("flow-wrap");
-      expect(lines[0]?.textContent).toBe("⌀ Not read on file, unit. Evidence ›");
-      const figures = [
-        ...container.querySelectorAll(
-          ".flow-station:not([data-station=environment]) .flow-word, .flow-door-word",
-        ),
-      ].map(({ textContent }) => textContent);
-      expect(figures.filter((word) => word?.includes("⌀"))).toEqual(["⌀ not read"]);
-      expect(door("template")?.querySelector(".flow-door-word")?.textContent).toBe("⌀ not read");
-      expect(station("sync")?.querySelector(".flow-word")?.textContent).toBe(`${sync.count} open`);
-      for (const id of ["sync", "main"])
-        expect(station(id)?.querySelector(".flow-say")?.textContent).not.toMatch(/fine/);
-      if (hash.includes("sync")) expect(memberIds().sort()).toEqual(atStation(body, "sync").sort());
+      expect(lines[0]?.parentElement?.className).toBe("fleet");
+      expect(lines[0]?.previousElementSibling?.className).toBe("fleet-flow");
+      expect(lines[0]?.textContent).toBe(
+        many
+          ? "⌀ Not read on 5 forks · Evidence ›"
+          : "⌀ Not read: file's pull requests, unit's pull requests and main run · Evidence ›",
+      );
+      expect(lines[0]?.getAttribute("title")).toBe(many ? fleet.notRead.join("\n") : null);
+      await click(lines[0]?.querySelector("a"));
+      expect(route()?.kind).toBe("evidence");
     },
   );
-
-  it.each([
-    [
-      ["file", "unit", "legal", "schema"],
-      "⌀ Not read on file, unit, legal, schema. Evidence ›",
-      null,
-    ],
-    [
-      ["file", "unit", "legal", "schema", "search"],
-      "⌀ Not read on 5 forks. Evidence ›",
-      "file, unit, legal, schema, search",
-    ],
-  ])("the not-read line over %j reads %j", async (forks, text, title) => {
-    const body = whole();
-    const sync = body.briefing.today?.fleet?.stations.find(({ id }) => id === "sync");
-    if (!sync) throw new Error("16 Nov has its Sync PR");
-    sync.notRead = forks;
-    await render(body);
-    const line = container.querySelector(".today-not-read");
-    expect(line?.textContent).toBe(text);
-    expect(line?.getAttribute("title")).toBe(title);
-  });
 
   it("a filter over forks not read never says its list is empty, and nothing unread draws no line", async () => {
     await render(whole());
@@ -679,18 +655,21 @@ describe("the fleet flow filters Yours", () => {
     container.remove();
 
     const empty = whole();
-    const upstream = empty.briefing.today?.fleet?.stations.find(({ id }) => id === "upstream");
-    if (!upstream || !empty.briefing.lines) throw new Error("16 Nov has its Upstream figure");
+    const fleet = empty.briefing.today?.fleet;
+    const upstream = fleet?.stations.find(({ id }) => id === "upstream");
+    if (!fleet || !upstream || !empty.briefing.lines)
+      throw new Error("16 Nov has its Upstream figure");
     Object.assign(upstream, { count: 0, forks: [], stopped: [], notRead: ["indexer"] });
+    fleet.notRead = ["indexer's upstream"];
     empty.briefing.lines = empty.briefing.lines.filter(
       ({ members }) => !members.some(({ station }) => station === "upstream"),
     );
     await render(empty, "#today/yours/upstream");
-    expect(station("upstream")?.querySelector(".flow-word")?.textContent).toBe("⌀ not read");
-    expect(station("upstream")?.querySelector(".flow-say")?.textContent).toBe(", not read");
+    expect(station("upstream")?.dataset.kind).toBe("not-read");
+    expect(station("upstream")?.title).toBe("Upstream not read on indexer · opens Evidence");
     expect(container.querySelectorAll(".today-not-read")).toHaveLength(1);
     expect(container.querySelector(".today-not-read")?.textContent).toMatch(
-      /^⌀ Not read on indexer\./,
+      /^⌀ Not read: indexer's upstream/,
     );
     expect(container.querySelector(".today-table-calm")).toBeNull();
     expect(container.querySelector("[role=tabpanel]")?.textContent).not.toMatch(
@@ -707,6 +686,221 @@ describe("the fleet flow filters Yours", () => {
     expect(container.querySelector(".today-table-calm")?.textContent).toBe(
       "Nothing waiting on you here.",
     );
+  });
+});
+
+describe("the fleet flow's four marks", () => {
+  const IDS = ["upstream", "sync", "integration", "template", "release", "dependabot", "other"];
+  const kinds = () =>
+    Object.fromEntries(
+      [...IDS, "main", "environment"].map((id) => {
+        const cell = station(id) ?? door(id);
+        const tone = cell?.className.match(/fleet-cell--(error|warning)/)?.[1];
+        return [id, `${cell?.dataset.kind}${tone ? `:${tone}` : ""}`];
+      }),
+    );
+  type Fleet = NonNullable<NonNullable<ViewSnapshot["briefing"]["today"]>["fleet"]>;
+  const figures = (body: ViewSnapshot) => {
+    const fleet = body.briefing.today?.fleet as Fleet;
+    return [...fleet.stations, ...fleet.doors];
+  };
+  const clear = (body: ViewSnapshot, notRead: string[]) => {
+    for (const figure of figures(body))
+      Object.assign(figure, {
+        count: 0,
+        forks: [],
+        notRead,
+        ...("stopped" in figure
+          ? { stopped: [], red: [], inProgress: [], waitingOnClock: [], waitingOnPerson: [] }
+          : {}),
+      });
+    body.briefing.lines = [];
+  };
+
+  it.each<[string, (body: ViewSnapshot) => void, Record<string, string>]>([
+    [
+      "as swept: tinted where Yours holds a row, red over a Blocked row",
+      () => {},
+      {
+        upstream: "filter:error",
+        sync: "filter:warning",
+        integration: "filter:warning",
+        template: "filter:warning",
+        release: "link",
+        dependabot: "link",
+        other: "link",
+        main: "plain",
+        environment: "link",
+      },
+    ],
+    [
+      "no rows: a stopped station with no Blocked row is untinted, its value a link or plain",
+      (body) => {
+        body.briefing.lines = [];
+      },
+      {
+        upstream: "link",
+        sync: "link",
+        integration: "plain",
+        template: "dot",
+        release: "link",
+        dependabot: "link",
+        other: "link",
+        main: "plain",
+        environment: "link",
+      },
+    ],
+    [
+      "Upstream's rows only waiting: amber, never red",
+      (body) => {
+        for (const line of body.briefing.lines ?? [])
+          if (line.members.some(({ station }) => station === "upstream")) line.section = "waiting";
+      },
+      { upstream: "filter:warning" },
+    ],
+    [
+      "doors with no target: plain, never a link",
+      (body) => {
+        for (const figure of body.briefing.today?.fleet?.doors ?? []) delete figure.target;
+        body.briefing.lines = [];
+      },
+      { template: "dot", release: "plain", dependabot: "plain", other: "plain" },
+    ],
+    [
+      "nothing open and every fork read: the dot",
+      (body) => clear(body, []),
+      Object.fromEntries([...IDS, "main"].map((id) => [id, "dot"])),
+    ],
+    [
+      "nothing counted and a fork not read: ⌀, never the dot",
+      (body) => clear(body, ["file"]),
+      Object.fromEntries([...IDS, "main"].map((id) => [id, "not-read"])),
+    ],
+    [
+      "Environment's readiness not read: ⌀",
+      (body) => {
+        const fleet = body.briefing.today?.fleet as Fleet;
+        fleet.environment = { state: "unread", version: "v0.35.5", lanes: 2, notRead: [] };
+      },
+      { environment: "not-read" },
+    ],
+  ])("%s", async (_, change, expected) => {
+    const body = whole();
+    change(body);
+    await render(body);
+    expect(kinds()).toMatchObject(expected);
+    expect(station("main")?.tagName).not.toBe("BUTTON");
+    for (const id of [...IDS, "main", "environment"]) {
+      const cell = station(id) ?? door(id);
+      const kind = cell?.dataset.kind;
+      expect(cell?.tagName).toBe(
+        kind === "filter" ? "BUTTON" : kind === "link" || kind === "not-read" ? "A" : "SPAN",
+      );
+      if (kind === "filter") expect(cell?.getAttribute("aria-pressed")).toBe("false");
+      if (kind === "dot") expect(cell?.querySelector("[aria-label=None]")?.textContent).toBe("·");
+      if (kind === "not-read")
+        expect(cell?.querySelector("[aria-label='Not read']")?.textContent).toBe("⌀ ›");
+    }
+    if (body.briefing.today?.fleet?.environment.state === "unread")
+      expect(station("environment")?.textContent).not.toMatch(/Ready|✓|lane/);
+  });
+
+  it("every value ending in › opens its place, and no → takes focus", async () => {
+    const body = whole();
+    body.briefing.lines = [];
+    const fleet = body.briefing.today?.fleet as Fleet;
+    const upstream = fleet.stations.find(({ id }) => id === "upstream");
+    if (!upstream) throw new Error("16 Nov has its Upstream figure");
+    Object.assign(upstream, { count: 0, forks: [], stopped: [], behind: ["file"] });
+    await render(body);
+    const values = [...container.querySelectorAll<HTMLElement>(".fleet-cell")].filter((cell) =>
+      cell.querySelector(".fleet-go"),
+    );
+    expect(values.map((cell) => cell.dataset.station ?? cell.dataset.door)).toEqual([
+      "upstream",
+      "sync",
+      "release",
+      "dependabot",
+      "other",
+      "environment",
+    ]);
+    const opens = async (id: string) => {
+      await act(async () => navigate({ kind: "today" }));
+      await click(station(id) ?? door(id));
+      return route();
+    };
+    expect(await opens("upstream")).toEqual({ kind: "upstream" });
+    expect(await opens("sync")).toEqual({ kind: "today", tab: "forks" });
+    expect(await opens("environment")).toEqual({ kind: "environment" });
+    for (const id of ["release", "dependabot", "other"]) {
+      expect(await opens(id)).toEqual({ kind: "today" });
+      const target = fleet.doors.find((figure) => figure.id === id)?.target;
+      expect(openSelection()).toEqual({
+        kind: "cause",
+        id: target?.kind === "cause" ? target.row : "",
+      });
+    }
+    const arrows = [...container.querySelectorAll<HTMLElement>(".fleet-flow *")].filter(
+      (element) => element.children.length === 0 && element.textContent === "→",
+    );
+    expect(arrows.length).toBeGreaterThan(0);
+    for (const arrow of arrows) {
+      expect(arrow.closest("[aria-hidden=true]")).not.toBeNull();
+      expect(arrow.closest("a, button, [tabindex]")).toBeNull();
+    }
+  });
+
+  it("a Sync PR value with forks not read opens Forks, and its ⌀ chip opens Evidence", async () => {
+    const body = whole();
+    body.briefing.lines = [];
+    const sync = body.briefing.today?.fleet?.stations.find(({ id }) => id === "sync");
+    if (!sync) throw new Error("16 Nov has its Sync PR figure");
+    sync.notRead = ["file", "indexer"];
+    await render(body);
+    expect(station("sync")?.dataset.kind).toBe("link");
+    expect(value("sync")).toBe(`${sync.count} open ›`);
+    expect(chip("sync")?.title).toBe("Sync PRs not read on file and indexer · opens Evidence");
+    await click(station("sync"));
+    expect(route()).toEqual({ kind: "today", tab: "forks" });
+    await act(async () => navigate({ kind: "today" }));
+    await click(chip("sync"));
+    expect(route()?.kind).toBe("evidence");
+  });
+
+  it("a tinted value with a gap keeps its filter and its chip, and says so when pressed", async () => {
+    const body = whole();
+    const sync = body.briefing.today?.fleet?.stations.find(({ id }) => id === "sync");
+    if (!sync) throw new Error("16 Nov has its Sync PR figure");
+    sync.notRead = ["file"];
+    await render(body, "#today/yours/sync");
+    expect(station("sync")?.getAttribute("aria-pressed")).toBe("true");
+    expect(station("sync")?.title).toMatch(/\nPress again to show all$/);
+    expect(chip("sync")).not.toBeNull();
+    await click(station("sync"));
+    expect(route()).toEqual({ kind: "today" });
+  });
+
+  it.each([
+    [
+      { state: "ready", version: "v0.35.5", lanes: 1, notRead: [] },
+      ["✓ Ready ›", "v0.35.5 · 1 lane busy"],
+      null,
+    ],
+    [
+      { state: "ready", version: "v0.35.5", lanes: 0, notRead: ["partition"] },
+      ["✓ Ready ›", "v0.35.5"],
+      "Deployments not read on partition · opens Evidence",
+    ],
+    [{ state: "maintenance", notRead: [] }, ["Maintenance ›", undefined], null],
+  ] as const)("Environment %j reads %j", async (environment, words, gap) => {
+    const body = whole();
+    const fleet = body.briefing.today?.fleet as Fleet;
+    fleet.environment = structuredClone(environment) as unknown as Fleet["environment"];
+    await render(body);
+    expect(readout("environment")).toEqual(words);
+    expect(chip("environment")?.title ?? null).toBe(gap);
+    await click(station("environment"));
+    expect(route()).toEqual({ kind: "environment" });
   });
 });
 
@@ -1369,6 +1563,7 @@ describe("Can wait by cause", () => {
     const body = whole();
     const doors = body.briefing.today?.fleet?.doors ?? [];
     for (const entry of doors) delete entry.target;
+    body.briefing.lines = [];
     await render(body);
     for (const entry of doors) expect(door(entry.id)?.tagName).toBe("SPAN");
   });

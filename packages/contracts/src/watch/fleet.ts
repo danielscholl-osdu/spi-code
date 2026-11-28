@@ -73,6 +73,8 @@ const StationFigure = Figure.extend({
   // Integration also holds merged syncs waiting for the cascade.
   waitingOnClock: Forks,
   waitingOnPerson: Forks,
+  // Upstream only: forks read behind upstream, the count the Upstream place calls behind.
+  behind: Forks.optional(),
 });
 const DoorFigure = Figure.extend({
   id: ServiceHomeDoorIdSchema,
@@ -90,7 +92,12 @@ export const TodayFleetSchema = z.strictObject({
   environment: z.strictObject({
     state: z.enum(["ready", "maintenance", "unread"]),
     version: z.string().optional(),
+    // Forks deploying to the shared environment now; absent when usage was not read.
+    lanes: Count.optional(),
+    notRead: Forks,
   }),
+  // What the flow did not read, one name per fork: "search's pull requests".
+  notRead: z.array(z.string()),
   forks: z.strictObject({
     // Row keys into services[].home, grouped in fleet order.
     yours: Forks,

@@ -908,8 +908,10 @@
         "nextSyncAt": "2026-11-18T00:00:00.000Z",
         "environment": {
           "state": "ready",
-          "version": "v0.35.5"
+          "version": "v0.35.5",
+          "notRead": []
         },
+        "notRead": [],
         "forks": {
           "yours": [
             "partition",

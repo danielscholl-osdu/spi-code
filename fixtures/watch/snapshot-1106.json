@@ -1062,7 +1062,20 @@
             "red": [],
             "inProgress": [],
             "waitingOnClock": [],
-            "waitingOnPerson": []
+            "waitingOnPerson": [],
+            "behind": [
+              "partition",
+              "legal",
+              "schema",
+              "file",
+              "storage",
+              "indexer",
+              "search",
+              "workflow",
+              "indexer-queue",
+              "unit",
+              "crs-conversion"
+            ]
           },
           {
             "count": 3,
@@ -1181,8 +1194,11 @@
         "nextSyncAt": "2026-11-07T00:00:00.000Z",
         "environment": {
           "state": "ready",
-          "version": "v0.35.3"
+          "version": "v0.35.3",
+          "lanes": 0,
+          "notRead": []
         },
+        "notRead": [],
         "forks": {
           "yours": [
             "partition",
@@ -1212,7 +1228,8 @@
                 "red": [],
                 "inProgress": [],
                 "waitingOnClock": [],
-                "waitingOnPerson": []
+                "waitingOnPerson": [],
+                "behind": []
               },
               {
                 "count": 0,

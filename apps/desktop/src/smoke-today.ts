@@ -37,11 +37,11 @@ const SCROLLER = 'document.querySelector(".today-frame").closest(".centre-body >
 
 const blocksScript = `(() => {
   const frame = document.querySelector(".today-frame");
-  return [...frame.querySelectorAll(".flow-wrap, .today-table-calm, .today-section[data-section]")]
+  return [...frame.querySelectorAll(".fleet, .today-table-calm, .today-section[data-section]")]
     .map(item => {
       const { y, height } = item.getBoundingClientRect();
       const name = item.dataset.section ??
-        (item.classList.contains("flow-wrap") ? "flow" : "calm");
+        (item.classList.contains("fleet") ? "flow" : "calm");
       return { name, top: y, height };
     });
 })()`;
@@ -72,27 +72,26 @@ const overBarScript = `(() => {
   return over;
 })()`;
 
-/** Each flow station whose label's glyph or words draw outside the station's tile, or whose one-word label takes more than one line. */
+/** Each flow cell whose label's words draw outside the cell, or whose one-word label takes more than one line. */
 const labelsOutsideScript = `(() => {
   const outside = [];
-  for (const station of document.querySelectorAll(".today .flow-station")) {
+  for (const station of document.querySelectorAll(".today .fleet-cell")) {
     const tile = station.getBoundingClientRect();
-    const label = station.querySelector(".flow-label");
+    const label = station.querySelector(".fleet-label");
     const lines = new Set();
     for (const part of label.childNodes) {
-      if (part.nodeType === 1 && part.classList.contains("flow-say")) continue;
       const range = document.createRange();
       range.selectNode(part);
       for (const rect of range.getClientRects()) {
         if (!rect.width) continue;
         if (part.nodeType === 3) lines.add(Math.round(rect.top));
         if (rect.left < tile.left - 0.5 || rect.right > tile.right + 0.5)
-          outside.push(\`\${station.dataset.station}: \${Math.round(rect.left)}-\${Math.round(rect.right)} outside \${Math.round(tile.left)}-\${Math.round(tile.right)}\`);
+          outside.push(\`\${station.dataset.station ?? station.dataset.door}: \${Math.round(rect.left)}-\${Math.round(rect.right)} outside \${Math.round(tile.left)}-\${Math.round(tile.right)}\`);
       }
     }
     const words = [...label.childNodes].filter(part => part.nodeType === 3).map(part => part.textContent).join("").trim();
     if (!/\\s/.test(words) && lines.size > 1)
-      outside.push(\`\${station.dataset.station}: one word on \${lines.size} lines\`);
+      outside.push(\`\${station.dataset.station ?? station.dataset.door}: one word on \${lines.size} lines\`);
   }
   return outside;
 })()`;
@@ -104,6 +103,25 @@ async function assertLabelsInside(window: BrowserWindow, where: string) {
     [],
     `${where}: every flow station label must sit inside its tile, a one-word label on one line`,
   );
+}
+
+const flowBoxScript = `(() => {
+  const { left, width } = document.querySelector(".today .fleet-flow").getBoundingClientRect();
+  return { left: Math.round(left), width: Math.round(width) };
+})()`;
+
+/** The flow keeps its left edge and width when Today moves from Yours to Forks. */
+async function assertFlowSteady(context: TodayCaptureContext, where: string) {
+  const { window, rendered } = context;
+  const yours: { left: number; width: number } =
+    await window.webContents.executeJavaScript(flowBoxScript);
+  await window.webContents.executeJavaScript(
+    'document.querySelector(".today [data-today-tab=forks]").click()',
+  );
+  await rendered("document.querySelector('.today [data-today-tab=forks][aria-selected=\"true\"]')");
+  const forks = await window.webContents.executeJavaScript(flowBoxScript);
+  assert.deepEqual(forks, yours, `${where}: the flow must keep its left edge and width on Forks`);
+  console.log(`Packaged Today ${where}: flow at ${yours.left}+${yours.width} on Yours and Forks`);
 }
 
 async function grab(window: BrowserWindow): Promise<Pixels> {
@@ -216,6 +234,15 @@ export async function captureMornings(
           );
         }
         await assertLabelsInside(window, `Today ${surface.id} at ${viewportWidth}`);
+        if (surface.id === "today-busy-centre") {
+          const centre: number = await window.webContents.executeJavaScript(
+            'Math.round(document.querySelector(".centre-body").getBoundingClientRect().width)',
+          );
+          assert.ok(
+            Math.abs(centre - 520) <= 1,
+            `Today busy at ${viewportWidth}: centre ${centre}, not 520`,
+          );
+        }
         const geometry = [await context.measure("window")];
         const [headline, members, tab, pressed, todayCount, ...qualifiers]: [
           string,
@@ -228,7 +255,7 @@ export async function captureMornings(
           document.querySelector(".today .today-table-calm")?.textContent.trim() ?? "",
           ${DRAWN_MEMBERS},
           document.querySelector('.today .today-tab[aria-selected="true"]')?.dataset.todayTab ?? "",
-          [...document.querySelectorAll('.today .flow [aria-pressed="true"]')].map(item => item.dataset.station ?? item.dataset.door).join(" "),
+          [...document.querySelectorAll('.today .fleet-flow [aria-pressed="true"]')].map(item => item.dataset.station ?? item.dataset.door).join(" "),
           document.querySelector('[data-sidebar-row=today] .sidebar-pip')?.textContent.trim() ?? "",
           document.getElementById(document.querySelector("[data-sweep-line]")?.getAttribute("aria-labelledby") ?? "")?.textContent ?? "",
           document.querySelector("main .today-read-gap")?.title ?? ""
@@ -278,6 +305,8 @@ export async function captureMornings(
           `Packaged Today ${surface.id}/${viewportWidth}/${appearance}: page ${page.pageHeight} of window ${page.height} (pane ${Math.round(page.top)}+${page.clientHeight}), blocks ${page.blocks.map(({ name, top, height }) => `${name}@${Math.round(top)}+${Math.round(height)}`).join(" ")}${qualifiers[1] ? `; not read "${qualifiers[1]}"` : ""}`,
         );
         shots.push(shot);
+        if (surface.view === "yours" && !surface.open && appearance === "light")
+          await assertFlowSteady(context, `${surface.id}/${viewportWidth}`);
       }
     }
   }

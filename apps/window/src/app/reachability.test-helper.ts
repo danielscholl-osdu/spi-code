@@ -63,6 +63,8 @@ export type Exemption = {
   when?: (value: unknown, leaf: { pointer: string; snapshot: Leaves }) => boolean;
   /** A contract field core doesn't fill yet: no fixture leaf has to use it, so it's never stale. */
   pending?: true;
+  /** Applies only on a morning the 6 Nov sweep doesn't show, so that sweep never calls it stale. */
+  elsewhere?: true;
 };
 
 type Leaves = Pick<ViewSnapshot, "briefing" | "releases" | "services">;
@@ -1124,15 +1126,13 @@ export function lowerCases(snapshot: ViewSnapshot): Reach[] {
 
 type Summary = NonNullable<ViewSnapshot["briefing"]["today"]>;
 
-/** A figure's word as its count: "None open" and "Sync current" read 0. */
-const figureCount = (element: Element) => {
-  const text = element.textContent ?? "";
-  return text.match(/^(\d+)/)?.[1] ?? (/^(None|Sync current|⌀ not read)/.test(text) ? "0" : text);
-};
-const ENVIRONMENT_STATES: Readonly<Record<string, string>> = {
-  green: "ready",
-  stopped: "maintenance",
-  unread: "unread",
+/** A cell's count from its own words; a dot, ⌀ or a word about rows held reads 0. */
+const cellCount = (pattern: RegExp) => (element: Element) =>
+  element.querySelector(".fleet-value")?.textContent?.match(pattern)?.[1] ?? "0";
+const STATION_COUNTS: Readonly<Record<string, RegExp>> = {
+  upstream: /^(\d+) forks? stopped/,
+  sync: /^(\d+) open/,
+  integration: /^(\d+) PRs?/,
 };
 
 /** The fleet flow on Yours: each station's and door's figure, the forks behind it, and where it opens. */
@@ -1151,16 +1151,20 @@ function fleetCases(today: Summary, add: Add) {
   };
   fleet.stations.forEach((figure, index) => {
     const pointer = `${base}/stations/${index}`;
-    const station = `[data-station=${quote(figure.id)}]`;
+    const station = `.fleet-cell[data-station=${quote(figure.id)}]`;
     add(`${pointer}/id`, figure.id, TODAY, station, { attribute: "data-station" });
     if (figure.id === "main")
       add(`${pointer}/count`, figure.count, TODAY, station, {
         read: (element) =>
-          (element.textContent ?? "").match(/(\d+) green/)?.[1] ??
-          figureCount(element.querySelector(".flow-word") ?? element),
+          (element.textContent ?? "")
+            .match(/(\d+) green|Green(\d+) forks?/)
+            ?.slice(1)
+            .find(Boolean) ?? "0",
       });
     else
-      add(`${pointer}/count`, figure.count, TODAY, `${station} .flow-word`, { read: figureCount });
+      add(`${pointer}/count`, figure.count, TODAY, station, {
+        read: cellCount(STATION_COUNTS[figure.id] ?? /^(\d+)/),
+      });
     const {
       forks: counted,
       notRead,
@@ -1169,6 +1173,7 @@ function fleetCases(today: Summary, add: Add) {
       inProgress,
       waitingOnClock,
       waitingOnPerson,
+      behind = [],
     } = figure;
     forks(pointer, station, {
       forks: counted,
@@ -1178,13 +1183,16 @@ function fleetCases(today: Summary, add: Add) {
       inProgress,
       waitingOnClock,
       waitingOnPerson,
+      behind,
     });
   });
   fleet.doors.forEach((figure, index) => {
     const pointer = `${base}/doors/${index}`;
-    const door = `[data-door=${quote(figure.id)}]`;
+    const door = `.fleet-cell[data-door=${quote(figure.id)}]`;
     add(`${pointer}/id`, figure.id, TODAY, door, { attribute: "data-door" });
-    add(`${pointer}/count`, figure.count, TODAY, `${door} .flow-door-word`, { read: figureCount });
+    add(`${pointer}/count`, figure.count, TODAY, door, {
+      read: cellCount(/^(\d+) (?:open|to review)/),
+    });
     forks(pointer, door, { forks: figure.forks, notRead: figure.notRead });
     const { target } = figure;
     if (!target) return;
@@ -1192,7 +1200,7 @@ function fleetCases(today: Summary, add: Add) {
       read: (element) => (element.hasAttribute("aria-pressed") ? "station" : "cause"),
     });
     if (target.kind === "station")
-      add(`${pointer}/target/station`, target.station, TODAY, door, { attribute: "data-target" });
+      add(`${pointer}/target/station`, target.station, TODAY, door, { attribute: "data-door" });
     else
       add(`${pointer}/target/row`, target.row, TODAY, door, {
         attribute: "data-target",
@@ -1202,24 +1210,50 @@ function fleetCases(today: Summary, add: Add) {
         },
       });
   });
-  if (fleet.nextSyncAt)
+  const upstream = fleet.stations.find(({ id }) => id === "upstream");
+  if (fleet.nextSyncAt && upstream?.behind?.length && !upstream.stopped.length)
     add(
       `${base}/nextSyncAt`,
-      `next sync ${when(fleet.nextSyncAt)}`,
+      `· ${when(fleet.nextSyncAt)}`,
       TODAY,
-      '[data-station="upstream"] .flow-line',
+      '.fleet-cell[data-station="upstream"] .fleet-more',
     );
-  const environment = '[data-station="environment"]';
+  const environment = '.fleet-cell[data-station="environment"]';
   add(`${base}/environment/state`, fleet.environment.state, TODAY, environment, {
-    read: (element) => ENVIRONMENT_STATES[element.getAttribute("data-state") ?? ""] ?? "",
+    read: (element) =>
+      element.getAttribute("data-kind") === "not-read"
+        ? "unread"
+        : /^✓ Ready/.test(element.querySelector(".fleet-value")?.textContent ?? "")
+          ? "ready"
+          : /^Maintenance/.test(element.querySelector(".fleet-value")?.textContent ?? "")
+            ? "maintenance"
+            : "",
   });
-  if (fleet.environment.version)
+  if (fleet.environment.state !== "unread" && fleet.environment.version)
     add(
       `${base}/environment/version`,
       fleet.environment.version,
       TODAY,
-      `${environment} .flow-line`,
+      `${environment} .fleet-sub`,
+      { contains: true },
     );
+  if (fleet.environment.state !== "unread" && fleet.environment.lanes !== undefined)
+    add(`${base}/environment/lanes`, fleet.environment.lanes, TODAY, environment, {
+      read: (element) =>
+        element.querySelector(".fleet-sub")?.textContent?.match(/(\d+) lanes? busy/)?.[1] ?? "0",
+    });
+  fleet.environment.notRead.forEach((fork, at) => {
+    add(`${base}/environment/notRead/${at}`, fork, TODAY, `${environment} + .fleet-gap`, {
+      attribute: "title",
+      contains: true,
+    });
+  });
+  fleet.notRead.forEach((name, at) => {
+    add(`${base}/notRead/${at}`, name, TODAY, ".fleet > .today-not-read", {
+      ...(fleet.notRead.length > 4 ? { attribute: "title" } : {}),
+      contains: true,
+    });
+  });
 }
 
 /** Can wait on Yours: a row per cause, and in its opened body the forks, packages and rules. */
@@ -1461,12 +1495,23 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
         "inProgress/#",
         "waitingOnClock/#",
         "waitingOnPerson/#",
+        "behind/#",
       ].map((field) => `${FOLD_FIGURES}/stations/#/${field}`),
       ...["id", "forks/#", "notRead/#"].map((field) => `${FOLD_FIGURES}/doors/#/${field}`),
     ],
     reason:
       "The fold gives PR totals. Figure keys and membership are in the fleet flow and individual Forks rows",
     pending: true,
+  },
+  "next-sync-beside-behind": {
+    patterns: [`${FLEET}/nextSyncAt`],
+    reason:
+      "spi-code-today.md, The fleet flow: Upstream names the next sync beside forks behind, never beside forks stopped",
+    when: (_value, { snapshot }) => {
+      const upstream = snapshot.briefing.today?.fleet?.stations.find(({ id }) => id === "upstream");
+      return !upstream?.behind?.length || upstream.stopped.length > 0;
+    },
+    elsewhere: true,
   },
   "today-join": {
     patterns: ["/briefing/repositories/rows/#/sections/#/lines/#/onToday/rel"],
@@ -2011,8 +2056,8 @@ export function coverage(
     uncovered,
     stray: [...pointers].filter((pointer) => !values.has(pointer)),
     drawn,
-    stale: Object.entries(exemptions).flatMap(([name, { patterns, pending }]) =>
-      pending
+    stale: Object.entries(exemptions).flatMap(([name, { patterns, pending, elsewhere }]) =>
+      pending || elsewhere
         ? []
         : patterns.map((pattern) => `${name} ${pattern}`).filter((entry) => !used.has(entry)),
     ),
