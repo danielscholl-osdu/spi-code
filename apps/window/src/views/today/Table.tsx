@@ -8,6 +8,7 @@ import {
   fleetLines,
   type Link,
   type TodayDeadline,
+  type TodayHistory,
   type TodayLine,
   type TodayMember,
   type TodayMemberStation,
@@ -30,7 +31,7 @@ import { OpenedBody } from "../../components/opened-body/OpenedBody.js";
 import { plainTitle } from "../../text.js";
 import { PendingRequests } from "../../threads/PendingRequests.js";
 import { RequestOwner } from "../../threads/RequestOwner.js";
-import { timedText } from "../../time.js";
+import { clockTime, dayClock, timedText } from "../../time.js";
 import { CanWait } from "./CanWait.js";
 import { YoursCalm } from "./calm.js";
 import { forksWord } from "./fleet.js";
@@ -57,7 +58,7 @@ type Row = {
   pill?: Link | undefined;
   age?: string | undefined;
   deadline?: TodayDeadline | undefined;
-  gaps: number;
+  gaps: string[];
   sub: boolean;
   pointer: string;
   line: TodayLine;
@@ -84,7 +85,7 @@ function rowsOf(line: TodayLine, index: number, whole: TodayLine = line): Row[] 
     pill: single?.primary,
     age: ageInOneUnit(line.age),
     deadline: line.deadline,
-    gaps: lineGaps.length,
+    gaps: lineGaps,
     sub: false,
     pointer,
     line,
@@ -99,7 +100,7 @@ function rowsOf(line: TodayLine, index: number, whole: TodayLine = line): Row[] 
       fork: member.fork,
       pill: member.primary,
       age: ageInOneUnit(member.age),
-      gaps: distinct(member.evidence.notRead).filter((gap) => !lineGaps.includes(gap)).length,
+      gaps: distinct(member.evidence.notRead).filter((gap) => !lineGaps.includes(gap)),
       sub: true,
       pointer: `${pointer}/members/${whole.members.indexOf(member)}`,
       line,
@@ -110,6 +111,102 @@ function rowsOf(line: TodayLine, index: number, whole: TodayLine = line): Row[] 
 
 const isRow = (row: Row, open: { kind: string; id: string } | null) =>
   !!open && row.selection.kind === open.kind && row.selection.id === open.id;
+
+/** New only against a time the maintainer last looked; a member with no since never is. */
+export function isNew(
+  members: readonly Pick<TodayMember, "since">[],
+  history: Pick<TodayHistory, "basis" | "from"> | undefined,
+): boolean {
+  if (history?.basis !== "seen") return false;
+  const from = Date.parse(history.from);
+  return members.some(({ since }) => since !== undefined && Date.parse(since) > from);
+}
+
+const STAGE = {
+  merged: "merged",
+  "to-review": "to review",
+  checking: "checking",
+  "to-dispatch": "to dispatch",
+  "not-started": "not started",
+  "not-read": "not read",
+} as const;
+
+type Tally = NonNullable<NonNullable<TodayLine["rollout"]>["tally"]>;
+
+const Chevron = () => (
+  <span className="today-row-chevron">
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      width="10"
+      height="10"
+      viewBox="0 0 10 10"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3.5 2 6.5 5 3.5 8" />
+    </svg>
+  </span>
+);
+
+/** One segment per fork, by stage, with the tally beneath. */
+function RolloutBar({ tally, rest }: { tally: Tally; rest: string }) {
+  const forks = tally.reduce((n, { forks }) => n + forks.length, 0);
+  return (
+    <>
+      <span
+        className="today-rollout-bar"
+        role="img"
+        aria-label={`Rollout across ${forksWord(forks)}: ${tally.map(({ state, forks }) => `${forks.length} ${STAGE[state]}`).join(", ")}`}
+      >
+        {tally.flatMap(({ state, forks }) =>
+          forks.map((fork) => (
+            <span key={fork} className="today-rollout-seg" data-state={state} data-fork={fork} />
+          )),
+        )}
+      </span>
+      {rest && <span className="today-row-forks">{rest}</span>}
+    </>
+  );
+}
+
+/** A group's second line: its forks, and on a rollout the bar and what the forks' stages add. */
+function SecondLine({ row, open }: { row: Row; open: boolean }) {
+  const { line } = row;
+  const tally = line.rollout?.tally;
+  const forks = distinct(line.members.map(({ fork }) => fork));
+  const review = line.members.some(({ id }) => id.startsWith("rollout:"));
+  if (tally && !review)
+    return (
+      <RolloutBar
+        tally={tally}
+        rest={tally
+          .map(({ state, forks }) =>
+            state === "to-dispatch"
+              ? `${forks.length} ${STAGE[state]}: ${forks.join(", ")}`
+              : `${forks.length} ${STAGE[state]}`,
+          )
+          .join(" · ")}
+      />
+    );
+  if (tally && !tally.some(({ state }) => state === "to-dispatch"))
+    return (
+      <RolloutBar
+        tally={tally}
+        rest={[
+          forks.join(", "),
+          ...tally
+            .filter(({ state }) => state !== "to-review")
+            .map(({ state, forks }) => `${forks.length} ${STAGE[state]}`),
+        ].join(" · ")}
+      />
+    );
+  if (open || row.member || forks.length < 2) return null;
+  return <span className="today-row-forks">{forks.join(", ")}</span>;
+}
 
 /**
  * The row an item opens on Today: its member's own row, or its group's row when it is part of
@@ -150,54 +247,93 @@ function RowCells({
   row,
   origin,
   open,
+  expanded,
   services,
+  history,
   onToggle,
 }: {
   row: Row;
   origin: string | undefined;
   open: boolean;
+  expanded: boolean;
   services: ReadonlySet<string>;
+  history: TodayHistory | undefined;
   onToggle(row: Row, event: MouseEvent): void;
 }) {
   const toggle = (event: MouseEvent) => onToggle(row, event);
   const reason = row.deadline && plainTitle(timedText(row.deadline.reason, { hint: false }));
+  const fresh = isNew(row.member ? [row.member] : row.line.members, history);
+  const gaps = row.gaps.join("; ");
   return (
     <tr
       className={row.sub ? "today-row today-row--sub" : "today-row"}
       data-pointer={row.pointer}
       data-line-id={row.line.id}
       {...(row.member ? { "data-item-id": row.member.id } : {})}
+      {...(!row.sub && !row.member
+        ? { "data-member-ids": row.line.members.map(({ id }) => id).join(" ") }
+        : {})}
       {...(row.member?.station ? { "data-station": row.member.station } : {})}
       {...(origin ? { "data-origin": origin } : {})}
       {...(open ? { "data-open": "" } : {})}
     >
       <td className="today-row-fork">
+        {fresh && history && (
+          <span
+            className="today-row-new"
+            role="img"
+            aria-label={`New since ${clockTime(history.from, { hint: false })}`}
+            title={`New since ${clockTime(history.from, { hint: false })}`}
+          />
+        )}
         <ForkName fork={row.fork} services={services} />
       </td>
       <td className="today-row-what">
-        {row.headline ? (
-          <button
-            type="button"
-            aria-expanded={open}
-            data-pointer={row.headline.pointer}
-            onClick={toggle}
-          >
-            {row.headline.text}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="today-row-expand"
-            aria-expanded={open}
-            aria-label={`${row.fork}: ${plainTitle(row.line.headline)}`}
-            onClick={toggle}
-          >
-            Details {open ? "⌃" : "⌄"}
-          </button>
-        )}
-        {row.member?.ids.some((id) => id.startsWith("port:")) && (
-          <span className="service-tag today-row-tag">Counted on Upstream</span>
-        )}
+        <span className="today-row-l1">
+          {row.headline ? (
+            <button
+              type="button"
+              className="today-row-head"
+              aria-expanded={expanded}
+              data-pointer={row.headline.pointer}
+              onClick={toggle}
+            >
+              <Chevron />
+              {row.headline.text}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="today-row-head today-row-expand"
+              aria-expanded={open}
+              aria-label={`${row.fork}: ${plainTitle(row.line.headline)}`}
+              onClick={toggle}
+            >
+              <Chevron />
+            </button>
+          )}
+          {row.headline && row.line.proved && (
+            <span className="today-row-proved">{row.line.proved}</span>
+          )}
+          {row.deadline && reason && (
+            <span
+              className="today-row-due"
+              data-tone={row.line.section === "blocked" ? "error" : "warning"}
+              role="img"
+              // biome-ignore lint/a11y/noNoninteractiveTabindex: the reason shows on focus as on hover
+              tabIndex={0}
+              aria-label={reason}
+              data-tip={reason}
+            >
+              <Octicon name="clock" />
+              <span aria-hidden="true">{dayClock(row.deadline.at)}</span>
+            </span>
+          )}
+          {row.member?.ids.some((id) => id.startsWith("port:")) && (
+            <span className="service-tag today-row-tag">Counted on Upstream</span>
+          )}
+        </span>
+        {!row.sub && <SecondLine row={row} open={expanded} />}
       </td>
       <td className="today-row-open">
         {row.pill && (
@@ -208,30 +344,19 @@ function RowCells({
         )}
       </td>
       <td className="today-row-age">
-        {row.gaps > 0 && (
+        {row.gaps.length > 0 && (
           <button
             type="button"
             className="today-row-gaps"
-            aria-label={`${row.gaps} not read: open Evidence`}
+            aria-label={`${gaps} not read, open Evidence`}
+            title={`${gaps} not read · opens Evidence`}
             onClick={(event) => {
               event.stopPropagation();
               openEvidence(row.selection);
             }}
           >
-            ⌀ {row.gaps}
+            ⌀ {row.gaps.length} ›
           </button>
-        )}
-        {reason && (
-          <span
-            className="today-row-clock"
-            role="img"
-            // biome-ignore lint/a11y/noNoninteractiveTabindex: the reason shows on focus as on hover
-            tabIndex={0}
-            aria-label={reason}
-            data-tip={reason}
-          >
-            <Octicon name="clock" />
-          </span>
         )}
         {row.age && <span className="today-row-age-text">{row.age}</span>}
       </td>
@@ -290,7 +415,8 @@ export function TodayTable({
     const outside = (event: PointerEvent) => {
       const target = event.target as Element | null;
       const today = table.current?.closest(".today");
-      if (!target || !today?.contains(target) || target.closest("[data-open]")) return;
+      if (!target || !today?.contains(target) || target.closest("[data-open], [data-expanded]"))
+        return;
       setOpenSelection(null);
     };
     document.addEventListener("pointerdown", outside, true);
@@ -321,6 +447,7 @@ export function TodayTable({
   const counts = todayCounts({ lines: shown });
 
   const services = new Set(snapshot.stations.map(({ service }) => service));
+  const history = briefing.today?.history;
   const items: FocusItem[] = [...briefing.focus, ...briefing.rest];
   const originOf = (row: Row) => {
     if (!row.member && row.line.rollout) return items.find(({ id }) => id === "rollout")?.origin;
@@ -333,7 +460,8 @@ export function TodayTable({
   const toggle = (row: Row, event: MouseEvent) => {
     if (event.detail === 0 && (event.metaKey || event.ctrlKey)) return;
     openers.current.set(row.key, event.currentTarget as HTMLButtonElement);
-    setOpenSelection(isRow(row, open) ? null : row.selection);
+    const shut = isRow(row, open) || (!row.sub && openRow?.line === row.line);
+    setOpenSelection(shut ? null : row.selection);
   };
   const body = (row: Row) => {
     const rollout = row.member ? undefined : row.line.rollout;
@@ -392,26 +520,37 @@ export function TodayTable({
         if (held.length === 0) return null;
         return (
           <Section key={id} id={id} label={label} count={counts[id]} head>
-            {held.map((line) => (
-              <tbody key={line.id} data-line={line.id}>
-                {rows
-                  .filter((row) => row.line === line)
-                  .flatMap((row) => {
-                    const opened = row === openRow;
-                    return [
-                      <RowCells
-                        key={row.key}
-                        row={row}
-                        origin={originOf(row)}
-                        open={opened}
-                        services={services}
-                        onToggle={toggle}
-                      />,
-                      ...(opened ? [<Fragment key={`${row.key}/body`}>{body(row)}</Fragment>] : []),
-                    ];
-                  })}
-              </tbody>
-            ))}
+            {held.map((line) => {
+              const expanded = openRow?.line === line;
+              return (
+                <tbody
+                  key={line.id}
+                  data-line={line.id}
+                  {...(expanded ? { "data-expanded": "" } : {})}
+                >
+                  {rows
+                    .filter((row) => row.line === line && (expanded || !row.sub))
+                    .flatMap((row) => {
+                      const opened = row === openRow;
+                      return [
+                        <RowCells
+                          key={row.key}
+                          row={row}
+                          origin={originOf(row)}
+                          open={opened}
+                          expanded={row.sub ? opened : expanded}
+                          services={services}
+                          history={history}
+                          onToggle={toggle}
+                        />,
+                        ...(opened
+                          ? [<Fragment key={`${row.key}/body`}>{body(row)}</Fragment>]
+                          : []),
+                      ];
+                    })}
+                </tbody>
+              );
+            })}
           </Section>
         );
       })}

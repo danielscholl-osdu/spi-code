@@ -278,6 +278,16 @@ const link = (route: Route, open: () => void, says: string): Link => ({
   says,
 });
 
+/** The Template door from the rollout's per-fork tally: what is owed first, dispatch then review. */
+function templateValue(count: number, lines: readonly TodayLine[]): string | undefined {
+  const tally = lines.find(({ rollout }) => rollout?.tally)?.rollout?.tally;
+  if (!tally) return count ? `${count} to review` : undefined;
+  const owed = (state: string) => tally.find((stage) => stage.state === state)?.forks.length ?? 0;
+  if (owed("to-dispatch")) return `${owed("to-dispatch")} to dispatch`;
+  if (owed("to-review")) return `${owed("to-review")} to review`;
+  return count ? `${count} open` : undefined;
+}
+
 /**
  * Today's flow from core's fleet figures. A cell is tinted only when it holds a row of Yours;
  * Upstream, Sync PR, Integration and Template then toggle their filter.
@@ -322,11 +332,12 @@ export function fleetCells(
       ["Open", figure.forks],
       ["Not read", figure.notRead],
     ]);
-    const value = figure.count
-      ? figure.id === "template"
-        ? `${figure.count} to review`
-        : `${figure.count} open`
-      : undefined;
+    const value =
+      figure.id === "template"
+        ? templateValue(figure.count, lines)
+        : figure.count
+          ? `${figure.count} open`
+          : undefined;
     return cell(
       {
         id: figure.id,

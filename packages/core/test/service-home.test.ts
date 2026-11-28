@@ -447,7 +447,7 @@ test("an open sync PR and an unsettled failure raise one Blocked row with the fa
   expect(row(result)).toMatchObject({
     section: "blocked",
     headline: "Sync failed",
-    cause: expect.stringContaining("Build › Resolve Maven BOMs"),
+    cause: expect.stringContaining("Build, step Resolve Maven BOMs"),
   });
   expect(
     result.lines.find((line) => line.members.some((m) => m.id === "sync-run:search"))?.members[0]

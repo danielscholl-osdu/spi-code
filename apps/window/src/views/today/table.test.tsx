@@ -109,10 +109,16 @@ const yoursRows = () =>
   container.querySelectorAll(
     "tr.today-row:not(.today-row--sub, .today-row--place, .today-row--cause)",
   );
+/** Every member Yours draws, a collapsed group's members by its row's data-member-ids. */
 const memberIds = () =>
-  [...container.querySelectorAll<HTMLElement>("[data-section] tr.today-row[data-item-id]")].map(
-    ({ dataset }) => dataset.itemId,
+  [
+    ...container.querySelectorAll<HTMLElement>(
+      "[data-section] tr.today-row:not(.today-row--sub):is([data-item-id], [data-member-ids])",
+    ),
+  ].flatMap(({ dataset }) =>
+    dataset.itemId ? [dataset.itemId] : (dataset.memberIds?.split(" ") ?? []),
   );
+const expand = (lineId: string) => click(row(lineId).querySelector(".today-row-what button"));
 const station = (id: string) =>
   container.querySelector<HTMLElement>(`.fleet-cell[data-station=${id}]`);
 const door = (id: string) => container.querySelector<HTMLElement>(`.fleet-cell[data-door=${id}]`);
@@ -139,9 +145,7 @@ it("draws 16 Nov as 3 Blocked and 16 Waiting on you in 11 rows, with no verb", a
   expect(section("blocked")?.querySelector(".today-section-count")?.textContent).toBe("3");
   expect(section("waiting")?.querySelector(".today-section-count")?.textContent).toBe("16");
   expect(yoursRows()).toHaveLength(11);
-  expect(container.querySelectorAll("tr.today-row--sub")).toHaveLength(
-    lines.filter((line) => line.members.length > 1).reduce((n, l) => n + l.members.length, 0),
-  );
+  expect(container.querySelectorAll("tr.today-row--sub")).toHaveLength(0);
   const verbs = new Set(items.map(({ verb }) => verb).filter(Boolean));
   expect(verbs.size).toBeGreaterThan(3);
   for (const verb of verbs) expect(container.textContent).not.toContain(verb);
@@ -182,6 +186,7 @@ it("a fork's name opens its service page and opens no row; a subject that is no 
   expect(route()).toEqual({ kind: "service", id: "crs-conversion" });
   expect(opened()).toHaveLength(0);
   await act(async () => navigate({ kind: "today" }));
+  await expand("waiting:blocker:stack:lanes:gate2");
   const sub = row("waiting:blocker:stack:lanes:gate2", "gate2:legal");
   await click(sub.querySelector(".today-row-fork button"));
   expect(route()).toEqual({ kind: "service", id: "legal" });
@@ -200,6 +205,7 @@ it("counts the 6 Nov rollout PRs in Yours and opens the group and each PR separa
   if (!group) throw new Error("6 Nov has template sync PRs");
   await render(snapshot);
   expect(chips("yours")).toEqual(["bad 1 blocked", "warn 26 waiting"]);
+  await expand(group.id);
   for (const member of group.members) {
     expect(todayRowOf(lines, member.id)).toEqual({ kind: "item", id: member.id });
     expect(row(group.id, member.id).querySelector(".today-row-open a")?.getAttribute("href")).toBe(
@@ -207,13 +213,14 @@ it("counts the 6 Nov rollout PRs in Yours and opens the group and each PR separa
     );
   }
   await act(async () => navigate({ kind: "today", station: "template" }));
+  expect(row(group.id).dataset.memberIds?.split(" ")).toEqual(group.members.map(({ id }) => id));
+  expect(todayRowOf(lines, "rollout")).toEqual({ kind: "line", id: group.id });
+  await click(row(group.id).querySelector(".today-row-what button"));
   expect(
     [...container.querySelectorAll<HTMLElement>(`[data-line="${group.id}"] [data-item-id]`)].map(
       ({ dataset }) => dataset.itemId,
     ),
   ).toEqual(group.members.map(({ id }) => id));
-  expect(todayRowOf(lines, "rollout")).toEqual({ kind: "line", id: group.id });
-  await click(row(group.id).querySelector(".today-row-what button"));
   const body = bodyAfter(row(group.id));
   expect(body?.querySelector("a[href='#engineering-system']")).not.toBeNull();
   expect(body?.querySelector("a[href^='#evidence']")).not.toBeNull();
@@ -259,7 +266,10 @@ it("an opened row never repeats its own pill, and ⌘↵ opens the row's pill on
 it("⌀ n opens Evidence for its row; a member marks only a gap its group doesn't", async () => {
   await render();
   const storage = row("waiting:gate2:storage");
-  expect(storage.querySelector(".today-row-gaps")?.textContent).toBe("⌀ 1");
+  expect(storage.querySelector(".today-row-gaps")?.textContent).toBe("⌀ 1 ›");
+  expect(storage.querySelector(".today-row-gaps")?.getAttribute("aria-label")).toMatch(
+    / not read, open Evidence$/,
+  );
   await click(storage.querySelector(".today-row-gaps"));
   expect(opened()).toHaveLength(0);
   expect(route()).toMatchObject({
@@ -270,7 +280,8 @@ it("⌀ n opens Evidence for its row; a member marks only a gap its group doesn'
 
   await act(async () => navigate({ kind: "today" }));
   const group = row("waiting:blocker:stack:lanes:gate2");
-  expect(group.querySelector(".today-row-gaps")?.textContent).toBe("⌀ 1");
+  expect(group.querySelector(".today-row-gaps")?.textContent).toBe("⌀ 1 ›");
+  await expand("waiting:blocker:stack:lanes:gate2");
   const subs = container.querySelectorAll(
     'tr.today-row--sub[data-line-id="waiting:blocker:stack:lanes:gate2"]',
   );
@@ -285,6 +296,7 @@ it("⌀ n opens Evidence for its row; a member marks only a gap its group doesn'
 
 it("a member's age is the age of its object, in one unit", async () => {
   await render();
+  await expand("waiting:upgrade:os-core-common");
   const unit = row("waiting:upgrade:os-core-common", "gate1:unit");
   expect(unit.querySelector(".today-row-age")?.textContent).toBe("10d");
   expect(
@@ -313,17 +325,190 @@ it("a member's age is the age of its object, in one unit", async () => {
   }
 });
 
-it("a deadline is a clock by the age carrying its reason", async () => {
+it("a deadline is a chip on its row, red in Blocked and amber in Waiting on you, with its reason", async () => {
+  const body = nov16();
+  const waiting = body.briefing.lines?.find(({ id }) => id === "waiting:release-approval");
+  const halt = body.briefing.lines?.find(({ id }) => id === "blocked:halt:crs-conversion");
+  if (!waiting || !halt?.deadline) throw new Error("16 Nov has a halt with a deadline");
+  waiting.deadline = { at: "2026-11-17T02:00:00Z", reason: "Dispatch before the scheduled sync" };
+  await render(body);
+  const chip = row(halt.id).querySelector(".today-row-what .today-row-due");
+  expect(chip?.getAttribute("data-tone")).toBe("error");
+  expect(chip?.getAttribute("aria-label")).toBe(timedText(halt.deadline.reason, { hint: false }));
+  expect(chip?.getAttribute("data-tip")).toBe(chip?.getAttribute("aria-label"));
+  expect(chip?.getAttribute("tabindex")).toBe("0");
+  expect(chip?.textContent).toMatch(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d\d:\d\d$/);
+  const amber = row(waiting.id).querySelector(".today-row-due");
+  expect(amber?.getAttribute("data-tone")).toBe("warning");
+  expect(amber?.getAttribute("aria-label")).toBe("Dispatch before the scheduled sync");
+  expect(row("blocked:sync-run:indexer").querySelector(".today-row-due")).toBeNull();
+});
+
+it("a group stays collapsed and names its forks; one chevron button opens it, and one row at a time", async () => {
   await render();
-  const clock = row("blocked:halt:crs-conversion").querySelector(".today-row-clock");
-  expect(clock?.getAttribute("aria-label")).toBe(
-    timedText(
-      lines.find(({ id }) => id === "blocked:halt:crs-conversion")?.deadline?.reason ?? "",
-      { hint: false },
-    ),
+  const group = lines.find(({ id }) => id === "waiting:blocker:stack:lanes:gate2");
+  if (!group) throw new Error("16 Nov has the red lanes group");
+  const head = row(group.id);
+  const button = head.querySelector(".today-row-what button");
+  expect(head.querySelectorAll(".today-row-what button")).toHaveLength(1);
+  expect(button?.querySelector(".today-row-chevron svg")).not.toBeNull();
+  expect(button?.textContent).toBe(group.headline);
+  expect(button?.getAttribute("aria-expanded")).toBe("false");
+  expect(head.querySelector(".today-row-forks")?.textContent).toBe(
+    [...new Set(group.members.map(({ fork }) => fork))].join(", "),
   );
-  expect(clock?.getAttribute("tabindex")).toBe("0");
-  expect(row("blocked:sync-run:indexer").querySelector(".today-row-clock")).toBeNull();
+  expect(container.querySelectorAll(`tr.today-row--sub[data-line-id="${group.id}"]`)).toHaveLength(
+    0,
+  );
+  await click(button);
+  expect(button?.getAttribute("aria-expanded")).toBe("true");
+  expect(head.querySelector(".today-row-forks")).toBeNull();
+  const after = [...container.querySelectorAll(`[data-line="${group.id}"] tr`)];
+  expect(after[0]).toBe(head);
+  expect(after[1]?.classList.contains("today-row-body")).toBe(true);
+  expect(after.slice(2).map((tr) => (tr as HTMLElement).dataset.itemId)).toEqual(
+    group.members.map(({ id }) => id),
+  );
+  const halt = row("blocked:halt:crs-conversion");
+  await click(halt.querySelector(".today-row-what button"));
+  expect(opened()).toHaveLength(1);
+  expect(bodyAfter(halt)).not.toBeNull();
+  expect(container.querySelectorAll(`tr.today-row--sub[data-line-id="${group.id}"]`)).toHaveLength(
+    0,
+  );
+  expect(button?.getAttribute("aria-expanded")).toBe("false");
+});
+
+it("a cause the read proved follows the headline in muted text", async () => {
+  const body = loadFixture("snapshot-bad.json");
+  const line = body.briefing.lines?.find(({ proved }) => proved);
+  if (!line?.proved) throw new Error("The bad morning reads a failed check");
+  await render(body);
+  const what = row(line.id).querySelector(".today-row-what");
+  expect(what?.querySelector("button")?.nextElementSibling?.className).toBe("today-row-proved");
+  expect(what?.querySelector(".today-row-proved")?.textContent).toBe(line.proved);
+  expect(container.querySelectorAll(".today-row-proved")).toHaveLength(
+    body.briefing.lines?.filter(({ proved }) => proved).length ?? 0,
+  );
+});
+
+describe("a new dot marks a row only against a seen time", () => {
+  const morning = (basis: TodaySummary["history"]["basis"], since?: string) => {
+    const body = nov16();
+    const today = body.briefing.today;
+    if (!today) throw new Error("16 Nov has a summary");
+    today.history = {
+      ...today.history,
+      basis,
+      from: "2026-11-16T08:00:00Z",
+      ...(basis === "stale" ? { asOf: "2026-11-16T08:00:00Z" } : { asOf: undefined }),
+    };
+    if (basis !== "stale") delete today.history.asOf;
+    for (const line of body.briefing.lines ?? [])
+      for (const member of line.members) {
+        delete member.since;
+        if (since && line.id === "blocked:halt:crs-conversion") member.since = since;
+      }
+    return body;
+  };
+  const dots = () => [...container.querySelectorAll(".today-row-new")];
+
+  it("seen with a later since gives the dot, named for the time", async () => {
+    await render(morning("seen", "2026-11-16T09:00:00Z"));
+    expect(dots()).toHaveLength(1);
+    expect(row("blocked:halt:crs-conversion").querySelector(".today-row-new")).not.toBeNull();
+    expect(dots()[0]?.getAttribute("aria-label")).toMatch(/^New since /);
+  });
+
+  it.each(["fallback", "stale", "history-short"] as const)("%s gives none", async (basis) => {
+    await render(morning(basis, "2026-11-16T09:00:00Z"));
+    expect(dots()).toHaveLength(0);
+  });
+
+  it("an earlier since, or a member with no since, is never new", async () => {
+    await render(morning("seen", "2026-11-16T07:00:00Z"));
+    expect(dots()).toHaveLength(0);
+    await unmount();
+    container.remove();
+    await render(morning("seen"));
+    expect(dots()).toHaveLength(0);
+  });
+});
+
+describe("a rollout row draws its bar across the forks with the tally beneath", () => {
+  const rollout = (
+    tally: NonNullable<NonNullable<ViewSnapshot["briefing"]["lines"]>[number]["rollout"]>["tally"],
+  ) => {
+    const body = loadFixture("snapshot-calm.json");
+    const line = body.briefing.lines?.find((l) => l.rollout);
+    if (!line?.rollout) throw new Error("The calm morning has a rollout");
+    if (tally) line.rollout.tally = tally;
+    return { body, line };
+  };
+
+  it("one segment per fork by stage; the review group names its forks and the stages the rest are at", async () => {
+    const { body, line } = rollout([
+      { state: "merged", forks: ["partition"] },
+      { state: "to-review", forks: ["legal", "file"] },
+      { state: "checking", forks: ["schema"] },
+      { state: "not-started", forks: ["unit", "search"] },
+      { state: "not-read", forks: ["indexer"] },
+    ]);
+    line.members = line.members
+      .slice(0, 2)
+      .map((m, i) => ({ ...m, fork: ["legal", "file"][i] ?? m.fork }));
+    await render(body);
+    const head = row(line.id);
+    const bar = head.querySelector(".today-rollout-bar");
+    expect(bar?.getAttribute("role")).toBe("img");
+    expect(bar?.getAttribute("aria-label")).toBe(
+      "Rollout across 7 forks: 1 merged, 2 to review, 1 checking, 2 not started, 1 not read",
+    );
+    expect(
+      [...(bar?.querySelectorAll<HTMLElement>(".today-rollout-seg") ?? [])].map(
+        ({ dataset }) => `${dataset.fork}:${dataset.state}`,
+      ),
+    ).toEqual([
+      "partition:merged",
+      "legal:to-review",
+      "file:to-review",
+      "schema:checking",
+      "unit:not-started",
+      "search:not-started",
+      "indexer:not-read",
+    ]);
+    expect(head.querySelector(".today-row-forks")?.textContent).toBe(
+      "legal, file · 1 merged · 1 checking · 2 not started · 1 not read",
+    );
+  });
+
+  it("the Template row's tally names the forks to dispatch, and the review group then draws no bar", async () => {
+    const { body, line } = rollout([
+      { state: "merged", forks: ["partition", "legal"] },
+      { state: "to-review", forks: ["file"] },
+      { state: "to-dispatch", forks: ["unit", "search"] },
+    ]);
+    const lines = body.briefing.lines ?? [];
+    lines.push({ ...line, id: `${line.id}:template`, subject: "Template", members: [] });
+    await render(body);
+    expect(row(line.id).querySelector(".today-rollout-bar")).toBeNull();
+    const template = row(`${line.id}:template`);
+    expect(template.querySelectorAll(".today-rollout-seg")).toHaveLength(5);
+    expect(template.querySelector(".today-row-forks")?.textContent).toBe(
+      "2 merged · 1 to review · 2 to dispatch: unit, search",
+    );
+    expect(value("template")).toBe("2 to dispatch");
+  });
+
+  it("the flow's Template cell reads to review when no dispatch is owed", async () => {
+    const { body } = rollout([
+      { state: "merged", forks: ["partition"] },
+      { state: "to-review", forks: ["legal", "file", "unit"] },
+      { state: "checking", forks: ["schema"] },
+    ]);
+    await render(body);
+    expect(value("template")).toBe("3 to review");
+  });
 });
 
 it("keeps every row of every section and the opened body in the four shared columns", async () => {
@@ -590,6 +775,7 @@ describe("the fleet flow filters Yours", () => {
     expect(memberIds()).toEqual(expect.arrayContaining(kept));
     expect(memberIds()).not.toContain(moved.id);
     expect(memberIds().sort()).toEqual(atStation(body, "sync").sort());
+    await expand("waiting:upgrade:os-core-common");
     expect(
       container.querySelectorAll(
         'tr.today-row--sub[data-line-id="waiting:upgrade:os-core-common"]',

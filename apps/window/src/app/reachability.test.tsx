@@ -18,6 +18,7 @@ import {
   EXEMPTIONS,
   leaves,
   lowerCases,
+  memberHome,
   memberRow,
   openerCases,
   type Reach,
@@ -269,7 +270,10 @@ describe("every item a removed Today block carried keeps one home on Today or it
         line.members.flatMap((member, at) =>
           [...new Set([member.id, ...member.ids])].map(
             (id) =>
-              [id, memberRow(`/briefing/lines/${index}`, at, line.members.length === 1)] as const,
+              [
+                id,
+                memberHome(`/briefing/lines/${index}`, at, line.members.length === 1, member.id),
+              ] as const,
           ),
         ),
       ),
@@ -279,7 +283,7 @@ describe("every item a removed Today block carried keeps one home on Today or it
     for (const [index, line] of lines.entries()) {
       for (const [at, member] of line.members.entries()) {
         const rows = objectRows.get(member.id) ?? [];
-        rows.push(memberRow(`/briefing/lines/${index}`, at, line.members.length === 1));
+        rows.push(memberHome(`/briefing/lines/${index}`, at, line.members.length === 1, member.id));
         objectRows.set(member.id, rows);
       }
     }

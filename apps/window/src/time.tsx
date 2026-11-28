@@ -92,6 +92,25 @@ export function dayLine(at: string | number | Date, options: Pick<ClockOptions, 
   return format.format(new Date(at));
 }
 
+const dayClocks = new Map<string, Intl.DateTimeFormat>();
+
+/** A weekday and a clock time, as a deadline chip reads it: `Tue 02:00`. */
+export function dayClock(at: string | number | Date, options: Pick<ClockOptions, "timeZone"> = {}) {
+  const key = options.timeZone ?? "";
+  let format = dayClocks.get(key);
+  if (!format) {
+    format = new Intl.DateTimeFormat("en-GB", {
+      ...(options.timeZone ? { timeZone: options.timeZone } : {}),
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    });
+    dayClocks.set(key, format);
+  }
+  return format.format(new Date(at));
+}
+
 const weekdays = new Map<string, Intl.DateTimeFormat>();
 
 /** A day as a column heading reads it: `Thu 12`. */

@@ -937,6 +937,12 @@ export const memberRow = (line: string, member: number, single: boolean) =>
     ? `tr.today-row:not(.today-row--sub)${at(line)}`
     : `tr.today-row--sub${at(`${line}/members/${member}`)}`;
 
+/** Where a member sits before anything opens: its own row, or its collapsed group's row. */
+export const memberHome = (line: string, member: number, single: boolean, id: string) =>
+  single
+    ? memberRow(line, member, single)
+    : `tr.today-row:not(.today-row--sub)${at(line)}[data-member-ids~=${quote(id)}]`;
+
 /** Today's Blocked and Waiting on you: each line's row, and a sub-row per member of a group. */
 export function tableCases(snapshot: ViewSnapshot): Reach[] {
   const cases: Reach[] = [];
@@ -988,14 +994,31 @@ export function tableCases(snapshot: ViewSnapshot): Reach[] {
         `${pointer}/deadline/reason`,
         plainTitle(timedText(line.deadline.reason, { hint: false })),
         TODAY,
-        `${head} .today-row-clock`,
+        `${head} .today-row-due`,
         {
           attribute: "aria-label",
         },
       );
+    if (line.proved) add(`${pointer}/proved`, line.proved, TODAY, `${head} .today-row-proved`);
+    line.rollout?.tally?.forEach(({ state, forks }, at_) => {
+      forks.forEach((fork, i) => {
+        const segment = `${head} .today-rollout-seg[data-fork=${quote(fork)}]`;
+        add(`${pointer}/rollout/tally/${at_}/forks/${i}`, fork, TODAY, segment, {
+          attribute: "data-fork",
+        });
+        if (i === 0)
+          add(`${pointer}/rollout/tally/${at_}/state`, state, TODAY, segment, {
+            attribute: "data-state",
+          });
+      });
+    });
+    const opened = single
+      ? TODAY
+      : home(`Today, ${line.id} opened`, STARTS.today, `${head} .today-row-what button`);
     line.members.forEach((member, at_) => {
       const base = `${pointer}/members/${at_}`;
       const row = memberRow(pointer, at_, single);
+      const TODAY = opened;
       add(`${base}/id`, member.id, TODAY, row, { attribute: "data-item-id" });
       const fork = single ? line.subject : member.fork;
       const opens = {

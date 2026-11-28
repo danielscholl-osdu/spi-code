@@ -275,8 +275,8 @@ it.each(NAMES)(
       body.briefing.lines?.flatMap(({ members }) => members.map(({ id }) => id)),
     );
     for (const item of [...body.briefing.focus, ...body.briefing.rest])
-      expect(today?.querySelectorAll(`[data-item-id="${item.id}"]`)).toHaveLength(
-        members.has(item.id) ? 1 : 0,
-      );
+      expect(
+        today?.querySelectorAll(`[data-item-id="${item.id}"], [data-member-ids~="${item.id}"]`),
+      ).toHaveLength(members.has(item.id) ? 1 : 0);
   },
 );

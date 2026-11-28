@@ -84,7 +84,15 @@ export function todayContent({
     section: line.section,
     cause: reading.cause,
     effect: reading.effect,
-    steps: reading.steps.length ? reading.steps : next ? [next] : [],
+    steps: reading.steps.length
+      ? reading.steps
+      : rollout?.next
+        ? [rollout.next]
+        : lead?.steps.length
+          ? lead.steps
+          : next
+            ? [next]
+            : [],
     ...(reading.deadline ? { deadline: reading.deadline } : {}),
     ...(primary ? { primary } : {}),
     ...(one && line.members.length > 1 ? { fork: one.fork } : {}),

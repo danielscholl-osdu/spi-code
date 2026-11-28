@@ -26,15 +26,34 @@ export function classifyRolloutForks(
     [...rollout.dispatchNext, ...rollout.dispatchWaits].map(({ service }) => service),
   );
   return rollout.forks.map((fork) => {
-    if (fork.unread) return { fork, state: "not-read" };
-    if (fork.onTarget) return { fork, state: "merged" };
-    if (fork.pr) {
+    if (fork.pr && !fork.onTarget) {
       return { fork, state: fork.validation.tone === "run" ? "checking" : "to-review" };
     }
+    if (fork.unread) return { fork, state: "not-read" };
+    if (fork.onTarget) return { fork, state: "merged" };
     return {
       fork,
       state: dispatch.has(fork.service) ? "to-dispatch" : "not-started",
     };
+  });
+}
+
+const TALLY: readonly RolloutForkState[] = Object.freeze([
+  "merged",
+  "to-review",
+  "checking",
+  "to-dispatch",
+  "not-started",
+  "not-read",
+]);
+
+/** Every fork once, by stage in rollout order; a stage no fork is at is left out. */
+export function rolloutTally(
+  classified: readonly ClassifiedRolloutFork[],
+): { state: RolloutForkState; forks: string[] }[] {
+  return TALLY.flatMap((state) => {
+    const forks = classified.filter((c) => c.state === state).map(({ fork }) => fork.service);
+    return forks.length ? [{ state, forks }] : [];
   });
 }
 

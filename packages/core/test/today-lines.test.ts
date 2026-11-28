@@ -19,7 +19,7 @@ import {
   todayLineFailing,
   todayLines,
 } from "../src/brief/lines";
-import { classifyRolloutForks } from "../src/brief/rollout";
+import { classifyRolloutForks, rolloutTally } from "../src/brief/rollout";
 import { emptyFacts, type Facts } from "../src/facts";
 import { itemEvidence } from "../src/inspect/item-evidence";
 import { CLASS_VERB } from "../src/model/next";
@@ -350,7 +350,50 @@ describe("Today's situation lines", () => {
       age: "10d",
       primary: { kind: "pr", url: "https://github.com/Azure/osdu-spi-unit/pull/50" },
     });
-    expect(line?.members[0]?.steps[0]).toContain("8.5.0");
+    expect(line?.members[0]?.steps[0]).toBe(
+      "Upgrade os-core-common 8.5.0 on the fork before merging sync PR #50.",
+    );
+  });
+
+  test("member steps follow Today's wording, one step or many", () => {
+    const members = watchFixtures()
+      .filter(({ name }) => name.startsWith("snapshot-"))
+      .flatMap(({ path }) => (snapshotAt(path).briefing.lines ?? []).flatMap((l) => l.members));
+    for (const member of members)
+      if (!member.id.startsWith("rollout:")) expect(member.steps.length).toBeGreaterThan(0);
+    const steps = members.flatMap((m) => m.steps);
+    for (const step of steps) expect(step).not.toMatch(/(^|\. )(Absorb|Pre-classify)\b|\S › \S/);
+    expect(steps).toContain(
+      "Open the failed job (Java Build, step Build); the reason is in the cause above.",
+    );
+    expect(steps).toContain(
+      "Add schemathesis-tests to top_level in .github/upstream-filter.yml before the next Sync Upstream.",
+    );
+    expect(steps).toContain("Upgrade os-core-common 8.5.0 on the fork before merging sync PR #58.");
+  });
+
+  test("a proved cause sits beside the headline only when the read names the step", () => {
+    const run = (m: typeof model) => m.queue.items.find(({ kind }) => kind === "sync-run");
+    const line = (m: typeof model) =>
+      todayLines(m, sweep1116Items(m), now, context).find((l) =>
+        l.members.some(({ id }) => id === run(m)?.id),
+      );
+    const withReason = (value: string | undefined) => {
+      const changed = structuredClone(model);
+      const q = run(changed);
+      if (!q) throw new Error("16 Nov has a sync run");
+      q.cause = [
+        ...q.cause.filter(({ label }) => label !== "reason"),
+        ...(value ? [{ label: "reason", value }] : []),
+      ];
+      return line(changed);
+    };
+    expect(withReason("Sync Upstream failed at sync › Merge upstream")?.proved).toBe(
+      "at Merge upstream",
+    );
+    expect(withReason("Sync Upstream failed")).toBeDefined();
+    expect(withReason("Sync Upstream failed")?.proved).toBeUndefined();
+    expect(withReason(undefined)?.proved).toBeUndefined();
   });
 
   test("radar-only toolchain objects group by dependency without claiming a sync PR", () => {
@@ -512,6 +555,8 @@ describe("Today's situation lines", () => {
       dispatch,
       notStarted,
       fork("unread", { unread: true }),
+      fork("checks-unread", { validation: { ...base.validation, text: "not read", tone: "idle" } }),
+      fork("never-read", { unread: true, pr: undefined }),
     ];
     const states = classifyRolloutForks({
       ...rollout,
@@ -525,12 +570,23 @@ describe("Today's situation lines", () => {
       ["checking", "checking"],
       ["dispatch", "to-dispatch"],
       ["not-started", "not-started"],
-      ["unread", "not-read"],
+      ["unread", "to-review"],
+      ["checks-unread", "to-review"],
+      ["never-read", "not-read"],
     ]);
-    const notRead = cases.find(({ service }) => service === "unread");
-    if (!notRead) throw new Error("unread fork is in the table");
-    delete notRead.pr;
-    expect(classifyRolloutForks({ ...rollout, forks: [notRead] })[0]?.state).toBe("not-read");
+    const tally = rolloutTally(states);
+    expect(tally).toEqual([
+      { state: "merged", forks: ["merged"] },
+      { state: "to-review", forks: ["review", "unread", "checks-unread"] },
+      { state: "checking", forks: ["checking"] },
+      { state: "to-dispatch", forks: ["dispatch"] },
+      { state: "not-started", forks: ["not-started"] },
+      { state: "not-read", forks: ["never-read"] },
+    ]);
+    expect(tally.flatMap(({ forks }) => forks).sort()).toEqual(
+      cases.map(({ service }) => service).sort(),
+    );
+    expect(rolloutTally(classifyRolloutForks({ ...rollout, forks: [] }))).toEqual([]);
   });
 
   test("a rollout can owe review and dispatch at once, while checking forks leave Yours", () => {
@@ -749,7 +805,7 @@ describe("Today's situation lines", () => {
     const visible = fleetLines(projected, "template");
     const line = visible.find(({ rollout }) => rollout);
     const expected = rollout.forks.filter(
-      ({ pr, unread, onTarget }) => pr && pr.url !== red.url && !unread && !onTarget,
+      ({ pr, onTarget }) => pr && pr.url !== red.url && !onTarget,
     );
     expect(expected.length).toBeGreaterThan(0);
     expect(line).toMatchObject({

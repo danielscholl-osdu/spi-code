@@ -13,3 +13,5 @@ The "Today is ready" hand-over notification shares the tray's Today count (maint
 A snapshot's provenance points into `/briefing/lines/…`; a test that rewrites `lines` drops those entries, or the schema rejects the message and the tray silently ignores it.
 
 Use the Template door in `briefing.today.fleet.doors` for the sidebar mark's count, hover forks and unread forks. The rollout verification count serves the Template place. Release and Dependabot use the service door partition by PR URL. Complete fork reads supply the Can wait figures and the Blocked and Waiting remainders. Held PRs from incomplete reads sit under Not read, and program repositories and repositories with no known group sit under Outside the forks.
+
+A Yours group draws no member rows until it is opened, so anything that reads the drawn members (tests, the smoke's `DRAWN_MEMBERS`, reachability homes) reads a collapsed group's `data-member-ids` on its head row. The rollout tally sits on the rollout line (`rollout.tally`) and the flow's Template cell reads it; `snapshot-1116.json` predates it, so a table built from that recording draws no bar.

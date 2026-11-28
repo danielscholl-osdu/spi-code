@@ -16,7 +16,7 @@ import type { FocusItem, Link } from "./index.js";
 import { sentenceHeadline } from "./headline.js";
 import type { LinkKind } from "./move.js";
 import { pullsComplete } from "./repo-today.js";
-import { classifyRolloutForks } from "./rollout.js";
+import { classifyRolloutForks, type RolloutForkState, rolloutTally } from "./rollout.js";
 
 export interface TodayDeadline {
   at: string;
@@ -46,12 +46,13 @@ export interface TodayLine {
   section: "blocked" | "waiting";
   subject: string;
   headline: string;
+  proved?: string;
   cause: string;
   effect: string;
   steps: string[];
   deadline?: TodayDeadline;
   age?: string;
-  rollout?: { withoutPr: string[] };
+  rollout?: { withoutPr: string[]; tally?: { state: RolloutForkState; forks: string[] }[] };
   members: TodayMember[];
 }
 
@@ -88,8 +89,14 @@ type ObjectMove = {
   section: TodayLine["section"];
 };
 
+/** Today's wording: no internal names, no core verb names, and no › between words. */
 function plain(text: string): string {
-  return text.replace(/\b[A-Z]+(?:_[A-Z]+)+\b/g, "an unrecognised entry");
+  return text
+    .replace(/\b[A-Z]+(?:_[A-Z]+)+\b/g, "an unrecognised entry")
+    .replace(/(^|\. )Absorb the toolchain move\b/g, "$1Make the toolchain move")
+    .replace(/(^|\. )Absorb /g, "$1Upgrade ")
+    .replace(/(^|\. )Pre-classify: (\p{L})/gu, (_, lead: string, first: string) => lead + first.toUpperCase())
+    .replace(/(\S) › (?=\S)/g, "$1, step ");
 }
 
 function clock(at: string, context: CoreContext): string {
@@ -188,7 +195,7 @@ function objectMove(
     cause: behind ? "The integration PR needs its branch updated, then approval."
       : plain(first?.cause ?? blocker?.cause ?? item.cause),
     effect: plain(item.effect),
-    steps: steps.length > 1 ? steps : [],
+    steps,
     ...(blocker ? { blockedBy: blocker.id } : {}),
     ...(deadline ? { deadline } : {}),
     evidence: itemEvidence(model, ids),
@@ -201,6 +208,23 @@ function objectMove(
     member,
     section: (blocker?.rung ?? Math.min(...moves.map((i) => i.rung))) === 0 ? "blocked" : "waiting",
   };
+}
+
+/** The short cause a read proved: the step a sync run failed at, or the check a sync PR fails. */
+function provedOf(model: Model, move: ObjectMove): string | undefined {
+  const { queued, item, blocker, dependency } = move;
+  if (blocker || dependency) return undefined;
+  if (queued?.kind === "sync-run") {
+    const reason = queued.cause.find(({ label }) => label === "reason")?.value;
+    const step = reason && / › (.+)$/.exec(reason)?.[1];
+    return step ? `at ${step}` : undefined;
+  }
+  if (queued?.kind === "gate1" && item.cls !== "GATE") {
+    const pr = model.lines.find(({ fork }) => fork.id === item.scope)?.syncPr;
+    const check = pr?.failures.find(({ hidden }) => !hidden)?.check;
+    return check ? `fails ${check}` : undefined;
+  }
+  return undefined;
 }
 
 function groupKey(model: Model, move: ObjectMove): string {
@@ -223,7 +247,8 @@ function describe(
   const { item, queued, blocker, dependency, member } = move;
   const n = moves.length;
   const subject = n > 1 ? plural(n, "fork") : member.fork;
-  const base = { subject, cause: member.cause, effect: member.effect, steps: member.steps };
+  const steps = n > 1 && member.steps.length < 2 ? [] : member.steps;
+  const base = { subject, cause: member.cause, effect: member.effect, steps };
   if (blocker) {
     const lanes = model.queue.items.find((q) => q.id === blocker.id);
     const rerun = lanes?.kind === "lanes" && lanes.judgement?.response !== "stop";
@@ -381,16 +406,17 @@ function rolloutMembers(
     )
     .map(({ fork }) => fork.service);
   const dispatch = classified.some(({ state }) => state === "to-dispatch");
+  const tally = rolloutTally(classified);
   if (members.length) {
     line.subject = plural(members.length, "fork");
-    line.rollout = { withoutPr };
+    line.rollout = { withoutPr, tally };
     line.members = members;
     if (dispatch) {
       lines.push({
         ...line,
         id: `${line.id}:template`,
         subject: "Template",
-        rollout: { withoutPr },
+        rollout: { withoutPr, tally },
         members: operation ? [operation] : [],
       });
     }
@@ -398,7 +424,7 @@ function rolloutMembers(
   }
   if (dispatch) {
     line.subject = "Template";
-    line.rollout = { withoutPr };
+    line.rollout = { withoutPr, tally };
     return;
   }
   lines.splice(lines.indexOf(line), 1);
@@ -548,11 +574,13 @@ function projectTodayLines(
       .flatMap((m) => (m.deadline ? [m.deadline] : []))
       .sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
     const words = describe(model, moves);
+    const proved = [...new Set(moves.map((move) => provedOf(model, move)))];
     return {
       id,
       section: moves[0].section,
       ...words,
       headline: sentenceHeadline(plain(words.headline)),
+      ...(proved.length === 1 && proved[0] ? { proved: plain(proved[0]) } : {}),
       ...(members[0]?.age ? { age: members[0].age } : {}),
       ...(deadlines[0] ? { deadline: deadlines[0] } : {}),
       members,

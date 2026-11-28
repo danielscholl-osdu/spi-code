@@ -44,7 +44,7 @@ export function lineMemberCount(members: string): number {
 
 /** In the window: the member rows Today draws in each section, single lines and group sub-rows. */
 export const DRAWN_MEMBERS = `Object.fromEntries(${JSON.stringify(TODAY_SECTIONS)}.map(section => [section,
-  [...document.querySelectorAll(".today [data-section=" + section + "] tr.today-row[data-item-id]")].map(row => row.dataset.itemId)]))`;
+  [...document.querySelectorAll(".today [data-section=" + section + "] tr.today-row:not(.today-row--sub)")].flatMap(row => row.dataset.itemId ? [row.dataset.itemId] : (row.dataset.memberIds || "").split(" ").filter(Boolean))]))`;
 
 /** Throws unless Today draws a row for every member of core's lines, each in its section. */
 export function assertDrawnMembers(drawn: unknown, members: unknown, label: string): void {

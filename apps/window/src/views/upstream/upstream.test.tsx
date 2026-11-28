@@ -242,7 +242,7 @@ it("lists Before next sync items as briefing records and opens a hold in the sha
     "17 commits reach the fork at the 18:00 sync.",
   );
   expect(opened?.querySelector(".opened-body-step")?.textContent).toBe(
-    "Absorb os-core-common 8.4.1-boot4-SNAPSHOT on the fork before the next Sync Upstream carries it.",
+    "Upgrade os-core-common 8.4.1-boot4-SNAPSHOT on the fork before the next Sync Upstream carries it.",
   );
   expect(
     [...(opened?.querySelectorAll(".opened-body-sources a") ?? [])].map((a) =>

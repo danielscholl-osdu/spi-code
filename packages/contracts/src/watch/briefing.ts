@@ -552,12 +552,34 @@ export const TodayLineSchema = z.strictObject({
   section: z.enum(["blocked", "waiting"]),
   subject: z.string(),
   headline: z.string(),
+  /** A short cause the read proved, beside the headline. */
+  proved: z.string().optional(),
   cause: z.string(),
   effect: z.string(),
   steps: z.array(z.string()),
   deadline: TodayDeadlineSchema.optional(),
   age: z.string().optional(),
-  rollout: z.strictObject({ withoutPr: z.array(z.string()) }).optional(),
+  rollout: z
+    .strictObject({
+      withoutPr: z.array(z.string()),
+      /** Every fork of the rollout once, by stage. */
+      tally: z
+        .array(
+          z.strictObject({
+            state: z.enum([
+              "merged",
+              "to-review",
+              "checking",
+              "to-dispatch",
+              "not-started",
+              "not-read",
+            ]),
+            forks: z.array(z.string()),
+          }),
+        )
+        .optional(),
+    })
+    .optional(),
   members: z.array(TodayMemberSchema),
 });
 export type TodayDeadline = z.infer<typeof TodayDeadlineSchema>;

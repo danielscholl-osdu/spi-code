@@ -51,6 +51,26 @@ it("starts Today headlines in sentence case on every fixture", () => {
   }
 });
 
+it("never joins a member's job and step with › on any fixture", () => {
+  for (const { name, body } of snapshots) {
+    const words = (body.briefing.lines ?? []).flatMap((line) => [
+      line.headline,
+      line.cause ?? "",
+      line.effect ?? "",
+      ...line.steps,
+      ...line.members.flatMap((member) => [
+        member.cause ?? "",
+        member.effect ?? "",
+        ...member.steps,
+      ]),
+    ]);
+    expect(
+      words.filter((text) => /\S › \S/.test(text)),
+      name,
+    ).toEqual([]);
+  }
+});
+
 it("labels an incomplete sweep without exposing its internal state name", async () => {
   const body = structuredClone(snapshots[0]?.body);
   if (!body) throw new Error("Missing snapshot");

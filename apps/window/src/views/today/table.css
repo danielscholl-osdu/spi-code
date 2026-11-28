@@ -126,12 +126,109 @@
   color: var(--text-strong);
   font-weight: 600;
 }
-.today-row .today-row-expand {
-  padding: 0 4px;
-  color: var(--text-muted);
+.today-row-fork {
+  position: relative;
+}
+.today-row-new {
+  position: absolute;
+  top: 13px;
+  left: -5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 .today-row-what button {
   color: var(--text);
+}
+.today-row-l1 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+.today-row .today-row-head {
+  display: inline;
+}
+.today-row-chevron {
+  display: inline-flex;
+  width: 14px;
+  margin-left: -14px;
+  color: var(--text-strong);
+  vertical-align: -1px;
+}
+.today-row-head[aria-expanded="true"] .today-row-chevron svg {
+  transform: rotate(90deg);
+}
+.today-row:not(.today-row--sub) .today-row-head[aria-expanded="true"] {
+  color: var(--text-strong);
+  font-weight: 600;
+}
+.today-row-proved {
+  color: var(--text-muted);
+  font-size: var(--text-md);
+}
+.today-row-due {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 10px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: help;
+}
+.today-row-due[data-tone="error"] {
+  background: var(--error-surface);
+  color: var(--error-text);
+}
+.today-row-due[data-tone="warning"] {
+  background: var(--warning-surface);
+  color: var(--warning-text);
+}
+.today-row-due svg {
+  width: 12px;
+  height: 12px;
+}
+.today-row-forks {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: var(--text-md);
+}
+.today-rollout-bar {
+  display: flex;
+  gap: 3px;
+  max-width: 420px;
+  margin-top: 7px;
+}
+.today-rollout-seg {
+  flex: 1;
+  box-sizing: border-box;
+  height: 7px;
+  border-radius: 2px;
+}
+.today-rollout-seg[data-state="merged"] {
+  background: var(--success);
+}
+.today-rollout-seg[data-state="to-review"] {
+  background: var(--warning);
+}
+.today-rollout-seg[data-state="checking"] {
+  background: var(--text-muted);
+}
+.today-rollout-seg[data-state="to-dispatch"] {
+  border: 1px solid var(--warning);
+}
+.today-rollout-seg[data-state="not-started"] {
+  border: 1px solid var(--border);
+}
+.today-rollout-seg[data-state="not-read"] {
+  border: 1px dashed var(--text-muted);
 }
 .today-row-tag {
   display: inline-block;
@@ -169,29 +266,24 @@
   white-space: nowrap;
 }
 .today-row .today-row-gaps {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
   margin-right: 6px;
+  padding: 0 7px;
+  border-radius: 10px;
+  background: var(--warning-surface);
   color: var(--warning-text);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
+  font-weight: 600;
 }
 .today-row .today-row-gaps:hover {
   text-decoration: underline;
 }
-.today-row-clock {
-  position: relative;
-  display: inline-flex;
-  margin-right: 5px;
-  color: var(--warning-text);
-  vertical-align: -2px;
-  cursor: help;
-}
-.today-row-clock svg {
-  width: 14px;
-  height: 14px;
-}
-.today-row-clock:is(:hover, :focus-visible)::after {
+.today-row-due:is(:hover, :focus-visible)::after {
   content: attr(data-tip);
   position: absolute;
-  right: -6px;
+  left: 0;
   bottom: calc(100% + 6px);
   z-index: 5;
   width: max-content;
@@ -330,4 +422,48 @@
 .today-row-go {
   margin-left: 6px;
   color: var(--text-muted);
+}
+
+@container (max-width: 560px) {
+  .today-section:is([data-section="blocked"], [data-section="waiting"]) :is(table, tbody, .today-row-body, .today-row-body > td:last-child) {
+    display: block;
+  }
+  .today-section:is([data-section="blocked"], [data-section="waiting"]) :is(colgroup, thead, .today-row-body > td:first-child) {
+    display: none;
+  }
+  .today-section:is([data-section="blocked"], [data-section="waiting"]) .today-row {
+    display: grid;
+    grid-template-columns: 118px minmax(0, 1fr) auto;
+    gap: 6px 10px;
+    padding: 8px 6px;
+    border-top: 1px solid var(--border-soft);
+  }
+  .today-section:is([data-section="blocked"], [data-section="waiting"]) .today-row--sub {
+    padding-block: 2px;
+    border-top: 0;
+  }
+  .today-section:is([data-section="blocked"], [data-section="waiting"]) .today-row > td {
+    padding: 0;
+    border-top: 0;
+  }
+  .today-section:is([data-section="blocked"], [data-section="waiting"]) .today-row-fork {
+    grid-row: 1;
+    grid-column: 1;
+  }
+  .today-section:is([data-section="blocked"], [data-section="waiting"]) .today-row-what {
+    grid-row: 1;
+    grid-column: 2 / 4;
+  }
+  .today-section:is([data-section="blocked"], [data-section="waiting"]) .today-row-open {
+    grid-row: 2;
+    grid-column: 2;
+  }
+  .today-section:is([data-section="blocked"], [data-section="waiting"]) .today-row-age {
+    grid-row: 2;
+    grid-column: 3;
+  }
+  .today-section:is([data-section="blocked"], [data-section="waiting"]) .today-row-new {
+    top: 6px;
+    left: -9px;
+  }
 }

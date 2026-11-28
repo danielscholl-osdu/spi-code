@@ -18,7 +18,9 @@
         "headline": "Sync has a merge conflict",
         "cause": "Cascade blocked: 🚨 Integration Validation Failed: Build/Test Errors - 2026-11-05.",
         "effect": "Nothing else waits on it.",
-        "steps": [],
+        "steps": [
+          "Resolve the conflict named in the issue on the fork, then dispatch the cascade."
+        ],
         "age": "21h",
         "members": [
           {
@@ -37,7 +39,9 @@
             "age": "21h",
             "cause": "Cascade blocked: 🚨 Integration Validation Failed: Build/Test Errors - 2026-11-05.",
             "effect": "Nothing else waits on it.",
-            "steps": [],
+            "steps": [
+              "Resolve the conflict named in the issue on the fork, then dispatch the cascade."
+            ],
             "evidence": {
               "areas": [
                 "github",
@@ -63,7 +67,9 @@
         "headline": "Next sync has an entry without a filter rule",
         "cause": "Queued upstream commits add schemathesis-tests, which the fork's filter has no rule for.",
         "effect": "8 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
-        "steps": [],
+        "steps": [
+          "Add schemathesis-tests to top_level in .github/upstream-filter.yml before the next Sync Upstream."
+        ],
         "deadline": {
           "at": "2026-11-07T00:00:00.000Z",
           "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
@@ -86,7 +92,9 @@
             "age": "51d",
             "cause": "Queued upstream commits add schemathesis-tests, which the fork's filter has no rule for.",
             "effect": "8 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
-            "steps": [],
+            "steps": [
+              "Add schemathesis-tests to top_level in .github/upstream-filter.yml before the next Sync Upstream."
+            ],
             "deadline": {
               "at": "2026-11-07T00:00:00.000Z",
               "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
@@ -139,7 +147,9 @@
             "age": "69d",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.4.1-boot4-SNAPSHOT, os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT and os-core-common 8.5.0.",
             "effect": "17 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
-            "steps": [],
+            "steps": [
+              "Upgrade os-core-common 8.4.1-boot4-SNAPSHOT on the fork before the next Sync Upstream carries it."
+            ],
             "deadline": {
               "at": "2026-11-07T00:00:00.000Z",
               "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
@@ -176,7 +186,9 @@
             "age": "56d",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
             "effect": "5 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
-            "steps": [],
+            "steps": [
+              "Upgrade os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
+            ],
             "deadline": {
               "at": "2026-11-07T00:00:00.000Z",
               "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
@@ -213,7 +225,9 @@
             "age": "51d",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
             "effect": "6 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
-            "steps": [],
+            "steps": [
+              "Upgrade os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
+            ],
             "deadline": {
               "at": "2026-11-07T00:00:00.000Z",
               "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
@@ -250,7 +264,9 @@
             "age": "50d",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
             "effect": "16 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
-            "steps": [],
+            "steps": [
+              "Upgrade os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
+            ],
             "deadline": {
               "at": "2026-11-07T00:00:00.000Z",
               "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
@@ -287,7 +303,9 @@
             "age": "49d",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
             "effect": "5 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
-            "steps": [],
+            "steps": [
+              "Upgrade os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
+            ],
             "deadline": {
               "at": "2026-11-07T00:00:00.000Z",
               "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
@@ -324,7 +342,9 @@
             "age": "49d",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
             "effect": "7 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
-            "steps": [],
+            "steps": [
+              "Upgrade os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
+            ],
             "deadline": {
               "at": "2026-11-07T00:00:00.000Z",
               "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
@@ -361,7 +381,9 @@
             "age": "43d",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
             "effect": "7 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
-            "steps": [],
+            "steps": [
+              "Upgrade os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
+            ],
             "deadline": {
               "at": "2026-11-07T00:00:00.000Z",
               "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
@@ -415,7 +437,7 @@
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
             "effect": "11 upstream commits wait on this PR.",
             "steps": [
-              "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
+              "Upgrade os-core-common 8.5.0 on the fork before merging sync PR #58.",
               "Review the sync PR on GitHub and merge it."
             ],
             "evidence": {
@@ -451,7 +473,7 @@
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
             "effect": "25 upstream commits wait on this PR.",
             "steps": [
-              "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
+              "Upgrade os-core-common 8.5.0 on the fork before merging sync PR #58.",
               "Review the sync PR on GitHub and merge it."
             ],
             "deadline": {
@@ -483,7 +505,9 @@
         "headline": "Release PR #89 fails 📊 Code Coverage",
         "cause": "Release PR #89 fails 📊 Code Coverage.",
         "effect": "Nothing else waits on it.",
-        "steps": [],
+        "steps": [
+          "Open the failed job (📊 Code Coverage, step Setup Maven); the reason is in the cause above."
+        ],
         "age": "16d",
         "members": [
           {
@@ -501,7 +525,9 @@
             "age": "16d",
             "cause": "Release PR #89 fails 📊 Code Coverage.",
             "effect": "Nothing else waits on it.",
-            "steps": [],
+            "steps": [
+              "Open the failed job (📊 Code Coverage, step Setup Maven); the reason is in the cause above."
+            ],
             "evidence": {
               "areas": [
                 "github",
@@ -527,7 +553,7 @@
         "headline": "12 upstream provider changes to port",
         "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
         "effect": "Until each MR is ported, unit, indexer, search, workflow, crs-conversion and crs-catalog drift from upstream.",
-        "steps": [],
+        "steps": ["Port !503 into provider/unit-azure; cite the MR URL in the PR body."],
         "age": "21d",
         "members": [
           {
@@ -551,7 +577,7 @@
             "age": "21d",
             "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
             "effect": "Until each MR is ported, unit, indexer, search, workflow, crs-conversion and crs-catalog drift from upstream.",
-            "steps": [],
+            "steps": ["Port !503 into provider/unit-azure; cite the MR URL in the PR body."],
             "evidence": {
               "areas": [
                 "github",
@@ -577,7 +603,7 @@
         "headline": "Sync PR to review",
         "cause": "Sync PR #58 waits for review.",
         "effect": "3 upstream commits wait on this PR.",
-        "steps": [],
+        "steps": ["Review the sync PR on GitHub and merge it."],
         "age": "1d 13h",
         "members": [
           {
@@ -596,7 +622,7 @@
             "age": "1d 13h",
             "cause": "Sync PR #58 waits for review.",
             "effect": "3 upstream commits wait on this PR.",
-            "steps": [],
+            "steps": ["Review the sync PR on GitHub and merge it."],
             "evidence": {
               "areas": ["github", "upstream"],
               "attributed": "item",
@@ -612,10 +638,30 @@
         "headline": "Template 7d269b5 not synced yet",
         "cause": "osdu-spi main 7d269b5 is on its way to the fleet: 0 of 13 forks merged.",
         "effect": "The change reaches actions, workflows and settings, so every PR and every merge takes a deploy lane: 13 lanes, 5 at a time still to go.",
-        "steps": [],
+        "steps": ["Merge partition, entitlements, legal, schema and file. Five lanes are free."],
         "age": "5h",
         "rollout": {
-          "withoutPr": []
+          "withoutPr": [],
+          "tally": [
+            {
+              "state": "to-review",
+              "forks": [
+                "partition",
+                "entitlements",
+                "legal",
+                "schema",
+                "file",
+                "storage",
+                "indexer",
+                "search",
+                "workflow",
+                "indexer-queue",
+                "unit",
+                "crs-catalog",
+                "crs-conversion"
+              ]
+            }
+          ]
         },
         "members": [
           {
@@ -12587,7 +12633,9 @@
             "headline": "Next sync has an entry without a filter rule",
             "cause": "Queued upstream commits add schemathesis-tests, which the fork's filter has no rule for.",
             "effect": "8 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
-            "steps": [],
+            "steps": [
+              "Add schemathesis-tests to top_level in .github/upstream-filter.yml before the next Sync Upstream."
+            ],
             "links": [
               {
                 "label": "commit 69785fa5",
@@ -12597,7 +12645,7 @@
             ],
             "since": "2026-09-16T12:39:01.000+00:00",
             "age": "51d",
-            "next": "Pre-classify: add schemathesis-tests to top_level in .github/upstream-filter.yml before the next Sync Upstream."
+            "next": "Add schemathesis-tests to top_level in .github/upstream-filter.yml before the next Sync Upstream."
           },
           {
             "id": "rollout:partition",
@@ -14226,7 +14274,9 @@
             "headline": "Sync has a merge conflict",
             "cause": "Cascade blocked: 🚨 Integration Validation Failed: Build/Test Errors - 2026-11-05.",
             "effect": "Nothing else waits on it.",
-            "steps": [],
+            "steps": [
+              "Resolve the conflict named in the issue on the fork, then dispatch the cascade."
+            ],
             "links": [
               {
                 "label": "issue #121",
@@ -14244,7 +14294,9 @@
             "headline": "Release PR #89 fails 📊 Code Coverage",
             "cause": "",
             "effect": "Nothing else waits on it.",
-            "steps": [],
+            "steps": [
+              "Open the failed job (📊 Code Coverage, step Setup Maven); the reason is in the cause above."
+            ],
             "links": [
               {
                 "label": "PR #89",
@@ -14259,7 +14311,7 @@
             ],
             "since": "2026-10-20T18:45:39Z",
             "age": "16d",
-            "next": "Open the failed job (📊 Code Coverage › Setup Maven); the reason is in the cause above."
+            "next": "Open the failed job (📊 Code Coverage, step Setup Maven); the reason is in the cause above."
           },
           {
             "id": "rollout:entitlements",
@@ -15787,7 +15839,9 @@
             "headline": "Upstream changes need a toolchain upgrade",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.4.1-boot4-SNAPSHOT, os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT and os-core-common 8.5.0.",
             "effect": "17 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
-            "steps": [],
+            "steps": [
+              "Upgrade os-core-common 8.4.1-boot4-SNAPSHOT on the fork before the next Sync Upstream carries it."
+            ],
             "links": [
               {
                 "label": "commit 0cab1090",
@@ -15807,7 +15861,7 @@
             ],
             "since": "2026-08-28T16:55:18.000+00:00",
             "age": "69d",
-            "next": "Absorb os-core-common 8.4.1-boot4-SNAPSHOT on the fork before the next Sync Upstream carries it."
+            "next": "Upgrade os-core-common 8.4.1-boot4-SNAPSHOT on the fork before the next Sync Upstream carries it."
           },
           {
             "id": "rollout:legal",
@@ -16936,7 +16990,9 @@
             "headline": "Upstream changes need a toolchain upgrade",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
             "effect": "16 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
-            "steps": [],
+            "steps": [
+              "Upgrade os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
+            ],
             "links": [
               {
                 "label": "commit 28d5a930",
@@ -16951,7 +17007,7 @@
             ],
             "since": "2026-09-16T16:33:50.000+00:00",
             "age": "50d",
-            "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
+            "next": "Upgrade os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
           },
           {
             "id": "rollout:schema",
@@ -18170,7 +18226,9 @@
             "headline": "Upstream changes need a toolchain upgrade",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
             "effect": "5 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
-            "steps": [],
+            "steps": [
+              "Upgrade os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
+            ],
             "links": [
               {
                 "label": "commit 4d0ff1f4",
@@ -18180,7 +18238,7 @@
             ],
             "since": "2026-09-10T18:42:42.000+00:00",
             "age": "56d",
-            "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
+            "next": "Upgrade os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
           },
           {
             "id": "rollout:file",
@@ -19488,7 +19546,7 @@
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
             "effect": "11 upstream commits wait on this PR.",
             "steps": [
-              "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
+              "Upgrade os-core-common 8.5.0 on the fork before merging sync PR #58.",
               "Review the sync PR on GitHub and merge it."
             ],
             "links": [
@@ -19505,7 +19563,7 @@
             ],
             "since": "2026-11-05T00:29:19Z",
             "age": "1d 13h",
-            "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58. Review the sync PR on GitHub and merge it."
+            "next": "Upgrade os-core-common 8.5.0 on the fork before merging sync PR #58. Review the sync PR on GitHub and merge it."
           },
           {
             "id": "rollout:storage",
@@ -20576,7 +20634,7 @@
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
             "effect": "25 upstream commits wait on this PR.",
             "steps": [
-              "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
+              "Upgrade os-core-common 8.5.0 on the fork before merging sync PR #58.",
               "Review the sync PR on GitHub and merge it."
             ],
             "links": [
@@ -20598,7 +20656,7 @@
             ],
             "since": "2026-11-05T00:33:17Z",
             "age": "1d 13h",
-            "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58. Review the sync PR on GitHub and merge it."
+            "next": "Upgrade os-core-common 8.5.0 on the fork before merging sync PR #58. Review the sync PR on GitHub and merge it."
           },
           {
             "id": "rollout:indexer",
@@ -20624,7 +20682,7 @@
             "headline": "12 upstream provider changes to port",
             "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
             "effect": "Until each MR is ported, unit, indexer, search, workflow, crs-conversion and crs-catalog drift from upstream.",
-            "steps": [],
+            "steps": ["Port !503 into provider/unit-azure; cite the MR URL in the PR body."],
             "links": [
               {
                 "label": "!503",
@@ -21689,7 +21747,9 @@
             "headline": "Upstream changes need a toolchain upgrade",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
             "effect": "6 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
-            "steps": [],
+            "steps": [
+              "Upgrade os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
+            ],
             "links": [
               {
                 "label": "commit aded8a3f",
@@ -21699,7 +21759,7 @@
             ],
             "since": "2026-09-15T14:42:23.000+00:00",
             "age": "51d",
-            "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
+            "next": "Upgrade os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
           },
           {
             "id": "rollout:search",
@@ -21725,7 +21785,7 @@
             "headline": "12 upstream provider changes to port",
             "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
             "effect": "Until each MR is ported, unit, indexer, search, workflow, crs-conversion and crs-catalog drift from upstream.",
-            "steps": [],
+            "steps": ["Port !503 into provider/unit-azure; cite the MR URL in the PR body."],
             "links": [
               {
                 "label": "!503",
@@ -22805,7 +22865,9 @@
             "headline": "Upstream changes need a toolchain upgrade",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
             "effect": "7 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
-            "steps": [],
+            "steps": [
+              "Upgrade os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
+            ],
             "links": [
               {
                 "label": "commit d6847cea",
@@ -22815,7 +22877,7 @@
             ],
             "since": "2026-09-23T14:35:24.000+00:00",
             "age": "43d",
-            "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
+            "next": "Upgrade os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
           },
           {
             "id": "rollout:workflow",
@@ -22841,7 +22903,7 @@
             "headline": "12 upstream provider changes to port",
             "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
             "effect": "Until each MR is ported, unit, indexer, search, workflow, crs-conversion and crs-catalog drift from upstream.",
-            "steps": [],
+            "steps": ["Port !503 into provider/unit-azure; cite the MR URL in the PR body."],
             "links": [
               {
                 "label": "!503",
@@ -23791,7 +23853,7 @@
             "headline": "Sync PR to review",
             "cause": "Sync PR #58 waits for review.",
             "effect": "3 upstream commits wait on this PR.",
-            "steps": [],
+            "steps": ["Review the sync PR on GitHub and merge it."],
             "links": [
               {
                 "label": "PR #58",
@@ -24834,7 +24896,9 @@
             "headline": "Upstream changes need a toolchain upgrade",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
             "effect": "7 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
-            "steps": [],
+            "steps": [
+              "Upgrade os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
+            ],
             "links": [
               {
                 "label": "commit 3a69766c",
@@ -24849,7 +24913,7 @@
             ],
             "since": "2026-09-18T13:46:20.000+00:00",
             "age": "49d",
-            "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
+            "next": "Upgrade os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
           },
           {
             "id": "rollout:unit",
@@ -24875,7 +24939,7 @@
             "headline": "12 upstream provider changes to port",
             "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
             "effect": "Until each MR is ported, unit, indexer, search, workflow, crs-conversion and crs-catalog drift from upstream.",
-            "steps": [],
+            "steps": ["Port !503 into provider/unit-azure; cite the MR URL in the PR body."],
             "links": [
               {
                 "label": "!503",
@@ -25778,7 +25842,7 @@
             "headline": "12 upstream provider changes to port",
             "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
             "effect": "Until each MR is ported, unit, indexer, search, workflow, crs-conversion and crs-catalog drift from upstream.",
-            "steps": [],
+            "steps": ["Port !503 into provider/unit-azure; cite the MR URL in the PR body."],
             "links": [
               {
                 "label": "!503",
@@ -26619,7 +26683,9 @@
             "headline": "Upstream changes need a toolchain upgrade",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
             "effect": "5 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
-            "steps": [],
+            "steps": [
+              "Upgrade os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
+            ],
             "links": [
               {
                 "label": "commit 80e3497b",
@@ -26629,7 +26695,7 @@
             ],
             "since": "2026-09-17T15:59:17.000+00:00",
             "age": "49d",
-            "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
+            "next": "Upgrade os-core-common 8.5.0 on the fork before the next Sync Upstream carries it."
           },
           {
             "id": "rollout:crs-conversion",
@@ -26655,7 +26721,7 @@
             "headline": "12 upstream provider changes to port",
             "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
             "effect": "Until each MR is ported, unit, indexer, search, workflow, crs-conversion and crs-catalog drift from upstream.",
-            "steps": [],
+            "steps": ["Port !503 into provider/unit-azure; cite the MR URL in the PR body."],
             "links": [
               {
                 "label": "!503",

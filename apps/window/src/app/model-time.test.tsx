@@ -42,6 +42,6 @@ it.each([
     container.remove();
   };
   await act(async () => root.render(<TodayTable snapshot={body} />));
-  const today = container.querySelector(".today-row-clock")?.getAttribute("aria-label");
+  const today = container.querySelector(".today-row-due")?.getAttribute("aria-label");
   expect(today).toBe(`Before the next upstream sync, ${expected}`);
 });
