@@ -17,7 +17,9 @@ import type { FocusItem, Link } from "./index.js";
 import { sentenceHeadline } from "./headline.js";
 import type { LinkKind } from "./move.js";
 import { pullsComplete } from "./repo-today.js";
-import { classifyRolloutForks, type RolloutForkState, rolloutTally } from "./rollout.js";
+import {
+  type ClassifiedRolloutFork, classifyRolloutForks, type RolloutForkState, rolloutTally,
+} from "./rollout.js";
 
 export interface TodayDeadline {
   at: string;
@@ -366,14 +368,14 @@ function describe(
 }
 
 function rolloutMembers(
-  model: Model, items: readonly Item[], lines: TodayLine[], now: Date, pulls?: PullReads,
+  model: Model, items: readonly Item[], lines: TodayLine[], now: Date,
+  classified: readonly ClassifiedRolloutFork[], pulls?: PullReads,
 ) {
   const rollout = model.rollout;
   const line = lines.find(({ members }) => members.some(({ id }) => id === "rollout"));
   if (!rollout || line?.section !== "waiting") return;
   const operation = line.members.find(({ id }) => id === "rollout");
   const held = todaySources(model, items, lines.filter((other) => other !== line));
-  const classified = classifyRolloutForks(rollout);
   const withPr = classified.filter(({ state }) => state === "to-review" || state === "checking");
   const members = withPr.flatMap(({ fork: { service, pr } }): TodayMember[] => {
     if (!pr || held.has(pr.url)) return [];
@@ -574,9 +576,10 @@ export function todayProjection(
       members,
     };
   });
-  rolloutMembers(model, items, lines, now, pulls);
+  const classified = model.rollout ? classifyRolloutForks(model.rollout) : [];
+  rolloutMembers(model, items, lines, now, classified, pulls);
   const checking = new Set(
-    (model.rollout ? classifyRolloutForks(model.rollout) : [])
+    classified
       .flatMap(({ fork, state }) => (state === "checking" ? [fork.service] : [])),
   );
   const inFlight = (member: TodayMember) => memberInFlight(model, member, checking);
