@@ -70,12 +70,17 @@ export function railFaults(probe: RailProbe): string[] {
       faults.push(`the ${name} lane's → at ${round(arrow)} is beside no rail`);
   }
   if (!turn) faults.push("the rail does not turn along the bottom");
-  else if (rail && (Math.abs(turn.right - rail.right) > 2 || turn.top > rail.bottom + 2))
+  else if (rail && (Math.abs(turn.right - rail.right) > 2 || Math.abs(turn.top - rail.bottom) > 2))
     faults.push(`the turn at ${round(turn)} does not meet the rail at ${round(rail)}`);
   if (probe.down.length !== 1) faults.push(`${probe.down.length} ↓ in the flow, not one`);
   for (const drop of probe.down) {
     const doorsBottom = Math.max(...probe.doors.cells.map((box) => box.bottom));
-    if (centre(drop) < main.left || centre(drop) > main.right || drop.bottom > main.top + 6)
+    if (
+      centre(drop) < main.left ||
+      centre(drop) > main.right ||
+      drop.bottom > main.top + 6 ||
+      drop.bottom < main.top - 8
+    )
       faults.push(`the ↓ at ${round(drop)} does not land on Main at ${round(main)}`);
     if (drop.top < doorsBottom - SLACK)
       faults.push(
@@ -92,6 +97,14 @@ export function railFaults(probe: RailProbe): string[] {
       middle(arrow) < main.bottom,
   );
   if (between.length !== 1) faults.push(`${between.length} → from Main to Environment, not one`);
+  for (const arrow of between)
+    if (
+      Math.abs(middle(arrow) - middle(main)) > 4 ||
+      Math.abs(middle(arrow) - middle(environment)) > 4
+    )
+      faults.push(
+        `the → at ${round(arrow)} is not level with Main at ${round(main)} and Environment at ${round(environment)}`,
+      );
   for (const arrow of [...probe.right, ...probe.down])
     for (const door of probe.doors.cells)
       if (overlaps(arrow, door))
@@ -99,10 +112,33 @@ export function railFaults(probe: RailProbe): string[] {
   return faults;
 }
 
+interface PaintedElement {
+  getClientRects(): { length: number };
+  getBoundingClientRect(): { width: number };
+  parentElement: PaintedElement | null;
+  ownerDocument: {
+    defaultView: {
+      getComputedStyle(element: PaintedElement): { visibility: string; opacity: string };
+    } | null;
+  };
+}
+
+/** Runs in the page: whether an element is drawn, not hidden by visibility or by its own or an ancestor's opacity. */
+export function painted(element: PaintedElement | null): boolean {
+  const view = element?.ownerDocument.defaultView;
+  if (!element || !view) return false;
+  if (element.getClientRects().length === 0 || element.getBoundingClientRect().width <= 0)
+    return false;
+  if (view.getComputedStyle(element).visibility !== "visible") return false;
+  for (let node: PaintedElement | null = element; node; node = node.parentElement)
+    if (Number(view.getComputedStyle(node).opacity) === 0) return false;
+  return true;
+}
+
 /** Runs in the page: measures the flow for railFaults. */
 export const railProbeScript = `(() => {
   const box = (element) => { const { left, top, right, bottom } = element.getBoundingClientRect(); return { left, top, right, bottom }; };
-  const shown = (element) => element && element.getClientRects().length > 0 && element.getBoundingClientRect().width > 0;
+  const shown = ${painted.toString()};
   const flow = document.querySelector(".today .fleet-flow");
   const glyphs = (root, glyph) => [...root.querySelectorAll("*")]
     .filter(element => element.children.length === 0 && element.textContent.trim() === glyph && shown(element))

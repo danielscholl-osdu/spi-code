@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { expect, it } from "vitest";
-import { type RailBox, type RailProbe, railFaults } from "./smoke-flow-rail.js";
+import { painted, type RailBox, type RailProbe, railFaults } from "./smoke-flow-rail.js";
 
 const box = (left: number, top: number, right: number, bottom: number): RailBox => ({
   left,
@@ -94,6 +94,52 @@ it.each<[string, Partial<RailProbe>, string]>([
     { turn: box(47, 230, 470, 239) },
     "the turn at 47,230-470,239 does not meet the rail at 493,122-494,230",
   ],
+  [
+    "a rail running on past the turn",
+    { rail: box(492.5, 122, 494, 258) },
+    "the turn at 47,230-494,239 does not meet the rail at 493,122-494,258",
+  ],
+  [
+    "a ↓ that stops short of Main",
+    { down: [box(41, 228, 49, 236)] },
+    "the ↓ at 41,228-49,236 does not land on Main at 17,254-245,310",
+  ],
+  [
+    "Environment below the → from Main",
+    { environment: box(263, 314, 503, 370) },
+    "the → at 248,276-260,288 is not level with Main at 17,254-245,310 and Environment at 263,314-503,370",
+  ],
 ])("faults %s", (_, change, fault) => {
   expect(railFaults({ ...restacked, ...change })).toContain(fault);
+});
+
+const element = (
+  styles: { visibility?: string; opacity?: string },
+  parentElement: Parameters<typeof painted>[0] = null,
+): NonNullable<Parameters<typeof painted>[0]> => {
+  const self: NonNullable<Parameters<typeof painted>[0]> = {
+    getClientRects: () => ({ length: 1 }),
+    getBoundingClientRect: () => ({ width: 10 }),
+    parentElement,
+    ownerDocument: {
+      defaultView: {
+        getComputedStyle: (node) =>
+          node === self
+            ? { visibility: styles.visibility ?? "visible", opacity: styles.opacity ?? "1" }
+            : (node.ownerDocument.defaultView?.getComputedStyle(node) ?? {
+                visibility: "visible",
+                opacity: "1",
+              }),
+      },
+    },
+  };
+  return self;
+};
+
+it.each<[string, Parameters<typeof painted>[0], boolean]>([
+  ["a drawn arrow", element({}), true],
+  ["an arrow hidden by visibility", element({ visibility: "hidden" }), false],
+  ["an arrow inside a transparent lane", element({}, element({ opacity: "0" })), false],
+])("judges whether %s is painted", (_, arrow, drawn) => {
+  expect(painted(arrow)).toBe(drawn);
 });
