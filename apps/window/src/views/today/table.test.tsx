@@ -1073,6 +1073,21 @@ describe("Forks on the 16 Nov sweep", () => {
       fold: "2 release-only forks · oldest 12d on alpha",
     },
     {
+      case: "release-only forks aged in hours and minutes",
+      edit: (body) => addQuiet(body, "alpha", "25m"),
+      fold: "2 release-only forks · oldest 8h on file",
+    },
+    {
+      case: "release-only forks aged in seconds and minutes",
+      edit: (body) => {
+        const pr = fileHome(body).releasePr;
+        if (!pr) throw new Error("Fixture needs file's release PR");
+        pr.age = "40s";
+        addQuiet(body, "alpha", "25m");
+      },
+      fold: "2 release-only forks · oldest 25m on alpha",
+    },
+    {
       case: "a release-only fork beside an empty one",
       edit: (body) => addQuiet(body, "alpha"),
       fold: "2 forks with nothing waiting on you · 1 release PR",
