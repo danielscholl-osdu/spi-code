@@ -11,10 +11,14 @@ import {
   type ViewSnapshot,
 } from "@spi-code/contracts";
 import { Fragment, useId, useState } from "react";
-import { openEvidence, setOpenSelection, useOpenSelection } from "../../app/navigation.js";
+import {
+  navigate,
+  openEvidence,
+  setOpenSelection,
+  useOpenSelection,
+} from "../../app/navigation.js";
 import { STATION_MARKS } from "../../components/flow/Flow.js";
 import { LinkPill } from "../../components/kit/LinkPill.js";
-import { ServiceMark, serviceMark } from "../../components/sidebar/service-mark.js";
 import { plainTitle } from "../../text.js";
 import { PendingRequests } from "../../threads/PendingRequests.js";
 import { RequestOwner } from "../../threads/RequestOwner.js";
@@ -25,8 +29,8 @@ import "./forks.css";
 const DOORS = {
   template: "Template",
   release: "Release",
-  other: "Other",
-  dependabot: "Deps",
+  dependabot: "Dependabot",
+  other: "Other PRs",
 } as const;
 const COLUMNS = { ...STATION_LABELS, ...DOORS } as const;
 type Column = keyof typeof COLUMNS;
@@ -82,7 +86,7 @@ function doorReading(column: Door, home: ServiceHome | undefined) {
         : undefined;
   const description =
     column === "release" && pr
-      ? `Release PR #${pr.number}`
+      ? `Release PR #${pr.number} open ${value} · opens Releases`
       : column === "other" && door?.red
         ? `${door.red} failed`
         : undefined;
@@ -111,13 +115,94 @@ export function readFork(fleet: TodayFleet, fork: string, home: ServiceHome | un
   const unread =
     !home ||
     home.mark.kind === "unread" ||
+    fleet.doors.some((figure) => figure.notRead.includes(fork)) ||
     [...stations.values(), ...doors.values()].some((reading) => reading.unread);
   return { stations, doors, unread };
 }
 
-function DoorCell({ reading }: { reading: ReturnType<typeof doorReading> }) {
+const QUIET = new Set<ServiceHomeStation["state"]>(["green", "ready"]);
+
+/** Work or a state that is not quiet anywhere but the Release door. */
+function holdsWork(home: ServiceHome) {
+  return (
+    home.mark.kind === "count" ||
+    home.stations.some(({ state, pr }) => !QUIET.has(state) || pr !== undefined) ||
+    home.doors.some(
+      ({ id, count, prs }) => id !== "release" && ((count ?? 0) > 0 || prs.length > 0),
+    )
+  );
+}
+
+function ageInHours(age: string | undefined) {
+  const parts = age?.match(/^(?:(\d+)d)? ?(?:(\d+)h)?$/);
+  if (!age || !parts || (parts[1] === undefined && parts[2] === undefined)) return undefined;
+  return Number(parts[1] ?? 0) * 24 + Number(parts[2] ?? 0);
+}
+
+/**
+ * Which forks the sheet shows and which it folds. Only a fork proven to hold nothing, or nothing
+ * but release PRs, folds; one not read, or with no home, stays shown.
+ */
+export function sortForks(
+  snapshot: Pick<ViewSnapshot, "briefing" | "services">,
+  fleet: TodayFleet,
+) {
+  const { yours, rest } = fleet.forks;
+  const homes = new Map(snapshot.services?.map(({ service, home }) => [service, home]));
+  const members = new Set(todayMembers(snapshot.briefing).map(({ member }) => member.fork));
+  const readings = new Map(
+    [...yours, ...rest.forks].map((fork) => [fork, readFork(fleet, fork, homes.get(fork))]),
+  );
+  const holding: string[] = [];
+  const unread: string[] = [];
+  const folded: string[] = [];
+  const releaseOnly: { fork: string; age: string | undefined }[] = [];
+  for (const fork of rest.forks) {
+    const home = homes.get(fork);
+    if (!home || readings.get(fork)?.unread) unread.push(fork);
+    else if (members.has(fork) || holdsWork(home)) holding.push(fork);
+    else {
+      folded.push(fork);
+      const release = home.doors.find(({ id }) => id === "release");
+      if (home.releasePr || (release?.count ?? 0) > 0)
+        releaseOnly.push({ fork, age: home.releasePr?.age });
+    }
+  }
+  return { homes, readings, yours, holding, unread, folded, releaseOnly };
+}
+
+function foldHeadline({ folded, releaseOnly }: ReturnType<typeof sortForks>) {
+  if (!folded.length || releaseOnly.length !== folded.length) return undefined;
+  const ages = releaseOnly.map(({ age }) => ageInHours(age));
+  const known = ages.every((hours) => hours !== undefined);
+  const oldest = known ? releaseOnly[ages.indexOf(Math.max(...(ages as number[])))] : undefined;
+  return (
+    <>
+      <span className="forks-fold-name">
+        {folded.length} release-only {folded.length === 1 ? "fork" : "forks"}
+      </span>
+      {oldest && ` · oldest ${ageInOneUnit(oldest.age)} on ${oldest.fork}`}
+    </>
+  );
+}
+
+function DoorCell({ column, reading }: { column: Door; reading: ReturnType<typeof doorReading> }) {
   const { value, state, description, unread } = reading;
   if (value === undefined && unread) return null;
+  if (column === "release" && value !== undefined)
+    return (
+      <button
+        type="button"
+        className="forks-reading forks-go"
+        title={description}
+        onClick={() => navigate({ kind: "releases" })}
+      >
+        {value}
+        <span className="forks-go-mark" aria-hidden="true">
+          ›
+        </span>
+      </button>
+    );
   return (
     <span className="forks-reading" data-state={state} title={description}>
       {value ?? "·"}
@@ -231,24 +316,8 @@ function foldWords(
           }, 0);
     return total ? [{ id, word: `${total} ${HOLD_WORDS[id][total === 1 ? 0 : 1]}` }] : [];
   });
-  const openStations = rest.stations
-    .filter(({ id }) => id === "sync" || id === "integration")
-    .flatMap(({ id, forks }) => {
-      const count = forks.filter((fork) => known.has(fork)).length;
-      return count
-        ? [
-            {
-              id,
-              word: `${count} ${id === "sync" ? "sync" : "integration"} ${count === 1 ? "PR" : "PRs"}`,
-            },
-          ]
-        : [];
-    });
-  const missing = rest.doors.some(({ notRead }) => notRead.some((fork) => known.has(fork)));
-  const work: { id: string; word: string }[] = [...openStations, ...holds];
-  if (missing) work.push({ id: "unread", word: "⌀ some PRs not read" });
-  return work.length
-    ? work.map(({ id, word }, index) => (
+  return holds.length
+    ? holds.map(({ id, word }, index) => (
         <Fragment key={id}>
           {index > 0 && " · "}
           <span data-hold={id}>{word}</span>
@@ -271,18 +340,16 @@ export function Forks({
   const selection = useOpenSelection();
   if (!fleet) return <p className="today-not-read">⌀ The forks were not read.</p>;
 
-  const { yours, rest } = fleet.forks;
-  const homes = new Map(snapshot.services?.map(({ service, home }) => [service, home]));
+  const sorted = sortForks(snapshot, fleet);
+  const { homes, readings, yours, holding, unread: unreadForks, folded } = sorted;
+  const { rest } = fleet.forks;
   const services = new Set([...yours, ...rest.forks]);
-  const readings = new Map(
-    [...services].map((fork) => [fork, readFork(fleet, fork, homes.get(fork))]),
-  );
-  const quiet = rest.forks.filter((fork) => !readings.get(fork)?.unread);
   const total = [...services].map((fork) => homes.get(fork)?.openPrTotal);
   const knownTotal = total.reduce<number>((n, count) => n + (count ?? 0), 0);
   const partial = total.some((count) => count === undefined);
   const open = selection?.kind === "fork" ? selection.id : undefined;
-  const showQuiet = unfolded || (open !== undefined && quiet.includes(open));
+  const showFolded = unfolded || (open !== undefined && folded.includes(open));
+  const headline = foldHeadline(sorted);
   const props = (column: Column) => ({
     "data-column": column,
     "data-dim": station !== undefined && station !== column ? "" : undefined,
@@ -292,7 +359,6 @@ export function Forks({
     if (!reading) return null;
     const { stations, doors, unread } = reading;
     const expanded = fork === open;
-    const mark = serviceMark(snapshot, fork);
     const detailId = `${id}-${fork}`;
     return (
       <Fragment key={fork}>
@@ -301,7 +367,7 @@ export function Forks({
             <button
               type="button"
               className="forks-toggle"
-              aria-label={`${fork}: show its rows`}
+              aria-label={`Expand ${fork} details`}
               aria-expanded={expanded}
               aria-controls={expanded ? detailId : undefined}
               onClick={() => setOpenSelection(expanded ? null : { kind: "fork", id: fork })}
@@ -310,31 +376,22 @@ export function Forks({
             </button>
           </td>
           <th className="forks-name-cell" scope="row">
-            <ForkName fork={fork} services={services} />
-          </th>
-          <td className="forks-mark-cell">
-            <div className="forks-marks">
-              {mark?.kind === "unread" || (unread && !mark) ? (
-                <ServiceMark mark={{ kind: "unread", label: NOT_READ }} />
-              ) : (
-                <>
-                  <ServiceMark mark={mark} />
-                  {unread && (
-                    <span role="img" aria-label={NOT_READ} title={NOT_READ}>
-                      ⌀
-                    </span>
-                  )}
-                </>
+            <span className="forks-name">
+              <ForkName fork={fork} services={services} />
+              {unread && (
+                <span className="forks-unread" role="img" aria-label={NOT_READ} title={NOT_READ}>
+                  ⌀
+                </span>
               )}
-            </div>
-          </td>
+            </span>
+          </th>
           {Object.keys(COLUMNS).map((key) => {
             const column = key as Column;
             const door = doors.get(column as Door);
             const station = stations.get(column as ServiceHomeStation["id"]);
             return (
               <td key={column} {...props(column)}>
-                {door && <DoorCell reading={door} />}
+                {door && <DoorCell column={column as Door} reading={door} />}
                 {station && <StationCell reading={station} />}
               </td>
             );
@@ -342,7 +399,7 @@ export function Forks({
         </tr>
         {expanded && (
           <tr className="forks-open" data-open-fork={fork}>
-            <td colSpan={11} id={detailId}>
+            <td colSpan={10} id={detailId}>
               <div className="forks-open-body">
                 <OpenFork snapshot={snapshot} fork={fork} unread={unread} />
               </div>
@@ -368,7 +425,6 @@ export function Forks({
               <th className="forks-name-cell" scope="col">
                 Fork
               </th>
-              <th className="forks-mark-cell" scope="col" aria-label="Service mark" />
               {Object.entries(COLUMNS).map(([column, label]) => (
                 <th key={column} scope="col" {...props(column as Column)}>
                   {label}
@@ -377,28 +433,31 @@ export function Forks({
             </tr>
           </thead>
           <tbody data-fork-group="yours">{yours.map(row)}</tbody>
-          <tbody data-fork-group="unread">
-            {rest.forks.filter((fork) => readings.get(fork)?.unread).map(row)}
-          </tbody>
-          {showQuiet && <tbody data-fork-group="quiet">{quiet.map(row)}</tbody>}
-          {quiet.length > 0 && (
+          <tbody data-fork-group="holding">{holding.map(row)}</tbody>
+          <tbody data-fork-group="unread">{unreadForks.map(row)}</tbody>
+          {showFolded && <tbody data-fork-group="quiet">{folded.map(row)}</tbody>}
+          {folded.length > 0 && (
             <tbody>
               <tr>
-                <td colSpan={11}>
+                <td colSpan={10}>
                   <button
                     type="button"
                     className="forks-fold"
-                    aria-expanded={showQuiet}
-                    title={quiet.join(", ")}
+                    aria-expanded={showFolded}
+                    title={folded.join(", ")}
                     onClick={() => {
-                      if (showQuiet && open && quiet.includes(open)) setOpenSelection(null);
-                      setUnfolded(!showQuiet);
+                      if (showFolded && open && folded.includes(open)) setOpenSelection(null);
+                      setUnfolded(!showFolded);
                     }}
                   >
-                    <span aria-hidden="true">{showQuiet ? "▾" : "▸"}</span>{" "}
-                    {forksWord(quiet.length)} with nothing waiting on you ·{" "}
-                    {foldWords(rest, quiet, (fork, id) =>
-                      homes.get(fork)?.doors.find((door) => door.id === id),
+                    <span aria-hidden="true">{showFolded ? "▾" : "▸"}</span>{" "}
+                    {headline ?? (
+                      <>
+                        {forksWord(folded.length)} with nothing waiting on you ·{" "}
+                        {foldWords(rest, folded, (fork, id) =>
+                          homes.get(fork)?.doors.find((door) => door.id === id),
+                        )}
+                      </>
                     )}
                   </button>
                 </td>

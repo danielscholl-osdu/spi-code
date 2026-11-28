@@ -3,7 +3,7 @@
 
 .forks-scroll {
   --forks-toggle-width: 34px;
-  --forks-name-width: 124px;
+  --forks-name-width: 164px;
   overflow-x: auto;
   container-type: inline-size;
 }
@@ -17,11 +17,12 @@
 .forks-scroll tr[data-open] { --forks-row-surface: var(--surface-raised); }
 .forks-scroll tr > :is(th, td) { background: var(--forks-row-surface); }
 .forks-scroll [data-column] { overflow: hidden; }
-.forks-scroll :is(.forks-toggle-cell, .forks-name-cell, .forks-mark-cell) { position: sticky; z-index: 1; box-sizing: border-box; }
+.forks-scroll :is(.forks-toggle-cell, .forks-name-cell) { position: sticky; z-index: 1; box-sizing: border-box; }
 .forks-toggle-cell { left: 0; width: var(--forks-toggle-width); }
 .forks-name-cell { left: var(--forks-toggle-width); width: var(--forks-name-width); }
-.forks-mark-cell { left: calc(var(--forks-toggle-width) + var(--forks-name-width)); width: 52px; }
-.forks-marks { display: flex; align-items: center; gap: 3px; color: var(--text-muted); font-size: var(--text-sm); }
+.forks-scroll [data-column="template"] { border-left: 1px solid var(--border); }
+.forks-name { display: flex; align-items: baseline; gap: 6px; }
+.forks-unread { color: var(--text-muted); font-size: var(--text-sm); }
 .forks-scroll :is(.today-fork-name, .forks-toggle) { padding: 0; border: 0; background: transparent; cursor: pointer; }
 .forks-scroll .today-fork-name { color: var(--text-strong); font-size: var(--text-md); font-weight: 600; text-align: left; overflow-wrap: anywhere; }
 .forks-toggle { width: 22px; height: 22px; color: var(--text-muted); }
@@ -33,9 +34,13 @@
 .forks-reading[data-state="green"] { color: var(--success-text); background: var(--success-surface); }
 .forks-reading:is([data-state="in-progress"], [data-state="waiting-on-clock"]) { color: var(--work); background: var(--work-surface); }
 .forks-reading:is([data-state="unread"], [data-state="ready"]) { color: var(--text-muted); }
+.forks-go { border: 0; background: transparent; color: var(--text); cursor: pointer; }
+.forks-go:hover { text-decoration: underline; }
+.forks-go-mark { color: var(--text-muted); }
 .forks-scroll [data-dim] .forks-reading { color: var(--text-muted); background: none; }
 .forks-scroll thead [data-column]:not([data-dim]) { color: var(--text-strong); }
 .forks-fold { display: block; width: 100%; padding: 4px 0; border: 0; background: transparent; color: var(--text-muted); font-size: var(--text-sm); text-align: left; }
+.forks-fold-name { color: var(--text-strong); font-weight: 500; }
 .forks-scroll .forks-open > td { --forks-row-surface: var(--surface-raised); padding: 0; }
 .forks-open-body { position: sticky; left: 0; width: 100cqi; box-sizing: border-box; padding: 10px 14px; color: var(--text-muted); font-size: var(--text-sm); }
 .forks-open p { margin: 0 0 8px; }

@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { TodayFleet, ViewSnapshot } from "@spi-code/contracts";
+import type { ViewSnapshot } from "@spi-code/contracts";
 import { restatesHeadline } from "../components/opened-body/content.js";
 import { plainTitle } from "../text.js";
 import { instantsIn, timedText, when } from "../time.js";
@@ -11,7 +11,7 @@ import { environmentOpening, runName } from "../views/environment/opening.js";
 import { daysOf, lastOf, rangeOf, WEEK, within } from "../views/environment/range.js";
 import { eventSpan, eventText, eventWhen, stateWord } from "../views/environment/timeline.js";
 import { releaseSectionCases } from "../views/releases/reachability.test-helper.js";
-import { readFork } from "../views/today/Forks.js";
+import { sortForks } from "../views/today/Forks.js";
 import { ageInOneUnit } from "../views/today/parts.js";
 import {
   lensFields,
@@ -1117,7 +1117,7 @@ export function lowerCases(snapshot: ViewSnapshot): Reach[] {
     counts(pointer, tr, entry.counts);
   });
   fleetCases(today, add);
-  forkCases(today, snapshot.services, add);
+  forkCases(today, snapshot, add);
   causeCases(today, add);
   return cases;
 }
@@ -1326,20 +1326,11 @@ function itemAt(pointer: string, { briefing }: Leaves) {
 const FLEET = "/briefing/today/fleet";
 const FOLD_FIGURES = `${FLEET}/forks/rest`;
 
-function unreadRestForks(fleet: TodayFleet, services: ViewSnapshot["services"]) {
-  return new Set(
-    fleet.forks.rest.forks.filter(
-      (fork) =>
-        readFork(fleet, fork, services?.find(({ service }) => service === fork)?.home).unread,
-    ),
-  );
-}
-
-function forkCases(today: Summary, services: ViewSnapshot["services"], add: Add) {
+function forkCases(today: Summary, snapshot: ViewSnapshot, add: Add) {
   const fleet = today.fleet;
   if (!fleet) return;
   const { yours, stopped, rest } = fleet.forks;
-  const unread = unreadRestForks(fleet, services);
+  const sorted = sortForks(snapshot, fleet);
   const forkCase = (pointer: string, fork: string, group: string, where: Home) => {
     const row = `[data-fork-group=${group}] tr[data-fork=${quote(fork)}]`;
     add(
@@ -1365,20 +1356,19 @@ function forkCases(today: Summary, services: ViewSnapshot["services"], add: Add)
       contains: true,
     });
   for (const [index, fork] of rest.forks.entries()) {
-    const isUnread = unread.has(fork);
-    forkCase(
-      `${FOLD_FIGURES}/forks/${index}`,
-      fork,
-      isUnread ? "unread" : "quiet",
-      isUnread ? FORKS : UNFOLDED,
-    );
+    const group = sorted.holding.includes(fork)
+      ? "holding"
+      : sorted.unread.includes(fork)
+        ? "unread"
+        : "quiet";
+    forkCase(`${FOLD_FIGURES}/forks/${index}`, fork, group, group === "quiet" ? UNFOLDED : FORKS);
   }
   for (const [kind, figures] of [
     ["stations", rest.stations],
     ["doors", rest.doors],
   ] as const)
     figures.forEach(({ id, count, forks }, index) => {
-      if (!foldCount(kind, id, count, forks, unread)) return;
+      if (!foldCount(kind, count, forks, sorted)) return;
       add(
         `${FOLD_FIGURES}/${kind}/${index}/count`,
         count,
@@ -1391,17 +1381,18 @@ function forkCases(today: Summary, services: ViewSnapshot["services"], add: Add)
     });
 }
 
+/** The fold names a door's total only in its own words, when every fork the door counts is folded. */
 function foldCount(
   kind: string,
-  id: string,
   count: number,
   forks: readonly string[],
-  unread: Set<string>,
+  { folded, releaseOnly }: ReturnType<typeof sortForks>,
 ) {
   return (
     count > 0 &&
-    (kind === "doors" || id === "sync" || id === "integration") &&
-    !forks.some((fork) => unread.has(fork))
+    kind === "doors" &&
+    releaseOnly.length !== folded.length &&
+    forks.every((fork) => folded.includes(fork))
   );
 }
 
@@ -1448,23 +1439,14 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
   "fold-readings": {
     patterns: [`${FOLD_FIGURES}/doors/#/count`, `${FOLD_FIGURES}/stations/#/count`],
     reason:
-      "The fold summarizes open PRs on hidden forks, excluding zero counts and visible unread forks",
+      "The fold names release-only forks, or totals open PRs only when every fork a door counts is folded; shown forks carry their own",
     when: (_value, { pointer, snapshot }) => {
       const fleet = snapshot.briefing.today?.fleet;
       if (!fleet) return false;
       const parts = pointer.split("/");
       const kind = parts.at(-3) === "doors" ? "doors" : "stations";
       const figure = fleet.forks.rest[kind][Number(parts.at(-2))];
-      return (
-        !!figure &&
-        !foldCount(
-          kind,
-          figure.id,
-          figure.count,
-          figure.forks,
-          unreadRestForks(fleet, snapshot.services),
-        )
-      );
+      return !!figure && !foldCount(kind, figure.count, figure.forks, sortForks(snapshot, fleet));
     },
     pending: true,
   },
