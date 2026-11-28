@@ -387,6 +387,16 @@
 .today-section[data-section="history"] .today-section-box {
   border-style: dashed;
 }
+.today-pending.today-section {
+  margin-top: 10px;
+}
+.today-pending .today-section-box {
+  border-style: dashed;
+}
+.today-pending .today-fork-name {
+  color: var(--text-muted);
+  font-weight: 500;
+}
 .today-row--place {
   cursor: pointer;
 }

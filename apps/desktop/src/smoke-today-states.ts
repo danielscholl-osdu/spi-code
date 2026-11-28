@@ -4,9 +4,13 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import type { ViewSnapshot } from "@spi-code/contracts";
-import { captureTodayFrame, showToday, type TodayCaptureContext } from "./smoke-today.js";
-
-const PENDING_URL = "https://github.com/fixture/smoke-pending/pull/901";
+import {
+  captureTodayFrame,
+  PENDING_URL,
+  pendingThread,
+  showToday,
+  type TodayCaptureContext,
+} from "./smoke-today.js";
 
 type State = {
   id: string;
@@ -15,6 +19,8 @@ type State = {
   threads?: (snapshot: ViewSnapshot) => unknown[];
   /** A script the capture waits on, true once the state draws. */
   drawn: string;
+  /** What the capture does to the drawn state, and checks, before it is taken. */
+  act?: (context: TodayCaptureContext, snapshot: ViewSnapshot) => Promise<void>;
 };
 
 /** Quiet: Blocked and Waiting on you both empty, one line in their place. */
@@ -63,29 +69,70 @@ function nowRow(_calm: ViewSnapshot, busy: ViewSnapshot) {
   return snapshot;
 }
 
-function pendingThread(snapshot: ViewSnapshot) {
-  const fork = snapshot.briefing.today?.fleet?.forks.yours[0];
-  assert(fork, "A pending request needs a Yours fork");
-  return [
-    {
-      id: "smoke-pending",
-      thread: {
-        scope: fork,
-        title: "Pin the toolchain",
-        request: {
-          forge: "github",
-          repository: `fixture/${fork}`,
-          requestNumber: 901,
-          url: PENDING_URL,
-        },
-      },
-      status: "Open",
-      sequence: 1,
-      updatedAt: Date.parse(snapshot.sweptAt) - 600_000,
-      settledAt: null,
-      done: false,
-    },
-  ];
+/** The first Blocked or Waiting on you group that is not the rollout. */
+function plainGroup(snapshot: ViewSnapshot) {
+  const line = snapshot.briefing.lines?.find(
+    ({ section, members, rollout }) =>
+      (section === "blocked" || section === "waiting") && members.length > 1 && !rollout,
+  );
+  assert(line, "An opened group needs a non-rollout line with more than one member");
+  return line;
+}
+
+/** Opens the group in place and checks it draws one subrow per member, in core's order. */
+async function openGroup(context: TodayCaptureContext, snapshot: ViewSnapshot) {
+  const { window, rendered } = context;
+  const line = plainGroup(snapshot);
+  const group = `document.querySelector('.today tbody[data-line="${line.id}"]')`;
+  await window.webContents.executeJavaScript(
+    `${group}.querySelector("tr.today-row:not(.today-row--sub) .today-row-head").click()`,
+  );
+  await rendered(
+    `${group}?.matches("[data-expanded]") && ${group}.querySelector("tr.today-row--sub")`,
+  );
+  const subrows: { id: string; fork: string }[] = await window.webContents.executeJavaScript(
+    `[...${group}.querySelectorAll("tr.today-row--sub")].map(row => ({
+      id: row.dataset.itemId ?? "",
+      fork: row.querySelector(".today-row-fork")?.textContent.trim() ?? "",
+    }))`,
+  );
+  assert.deepEqual(
+    subrows,
+    line.members.map(({ id, fork }) => ({ id, fork })),
+    `Opened group ${line.id} draws one subrow per member`,
+  );
+}
+
+/** Busy with its Blocked line due before the next upstream sync. */
+function blockedDue(_calm: ViewSnapshot, busy: ViewSnapshot) {
+  const snapshot = structuredClone(busy);
+  const blocked = snapshot.briefing.lines?.find(({ section }) => section === "blocked");
+  const due = snapshot.briefing.lines?.find(({ deadline }) => deadline)?.deadline;
+  assert(blocked && due, "A Blocked deadline needs a Blocked line and a deadline to borrow");
+  blocked.deadline = due;
+  return snapshot;
+}
+
+const BLOCKED_DUE = `document.querySelector('.today [data-section=blocked] .today-row-due[data-tone="error"]')`;
+
+/** Tabs to the red chip from its row's headline and checks its reason shows on focus. */
+async function focusDue(context: TodayCaptureContext) {
+  const { window, rendered } = context;
+  // A hidden window's page is unfocused, and :focus-visible matches only in a focused page.
+  window.webContents.focus();
+  await window.webContents.executeJavaScript(
+    `${BLOCKED_DUE}.closest("tr").querySelector(".today-row-head").focus()`,
+  );
+  window.webContents.sendInputEvent({ type: "keyDown", keyCode: "Tab" });
+  window.webContents.sendInputEvent({ type: "keyUp", keyCode: "Tab" });
+  await rendered(
+    `document.activeElement === ${BLOCKED_DUE} && ${BLOCKED_DUE}.matches(":focus-visible")`,
+  );
+  const [tip, shown]: [string, string] = await window.webContents.executeJavaScript(
+    `[${BLOCKED_DUE}.dataset.tip, getComputedStyle(${BLOCKED_DUE}, "::after").content]`,
+  );
+  assert.match(tip, /\p{L}/u, "The Blocked deadline chip carries its reason");
+  assert.equal(shown, JSON.stringify(tip), "The Blocked deadline chip shows its reason on focus");
 }
 
 const STATES: readonly State[] = [
@@ -117,11 +164,25 @@ const STATES: readonly State[] = [
     threads: pendingThread,
     drawn: `(() => {
       const row = document.querySelector('.today [data-section=moving] tr[data-row="smoke-now"]');
-      return document.querySelector('.today .request-pending[data-request="${PENDING_URL}"]') &&
+      return document.querySelector('.today tr.today-row[data-state=pending][data-request="${PENDING_URL}"]') &&
         row?.querySelector(".today-row-when")?.textContent === "Now" &&
         row.querySelector(".today-row-open a") && row.querySelector(".today-row-gaps") &&
         row.querySelector(".today-row-age-text")?.textContent === "25m";
     })()`,
+  },
+  {
+    id: "today-group-open",
+    hash: "#today",
+    morning: (_calm, busy) => busy,
+    drawn: 'document.querySelector(".today [data-section=waiting] tbody[data-line]")',
+    act: openGroup,
+  },
+  {
+    id: "today-blocked-due",
+    hash: "#today",
+    morning: blockedDue,
+    drawn: BLOCKED_DUE,
+    act: focusDue,
   },
 ];
 
@@ -139,6 +200,7 @@ export async function captureTodayStates(
     await showToday(context, snapshot, state.hash, "light", 1440);
     if (state.threads) fixture("threads.result", { threads: state.threads(snapshot) });
     await rendered(state.drawn);
+    await state.act?.(context, snapshot);
     const file = `${state.id}-1440-light.png`;
     await captureTodayFrame(context, join(output, file));
     console.log(`Packaged Today ${state.id}/1440/light`);

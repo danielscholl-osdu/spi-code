@@ -8,6 +8,19 @@ import { type PendingRequest, pendingRequests } from "./request-ownership.js";
 import { threadStore } from "./store.js";
 import "./request-owner.css";
 
+export function usePendingRequests(
+  sweep: ViewSnapshot | null | undefined,
+  scope?: string,
+  forge?: "github" | "gitlab",
+): PendingRequest[] {
+  const threads = useStore(threadStore, (state) => state.threads);
+  return pendingRequests(threads, sweep).filter(
+    ({ thread, request }) =>
+      (scope === undefined || thread.thread.scope === scope) &&
+      (forge === undefined || request.forge === forge),
+  );
+}
+
 /**
  * Requests threads opened that this sweep has not read: dashed, from the thread store, until a
  * sweep's PR or MR row holds it and its RequestOwner draws it solid instead.
@@ -24,12 +37,7 @@ export function PendingRequests({
   /** Name each request's fork, where the list spans forks. */
   fork?: boolean;
 }) {
-  const threads = useStore(threadStore, (state) => state.threads);
-  const shown = pendingRequests(threads, sweep).filter(
-    ({ thread, request }) =>
-      (scope === undefined || thread.thread.scope === scope) &&
-      (forge === undefined || request.forge === forge),
-  );
+  const shown = usePendingRequests(sweep, scope, forge);
   if (!shown.length) return null;
   return (
     <ul className="request-pending-list" aria-label="Opened by threads">

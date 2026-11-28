@@ -125,12 +125,56 @@ async function assertFlowSteady(context: TodayCaptureContext, where: string) {
   console.log(`Packaged Today ${where}: flow at ${yours.left}+${yours.width} on Yours and Forks`);
 }
 
-/** Rows whose headline cell is narrower than half the centre: the table did not restack them. */
+export const PENDING_URL = "https://github.com/fixture/smoke-pending/pull/901";
+
+/** A thread's request no sweep holds yet, on the first Yours fork. */
+export function pendingThread(snapshot: ViewSnapshot) {
+  const fork = snapshot.briefing.today?.fleet?.forks.yours[0];
+  assert(fork, "A pending request needs a Yours fork");
+  return [
+    {
+      id: "smoke-pending",
+      thread: {
+        scope: fork,
+        title: "Pin the toolchain",
+        request: {
+          forge: "github",
+          repository: `fixture/${fork}`,
+          requestNumber: 901,
+          url: PENDING_URL,
+        },
+      },
+      status: "Open",
+      sequence: 1,
+      updatedAt: Date.parse(snapshot.sweptAt) - 600_000,
+      settledAt: null,
+      done: false,
+    },
+  ];
+}
+
+/**
+ * At a narrow centre: Yours rows whose What cell is narrower than half the centre or whose Link
+ * sits beside What rather than under it, and pending requests drawn outside the four-column grid.
+ */
 const narrowRowsScript = `(() => {
   const centre = document.querySelector(".centre-body").getBoundingClientRect().width;
-  return [...document.querySelectorAll('.today .today-section:not([data-section="forks"]) tr.today-row > td.today-row-what')]
-    .filter(cell => cell.getBoundingClientRect().width < centre / 2)
-    .map(cell => \`\${cell.closest("[data-section]").dataset.section}: \${Math.round(cell.getBoundingClientRect().width)}px\`);
+  const faults = [];
+  for (const row of document.querySelectorAll('.today .today-section:not([data-section="forks"]) tr.today-row')) {
+    const where = row.closest("[data-section]")?.dataset.section ?? row.dataset.state ?? "row";
+    const what = row.querySelector(":scope > td.today-row-what")?.getBoundingClientRect();
+    const link = row.querySelector(":scope > td.today-row-open")?.getBoundingClientRect();
+    if (!what) continue;
+    if (what.width < centre / 2) faults.push(\`\${where}: What \${Math.round(what.width)}px\`);
+    if (link && link.top < what.bottom - 0.5) faults.push(\`\${where}: Link beside What, not under it\`);
+  }
+  const pending = [...document.querySelectorAll('.today [data-state="pending"]')];
+  for (const request of pending) {
+    const cells = [...request.children].map(cell => cell.className).join(" ");
+    if (!request.matches(".today-section tr.today-row") || cells !== "today-row-fork today-row-what today-row-open today-row-age")
+      faults.push(\`pending \${request.dataset.request}: outside the Fork, What, Link and Age grid\`);
+  }
+  return { faults, pending: pending.length };
 })()`;
 
 async function grab(window: BrowserWindow): Promise<Pixels> {
@@ -229,6 +273,14 @@ export async function captureMornings(
         if (!(surface.widths as readonly number[]).includes(viewportWidth)) continue;
         const { snapshot, fixture: fixtureName } = mornings[surface.morning];
         await showToday(context, snapshot, TODAY_HASHES[surface.view], appearance, viewportWidth);
+        if (viewportWidth === 752) {
+          context.fixture("threads.result", { threads: pendingThread(snapshot) });
+          await rendered(
+            surface.view === "yours"
+              ? `document.querySelector('.today [data-state="pending"][data-request="${PENDING_URL}"]')`
+              : "true",
+          );
+        }
         let opened: string | undefined;
         if (surface.open) {
           await window.webContents.executeJavaScript(
@@ -257,11 +309,17 @@ export async function captureMornings(
             [],
             `Today busy at the 520 centre (${appearance}): the flow restacks onto a rail that lands on Main`,
           );
-          const squeezed: string[] = await window.webContents.executeJavaScript(narrowRowsScript);
+          const narrow: { faults: string[]; pending: number } =
+            await window.webContents.executeJavaScript(narrowRowsScript);
           assert.deepEqual(
-            squeezed,
+            narrow.faults,
             [],
-            `Today busy at the 520 centre (${appearance}): every Yours row restacks to two lines`,
+            `Today busy at the 520 centre (${appearance}): every Yours row, pending requests included, restacks to two lines`,
+          );
+          assert.equal(
+            narrow.pending,
+            surface.view === "yours" ? 1 : 0,
+            `Today busy at the 520 centre (${appearance}): the pending request draws on Yours only`,
           );
         }
         const geometry = [await context.measure("window")];

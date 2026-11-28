@@ -1347,6 +1347,18 @@ describe("Forks on the 16 Nov sweep", () => {
     const pending = container.querySelector(`[data-request="${primary.url}"]`);
     expect(pending?.textContent).toContain("pending · not yet in a sweep");
     expect(pending?.closest("[data-section]")).toBeNull();
+    expect([...(pending?.children ?? [])].map(({ className }) => className)).toEqual([
+      "today-row-fork",
+      "today-row-what",
+      "today-row-open",
+      "today-row-age",
+    ]);
+    expect(pending?.querySelector(".today-row-fork")?.textContent).toBe(member.fork);
+    const block = pending?.closest(".today-section");
+    expect(block?.previousElementSibling?.getAttribute("data-section")).toMatch(
+      /^(blocked|waiting)$/,
+    );
+    expect(block?.nextElementSibling?.getAttribute("data-section")).toBe("moving");
     expect(memberIds()).toEqual(todayMembers(unswept.briefing).map(({ member }) => member.id));
     await click(pending?.querySelector("button"));
     expect(window.location.hash).toBe("#thread/request-thread");

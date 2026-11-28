@@ -42,11 +42,14 @@ export function lineMemberCount(members: string): number {
   return members.split(" · ").reduce((count, section) => count + section.split(" ").length - 1, 0);
 }
 
-/** In the window: the member rows Today draws in each section, single lines and group sub-rows. */
+/**
+ * In the window: each section's member ids as its collapsed rows carry them, a single line's item
+ * id or a group's `data-member-ids`. Opened subrows are skipped; the group-open capture checks them.
+ */
 export const DRAWN_MEMBERS = `Object.fromEntries(${JSON.stringify(TODAY_SECTIONS)}.map(section => [section,
   [...document.querySelectorAll(".today [data-section=" + section + "] tr.today-row:not(.today-row--sub)")].flatMap(row => row.dataset.itemId ? [row.dataset.itemId] : (row.dataset.memberIds || "").split(" ").filter(Boolean))]))`;
 
-/** Throws unless Today draws a row for every member of core's lines, each in its section. */
+/** Throws unless Today's collapsed rows carry exactly the members of core's lines, each in its section. */
 export function assertDrawnMembers(drawn: unknown, members: unknown, label: string): void {
   assert(
     typeof members === "string" && members !== membersText({}),

@@ -33,7 +33,7 @@ import {
 } from "../../components/opened-body/content.js";
 import { OpenedBody } from "../../components/opened-body/OpenedBody.js";
 import { plainTitle } from "../../text.js";
-import { PendingRequests } from "../../threads/PendingRequests.js";
+import { usePendingRequests } from "../../threads/PendingRequests.js";
 import { RequestOwner } from "../../threads/RequestOwner.js";
 import { clockTime, dayClock, timedText } from "../../time.js";
 import { CanWait } from "./CanWait.js";
@@ -368,6 +368,62 @@ function RowCells({
   );
 }
 
+/** Requests threads opened that no sweep holds yet: dashed rows under the same four columns, not members. */
+function Pending({ snapshot }: { snapshot: ViewSnapshot | null | undefined }) {
+  const shown = usePendingRequests(snapshot);
+  if (!shown.length) return null;
+  return (
+    <section className="today-section today-pending" aria-label="Opened by threads">
+      <div className="today-section-box">
+        <table>
+          <colgroup>
+            <col className="today-col-fork" />
+            <col />
+            <col className="today-col-open" />
+            <col className="today-col-age" />
+          </colgroup>
+          <tbody>
+            {shown.map(({ thread, request }) => {
+              const github = request.forge === "github";
+              const open = () => navigate({ kind: "thread", id: thread.id });
+              return (
+                <tr
+                  key={request.url}
+                  className="today-row"
+                  data-state="pending"
+                  data-request={request.url}
+                >
+                  <td className="today-row-fork">
+                    <span className="today-fork-name">{thread.thread.scope}</span>
+                  </td>
+                  <td className="today-row-what">
+                    <span className="today-row-l1">
+                      <button type="button" title={request.url} onClick={open}>
+                        {thread.thread.title ?? "Untitled thread"} · {github ? "#" : "!"}
+                        {request.requestNumber}
+                      </button>
+                    </span>
+                    <span className="today-row-forks">
+                      {github ? "pull request" : "merge request"} opened by the thread · pending ·
+                      not yet in a sweep
+                    </span>
+                  </td>
+                  <td className="today-row-open">
+                    <button type="button" className="today-row-place" onClick={open}>
+                      Thread ›
+                    </button>
+                  </td>
+                  <td className="today-row-age" />
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 /** The Can wait causes Yours draws: none under a station filter, nor beside a briefing with no lines. */
 export function drawnCauses(
   briefing: Pick<Briefing, "lines" | "today">,
@@ -560,7 +616,7 @@ export function TodayTable({
           </Section>
         );
       })}
-      {!station && <PendingRequests sweep={snapshot} fork />}
+      {!station && <Pending snapshot={snapshot} />}
       <Lower section={lowerOf("moving")} />
       {causes && <CanWait causes={causes} snapshot={snapshot} services={services} />}
       <Lower section={lowerOf("history")} />

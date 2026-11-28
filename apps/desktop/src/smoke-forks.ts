@@ -12,6 +12,72 @@ import { captureTodayFrame, type TodayCaptureContext } from "./smoke-today.js";
 
 const FIRST_FORK = 'document.querySelector(".forks-scroll tr[data-fork]")';
 
+type Box = { left: number; top: number; right: number; bottom: number };
+
+/** Each fork row wholly in view: its toggle, its name's words, and the rest of its name cell. */
+const stickyRowsScript = `(() => {
+  const sheet = document.querySelector(".forks-scroll").getBoundingClientRect();
+  const pane = document.querySelector(".today-frame").closest(".centre-body > *").getBoundingClientRect();
+  const top = Math.max(sheet.top, pane.top), bottom = Math.min(sheet.bottom, pane.bottom);
+  const box = ({ left, top, right, bottom }) => ({ left, top, right, bottom });
+  return [...document.querySelectorAll(".forks-scroll tr[data-fork]")].flatMap(row => {
+    const { top: rowTop, bottom: rowBottom } = row.getBoundingClientRect();
+    if (rowTop < top || rowBottom > bottom) return [];
+    const cell = row.querySelector(".forks-name-cell");
+    const { left, right } = cell.getBoundingClientRect();
+    const x = (left + right) / 2;
+    if (![rowTop + 1, rowBottom - 1].every(y => row.contains(document.elementFromPoint(x, y)))) return [];
+    const words = [...cell.querySelector(".forks-name").children].map(part => part.getBoundingClientRect());
+    return [{
+      fork: row.dataset.fork,
+      toggle: box(row.querySelector(".forks-toggle").getBoundingClientRect()),
+      name: box(row.querySelector(".forks-name .today-fork-name").getBoundingClientRect()),
+      rest: { left: Math.max(...words.map(({ right }) => right)) + 3, top: rowTop + 3,
+        right: cell.getBoundingClientRect().right - 3, bottom: rowBottom - 3 },
+    }];
+  });
+})()`;
+
+/**
+ * Rows whose sticky cells the capture does not show as drawn: a toggle or name with no ink, or
+ * ink in the empty part of the name cell where a scrolled column shows through.
+ */
+function stickyFaults(
+  image: { width: number; bitmap: Buffer },
+  scale: number,
+  rows: { fork: string; toggle: Box; name: Box; rest: Box }[],
+): string[] {
+  const pixels = (box: Box) => {
+    const found: number[] = [];
+    for (let y = Math.ceil(box.top * scale); y < Math.floor(box.bottom * scale); y++)
+      for (let x = Math.ceil(box.left * scale); x < Math.floor(box.right * scale); x++) {
+        const at = (y * image.width + x) * 4;
+        found.push(
+          ((image.bitmap[at] ?? 0) << 16) |
+            ((image.bitmap[at + 1] ?? 0) << 8) |
+            (image.bitmap[at + 2] ?? 0),
+        );
+      }
+    return found;
+  };
+  const distance = (a: number, b: number) =>
+    Math.abs((a >> 16) - (b >> 16)) +
+    Math.abs(((a >> 8) & 255) - ((b >> 8) & 255)) +
+    Math.abs((a & 255) - (b & 255));
+  return rows.flatMap(({ fork, toggle, name, rest }) => {
+    const empty = pixels(rest);
+    const counts = new Map<number, number>();
+    for (const pixel of empty) counts.set(pixel, (counts.get(pixel) ?? 0) + 1);
+    const surface = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0;
+    const ink = (box: Box) => pixels(box).filter((pixel) => distance(pixel, surface) > 90).length;
+    return [
+      ...(ink(toggle) < 2 ? [`${fork}: toggle not drawn`] : []),
+      ...(ink(name) < 8 ? [`${fork}: name not drawn`] : []),
+      ...(ink(rest) > 0 ? [`${fork}: ${ink(rest)} pixels of another column in its name cell`] : []),
+    ];
+  });
+}
+
 async function captureStickyForks(
   { window, output, rendered }: Pick<TodayCaptureContext, "window" | "output" | "rendered">,
   theme: string,
@@ -75,10 +141,20 @@ async function captureStickyForks(
     unread ? "900px Forks with a hovered unread row" : "900px Forks with an opened row",
   );
   const file = `forks-sticky-${unread ? "unread-hover-" : ""}${theme}.png`;
+  const rows = await window.webContents.executeJavaScript(stickyRowsScript);
+  assert(rows.length > 4, `${file}: the 900px Forks capture shows its rows`);
   const image = await window.webContents.capturePage();
   const png = image.toPNG();
-  assertSmokeImage(file, { ...image.getSize(), bitmap: image.toBitmap(), bytes: png.length });
+  const size = image.getSize();
+  const bitmap = image.toBitmap();
   writeFileSync(join(output, file), png);
+  assertSmokeImage(file, { ...size, bitmap, bytes: png.length });
+  const scale = size.width / (await window.webContents.executeJavaScript("innerWidth"));
+  assert.deepEqual(
+    stickyFaults({ width: size.width, bitmap }, scale, rows),
+    [],
+    `${file}: every row in view draws its own toggle and name over the scrolled columns`,
+  );
   return file;
 }
 
