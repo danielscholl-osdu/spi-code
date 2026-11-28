@@ -3,6 +3,7 @@
 
 import type { ServiceHome, ServiceHomeDoor, ServiceHomeRow, ServiceHomeStation } from "@spi-code/contracts";
 import { when } from "@spi-code/contracts";
+import { defaultContext } from "../context.js";
 import type { AreaName, Facts, IssueFact, PastPrFact, PrFact } from "../facts.js";
 import { groupUrl } from "../inspect/repo.js";
 import { cascadeMonitor } from "../model/cascade-monitor.js";
@@ -19,7 +20,7 @@ import { plainText } from "../readings/index.js";
 import { age, plural } from "../util.js";
 import { sentenceHeadline } from "./headline.js";
 import type { FocusItem } from "./index.js";
-import type { TodayLine } from "./lines.js";
+import { todayInFlight, type TodayLine } from "./lines.js";
 import { linkKind } from "./move.js";
 import { gateOf } from "./pr-gate.js";
 import { rolloutVisual } from "./place-visuals.js";
@@ -70,10 +71,16 @@ function overviewOf(input: HomeInput, line: LineModel): ServiceHomeRow[] {
   const queued = new Map(model.queue.items.map((item) => [item.id, item]));
   const rows: ServiceHomeRow[] = [];
   const owe = model.radar.services[svc]?.ports?.owed.length;
-  for (const { section, headline, members } of lines) {
+  const flights = todayInFlight(model, items, input.now, defaultContext).map(({ line, member }) => ({
+    ...line,
+    members: [member],
+  }));
+  const rowIds = new Set<string>();
+  for (const { section, headline, members } of [...lines, ...flights]) {
     for (const member of members) {
       const shared = member.ids.includes(`port:${svc}`);
       if (!(shared ? owe : member.fork === svc)) continue;
+      if (rowIds.has(member.id)) continue;
       const links = new Map((member.primary ? [member.primary] : []).map((link) => [link.url, link]));
       const extra = member.ids.filter((id) => id !== member.blockedBy).flatMap((id) => evidence.get(id) ?? []);
       for (const link of extra) if (!links.has(link.url)) links.set(link.url, { ...link, kind: link.kind ?? "other" });
@@ -82,6 +89,7 @@ function overviewOf(input: HomeInput, line: LineModel): ServiceHomeRow[] {
       const next = shared ? undefined : own ?? member.cause;
       const cause = !shared && own === undefined ? "" : causeBeside(headline, member.cause);
       const main = queued.get(member.id);
+      rowIds.add(member.id);
       rows.push({
         id: member.id, section: shared ? "shared" : section, headline,
         cause, effect: member.effect, steps: member.steps, links: [...links.values()],

@@ -673,6 +673,79 @@ test("the recorded 16 Nov sweep reads open issues without claiming a closed-issu
   expect(work?.issues.count).toBe((work?.issues.rows.length ?? 0) - 1);
 });
 
+describe("Overview retains fork work while Today moves it", () => {
+  test("keeps partition's in-flight integration approval on its service page", () => {
+    const result = project(sweep1116Facts());
+    const rows = result.homes
+      .get("partition")
+      ?.overview.filter(({ id }) => id === "gate2:partition");
+    expect(
+      result.lines.flatMap(({ members }) => members).some(({ id }) => id === "gate2:partition"),
+    ).toBe(false);
+    expect(rows).toHaveLength(1);
+    expect(rows?.[0]).toMatchObject({
+      section: "waiting",
+      headline: "Integration PR waits for approval",
+    });
+  });
+
+  test("keeps a checking rollout PR on its service page", () => {
+    const facts = sweep1116Facts();
+    const model = buildModel(facts, sweep, {}, context);
+    const rollout = model.rollout;
+    const checking = rollout?.forks.find(({ service }) => service === "search");
+    if (!rollout || !checking) throw new Error("Search is missing from the 16 Nov rollout");
+    for (const fork of rollout.forks) fork.onTarget = true;
+    checking.onTarget = false;
+    checking.unread = false;
+    checking.pr = { number: 2, url: `${url}/pull/2`, headSha: "checking" };
+    checking.validation = { ...checking.validation, text: "running", tone: "run" };
+    const items = sweep1116Items(model);
+    const lines = todayLines(model, items, sweep, context);
+    const { canWait } = todaySummary({
+      model,
+      facts,
+      items,
+      lines,
+      since: undefined,
+      now: sweep,
+      context,
+    });
+    const home = serviceHome({
+      model,
+      facts,
+      lines,
+      items,
+      canWait,
+      versions: [],
+      now: sweep,
+      reads: {},
+    }).get(service);
+    expect(
+      lines.flatMap(({ members }) => members).some(({ id }) => id === `rollout:${service}`),
+    ).toBe(false);
+    expect(home?.overview.filter(({ id }) => id === `rollout:${service}`)).toHaveLength(1);
+  });
+
+  test("shows a counted row only once when its run was not read", () => {
+    const facts = sweep1116Facts();
+    const model = buildModel(facts, sweep, {}, context);
+    const integration = model.lines.find(({ fork }) => fork.id === "partition")?.cascadePr?.pr;
+    const recorded = facts.github.data?.repos[integration?.repo ?? ""]?.prs.find(
+      ({ url }) => url === integration?.url,
+    );
+    if (!recorded) throw new Error("Partition integration PR is missing");
+    recorded.checks = [];
+    const result = project(facts);
+    expect(
+      result.lines.flatMap(({ members }) => members).some(({ id }) => id === "gate2:partition"),
+    ).toBe(true);
+    expect(
+      result.homes.get("partition")?.overview.filter(({ id }) => id === "gate2:partition"),
+    ).toHaveLength(1);
+  });
+});
+
 test("a Ready for Review issue rides on its merged sync PR only while the match is unique", () => {
   const { facts, github } = handBuilt();
   const merged = past(77, merge, "sync/upstream-current", "fork_upstream");
