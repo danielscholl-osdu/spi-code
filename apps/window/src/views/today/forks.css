@@ -20,7 +20,7 @@
 .forks-scroll :is(.forks-toggle-cell, .forks-name-cell) { position: sticky; z-index: 1; box-sizing: border-box; }
 .forks-toggle-cell { left: 0; width: var(--forks-toggle-width); }
 .forks-name-cell { left: var(--forks-toggle-width); width: var(--forks-name-width); }
-.forks-scroll [data-column="template"] { border-left: 1px solid var(--border); }
+.forks-scroll [data-column="template"] { border-left: 1px dashed var(--border); }
 .forks-name { display: flex; align-items: baseline; gap: 6px; }
 .forks-unread { color: var(--text-muted); font-size: var(--text-sm); }
 .forks-scroll :is(.today-fork-name, .forks-toggle) { padding: 0; border: 0; background: transparent; cursor: pointer; }

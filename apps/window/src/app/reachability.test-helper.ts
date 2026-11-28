@@ -63,8 +63,6 @@ export type Exemption = {
   when?: (value: unknown, leaf: { pointer: string; snapshot: Leaves }) => boolean;
   /** A contract field core doesn't fill yet: no fixture leaf has to use it, so it's never stale. */
   pending?: true;
-  /** Applies only on a morning the 6 Nov sweep doesn't show, so that sweep never calls it stale. */
-  elsewhere?: true;
 };
 
 type Leaves = Pick<ViewSnapshot, "briefing" | "releases" | "services">;
@@ -1077,13 +1075,14 @@ export function lowerCases(snapshot: ViewSnapshot): Reach[] {
     label: string,
     to: string,
     words: string,
+    linked = false,
   ) => {
-    const button = `${tr} .today-row-open .today-row-place`;
+    const click = linked ? tr : `${tr} .today-row-open .today-row-place`;
     const destination = LOWER_DESTINATIONS[to];
     add(`${pointer}/${key}`, id, TODAY, tr, { attribute: "data-row" });
     add(`${pointer}/label`, label, TODAY, words, {
       contains: true,
-      ...(destination ? { opens: { click: tr, place: destination } } : {}),
+      ...(destination ? { opens: { click, place: destination } } : {}),
     });
     add(`${pointer}/place`, to, TODAY, tr, { attribute: "data-place" });
   };
@@ -1111,7 +1110,7 @@ export function lowerCases(snapshot: ViewSnapshot): Reach[] {
     const pointer = `${base}/moving/${index}`;
     const tr = row("moving", entry.id);
     const words = `${tr} .today-row-moving`;
-    place(pointer, tr, "id", entry.id, entry.label, entry.place, words);
+    place(pointer, tr, "id", entry.id, entry.label, entry.place, words, entry.link !== undefined);
     if (entry.at)
       add(`${pointer}/at`, entry.at, TODAY, `${tr} .today-row-when time`, {
         attribute: "dateTime",
@@ -1570,7 +1569,6 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
       const upstream = snapshot.briefing.today?.fleet?.stations.find(({ id }) => id === "upstream");
       return !upstream?.behind?.length || upstream.stopped.length > 0;
     },
-    elsewhere: true,
   },
   "today-join": {
     patterns: ["/briefing/repositories/rows/#/sections/#/lines/#/onToday/rel"],
@@ -2115,8 +2113,8 @@ export function coverage(
     uncovered,
     stray: [...pointers].filter((pointer) => !values.has(pointer)),
     drawn,
-    stale: Object.entries(exemptions).flatMap(([name, { patterns, pending, elsewhere }]) =>
-      pending || elsewhere
+    stale: Object.entries(exemptions).flatMap(([name, { patterns, pending }]) =>
+      pending
         ? []
         : patterns.map((pattern) => `${name} ${pattern}`).filter((entry) => !used.has(entry)),
     ),

@@ -125,6 +125,14 @@ async function assertFlowSteady(context: TodayCaptureContext, where: string) {
   console.log(`Packaged Today ${where}: flow at ${yours.left}+${yours.width} on Yours and Forks`);
 }
 
+/** Rows whose headline cell is narrower than half the centre: the table did not restack them. */
+const narrowRowsScript = `(() => {
+  const centre = document.querySelector(".centre-body").getBoundingClientRect().width;
+  return [...document.querySelectorAll('.today .today-section:not([data-section="forks"]) tr.today-row > td.today-row-what')]
+    .filter(cell => cell.getBoundingClientRect().width < centre / 2)
+    .map(cell => \`\${cell.closest("[data-section]").dataset.section}: \${Math.round(cell.getBoundingClientRect().width)}px\`);
+})()`;
+
 async function grab(window: BrowserWindow): Promise<Pixels> {
   const image = nativeImage.createFromBuffer((await window.webContents.capturePage()).toPNG());
   const { width, height } = image.getSize();
@@ -172,7 +180,7 @@ export async function captureTodayFrame(
   return { ...page, pageHeight, blocks };
 }
 
-async function showToday(
+export async function showToday(
   context: TodayCaptureContext,
   snapshot: ViewSnapshot,
   hash: string,
@@ -248,6 +256,12 @@ export async function captureMornings(
             railFaults(probe),
             [],
             `Today busy at the 520 centre (${appearance}): the flow restacks onto a rail that lands on Main`,
+          );
+          const squeezed: string[] = await window.webContents.executeJavaScript(narrowRowsScript);
+          assert.deepEqual(
+            squeezed,
+            [],
+            `Today busy at the 520 centre (${appearance}): every Yours row restacks to two lines`,
           );
         }
         const geometry = [await context.measure("window")];

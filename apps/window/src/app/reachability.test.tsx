@@ -22,6 +22,7 @@ import {
   memberRow,
   openerCases,
   type Reach,
+  reachCases,
   STARTS,
   uncoveredRoutes,
 } from "./reachability.test-helper.js";
@@ -59,10 +60,19 @@ const optionalSince = () =>
     return JSON.stringify(body);
   })("snapshot-59d6895.json");
 
-/** Exemption patterns no leaf uses on the 6 Nov sweep nor on the optional-field one. */
+/** The 6 Nov sweep with a fork stopped upstream: Upstream then names no next sync. */
+function upstreamStopped() {
+  const body = fixture();
+  const upstream = body.briefing.today?.fleet?.stations.find(({ id }) => id === "upstream");
+  if (!upstream?.behind?.[0]) throw new Error("6 Nov has forks behind upstream");
+  upstream.stopped = [upstream.behind[0]];
+  return body;
+}
+
+/** Exemption patterns no leaf uses on the 6 Nov sweep nor on any morning it is varied to. */
 function staleOnEvery(exemptions = EXEMPTIONS) {
-  const [first = [], ...rest] = [fixture(), optionalSince()].map(
-    (body) => coverage(body, cases, exemptions).stale,
+  const [first = [], ...rest] = [fixture(), optionalSince(), upstreamStopped()].map(
+    (body) => coverage(body, reachCases(body), exemptions).stale,
   );
   return first.filter((entry) => rest.every((stale) => stale.includes(entry)));
 }
@@ -104,14 +114,17 @@ describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
     expect(container.querySelector(".popover .env-repository")?.textContent).not.toContain(extra);
   });
 
-  it("counts an exemption used when the optional-field sweep uses it", () => {
+  it("counts an exemption used when a varied sweep uses it", () => {
     const optional = [
       "since-undrawn /briefing/since/asOf",
       "since-undrawn /briefing/since/rows/#/slots/#/origin",
     ];
-    expect(coverage(fixture(), cases).stale).toEqual(optional);
+    const stopped = "next-sync-beside-behind /briefing/today/fleet/nextSyncAt";
+    expect(coverage(fixture(), cases).stale).toEqual([...optional, stopped].sort());
     const used = coverage(optionalSince(), cases).stale;
     expect(optional.filter((entry) => used.includes(entry))).toEqual([]);
+    const morning = upstreamStopped();
+    expect(coverage(morning, reachCases(morning)).stale).not.toContain(stopped);
   });
 
   it("starts every home at a signed-off place, and one name means one home", () => {

@@ -425,44 +425,47 @@
 }
 
 @container (max-width: 560px) {
-  .today-section:is([data-section="blocked"], [data-section="waiting"]) :is(table, tbody, .today-row-body, .today-row-body > td:last-child) {
+  .today-section:not([data-section="forks"]) :is(table, tbody, tfoot, .today-row-body, .today-row-body > td:last-child) {
     display: block;
   }
-  .today-section:is([data-section="blocked"], [data-section="waiting"]) :is(colgroup, thead, .today-row-body > td:first-child) {
+  .today-section:not([data-section="forks"]) :is(colgroup, thead, .today-row-body > td:first-child) {
     display: none;
   }
-  .today-section:is([data-section="blocked"], [data-section="waiting"]) .today-row {
+  .today-section:not([data-section="forks"]) .today-row {
     display: grid;
     grid-template-columns: 118px minmax(0, 1fr) auto;
     gap: 6px 10px;
     padding: 8px 6px;
     border-top: 1px solid var(--border-soft);
   }
-  .today-section:is([data-section="blocked"], [data-section="waiting"]) .today-row--sub {
+  .today-section:not([data-section="forks"]) .today-row--sub {
     padding-block: 2px;
     border-top: 0;
   }
-  .today-section:is([data-section="blocked"], [data-section="waiting"]) .today-row > td {
+  .today-section:not([data-section="forks"]) .today-row > td {
     padding: 0;
     border-top: 0;
   }
-  .today-section:is([data-section="blocked"], [data-section="waiting"]) .today-row-fork {
+  .today-section:not([data-section="forks"]) .today-row > td[colspan] {
+    grid-column: 1 / -1;
+  }
+  .today-section:not([data-section="forks"]) .today-row-fork {
     grid-row: 1;
     grid-column: 1;
   }
-  .today-section:is([data-section="blocked"], [data-section="waiting"]) .today-row-what {
+  .today-section:not([data-section="forks"]) .today-row-what {
     grid-row: 1;
     grid-column: 2 / 4;
   }
-  .today-section:is([data-section="blocked"], [data-section="waiting"]) .today-row-open {
+  .today-section:not([data-section="forks"]) .today-row-open {
     grid-row: 2;
     grid-column: 2;
   }
-  .today-section:is([data-section="blocked"], [data-section="waiting"]) .today-row-age {
+  .today-section:not([data-section="forks"]) .today-row-age {
     grid-row: 2;
     grid-column: 3;
   }
-  .today-section:is([data-section="blocked"], [data-section="waiting"]) .today-row-new {
+  .today-section:not([data-section="forks"]) .today-row-new {
     top: 6px;
     left: -9px;
   }

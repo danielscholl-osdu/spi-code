@@ -1230,6 +1230,19 @@ describe("Forks on the 16 Nov sweep", () => {
     expect(rowNames()).toEqual(busy);
   });
 
+  it("lists a rest fork whose service mark counts work above the fold with no Yours member", async () => {
+    const body = whole();
+    const owned = new Set(todayMembers(body.briefing).map(({ member }) => member.fork));
+    const quiet = body.services?.find(
+      ({ service, home }) => !owned.has(service) && home?.mark.kind !== "count",
+    );
+    if (!quiet?.home) throw new Error("16 Nov has a quiet rest fork");
+    quiet.home.mark = { kind: "count", count: 1, tone: "warning" };
+    await render(body, "#today/forks");
+    expect(fork(quiet.service)?.closest("tbody")?.getAttribute("data-fork-group")).toBe("holding");
+    expect(fold()?.textContent ?? "").not.toContain(quiet.service);
+  });
+
   it("takes station words from Service Home", async () => {
     const body = whole();
     await render(body, "#today/forks");

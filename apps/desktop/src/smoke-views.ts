@@ -59,7 +59,8 @@ import { withServiceLists } from "./smoke-service-lists.js";
 import { withSmokeServiceRuns } from "./smoke-service-runs.js";
 import { captureSidebarPins } from "./smoke-sidebar.js";
 import { smokeScheduledSweep, smokeSweepProgress } from "./smoke-sweep.js";
-import { captureMornings, loadMornings } from "./smoke-today.js";
+import { captureMornings, loadMornings, type TodayCaptureContext } from "./smoke-today.js";
+import { captureTodayStates } from "./smoke-today-states.js";
 import { captureTopRowPins, PIN_END_PROBE } from "./smoke-top-row.js";
 
 const sweepSchedule = {
@@ -111,7 +112,7 @@ function fixture(window: BrowserWindow, type: string, payload: unknown, id = "sm
   const parsed = parseMessage({
     version: PROTOCOL_VERSION,
     id,
-    kind: type === "inspect.result" ? "response" : "event",
+    kind: type === "inspect.result" || type === "threads.result" ? "response" : "event",
     type,
     payload,
   });
@@ -1725,29 +1726,27 @@ export async function captureSmokeViews(
         }
       }
     }
-    shots.push(
-      ...(await captureMornings(
-        {
-          window,
-          output,
-          rendered: (condition) => rendered(window, condition),
-          fixture: (type, payload) => fixture(window, type, payload),
-          measure: (rule) => measure(window, rule),
-          sweepStatus: {
-            remaining: 4865,
-            floor: 100,
-            resetAt: "2026-11-06T15:36:00.000Z",
-            deferredAreas: [],
-            nextSweepAt: null,
-            schedule: sweepSchedule,
-            lastSweep: null,
-          },
-          setupState: ready,
-        },
-        mornings,
-      )),
-    );
+    const todayContext: TodayCaptureContext = {
+      window,
+      output,
+      rendered: (condition) => rendered(window, condition),
+      fixture: (type, payload) => fixture(window, type, payload),
+      measure: (rule) => measure(window, rule),
+      sweepStatus: {
+        remaining: 4865,
+        floor: 100,
+        resetAt: "2026-11-06T15:36:00.000Z",
+        deferredAreas: [],
+        nextSweepAt: null,
+        schedule: sweepSchedule,
+        lastSweep: null,
+      },
+      setupState: ready,
+    };
+    shots.push(...(await captureMornings(todayContext, mornings)));
     section("Today mornings");
+    await captureTodayStates(todayContext, mornings.calm.snapshot, mornings.busy.snapshot);
+    section("Today states");
     await captureForks(
       {
         window,
