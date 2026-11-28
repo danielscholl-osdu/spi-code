@@ -254,6 +254,9 @@ export const SlotStateSchema = z.enum([
   "done",
   "waiting",
   "broken",
+  "due",
+  "running",
+  "no-run",
   "unknown",
 ]);
 export const SlotSchema = z.strictObject({

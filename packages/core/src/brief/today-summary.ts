@@ -258,6 +258,8 @@ const OUTCOMES = Object.freeze([
   ["empty", "nothing new", "neutral"], ["occupied", "new PRs", "neutral"],
   ["done", "merged", "ok"], ["waiting", "waiting for approval", "warn"],
   ["broken", "failed", "bad"],
+  ["due", "sync due", "neutral"], ["running", "running", "neutral"],
+  ["no-run", "no run yet", "neutral"], ["unknown", "effect unknown", "neutral"],
   ["not-read", "not read", "neutral"],
 ] as const);
 
@@ -272,11 +274,16 @@ export function todayHistory(model: Model, facts: Facts, since: Since | undefine
         const evidence = model.lines.map((line) => ({ line,
           evidence: workflowEvidence(model, facts, line.fork.id, workflow, from, to,
             slots.some((s) => s.service === line.fork.id && s.state !== "unknown")) }));
-        const state = (entry: typeof evidence[number]) => entry.evidence.runsRead
-          ? slots.find((s) => s.service === entry.line.fork.id)?.state ?? "unknown" : "not-read";
+        const state = (entry: typeof evidence[number]) => {
+          if (!entry.evidence.runsRead) return "not-read";
+          const slot = slots.find((s) => s.service === entry.line.fork.id);
+          return slot?.state === "unknown" && entry.evidence.notRead.length
+            ? "not-read"
+            : slot?.state ?? "unknown";
+        };
         return { workflow, label, place,
           counts: OUTCOMES.flatMap(([outcome, text, tone]) => {
-            const matches = evidence.filter((e) => (state(e) === "unknown" ? "not-read" : state(e)) === outcome);
+            const matches = evidence.filter((e) => state(e) === outcome);
             const label = outcome === "occupied" && matches.length === 1 ? "new PR" : text;
             return matches.length ? [count(outcome === "broken" ? "failed" : outcome, label,
               matches.map((e) => ({ name: e.line.fork.id, url: "" })), tone)] : [];

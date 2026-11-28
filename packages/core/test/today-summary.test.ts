@@ -641,6 +641,31 @@ describe("Today's lower sections on the unchanged 16 Nov sweep", () => {
     }
   });
 
+  test("a complete read separates nothing new from forks still due to sync", () => {
+    const complete = structuredClone(since);
+    if (!complete) throw new Error("recorded history");
+    const sync = complete.rows.find(({ workflow }) => workflow === "sync");
+    if (!sync) throw new Error("recorded sync history");
+    sync.slots = sync.slots.map((slot, index) => ({
+      ...slot,
+      state: index < 9 ? "empty" : "due",
+    }));
+    const history = todayHistory(model, facts, complete, now);
+    expect(history.rows[0]?.counts).toEqual([
+      expect.objectContaining({
+        kind: "empty",
+        label: "nothing new",
+        count: 9,
+      }),
+      expect.objectContaining({
+        kind: "due",
+        label: "sync due",
+        count: 4,
+      }),
+    ]);
+    expect(history.rows[0]?.counts.some(({ kind }) => kind === "not-read")).toBe(false);
+  });
+
   test("seen history keeps its window and names outcomes that were not read", () => {
     const seen = sinceOf(model, facts, now, 300_000, "2026-11-16T20:00:00Z");
     const history = todayHistory(model, facts, seen, now);

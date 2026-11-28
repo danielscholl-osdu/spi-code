@@ -169,7 +169,7 @@ describe("since pips", () => {
     history.sync = [run({ updatedAt: from }), run({ updatedAt: "2026-10-13T00:00:00Z" })];
     expect(read().rows[0]?.countText).toBe("4/5 ran ok");
     history.sync = [run({ status: "in_progress" })];
-    expect(read().rows[0]?.slots[0]?.state).toBe("unknown");
+    expect(read().rows[0]?.slots[0]?.state).toBe("running");
   });
   it("falls back to 24 hours for a seen time it cannot parse or one not before the runs observation", () => {
     const { read } = setup();
@@ -186,6 +186,21 @@ describe("since pips", () => {
     const { history, read } = setup();
     required(history.history).template.from = "2026-10-12T02:10:00Z";
     expect(read()).toMatchObject({ basis: "history-short", from: "2026-10-12T02:10:00.000Z" });
+  });
+  it("keeps an older seen window seen when incomplete stored history starts later", () => {
+    const { history, read } = setup();
+    const seen = "2026-10-09T12:00:00Z";
+    required(history.history).sync.from = "2026-10-10T12:00:00Z";
+    expect(read(seen)).toMatchObject({ basis: "seen", from: "2026-10-09T12:00:00.000Z" });
+  });
+  it("does not reach past 24 hours when an old stored history has no seen time", () => {
+    const { history, read } = setup();
+    const oldRun = "2026-10-09T02:16:00Z";
+    required(history.history).sync.from = oldRun;
+    history.sync = [run({ createdAt: oldRun, updatedAt: oldRun })];
+    expect(read()).toMatchObject({ basis: "fallback", from });
+    expect(read().rows[0]?.countText).toBe("4/5 ran ok");
+    expect(read().rows[0]?.slots[0]?.state).toBe("no-run");
   });
   it("complete recent histories keep the fallback window and another fork's older failure", () => {
     const { history, facts, model, line, read } = setup();
@@ -270,16 +285,27 @@ describe("since pips", () => {
       });
     }
   });
-  it("keeps missing coverage unknown and uses empty only with proof no run finished", () => {
+  it("keeps missing coverage unknown and names a proven missing run", () => {
     const { history, read, facts, line } = setup();
     line.repoRead = true;
     line.upstream = { ...line.upstream, lag: 0 } as typeof line.upstream;
     history.sync = [];
-    expect(read().rows[0]?.slots[0]?.state).toBe("empty");
+    expect(read().rows[0]?.slots[0]?.state).toBe("no-run");
     history.history = undefined;
     expect(read().rows[0]?.slots[0]?.state).toBe("unknown");
     facts.runs = {};
     expect(sinceOf(setup().model, facts, FIXTURE_NOW, 300_000)).toBeUndefined();
+  });
+  it("names a missing run as due when the next scheduled sync opens that fork", () => {
+    const { history, line, model, read } = setup();
+    history.sync = [];
+    model.upstream.schedule = {
+      upstream: "2026-10-13T18:00:00Z",
+      opens: [line.fork.id],
+      updates: [],
+      halts: [],
+    };
+    expect(read().rows[0]?.slots[0]).toMatchObject({ state: "due" });
   });
   describe("a successful sync run that found nothing", () => {
     const after = "2026-10-12T21:50:00Z";
