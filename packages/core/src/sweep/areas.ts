@@ -82,6 +82,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
       const records = reads.upstream?.filter((r) => r.source === fork.upstream);
       const branch = records?.find((r) => r.object === "repository/branches/master");
       return !facts.upstream.data?.[fork.id] || records?.some((r) => r.failure) ||
+        facts.upstream.data[fork.id]?.evaluated !== facts.fleet.data?.evaluated?.[fork.repo] ||
         due(branch?.observedAt ?? facts.upstream.at, GITLAB_EVERY_MS, clock.now(), force);
     });
   }
@@ -295,8 +296,9 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
     const { ctx, facts, cache, reads } = input;
     const forks = upstreamForks(input);
     const sources = new Set(forks.map((fork) => fork.upstream));
+    const evaluated = facts.fleet.data?.evaluated ?? {};
     const result = await readUpstream(glab, facts.github.data?.repos ?? {}, cache.upstream,
-      { ...ctx, fleet: { ...ctx.fleet, forks } });
+      { ...ctx, fleet: { ...ctx.fleet, forks } }, evaluated);
     const idOf = (r: ReadRecord) => ctx.fleet.forks.find((f) => f.upstream === r.source)?.id ?? "";
     const failures = new Map(result.reads.filter((r) => r.failure).map((r) => [r.source, r.failure]));
     const records = result.reads.map((r) =>

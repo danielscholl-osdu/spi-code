@@ -45,6 +45,7 @@ function fleetGh(
   vars: Record<string, { name: string; value: string }[] | Error> = {},
   failure?: string,
   errors: { message: string }[] = [],
+  evaluated: Record<string, string | Error | undefined> = {},
 ) {
   const calls: string[] = [];
   const exec: Exec = {
@@ -66,6 +67,14 @@ function fleetGh(
     runJSON: async <T>(_cmd: string, args: string[]) => {
       calls.push(args.join(" "));
       const repo = /repos\/([^/]+\/[^/]+)\/actions\/variables/.exec(args[1] ?? "")?.[1] ?? "";
+      if (args[1]?.endsWith("/SYNC_LAST_EVALUATED_SHA")) {
+        const value = evaluated[repo];
+        return value instanceof Error
+          ? { ok: false, error: value.message, code: 1 }
+          : value === undefined
+            ? { ok: false, error: "gh: Not Found (HTTP 404)", code: 404 }
+            : { ok: true, data: { name: "SYNC_LAST_EVALUATED_SHA", value } as T };
+      }
       const value = vars[repo] ?? [];
       return value instanceof Error
         ? { ok: false, error: value.message, code: 1 }
@@ -173,7 +182,8 @@ test("a fork with no upstream it can find is not followed", async () => {
 test("variables are read again only on GitLab's cadence or for a new fork", async () => {
   const first = fleetGh();
   const data = await readFleet(first.gh, undefined, now);
-  expect(first.calls.filter((c) => c.includes("/actions/variables"))).toHaveLength(13);
+  expect(first.calls.filter((c) => c.includes("/actions/variables?"))).toHaveLength(13);
+  expect(first.calls.filter((c) => c.includes("/SYNC_LAST_EVALUATED_SHA"))).toHaveLength(13);
   for (const [time, text, count] of [
     [new Date(now.getTime() + 300_000), yaml(), 0],
     [later, yaml(), 13],
@@ -181,8 +191,60 @@ test("variables are read again only on GitLab's cadence or for a new fork", asyn
   ] as const) {
     const next = fleetGh(text);
     const result = await readFleet(next.gh, data, time);
-    expect(next.calls.filter((c) => c.includes("/actions/variables"))).toHaveLength(count);
+    expect(next.calls.filter((c) => c.includes("/actions/variables?"))).toHaveLength(count);
     expect(result.reads.filter((r) => r.object === "actions/variables")).toHaveLength(count || 13);
+  }
+});
+
+test("the evaluated SHA has its own complete read and a missing variable is not an error", async () => {
+  const repo = "Azure/osdu-spi-partition";
+  const sha = "a".repeat(40);
+  const data = await readFleet(
+    fleetGh(yaml(["partition"]), null, {}, undefined, [], { [repo]: `${sha}:12` }).gh,
+    undefined,
+    now,
+  );
+  expect(data.evaluated?.[repo]).toBe(sha);
+  expect(
+    data.reads.find(
+      (r) => r.source === repo && r.object === "actions/variables/SYNC_LAST_EVALUATED_SHA",
+    ),
+  ).toEqual({
+    source: repo,
+    object: "actions/variables/SYNC_LAST_EVALUATED_SHA",
+    observedAt: now.toISOString(),
+    completeness: { kind: "complete" },
+  });
+
+  const missing = await readFleet(fleetGh(yaml(["partition"])).gh, undefined, now);
+  expect(missing.evaluated).not.toHaveProperty(repo);
+  expect(
+    missing.reads.find((r) => r.object.endsWith("SYNC_LAST_EVALUATED_SHA"))?.failure,
+  ).toBeUndefined();
+});
+
+test("malformed and unreadable evaluated SHAs fail closed and retain no evaluated point", async () => {
+  const repo = "Azure/osdu-spi-partition";
+  const good = await readFleet(
+    fleetGh(yaml(["partition"]), null, {}, undefined, [], {
+      [repo]: `${"a".repeat(40)}:12`,
+    }).gh,
+    undefined,
+    now,
+  );
+  for (const [value, failure] of [
+    ["not-a-sha:12", "malformed"],
+    [new Error("gh: Forbidden (HTTP 403)"), "403"],
+  ] as const) {
+    const failed = await readFleet(
+      fleetGh(yaml(["partition"]), null, {}, undefined, [], { [repo]: value }).gh,
+      good,
+      later,
+    );
+    expect(failed.evaluated).not.toHaveProperty(repo);
+    expect(failed.reads.find((r) => r.object.endsWith("SYNC_LAST_EVALUATED_SHA"))).toMatchObject({
+      failure: expect.stringContaining(failure),
+    });
   }
 });
 
@@ -305,7 +367,7 @@ test("a fleet read GitHub answers with errors fails, so the last good rollout st
   expect(next.rollout).toBe(rollout);
   expect(
     next.reads
-      .filter((r) => r.object !== "actions/variables")
+      .filter((r) => !r.object.startsWith("actions/variables"))
       .every((r) => r.failure?.includes("Something went wrong")),
   ).toBe(true);
 });
@@ -391,6 +453,8 @@ test("variables on page two resolve the fork and replay with complete evidence",
         };
       const path = args[1] ?? "";
       paths.push(path);
+      if (path.endsWith("/SYNC_LAST_EVALUATED_SHA"))
+        return { stdout: "", stderr: "gh: Not Found (HTTP 404)", exit: 1 };
       const variables = path.endsWith("&page=1")
         ? firstPage
         : path.endsWith("&page=2")
@@ -404,9 +468,10 @@ test("variables on page two resolve the fork and replay with complete evidence",
     },
   );
   const first = await readFleet(new Gh(recording), undefined, now);
-  expect(paths).toEqual(
-    [1, 2].map((page) => `repos/${extra.repo}/actions/variables?per_page=100&page=${page}`),
-  );
+  expect(paths).toEqual([
+    ...[1, 2].map((page) => `repos/${extra.repo}/actions/variables?per_page=100&page=${page}`),
+    `repos/${extra.repo}/actions/variables/SYNC_LAST_EVALUATED_SHA`,
+  ]);
   const replay = new ReplayExec(log);
   const second = await readFleet(new Gh(replay), undefined, now);
   expect(second).toEqual(first);
@@ -425,13 +490,17 @@ test("cadence-skipped evidence excludes removed forks and services overrides", a
   const next = new Date(now.getTime() + 300_000);
   const smaller = fleetGh(yaml(["legal"]));
   const result = await readFleet(smaller.gh, good, next);
-  expect(smaller.calls.filter((c) => c.includes("/actions/variables"))).toEqual([]);
-  expect(result.reads.filter((r) => r.object === "actions/variables")).toEqual(
-    good.reads.filter((r) => r.source === "Azure/osdu-spi-legal"),
+  expect(smaller.calls.filter((c) => c.includes("/actions/variables?"))).toEqual([]);
+  expect(smaller.calls.filter((c) => c.includes("/SYNC_LAST_EVALUATED_SHA"))).toHaveLength(1);
+  expect(result.reads.find((r) => r.object === "actions/variables")).toEqual(
+    good.reads.find((r) => r.source === "Azure/osdu-spi-legal" && r.object === "actions/variables"),
+  );
+  expect(result.reads.find((r) => r.object.endsWith("SYNC_LAST_EVALUATED_SHA"))).toMatchObject(
+    { source: "Azure/osdu-spi-legal", observedAt: next.toISOString() },
   );
   const pinned = await readFleet(fleetGh().gh, good, next, { services: "/services" });
   expect(pinned.forks).toBeUndefined();
-  expect(pinned.reads.filter((r) => r.object === "actions/variables")).toEqual([]);
+  expect(pinned.reads.filter((r) => r.object.startsWith("actions/variables"))).toEqual([]);
 });
 
 test("fork YAML skips invalid entries, deduplicates identity on resolution and rejects empty lists", () => {

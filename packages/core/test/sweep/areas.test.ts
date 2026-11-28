@@ -105,6 +105,8 @@ function harness(repo = "owner/partition", remaining = 4000) {
           }),
         };
       else if (args.includes("status")) return { stdout: "", stderr: "", exit: 0 };
+      else if (path.endsWith("SYNC_LAST_EVALUATED_SHA"))
+        return { stdout: "", stderr: "gh: Not Found (HTTP 404)", exit: 1 };
       else if (path.endsWith("actions/variables?per_page=100&page=1"))
         data = { total_count: 0, variables: [] };
       else if (path.includes("/attempts/")) data = { total: 0, jobs: [] };
@@ -1195,6 +1197,36 @@ test("a permanently failing upstream retries only that fork without rerunning ra
   await resumed.sweep();
   expect(branches).toHaveLength(2);
   expect(radarLists).toBeGreaterThan(initialLists);
+});
+
+test("a changed evaluated SHA refreshes lag before the GitLab cadence", async () => {
+  const h = harness();
+  const sha = "a".repeat(40);
+  let evaluated: string | undefined = `${sha}:1`;
+  let branches = 0;
+  h.setRoute((cmd, args) => {
+    const path = args.at(-1) ?? "";
+    if (cmd === "gh" && path.endsWith("SYNC_LAST_EVALUATED_SHA"))
+      return evaluated
+        ? {
+            stdout: JSON.stringify({ name: "SYNC_LAST_EVALUATED_SHA", value: evaluated }),
+            stderr: "",
+            exit: 0,
+          }
+        : { stdout: "", stderr: "gh: Not Found (HTTP 404)", exit: 1 };
+    if (cmd === "glab" && path.includes("/repository/branches/")) branches++;
+  });
+  const sweeper = createSweeper(h.options);
+  await sweeper.sweep();
+  expect(sweeper.facts.upstream.data?.partition?.evaluated).toBe(sha);
+  const first = branches;
+  await sweeper.sweep();
+  expect(branches).toBe(first);
+  evaluated = undefined;
+  await sweeper.sweep();
+  expect(sweeper.facts.fleet.data?.evaluated).toEqual({});
+  expect(branches).toBe(first + 1);
+  expect(sweeper.facts.upstream.data?.partition?.evaluated).toBeUndefined();
 });
 
 test("forks dropped from the declaration leave the upstream data and reads", async () => {

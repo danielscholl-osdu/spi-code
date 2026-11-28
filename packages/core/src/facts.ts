@@ -248,6 +248,7 @@ export interface UpstreamFact {
   service: string;
   head?: { sha: string; at: string; url: string };
   synced?: string;
+  evaluated?: string;
   lag?: number;
   commits: { sha: string; title: string; at: string; url: string }[];
 }
@@ -436,6 +437,8 @@ export interface FleetFacts {
   forks?: FleetEntry[];
   vars: Record<string, ForkVars | null>;
   varsAt?: string;
+  // The sync's last handled SHA, read separately because an absent variable is normal.
+  evaluated?: Record<string, string>;
   // The rollout file's text, null when it does not exist; undefined when RIB_SPI_ROLLOUT_FILE is set.
   rollout?: string | null;
   rolloutFrom?: string;
