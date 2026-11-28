@@ -305,12 +305,20 @@ export function TodayTable({
     }
   }, [openKey]);
 
-  if (!lines) return null;
+  const lower = station ? [] : lowerSections(briefing.today);
+  const lowerOf = (id: LowerSection["id"]) => lower.find((section) => section.id === id);
+  if (!lines) {
+    if (lower.length === 0) return null;
+    return (
+      <div ref={table} className="today-table">
+        <Lower section={lowerOf("moving")} />
+        <Lower section={lowerOf("history")} />
+      </div>
+    );
+  }
 
   const causes = drawnCauses(briefing, station);
   const counts = todayCounts({ lines: shown });
-  const lower = station ? [] : lowerSections(briefing.today);
-  const lowerOf = (id: LowerSection["id"]) => lower.find((section) => section.id === id);
 
   const services = new Set(snapshot.stations.map(({ service }) => service));
   const items: FocusItem[] = [...briefing.focus, ...briefing.rest];

@@ -341,7 +341,7 @@ it("keeps every row of every section and the opened body in the four shared colu
   ]);
 });
 
-it("says nothing is yours on a morning with no lines, and draws no table without them", async () => {
+it("says nothing is yours on a morning with no lines, and draws only the unfiltered lower sections without them", async () => {
   const calm = nov16();
   calm.briefing.lines = [];
   delete calm.briefing.today;
@@ -352,6 +352,17 @@ it("says nothing is yours on a morning with no lines, and draws no table without
   container.remove();
   const older = nov16();
   delete older.briefing.lines;
+  await render(older);
+  expect(sections()).toEqual(["moving", "history"]);
+  expect(container.querySelector(".today-table")?.textContent).not.toContain(
+    "Nothing is yours to move.",
+  );
+  expect(lowerRow("moving", "lanes")).toBeDefined();
+  await act(async () => navigate({ kind: "today", station: "integration" }));
+  expect(sections()).toEqual([]);
+  await unmount();
+  container.remove();
+  delete older.briefing.today;
   await render(older);
   expect(container.querySelector("[role=tabpanel]")?.textContent).toBe("");
 });
