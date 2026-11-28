@@ -129,13 +129,11 @@ it("uses a flush centre with a shared header and bounded content", async () => {
   }
 });
 
-it("lifts the 960 px content cap for Today's Forks only, while Yours, Activity and every place keep it", async () => {
+it("lifts the 960 px content cap for Today's Forks only, while Yours and every place keep it", async () => {
   const view = await mount();
   try {
     const cap = () =>
       getComputedStyle(element(view.container, "main .today .today-frame")).maxWidth;
-    expect(cap()).toBe("960px");
-    await act(async () => navigate({ kind: "today", tab: "activity" }));
     expect(cap()).toBe("960px");
     await act(async () => navigate({ kind: "today", tab: "forks" }));
     expect(cap()).toBe("none");

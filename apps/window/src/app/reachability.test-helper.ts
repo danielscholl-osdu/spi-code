@@ -1035,9 +1035,7 @@ const LOWER_DESTINATIONS: Readonly<Record<string, Destination>> = {
   security: { kind: "security" },
 };
 
-const ACTIVITY = home("Today, Activity", STARTS.today, '[data-today-tab="activity"]');
-
-/** Moving without you and Last 24 hours on Activity, each row's fields and the place it opens; the fleet flow and Can wait on Yours. */
+/** Moving without you and Last 24 hours on Yours, each row's fields and the place it opens, with the fleet flow and Can wait. */
 export function lowerCases(snapshot: ViewSnapshot): Reach[] {
   const today = snapshot.briefing.today;
   if (!today) return [];
@@ -1055,14 +1053,16 @@ export function lowerCases(snapshot: ViewSnapshot): Reach[] {
     id: string,
     label: string,
     to: string,
+    words: string,
   ) => {
-    const button = `${tr} .today-row-fork button`;
+    const button = `${tr} .today-row-open .today-row-place`;
     const destination = LOWER_DESTINATIONS[to];
-    add(`${pointer}/${key}`, id, ACTIVITY, tr, { attribute: "data-row" });
-    add(`${pointer}/label`, label, ACTIVITY, button, {
-      ...(destination ? { opens: { click: button, place: destination } } : {}),
+    add(`${pointer}/${key}`, id, TODAY, tr, { attribute: "data-row" });
+    add(`${pointer}/label`, label, TODAY, words, {
+      contains: true,
+      ...(destination ? { opens: { click: tr, place: destination } } : {}),
     });
-    add(`${pointer}/place`, to, ACTIVITY, tr, { attribute: "data-place" });
+    add(`${pointer}/place`, to, TODAY, tr, { attribute: "data-place" });
   };
   type Count = NonNullable<
     ViewSnapshot["briefing"]["today"]
@@ -1072,31 +1072,45 @@ export function lowerCases(snapshot: ViewSnapshot): Reach[] {
       if (count.count === 0) return;
       const span = `${tr} .today-count[data-kind=${quote(count.kind)}]`;
       const leaf = `${pointer}/counts/${at}`;
-      add(`${leaf}/count`, count.count, ACTIVITY, span, {
+      add(`${leaf}/count`, count.count, TODAY, span, {
         read: (element) => (element.textContent ?? "").split(" ")[0] ?? "",
       });
-      add(`${leaf}/label`, count.label, ACTIVITY, span, {
+      add(`${leaf}/label`, count.label, TODAY, span, {
         read: (element) => (element.textContent ?? "").split(" ").slice(1).join(" "),
       });
-      add(`${leaf}/kind`, count.kind, ACTIVITY, span, { attribute: "data-kind" });
-      add(`${leaf}/tone`, count.tone, ACTIVITY, span, { attribute: "data-tone" });
+      add(`${leaf}/kind`, count.kind, TODAY, span, { attribute: "data-kind" });
+      add(`${leaf}/tone`, count.tone, TODAY, span, { attribute: "data-tone" });
       count.names.forEach((name, i) => {
-        add(`${leaf}/names/${i}`, name, ACTIVITY, span, { attribute: "title", contains: true });
+        add(`${leaf}/names/${i}`, name, TODAY, span, { attribute: "title", contains: true });
       });
     });
   today.moving.forEach((entry, index) => {
     const pointer = `${base}/moving/${index}`;
     const tr = row("moving", entry.id);
-    place(pointer, tr, "id", entry.id, entry.label, entry.place);
+    const words = `${tr} .today-row-moving`;
+    place(pointer, tr, "id", entry.id, entry.label, entry.place, words);
     if (entry.at)
-      add(`${pointer}/at`, entry.at, ACTIVITY, `${tr} .today-row-when time`, {
+      add(`${pointer}/at`, entry.at, TODAY, `${tr} .today-row-when time`, {
         attribute: "dateTime",
       });
-    else add(`${pointer}/time`, entry.time, ACTIVITY, `${tr} .today-row-when`);
-    const words = `${tr} .today-row-moving`;
-    add(`${pointer}/count`, entry.count, ACTIVITY, words, { attribute: "data-count" });
+    else add(`${pointer}/time`, entry.time, TODAY, `${tr} .today-row-when`);
+    add(`${pointer}/count`, entry.count, TODAY, words, { attribute: "data-count" });
     entry.names.forEach((name, at) => {
-      add(`${pointer}/names/${at}`, name, ACTIVITY, words, { attribute: "title", contains: true });
+      add(`${pointer}/names/${at}`, name, TODAY, words, { attribute: "title", contains: true });
+    });
+    if (entry.fork) add(`${pointer}/fork`, entry.fork, TODAY, words, { contains: true });
+    if (entry.what) add(`${pointer}/what`, entry.what, TODAY, words, { contains: true });
+    if (entry.link)
+      add(`${pointer}/link/url`, entry.link.url, TODAY, `${tr} .today-row-open a`, {
+        attribute: "href",
+      });
+    if (entry.age)
+      add(`${pointer}/age`, ageInOneUnit(entry.age), TODAY, `${tr} .today-row-age-text`);
+    entry.notRead?.forEach((gap, at) => {
+      add(`${pointer}/notRead/${at}`, gap, TODAY, `${tr} .today-row-gaps`, {
+        attribute: "title",
+        contains: true,
+      });
     });
   });
   const { history } = today;
@@ -1104,18 +1118,26 @@ export function lowerCases(snapshot: ViewSnapshot): Reach[] {
   const basis = (element: Element) => {
     const text = element.textContent ?? "";
     if (text.startsWith("Since you last looked")) return "seen";
-    if (text.startsWith("Since ")) return "history-short";
-    return text.startsWith("24 hours to ") ? "stale" : "fallback";
+    if (text.startsWith("Last 24 hours since ")) return "history-short";
+    return text.startsWith("Last 24 hours to ") ? "stale" : "fallback";
   };
-  add(`${base}/history/basis`, history.basis, ACTIVITY, head, { read: basis });
+  add(`${base}/history/basis`, history.basis, TODAY, head, { read: basis });
   if (history.basis === "seen" || history.basis === "history-short")
-    add(`${base}/history/from`, history.from, ACTIVITY, `${head} time`, { attribute: "dateTime" });
+    add(`${base}/history/from`, history.from, TODAY, `${head} time`, { attribute: "dateTime" });
   if (history.asOf && history.basis !== "seen" && history.basis !== "history-short")
-    add(`${base}/history/asOf`, history.asOf, ACTIVITY, `${head} time`, { attribute: "dateTime" });
+    add(`${base}/history/asOf`, history.asOf, TODAY, `${head} time`, { attribute: "dateTime" });
   history.rows.forEach((entry, index) => {
     const pointer = `${base}/history/rows/${index}`;
     const tr = row("history", entry.workflow);
-    place(pointer, tr, "workflow", entry.workflow, entry.label, entry.place);
+    place(
+      pointer,
+      tr,
+      "workflow",
+      entry.workflow,
+      entry.label,
+      entry.place,
+      `${tr} .today-row-label`,
+    );
     counts(pointer, tr, entry.counts);
   });
   fleetCases(today, add);

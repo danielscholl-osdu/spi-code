@@ -1,7 +1,13 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type TodayMemberStation, todayMembers, type ViewSnapshot } from "@spi-code/contracts";
+import {
+  fleetLines,
+  type TodayCounts,
+  type TodayMemberStation,
+  todayCounts,
+  type ViewSnapshot,
+} from "@spi-code/contracts";
 import { useId } from "react";
 import { FORKS, navigate, openEvidence, type TodayTab } from "../../app/navigation.js";
 import { ariaShortcut } from "../../app/shortcuts.js";
@@ -9,29 +15,22 @@ import { openCause } from "./CanWait.js";
 import { FleetFlow } from "./FleetFlow.js";
 import { Forks } from "./Forks.js";
 import { FILTER_NAMES, filterFigure, fleetCells } from "./fleet.js";
-import { lowerSections } from "./Lower.js";
-import { Section } from "./parts.js";
 import { TodayTable } from "./Table.js";
 
 const TABS = [
   { id: "yours", label: "Yours" },
   { id: "forks", label: "Forks" },
-  { id: "activity", label: "Activity" },
 ] as const satisfies readonly { id: "yours" | TodayTab; label: string }[];
 
-function Activity({ snapshot }: { snapshot: ViewSnapshot }) {
-  return (
-    <div className="today-table">
-      {lowerSections(snapshot.briefing.today).map(({ id, label, rows }) => (
-        <Section key={id} id={id} label={label}>
-          <tbody>{rows}</tbody>
-        </Section>
-      ))}
-    </div>
-  );
+/** The split a count reads as words: "3 blocked", "15 waiting", a count of none left out. */
+export function splitWords(counts: TodayCounts): { tone: "bad" | "warn"; text: string }[] {
+  return [
+    ...(counts.blocked ? [{ tone: "bad" as const, text: `${counts.blocked} blocked` }] : []),
+    ...(counts.waiting ? [{ tone: "warn" as const, text: `${counts.waiting} waiting` }] : []),
+  ];
 }
 
-/** Today across the forks: the fleet flow, then Yours, Forks or Activity. */
+/** Today across the forks: the fleet flow, then Yours or Forks. */
 export function TodayHome({
   snapshot,
   tab,
@@ -59,76 +58,79 @@ export function TodayHome({
       evidence: () => openEvidence(null),
     });
   const stopped = fleet?.forks.stopped ?? [];
-  const yours = todayMembers(briefing).length;
+  const yours = splitWords(todayCounts(briefing));
+  const scope =
+    station &&
+    [
+      FILTER_NAMES[station],
+      ...splitWords(todayCounts({ lines: fleetLines(briefing.lines ?? [], station) })).map(
+        ({ text }) => text,
+      ),
+    ].join(" · ");
   const { notRead, cascade } = station
     ? filterFigure(fleet, station)
     : { notRead: [], cascade: [] };
   return (
     <>
       {flow && <FleetFlow cells={flow} />}
-      <div className="today-tabs" role="tablist" aria-label="Today tabs">
-        {TABS.map(({ id, label }) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            id={`${ids}-${id}`}
-            className="today-tab"
-            data-today-tab={id}
-            aria-selected={id === active}
-            aria-controls={`${ids}-panel`}
-            aria-keyshortcuts={id === "forks" ? ariaShortcut("l") : undefined}
-            onClick={() =>
-              navigate({
-                kind: "today",
-                ...(id !== "yours" ? { tab: id } : {}),
-                ...(station && id !== "activity" ? { station } : {}),
-              })
-            }
-          >
-            {label}
-            {id === "forks" && stopped.length > 0 && (
-              <span className="today-tab-count" title={stopped.join(", ")}>
-                {stopped.length} stopped
-              </span>
-            )}
-            {id === "yours" && yours > 0 && (
-              <span className="today-tab-count" title={`${yours} rows that are yours`}>
-                {yours}
-              </span>
-            )}
-          </button>
-        ))}
+      <div className="today-tabrow">
+        <div className="today-tabs" role="tablist" aria-label="Today tabs">
+          {TABS.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              id={`${ids}-${id}`}
+              className="today-tab"
+              data-today-tab={id}
+              aria-selected={id === active}
+              aria-controls={`${ids}-panel`}
+              aria-keyshortcuts={id === "forks" ? ariaShortcut("l") : undefined}
+              onClick={() =>
+                navigate({
+                  kind: "today",
+                  ...(id !== "yours" ? { tab: id } : {}),
+                  ...(station ? { station } : {}),
+                })
+              }
+            >
+              {label}
+              {id === "forks" && stopped.length > 0 && (
+                <span className="today-tab-count" data-tone="bad" title={stopped.join(", ")}>
+                  {stopped.length} stopped
+                </span>
+              )}
+              {id === "yours" &&
+                yours.map(({ tone, text }) => (
+                  <span key={tone} className="today-tab-count" data-tone={tone}>
+                    {text}
+                  </span>
+                ))}
+            </button>
+          ))}
+        </div>
+        {station && (
+          <div className="today-filter" data-station={station}>
+            <span className="today-filter-scope">{scope}</span>
+            <button type="button" onClick={() => navigate(filterRoute)}>
+              Show all
+            </button>
+          </div>
+        )}
       </div>
       <div role="tabpanel" id={`${ids}-panel`} aria-labelledby={`${ids}-${active}`}>
-        {active === "activity" ? (
-          <Activity snapshot={snapshot} />
+        {active === "forks" ? (
+          <Forks snapshot={snapshot} fleet={fleet} station={station} />
         ) : (
           <>
-            {station && (
-              <div className="today-filter" data-station={station}>
-                <span>Showing {FILTER_NAMES[station]}</span>
-                <button type="button" onClick={() => navigate(filterRoute)}>
-                  Show all ✕
-                </button>
-              </div>
+            {cascade.length > 0 && (
+              <p className="today-filter-note">Waiting for cascade on {cascade.join(", ")}.</p>
             )}
-            {active === "forks" ? (
-              <Forks snapshot={snapshot} fleet={fleet} station={station} />
-            ) : (
-              <>
-                {cascade.length > 0 && (
-                  <p className="today-filter-note">Waiting for cascade on {cascade.join(", ")}.</p>
-                )}
-                <TodayTable
-                  snapshot={snapshot}
-                  station={station}
-                  {...(station
-                    ? { calm: notRead.length ? null : "Nothing waiting on you here." }
-                    : {})}
-                />
-              </>
-            )}
+            <TodayTable
+              snapshot={snapshot}
+              station={station}
+              {...(station ? { calm: notRead.length ? null : "Nothing waiting on you here." } : {})}
+            />
           </>
         )}
       </div>

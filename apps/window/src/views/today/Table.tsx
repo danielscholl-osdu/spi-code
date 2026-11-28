@@ -11,6 +11,7 @@ import {
   type TodayLine,
   type TodayMember,
   type TodayMemberStation,
+  todayCounts,
   type ViewSnapshot,
 } from "@spi-code/contracts";
 import { Fragment, type MouseEvent, useCallback, useEffect, useRef } from "react";
@@ -33,6 +34,7 @@ import { timedText } from "../../time.js";
 import { CanWait } from "./CanWait.js";
 import { YoursCalm } from "./calm.js";
 import { forksWord } from "./fleet.js";
+import { type LowerSection, lowerSections } from "./Lower.js";
 import { ageInOneUnit, ForkName, Section } from "./parts.js";
 import "./table.css";
 
@@ -245,9 +247,19 @@ export function drawnCauses(
   return briefing.lines && !station ? briefing.today?.causes : undefined;
 }
 
+function Lower({ section }: { section: LowerSection | undefined }) {
+  if (!section) return null;
+  return (
+    <Section id={section.id} label={section.label}>
+      <tbody>{section.rows}</tbody>
+    </Section>
+  );
+}
+
 /**
  * Yours: Blocked and Waiting on you as core's situation lines whose rows open in place, one at a
- * time, then Can wait by cause. A station keeps only its rows and members, and hides Can wait.
+ * time, then pending requests, Moving without you, Can wait by cause and the history. A station
+ * keeps only its rows and members, and hides every other section.
  */
 export function TodayTable({
   snapshot,
@@ -296,6 +308,9 @@ export function TodayTable({
   if (!lines) return null;
 
   const causes = drawnCauses(briefing, station);
+  const counts = todayCounts({ lines: shown });
+  const lower = station ? [] : lowerSections(briefing.today);
+  const lowerOf = (id: LowerSection["id"]) => lower.find((section) => section.id === id);
 
   const services = new Set(snapshot.stations.map(({ service }) => service));
   const items: FocusItem[] = [...briefing.focus, ...briefing.rest];
@@ -367,9 +382,8 @@ export function TodayTable({
       {SECTIONS.map(({ id, label }) => {
         const held = shown.filter((line) => line.section === id);
         if (held.length === 0) return null;
-        const members = held.reduce((n, line) => n + line.members.length, 0);
         return (
-          <Section key={id} id={id} label={label} count={members} head>
+          <Section key={id} id={id} label={label} count={counts[id]} head>
             {held.map((line) => (
               <tbody key={line.id} data-line={line.id}>
                 {rows
@@ -394,7 +408,9 @@ export function TodayTable({
         );
       })}
       {!station && <PendingRequests sweep={snapshot} fork />}
+      <Lower section={lowerOf("moving")} />
       {causes && <CanWait causes={causes} snapshot={snapshot} services={services} />}
+      <Lower section={lowerOf("history")} />
     </div>
   );
 }

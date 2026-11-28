@@ -13,7 +13,6 @@ import {
 
 it.each<[string, Route, string]>([
   ["#today", { kind: "today" }, "Today"],
-  ["#today/activity", { kind: "today", tab: "activity" }, "Today"],
   ["#today/yours/sync", { kind: "today", station: "sync" }, "Today"],
   ["#upstream", { kind: "upstream" }, "Upstream"],
   ["#engineering-system", { kind: "engineering-system" }, "Template"],
@@ -76,6 +75,12 @@ it("reads an Evidence hash that names no page or selection as the whole sweep", 
     open: { kind: "cell", id: "storage:sync" },
   });
   expect(parseRoute("#evidence/extra")).toBeUndefined();
+});
+
+it("opens Yours for the retired Activity tab, and names no tab Activity", () => {
+  expect(parseRoute("#today/activity")).toEqual({ kind: "today" });
+  expect(parseRoute("#today/yours")).toEqual({ kind: "today" });
+  expect(routeHash({ kind: "today" })).toBe("#today");
 });
 
 it("decodes an encoded service id", () => {

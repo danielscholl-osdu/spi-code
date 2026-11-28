@@ -3,8 +3,10 @@
 
 import type { TodayHistory, TodaySummary } from "@spi-code/contracts";
 import type { MouseEvent, ReactNode } from "react";
-import { type Destination, FORKS, navigate } from "../../app/navigation.js";
+import { type Destination, FORKS, navigate, openEvidence } from "../../app/navigation.js";
+import { LinkPill } from "../../components/kit/LinkPill.js";
 import { When } from "../../time.js";
+import { ageInOneUnit } from "./parts.js";
 
 type Count = TodayHistory["rows"][number]["counts"][number];
 type Moving = TodaySummary["moving"][number];
@@ -35,6 +37,9 @@ function joined(parts: readonly ReactNode[]): ReactNode[] {
   return parts.flatMap((part, at) => (at === 0 ? [part] : [" · ", part]));
 }
 
+const listed = (names: readonly string[]) =>
+  names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+
 function CountText({ count }: { count: Count }) {
   return (
     <span
@@ -48,17 +53,20 @@ function CountText({ count }: { count: Count }) {
   );
 }
 
+/** One row under the four columns: what comes first, the words, a link to its place or its own, and an age. */
 function PlaceRow({
   id,
-  label,
   place,
+  first,
   what,
+  link,
   age,
 }: {
   id: string;
-  label: string;
   place: PlaceId;
+  first: ReactNode;
   what: ReactNode;
+  link?: ReactNode;
   age?: ReactNode;
 }) {
   const { label: name, destination } = LOWER_PLACES[place];
@@ -67,65 +75,77 @@ function PlaceRow({
     navigate(destination);
   };
   return (
-    <tr
-      className="today-row today-row--place"
-      data-row={id}
-      data-place={place}
-      title={`Open ${name}`}
-      onClick={open}
-    >
-      <td className="today-row-fork">
-        <button type="button" title={`Open ${name}`} onClick={open}>
-          {label}
-        </button>
+    <tr className="today-row today-row--place" data-row={id} data-place={place} onClick={open}>
+      <td className="today-row-fork">{first}</td>
+      <td className="today-row-what">{what}</td>
+      <td className="today-row-open">
+        {link ?? (
+          <button type="button" className="today-row-place" title={`Open ${name}`} onClick={open}>
+            {name} ›
+          </button>
+        )}
       </td>
-      <td className="today-row-what" colSpan={2}>
-        {what}
-      </td>
-      <td className="today-row-age">
-        {age}
-        <span className="today-row-go" aria-hidden="true">
-          ›
-        </span>
-      </td>
+      <td className="today-row-age">{age}</td>
     </tr>
   );
 }
 
+/** The sentence a moving row reads; a case the design does not draw keeps its label and core's count. */
 function movingWords(row: Moving): string {
+  const { label, count, names } = row;
+  if (row.what) return `${row.fork ?? label}: ${row.what}`;
   switch (row.id) {
-    case "lanes":
-      return `${plural(row.count, "lane")} busy${row.names.length ? `: ${row.names.join(", ")}` : ""}`;
-    case "template":
-      return row.count ? `opens PRs on ${plural(row.count, "fork")}` : "no PRs to open";
     case "sync":
-      return row.count ? `opens ${plural(row.count, "sync PR")}` : "no sync PRs to open";
+      if (names.length) return `${label} for ${listed(names)}`;
+      return `${label} · ${count ? `opens ${plural(count, "sync PR")}` : "no sync PRs to open"}`;
+    case "template":
+      return count
+        ? `${label} for the ${plural(count, "fork")} not yet started`
+        : `${label} · no PRs to open`;
+    case "lanes":
+      return `${label} · ${plural(count, "lane")} busy${names.length ? `: ${names.join(", ")}` : ""}`;
     case "environment":
-      return "running";
+      return `${label} running`;
     default:
-      return String(row.count);
+      return `${label} · ${count}`;
   }
 }
 
 function movingRow(row: Moving) {
-  const when = row.at ? <When at={row.at} /> : row.time;
-  const words = movingWords(row);
+  const gaps = row.notRead ?? [];
   return (
     <PlaceRow
       key={row.id}
       id={row.id}
-      label={row.label}
       place={row.place}
+      first={<span className="today-row-when">{row.at ? <When at={row.at} /> : row.time}</span>}
       what={
+        <span
+          className="today-row-moving"
+          data-count={row.count}
+          {...(row.names.length ? { title: row.names.join(", ") } : {})}
+        >
+          {movingWords(row)}
+        </span>
+      }
+      {...(row.link ? { link: <LinkPill link={row.link} /> } : {})}
+      age={
         <>
-          <span className="today-row-when">{when}</span> ·{" "}
-          <span
-            className="today-row-moving"
-            data-count={row.count}
-            {...(row.names.length ? { title: row.names.join(", ") } : {})}
-          >
-            {words}
-          </span>
+          {gaps.length > 0 && (
+            <button
+              type="button"
+              className="today-row-gaps"
+              aria-label={`${gaps.length} not read: open Evidence`}
+              title={`${gaps.join(", ")} not read · opens Evidence`}
+              onClick={(event) => {
+                event.stopPropagation();
+                openEvidence(null);
+              }}
+            >
+              ⌀ {gaps.length} ›
+            </button>
+          )}
+          {row.age && <span className="today-row-age-text">{ageInOneUnit(row.age)}</span>}
         </>
       }
     />
@@ -138,8 +158,8 @@ function historyRow(row: TodayHistory["rows"][number]) {
     <PlaceRow
       key={row.workflow}
       id={row.workflow}
-      label={row.label}
       place={row.place}
+      first={<span className="today-row-label">{row.label}</span>}
       what={joined([
         plural(forks, "fork"),
         ...row.counts.map((count) => <CountText key={count.kind} count={count} />),
@@ -148,33 +168,27 @@ function historyRow(row: TodayHistory["rows"][number]) {
   );
 }
 
-/** The window the history covers, named only as far as core vouches for it. */
+/**
+ * The window the history covers: Since you last looked with its time, or Last 24 hours, followed in
+ * muted words by how far core's history reaches when it is short or stale.
+ */
 function historyLabel(history: TodayHistory): ReactNode {
-  if (history.basis === "seen")
-    return (
-      <>
-        Since you last looked, <When at={history.from} />
-      </>
-    );
-  if (history.basis === "history-short")
-    return (
-      <>
-        Since <When at={history.from} />
-      </>
-    );
-  if (history.asOf)
-    return (
-      <>
-        24 hours to <When at={history.asOf} />
-      </>
-    );
+  const muted = (words: string, at: string) => (
+    <span className="today-section-coverage">
+      {words}
+      <When at={at} />
+    </span>
+  );
+  if (history.basis === "seen") return <>Since you last looked {muted("", history.from)}</>;
+  if (history.basis === "history-short") return <>Last 24 hours {muted("since ", history.from)}</>;
+  if (history.asOf) return <>Last 24 hours {muted("to ", history.asOf)}</>;
   return "Last 24 hours";
 }
 
-/** Moving without you and Last 24 hours, from core's Today summary; each row opens its place. */
+/** Moving without you and the history from core's Today summary; a section with no rows is left out. */
 export function lowerSections(summary: TodaySummary | undefined): LowerSection[] {
   if (!summary) return [];
-  return [
+  const sections: LowerSection[] = [
     { id: "moving", label: "Moving without you", rows: summary.moving.map(movingRow) },
     {
       id: "history",
@@ -182,4 +196,5 @@ export function lowerSections(summary: TodaySummary | undefined): LowerSection[]
       rows: summary.history.rows.map(historyRow),
     },
   ];
+  return sections.filter(({ rows }) => rows.length > 0);
 }

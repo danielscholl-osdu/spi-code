@@ -101,12 +101,21 @@
 
 .today { container-name: today; container-type: inline-size; overflow-anchor: none; }
 
-.today-tabs { display: flex; gap: 2px; margin: 18px 0 14px; overflow-x: auto; overflow-y: hidden; border-bottom: 1px solid var(--border); }
+.today-tabrow { display: flex; flex-wrap: wrap; align-items: center; gap: 0 12px; margin: 18px 0 14px; border-bottom: 1px solid var(--border); }
+.today-tabs { display: flex; gap: 2px; overflow-x: auto; overflow-y: hidden; }
 .today-tab { display: inline-flex; align-items: center; gap: 6px; margin-bottom: -1px; padding: 7px 10px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--text-muted); font: inherit; white-space: nowrap; cursor: pointer; }
 .today-tab[aria-selected="true"] { border-bottom-color: var(--accent); color: var(--text-strong); font-weight: 650; }
-.today-tab-count { padding: 0 6px; border-radius: 999px; background: var(--surface-raised); color: var(--text-muted); font-size: var(--text-xs); font-weight: 400; font-variant-numeric: tabular-nums; }
-.today-filter { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; color: var(--text-strong); font-weight: 600; }
-.today-filter button { padding: 1px 8px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text); font: inherit; font-size: var(--text-sm); font-weight: 400; cursor: pointer; }
+.today-tab-count { padding: 0 6px; border-radius: 999px; font-size: var(--text-xs); font-weight: 500; font-variant-numeric: tabular-nums; }
+.today-tab-count[data-tone="bad"] { background: var(--error-surface); color: var(--error-text); }
+.today-tab-count[data-tone="warn"] { background: var(--warning-surface); color: var(--warning-text); }
+.today-filter { display: flex; align-items: center; gap: 10px; margin: 0 0 0 auto; padding: 4px 0; color: var(--text-strong); font-size: var(--text-sm); font-weight: 500; }
+.today-filter button { padding: 1px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; font-weight: 400; cursor: pointer; }
 .today-filter button:hover { border-color: var(--text-muted); }
+@container today (width < 640px) {
+  .today-filter { flex-basis: 100%; margin-left: 0; }
+}
+.today-section-coverage { color: var(--text-muted); font-weight: 400; }
+.today-row--place .today-row-when { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.today-row--place .today-row-label { color: var(--text-muted); font-weight: 500; }
 .today-filter-note { margin: -6px 0 12px; color: var(--text-muted); font-size: var(--text-md); }
 .flow-wrap + .today-not-read { margin: 10px 0 0; }

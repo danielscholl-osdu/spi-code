@@ -118,6 +118,13 @@ const station = (id: string) =>
 const door = (id: string) => container.querySelector<HTMLElement>(`.fleet-cell[data-door=${id}]`);
 const tab = (id: string) => container.querySelector<HTMLElement>(`[data-today-tab=${id}]`);
 const route = () => parseRoute(window.location.hash);
+const chips = (id: string) =>
+  [...(tab(id)?.querySelectorAll<HTMLElement>(".today-tab-count") ?? [])].map(
+    (chip) => `${chip.dataset.tone} ${chip.textContent}`,
+  );
+const headCount = (id: string) =>
+  section(id)?.querySelector(".today-section-head .today-section-count")?.textContent;
+const scope = () => container.querySelector(".today-tabrow .today-filter-scope")?.textContent;
 const value = (id: string) =>
   (station(id) ?? door(id))
     ?.querySelector(".fleet-value")
@@ -192,7 +199,7 @@ it("counts the 6 Nov rollout PRs in Yours and opens the group and each PR separa
   const group = lines.find(({ rollout }) => rollout);
   if (!group) throw new Error("6 Nov has template sync PRs");
   await render(snapshot);
-  expect(tab("yours")?.querySelector(".today-tab-count")?.textContent).toBe("27");
+  expect(chips("yours")).toEqual(["bad 1 blocked", "warn 26 waiting"]);
   for (const member of group.members) {
     expect(todayRowOf(lines, member.id)).toEqual({ kind: "item", id: member.id });
     expect(row(group.id, member.id).querySelector(".today-row-open a")?.getAttribute("href")).toBe(
@@ -319,26 +326,19 @@ it("a deadline is a clock by the age carrying its reason", async () => {
   expect(row("blocked:sync-run:indexer").querySelector(".today-row-clock")).toBeNull();
 });
 
-it("keeps every row and the opened body in the four shared columns, on Yours and Activity", async () => {
+it("keeps every row of every section and the opened body in the four shared columns", async () => {
   await render();
   const spans = (tr: Element) => [...tr.children].map((td) => (td as HTMLTableCellElement).colSpan);
-  const check = () => {
-    for (const table of container.querySelectorAll("table"))
-      expect(table.querySelectorAll("colgroup col")).toHaveLength(4);
-    for (const tr of container.querySelectorAll("tr.today-row:not(.today-row--place)"))
-      expect(spans(tr)).toEqual([1, 1, 1, 1]);
-  };
-  check();
+  for (const table of container.querySelectorAll("table"))
+    expect(table.querySelectorAll("colgroup col")).toHaveLength(4);
+  for (const tr of container.querySelectorAll("tr.today-row"))
+    expect(spans(tr)).toEqual([1, 1, 1, 1]);
+  expect(container.querySelectorAll("tr.today-row--place")).toHaveLength(5);
   await click(row("waiting:upgrade:os-core-common").querySelector(".today-row-what button"));
   const [body] = opened();
   expect([...(body?.children ?? [])].map((td) => (td as HTMLTableCellElement).colSpan)).toEqual([
     1, 3,
   ]);
-  await click(tab("activity"));
-  check();
-  const lower = container.querySelectorAll("tr.today-row--place");
-  expect(lower.length).toBeGreaterThan(0);
-  for (const tr of lower) expect(spans(tr)).toEqual([1, 2, 1]);
 });
 
 it("says nothing is yours on a morning with no lines, and draws no table without them", async () => {
@@ -347,7 +347,7 @@ it("says nothing is yours on a morning with no lines, and draws no table without
   delete calm.briefing.today;
   await render(calm);
   expect(container.querySelector(".today-table")?.textContent).toBe("Nothing is yours to move.");
-  expect(tab("yours")?.querySelector(".today-tab-count")).toBeNull();
+  expect(chips("yours")).toEqual([]);
   await unmount();
   container.remove();
   const older = nov16();
@@ -356,20 +356,64 @@ it("says nothing is yours on a morning with no lines, and draws no table without
   expect(container.querySelector("[role=tabpanel]")?.textContent).toBe("");
 });
 
-it("counts Yours by the shared member count, and Activity holds Moving without you and Last 24 hours", async () => {
+it("has two tabs, and Yours holds every section in order under one set of columns", async () => {
   await render();
-  expect(tab("yours")?.querySelector(".today-tab-count")?.textContent).toBe("19");
-  expect(sections()).toEqual(["blocked", "waiting", "can-wait"]);
-  await click(tab("activity"));
-  expect(route()).toEqual({ kind: "today", tab: "activity" });
-  expect(tab("activity")?.getAttribute("aria-selected")).toBe("true");
-  expect(sections()).toEqual(["moving", "history"]);
+  expect(
+    [...container.querySelectorAll<HTMLElement>("[data-today-tab]")].map((t) => t.textContent),
+  ).toEqual(["Yours3 blocked16 waiting", "Forks8 stopped"]);
+  expect(tab("activity")).toBeNull();
+  expect(sections()).toEqual(["blocked", "waiting", "moving", "can-wait", "history"]);
   expect(container.querySelectorAll("[data-section=moving] tr")).toHaveLength(3);
-  expect(what(lowerRow("moving", "lanes"))).toBe("Now · 1 lane busy: partition");
+  const lanes = lowerRow("moving", "lanes");
+  expect(lanes.querySelector(".today-row-when")?.textContent).toBe("Now");
+  expect(lanes.querySelector("time")).toBeNull();
+  expect(what(lanes)).toBe("Lanes · 1 lane busy: partition");
+  expect(lowerRow("history", "sync").querySelector(".today-row-label")?.textContent).toBe(
+    "Sync Upstream",
+  );
   const sync = lowerRow("history", "sync");
   expect(count(sync, "failed")?.getAttribute("title")).toBe("indexer, search, crs-conversion");
-  await click(tab("yours"));
-  expect(route()).toEqual({ kind: "today" });
+});
+
+it("counts Yours and each section with the shared count, whole and filtered", async () => {
+  const body = whole();
+  const group = body.briefing.lines?.find(({ id }) => id === "waiting:upgrade:os-core-common");
+  const moved = group?.members[0];
+  if (!group || !moved) throw new Error("16 Nov has the os-core-common group");
+  moved.station = "integration";
+  await render(body);
+  expect(chips("yours")).toEqual(["bad 3 blocked", "warn 16 waiting"]);
+  expect([headCount("blocked"), headCount("waiting")]).toEqual(["3", "16"]);
+  expect(scope()).toBeUndefined();
+
+  await act(async () => navigate({ kind: "today", station: "sync" }));
+  expect(chips("yours")).toEqual(["bad 3 blocked", "warn 16 waiting"]);
+  expect(scope()).toBe("Sync PR · 4 waiting");
+  expect([headCount("blocked"), headCount("waiting")]).toEqual([undefined, "4"]);
+
+  await act(async () => navigate({ kind: "today", station: "integration" }));
+  expect(scope()).toBe("Integration · 10 waiting");
+  expect(headCount("waiting")).toBe("10");
+
+  await act(async () => navigate({ kind: "today", station: "template" }));
+  expect(scope()).toBe("Template · 1 waiting");
+  expect(headCount("waiting")).toBe("1");
+
+  await act(async () => navigate({ kind: "today", station: "upstream" }));
+  expect(scope()).toBe("Upstream · 3 blocked");
+  expect([headCount("blocked"), headCount("waiting")]).toEqual(["3", undefined]);
+});
+
+it("draws only the split that has a count, and no chip when both have none", async () => {
+  const body = nov16();
+  body.briefing.lines = lines.filter(({ section }) => section === "waiting");
+  await render(body);
+  expect(chips("yours")).toEqual(["warn 16 waiting"]);
+  await unmount();
+  container.remove();
+  body.briefing.lines = lines.filter(({ section }) => section === "blocked");
+  await render(body);
+  expect(chips("yours")).toEqual(["bad 3 blocked"]);
 });
 
 it("names what the Forks chip counts, and draws none when no fork is stopped", async () => {
@@ -400,14 +444,14 @@ const lowerRow = (section: string, id: string) => {
 const what = (tr: Element) => tr.querySelector(".today-row-what")?.textContent;
 const count = (tr: Element, kind: string) => tr.querySelector(`.today-count[data-kind="${kind}"]`);
 
-it("a calm morning says nothing is yours, then shows Can wait", async () => {
+it("a calm morning says nothing is yours, then shows what moves, Can wait and the history", async () => {
   const calm = nov16();
   calm.briefing.lines = [];
   await render(calm);
   expect(container.querySelector(".today-table-calm")?.textContent).toBe(
     "Nothing is yours to move.",
   );
-  expect(sections()).toEqual(["can-wait"]);
+  expect(sections()).toEqual(["moving", "can-wait", "history"]);
   expect(yoursRows()).toHaveLength(0);
 });
 
@@ -418,14 +462,44 @@ it.each([
   ["history", "sync", "forks"],
   ["history", "template", "engineering-system"],
 ])("the %s row %s opens its place, %s", async (section, id, place) => {
-  await render(nov16(), "#today/activity");
-  for (const target of [".today-row-what", ".today-row-fork button"]) {
-    await act(async () => navigate({ kind: "today", tab: "activity" }));
+  await render(nov16());
+  for (const target of [".today-row-what", ".today-row-open .today-row-place"]) {
+    await act(async () => navigate({ kind: "today" }));
     await click(lowerRow(section, id).querySelector(target));
     if (place === "forks") expect(route()).toEqual({ kind: "today", tab: "forks" });
     else expect(route()).toEqual({ kind: place });
     expect(opened()).toHaveLength(0);
   }
+});
+
+it("an in-flight row names its fork and what runs, with its own link, age and what was not read", async () => {
+  const body = nov16();
+  const today = body.briefing.today as TodaySummary;
+  today.moving.unshift({
+    id: "rerun:indexer",
+    label: "indexer",
+    place: "line",
+    time: "Now",
+    count: 1,
+    names: ["indexer"],
+    what: "Main build rerunning",
+    fork: "indexer",
+    link: { label: "Run", url: "https://github.com/o/indexer/actions/runs/1", kind: "run" },
+    age: "3h",
+    notRead: ["indexer's main run"],
+  });
+  await render(body);
+  const tr = lowerRow("moving", "rerun:indexer");
+  expect(what(tr)).toBe("indexer: Main build rerunning");
+  expect(tr.querySelector(".today-row-open a")?.getAttribute("href")).toBe(
+    "https://github.com/o/indexer/actions/runs/1",
+  );
+  expect(tr.querySelector(".today-row-place")).toBeNull();
+  expect(tr.querySelector(".today-row-age-text")?.textContent).toBe("3h");
+  const gaps = tr.querySelector(".today-row-gaps");
+  expect(gaps?.textContent).toBe("⌀ 1 ›");
+  await click(gaps);
+  expect(route()?.kind).toBe("evidence");
 });
 
 it("a workflow core did not read shows as not read, never as zero", async () => {
@@ -435,7 +509,7 @@ it("a workflow core did not read shows as not read, never as zero", async () => 
   sync.counts = [
     { kind: "not-read", label: "not read", count: 13, tone: "neutral", names: [], urls: [] },
   ];
-  await render(body, "#today/activity");
+  await render(body);
   expect(what(lowerRow("history", "sync"))).toBe("13 forks · 13 not read");
   for (const tr of container.querySelectorAll("tr.today-row--place"))
     expect(what(tr)).not.toMatch(/(^|· )0 /);
@@ -443,9 +517,9 @@ it("a workflow core did not read shows as not read, never as zero", async () => 
 
 it.each([
   ["fallback", undefined, "Last 24 hours"],
-  ["seen", undefined, "Since you last looked, {from}"],
-  ["history-short", undefined, "Since {from}"],
-  ["stale", "2026-11-16T22:00:00.000Z", "24 hours to {asOf}"],
+  ["seen", undefined, "Since you last looked {from}"],
+  ["history-short", undefined, "Last 24 hours since {from}"],
+  ["stale", "2026-11-16T22:00:00.000Z", "Last 24 hours to {asOf}"],
 ] as const)("names a %s history window only as far as core vouches", async (basis, asOf, text) => {
   const body = nov16();
   const history = (body.briefing.today as TodaySummary).history;
@@ -453,7 +527,7 @@ it.each([
   history.from = "2026-11-16T20:00:00.000Z";
   if (asOf) history.asOf = asOf;
   else delete history.asOf;
-  await render(body, "#today/activity");
+  await render(body);
   const time = (at: string) => when(at);
   expect(container.querySelector("[data-section=history] .today-section-head")?.textContent).toBe(
     text.replace("{from}", time(history.from)).replace("{asOf}", time(asOf ?? "")),
@@ -480,13 +554,13 @@ describe("the fleet flow filters Yours", () => {
       expect(memberIds().sort()).toEqual(atStation(body, id).sort());
       expect(memberIds().length).toBeGreaterThan(0);
       expect(section("can-wait")).toBeNull();
-      expect(container.querySelector(".today-filter")?.textContent).toMatch(
-        /^Showing .+Show all ✕$/,
-      );
+      for (const hidden of ["moving", "can-wait", "history"]) expect(section(hidden)).toBeNull();
+      expect(scope()).toMatch(/^(Upstream|Sync PR|Integration|Template) · \d+ (blocked|waiting)$/);
+      expect(container.querySelector(".today-filter button")?.textContent).toBe("Show all");
       await click(container.querySelector(".today-filter button"));
       expect(route()).toEqual({ kind: "today" });
       expect(memberIds()).toEqual(all);
-      expect(section("can-wait")).not.toBeNull();
+      expect(sections()).toEqual(["blocked", "waiting", "moving", "can-wait", "history"]);
       await click(target);
       await click(id === "template" ? door(id) : station(id));
       expect(route()).toEqual({ kind: "today" });
@@ -604,18 +678,10 @@ describe("the fleet flow filters Yours", () => {
     }
   });
 
-  it("pressing a station from Activity opens Yours filtered", async () => {
-    await render(whole(), "#today/activity");
-    await click(station("upstream"));
-    expect(route()).toEqual({ kind: "today", station: "upstream" });
-    expect(tab("yours")?.getAttribute("aria-selected")).toBe("true");
-    expect(memberIds()).toHaveLength(3);
-  });
-
   it.each([
     ["#today", false],
     ["#today/yours/sync", false],
-    ["#today/activity", false],
+    ["#today/forks", false],
     ["#today", true],
   ])(
     "at %s says what was not read once, under the flow, by core's names (past four: %s)",
@@ -1548,7 +1614,7 @@ describe("Can wait by cause", () => {
       const body = whole();
       const target = body.briefing.today?.fleet?.doors.find((entry) => entry.id === id)?.target;
       if (target?.kind !== "cause") throw new Error(`16 Nov's ${id} door has a row`);
-      await render(body, "#today/activity");
+      await render(body, "#today/forks");
       await click(door(id));
       expect(route()).toEqual({ kind: "today" });
       expect(openSelection()).toEqual({ kind: "cause", id: target.row });
@@ -1556,14 +1622,14 @@ describe("Can wait by cause", () => {
     },
   );
 
-  it("a door opens its cause from Activity in view, with focus on it", async () => {
+  it("a door opens its cause from Forks in view, with focus on it", async () => {
     const scrolled: Element[] = [];
     const scroll = Element.prototype.scrollIntoView;
     Element.prototype.scrollIntoView = function (this: Element) {
       scrolled.push(this);
     };
     try {
-      await render(whole(), "#today/activity");
+      await render(whole(), "#today/forks");
       await click(door("release"));
       const head = causeRow("release")?.querySelector(".today-row-what button");
       expect(head?.getAttribute("aria-expanded")).toBe("true");

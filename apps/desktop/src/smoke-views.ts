@@ -1908,13 +1908,13 @@ strip as it scrolls and joined, so sections below the fold are in the image. Bes
 continues its last row below the window's height. The blocks line under each image is the DOM evidence:
 each block's top and height in the image, in CSS pixels. Yours is the tab Today opens on; Row opened
 clicks the first Blocked or Waiting on you headline, which opens in place under the row. Sync PR pressed
-loads #today/yours/sync and Activity loads #today/activity on the busy morning.
-Design: spi-code-service-home.md (Today and rulings D5, D6) wins over draft 9's Today in its mock.
+loads #today/yours/sync on the busy morning, also at a 520 px centre where the scope wraps under the tabs.
+Design: spi-code-today.md (Tabs, Yours, Filter) and spi-code-service-home.md (rulings D5, D6) win over their mocks.
 Record match or mismatch per surface against the rulings named under it.</p>
 ${MORNING_SURFACES.map(
   (
     surface,
-  ) => `<section><h2>Today, ${surface.morning} morning, ${{ yours: "Yours", sync: "Yours with Sync PR pressed", activity: "Activity" }[surface.view]}${surface.open ? ", row opened" : ""}</h2>
+  ) => `<section><h2>Today, ${surface.morning} morning, ${{ yours: "Yours", sync: "Yours with Sync PR pressed" }[surface.view]}${surface.open ? ", row opened" : ""}</h2>
 ${surface.widths
   .map((width) => {
     const row = ["light", "dark"].map((appearance) =>
