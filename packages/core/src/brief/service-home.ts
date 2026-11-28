@@ -91,6 +91,28 @@ function overviewOf(input: HomeInput, line: LineModel): ServiceHomeRow[] {
       });
     }
   }
+  for (const item of model.queue.items) {
+    if (
+      item.scope !== svc ||
+      item.kind !== "main" ||
+      item.rerun?.state !== "in-flight" ||
+      rows.some(({ id }) => id === item.id)
+    ) continue;
+    const focus = items.find(({ id }) => id === item.id);
+    const links = focus?.evidence ?? [];
+    rows.push({
+      id: item.id,
+      section: "blocked",
+      headline: "Main build failed",
+      cause: focus?.cause ?? item.text,
+      effect: focus?.effect ?? "",
+      steps: [],
+      links,
+      ...(item.since ? { since: item.since } : {}),
+      ...(focus?.next ? { next: focus.next } : {}),
+      ...failedRun(input, line, item.rerun, item.folded, links),
+    });
+  }
   const repo = facts.github.data?.repos[line.fork.repo];
   const repository = model.repositories.rows.find((row) => row.repo === line.fork.repo);
   const objects = [

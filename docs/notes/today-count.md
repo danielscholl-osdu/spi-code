@@ -1,6 +1,10 @@
 # The Today count
 
-`todayMembers` in `@spi-code/contracts` counts the members on Blocked and Waiting on you, each once in line order. The Yours chip, the sidebar's Today row, the macOS dock badge and the tray tooltip read its length. A rollout member with a fork ID represents that fork's open template sync PR and also counts on its Overview. A rollout with no eligible PR keeps its fleet member when it needs the operator's move.
+`todayCounts` in `@spi-code/contracts` is the count on Blocked and Waiting on you, split by section. A line reading “n forks” contributes those distinct members; an operation labelled “Template” or “Upstream” contributes one; a single-fork line contributes one. A member on two lines is counted once, and pending requests are not members. `todayMembers` keeps the member rows for places and threads; the sidebar's Today row, macOS dock badge, tray tooltip and “Today is ready” notification read `todayCounts`.
+
+Rollout classification is per fork: merged, to review, checking, to dispatch, not started or not read. Open PRs to review form an “n forks” line. A dispatch owed is one “Template” line, even when both kinds exist. A fork with unread data is neither review nor dispatch. Ports are one “Upstream” operation.
+
+A member leaves its line only when its own re-run is proven in flight or its own check was read as running. It becomes a Now row under Moving without you with its fork, link, age and not-read evidence, and no longer contributes to the count. Unknown or unrelated running results leave it on its original counted line. In-flight rows are never capped; only the first three scheduled rows are kept.
 
 The hidden sidebar toggle's dot still counts Interrupts (`countInterrupts` in `apps/window/src/views/today/selectors.ts`): its label is "Something needs you now", and the packaged smoke asserts that a mid-sweep calm snapshot shows only the sweep's tone.
 

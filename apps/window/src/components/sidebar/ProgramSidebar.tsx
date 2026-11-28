@@ -22,7 +22,7 @@
 // SOFTWARE.
 
 import { ContextMenu } from "@base-ui/react/context-menu";
-import { todayMembers } from "@spi-code/contracts";
+import { todayCounts } from "@spi-code/contracts";
 import {
   Fragment,
   type KeyboardEvent,
@@ -350,7 +350,7 @@ export function ProgramSidebar({
   const strip = body ? selectStrip(body) : undefined;
   const now = useNow(30_000, syncDeadline(strip?.nextSync, Date.now()));
   const status = statusRows(body, now);
-  const todayCount = briefing ? todayMembers(briefing).length : 0;
+  const todayCount = briefing ? todayCounts(briefing).total : 0;
   const { isMobile, setOpenMobile, visible } = useSidebar();
   const { collapsed, toggle } = useGroupCollapse();
   const presentation = useRef({ visible, expanded: !collapsed("pinned") });

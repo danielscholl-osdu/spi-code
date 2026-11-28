@@ -575,17 +575,30 @@ describe("Today's lower sections on the unchanged 16 Nov sweep", () => {
     ).toEqual(ids.sort());
   });
 
-  test("at most three moving or scheduled rows, with lanes counted from stations", () => {
+  test("in-flight rows are never cut, followed by at most three scheduled rows", () => {
     const moving = summary().moving;
     expect(moving.length).toBeGreaterThan(0);
-    expect(moving.length).toBeLessThanOrEqual(3);
     expect(moving.find((r) => r.id === "lanes")?.names).toEqual(["partition"]);
     expect(moving.every((r) => r.time && r.place)).toBe(true);
+    const flight = moving.find((r) => r.id === "gate2:partition");
+    expect(flight).toMatchObject({
+      time: "Now",
+      fork: "partition",
+      what: "Integration PR waits for approval",
+      count: 1,
+      names: ["partition"],
+    });
+    expect(flight?.link).toBeDefined();
+    expect(moving.findIndex((r) => r.id === "gate2:partition")).toBeLessThan(
+      moving.findIndex((r) => r.at !== undefined),
+    );
     const crowded = structuredClone(model);
     crowded.stack.inflight = { run: { kind: "upgrade" } } as typeof crowded.stack.inflight;
-    expect(
-      todaySummary({ model: crowded, facts, items, lines, since, now, context }).moving,
-    ).toHaveLength(3);
+    const rows = todaySummary({ model: crowded, facts, items, lines, since, now, context }).moving;
+    expect(rows.filter((row) => row.at !== undefined)).toHaveLength(2);
+    expect(rows.findIndex((row) => row.at !== undefined)).toBeGreaterThanOrEqual(
+      rows.filter((row) => row.at === undefined).length,
+    );
   });
 
   test("one history row per workflow with failed and not-read outcomes counted apart", () => {
