@@ -622,7 +622,8 @@ export function todayCounts(briefing: { lines?: readonly TodayLine[] | undefined
   const counts: TodayCounts = { total: 0, blocked: 0, waiting: 0 };
   const seen = new Set<string>();
   const lines = briefing.lines ?? [];
-  const operation = (line: TodayLine) => line.subject === "Template" || line.subject === "Upstream";
+  const operation = (line: TodayLine) =>
+    line.subject === "Template" || line.subject === "Upstream" || line.subject === "Security";
   const add = (section: TodayLine["section"], count: number) => {
     counts[section] += count;
     counts.total += count;

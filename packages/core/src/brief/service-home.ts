@@ -294,7 +294,7 @@ function stationsOf(
   const mainRun = runs?.main[0];
   const red = runsRead ? line.mainRed : undefined;
   const mainState = red ? "stopped"
-    : mainRun && mainRun.status !== "completed" ? "in-progress"
+    : runsRead && mainRun && mainRun.status !== "completed" ? "in-progress"
     : runsRead && line.mainRun?.conclusion === "success" ? "green" : "unread";
   const main: ServiceHomeStation = {
     id: "main", state: mainState, word: {
@@ -348,7 +348,7 @@ export function forkReads(facts: Facts, reads: SweepReads, line: LineModel) {
 export function serviceHome(input: HomeInput): Map<string, ServiceHome> {
   const { model, facts, reads, versions } = input;
   const slots = rolloutVisual(input)?.slots ?? [];
-  const flights = todayInFlight(model, input.items, input.now, input.context);
+  const flights = todayInFlight(model, input.items, input.now, input.context, input);
   return new Map(model.lines.flatMap((line) => {
     const { id, repo } = line.fork;
     const fork = model.upstream.forks.find((entry) => entry.service === id);

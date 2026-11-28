@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { fleetLines } from "@spi-code/contracts";
+import { fleetLines, todayCounts } from "@spi-code/contracts";
 import { describe, expect, test, vi } from "vitest";
 import { todayFleet } from "../src/brief/fleet";
 import { buildBriefing } from "../src/brief/index";
@@ -1216,6 +1216,25 @@ describe("a red Main", () => {
       state: "stopped",
       line: "Validation re-running · attempt 2",
     });
+    expect(members(flying)).not.toContain("main:search");
+    facts.runs.error = "runs unavailable";
+    const retained = project(facts, now);
+    expect(members(retained)).toContain("main:search");
+    expect(retained.home.overview.find(({ id }) => id === "main:search")).toMatchObject({
+      section: "blocked",
+      failure: { verdict: "Environment" },
+    });
+    expect(retained.home.overview.find(({ id }) => id === "main:search")).not.toHaveProperty(
+      "rerunning",
+    );
+    expect(retained.station("main")).toMatchObject({
+      state: "unread",
+      word: "Not read",
+    });
+    expect(todayCounts({ lines: retained.lines }).total).toBe(
+      todayCounts({ lines: flying.lines }).total + 1,
+    );
+    delete facts.runs.error;
 
     runs.mainRunJobs = { [`${head.id}#1`]: jobs.filter(({ name }) => name !== "Java Build") };
     runs.mainJobsCut = [`${head.id}#1`];

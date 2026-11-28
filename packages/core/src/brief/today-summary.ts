@@ -217,7 +217,7 @@ function canWait(input: Input) {
 
 function moving(input: Input): TodayMoving[] {
   const { model, facts, now, context } = input;
-  const flights = input.flights ?? todayInFlight(model, input.items, now, context);
+  const flights = input.flights ?? todayInFlight(model, input.items, now, context, input);
   const rows: TodayMoving[] = flights.map(
     ({ line, member }) => ({
       id: member.id,

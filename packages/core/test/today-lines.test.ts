@@ -372,6 +372,63 @@ describe("Today's situation lines", () => {
     expect(steps).toContain("Upgrade os-core-common 8.5.0 on the fork before merging sync PR #58.");
   });
 
+  test.each(["snapshot-busy.json", "snapshot-bad.json"])(
+    "%s labels a security operation across forks and counts it once",
+    (name) => {
+      const fixture = watchFixtures().find((entry) => entry.name === name);
+      if (!fixture) throw new Error(`Missing ${name}`);
+      const briefing = snapshotAt(fixture.path).briefing;
+      const line = briefing.lines?.find(({ members }) =>
+        members.some(({ id }) => id === "security:dependabot:fixture-library"),
+      );
+      expect(line).toMatchObject({
+        subject: "Security",
+        members: [
+          {
+            id: "security:dependabot:fixture-library",
+            fork: "13 forks",
+            home: "security",
+          },
+        ],
+      });
+      expect(
+        todayCounts({
+          lines: briefing.lines?.filter(({ members }) =>
+            members.some(({ id }) => id === "security:dependabot:fixture-library"),
+          ),
+        }),
+      ).toEqual({ total: 1, blocked: 0, waiting: 1 });
+    },
+  );
+
+  test("a security row on one fork keeps the fork in the Fork cell", () => {
+    const changed = structuredClone(model);
+    const item = structuredClone(items[0]);
+    const queued = structuredClone(changed.queue.items[0]);
+    if (!item || !queued) throw new Error("The sweep has an item to project as security");
+    Object.assign(item, {
+      id: "security:dependabot:single",
+      ids: ["security:dependabot:single"],
+      cls: "SECURITY",
+      scope: "search",
+      title: "Critical vulnerability in single-library",
+      subject: undefined,
+    });
+    Object.assign(queued, {
+      id: item.id,
+      kind: "security",
+      scope: "search",
+      cls: "SECURITY",
+    });
+    changed.queue.items = [queued];
+    expect(todayLines(changed, [item], now, context)).toEqual([
+      expect.objectContaining({
+        subject: "search",
+        members: [expect.objectContaining({ id: item.id, fork: "search" })],
+      }),
+    ]);
+  });
+
   test("a proved cause sits beside the headline only when the read names the step", () => {
     const run = (m: typeof model) => m.queue.items.find(({ kind }) => kind === "sync-run");
     const line = (m: typeof model) =>
@@ -638,6 +695,32 @@ describe("Today's situation lines", () => {
         member: expect.objectContaining({ id: `rollout:${checking.service}` }),
       }),
     ]);
+    const retained = structuredClone(changed);
+    const retainedPulls = {
+      facts: { github: {}, runs: {} },
+      reads: {
+        github: [
+          {
+            source: checking.repo,
+            object: checking.repo,
+            observedAt: now.toISOString(),
+            completeness: { kind: "complete" as const },
+            failure: "checks unavailable",
+            retainedFrom: "2026-11-16T00:00:00.000Z",
+          },
+        ],
+      },
+    };
+    const retainedLines = todayLines(retained, [focus], now, context, retainedPulls);
+    expect(retainedLines.flatMap(({ members }) => members.map(({ id }) => id))).toContain(
+      `rollout:${checking.service}`,
+    );
+    expect(todayInFlight(retained, [focus], now, context, retainedPulls)).toEqual([]);
+    expect(todayCounts({ lines: retainedLines })).toEqual({
+      total: 3,
+      blocked: 0,
+      waiting: 3,
+    });
     const { environment } = buildBriefing(changed, { state: "clear", problems: [] }, now, context);
     const none = { release: [], dependabot: [], other: [], issue: [], alert: [] };
     const owed = (held: TodayLine[]) =>

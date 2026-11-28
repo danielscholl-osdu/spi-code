@@ -92,6 +92,7 @@ export function buildModel(
       fork,
       repo: repos[fork.repo],
       runs: facts.runs.data?.[fork.repo],
+      runsFresh: facts.runs.error === undefined,
       upstream: facts.upstream.data?.[fork.id],
       compares: facts.template.data?.compares ?? {},
       targets: facts.template.data?.targets ?? {},

@@ -227,7 +227,8 @@ const jobsKey = (run: Pick<RunFact, "id" | "attempt">) => `${run.id}#${run.attem
 // still shows a failed job proves the failure without proving Java Build ran.
 function rerunning(
   runs: ForkRuns | undefined,
-): { run: RunFact; jobs: JobDetail[]; later: number; failedAt: string | undefined } | undefined {
+  fresh: boolean,
+): { run: RunFact; jobs: JobDetail[]; later?: number; failedAt: string | undefined } | undefined {
   const newest = runs?.main[0];
   if (!newest || newest.status === "completed" || newest.attempt < 2) return undefined;
   const run = { ...newest, attempt: newest.attempt - 1, status: "completed", conclusion: "failure" };
@@ -237,7 +238,9 @@ function rerunning(
     (javaBuilt(jobs) || (runs?.mainJobsCut ?? []).includes(jobsKey(run)));
   const ends = failed.flatMap(({ completedAt }) => completedAt && Number.isFinite(Date.parse(completedAt)) ? [completedAt] : []);
   const failedAt = ends.sort((a, b) => Date.parse(a) - Date.parse(b)).at(-1);
-  return proven ? { run, jobs, later: newest.attempt, failedAt } : undefined;
+  return proven
+    ? { run, jobs, ...(fresh ? { later: newest.attempt } : {}), failedAt }
+    : undefined;
 }
 
 function mainFailure(
@@ -273,6 +276,7 @@ export function buildLine(input: {
   fork: ForkDef;
   repo: RepoFact | undefined;
   runs: ForkRuns | undefined;
+  runsFresh?: boolean;
   upstream: UpstreamFact | undefined;
   compares: Record<string, TemplateCompare>;
   targets: Record<string, string>;
@@ -318,7 +322,7 @@ export function buildLine(input: {
       (l) => l.startsWith("cascade-") || l === "validated" || l === "upstream-held",
     ) ?? [];
   const labelsIssue = issues.find((i) => /Label Configuration Update Required/i.test(i.title));
-  const proof = rerunning(runs) ?? provingRun(runs);
+  const proof = rerunning(runs, input.runsFresh !== false) ?? provingRun(runs);
   const mainRed = mainFailure(proof, runs?.mainJobsCut, stack.deployable.state === "yes");
   const syncRun = runs?.sync.find((r) => r.status === "completed");
   const templateRun = runs?.template.find((r) => r.status === "completed");

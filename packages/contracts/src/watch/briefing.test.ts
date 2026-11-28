@@ -196,6 +196,11 @@ describe("Today count", () => {
       ),
       1,
     ],
+    [
+      "security operation",
+      line("security", "Security", [member("security:dependabot:fixture-library", "13 forks")]),
+      1,
+    ],
     ["port", line("port", "Upstream", [member("port", "fleet")]), 1],
     ["single fork", line("single", "partition", [member("main", "partition")]), 1],
   ])("counts %s as %i", (_name, row, expected) => {

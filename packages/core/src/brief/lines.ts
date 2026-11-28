@@ -81,7 +81,7 @@ export function todaySources(
 }
 
 type Item = FocusItem & { attention?: string };
-type PullReads = { facts: Pick<Facts, "github">; reads?: SweepReads };
+type PullReads = { facts: Pick<Facts, "github" | "runs">; reads?: SweepReads };
 type NonEmpty<T> = [T, ...T[]];
 type ObjectMove = {
   item: Item;
@@ -168,7 +168,13 @@ function objectMove(
     item.evidence.find((link) => link.kind !== undefined && link.kind !== "other");
   const since =
     queued?.since && Number.isFinite(Date.parse(queued.since)) ? queued.since : undefined;
-  const fork = queued?.cause.find((fact) => fact.label === "fork")?.value ?? item.scope;
+  const securityForks =
+    item.cls === "SECURITY"
+      ? item.scope.split(", ").filter((name) => model.lines.some(({ fork }) => fork.id === name))
+      : [];
+  const fork =
+    queued?.cause.find((fact) => fact.label === "fork")?.value ??
+    (securityForks.length > 1 ? plural(securityForks.length, "fork") : item.scope);
   const deadline = deadlineOf(model, ids, now, context);
   const steps = [...(blocker ? [blocker.next] : []), ...ordered.map((i) => i.next)].map(plain);
   const home = homeOf(model, item, context);
@@ -239,7 +245,12 @@ function describe(
   const move = moves[0];
   const { item, queued, blocker, dependency, member } = move;
   const n = moves.length;
-  const subject = n > 1 ? plural(n, "fork") : member.fork;
+  const subject =
+    queued?.kind === "security" && /^\d+ forks$/.test(member.fork)
+      ? "Security"
+      : n > 1
+        ? plural(n, "fork")
+        : member.fork;
   const steps = n > 1 && member.steps.length < 2 ? [] : member.steps;
   const base = { subject, cause: member.cause, effect: member.effect, steps };
   if (blocker) {
@@ -423,12 +434,29 @@ function rolloutMembers(
   lines.splice(lines.indexOf(line), 1);
 }
 
-function memberInFlight(model: Model, member: TodayMember, checking: ReadonlySet<string>): boolean {
-  if (member.id.startsWith("rollout:")) return checking.has(member.id.slice("rollout:".length));
-  const queued = model.queue.items.find((item) => item.id === member.id);
-  if (queued?.rerun?.state === "in-flight") return true;
+function memberInFlight(
+  model: Model,
+  member: TodayMember,
+  checking: ReadonlySet<string>,
+  pulls?: PullReads,
+): boolean {
   const line = model.lines.find(({ fork }) => fork.id === member.fork);
+  const failed = (area: "runs" | "github", repo: string | undefined) =>
+    pulls?.reads?.[area]?.some(({ source, object, failure }) =>
+      failure !== undefined && (source === repo || object === repo),
+    ) ?? false;
+  const runsFresh = pulls?.facts.runs.error === undefined &&
+    !failed("runs", line?.fork.repo);
+  const checksFresh = pulls?.facts.github.error === undefined &&
+    !failed("github", line?.fork.repo);
+  if (member.id.startsWith("rollout:")) {
+    if (!model.rollout || !checksFresh) return false;
+    return checking.has(member.id.slice("rollout:".length));
+  }
+  const queued = model.queue.items.find((item) => item.id === member.id);
+  if (queued?.rerun?.state === "in-flight") return runsFresh;
   if (!line) return false;
+  if (!checksFresh) return false;
   switch (queued?.kind) {
     case "gate1":
       return !!line.syncPr && prVerdict(line.syncPr.pr) === "pending";
@@ -582,7 +610,7 @@ export function todayProjection(
     classified
       .flatMap(({ fork, state }) => (state === "checking" ? [fork.service] : [])),
   );
-  const inFlight = (member: TodayMember) => memberInFlight(model, member, checking);
+  const inFlight = (member: TodayMember) => memberInFlight(model, member, checking, pulls);
   const flights = lines.flatMap((line) =>
     line.members.filter(inFlight).map((member) => ({ line, member })),
   );
@@ -610,6 +638,7 @@ export function todayInFlight(
   items: readonly Item[],
   now: Date | undefined,
   context: CoreContext,
+  pulls?: PullReads,
 ): TodayFlight[] {
-  return todayProjection(model, items, now, context).flights;
+  return todayProjection(model, items, now, context, pulls).flights;
 }
