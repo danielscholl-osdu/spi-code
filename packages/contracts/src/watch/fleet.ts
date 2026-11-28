@@ -94,10 +94,11 @@ export const TodayFleetSchema = z.strictObject({
     version: z.string().optional(),
     // Forks deploying to the shared environment now; absent when usage was not read.
     lanes: Count.optional(),
-    notRead: Forks,
+    // Forks whose deployments were not read; absent in a snapshot stored before it was drawn.
+    notRead: Forks.optional(),
   }),
-  // What the flow did not read, one name per fork: "search's pull requests".
-  notRead: z.array(z.string()),
+  // What the flow did not read, one name per fork: "search's pull requests"; absent when not known.
+  notRead: z.array(z.string()).optional(),
   forks: z.strictObject({
     // Row keys into services[].home, grouped in fleet order.
     yours: Forks,

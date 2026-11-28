@@ -72,7 +72,7 @@ describe.each(NAMES)("on the %s morning", (name) => {
       [...(frame?.children ?? [])].map((child) => child.className || child.getAttribute("role")),
     ).toEqual([...(fleet ? ["fleet"] : []), "today-tabs", "tabpanel"]);
     expect(frame?.querySelector(".fleet > .today-not-read") !== null).toBe(
-      (fleet?.notRead.length ?? 0) > 0,
+      (fleet?.notRead?.length ?? 0) > 0,
     );
     const order = ["blocked", "waiting", "can-wait"];
     const sections = [...(frame?.querySelectorAll<HTMLElement>(".today-section") ?? [])].map(

@@ -341,23 +341,34 @@ export function doorsOf(line: LineModel, rows: readonly ServiceHome["overview"][
   });
 }
 
+const failedRead = (reads: SweepReads, area: AreaName, source: string) =>
+  reads[area]?.some((read) =>
+    (read.source === source || read.object === source) && read.failure !== undefined,
+  ) ?? false;
+
+/** Whether each source a fork's stations stand on was read: every open PR, its runs and its upstream. */
+export function forkReads(facts: Facts, reads: SweepReads, line: LineModel) {
+  const { repo, upstream } = line.fork;
+  const github = facts.github.data?.repos[repo];
+  const pullsRead = !!github && !github.prsUnread && !facts.github.error && !failedRead(reads, "github", repo);
+  return {
+    pulls: pullsRead && (github.openPrs === undefined || github.openPrs === github.prs.length),
+    runs: !!facts.runs.data?.[repo] && !facts.runs.error && !failedRead(reads, "runs", repo),
+    upstream: !!line.upstream && !facts.upstream.error && !failedRead(reads, "upstream", upstream),
+  };
+}
+
 export function serviceHome(input: HomeInput): Map<string, ServiceHome> {
   const { model, facts, reads, versions } = input;
   const slots = rolloutVisual(input)?.slots ?? [];
   return new Map(model.lines.flatMap((line) => {
-    const { id, repo, upstream } = line.fork;
+    const { id, repo } = line.fork;
     const fork = model.upstream.forks.find((entry) => entry.service === id);
     if (!fork) return [];
     const github = facts.github.data?.repos[repo];
     const openPrTotal = github?.openPrs;
-    const failed = (area: AreaName, source: string) =>
-      reads[area]?.some((read) =>
-        (read.source === source || read.object === source) && read.failure !== undefined,
-      );
-    const pullsRead = !!github && !github.prsUnread && !facts.github.error && !failed("github", repo);
-    const complete = pullsRead && (openPrTotal === undefined || openPrTotal === github.prs.length);
-    const runsRead = !!facts.runs.data?.[repo] && !facts.runs.error && !failed("runs", repo);
-    const upstreamRead = !!line.upstream && !facts.upstream.error && !failed("upstream", upstream);
+    const failed = (area: AreaName, source: string) => failedRead(reads, area, source);
+    const { pulls: complete, runs: runsRead, upstream: upstreamRead } = forkReads(facts, reads, line);
     const rows = overviewOf(input, line);
     const yours = rows.filter((row) => row.section === "blocked" || row.section === "waiting");
     const unread = !complete || !runsRead || !upstreamRead ||

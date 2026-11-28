@@ -1237,20 +1237,25 @@ function fleetCases(today: Summary, add: Add) {
       `${environment} .fleet-sub`,
       { contains: true },
     );
-  if (fleet.environment.state !== "unread" && fleet.environment.lanes !== undefined)
+  if (
+    fleet.environment.state !== "unread" &&
+    fleet.environment.lanes !== undefined &&
+    fleet.environment.notRead
+  )
     add(`${base}/environment/lanes`, fleet.environment.lanes, TODAY, environment, {
       read: (element) =>
         element.querySelector(".fleet-sub")?.textContent?.match(/(\d+) lanes? busy/)?.[1] ?? "0",
     });
-  fleet.environment.notRead.forEach((fork, at) => {
+  fleet.environment.notRead?.forEach((fork, at) => {
     add(`${base}/environment/notRead/${at}`, fork, TODAY, `${environment} + .fleet-gap`, {
       attribute: "title",
       contains: true,
     });
   });
-  fleet.notRead.forEach((name, at) => {
+  const names = fleet.notRead ?? [];
+  names.forEach((name, at) => {
     add(`${base}/notRead/${at}`, name, TODAY, ".fleet > .today-not-read", {
-      ...(fleet.notRead.length > 4 ? { attribute: "title" } : {}),
+      ...(names.length > 4 ? { attribute: "title" } : {}),
       contains: true,
     });
   });

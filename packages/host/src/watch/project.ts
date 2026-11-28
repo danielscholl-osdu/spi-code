@@ -8,6 +8,7 @@ import {
   type CoreContext,
   type DoctorView,
   type Facts,
+  forkReads,
   formingReleases,
   platformReleased,
   type ReadRecord,
@@ -83,7 +84,14 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
     briefing.nextSyncAt,
     briefing.today.causes,
     briefing.lines,
-    { upstream: model.upstream.forks, deployments: model.forkDeployments },
+    {
+      upstream: model.upstream.forks,
+      deployments: model.forkDeployments,
+      sources: model.lines.map((line) => ({
+        service: line.fork.id,
+        ...forkReads(input.facts, input.reads, line),
+      })),
+    },
   );
   releases.today = today;
   const platform = platformReleased(documents, input.facts, input.context);

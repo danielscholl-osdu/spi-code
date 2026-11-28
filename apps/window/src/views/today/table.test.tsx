@@ -544,7 +544,7 @@ describe("the fleet flow filters Yours", () => {
     });
     await render(body, "#today/yours/integration");
     expect(value("integration")).toBe("1 waiting for cascade");
-    expect(chip("integration")?.title).toBe("Integration PRs not read on file · opens Evidence");
+    expect(chip("integration")?.title).toBe("Integration not read on file · opens Evidence");
     expect(container.querySelector(".today-filter-note")?.textContent).toBe(
       "Waiting for cascade on search.",
     );
@@ -565,7 +565,7 @@ describe("the fleet flow filters Yours", () => {
     Object.assign(main, { count: 11, forks: main.forks.slice(0, 11), notRead: ["file", "unit"] });
     await render(body);
     expect(readout("main")).toEqual(["11 green", undefined]);
-    expect(chip("main")?.title).toBe("Main runs not read on file and unit · opens Evidence");
+    expect(chip("main")?.title).toBe("Main not read on file and unit · opens Evidence");
     await unmount();
     container.remove();
 
@@ -676,6 +676,21 @@ describe("the fleet flow filters Yours", () => {
       /\bNone\b|Nothing|fine|\b0\b/,
     );
     expect(memberIds()).toEqual([]);
+  });
+
+  it("a snapshot stored before the flow named its gaps falls back to the figures' forks and counts no lanes", async () => {
+    const stored = JSON.parse(snapshot1116);
+    const fleet = stored.briefing.today.fleet;
+    delete fleet.notRead;
+    delete fleet.environment.notRead;
+    Object.assign(fleet.environment, { state: "ready", lanes: 2 });
+    fleet.stations.find(({ id }: { id: string }) => id === "sync").notRead = ["indexer"];
+    await render(ViewSnapshotSchema.parse(stored));
+    expect(container.querySelector(".today-not-read")?.textContent).toBe(
+      "⌀ Not read: indexer · Evidence ›",
+    );
+    expect(station("environment")?.textContent).toContain("Ready");
+    expect(station("environment")?.textContent).not.toMatch(/lanes? busy/);
   });
 
   it("a known empty filter says nothing waits there", async () => {
@@ -859,7 +874,7 @@ describe("the fleet flow's four marks", () => {
     await render(body);
     expect(station("sync")?.dataset.kind).toBe("link");
     expect(value("sync")).toBe(`${sync.count} open ›`);
-    expect(chip("sync")?.title).toBe("Sync PRs not read on file and indexer · opens Evidence");
+    expect(chip("sync")?.title).toBe("Sync PR not read on file and indexer · opens Evidence");
     await click(station("sync"));
     expect(route()).toEqual({ kind: "today", tab: "forks" });
     await act(async () => navigate({ kind: "today" }));

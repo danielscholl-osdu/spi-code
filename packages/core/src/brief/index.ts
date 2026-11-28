@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-export { serviceHome } from "./service-home.js";
+export { forkReads, serviceHome } from "./service-home.js";
 export { serviceRuns } from "./service-runs.js";
 export { serviceWork } from "./service-work.js";
 export { serviceUpstream } from "./service-upstream.js";

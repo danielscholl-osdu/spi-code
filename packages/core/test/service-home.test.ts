@@ -7,7 +7,7 @@ import { todayFleet } from "../src/brief/fleet";
 import { buildBriefing } from "../src/brief/index";
 import { todayLines } from "../src/brief/lines";
 import { rolloutVisual } from "../src/brief/place-visuals";
-import { serviceHome, versionBump } from "../src/brief/service-home";
+import { forkReads, serviceHome, versionBump } from "../src/brief/service-home";
 import { serviceWork } from "../src/brief/service-work";
 import { todaySummary } from "../src/brief/today-summary";
 import type { DeploymentFact, Facts, IssueFact, PastPrFact, PrFact, RunFact } from "../src/facts";
@@ -131,7 +131,14 @@ function project(
       briefing.nextSyncAt,
       causes,
       lines,
-      { upstream: model.upstream.forks, deployments: model.forkDeployments },
+      {
+        upstream: model.upstream.forks,
+        deployments: model.forkDeployments,
+        sources: model.lines.map((line) => ({
+          service: line.fork.id,
+          ...forkReads(facts, reads, line),
+        })),
+      },
     ),
     homes,
     briefing,
@@ -743,7 +750,7 @@ test("the Template door opens its filter while Yours holds a Template row, even 
     briefing.nextSyncAt,
     causes,
     lines.filter(({ members }) => !members.some(({ station }) => station === "template")),
-    { upstream: model.upstream.forks, deployments: model.forkDeployments },
+    { upstream: model.upstream.forks, deployments: model.forkDeployments, sources: [] },
   );
   expect(quiet.doors.find(({ id }) => id === "template")).not.toHaveProperty("target");
 });
@@ -752,7 +759,7 @@ test("a station's red forks are its stopped forks holding a PR, never a stopped 
   const { facts } = handBuilt();
   const { homes, briefing, causes } = project(facts);
   const [base] = homes.values();
-  const reads = { upstream: [], deployments: [] };
+  const reads = { upstream: [], deployments: [], sources: [] };
   if (!base) throw new Error("a home");
   const withIntegration = (state: "stopped" | "ready", pr?: number) => ({
     ...base,
@@ -815,14 +822,23 @@ describe("the fleet's behind, lanes and not-read names", () => {
     { service: "legal", behind: 0 },
     { service: "file" },
   ];
+  const read = { pulls: true, runs: true, upstream: true };
+  const sources = [
+    { service: "unit", ...read },
+    { service: "search", ...read, upstream: false },
+    { service: "legal", ...read, pulls: false },
+    { service: "file", ...read, upstream: false },
+  ];
   const { status: _status, ...unused } = briefing.environment;
   const fleetWith = (
     environment: Partial<typeof briefing.environment>,
     deployments: { fork: string; read: "unread" | "complete" | "capped" }[] = [],
+    reads = sources,
   ) =>
     todayFleet(homesOf, { ...unused, ...environment }, "2026-11-17T18:00:00Z", causes, [], {
       upstream,
       deployments,
+      sources: reads,
     });
 
   test("counts a fork behind only when its upstream, pulls and runs were read, and keeps the next sync", () => {
@@ -850,6 +866,23 @@ describe("the fleet's behind, lanes and not-read names", () => {
     expect(fleet.environment.notRead).toEqual(["search", "partition"]);
   });
 
+  test("names a station when no failed source explains its gap, never a source", () => {
+    const fleet = fleetWith(
+      {},
+      [],
+      [
+        { service: "unit", ...read },
+        { service: "search", ...read },
+        { service: "legal", ...read },
+      ],
+    );
+    expect(fleet.notRead).toEqual([
+      "search's Upstream",
+      "legal's Template PRs, Release PRs, Dependabot PRs and Other PRs",
+      "file's Upstream",
+    ]);
+  });
+
   test.each([
     ["in use", { state: "in-use", label: "In use", live: [{ fork: "unit", id: "1" }] }, 1],
     ["idle", { state: "idle", label: "Idle" }, 0],
@@ -866,6 +899,40 @@ describe("the fleet's behind, lanes and not-read names", () => {
   test("an environment whose readiness was not read never reads ready", () => {
     expect(fleetWith({ deployable: "unknown" }).environment.state).toBe("unread");
     expect(fleetWith({ deployable: "yes" }).environment.state).toBe("ready");
+  });
+});
+
+describe("the fleet names the source a fork was not read from", () => {
+  const searchGaps = (fleet: { notRead?: readonly string[] | undefined }) =>
+    fleet.notRead?.filter((name) => name.startsWith(`${service}'s `));
+
+  test("runs not read with pulls complete names the runs, not the pull requests", () => {
+    const { facts } = handBuilt();
+    delete facts.runs.data?.[repo];
+    const { fleet } = project(facts);
+    expect(searchGaps(fleet)).toEqual([`${service}'s runs`]);
+    expect(fleet.stations.find(({ id }) => id === "upstream")?.notRead).toContain(service);
+    expect(fleet.stations.find(({ id }) => id === "upstream")?.behind ?? []).not.toContain(service);
+  });
+
+  test("upstream not read with pulls incomplete names both", () => {
+    const { facts, github } = handBuilt();
+    github.openPrs = 3;
+    const upstreamRepo = project(facts).model.lines.find(({ fork }) => fork.id === service)?.fork
+      .upstream;
+    if (!upstreamRepo) throw new Error("Search upstream missing");
+    const { fleet } = project(facts, sweep, [], {
+      upstream: [
+        {
+          source: "upstream",
+          object: upstreamRepo,
+          observedAt: sweep.toISOString(),
+          completeness: { kind: "complete" },
+          failure: "Upstream unavailable",
+        },
+      ],
+    });
+    expect(searchGaps(fleet)).toEqual([`${service}'s upstream and pull requests`]);
   });
 });
 

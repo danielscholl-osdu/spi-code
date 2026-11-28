@@ -61,13 +61,13 @@ const COUNTED: Readonly<Record<StationFigure["id"], string>> = {
   main: "Green",
 };
 
-/** What a cell's ⌀ names: "Sync PRs not read on indexer and search". */
+/** What a cell's ⌀ names: "Sync PR not read on indexer and search"; a station, never its source. */
 const GAP_NOUNS: Readonly<Record<StationFigure["id"] | DoorFigure["id"] | "environment", string>> =
   {
     upstream: "Upstream",
-    sync: "Sync PRs",
-    integration: "Integration PRs",
-    main: "Main runs",
+    sync: "Sync PR",
+    integration: "Integration",
+    main: "Main",
     template: "Template PRs",
     release: "Release PRs",
     dependabot: "Dependabot PRs",
@@ -256,7 +256,7 @@ function environmentCell(fleet: TodayFleet, on: Open): FlowCell {
   const { state, version, lanes, notRead } = fleet.environment;
   const base = { id: "environment" as const, label: "Environment" };
   if (state === "unread") return { ...base, ...unread("Readiness not read", on) };
-  const sub = [version, lanes ? `${plural(lanes, "lane")} busy` : undefined]
+  const sub = [version, lanes && notRead ? `${plural(lanes, "lane")} busy` : undefined]
     .filter(Boolean)
     .join(" · ");
   return {
@@ -268,7 +268,7 @@ function environmentCell(fleet: TodayFleet, on: Open): FlowCell {
     open: on.environment,
     href: routeHash({ kind: "environment" }),
     ...(sub ? { sub } : {}),
-    ...(notRead.length ? { gap: `${GAP_NOUNS.environment} not read on ${and(notRead)}` } : {}),
+    ...(notRead?.length ? { gap: `${GAP_NOUNS.environment} not read on ${and(notRead)}` } : {}),
   };
 }
 
@@ -358,7 +358,7 @@ export function fleetCells(
       ? mainCell(main, forks, on)
       : { id: "main", label: STATION_LABELS.main, kind: "dot" },
     environment: environmentCell(fleet, on),
-    notRead: fleet.notRead,
+    notRead: fleet.notRead ?? flowNotRead(fleet),
   };
 }
 
@@ -379,6 +379,11 @@ export function filterFigure(
     notRead: figure?.notRead ?? [],
     cascade: figure && station === "integration" ? cascadeWaits(figure) : [],
   };
+}
+
+/** Every fork a figure in the flow did not read, once each, in figure order. */
+function flowNotRead(fleet: TodayFleet): string[] {
+  return [...new Set([...fleet.stations, ...fleet.doors].flatMap(({ notRead }) => notRead))];
 }
 
 export const forksWord = (count: number) => plural(count, "fork");

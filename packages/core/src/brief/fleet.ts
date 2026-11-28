@@ -6,12 +6,15 @@ import type { ServiceHome } from "@spi-code/contracts";
 import type { ForkDeployments } from "../model/index.js";
 import type { UpFork } from "../model/upstream.js";
 import type { Environment } from "./index.js";
+import type { forkReads } from "./service-home.js";
 import type { TodayLine } from "./lines.js";
 
 type ForkHome = { service: string; home?: ServiceHome | undefined };
 export type FleetReads = {
   upstream: readonly Pick<UpFork, "service" | "behind">[];
   deployments: readonly Pick<ForkDeployments, "fork" | "read">[];
+  /** Per fork, whether each source its stations stand on was read. */
+  sources: readonly ({ service: string } & ReturnType<typeof forkReads>)[];
 };
 const STATIONS = Object.freeze(["upstream", "sync", "integration", "main"] as const satisfies readonly TodayFleet["stations"][number]["id"][]);
 const DOORS = Object.freeze(["template", "release", "dependabot", "other"] as const satisfies readonly TodayFleet["doors"][number]["id"][]);
@@ -52,24 +55,40 @@ function stationFigures(homes: readonly ForkHome[], upstream: FleetReads["upstre
 const and = (words: readonly string[]) =>
   words.length > 1 ? `${words.slice(0, -1).join(", ")} and ${words.at(-1)}` : (words[0] ?? "");
 
-/** One name per fork for what the flow did not read on it, in fleet order. */
+type Source = "upstream" | "pulls" | "runs";
+const SOURCE_NAMES: Readonly<Record<Source, string>> = Object.freeze({ upstream: "upstream", pulls: "pull requests", runs: "runs" });
+type FigureId = TodayFleet["stations"][number]["id"] | TodayFleet["doors"][number]["id"];
+const FIGURE_NAMES: Readonly<Record<FigureId, string>> = Object.freeze({
+  upstream: "Upstream", sync: "Sync PR", integration: "Integration", main: "Main",
+  template: "Template PRs", release: "Release PRs", dependabot: "Dependabot PRs", other: "Other PRs",
+});
+// The sources a station's or door's reading stands on; a gap no failed source explains names the figure.
+const STANDS_ON: Readonly<Record<FigureId, readonly Source[]>> = Object.freeze({
+  upstream: ["upstream", "pulls", "runs"], sync: ["pulls", "runs"], integration: ["pulls", "runs"], main: ["runs"],
+  template: ["pulls"], release: ["pulls"], dependabot: ["pulls"], other: ["pulls"],
+});
+
+/** One name per fork for what the flow did not read on it, each source named once, in fleet order. */
 function notReadNames(
   forks: readonly string[],
   stations: TodayFleet["stations"],
   doors: TodayFleet["doors"],
+  sources: FleetReads["sources"],
   deployments: readonly string[],
 ): string[] {
-  const missed = (id: string, fork: string) =>
-    stations.find((station) => station.id === id)?.notRead.includes(fork) ?? false;
   return [...new Set([...forks, ...deployments])].flatMap((fork) => {
-    const pulls = missed("sync", fork) || missed("integration", fork) ||
-      doors.some(({ notRead }) => notRead.includes(fork));
+    const read = sources.find(({ service }) => service === fork);
+    const failed = forks.includes(fork) && read
+      ? (Object.keys(SOURCE_NAMES) as Source[]).filter((source) => !read[source])
+      : [];
+    const unexplained = [...stations, ...doors]
+      .filter(({ id, notRead }) => notRead.includes(fork) && !STANDS_ON[id].some((source) => failed.includes(source)))
+      .map(({ id }) => FIGURE_NAMES[id]);
     const nouns = [
-      !pulls && missed("upstream", fork) && "upstream",
-      pulls && "pull requests",
-      missed("main", fork) && "main run",
-      deployments.includes(fork) && "deployment",
-    ].filter((noun): noun is string => !!noun);
+      ...failed.map((source) => SOURCE_NAMES[source]),
+      ...unexplained,
+      ...(deployments.includes(fork) ? ["deployment"] : []),
+    ];
     return nouns.length ? [`${fork}'s ${and(nouns)}`] : [];
   });
 }
@@ -125,7 +144,7 @@ export function todayFleet(
       ...(lanes !== undefined ? { lanes } : {}),
       notRead: unread,
     },
-    notRead: notReadNames(homes.map(({ service }) => service), stations, doors, unread),
+    notRead: notReadNames(homes.map(({ service }) => service), stations, doors, reads.sources, unread),
     forks: {
       yours: yours.map(({ service }) => service),
       stopped: homes.filter(({ service }) => stopped.has(service)).map(({ service }) => service),
