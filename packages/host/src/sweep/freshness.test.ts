@@ -196,6 +196,8 @@ function recording() {
         data = { data: { p0: { mergeRequests: { nodes: [], pageInfo: { hasNextPage: false } } } } };
       } else if (args.includes("status") || args[1] === "user") {
         return { stdout: "", stderr: "", exit: 0 };
+      } else if (path.endsWith("SYNC_LAST_EVALUATED_SHA")) {
+        return { stdout: "", stderr: "gh: Not Found (HTTP 404)", exit: 1 };
       } else if (path.endsWith("actions/variables?per_page=100&page=1")) {
         data = { total_count: 0, variables: [] };
       } else if (path.includes("/attempts/")) {

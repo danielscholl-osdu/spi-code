@@ -15,7 +15,7 @@ import {
 } from "../config.js";
 import type { ReadRecord } from "../evidence/index.js";
 import type { FleetEntry, FleetFacts, ForkVars } from "../facts.js";
-import type { Gh } from "../forge.js";
+import { ForgeError, type Gh } from "../forge.js";
 import { type ParsedRollout, parseRollout } from "../rollout.js";
 import { pool } from "../util.js";
 import { APP_VOICE, type Voice } from "../voice.js";
@@ -94,6 +94,19 @@ async function readVars(gh: Gh, repo: string): Promise<ForkVars> {
   return { ...(upstreamUrl ? { upstreamUrl } : {}), ...(syncMode ? { syncMode } : {}) };
 }
 
+const EVALUATED_SHA_PATH = "actions/variables/SYNC_LAST_EVALUATED_SHA";
+const evaluatedSha = (value: unknown): string => {
+  if (typeof value !== "string") throw new Error("SYNC_LAST_EVALUATED_SHA has no value");
+  const match = /^([0-9a-f]{40}):[^:\s]+$/.exec(value);
+  if (!match?.[1]) throw new Error("SYNC_LAST_EVALUATED_SHA is malformed");
+  return match[1];
+};
+
+function missingVariable(error: unknown): boolean {
+  return error instanceof ForgeError &&
+    (error.code === 404 || /\bHTTP\s+404\b|\b404\b.*Not Found/i.test(error.message));
+}
+
 export async function readFleet(
   gh: Gh,
   prev: (FleetFacts & { reads?: readonly ReadRecord[] }) | undefined,
@@ -150,6 +163,7 @@ export async function readFleet(
   }
   let vars = prev?.vars ?? {};
   let varsAt = prev?.varsAt;
+  let evaluated = prev?.evaluated;
   const due = forks && (!varsAt || now.getTime() - Date.parse(varsAt) >= GITLAB_EVERY_MS ||
     forks.some((f) => !(f.repo in vars)));
   if (due && forks) {
@@ -168,9 +182,31 @@ export async function readFleet(
     varsAt = now.toISOString();
   } else {
     reads.push(...previous.filter((r) =>
-      r.object === "actions/variables" && forks?.some((f) => f.repo === r.source)));
+      r.object === "actions/variables" &&
+      forks?.some((f) => f.repo === r.source)));
   }
-  return { ...(forks ? { forks } : {}), vars, ...(varsAt ? { varsAt } : {}), ...remote, reads };
+  if (forks) {
+    const currentEvaluated: Record<string, string> = {};
+    await pool(forks, 4, async (f) => {
+      try {
+        const variable = await gh.rest<{ value?: unknown }>(
+          `repos/${f.repo}/${EVALUATED_SHA_PATH}`,
+        );
+        currentEvaluated[f.repo] = evaluatedSha(variable.value);
+        reads.push(record(f.repo, EVALUATED_SHA_PATH, now, previous));
+      } catch (error) {
+        if (!missingVariable(error))
+          reads.push(record(f.repo, EVALUATED_SHA_PATH, now, previous, error));
+        else reads.push(record(f.repo, EVALUATED_SHA_PATH, now, previous));
+      }
+    });
+    evaluated = currentEvaluated;
+  }
+  return {
+    ...(forks ? { forks } : {}), vars, ...(varsAt ? { varsAt } : {}),
+    ...(evaluated ? { evaluated } : {}),
+    ...remote, reads,
+  };
 }
 
 export function upstreamProject(url: string | undefined): string | undefined {

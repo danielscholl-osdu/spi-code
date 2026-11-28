@@ -34,6 +34,7 @@ export async function readUpstream(
   repos: Record<string, RepoFact>,
   compares: UpstreamCompares,
   ctx: CoreContext,
+  evaluated: Record<string, string | undefined> = {},
 ): Promise<{ upstream: Record<string, UpstreamFact>; reads: ReadRecord[] }> {
   const upstream: Record<string, UpstreamFact> = {};
   const reads: ReadRecord[] = [];
@@ -47,7 +48,13 @@ export async function readUpstream(
     try {
       const project = encodeProject(fork.upstream);
       const synced = repos[fork.repo]?.upstreamSha?.sha;
-      const fact: UpstreamFact = { service: fork.id, synced, commits: [] };
+      const lastEvaluated = evaluated[fork.repo];
+      const fact: UpstreamFact = {
+        service: fork.id,
+        synced,
+        ...(lastEvaluated ? { evaluated: lastEvaluated } : {}),
+        commits: [],
+      };
       const branch = await glab.rest<RawBranch>(`projects/${project}/${object}`);
       const headSha = branch.commit.id;
       fact.head = {
@@ -56,10 +63,10 @@ export async function readUpstream(
         url: branch.commit.web_url ?? "",
       };
       reads.push(record());
-      if (synced) {
-        if (headSha.startsWith(synced) || synced.startsWith(headSha)) {
+      if (synced || lastEvaluated) {
+        if ((synced && sameSha(headSha, synced)) || (lastEvaluated && sameSha(headSha, lastEvaluated))) {
           fact.lag = 0;
-        } else {
+        } else if (synced) {
           const key = `${synced}...${headSha}`;
           object = `repository/compare?from=${synced}&to=${headSha}`;
           let commits = compares[key]?.commits;
@@ -82,8 +89,11 @@ export async function readUpstream(
             }));
           }
           compares[key] = { commits, usedAt };
-          fact.commits = commits;
-          fact.lag = commits.length;
+          const evaluatedAt = lastEvaluated
+            ? commits.findIndex((commit) => sameSha(commit.sha, lastEvaluated))
+            : -1;
+          fact.commits = evaluatedAt >= 0 ? commits.slice(evaluatedAt + 1) : commits;
+          fact.lag = fact.commits.length;
           reads.push(record());
         }
       }
@@ -93,4 +103,8 @@ export async function readUpstream(
     }
   });
   return { upstream, reads };
+}
+
+function sameSha(left: string, right: string): boolean {
+  return left.startsWith(right) || right.startsWith(left);
 }

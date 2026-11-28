@@ -128,6 +128,62 @@ test("equal head and synced SHAs need no compare; a missing trailer leaves lag u
   }
 });
 
+test("an evaluated head is caught up without comparing the old trailer's commits", async () => {
+  const commits = expected.commits.slice(-2);
+  const calls: string[] = [];
+  const exec: Exec = {
+    runText: async () => {
+      throw new Error("Unexpected text command");
+    },
+    runJSON: async <T>(_cmd: string, args: string[]) => {
+      const path = args.at(-1) ?? "";
+      calls.push(path);
+      const data = path.includes("/compare?")
+        ? {
+            commits: commits.map((c) => ({
+              id: c.sha,
+              title: c.title,
+              created_at: c.at,
+              web_url: c.url,
+            })),
+          }
+        : {
+            commit: {
+              id: expected.head.sha,
+              committed_date: expected.head.at,
+              web_url: expected.head.url,
+            },
+          };
+      return { ok: true, data: data as T };
+    },
+  };
+  const result = await readUpstream(new Glab(exec), repos, {}, ctx, {
+    [fork.repo]: expected.head.sha,
+  });
+  expect(result.upstream.partition).toMatchObject({
+    evaluated: expected.head.sha,
+    lag: 0,
+    commits: [],
+  });
+  expect(calls.some((path) => path.includes("/compare?"))).toBe(false);
+});
+
+test("an evaluated SHA in range counts and lists only the commits after it", async () => {
+  const result = await readUpstream(new Glab(recording().exec), repos, {}, ctx, {
+    [fork.repo]: expected.commits[2]?.sha,
+  });
+  expect(result.upstream.partition?.lag).toBe(expected.commits.length - 3);
+  expect(result.upstream.partition?.commits).toEqual(expected.commits.slice(3));
+});
+
+test("an evaluated SHA outside the trailer-to-head range is ignored", async () => {
+  const result = await readUpstream(new Glab(recording().exec), repos, {}, ctx, {
+    [fork.repo]: "f".repeat(40),
+  });
+  expect(result.upstream.partition?.lag).toBe(expected.commits.length);
+  expect(result.upstream.partition?.commits).toEqual(expected.commits);
+});
+
 test("pruning keeps a reused compare and evicts the least recently used, legacy entries first", async () => {
   const synced = repos["Azure/osdu-spi-partition"].upstreamSha?.sha;
   const live = `${synced}...${expected.head.sha}`;

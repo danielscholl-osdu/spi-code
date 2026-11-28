@@ -237,6 +237,7 @@ const upstreamFact = z.object({
   service: z.string(),
   head: z.object({ sha: z.string(), at: z.string(), url: z.string() }).optional(),
   synced: z.string().optional(),
+  evaluated: z.string().optional(),
   lag: z.number().optional(),
   commits: z.array(
     z.object({ sha: z.string(), title: z.string(), at: z.string(), url: z.string() }),
@@ -392,9 +393,13 @@ const fleetFacts = z.object({
     .optional(),
   vars: z.record(
     z.string(),
-    z.object({ upstreamUrl: z.string().optional(), syncMode: z.string().optional() }).nullable(),
+    z.object({
+      upstreamUrl: z.string().optional(),
+      syncMode: z.string().optional(),
+    }).nullable(),
   ),
   varsAt: z.string().optional(),
+  evaluated: z.record(z.string(), z.string()).optional(),
   rollout: z.string().nullable().optional(),
   rolloutFrom: z.string().optional(),
 });
