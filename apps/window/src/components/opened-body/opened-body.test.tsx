@@ -125,6 +125,18 @@ it("a single member uses core's primary and the item's manual step when core has
   expect(container.querySelector("time")?.dateTime).toBe(line("halt:").deadline?.at);
 });
 
+it("a member with no projected steps falls back to the item's step in Today's wording", () => {
+  const member = { ...upgradeMember, steps: [] };
+  const raw = items.map((item) =>
+    item.id === member.id
+      ? { ...item, next: "Absorb os-core-common 8.5.0 on the fork before merging sync PR #50." }
+      : item,
+  );
+  expect(todayContent({ line: upgrade, member, items: raw, place }).steps).toEqual([
+    "Upgrade os-core-common 8.5.0 on the fork before merging sync PR #50.",
+  ]);
+});
+
 it("a group keeps core's shared steps and deduplicates the members' evidence gaps", async () => {
   const { container } = await mount(group, { origin: "today" });
   expect([...container.querySelectorAll("li")].map((node) => node.textContent)).toEqual(

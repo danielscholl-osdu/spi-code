@@ -707,6 +707,7 @@ describe("Overview retains fork work while Today moves it", () => {
     checking.onTarget = false;
     checking.unread = false;
     checking.pr = { number: 2, url: `${url}/pull/2`, headSha: "checking" };
+    checking.carries = true;
     checking.validation = { ...checking.validation, text: "running", tone: "run" };
     const items = sweep1116Items(model);
     const lines = todayLines(model, items, sweep, context);

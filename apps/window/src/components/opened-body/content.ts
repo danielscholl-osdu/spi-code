@@ -10,6 +10,7 @@ import type {
   TodayMember,
   TodaySummary,
 } from "@spi-code/contracts";
+import { todayWording } from "@spi-code/contracts";
 import { bridgeOpens } from "../../app/external-links.js";
 import type { Destination, EvidenceSelection, OpenSelection } from "../../app/navigation.js";
 
@@ -91,7 +92,7 @@ export function todayContent({
         : lead?.steps.length
           ? lead.steps
           : next
-            ? [next]
+            ? [todayWording(next)]
             : [],
     ...(reading.deadline ? { deadline: reading.deadline } : {}),
     ...(primary ? { primary } : {}),

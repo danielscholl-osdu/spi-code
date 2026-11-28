@@ -1239,7 +1239,16 @@ function fleetCases(today: Summary, add: Add) {
       read: cellCount(/^(\d+) (?:open|to review)/),
     });
     forks(pointer, door, { forks: figure.forks, notRead: figure.notRead });
-    const { target } = figure;
+    const { owed, target } = figure;
+    if (owed) {
+      add(`${pointer}/owed/dispatch`, owed.dispatch, TODAY, door, {
+        read: cellCount(/^(\d+) to dispatch/),
+      });
+      if (!owed.dispatch)
+        add(`${pointer}/owed/review`, owed.review, TODAY, door, {
+          read: cellCount(/^(\d+) to review/),
+        });
+    }
     if (!target) return;
     add(`${pointer}/target/kind`, target.kind, TODAY, door, {
       read: (element) => (element.hasAttribute("aria-pressed") ? "station" : "cause"),

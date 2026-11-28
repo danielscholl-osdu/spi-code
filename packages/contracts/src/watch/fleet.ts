@@ -84,6 +84,8 @@ const DoorFigure = Figure.extend({
       z.strictObject({ kind: z.literal("cause"), row: z.string() }),
     ])
     .optional(),
+  // Template only: the rollout's forks owed a dispatch or a review, whether or not Yours holds its row.
+  owed: z.strictObject({ dispatch: Count, review: Count }).optional(),
 });
 export const TodayFleetSchema = z.strictObject({
   stations: z.array(StationFigure),
@@ -106,7 +108,7 @@ export const TodayFleetSchema = z.strictObject({
     rest: z.strictObject({
       forks: Forks,
       stations: z.array(StationFigure),
-      doors: z.array(DoorFigure.omit({ target: true })),
+      doors: z.array(DoorFigure.omit({ target: true, owed: true })),
     }),
   }),
 });

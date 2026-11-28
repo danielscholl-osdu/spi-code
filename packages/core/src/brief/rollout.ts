@@ -27,7 +27,9 @@ export function classifyRolloutForks(
   );
   return rollout.forks.map((fork) => {
     if (fork.pr && !fork.onTarget) {
-      return { fork, state: fork.validation.tone === "run" ? "checking" : "to-review" };
+      // Only a PR carrying the target runs its own checks; a sync run beside an older PR does not.
+      const checking = fork.carries && fork.validation.tone === "run";
+      return { fork, state: checking ? "checking" : "to-review" };
     }
     if (fork.unread) return { fork, state: "not-read" };
     if (fork.onTarget) return { fork, state: "merged" };

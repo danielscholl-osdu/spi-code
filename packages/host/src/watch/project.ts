@@ -91,6 +91,7 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
         service: line.fork.id,
         ...forkReads(input.facts, input.reads, line),
       })),
+      rollout: model.rollout,
     },
   );
   releases.today = today;

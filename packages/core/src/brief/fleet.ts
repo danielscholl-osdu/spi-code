@@ -4,10 +4,12 @@
 import type { CanWaitCauses, TodayFleet } from "@spi-code/contracts";
 import type { ServiceHome } from "@spi-code/contracts";
 import type { ForkDeployments } from "../model/index.js";
+import type { RolloutModel } from "../model/rollout.js";
 import type { UpFork } from "../model/upstream.js";
 import type { Environment } from "./index.js";
 import type { forkReads } from "./service-home.js";
 import type { TodayLine } from "./lines.js";
+import { classifyRolloutForks } from "./rollout.js";
 
 type ForkHome = { service: string; home?: ServiceHome | undefined };
 export type FleetReads = {
@@ -15,6 +17,7 @@ export type FleetReads = {
   deployments: readonly Pick<ForkDeployments, "fork" | "read">[];
   /** Per fork, whether each source its stations stand on was read. */
   sources: readonly ({ service: string } & ReturnType<typeof forkReads>)[];
+  rollout?: RolloutModel | undefined;
 };
 const STATIONS = Object.freeze(["upstream", "sync", "integration", "main"] as const satisfies readonly TodayFleet["stations"][number]["id"][]);
 const DOORS = Object.freeze(["template", "release", "dependabot", "other"] as const satisfies readonly TodayFleet["doors"][number]["id"][]);
@@ -119,7 +122,13 @@ export function todayFleet(
 ): TodayFleet {
   const stations = stationFigures(homes, reads.upstream);
   const templateHeld = lines.some(({ members }) => members.some(({ station }) => station === "template"));
-  const doors = doorFigures(homes).map((door) => {
+  const states = reads.rollout ? classifyRolloutForks(reads.rollout).map(({ state }) => state) : undefined;
+  const owed = states && {
+    dispatch: states.filter((state) => state === "to-dispatch").length,
+    review: states.filter((state) => state === "to-review").length,
+  };
+  const doors = doorFigures(homes).map((figure) => {
+    const door = figure.id === "template" && owed ? { ...figure, owed } : figure;
     if (door.id === "template" && (door.count || templateHeld))
       return { ...door, target: { kind: "station", station: "template" } as const };
     if (!door.count) return door;

@@ -26,7 +26,11 @@ import {
 } from "../../app/navigation.js";
 import { Octicon } from "../../components/icons/Octicon.js";
 import { LinkPill } from "../../components/kit/LinkPill.js";
-import { type BodyPlace, todayContent } from "../../components/opened-body/content.js";
+import {
+  type BodyPlace,
+  restatesHeadline,
+  todayContent,
+} from "../../components/opened-body/content.js";
 import { OpenedBody } from "../../components/opened-body/OpenedBody.js";
 import { plainTitle } from "../../text.js";
 import { PendingRequests } from "../../threads/PendingRequests.js";
@@ -204,7 +208,7 @@ function SecondLine({ row, open }: { row: Row; open: boolean }) {
         ].join(" · ")}
       />
     );
-  if (open || row.member || forks.length < 2) return null;
+  if (open || row.member || (forks.length < 2 && !review)) return null;
   return <span className="today-row-forks">{forks.join(", ")}</span>;
 }
 
@@ -472,6 +476,8 @@ export function TodayTable({
       place: TODAY,
     });
     if (!row.member) delete content.primary;
+    // An opened row on Today says one sentence before its steps.
+    if (content.cause && !restatesHeadline(content.cause, content.title)) delete content.effect;
     return (
       <tr className="today-row-body" data-open="">
         <td />

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { TodayMemberStation } from "@spi-code/contracts";
+import { todayWording as plain } from "@spi-code/contracts";
 import { dueOf } from "../attention.js";
 import { shortRepo, TEMPLATE_REPO } from "../config.js";
 import type { CoreContext } from "../context.js";
@@ -88,16 +89,6 @@ type ObjectMove = {
   member: TodayMember;
   section: TodayLine["section"];
 };
-
-/** Today's wording: no internal names, no core verb names, and no › between words. */
-function plain(text: string): string {
-  return text
-    .replace(/\b[A-Z]+(?:_[A-Z]+)+\b/g, "an unrecognised entry")
-    .replace(/(^|\. )Absorb the toolchain move\b/g, "$1Make the toolchain move")
-    .replace(/(^|\. )Absorb /g, "$1Upgrade ")
-    .replace(/(^|\. )Pre-classify: (\p{L})/gu, (_, lead: string, first: string) => lead + first.toUpperCase())
-    .replace(/(\S) › (?=\S)/g, "$1, step ");
-}
 
 function clock(at: string, context: CoreContext): string {
   if (context.timeStyle === "instant") return at;

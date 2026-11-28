@@ -11,7 +11,7 @@ import {
 } from "@spi-code/contracts";
 import { describe, expect, test } from "vitest";
 import { watchFixtures } from "../../../scripts/watch-generated.mjs";
-import { buildBriefing } from "../src/brief/index";
+import { buildBriefing, todayFleet } from "../src/brief/index";
 import {
   orderTodayLines,
   type TodayLine,
@@ -540,6 +540,7 @@ describe("Today's situation lines", () => {
       service,
       onTarget: false,
       unread: false,
+      carries: true,
       pr: { number: 1, url: `https://github.com/example/${service}/pull/1`, headSha: "a" },
       validation: { ...base.validation, text: "green", tone: "ok" as const },
       ...overrides,
@@ -552,6 +553,10 @@ describe("Today's situation lines", () => {
       fork("merged", { onTarget: true }),
       fork("review"),
       fork("checking", { validation: { ...base.validation, text: "running", tone: "run" } }),
+      fork("older-pr", {
+        carries: false,
+        validation: { ...base.validation, text: "syncing", tone: "run" },
+      }),
       dispatch,
       notStarted,
       fork("unread", { unread: true }),
@@ -568,6 +573,7 @@ describe("Today's situation lines", () => {
       ["merged", "merged"],
       ["review", "to-review"],
       ["checking", "checking"],
+      ["older-pr", "to-review"],
       ["dispatch", "to-dispatch"],
       ["not-started", "not-started"],
       ["unread", "to-review"],
@@ -577,7 +583,7 @@ describe("Today's situation lines", () => {
     const tally = rolloutTally(states);
     expect(tally).toEqual([
       { state: "merged", forks: ["merged"] },
-      { state: "to-review", forks: ["review", "unread", "checks-unread"] },
+      { state: "to-review", forks: ["review", "older-pr", "unread", "checks-unread"] },
       { state: "checking", forks: ["checking"] },
       { state: "to-dispatch", forks: ["dispatch"] },
       { state: "not-started", forks: ["not-started"] },
@@ -607,6 +613,7 @@ describe("Today's situation lines", () => {
     checking.onTarget = false;
     checking.unread = false;
     checking.pr = { number: 2, url: "https://github.com/example/checking/pull/2", headSha: "b" };
+    checking.carries = true;
     checking.validation = { ...checking.validation, text: "running", tone: "run" };
     dispatch.onTarget = false;
     dispatch.unread = false;
@@ -631,6 +638,22 @@ describe("Today's situation lines", () => {
         member: expect.objectContaining({ id: `rollout:${checking.service}` }),
       }),
     ]);
+    const { environment } = buildBriefing(changed, { state: "clear", problems: [] }, now, context);
+    const none = { release: [], dependabot: [], other: [], issue: [], alert: [] };
+    const owed = (held: TodayLine[]) =>
+      todayFleet([], environment, undefined, { rows: [], notRead: none }, held, {
+        upstream: [],
+        deployments: [],
+        sources: [],
+        rollout,
+      }).doors.find(({ id }) => id === "template")?.owed;
+    expect(owed(projected)).toEqual({ dispatch: 1, review: 1 });
+    review.carries = true;
+    review.validation = { ...checking.validation };
+    rollout.dispatchNext = [];
+    const quiet = todayLines(changed, [focus], now, context);
+    expect(quiet.some((line) => line.rollout)).toBe(false);
+    expect(owed(quiet)).toEqual({ dispatch: 0, review: 0 });
   });
 
   test.each([

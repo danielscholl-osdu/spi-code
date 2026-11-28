@@ -46,6 +46,11 @@ try {
     },
     { bindings: ["import { isStoppedFork }"], source: "stopped-forks", module: "stopped-forks" },
     {
+      bindings: ["import { todayWording as plain }"],
+      source: "today-wording",
+      module: "today-wording",
+    },
+    {
       bindings: ["import type { ServiceHome }"],
       source: "watch/service-home",
       module: "service-home",

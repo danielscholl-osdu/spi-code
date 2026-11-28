@@ -20,6 +20,7 @@ import {
 } from "./panes.js";
 
 export { inRange } from "../time.js";
+export { todayWording } from "../today-wording.js";
 export { type BriefFact, BriefFactSchema, type Tone, ToneSchema } from "./panes.js";
 
 /** In the system (forks, PRs, environment, template, releases), or coming from upstream GitLab. */

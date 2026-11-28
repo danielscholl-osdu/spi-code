@@ -278,13 +278,11 @@ const link = (route: Route, open: () => void, says: string): Link => ({
   says,
 });
 
-/** The Template door from the rollout's per-fork tally: what is owed first, dispatch then review. */
-function templateValue(count: number, lines: readonly TodayLine[]): string | undefined {
-  const tally = lines.find(({ rollout }) => rollout?.tally)?.rollout?.tally;
-  if (!tally) return count ? `${count} to review` : undefined;
-  const owed = (state: string) => tally.find((stage) => stage.state === state)?.forks.length ?? 0;
-  if (owed("to-dispatch")) return `${owed("to-dispatch")} to dispatch`;
-  if (owed("to-review")) return `${owed("to-review")} to review`;
+/** The Template door from core's per-fork stages: what is owed first, dispatch then review. */
+function templateValue({ count, owed }: TodayFleet["doors"][number]): string | undefined {
+  if (!owed) return count ? `${count} to review` : undefined;
+  if (owed.dispatch) return `${owed.dispatch} to dispatch`;
+  if (owed.review) return `${owed.review} to review`;
   return count ? `${count} open` : undefined;
 }
 
@@ -334,7 +332,7 @@ export function fleetCells(
     ]);
     const value =
       figure.id === "template"
-        ? templateValue(figure.count, lines)
+        ? templateValue(figure)
         : figure.count
           ? `${figure.count} open`
           : undefined;

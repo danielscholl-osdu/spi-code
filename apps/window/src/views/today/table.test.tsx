@@ -489,26 +489,51 @@ describe("a rollout row draws its bar across the forks with the tally beneath", 
       { state: "to-dispatch", forks: ["unit", "search"] },
     ]);
     const lines = body.briefing.lines ?? [];
+    line.members = line.members.slice(0, 1).map((m) => ({ ...m, fork: "file" }));
+    line.subject = "1 fork";
     lines.push({ ...line, id: `${line.id}:template`, subject: "Template", members: [] });
     await render(body);
     expect(row(line.id).querySelector(".today-rollout-bar")).toBeNull();
+    expect(row(line.id).querySelector(".today-row-forks")?.textContent).toBe("file");
     const template = row(`${line.id}:template`);
     expect(template.querySelectorAll(".today-rollout-seg")).toHaveLength(5);
     expect(template.querySelector(".today-row-forks")?.textContent).toBe(
       "2 merged · 1 to review · 2 to dispatch: unit, search",
     );
-    expect(value("template")).toBe("2 to dispatch");
   });
 
-  it("the flow's Template cell reads to review when no dispatch is owed", async () => {
-    const { body } = rollout([
-      { state: "merged", forks: ["partition"] },
-      { state: "to-review", forks: ["legal", "file", "unit"] },
-      { state: "checking", forks: ["schema"] },
-    ]);
-    await render(body);
-    expect(value("template")).toBe("3 to review");
-  });
+  it.each([
+    [{ dispatch: 2, review: 1 }, "2 to dispatch"],
+    [{ dispatch: 0, review: 3 }, "3 to review"],
+    [{ dispatch: 0, review: 0 }, "2 open"],
+  ])(
+    "the flow's Template cell reads core's owed stages %o, with no rollout row on Yours",
+    async (owed, says) => {
+      const { body } = rollout(undefined);
+      body.briefing.lines = (body.briefing.lines ?? []).filter((l) => !l.rollout);
+      const figure = body.briefing.today?.fleet?.doors.find(({ id }) => id === "template");
+      if (!figure) throw new Error("The calm morning has a Template door");
+      Object.assign(figure, { count: 2, owed });
+      await render(body);
+      expect(value("template")).toBe(says);
+    },
+  );
+});
+
+it("an opened row on Today says one sentence, then its steps", async () => {
+  const body = nov16();
+  body.briefing.lines = structuredClone(lines);
+  const line = body.briefing.lines.find(({ id }) => id === "waiting:upgrade:os-core-common");
+  if (!line) throw new Error("16 Nov waits on an upgrade");
+  for (const said of [line, ...line.members]) {
+    said.cause = "The sync PR carries a change that needs the newer library.";
+    said.effect = "Two later syncs queue behind it.";
+  }
+  await render(body);
+  await expand(line.id);
+  const [opened1] = opened();
+  expect(opened1?.textContent).toContain("needs the newer library");
+  expect(opened1?.textContent).not.toContain("queue behind it");
 });
 
 it("keeps every row of every section and the opened body in the four shared columns", async () => {
