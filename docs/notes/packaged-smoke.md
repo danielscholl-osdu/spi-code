@@ -107,7 +107,7 @@ Today is also captured on the calm, busy and bad mornings (`snapshot-calm.json`,
 with Detail open at 1440 px. Each image holds Today's whole pane: the pane is captured
 strip by strip as it scrolls and joined, and each shot records its blocks' positions
 in the image, the decision.md sections it answers to, and, on the bad morning, the
-caveat band's text.
+not-read chip's title.
 Missing shots, images smaller than 640 x 400 or 1024 PNG bytes, or images
 with 99.5% of pixels in one 4-bit-per-channel RGB bucket fail the smoke.
 Every shot must carry the top row's sweep line (first-sweep captures carry its

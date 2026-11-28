@@ -357,7 +357,6 @@ const morningBlocks: Record<MorningSurface["morning"], MorningEvidence["blocks"]
     { name: "can-wait", top: 753, height: 140 },
   ],
   bad: [
-    { name: "caveat", top: 108, height: 35 },
     { name: "flow", top: 161, height: 180 },
     { name: "blocked", top: 393, height: 150 },
     { name: "waiting", top: 565, height: 246 },
@@ -393,9 +392,7 @@ function morningShot(
     dominantFraction: 0.6,
     qualifiers: [
       "Swept 08:02",
-      surface.morning === "bad"
-        ? "GitHub issues and PRs read failed at 08:02; items from it may be missing."
-        : "",
+      surface.morning === "bad" ? "GitHub issues and PRs read failed · opens Evidence" : "",
     ],
     geometry: geometry("strip", viewportWidth),
     morning: {
@@ -1101,7 +1098,7 @@ it("lists Today on calm, busy and bad at 1440 and 740, busy also at 1000, a row 
     }
 });
 
-it("fails the bad morning without its caveat band, and a calm or busy one with a caveat", () => {
+it("fails the bad morning without its not-read chip, and a calm or busy one with a chip", () => {
   expect(() =>
     assertSmokeViews(
       withMorning(
@@ -1109,37 +1106,28 @@ it("fails the bad morning without its caveat band, and a calm or busy one with a
         () => ({ qualifiers: ["Swept 08:02", ""] }),
       ),
     ),
-  ).toThrow("Missing caveat band qualifier: today-bad/740");
+  ).toThrow("Missing not-read chip qualifier: today-bad/740");
   expect(() =>
     assertSmokeViews(
       withMorning(
         (shot) => shot.surface === "today-bad-open",
-        () => ({ qualifiers: ["Swept 08:02", "GitLab reads failed; items may be missing."] }),
+        () => ({
+          qualifiers: ["Swept 08:02", "GitLab merge requests read failed · opens Evidence"],
+        }),
       ),
     ),
-  ).toThrow("Missing caveat band qualifier: today-bad-open/1440");
-  expect(() =>
-    assertSmokeViews(
-      withMorning(
-        (shot) => shot.surface === "today-bad" && shot.appearance === "dark",
-        (shot) => evidence(shot, { blocks: morningBlocks.busy }),
-      ),
-    ),
-  ).toThrow("Missing block caveat: today-bad/1440");
+  ).toThrow("Missing not-read chip qualifier: today-bad-open/1440");
   for (const surface of ["today-calm", "today-busy-open"])
     expect(() =>
       assertSmokeViews(
         withMorning(
           (shot) => shot.surface === surface,
           () => ({
-            qualifiers: [
-              "Swept 08:02",
-              "GitHub issues and PRs read failed at 08:02; items from it may be missing.",
-            ],
+            qualifiers: ["Swept 08:02", "GitHub issues and PRs read failed · opens Evidence"],
           }),
         ),
       ),
-    ).toThrow(`Unexpected caveat band: ${surface}/`);
+    ).toThrow(`Unexpected not-read chip: ${surface}/`);
 });
 
 it("fails a capture that stops at window height or leaves a block outside the image", () => {

@@ -193,10 +193,7 @@ it("never reflows the brief while a later sweep runs, fails or commits", async (
   await act(async () => vi.advanceTimersByTime(200));
   const html = () => {
     const today = container.querySelector(".today")?.cloneNode(true) as HTMLElement | undefined;
-    const readAgain = [...(today?.querySelectorAll(".today-caveat-actions button") ?? [])].find(
-      (button) => button.textContent?.trim() === "Read again",
-    );
-    readAgain?.removeAttribute("disabled");
+    today?.querySelector(".place-header")?.remove();
     return today?.outerHTML;
   };
   const brief = html();
@@ -362,3 +359,34 @@ it("keeps Settings on an earlier sign-in failure, not on the panel for a save fa
   await act(async () => settings[1]?.click());
   expect(onOpenSettings).toHaveBeenCalledOnce();
 });
+
+const RUNNING = midSweep();
+const STOPPED = stopped();
+
+it.each([
+  ["running", RUNNING, false, "Reading 9 of 12", "Reading the fleet.", true],
+  ["requested, with no progress yet", null, true, "Reading", "Reading the fleet.", true],
+  ["stopped", STOPPED, false, null, null, false],
+  ["not yet started", null, false, null, null, false],
+] as const)(
+  "a first read %s: the header, the line and Read again",
+  async (_, progress, requested, header, line, disabled) => {
+    const { container, store } = await mount();
+    await act(async () =>
+      store.setState({
+        progress: progress && structuredClone(progress),
+        sweepRequest: requested
+          ? { id: "r1", sweep: null, previousSweep: null, afterCursor: 0, joined: false }
+          : null,
+      }),
+    );
+    expect(one(container, ".place-header .today-read-state") ?? null).toBe(header);
+    expect(one(container, ".today-table-calm") ?? null).toBe(line);
+    expect(container.querySelector(".today-read-gap")).toBeNull();
+    expect(
+      container.querySelector<HTMLButtonElement>('.place-header button[aria-label="Read again"]')
+        ?.disabled,
+    ).toBe(disabled);
+    expect(container.querySelector(".today-first")).not.toBeNull();
+  },
+);

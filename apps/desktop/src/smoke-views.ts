@@ -69,12 +69,7 @@ const sweepSchedule = {
   releasesMs: 3_600_000,
 };
 
-const BRIEF_HTML = `(() => {
-  const today = document.querySelector(".today").cloneNode(true);
-  [...today.querySelectorAll(".today-caveat-actions button")]
-    .find(button => button.textContent.trim() === "Read again")?.removeAttribute("disabled");
-  return today.outerHTML;
-})()`;
+const BRIEF_HTML = `document.querySelector(".today").outerHTML`;
 
 /** Written by scripts/watch-snapshot.mjs beside the Nov 6 fixture: that sweep after its acknowledgement. */
 export const ACKNOWLEDGED_FIXTURE = "snapshot-1106-acknowledged.json";
@@ -1473,7 +1468,7 @@ export async function captureSmokeViews(
             proof && rejects ? await brokenRuleProbe(window, proof, rejects) : undefined;
           const qualifiers: string[] = await window.webContents.executeJavaScript(`[
             document.getElementById(document.querySelector("[data-sweep-line]")?.getAttribute("aria-labelledby") ?? "")?.textContent ?? "",
-            document.querySelector(${JSON.stringify(
+            (q => q?.title || q?.innerText?.replace(/\\s+/g, " ").trim() || "")(document.querySelector(${JSON.stringify(
               surface.id.startsWith("settings-sweep-")
                 ? "[role=dialog].settings"
                 : surface.id.startsWith("evidence-header-")
@@ -1485,8 +1480,8 @@ export async function captureSmokeViews(
                       : surface.id.startsWith("first-sweep-") &&
                           surface.id !== "first-sweep-refresh"
                         ? ".today-first"
-                        : "main :is(.place-qualifier, .today-caveat)",
-            )})?.innerText?.replace(/\\s+/g, " ").trim() ?? ""
+                        : "main :is(.place-qualifier, .today-read-gap)",
+            )}))
           ]`);
           if (seen !== undefined)
             qualifiers.push(

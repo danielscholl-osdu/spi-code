@@ -31,6 +31,7 @@ import { PendingRequests } from "../../threads/PendingRequests.js";
 import { RequestOwner } from "../../threads/RequestOwner.js";
 import { timedText } from "../../time.js";
 import { CanWait } from "./CanWait.js";
+import { YoursCalm } from "./calm.js";
 import { forksWord } from "./fleet.js";
 import { ageInOneUnit, ForkName, Section } from "./parts.js";
 import "./table.css";
@@ -251,11 +252,11 @@ export function drawnCauses(
 export function TodayTable({
   snapshot,
   station,
-  calm = "Nothing is yours to move today.",
+  calm,
 }: {
   snapshot: ViewSnapshot;
   station?: TodayMemberStation | undefined;
-  /** What an empty Yours says; null says nothing. */
+  /** What an empty Yours says; null says nothing, and leaving it out says what the read allows. */
   calm?: string | null;
 }) {
   const { briefing } = snapshot;
@@ -362,7 +363,7 @@ export function TodayTable({
 
   return (
     <div ref={table} className="today-table">
-      {shown.length === 0 && calm && <p className="today-table-calm">{calm}</p>}
+      {shown.length === 0 && <YoursCalm calm={calm} />}
       {SECTIONS.map(({ id, label }) => {
         const held = shown.filter((line) => line.section === id);
         if (held.length === 0) return null;

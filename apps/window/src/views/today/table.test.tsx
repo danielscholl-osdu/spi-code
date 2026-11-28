@@ -338,9 +338,7 @@ it("says nothing is yours on a morning with no lines, and draws no table without
   calm.briefing.lines = [];
   delete calm.briefing.today;
   await render(calm);
-  expect(container.querySelector(".today-table")?.textContent).toBe(
-    "Nothing is yours to move today.",
-  );
+  expect(container.querySelector(".today-table")?.textContent).toBe("Nothing is yours to move.");
   expect(tab("yours")?.querySelector(".today-tab-count")).toBeNull();
   await unmount();
   container.remove();
@@ -399,7 +397,7 @@ it("a calm morning says nothing is yours, then shows Can wait", async () => {
   calm.briefing.lines = [];
   await render(calm);
   expect(container.querySelector(".today-table-calm")?.textContent).toBe(
-    "Nothing is yours to move today.",
+    "Nothing is yours to move.",
   );
   expect(sections()).toEqual(["can-wait"]);
   expect(yoursRows()).toHaveLength(0);

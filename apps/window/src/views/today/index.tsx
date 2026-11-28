@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: MIT
 
 import type { SweepProgress, TodayMemberStation } from "@spi-code/contracts";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 import type { TodayTab } from "../../app/navigation.js";
-import { PaneTitle } from "../../app/title-row.js";
 import { useNow } from "../../components/evidence/useNow.js";
 import { FirstSweepBody } from "../../components/sweep/FirstSweepBody.js";
 import { openFreshness } from "../../components/sweep/reveal.js";
 import { failedCount, settled } from "../../components/sweep/words.js";
 import { openReadiness } from "../../settings/readiness.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
-import { CaveatBand } from "./CaveatBand.js";
+import { CalmContext, calmLine } from "./calm.js";
 import { TodayFrame } from "./Frame.js";
 import { TodayHome } from "./Home.js";
+import { todayRead } from "./read.js";
 import "./today.css";
 
 const HAND_OVER_MS = 150;
@@ -34,20 +34,20 @@ function stage(progress: SweepProgress | null): string {
 function FirstSweep({
   progress,
   nextSweepAt,
+  read,
   onOpenSettings,
   onRequestSweep,
 }: {
   progress: SweepProgress | null;
   nextSweepAt: string | null | undefined;
+  read: ReactNode;
   onOpenSettings: () => void;
   onRequestSweep: () => void | Promise<void>;
 }) {
   const now = useNow(progress?.outcome === "running" ? 1000 : 30_000);
   return (
     <section className="today" aria-label="Today">
-      <PaneTitle>
-        <h1 data-place>Today</h1>
-      </PaneTitle>
+      {read}
       <FirstSweepBody
         progress={progress}
         now={now}
@@ -99,52 +99,49 @@ export default function Today({
 }) {
   const snapshot = useStore(store, (state) => state.snapshot);
   const progress = useStore(store, (state) => state.progress);
-  const completed = useStore(store, (state) => state.completed);
   const nextSweepAt = useStore(store, (state) => state.sweep?.nextSweepAt);
   const requestSweep = useStore(store, (state) => state.requestSweep);
-  const sweeping = useStore(
-    store,
-    (state) => state.sweepRequest !== null || state.progress?.outcome === "running",
-  );
+  const sweepRequested = useStore(store, (state) => state.sweepRequest !== null);
   const [leaving, settle] = useHandOver(Boolean(snapshot), progress);
-  if (!snapshot) {
-    return (
-      <FirstSweep
-        progress={progress}
-        nextSweepAt={nextSweepAt}
-        onOpenSettings={onOpenSettings}
-        onRequestSweep={requestSweep}
-      />
-    );
-  }
-  const body = snapshot.body;
-  const openEvidence = onOpenEvidence ?? (() => openFreshness(body));
+  const read = todayRead(snapshot?.body ?? null, progress, sweepRequested);
+  const calm = calmLine(read);
   const readAgain = async () => {
     const state = store.getState();
     if (state.sweepRequest !== null || state.progress?.outcome === "running") return;
     return state.requestReadAgain();
   };
+  const frame = (children: ReactNode) => (
+    <TodayFrame
+      read={read}
+      sweeping={read.reading}
+      onReadAgain={() => void readAgain().catch(() => undefined)}
+      onOpenEvidence={onOpenEvidence ?? (() => openFreshness(snapshot?.body ?? null))}
+    >
+      {children}
+    </TodayFrame>
+  );
+  if (!snapshot) {
+    return (
+      <FirstSweep
+        progress={progress}
+        nextSweepAt={nextSweepAt}
+        read={frame(calm && <p className="today-table-calm today-calm-first">{calm}</p>)}
+        onOpenSettings={onOpenSettings}
+        onRequestSweep={requestSweep}
+      />
+    );
+  }
   return (
     <section
       className={leaving ? "today today-handover" : "today"}
       aria-label="Today"
       data-tab={tab ?? "yours"}
     >
-      <TodayFrame
-        sweptAt={body.sweptAt}
-        caveat={
-          <CaveatBand
-            snapshot={body}
-            completed={completed}
-            onOpenEvidence={openEvidence}
-            onOpenSettings={onOpenSettings}
-            onReadAgain={() => void readAgain().catch(() => undefined)}
-            sweeping={sweeping}
-          />
-        }
-      >
-        <TodayHome snapshot={body} tab={tab} station={station} />
-      </TodayFrame>
+      {frame(
+        <CalmContext.Provider value={calm}>
+          <TodayHome snapshot={snapshot.body} tab={tab} station={station} />
+        </CalmContext.Provider>,
+      )}
       {leaving && (
         <div className="today-leaving" aria-hidden="true" inert onAnimationEnd={settle}>
           <FirstSweepBody

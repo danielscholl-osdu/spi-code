@@ -37,11 +37,11 @@ const SCROLLER = 'document.querySelector(".today-frame").closest(".centre-body >
 
 const blocksScript = `(() => {
   const frame = document.querySelector(".today-frame");
-  return [...frame.querySelectorAll(":scope > .today-caveat, .flow-wrap, .today-table-calm, .today-section[data-section]")]
+  return [...frame.querySelectorAll(".flow-wrap, .today-table-calm, .today-section[data-section]")]
     .map(item => {
       const { y, height } = item.getBoundingClientRect();
       const name = item.dataset.section ??
-        (item.classList.contains("today-caveat") ? "caveat" : item.classList.contains("flow-wrap") ? "flow" : "calm");
+        (item.classList.contains("flow-wrap") ? "flow" : "calm");
       return { name, top: y, height };
     });
 })()`;
@@ -231,7 +231,7 @@ export async function captureMornings(
           [...document.querySelectorAll('.today .flow [aria-pressed="true"]')].map(item => item.dataset.station ?? item.dataset.door).join(" "),
           document.querySelector('[data-sidebar-row=today] .sidebar-pip')?.textContent.trim() ?? "",
           document.getElementById(document.querySelector("[data-sweep-line]")?.getAttribute("aria-labelledby") ?? "")?.textContent ?? "",
-          document.querySelector("main .today-caveat")?.innerText?.replace(/\\s+/g, " ").trim() ?? ""
+          document.querySelector("main .today-read-gap")?.title ?? ""
         ]`);
         const file = `${surface.id}-${viewportWidth}-${appearance}.png`;
         const path = join(output, file);
@@ -275,7 +275,7 @@ export async function captureMornings(
         };
         assertMorningEvidence(surface, shot);
         console.log(
-          `Packaged Today ${surface.id}/${viewportWidth}/${appearance}: page ${page.pageHeight} of window ${page.height} (pane ${Math.round(page.top)}+${page.clientHeight}), blocks ${page.blocks.map(({ name, top, height }) => `${name}@${Math.round(top)}+${Math.round(height)}`).join(" ")}${qualifiers[1] ? `; caveat "${qualifiers[1]}"` : ""}`,
+          `Packaged Today ${surface.id}/${viewportWidth}/${appearance}: page ${page.pageHeight} of window ${page.height} (pane ${Math.round(page.top)}+${page.clientHeight}), blocks ${page.blocks.map(({ name, top, height }) => `${name}@${Math.round(top)}+${Math.round(height)}`).join(" ")}${qualifiers[1] ? `; not read "${qualifiers[1]}"` : ""}`,
         );
         shots.push(shot);
       }

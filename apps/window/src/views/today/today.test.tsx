@@ -1,19 +1,13 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import {
-  type SweepProgress,
-  SweepProgressSchema,
-  SweepReasonCodeSchema,
-  type ViewSnapshot,
-  ViewSnapshotSchema,
-} from "@spi-code/contracts";
+import { type SweepProgress, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import november6 from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
-import { midSweep, sweepEvent } from "../../components/sweep/test-helper.js";
+import { midSweep, savedSweep, sweepEvent } from "../../components/sweep/test-helper.js";
 import { createSelectionStore } from "../../panels/selection.js";
 import { createWatchStore } from "../../store/watch.js";
 import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
@@ -61,8 +55,6 @@ afterEach(async () => {
   for (const cleanup of cleanups.splice(0)) await cleanup();
 });
 
-const texts = (container: Element, selector: string) =>
-  [...container.querySelectorAll(selector)].map((element) => element.textContent);
 const clock = (at: string) => clockTime(at, { hint: false });
 
 describe.each(NAMES)("on the %s morning", (name) => {
@@ -79,9 +71,7 @@ describe.each(NAMES)("on the %s morning", (name) => {
     const unread =
       fleet && [...fleet.stations, ...fleet.doors].some(({ notRead }) => notRead.length);
     expect(
-      [...(frame?.children ?? [])]
-        .map((child) => child.className || child.getAttribute("role"))
-        .filter((name) => name !== "today-caveat"),
+      [...(frame?.children ?? [])].map((child) => child.className || child.getAttribute("role")),
     ).toEqual([
       ...(fleet ? ["flow-wrap"] : []),
       ...(unread ? ["today-not-read"] : []),
@@ -96,66 +86,106 @@ describe.each(NAMES)("on the %s morning", (name) => {
   });
 });
 
-describe("the caveat band", () => {
+const header = (container: Element) =>
+  container.querySelector(".place-header .today-read-state")?.textContent ?? "";
+const calmLine = (container: Element) =>
+  container.querySelector(".today-table-calm")?.textContent ?? null;
+const chip = (container: Element) => container.querySelector<HTMLButtonElement>(".today-read-gap");
+const readAgain = (container: Element) =>
+  container.querySelector<HTMLButtonElement>('.place-header button[aria-label="Read again"]');
+const forkCount = (body: ViewSnapshot) => {
+  const fleet = body.briefing.today?.fleet;
+  if (!fleet) throw new Error("no fleet");
+  return fleet.forks.yours.length + fleet.forks.rest.forks.length;
+};
+const REQUEST = {
+  id: "r1",
+  sweep: null,
+  previousSweep: null,
+  afterCursor: 0,
+  joined: false,
+} as const;
+
+describe("the header and the empty line", () => {
   it.each([
-    ["calm", []],
-    ["busy", []],
-    ["snapshot-1106", ["radar"]],
-    ["bad", ["github"]],
-  ] as const)(
-    "on %s shows exactly the areas that failed or were cut this sweep",
-    async (name, areas) => {
+    [
+      "read complete",
+      "busy",
+      null,
+      false,
+      (at: string, forks: number) => [`Read ${at} · ${forks} forks`, "Nothing is yours to move."],
+    ],
+    [
+      "reading again",
+      "busy",
+      midSweep({ first: false }),
+      false,
+      (at: string) => [`Read ${at} · reading 9 of 12`, `At ${at}, nothing was yours to move.`],
+    ],
+    [
+      "partly read",
+      "bad",
+      null,
+      false,
+      (at: string) => [`Read ${at}`, "Nothing is yours in what was read."],
+    ],
+    [
+      "partly read while reading",
+      "bad",
+      midSweep({ first: false }),
+      false,
+      (at: string) => [`Read ${at} · reading 9 of 12`, `At ${at}, nothing was yours to move.`],
+    ],
+    [
+      "a re-read with no progress yet",
+      "busy",
+      savedSweep(),
+      true,
+      (at: string) => [`Read ${at} · reading`, `At ${at}, nothing was yours to move.`],
+    ],
+  ] as const)("%s", async (_, name, progress, requested, expected) => {
+    const body = morning(name);
+    body.briefing.lines = [];
+    const { container, store } = await mount(body);
+    await act(async () => store.setState({ progress, sweepRequest: requested ? REQUEST : null }));
+    expect([header(container), calmLine(container)]).toEqual(
+      expected(clock(body.sweptAt), forkCount(body)),
+    );
+    expect(chip(container) !== null).toBe(name === "bad");
+  });
+
+  it("leaves the fork count out with no fleet, and never says a count it cannot read", async () => {
+    const body = morning("busy");
+    delete body.briefing.today;
+    const { container } = await mount(body);
+    expect(header(container)).toBe(`Read ${clock(body.sweptAt)}`);
+    expect(container.querySelector(".place-header")?.textContent).not.toMatch(/\d+ forks?\b/);
+  });
+
+  it.each(NAMES)(
+    "on the %s morning the chip shows exactly when an area failed or was cut",
+    async (name) => {
       const body = morning(name);
       const { container } = await mount(body);
-      const band = container.querySelector(".today-caveat");
-      if (areas.length === 0) {
-        expect(band).toBeNull();
+      const gaps = body.areas.filter(({ envelope }) =>
+        ["failed", "incomplete"].includes(envelope.state),
+      );
+      if (gaps.length === 0) {
+        expect(chip(container)).toBeNull();
+        expect(container.querySelector(".place-header")?.textContent).not.toMatch(
+          /not read|read failed|in part|⌀/,
+        );
         return;
       }
-      expect(band?.getAttribute("role")).toBe("note");
-      expect([...(band?.querySelectorAll("li") ?? [])].map((li) => li.dataset.area)).toEqual(areas);
-      expect(texts(container, ".today-caveat button")).not.toContain("Evidence ›");
+      expect(chip(container)?.textContent).toBe(`⌀ ${gaps.length} ›`);
     },
   );
 
-  it("names the area, the sweep's time and what may be missing, and opens Evidence", async () => {
+  it("names each failed or partly read area in the chip's title and opens Evidence", async () => {
     const body = morning("bad");
-    const { container, onOpenEvidence } = await mount(body);
-    expect(container.querySelector(".today-caveat li")?.textContent).toBe(
-      `GitHub issues and PRs read failed at ${clock(body.sweptAt)}; items from it may be missing.`,
-    );
-    expect(container.querySelector(".today-caveat li time")?.getAttribute("dateTime")).toBe(
-      body.sweptAt,
-    );
-    const link = container.querySelector<HTMLButtonElement>(".today-caveat li button");
-    expect(link?.textContent).toBe("GitHub issues and PRs");
-    expect(link?.getAttribute("aria-label")).toBe("GitHub issues and PRs: open Evidence");
-    await act(async () => link?.click());
-    expect(onOpenEvidence).toHaveBeenCalledOnce();
-  });
-
-  it("links each affected area's line to Evidence on its own", async () => {
-    const body = morning("bad");
-    const radar = body.areas.find(({ area }) => area === "radar");
-    if (!radar) throw new Error("bad carries no radar area");
-    radar.envelope = {
-      source: "radar",
-      state: "incomplete",
-      observedAt: body.sweptAt,
-      completeness: { kind: "cut", read: 6, total: 13, reason: "budget" },
-    };
-    const { container, onOpenEvidence } = await mount(body);
-    const links = [...container.querySelectorAll<HTMLButtonElement>(".today-caveat li button")];
-    expect(links.map((link) => link.closest("li")?.dataset.area)).toEqual(["github", "radar"]);
-    for (const link of links) await act(async () => link.click());
-    expect(onOpenEvidence).toHaveBeenCalledTimes(2);
-  });
-
-  it("says a cut read was read only in part, and leaves an area that was only not read this sweep out", async () => {
-    const body = morning("busy");
     const radar = body.areas.find(({ area }) => area === "radar");
     const security = body.areas.find(({ area }) => area === "security");
-    if (!radar || !security) throw new Error("busy carries no radar or security area");
+    if (!radar || !security) throw new Error("bad carries no radar or security area");
     radar.envelope = {
       source: "radar",
       state: "incomplete",
@@ -163,64 +193,23 @@ describe("the caveat band", () => {
       completeness: { kind: "cut", read: 6, total: 13, reason: "budget" },
     };
     security.envelope = { source: "security", state: "unread" };
-    const { container } = await mount(body);
-    expect(texts(container, ".today-caveat li")).toEqual([
-      `Upstream radar was read only in part at ${clock(body.sweptAt)}; items from it may be missing.`,
-    ]);
-    radar.envelope = {
-      source: "radar",
-      state: "fresh",
-      observedAt: body.sweptAt,
-      completeness: { kind: "complete" },
-    };
-    const unreadOnly = await mount(body);
-    expect(unreadOnly.container.querySelector(".today-caveat")).toBeNull();
+    const { container, onOpenEvidence } = await mount(body);
+    const gap = chip(container);
+    expect(gap?.textContent).toBe("⌀ 2 ›");
+    expect(gap?.title).toBe(
+      "GitHub issues and PRs read failed, Upstream radar read only in part · opens Evidence",
+    );
+    expect(gap?.getAttribute("aria-label")).toBe(
+      "GitHub issues and PRs read failed, Upstream radar read only in part, open Evidence",
+    );
+    await act(async () => gap?.click());
+    expect(onOpenEvidence).toHaveBeenCalledOnce();
   });
-
-  it.each(SweepReasonCodeSchema.options)(
-    "offers Open Settings only for a Readiness-fixable code: %s",
-    async (code) => {
-      const body = morning("bad");
-      const completed = SweepProgressSchema.parse({
-        sweep: "sweep-9",
-        first: false,
-        outcome: "committed",
-        startedAt: "2026-11-06T14:00:00Z",
-        usualMs: 120_000,
-        nextAttemptAt: null,
-        sources: [
-          {
-            source: "github",
-            state: "failed",
-            startedAt: "2026-11-06T14:00:10Z",
-            endedAt: "2026-11-06T14:00:20Z",
-            code,
-            reason: "GitHub could not be read.",
-          },
-        ],
-      });
-      const { container, onOpenSettings } = await mount(body, completed);
-      const actions = texts(container, ".today-caveat-actions button");
-      expect(actions).toEqual(
-        code === "signin" ? ["Read again", "Open Settings ›"] : ["Read again"],
-      );
-      if (code !== "signin") return;
-      await act(async () =>
-        container.querySelectorAll<HTMLButtonElement>(".today-caveat-actions button")[1]?.click(),
-      );
-      expect(onOpenSettings).toHaveBeenCalledOnce();
-    },
-  );
 });
 
-describe("Read again on the caveat band", () => {
-  const readAgain = (container: Element) =>
-    [...container.querySelectorAll<HTMLButtonElement>(".today-caveat-actions button")].find(
-      ({ textContent }) => textContent === "Read again",
-    );
-
+describe("Read again in the header", () => {
   it("sends one sweep request without now, and sends nothing more while it is pending", async () => {
-    const { container, send } = await mount(morning("bad"));
+    const { container, send } = await mount(morning("busy"));
     await act(async () => readAgain(container)?.click());
     expect(send).toHaveBeenCalledOnce();
     expect(send.mock.calls[0]?.[0]).toMatchObject({ type: "sweep.request", payload: {} });

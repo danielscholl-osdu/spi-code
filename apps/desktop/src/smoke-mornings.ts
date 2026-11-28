@@ -57,7 +57,6 @@ export function assertDrawnMembers(drawn: unknown, members: unknown, label: stri
 
 /** Today's blocks top to bottom, as the frame draws them; each capture names the ones it holds. */
 export const TODAY_BLOCKS = [
-  "caveat",
   "flow",
   "calm",
   "blocked",
@@ -80,11 +79,11 @@ const ACTIVITY = ["moving", "history"] as const;
 const required: Readonly<Record<Morning, readonly TodayBlock[]>> = {
   calm: ["flow", "waiting"],
   busy: ["flow", "blocked", "waiting", "can-wait"],
-  bad: ["caveat", "flow", "blocked", "waiting", "can-wait"],
+  bad: ["flow", "blocked", "waiting", "can-wait"],
 };
 const absent: Readonly<Record<Morning, readonly TodayBlock[]>> = {
-  calm: ["caveat", "calm", "blocked", "can-wait", ...ACTIVITY],
-  busy: ["caveat", "calm", ...ACTIVITY],
+  calm: ["calm", "blocked", "can-wait", ...ACTIVITY],
+  busy: ["calm", ...ACTIVITY],
   bad: ["calm", ...ACTIVITY],
 };
 const viewBlocks: Readonly<
@@ -245,12 +244,10 @@ export function assertMorningEvidence(
   assert(/swept/i.test(qualifiers[0] ?? ""), `Missing sweep qualifier: ${label}`);
   if (surface.morning === "bad")
     assert(
-      /^GitHub\b.* read failed at \d\d:\d\d; items from it may be missing\./.test(
-        qualifiers[1] ?? "",
-      ),
-      `Missing caveat band qualifier: ${label} (${qualifiers[1]})`,
+      /^GitHub\b.* read failed · opens Evidence$/.test(qualifiers[1] ?? ""),
+      `Missing not-read chip qualifier: ${label} (${qualifiers[1]})`,
     );
-  else assert.equal(qualifiers[1], "", `Unexpected caveat band: ${label}`);
+  else assert.equal(qualifiers[1], "", `Unexpected not-read chip: ${label}`);
   const { viewportHeight, scrollHeight, clientHeight, pageHeight, blocks } = evidence;
   for (const value of [viewportHeight, scrollHeight, clientHeight, pageHeight])
     assert(typeof value === "number" && value > 0, `Missing page height: ${label}`);
