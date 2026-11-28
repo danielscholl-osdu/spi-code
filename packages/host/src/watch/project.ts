@@ -57,7 +57,7 @@ export interface WatchInput {
 /** Builds data only. The router owns posting this validated value. */
 export function projectWatch(input: WatchInput): ViewSnapshot {
   const now = input.context.clock.now();
-  const model = buildModel(input.facts, now, {}, input.context);
+  const model = buildModel(input.facts, now, { reads: input.reads }, input.context);
   const { briefing, horizon } = projectBriefing(model, input, now);
   const { pane: releases, documents } = projectReleases(
     input.releases,

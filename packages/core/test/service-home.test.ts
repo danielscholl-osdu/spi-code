@@ -105,9 +105,9 @@ function project(
   reads: Parameters<typeof serviceHome>[0]["reads"] = {},
   dismissed: readonly DismissEntry[] = [],
 ) {
-  const model = buildModel(facts, now, { dismissed }, context);
+  const model = buildModel(facts, now, { dismissed, reads }, context);
   const items = sweep1116Items(model);
-  const lines = todayLines(model, items, now, context);
+  const lines = todayLines(model, items, now, context, { facts, reads });
   const { canWait, causes } = todaySummary({
     model,
     facts,
@@ -1252,6 +1252,88 @@ describe("a red Main", () => {
     expect(project(facts, now).home.overview[0]).toMatchObject({
       failure: { verdict: "Not read" },
       next: "Cause not read yet. Open the run attempt, or ask Copilot to diagnose.",
+    });
+  });
+
+  test("keeps a rerun in Yours only when that fork's runs read failed", () => {
+    const { facts, runs, head, jobs } = redMain();
+    const rerun = { ...head, status: "in_progress", conclusion: undefined, attempt: 2 };
+    runs.main = [rerun, ...runs.main.slice(1)];
+    runs.mainRunJobs = { [`${head.id}#1`]: jobs };
+    const legalRepo = "Azure/osdu-spi-legal";
+    const legal = facts.runs.data?.[legalRepo];
+    if (!legal) throw new Error("Legal runs missing");
+    legal.main = [
+      {
+        ...rerun,
+        url: `https://github.com/${legalRepo}/actions/runs/${rerun.id}`,
+      },
+      ...legal.main.slice(1),
+    ];
+    legal.mainRunJobs = {
+      [`${head.id}#1`]: structuredClone(jobs).map((job) => ({
+        ...job,
+        url: job.url.replace(repo, legalRepo),
+      })),
+    };
+    const reads = {
+      runs: [
+        {
+          source: repo,
+          object: "fork-runs",
+          observedAt: sweep.toISOString(),
+          completeness: { kind: "complete" as const },
+          failure: "runs unavailable",
+        },
+      ],
+    };
+    const fresh = project(facts, now);
+    const retained = project(facts, now, [], reads);
+    expect(members(retained)).toContain("main:search");
+    expect(
+      retained.lines
+        .flatMap(({ members }) => members)
+        .some(({ id, fork }) => id === "main:legal" && fork === "legal"),
+    ).toBe(false);
+    expect(retained.home.mark).toMatchObject({
+      kind: "count",
+      count: yours(retained).length,
+    });
+    expect(todayCounts({ lines: retained.lines }).total).toBe(
+      todayCounts({ lines: fresh.lines }).total + 1,
+    );
+    const row = retained.home.overview.find(({ id }) => id === "main:search");
+    expect(row).not.toHaveProperty("rerunning");
+    expect(row?.next).not.toMatch(/re-run in flight/i);
+    expect(row?.steps.join(" ")).not.toMatch(/re-run in flight/i);
+    expect(
+      retained.homes.get("legal")?.overview.find(({ id }) => id === "main:legal"),
+    ).toMatchObject({ rerunning: true });
+    expect(facts.runs.error).toBeUndefined();
+  });
+
+  test("moves a fresh rerun despite an unrelated failed commit read for the fork", () => {
+    const { facts, runs, head, jobs } = redMain();
+    runs.main = [
+      { ...head, status: "in_progress", conclusion: undefined, attempt: 2 },
+      ...runs.main.slice(1),
+    ];
+    runs.mainRunJobs = { [`${head.id}#1`]: jobs };
+    const result = project(facts, now, [], {
+      runs: [
+        {
+          source: repo,
+          object: `repos/${repo}/commits/fork_integration`,
+          observedAt: sweep.toISOString(),
+          completeness: { kind: "complete" as const },
+          failure: "commit unavailable",
+        },
+      ],
+    });
+    expect(members(result)).not.toContain("main:search");
+    expect(result.home.overview.find(({ id }) => id === "main:search")).toMatchObject({
+      rerunning: true,
+      next: "Re-run in flight (attempt 2). If it fails again, diagnose the failed jobs.",
     });
   });
 

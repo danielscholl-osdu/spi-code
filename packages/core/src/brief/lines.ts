@@ -11,6 +11,7 @@ import { itemEvidence, type ItemEvidence } from "../inspect/item-evidence.js";
 import { prVerdict } from "../model/checks.js";
 import type { Model } from "../model/index.js";
 import type { ItemKind, QueueItem } from "../model/queue.js";
+import { inFlightReadFresh } from "../model/read-freshness.js";
 import type { SweepReads } from "../sweep/index.js";
 import { age, plural, short } from "../util.js";
 import type { FocusItem, Link } from "./index.js";
@@ -441,14 +442,9 @@ function memberInFlight(
   pulls?: PullReads,
 ): boolean {
   const line = model.lines.find(({ fork }) => fork.id === member.fork);
-  const failed = (area: "runs" | "github", repo: string | undefined) =>
-    pulls?.reads?.[area]?.some(({ source, object, failure }) =>
-      failure !== undefined && (source === repo || object === repo),
-    ) ?? false;
-  const runsFresh = pulls?.facts.runs.error === undefined &&
-    !failed("runs", line?.fork.repo);
-  const checksFresh = pulls?.facts.github.error === undefined &&
-    !failed("github", line?.fork.repo);
+  const facts = pulls?.facts ?? { runs: {}, github: {} };
+  const runsFresh = inFlightReadFresh("runs", line?.fork.repo, facts, pulls?.reads);
+  const checksFresh = inFlightReadFresh("github", line?.fork.repo, facts, pulls?.reads);
   if (member.id.startsWith("rollout:")) {
     if (!model.rollout || !checksFresh) return false;
     return checking.has(member.id.slice("rollout:".length));

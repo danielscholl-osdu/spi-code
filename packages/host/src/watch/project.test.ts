@@ -221,6 +221,65 @@ describe("Watch projection", () => {
     expect(snapshot.stations.every((row) => row.stations.every((s) => !!s.inspect))).toBe(true);
   });
 
+  it("keeps a fork's rerun in Yours without rerunning wording when its runs read failed", () => {
+    const input = fixtureInput();
+    const fork = input.context.fleet.forks[0];
+    const lanes = fork && input.facts.runs.data?.[fork.repo];
+    const head = lanes?.main[0];
+    const jobs = lanes && Object.values(lanes.mainRunJobs ?? {})[0];
+    if (!fork || !lanes || !head || !jobs) throw new Error("Fixture must have a Main run");
+    const deploy = jobs.find(({ name }) => name === "Deploy and Test");
+    const summary = jobs.find(({ name }) => name === "Validation Summary");
+    if (!deploy || !summary) throw new Error("Fixture must have Main validation jobs");
+    Object.assign(deploy, {
+      conclusion: "failure",
+      failedStep: "Prove",
+      environment: ["environment timeout"],
+    });
+    summary.conclusion = "failure";
+    const { conclusion: _conclusion, ...rerun } = head;
+    lanes.main = [{ ...rerun, status: "in_progress", attempt: 2 }, ...lanes.main.slice(1)];
+    lanes.mainRunJobs = { [`${head.id}#1`]: jobs };
+
+    const fresh = projectWatch(input);
+    expect(
+      (fresh.briefing.lines ?? [])
+        .flatMap(({ members }) => members)
+        .some(({ id }) => id === `main:${fork.id}`),
+    ).toBe(false);
+    expect(
+      (fresh.services ?? [])
+        .find(({ service }) => service === fork.id)
+        ?.home?.overview.find(({ id }) => id === `main:${fork.id}`),
+    ).toMatchObject({ rerunning: true });
+
+    input.reads.runs = [
+      ...(input.reads.runs ?? []),
+      {
+        source: fork.repo,
+        object: "fork-runs",
+        observedAt: input.context.clock.now().toISOString(),
+        completeness: { kind: "complete" },
+        failure: "runs unavailable",
+      },
+    ];
+    const retained = projectWatch(input);
+    expect(
+      (retained.briefing.lines ?? [])
+        .flatMap(({ members }) => members)
+        .some(({ id }) => id === `main:${fork.id}`),
+    ).toBe(true);
+    const home = (retained.services ?? []).find(({ service }) => service === fork.id)?.home;
+    const row = home?.overview.find(({ id }) => id === `main:${fork.id}`);
+    expect(row).not.toHaveProperty("rerunning");
+    expect(row?.next).not.toMatch(/re-run in flight/i);
+    expect(row?.steps.join(" ")).not.toMatch(/re-run in flight/i);
+    expect(home?.stations.find(({ id }) => id === "main")).toMatchObject({
+      state: "unread",
+      word: "Not read",
+    });
+  });
+
   it.each([
     ["recorded", fixtureInput],
     ["mixed", mixedFixtureInput],

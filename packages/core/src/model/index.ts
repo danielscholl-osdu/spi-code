@@ -14,6 +14,7 @@ import { type LaneLoad, laneLoad } from "./lanes.js";
 import { buildLine, type LineModel, upstreamStation } from "./lines.js";
 import { withoutNoise } from "./noise.js";
 import { buildQueue, type Queue } from "./queue.js";
+import { inFlightReadFresh } from "./read-freshness.js";
 import { buildRadar, predictAll, type RadarModel } from "./radar.js";
 import { buildRepos, type ReposModel } from "./repos.js";
 import { buildRollout, type RolloutModel } from "./rollout.js";
@@ -23,6 +24,7 @@ import { buildTemplate, type TemplateModel } from "./template.js";
 import { buildUpstream, type UpstreamModel } from "./upstream.js";
 import { verifiedForks } from "./verified.js";
 import { buildWork, type WorkModel } from "./work.js";
+import type { SweepReads } from "../sweep/index.js";
 
 export interface ForkDeployments {
   fork: string;
@@ -68,6 +70,7 @@ export function buildModel(
     dispatched?: Record<string, string>;
     pressed?: Record<string, string>;
     dismissed?: readonly DismissEntry[];
+    reads?: SweepReads;
   } = {},
   context: CoreContext,
 ): Model {
@@ -92,7 +95,7 @@ export function buildModel(
       fork,
       repo: repos[fork.repo],
       runs: facts.runs.data?.[fork.repo],
-      runsFresh: facts.runs.error === undefined,
+      runsFresh: inFlightReadFresh("runs", fork.repo, facts, opts.reads),
       upstream: facts.upstream.data?.[fork.id],
       compares: facts.template.data?.compares ?? {},
       targets: facts.template.data?.targets ?? {},

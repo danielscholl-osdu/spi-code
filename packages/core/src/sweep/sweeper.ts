@@ -229,7 +229,7 @@ export class Sweeper<C> {
     this.clock = opts.clock ?? opts.ctx.clock;
     this.schema = sweepStateSchema(opts.factsSchema, opts.cacheSchema);
     this.cache = opts.cacheSchema.parse(opts.emptyCache());
-    this.model = buildModel(this.facts, this.clock.now(), {}, opts.ctx);
+    this.model = buildModel(this.facts, this.clock.now(), { reads: this.reads }, opts.ctx);
   }
 
   get sweeping(): boolean {
@@ -482,7 +482,7 @@ export class Sweeper<C> {
   }
 
   rebuild(): void {
-    this.model = buildModel(this.facts, this.clock.now(), {}, this.context());
+    this.model = buildModel(this.facts, this.clock.now(), { reads: this.reads }, this.context());
   }
 
   private context(): CoreContext {
