@@ -690,7 +690,7 @@ describe("Today's situation lines", () => {
     expect(todayLineFailing(model, { ...pending.line, members: [pending.member] })).toBe(false);
   });
 
-  test("orders deadlines, failing, oldest and undated lines independent of input order", () => {
+  test("orders deadlines, failing, oldest and undated lines independent of input order, an unparsable deadline as none", () => {
     const row = (
       id: string,
       member: TodayLine["members"][number],
@@ -724,6 +724,7 @@ describe("Today's situation lines", () => {
       row("old", member("old", "2026-11-01T00:00:00.000Z")),
       row("failed", { ...member("gate2:legal", "2026-11-15T00:00:00.000Z"), fork: "legal" }),
       row("soon", member("soon"), { deadline: deadline("2026-11-18T00:00:00.000Z") }),
+      row("unparsable", member("unparsable"), { deadline: deadline("not a time") }),
     ];
     const ids = (rows: TodayLine[]) => rows.map(({ id }) => id);
     expect(ids(orderTodayLines(model, input))).toEqual([
@@ -733,6 +734,7 @@ describe("Today's situation lines", () => {
       "old",
       "new",
       "undated",
+      "unparsable",
     ]);
     expect(ids(orderTodayLines(model, [...input].reverse()))).toEqual(
       ids(orderTodayLines(model, input)),

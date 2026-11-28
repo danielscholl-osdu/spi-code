@@ -17,7 +17,8 @@ import {
   repositoryToday,
   sinceOf,
   type todayFleet,
-  todayLines,
+  type todayLines,
+  todayProjection,
   todaySummary,
   type VerdictInput,
 } from "@spi-code/core";
@@ -68,7 +69,7 @@ export function projectBriefing(
       ...failedServices(radarReads, input.context.fleet),
     ],
   });
-  const lines = todayLines(model, [...focus, ...rest], now, input.context, input);
+  const { lines, flights } = todayProjection(model, [...focus, ...rest], now, input.context, input);
   const since = sinceOf(
     model,
     input.facts,
@@ -87,6 +88,7 @@ export function projectBriefing(
       reads: input.reads,
       items: [...focus, ...rest],
       lines,
+      flights,
       since,
       now,
       context: input.context,

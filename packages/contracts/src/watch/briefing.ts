@@ -617,7 +617,7 @@ export interface TodayCounts {
   waiting: number;
 }
 
-/** The one Today count: fork rows count their members; one operation counts once. */
+/** The one Today count, in line order: fork rows count their unseen members; one operation counts once. */
 export function todayCounts(briefing: { lines?: readonly TodayLine[] | undefined }): TodayCounts {
   const counts: TodayCounts = { total: 0, blocked: 0, waiting: 0 };
   const seen = new Set<string>();
@@ -627,11 +627,12 @@ export function todayCounts(briefing: { lines?: readonly TodayLine[] | undefined
     counts[section] += count;
     counts.total += count;
   };
-  for (const line of lines.filter(operation)) {
-    for (const member of line.members) seen.add(member.id);
-    add(line.section, 1);
-  }
-  for (const line of lines.filter((line) => !operation(line))) {
+  for (const line of lines) {
+    if (operation(line)) {
+      for (const member of line.members) seen.add(member.id);
+      add(line.section, 1);
+      continue;
+    }
     const count = line.members.filter((member) => {
       if (seen.has(member.id)) return false;
       seen.add(member.id);

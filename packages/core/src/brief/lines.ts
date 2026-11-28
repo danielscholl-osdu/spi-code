@@ -421,13 +421,8 @@ function rolloutMembers(
   lines.splice(lines.indexOf(line), 1);
 }
 
-function memberInFlight(model: Model, member: TodayMember): boolean {
-  if (member.id.startsWith("rollout:")) {
-    if (!model.rollout) return false;
-    const service = member.id.slice("rollout:".length);
-    return classifyRolloutForks(model.rollout)
-      .some(({ fork, state }) => fork.service === service && state === "checking");
-  }
+function memberInFlight(model: Model, member: TodayMember, checking: ReadonlySet<string>): boolean {
+  if (member.id.startsWith("rollout:")) return checking.has(member.id.slice("rollout:".length));
   const queued = model.queue.items.find((item) => item.id === member.id);
   if (queued?.rerun?.state === "in-flight") return true;
   const line = model.lines.find(({ fork }) => fork.id === member.fork);
@@ -490,10 +485,12 @@ export function orderTodayLines(model: Model, lines: readonly TodayLine[]): Toda
   return [...lines].sort((a, b) => {
     const section = Number(a.section === "waiting") - Number(b.section === "waiting");
     if (section) return section;
-    if (a.deadline || b.deadline) {
-      if (!a.deadline) return 1;
-      if (!b.deadline) return -1;
-      return Date.parse(a.deadline.at) - Date.parse(b.deadline.at) || a.id.localeCompare(b.id);
+    const aAt = a.deadline ? Date.parse(a.deadline.at) : NaN;
+    const bAt = b.deadline ? Date.parse(b.deadline.at) : NaN;
+    if (Number.isFinite(aAt) || Number.isFinite(bAt)) {
+      if (!Number.isFinite(aAt)) return 1;
+      if (!Number.isFinite(bAt)) return -1;
+      return aAt - bAt || a.id.localeCompare(b.id);
     }
     const failed = Number(todayLineFailing(model, b)) - Number(todayLineFailing(model, a));
     if (failed) return failed;
@@ -506,7 +503,7 @@ export function orderTodayLines(model: Model, lines: readonly TodayLine[]): Toda
 }
 
 /** Today's operator-owned objects, grouped by shared situation, with no change to the rib briefing. */
-function projectTodayLines(
+export function todayProjection(
   model: Model,
   items: readonly Item[],
   now: Date | undefined,
@@ -578,11 +575,16 @@ function projectTodayLines(
     };
   });
   rolloutMembers(model, items, lines, now, pulls);
+  const checking = new Set(
+    (model.rollout ? classifyRolloutForks(model.rollout) : [])
+      .flatMap(({ fork, state }) => (state === "checking" ? [fork.service] : [])),
+  );
+  const inFlight = (member: TodayMember) => memberInFlight(model, member, checking);
   const flights = lines.flatMap((line) =>
-    line.members.filter((member) => memberInFlight(model, member)).map((member) => ({ line, member })),
+    line.members.filter(inFlight).map((member) => ({ line, member })),
   );
   const active = lines.flatMap((line) => {
-    const members = line.members.filter((member) => !memberInFlight(model, member));
+    const members = line.members.filter((member) => !inFlight(member));
     if (!members.length) return [];
     if (line.subject.match(/^\d+ forks$/)) line.subject = plural(members.length, "fork");
     return [{ ...line, members }];
@@ -597,7 +599,7 @@ export function todayLines(
   context: CoreContext,
   pulls?: PullReads,
 ): TodayLine[] {
-  return projectTodayLines(model, items, now, context, pulls).lines;
+  return todayProjection(model, items, now, context, pulls).lines;
 }
 
 export function todayInFlight(
@@ -606,5 +608,5 @@ export function todayInFlight(
   now: Date | undefined,
   context: CoreContext,
 ): TodayFlight[] {
-  return projectTodayLines(model, items, now, context).flights;
+  return todayProjection(model, items, now, context).flights;
 }

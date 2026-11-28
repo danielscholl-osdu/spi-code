@@ -5,7 +5,7 @@ import { fleetLines } from "@spi-code/contracts";
 import { describe, expect, test, vi } from "vitest";
 import { todayFleet } from "../src/brief/fleet";
 import { buildBriefing } from "../src/brief/index";
-import { todayLines } from "../src/brief/lines";
+import { todayLines, todayProjection } from "../src/brief/lines";
 import { rolloutVisual } from "../src/brief/place-visuals";
 import { forkReads, serviceHome, versionBump } from "../src/brief/service-home";
 import { serviceWork } from "../src/brief/service-work";
@@ -117,7 +117,7 @@ function project(
     now,
     context,
   });
-  const homes = serviceHome({ model, facts, lines, items, canWait, versions, now, reads });
+  const homes = serviceHome({ model, facts, lines, items, canWait, versions, now, context, reads });
   const home = homes.get(service);
   if (!home) throw new Error("Search home missing");
   const briefing = buildBriefing(model, { state: "clear", problems: [] }, now, context);
@@ -253,6 +253,7 @@ test("Template follows its rollout slot, and an unread source only replaces an e
       model,
       facts: input,
       now: sweep,
+      context,
       reads: {},
       lines: [],
       items: [],
@@ -728,6 +729,7 @@ describe("Overview retains fork work while Today moves it", () => {
       canWait,
       versions: [],
       now: sweep,
+      context,
       reads: {},
     }).get(service);
     expect(
@@ -736,7 +738,7 @@ describe("Overview retains fork work while Today moves it", () => {
     expect(home?.overview.filter(({ id }) => id === `rollout:${service}`)).toHaveLength(1);
   });
 
-  test("shows a counted row only once when its run was not read", () => {
+  test("keeps a counted row whose run was not read on its service page", () => {
     const facts = sweep1116Facts();
     const model = buildModel(facts, sweep, {}, context);
     const integration = model.lines.find(({ fork }) => fork.id === "partition")?.cascadePr?.pr;
@@ -752,6 +754,27 @@ describe("Overview retains fork work while Today moves it", () => {
     expect(
       result.homes.get("partition")?.overview.filter(({ id }) => id === "gate2:partition"),
     ).toHaveLength(1);
+  });
+
+  test("shows a member given both as a line and in flight only once", () => {
+    const facts = sweep1116Facts();
+    const model = buildModel(facts, sweep, {}, context);
+    const items = sweep1116Items(model);
+    const { lines, flights } = todayProjection(model, items, sweep, context);
+    const flight = flights.find(({ member }) => member.id === "gate2:partition");
+    if (!flight) throw new Error("Partition's integration approval is in flight");
+    const home = serviceHome({
+      model,
+      facts,
+      lines: [...lines, { ...flight.line, members: [flight.member] }],
+      items,
+      canWait: [],
+      versions: [],
+      now: sweep,
+      context,
+      reads: {},
+    }).get("partition");
+    expect(home?.overview.filter(({ id }) => id === "gate2:partition")).toHaveLength(1);
   });
 });
 
@@ -1178,10 +1201,17 @@ describe("a red Main", () => {
       failure: { verdict: "Environment" },
       next: "Re-run in flight (attempt 2). If it fails again, diagnose the failed jobs.",
     });
+    expect(flying.home.overview[0]?.links.map(({ kind }) => kind)).toEqual([
+      "run",
+      "run",
+      "job",
+      "deploy",
+    ]);
     expect(flying.home.overview[0]?.links[0]).toMatchObject({
       label: "Attempt 2",
       url: `${head.url}/attempts/2`,
     });
+    expect(flying.home.overview[0]?.links[1]).toMatchObject({ url: head.url });
     expect(flying.station("main")).toMatchObject({
       state: "stopped",
       line: "Validation re-running · attempt 2",
@@ -1303,6 +1333,7 @@ describe("an Overview row's cause", () => {
       canWait,
       versions: [],
       now: sweep,
+      context,
       reads: {},
     }).get(service);
     expect(home?.overview.find(({ id }) => id === `rollout:${service}`)).toMatchObject({

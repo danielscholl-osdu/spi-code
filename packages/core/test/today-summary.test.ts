@@ -200,6 +200,7 @@ test("classifies a second release and a labeled station PR, and exposes pulls he
     canWait: projected.canWait,
     versions: [],
     now,
+    context,
     reads,
   }).get("search");
   const leaves = (kind: string) => projected.causes.rows.filter((row) => row.kind === kind);
@@ -285,7 +286,7 @@ test("program-only Can wait causes count their PRs without adding forks or door 
       { fork: "osdu-spi-stack", group: "program", count: 1, objects: [{ url: stackChore.url }] },
     ],
   });
-  const homes = serviceHome({ ...projection, canWait, reads: {}, versions: [] });
+  const homes = serviceHome({ ...projection, context, canWait, reads: {}, versions: [] });
   expect(homes.size).toBeGreaterThan(0);
   expect([...homes.values()].flatMap(({ doors }) => doors.flatMap(({ prs }) => prs))).toEqual([]);
 });

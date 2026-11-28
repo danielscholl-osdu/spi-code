@@ -86,6 +86,7 @@ export function projectServices(
     facts: input.facts,
     reads: input.reads,
     now,
+    context: input.context,
     lines: briefing.lines,
     items: [...briefing.focus, ...briefing.rest],
     canWait: briefing.today.canWait,

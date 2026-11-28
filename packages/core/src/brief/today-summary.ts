@@ -15,7 +15,7 @@ import type { SweepReads } from "../sweep/index.js";
 import { stamp } from "../util.js";
 import type { FocusItem, Tone } from "./index.js";
 import { canWaitCauses, type CauseObject } from "./can-wait-causes.js";
-import { type TodayLine, type TodayMember, todayInFlight, todaySources } from "./lines.js";
+import { type TodayFlight, type TodayLine, type TodayMember, todayInFlight, todaySources } from "./lines.js";
 import { pullsComplete, syncCompanions } from "./repo-today.js";
 import { doorsOf } from "./service-home.js";
 import type { Since } from "./since.js";
@@ -77,6 +77,8 @@ type Input = {
   now: Date;
   context: CoreContext;
   reads?: SweepReads;
+  /** The same projection's in-flight members, when the caller already has them. */
+  flights?: readonly TodayFlight[];
 };
 
 type Repository = { repo: string; name: string; group: CauseObject["group"] };
@@ -215,7 +217,8 @@ function canWait(input: Input) {
 
 function moving(input: Input): TodayMoving[] {
   const { model, facts, now, context } = input;
-  const rows: TodayMoving[] = todayInFlight(model, input.items, now, context).map(
+  const flights = input.flights ?? todayInFlight(model, input.items, now, context);
+  const rows: TodayMoving[] = flights.map(
     ({ line, member }) => ({
       id: member.id,
       label: member.fork,

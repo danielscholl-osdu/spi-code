@@ -3,7 +3,7 @@
 
 import type { ServiceHome, ServiceHomeDoor, ServiceHomeRow, ServiceHomeStation } from "@spi-code/contracts";
 import { when } from "@spi-code/contracts";
-import { defaultContext } from "../context.js";
+import type { CoreContext } from "../context.js";
 import type { AreaName, Facts, IssueFact, PastPrFact, PrFact } from "../facts.js";
 import { groupUrl } from "../inspect/repo.js";
 import { cascadeMonitor } from "../model/cascade-monitor.js";
@@ -20,7 +20,7 @@ import { plainText } from "../readings/index.js";
 import { age, plural } from "../util.js";
 import { sentenceHeadline } from "./headline.js";
 import type { FocusItem } from "./index.js";
-import { todayInFlight, type TodayLine } from "./lines.js";
+import { type TodayFlight, todayInFlight, type TodayLine } from "./lines.js";
 import { linkKind } from "./move.js";
 import { gateOf } from "./pr-gate.js";
 import { rolloutVisual } from "./place-visuals.js";
@@ -43,6 +43,7 @@ type HomeInput = {
   facts: Facts;
   reads: SweepReads;
   now: Date;
+  context: CoreContext;
   lines: readonly TodayLine[];
   items: readonly FocusItem[];
   canWait: readonly TodayPile[];
@@ -63,7 +64,7 @@ function causeBeside(headline: string, cause: string): string {
   return rest.charAt(0).toUpperCase() + rest.slice(1);
 }
 
-function overviewOf(input: HomeInput, line: LineModel): ServiceHomeRow[] {
+function overviewOf(input: HomeInput, line: LineModel, flights: readonly TodayFlight[]): ServiceHomeRow[] {
   const { model, facts, items, lines, canWait } = input;
   const svc = line.fork.id;
   const evidence = new Map(items.map((item) => [item.id, item.evidence]));
@@ -71,24 +72,24 @@ function overviewOf(input: HomeInput, line: LineModel): ServiceHomeRow[] {
   const queued = new Map(model.queue.items.map((item) => [item.id, item]));
   const rows: ServiceHomeRow[] = [];
   const owe = model.radar.services[svc]?.ports?.owed.length;
-  const flights = todayInFlight(model, items, input.now, defaultContext).map(({ line, member }) => ({
-    ...line,
-    members: [member],
-  }));
+  const flown = flights.map(({ line, member }) => ({ ...line, members: [member] }));
   const rowIds = new Set<string>();
-  for (const { section, headline, members } of [...lines, ...flights]) {
+  for (const { section, headline, members } of [...lines, ...flown]) {
     for (const member of members) {
       const shared = member.ids.includes(`port:${svc}`);
       if (!(shared ? owe : member.fork === svc)) continue;
       if (rowIds.has(member.id)) continue;
-      const links = new Map((member.primary ? [member.primary] : []).map((link) => [link.url, link]));
+      const main = queued.get(member.id);
+      // A rerun in flight lists its evidence in order, the run before the failed job.
+      const rerunning = main?.kind === "main" && main.rerun?.state === "in-flight";
+      const lead = member.primary && !rerunning ? [member.primary] : [];
+      const links = new Map(lead.map((link) => [link.url, link]));
       const extra = member.ids.filter((id) => id !== member.blockedBy).flatMap((id) => evidence.get(id) ?? []);
       for (const link of extra) if (!links.has(link.url)) links.set(link.url, { ...link, kind: link.kind ?? "other" });
       const own = member.steps.length > 0 ? member.steps.join(" ") : nextOf.get(member.id);
       // A member with no queue item, such as a template rollout PR, carries its move as its cause.
       const next = shared ? undefined : own ?? member.cause;
       const cause = !shared && own === undefined ? "" : causeBeside(headline, member.cause);
-      const main = queued.get(member.id);
       rowIds.add(member.id);
       rows.push({
         id: member.id, section: shared ? "shared" : section, headline,
@@ -98,28 +99,6 @@ function overviewOf(input: HomeInput, line: LineModel): ServiceHomeRow[] {
         ...(main?.kind === "main" && main.rerun ? failedRun(input, line, main.rerun, main.folded, [...links.values()]) : {}),
       });
     }
-  }
-  for (const item of model.queue.items) {
-    if (
-      item.scope !== svc ||
-      item.kind !== "main" ||
-      item.rerun?.state !== "in-flight" ||
-      rows.some(({ id }) => id === item.id)
-    ) continue;
-    const focus = items.find(({ id }) => id === item.id);
-    const links = focus?.evidence ?? [];
-    rows.push({
-      id: item.id,
-      section: "blocked",
-      headline: "Main build failed",
-      cause: focus?.cause ?? item.text,
-      effect: focus?.effect ?? "",
-      steps: [],
-      links,
-      ...(item.since ? { since: item.since } : {}),
-      ...(focus?.next ? { next: focus.next } : {}),
-      ...failedRun(input, line, item.rerun, item.folded, links),
-    });
   }
   const repo = facts.github.data?.repos[line.fork.repo];
   const repository = model.repositories.rows.find((row) => row.repo === line.fork.repo);
@@ -369,6 +348,7 @@ export function forkReads(facts: Facts, reads: SweepReads, line: LineModel) {
 export function serviceHome(input: HomeInput): Map<string, ServiceHome> {
   const { model, facts, reads, versions } = input;
   const slots = rolloutVisual(input)?.slots ?? [];
+  const flights = todayInFlight(model, input.items, input.now, input.context);
   return new Map(model.lines.flatMap((line) => {
     const { id, repo } = line.fork;
     const fork = model.upstream.forks.find((entry) => entry.service === id);
@@ -377,7 +357,7 @@ export function serviceHome(input: HomeInput): Map<string, ServiceHome> {
     const openPrTotal = github?.openPrs;
     const failed = (area: AreaName, source: string) => failedRead(reads, area, source);
     const { pulls: complete, runs: runsRead, upstream: upstreamRead } = forkReads(facts, reads, line);
-    const rows = overviewOf(input, line);
+    const rows = overviewOf(input, line, flights);
     const yours = rows.filter((row) => row.section === "blocked" || row.section === "waiting");
     const unread = !complete || !runsRead || !upstreamRead ||
       !facts.radar.data?.services[id] || !!facts.radar.error || failed("radar", repo) ||

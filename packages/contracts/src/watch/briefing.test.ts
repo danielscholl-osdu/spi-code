@@ -216,8 +216,16 @@ describe("Today count", () => {
     expect(todayCounts({ lines: [] })).toEqual({ total: 0, blocked: 0, waiting: 0 });
   });
 
-  it("counts an operation once instead of also counting its member on another line", () => {
+  it("counts in line order, so an operation's member on a later line is not counted again", () => {
     const shared = member("shared", "shared");
+    expect(
+      todayCounts({
+        lines: [
+          line("operation", "Template", [shared], "blocked"),
+          line("fork", "1 fork", [shared]),
+        ],
+      }),
+    ).toEqual({ total: 1, blocked: 1, waiting: 0 });
     expect(
       todayCounts({
         lines: [
@@ -225,7 +233,7 @@ describe("Today count", () => {
           line("operation", "Template", [shared]),
         ],
       }),
-    ).toEqual({ total: 1, blocked: 0, waiting: 1 });
+    ).toEqual({ total: 2, blocked: 1, waiting: 1 });
   });
 
   it("counts grouped and operation rows whole and under each station filter", () => {

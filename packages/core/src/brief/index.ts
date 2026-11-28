@@ -14,7 +14,7 @@ export {
 } from "./rollout.js";
 export { repositoryToday, syncCompanions, type RepoToday } from "./repo-today.js";
 
-export { todayLines, type TodayLine, type TodayMember, type TodayDeadline } from "./lines.js";
+export { todayLines, todayProjection, type TodayFlight, type TodayLine, type TodayMember, type TodayDeadline } from "./lines.js";
 
 export { ambientOf, canWaitOf } from "./ambient.js";
 
