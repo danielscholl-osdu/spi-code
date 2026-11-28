@@ -200,3 +200,5 @@ partly not read. Contrast reaches the stopped station on entitlements, the clock
 and the waiting station on partition, each with Main's green.
 
 The history keys are sent with Electron's `webContents.sendInputEvent`, which reaches the hidden smoke window's `keydown` as trusted events through Chromium's input path. It is not a keystroke from the OS: it does not pass through the macOS menu or the Windows message loop, so the smoke proves the renderer acts on the keys, not that the OS delivers them. A synthetic `dispatchEvent` proves less still. The app sets no application menu, and Electron's default menu binds none of ⌘[, ⌘], Alt+← or Alt+→.
+
+Today's flow draws its narrow rail, turn and arrows as real aria-hidden elements, not pseudo-elements, so the smoke's rail rule (`smoke-flow-rail.ts`) can measure them with getBoundingClientRect. A CSS-only arrow would be invisible to it.

@@ -96,7 +96,7 @@ function Slot({
   cell: FlowCell;
   as: "station" | "door";
   big?: boolean;
-  arrow?: boolean;
+  arrow?: "next" | "end";
 }) {
   const plain = cell.kind !== "filter";
   const style = plain ? ({ "--l": cell.label.length } as CSSProperties) : undefined;
@@ -115,7 +115,7 @@ function Slot({
         </a>
       )}
       {arrow && (
-        <span className="fleet-arrow" aria-hidden="true">
+        <span className={`fleet-arrow fleet-arrow--${arrow}`} aria-hidden="true">
           →
         </span>
       )}
@@ -136,7 +136,11 @@ function NotReadLine({ names }: { names: readonly string[] }) {
   );
 }
 
-/** Today's fleet flow: stations to Main, the doors straight into main, then Environment. */
+/**
+ * Today's fleet flow: stations to Main, the doors straight into main, then Environment. At the
+ * narrowest centre each lane ends in a → into a rail down the right edge, which turns along the
+ * bottom into one ↓ on Main.
+ */
 export function FleetFlow({ cells }: { cells: FleetCells }) {
   return (
     <div className="fleet">
@@ -145,19 +149,32 @@ export function FleetFlow({ cells }: { cells: FleetCells }) {
         <div className="fleet-lanes">
           <div className="fleet-lane fleet-lane--stations">
             {cells.stations.map((cell, at) => (
-              <Slot key={cell.id} cell={cell} as="station" arrow={at < cells.stations.length - 1} />
+              <Slot
+                key={cell.id}
+                cell={cell}
+                as="station"
+                arrow={at < cells.stations.length - 1 ? "next" : "end"}
+              />
             ))}
           </div>
           <div className="fleet-lane fleet-lane--doors">
             <span className="fleet-legend">Straight into main</span>
-            {cells.doors.map((cell) => (
-              <Slot key={cell.id} cell={cell} as="door" />
+            {cells.doors.map((cell, at) => (
+              <Slot
+                key={cell.id}
+                cell={cell}
+                as="door"
+                {...(at === cells.doors.length - 1 ? { arrow: "end" as const } : {})}
+              />
             ))}
           </div>
+          <span className="fleet-rail" aria-hidden="true" />
         </div>
         <div className="fleet-join" aria-hidden="true">
-          <span>→</span>
-          <span>→</span>
+          <span className="fleet-join-arrow">→</span>
+          <span className="fleet-join-arrow">→</span>
+          <span className="fleet-turn" />
+          <span className="fleet-drop">↓</span>
         </div>
         <Slot cell={cells.main} as="station" big />
         <span className="fleet-sep" aria-hidden="true">

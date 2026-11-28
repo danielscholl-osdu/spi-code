@@ -7,6 +7,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { fleetLines, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { type BrowserWindow, nativeImage } from "electron";
+import { type RailProbe, railFaults, railProbeScript } from "./smoke-flow-rail.js";
 import type { SmokeGeometry } from "./smoke-geometry.js";
 import {
   assertMorningEvidence,
@@ -241,6 +242,12 @@ export async function captureMornings(
           assert.ok(
             Math.abs(centre - 520) <= 1,
             `Today busy at ${viewportWidth}: centre ${centre}, not 520`,
+          );
+          const probe: RailProbe = await window.webContents.executeJavaScript(railProbeScript);
+          assert.deepEqual(
+            railFaults(probe),
+            [],
+            `Today busy at the 520 centre (${appearance}): the flow restacks onto a rail that lands on Main`,
           );
         }
         const geometry = [await context.measure("window")];
