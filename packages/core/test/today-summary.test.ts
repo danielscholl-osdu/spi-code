@@ -11,7 +11,8 @@ import { serviceHome } from "../src/brief/service-home";
 import { sinceOf } from "../src/brief/since";
 import { todayHistory, todaySummary } from "../src/brief/today-summary";
 import { STACK_REPO, TEMPLATE_REPO } from "../src/config";
-import type { PrFact, RepoAlerts } from "../src/facts";
+import type { ReadRecord } from "../src/evidence";
+import type { PrFact, RepoAlerts, RunFact } from "../src/facts";
 import { workflowEvidence } from "../src/inspect/item-evidence";
 import { groupUrl } from "../src/inspect/repo";
 import {
@@ -602,7 +603,7 @@ describe("Today's lower sections on the unchanged 16 Nov sweep", () => {
     );
   });
 
-  test("one history row per workflow with failed and not-read outcomes counted apart", () => {
+  test("one history row per workflow with failed and unknown effects counted apart", () => {
     const history = summary().history;
     expect(history.basis).toBe("fallback");
     expect(history.rows.map((r) => r.workflow)).toEqual(["sync", "template"]);
@@ -611,7 +612,7 @@ describe("Today's lower sections on the unchanged 16 Nov sweep", () => {
       "search",
       "crs-conversion",
     ]);
-    expect(history.rows[0]?.counts.find((c) => c.kind === "not-read")?.count).toBeGreaterThan(0);
+    expect(history.rows[0]?.counts.find((c) => c.kind === "unknown")?.count).toBeGreaterThan(0);
     for (const row of history.rows)
       expect(row.counts.reduce((n, c) => n + c.count, 0)).toBe(model.lines.length);
   });
@@ -641,16 +642,84 @@ describe("Today's lower sections on the unchanged 16 Nov sweep", () => {
     }
   });
 
-  test("a complete read separates nothing new from forks still due to sync", () => {
-    const complete = structuredClone(since);
-    if (!complete) throw new Error("recorded history");
-    const sync = complete.rows.find(({ workflow }) => workflow === "sync");
-    if (!sync) throw new Error("recorded sync history");
-    sync.slots = sync.slots.map((slot, index) => ({
-      ...slot,
-      state: index < 9 ? "empty" : "due",
-    }));
-    const history = todayHistory(model, facts, complete, now);
+  function maintainerHistory() {
+    const input = sweep1116Facts();
+    const projection = sweep1116Model(input);
+    const completedAt = "2026-11-17T00:10:00Z";
+    const successful = (id: number, name: string): RunFact => ({
+      id,
+      name,
+      path: `.github/workflows/${name === "Sync Upstream" ? "sync.yml" : "sync-template.yml"}`,
+      event: "schedule",
+      status: "completed",
+      conclusion: "success",
+      createdAt: "2026-11-17T00:05:00Z",
+      updatedAt: completedAt,
+      sha: `sha-${id}`,
+      title: name,
+      url: `https://example.com/run/${id}`,
+      attempt: 1,
+    });
+    const due = ["partition", "entitlements", "legal", "file"];
+    projection.queue.items = [];
+    const github: ReadRecord[] = [];
+    const upstream: ReadRecord[] = [];
+    const runs: ReadRecord[] = [];
+    for (const [index, line] of projection.lines.entries()) {
+      const repo = input.github.data?.repos[line.fork.repo];
+      const history = input.runs.data?.[line.fork.repo];
+      if (!repo || !history) throw new Error(`Missing history for ${line.fork.id}`);
+      Object.assign(repo, { prs: [], openPrs: 0 });
+      line.syncPr = undefined;
+      line.templatePr = undefined;
+      line.past = [];
+      line.upstream = {
+        ...line.upstream,
+        lag: due.includes(line.fork.id) ? 1 : 0,
+      } as typeof line.upstream;
+      history.sync = [successful(index + 1, "Sync Upstream")];
+      history.template = [successful(index + 101, "Sync Template")];
+      history.history = {
+        sync: { from: "2026-11-16T00:00:00Z", complete: true },
+        template: { from: "2026-11-16T00:00:00Z", complete: true },
+      };
+      runs.push({
+        source: line.fork.repo,
+        object: "fork-runs",
+        observedAt: now.toISOString(),
+        completeness: { kind: "complete" as const },
+      });
+      github.push({
+        source: "github",
+        object: line.fork.repo,
+        observedAt: now.toISOString(),
+        completeness: { kind: "complete" as const },
+      });
+      upstream.push({
+        source: line.fork.upstream,
+        object: "repository/branches/master",
+        observedAt: now.toISOString(),
+        completeness: { kind: "complete" as const },
+      });
+    }
+    projection.upstream.schedule = {
+      upstream: "2026-11-17T18:00:00Z",
+      opens: due,
+      updates: [],
+      halts: [],
+    };
+    const reads = { runs, github, upstream };
+    const recorded = sinceOf(projection, input, now, 300_000, undefined, reads);
+    if (!recorded) throw new Error("maintainer history");
+    return { facts: input, model: projection, reads, recorded, due };
+  }
+
+  test("a complete read separates nothing new from four forks still due to sync", () => {
+    const complete = maintainerHistory();
+    const sync = complete.recorded.rows.find(({ workflow }) => workflow === "sync");
+    expect(sync?.slots.filter(({ state }) => state === "empty")).toHaveLength(9);
+    expect(sync?.slots.filter(({ state }) => state === "due")).toHaveLength(4);
+    const history = todayHistory(complete.model, complete.facts, complete.recorded, now);
     expect(history.rows[0]?.counts).toEqual([
       expect.objectContaining({
         kind: "empty",
@@ -664,13 +733,139 @@ describe("Today's lower sections on the unchanged 16 Nov sweep", () => {
       }),
     ]);
     expect(history.rows[0]?.counts.some(({ kind }) => kind === "not-read")).toBe(false);
+    for (const service of complete.due) {
+      const evidence = workflowEvidence(
+        complete.model,
+        complete.facts,
+        service,
+        "sync",
+        complete.recorded.from,
+        now.toISOString(),
+      );
+      expect(evidence.runsRead).toBe(true);
+      expect(evidence.notRead).toEqual([]);
+    }
+    expect(history.rows[0]?.notRead).toEqual([]);
   });
 
-  test("seen history keeps its window and names outcomes that were not read", () => {
+  test.each(["sync", "template"] as const)(
+    "a completed %s run with an unprovable effect and no due run is effect unknown",
+    (workflow) => {
+      const complete = maintainerHistory();
+      const service = "partition";
+      const line = complete.model.lines.find(({ fork }) => fork.id === service);
+      if (!line) throw new Error("partition");
+      if (workflow === "template" && complete.model.rollout) {
+        complete.model.rollout.schedule.template = "2026-11-17T18:00:00Z";
+        const fork = complete.model.rollout.forks.find((entry) => entry.service === service);
+        if (fork) Object.assign(fork, { onTarget: false, carries: false, pr: undefined });
+      }
+      const due = sinceOf(complete.model, complete.facts, now, 300_000, undefined, complete.reads);
+      expect(
+        due?.rows
+          .find((row) => row.workflow === workflow)
+          ?.slots.find((entry) => entry.service === service)?.state,
+      ).toBe("due");
+      expect(
+        todayHistory(complete.model, complete.facts, due, now)
+          .rows.find((row) => row.workflow === workflow)
+          ?.counts.find(({ kind }) => kind === "due")?.label,
+      ).toBe("sync due");
+      line.upstream = { ...line.upstream, lag: 1 } as typeof line.upstream;
+      complete.model.upstream.schedule.opens = [];
+      if (workflow === "template" && complete.model.rollout) {
+        complete.model.rollout.schedule.template = "2026-11-16T00:00:00Z";
+        const fork = complete.model.rollout.forks.find((entry) => entry.service === service);
+        if (fork) Object.assign(fork, { onTarget: false, carries: false, pr: undefined });
+      }
+      const recorded = sinceOf(
+        complete.model,
+        complete.facts,
+        now,
+        300_000,
+        undefined,
+        complete.reads,
+      );
+      if (!recorded) throw new Error("completed history");
+      const slot = recorded.rows
+        .find((row) => row.workflow === workflow)
+        ?.slots.find((entry) => entry.service === service);
+      expect(slot?.state).toBe("unknown");
+      const history = todayHistory(complete.model, complete.facts, recorded, now);
+      const row = history.rows.find((entry) => entry.workflow === workflow);
+      expect(row?.counts.find(({ kind }) => kind === "unknown")?.names).toContain(service);
+      expect(row?.notRead).not.toContain(
+        `${workflow === "sync" ? "Sync Upstream" : "Sync Template"} outcome on ${service}`,
+      );
+    },
+  );
+
+  test.each(["sync", "template"] as const)(
+    "a %s run in progress wins over a run that is due",
+    (workflow) => {
+      const complete = maintainerHistory();
+      const service = "partition";
+      const line = complete.model.lines.find(({ fork }) => fork.id === service);
+      const runs = line && complete.facts.runs.data?.[line.fork.repo];
+      if (!line || !runs) throw new Error("partition runs");
+      const active = runs[workflow][0];
+      if (!active) throw new Error(`${workflow} run`);
+      runs[workflow] = [
+        { ...active, id: active.id + 1000, status: "in_progress", conclusion: undefined },
+      ];
+      if (workflow === "template" && complete.model.rollout) {
+        complete.model.rollout.schedule.template = "2026-11-17T18:00:00Z";
+        const fork = complete.model.rollout.forks.find((entry) => entry.service === service);
+        if (fork) Object.assign(fork, { onTarget: false, carries: false, pr: undefined });
+      }
+      const recorded = sinceOf(
+        complete.model,
+        complete.facts,
+        now,
+        300_000,
+        undefined,
+        complete.reads,
+      );
+      const slot = recorded?.rows
+        .find((row) => row.workflow === workflow)
+        ?.slots.find((entry) => entry.service === service);
+      expect(slot?.state).toBe("running");
+    },
+  );
+
+  test.each([
+    ["failed", { completeness: { kind: "complete" as const }, failure: "offline" }],
+    ["cut", { completeness: { kind: "cut" as const, reason: "page limit", read: 1, total: 2 } }],
+  ])("a %s runs read is not read", (_label, readResult) => {
+    const complete = maintainerHistory();
+    const service = "partition";
+    const line = complete.model.lines.find(({ fork }) => fork.id === service);
+    if (!line) throw new Error("partition");
+    complete.reads.runs = complete.reads.runs.map((read) =>
+      read.source === line.fork.repo ? { ...read, ...readResult } : read,
+    );
+    const recorded = sinceOf(
+      complete.model,
+      complete.facts,
+      now,
+      300_000,
+      undefined,
+      complete.reads,
+    );
+    const slot = recorded?.rows[0]?.slots.find((entry) => entry.service === service);
+    expect(slot?.state).toBe("not-read");
+    const history = todayHistory(complete.model, complete.facts, recorded, now);
+    expect(history.rows[0]?.counts.find(({ kind }) => kind === "not-read")?.names).toContain(
+      service,
+    );
+    expect(history.rows[0]?.notRead).toContain(`Sync Upstream runs on ${service}`);
+  });
+
+  test("seen history keeps its window and names effects that cannot be proven", () => {
     const seen = sinceOf(model, facts, now, 300_000, "2026-11-16T20:00:00Z");
     const history = todayHistory(model, facts, seen, now);
     expect(history.basis).toBe("seen");
     expect(history.from).toBe("2026-11-16T20:00:00.000Z");
-    expect(history.rows[0]?.counts.some((c) => c.kind === "not-read")).toBe(true);
+    expect(history.rows[0]?.counts.some((c) => c.kind === "unknown")).toBe(true);
   });
 });

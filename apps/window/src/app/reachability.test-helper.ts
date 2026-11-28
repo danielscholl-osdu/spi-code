@@ -1608,11 +1608,6 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
     when: (_value, { snapshot }) =>
       !["seen", "history-short"].includes(snapshot.briefing.today?.history.basis ?? ""),
   },
-  "today-history-gaps": {
-    patterns: ["/briefing/today/history/rows/#/notRead/#"],
-    reason:
-      "spicode-djg.10: a workflow's unread forks are its not read count, named on hover; Evidence lists the reads",
-  },
   "today-ready-release": {
     patterns: [
       "/releases/today/ready/#/name",

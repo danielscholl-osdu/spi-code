@@ -271,15 +271,15 @@ export function todayHistory(model: Model, facts: Facts, since: Since | undefine
     rows: ([ ["sync", "Sync Upstream", "line"], ["template", "Sync Template", "engineering"] ] as const)
       .map(([workflow, label, place]) => {
         const slots = since?.rows.find((r) => r.workflow === workflow)?.slots ?? [];
-        const evidence = model.lines.map((line) => ({ line,
-          evidence: workflowEvidence(model, facts, line.fork.id, workflow, from, to,
-            slots.some((s) => s.service === line.fork.id && s.state !== "unknown")) }));
+        const evidence = model.lines.map((line) => {
+          const slot = slots.find((s) => s.service === line.fork.id);
+          return { line, slot, evidence: workflowEvidence(
+            model, facts, line.fork.id, workflow, from, to, slot?.state !== "not-read",
+          ) };
+        });
         const state = (entry: typeof evidence[number]) => {
           if (!entry.evidence.runsRead) return "not-read";
-          const slot = slots.find((s) => s.service === entry.line.fork.id);
-          return slot?.state === "unknown" && entry.evidence.notRead.length
-            ? "not-read"
-            : slot?.state ?? "unknown";
+          return entry.slot?.state ?? "unknown";
         };
         return { workflow, label, place,
           counts: OUTCOMES.flatMap(([outcome, text, tone]) => {

@@ -285,14 +285,14 @@ describe("since pips", () => {
       });
     }
   });
-  it("keeps missing coverage unknown and names a proven missing run", () => {
+  it("keeps missing coverage not read and names a proven missing run", () => {
     const { history, read, facts, line } = setup();
     line.repoRead = true;
     line.upstream = { ...line.upstream, lag: 0 } as typeof line.upstream;
     history.sync = [];
     expect(read().rows[0]?.slots[0]?.state).toBe("no-run");
     history.history = undefined;
-    expect(read().rows[0]?.slots[0]?.state).toBe("unknown");
+    expect(read().rows[0]?.slots[0]?.state).toBe("not-read");
     facts.runs = {};
     expect(sinceOf(setup().model, facts, FIXTURE_NOW, 300_000)).toBeUndefined();
   });

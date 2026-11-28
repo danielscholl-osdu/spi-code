@@ -19,7 +19,8 @@ export interface SinceSlot {
     | "due"
     | "running"
     | "no-run"
-    | "unknown";
+    | "unknown"
+    | "not-read";
   text: string;
 }
 
@@ -51,6 +52,32 @@ function completed(runs: readonly RunFact[], from: number, to: number): RunFact 
 }
 
 type AreaReads = Partial<Record<"runs" | "github" | "upstream", readonly ReadRecord[]>>;
+
+function runRead(
+  line: LineModel, workflow: Workflow, run: RunFact | undefined,
+  history: ForkRuns | undefined, from: number, reads: AreaReads,
+): boolean {
+  const records = reads.runs;
+  if (records !== undefined) {
+    const matching = records.filter((read) => read.source === line.fork.repo &&
+      (read.object === "fork-runs" || (workflow === "template" && read.object === "template-runs")));
+    if (matching.length) {
+      const latest = Math.max(...matching.map((read) => Date.parse(read.observedAt)));
+      return matching.filter((read) => Date.parse(read.observedAt) === latest)
+        .every((read) => read.failure === undefined && read.completeness.kind === "complete");
+    }
+    const aggregate = records.filter((read) => read.source === "runs" && read.object === "runs");
+    if (!aggregate.length) return false;
+    const latest = Math.max(...aggregate.map((read) => Date.parse(read.observedAt)));
+    if (!aggregate.filter((read) => Date.parse(read.observedAt) === latest)
+      .every((read) => read.failure === undefined && read.completeness.kind === "complete"))
+      return false;
+    return !!history;
+  }
+  const coverage = history?.history?.[workflow];
+  return !!run || !!coverage?.complete ||
+    (coverage?.from !== undefined && Date.parse(coverage.from) <= from);
+}
 
 function goodAt(read: ReadRecord): number | undefined {
   const at = read.retainedFrom ?? (read.failure ? undefined : read.observedAt);
@@ -97,6 +124,10 @@ function slotOf(
 ): SinceSlot {
   const slot = (state: SinceSlot["state"], text: string): SinceSlot => ({ service: line.fork.id, state, text });
   const subject = `${label} on ${line.fork.id}`;
+  if (!runRead(line, workflow, run, history, from, reads))
+    return slot("not-read", `${subject}: runs not read.`);
+  if (history?.[workflow].some((entry) => entry.status !== "completed"))
+    return slot("running", `${subject} is running.`);
   if (run?.conclusion === "action_required") {
     return slot("waiting", `${subject} is waiting for approval.`);
   }
@@ -120,6 +151,16 @@ function slotOf(
     if (workflow === "sync" && broughtNothing(line, run, facts, reads)) {
       return slot("empty", `${subject} ran and found nothing new upstream.`);
     }
+    const at = workflow === "sync"
+      ? model.upstream.schedule.upstream
+      : model.rollout?.schedule.template;
+    const due = workflow === "sync"
+      ? model.upstream.schedule.opens.includes(line.fork.id)
+      : model.rollout?.forks.some((fork) =>
+        fork.service === line.fork.id && !fork.onTarget && !fork.pr,
+      );
+    if (at && Date.parse(at) > now.getTime() && due)
+      return slot("due", `${subject} is due at the next scheduled sync.`);
     return slot("unknown", `${subject} ran, effect unknown.`);
   }
   if (run) return slot("unknown", `${subject} finished ${run.conclusion ?? "with no result"}; effect unknown.`);
@@ -136,8 +177,6 @@ function slotOf(
       );
     if (at && Date.parse(at) > now.getTime() && due)
       return slot("due", `${subject} is due at the next scheduled sync.`);
-    if (history[workflow].some((entry) => entry.status !== "completed"))
-      return slot("running", `${subject} is running.`);
     return slot("no-run", `No ${label} run finished on ${line.fork.id} in this window.`);
   }
   return slot("unknown", `${subject}: no completed run read in this window; effect unknown.`);

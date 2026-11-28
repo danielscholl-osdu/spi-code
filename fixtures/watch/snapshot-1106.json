@@ -1818,43 +1818,38 @@
             "place": "line",
             "counts": [
               {
-                "kind": "not-read",
-                "label": "not read",
-                "count": 13,
+                "kind": "due",
+                "label": "sync due",
+                "count": 7,
+                "tone": "neutral",
+                "names": [
+                  "legal",
+                  "schema",
+                  "file",
+                  "search",
+                  "workflow",
+                  "unit",
+                  "crs-conversion"
+                ],
+                "urls": []
+              },
+              {
+                "kind": "unknown",
+                "label": "effect unknown",
+                "count": 6,
                 "tone": "neutral",
                 "names": [
                   "partition",
                   "entitlements",
-                  "legal",
-                  "schema",
-                  "file",
                   "storage",
                   "indexer",
-                  "search",
-                  "workflow",
                   "indexer-queue",
-                  "unit",
-                  "crs-catalog",
-                  "crs-conversion"
+                  "crs-catalog"
                 ],
                 "urls": []
               }
             ],
-            "notRead": [
-              "Sync Upstream outcome on partition",
-              "Sync Upstream outcome on entitlements",
-              "Sync Upstream outcome on legal",
-              "Sync Upstream outcome on schema",
-              "Sync Upstream outcome on file",
-              "Sync Upstream outcome on storage",
-              "Sync Upstream outcome on indexer",
-              "Sync Upstream outcome on search",
-              "Sync Upstream outcome on workflow",
-              "Sync Upstream outcome on indexer-queue",
-              "Sync Upstream outcome on unit",
-              "Sync Upstream outcome on crs-catalog",
-              "Sync Upstream outcome on crs-conversion"
-            ]
+            "notRead": []
           },
           {
             "workflow": "template",
@@ -9364,18 +9359,18 @@
             },
             {
               "service": "legal",
-              "state": "unknown",
-              "text": "Sync Upstream on legal ran, effect unknown."
+              "state": "due",
+              "text": "Sync Upstream on legal is due at the next scheduled sync."
             },
             {
               "service": "schema",
-              "state": "unknown",
-              "text": "Sync Upstream on schema ran, effect unknown."
+              "state": "due",
+              "text": "Sync Upstream on schema is due at the next scheduled sync."
             },
             {
               "service": "file",
-              "state": "unknown",
-              "text": "Sync Upstream on file ran, effect unknown."
+              "state": "due",
+              "text": "Sync Upstream on file is due at the next scheduled sync."
             },
             {
               "service": "storage",
@@ -9389,13 +9384,13 @@
             },
             {
               "service": "search",
-              "state": "unknown",
-              "text": "Sync Upstream on search ran, effect unknown."
+              "state": "due",
+              "text": "Sync Upstream on search is due at the next scheduled sync."
             },
             {
               "service": "workflow",
-              "state": "unknown",
-              "text": "Sync Upstream on workflow ran, effect unknown."
+              "state": "due",
+              "text": "Sync Upstream on workflow is due at the next scheduled sync."
             },
             {
               "service": "indexer-queue",
@@ -9404,8 +9399,8 @@
             },
             {
               "service": "unit",
-              "state": "unknown",
-              "text": "Sync Upstream on unit ran, effect unknown."
+              "state": "due",
+              "text": "Sync Upstream on unit is due at the next scheduled sync."
             },
             {
               "service": "crs-catalog",
@@ -9414,8 +9409,8 @@
             },
             {
               "service": "crs-conversion",
-              "state": "unknown",
-              "text": "Sync Upstream on crs-conversion ran, effect unknown."
+              "state": "due",
+              "text": "Sync Upstream on crs-conversion is due at the next scheduled sync."
             }
           ]
         },

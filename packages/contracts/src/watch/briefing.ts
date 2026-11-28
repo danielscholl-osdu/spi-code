@@ -258,6 +258,7 @@ export const SlotStateSchema = z.enum([
   "running",
   "no-run",
   "unknown",
+  "not-read",
 ]);
 export const SlotSchema = z.strictObject({
   service: IdentifierSchema,

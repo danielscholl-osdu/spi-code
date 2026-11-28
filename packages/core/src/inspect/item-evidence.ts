@@ -92,20 +92,20 @@ export function itemEvidence(model: Model, ids: readonly string[]): ItemEvidence
 
 /** The same missing-read vocabulary for a workflow, even when no queue item could be raised. */
 export function workflowEvidence(
-  model: Model, facts: Facts, service: string, workflow: "sync" | "template", from: string, to: string, effectRead = true,
+  model: Model, facts: Facts, service: string, workflow: "sync" | "template", from: string, to: string, read = true,
 ): ItemEvidence & { runsRead: boolean } {
   const line = model.lines.find((line) => line.fork.id === service);
   const history = line && facts.runs.data?.[line.fork.repo];
   const coverage = history?.history?.[workflow];
   const completed = history?.[workflow].some((run) => run.status === "completed" &&
     Date.parse(run.updatedAt) > Date.parse(from) && Date.parse(run.updatedAt) <= Date.parse(to));
-  const runsRead = !!history && (!!completed || !!coverage?.complete ||
+  const runsRead = read && !!history && (!!completed || !!coverage?.complete ||
     (coverage?.from !== undefined && Date.parse(coverage.from) <= Date.parse(from)));
   const ids = model.queue.items.filter((item) => item.scope === service &&
     item.kind === (workflow === "sync" ? "sync-run" : "template-run")).map((item) => item.id);
   const own = itemEvidence(model, ids);
   return { ...own, areas: ["runs"], attributed: "item", runsRead,
-    notRead: [...own.notRead, ...(!runsRead || !effectRead
-      ? [`${workflow === "sync" ? "Sync Upstream" : "Sync Template"} ${runsRead ? "outcome" : "runs"} on ${service}`] : [])],
+    notRead: [...own.notRead, ...(!runsRead
+      ? [`${workflow === "sync" ? "Sync Upstream" : "Sync Template"} runs on ${service}`] : [])],
   };
 }
