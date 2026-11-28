@@ -47,6 +47,8 @@ Refused: automatic reruns or standing orders, Copilot-written row text, log exce
 
 ## Today
 
+[Today](spi-code-today.md) owns Today since 2026-11-27 and wins over the table below wherever they differ: the header, the fleet flow, the filter, the two tabs, what counts, row order and width. The table still holds for what that page does not restate.
+
 | Part | Ruling |
 |---|---|
 | Fleet flow | Upstream counts forks stopped there. Sync PR and Integration count forks with an open PR and count red PRs below. Integration names the forks waiting for cascade on hover. Main leads with red when any fork is red, shows the actual green and running counts, and has no button. Environment shows its state and version and opens its place. Template, Release, Dependabot and Other PRs count what their doors hold. A partial figure shows its known count when it has one. One not-read line names affected forks and links to Evidence. |

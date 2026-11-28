@@ -1,0 +1,1546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Today, draft 10</title>
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;color:#23211c;background:#fbf9f3}
+a{color:#1b7366;text-decoration:none}a:hover{color:#135248;text-decoration:underline}
+button{font:inherit;cursor:pointer}
+.sb{display:flex;align-items:center;gap:10px;height:32px;padding:0 10px;border-radius:8px;font-size:15px;color:#23211c}
+.sb:hover{color:#15130f;text-decoration:none;background:#e4dcc9}
+.sb svg{flex:none;color:#665f4f}
+.sb .n{flex:1}
+.ring{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;box-sizing:border-box;padding:0 4px;border:1.75px solid #a07b3a;border-radius:9px;background:#f6eedb;color:#80622e;font-size:11px;font-weight:650;font-variant-numeric:tabular-nums}
+.fill{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;box-sizing:border-box;padding:0 5px;border-radius:9px;background:#a3321f;color:#ffffff;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
+.clock{font-size:12px;color:#665f4f;font-variant-numeric:tabular-nums}
+.hdr{display:flex;align-items:center;gap:10px;height:44px;padding:0 24px;border-bottom:1px solid #dcd3bf}
+.hdr h1{margin:0;font-size:16px;font-weight:600;color:#15130f}
+.hdr .d{font-size:15px;color:#665f4f}
+.hdr .r{font-size:13px;color:#665f4f;font-variant-numeric:tabular-nums}
+.hdr .gap{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:11px;background:#f3e8cf;color:#6b5126;font-size:13px;font-weight:600}
+.hdr .gap:hover{color:#4a3818}
+.again{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid #dcd3bf;border-radius:6px;background:transparent;color:#665f4f}
+.flow{display:grid;grid-template-columns:minmax(0,1fr) 22px 116px 18px 176px;border:1px solid #dcd3bf;border-radius:10px;background:#fdfcf8}
+.lanes{position:relative;display:flex;flex-direction:column;min-width:0}
+.lane{position:relative;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));padding:4px}
+.lane.dr{border-top:1px dashed #cfc5ae;padding-top:9px}
+.lane.st>*{grid-column:span 4}
+.lane.st{padding-bottom:11px;column-gap:12px}
+.lane.dr>.c,.lane.dr>.cwrap{grid-column:span 3}
+.lane.st>:not(:last-child)::after{content:"\2192";position:absolute;right:-18px;top:50%;transform:translateY(-50%);color:#a99f88;font-size:12px;font-weight:400}
+.lane.st>.cwrap:not(:last-child)::after{right:-13px}
+.cwrap{position:relative;display:flex;flex-direction:column;min-width:0}
+.cwrap>.c{flex:1}
+.nrb{position:absolute;top:4px;right:11px;display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 8px;border:1px solid #dfcb9a;border-radius:11px;background:#fbf3df;color:#6b5126;font-size:12.5px;font-weight:700}
+.nrb:hover{background:#f0e2c2;text-decoration:none;color:#4a3818}
+.flow>.cwrap{justify-content:center}
+.flow>.cwrap>.c{flex:none}
+.flow>.cwrap>.nrb{top:50%;margin-top:-31px}
+.cwrap.pl>.nrb{right:auto;left:calc(22px + var(--l) * 8.1px);top:0;height:20px;padding:0 6px}
+.flow>.cwrap.pl>.nrb{left:calc(20px + var(--l) * 8.1px);top:50%}
+.nr{color:#80622e;font-weight:600}
+.c .v.bad{color:#8f2a1a;font-weight:650}
+.leg{position:absolute;top:-7px;right:10px;padding:0 6px;background:#fdfcf8;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8a8170;line-height:12px}
+.join{display:flex;flex-direction:column}
+.join span,.sep{flex:1;display:flex;align-items:center;justify-content:center;color:#a99f88;font-size:12px}
+.c{position:relative;display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:0;margin:0 5px;padding:6px 9px;border:1.5px solid transparent;border-radius:6px;background:transparent;color:#23211c;text-align:left;white-space:nowrap}
+a.c:hover,button.c:hover{background:#f1ecdf;text-decoration:none;color:#15130f}
+button.c.red:hover{background:#f3d6cc}button.c.amber:hover{background:#eeddb8}
+.c .go{color:#a99f88;font-weight:400}
+.c .nr{color:#80622e;font-weight:600}
+.c.big{margin:4px 0;padding:6px 12px}
+.c .k{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#665f4f}
+.c .v{font-size:15px;font-weight:500}
+.c .v.q{color:#a99f88;font-weight:700;font-size:22px;line-height:18px}
+.c .v .m,.c .s{font-size:13px;font-weight:400;color:#665f4f}
+.c .tick{color:#356c2f;font-weight:700}
+.c.red{background:#f8e4dd;border-color:#e6bdb1}.c.red .v{color:#8f2a1a;font-weight:650}.c.red .k{color:#8f2a1a}
+.c.amber{background:#f3e8cf;border-color:#dfcb9a}.c.amber .v{color:#6b5126;font-weight:650}.c.amber .k{color:#6b5126}
+.c.red .v .m,.c.amber .v .m{color:inherit;font-weight:500}
+.c.on{border-color:#15130f}
+
+.caveat{font-size:13px;color:#665f4f}
+.tabs{display:flex;flex-wrap:wrap;align-items:center;gap:0 22px;border-bottom:1px solid #dcd3bf;font-size:15px}
+.tabs a{padding:6px 2px 9px;color:#665f4f}
+.tabs a.cur{border-bottom:2px solid #1b7366;color:#15130f;font-weight:600}
+.tabs .cnt{margin-left:8px;font-size:13px;font-weight:500}
+.tabs .cb{color:#8f2a1a}.tabs .cw{color:#80622e}
+.scope{margin-left:auto;margin-bottom:5px;font-size:13px;color:#23211c;font-weight:500}
+.scope+.showall{margin-left:0}
+.showall{margin-left:auto;margin-bottom:5px;padding:3px 11px;border:1px solid #cfc5ae;border-radius:6px;background:#fbf9f3;color:#23211c;font-size:13px}
+.ok{color:#356c2f}.bad{color:#8f2a1a}.mut{color:#665f4f}
+.pill{justify-self:start;display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border:1px solid #1b7366;border-radius:12px;color:#1b7366;font-size:13px;font-weight:500;background:#fbf9f3;white-space:nowrap}
+.pill:hover{background:#d9ece7;text-decoration:none}
+.pill.grey{border-color:#cfc5ae;color:#665f4f}.pill.grey:hover{background:#efe9da;color:#23211c}
+.pill.issue{border-color:#2060bc;color:#1a4f9c}.pill.issue:hover{background:#dcebf3}
+.pill.mr{border-color:#a03a80;color:#8a2f6d}.pill.mr:hover{background:#f3dfec}
+.pill.act{border-color:#1b7366;background:#1b7366;color:#ffffff}.pill.act:hover{background:#135248}
+.box{border:1px solid #e8e1d0;border-radius:10px;overflow:hidden}
+.row{position:relative;display:grid;grid-template-columns:150px minmax(0,1fr) 180px 100px;align-items:center;gap:12px;min-height:44px;padding:0 16px;border-top:1px solid #e8e1d0;font-size:15px}
+.row.first{border-top:0}
+.row.two{align-items:start;padding-top:11px;padding-bottom:11px}
+.row .new{position:absolute;left:5px;top:50%;width:7px;height:7px;margin-top:-4px;border-radius:50%;background:#1b7366}
+.row.two .new{top:21px}
+.fork{color:#15130f;font-weight:500}
+.mem .fork{font-weight:400;padding-left:14px}
+
+.hd{padding:0;border:0;background:none;color:#15130f;text-align:left;justify-self:start}
+.hd:hover{text-decoration:underline}
+.what{display:flex;flex-direction:column;gap:5px;min-width:0}
+.what .l1{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.what .l2{font-size:13px;color:#665f4f}
+.what .hd .tw{margin-left:-14px}
+.due{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 7px;border-radius:10px;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.due.r{background:#f4d9d0;color:#8f2a1a}.due.a{background:#f0e2c2;color:#6b5126}
+.age{white-space:nowrap;display:flex;justify-content:flex-end;align-items:center;gap:6px;color:#665f4f;font-variant-numeric:tabular-nums}
+.seg{flex:1;height:7px;border-radius:2px;box-sizing:border-box}
+.sec{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;font-weight:600}
+.sec .x{font-weight:400;color:#665f4f}
+.dot{width:8px;height:8px;border-radius:50%;box-sizing:border-box}
+.tw{display:inline-flex;align-items:center;width:14px;color:#23211c;vertical-align:-1px}
+.when{color:#665f4f;font-variant-numeric:tabular-nums}
+.gapc{display:inline-flex;align-items:center;height:20px;padding:0 7px;margin-right:4px;border-radius:10px;background:#f3e8cf;color:#6b5126;font-size:12.5px;font-weight:600}
+.gapc:hover{color:#4a3818}
+.mem{background:#f8f3e6}
+.lead{margin:2px 0 0;font-size:17px;font-weight:500;color:#15130f}
+.lead .asof{margin-left:8px;font-size:13px;color:#665f4f}
+.narrow .flow{grid-template-columns:minmax(0,1fr) 18px minmax(0,1fr)}
+.narrow .flow>.c.big,.narrow .flow>.cwrap,.narrow .flow>.sep{grid-row:3}
+.narrow .lanes{grid-column:1 / -1}
+.narrow .join{grid-column:1 / -1;position:relative;height:20px}
+.narrow .join span{display:none}
+.narrow .join::before{content:"";position:absolute;left:30px;right:9px;top:0;height:9px;border:solid #a99f88;border-width:0 1.5px 1.5px 1.5px;border-radius:0 0 7px 7px;border-left-color:transparent;border-bottom-left-radius:0}
+.narrow .join::after{content:"\2193";position:absolute;left:24px;top:5px;color:#8a8170;font-size:13px;line-height:16px}
+.narrow .lanes{padding-right:20px}
+.narrow .lanes::after{content:"";position:absolute;right:9px;top:22px;bottom:0;border-right:1.5px solid #a99f88}
+.narrow .lane>:last-child::after{content:"\2192";position:absolute;right:-13px;top:50%;transform:translateY(-50%);color:#a99f88;font-size:11px}
+.narrow .md{display:none}
+.narrow .lane.st{padding-bottom:4px;column-gap:12px}
+.narrow .lane.st>:not(:last-child)::after{right:-14px;font-size:11px}
+.narrow .lane.st>.cwrap:not(:last-child)::after{right:-12px}
+.narrow .lane.dr{padding-top:4px}
+.narrow .leg{position:static;grid-column:1 / -1;padding:0 8px 2px;background:none}
+.narrow .c{margin:0 2px;padding:6px 6px;white-space:normal}
+.narrow .c .k{font-size:9.5px;letter-spacing:.04em}
+.narrow .c .v{font-size:14px}
+.narrow .c .v .m{display:block;font-size:12.5px}
+.narrow .nrb{top:2px;right:4px;height:20px;padding:0 6px}
+.narrow .cwrap.pl>.nrb{left:calc(14px + var(--l) * 7.1px)}
+.narrow .row{grid-template-columns:118px minmax(0,1fr) auto;row-gap:6px;padding-top:10px;padding-bottom:10px;align-items:start}
+.narrow .row>:nth-last-child(4){grid-column:1;grid-row:1;white-space:nowrap}
+.narrow .row>:nth-last-child(3){grid-column:2 / 4;grid-row:1}
+.narrow .row>:nth-last-child(2){grid-column:2;grid-row:2;align-self:center}
+.narrow .row>:nth-last-child(1){grid-column:3;grid-row:2;align-self:center}
+.narrow .row .new{top:19px}
+.name{margin:0;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#665f4f}
+.note{font-size:13px;color:#665f4f}
+
+.sheet{min-width:900px}
+.fr{display:grid;grid-template-columns:22px minmax(150px,1.4fr) repeat(4,minmax(0,1fr)) 16px repeat(4,minmax(0,1fr));align-items:center;column-gap:8px;min-height:40px;padding:0 14px;border-top:1px solid #e8e1d0;font-size:15px}
+.fr.head{min-height:36px;border-top:0;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#665f4f;white-space:nowrap}
+.fr .twb{padding:0;border:0;background:none;color:#23211c;text-align:left;display:inline-flex}
+.fr .nm{color:#15130f;font-weight:500}
+.fr .e{color:#b3a98f;font-size:20px;font-weight:700;line-height:1}
+.fr .g{color:#356c2f;font-weight:700;font-size:13px}
+.fr .rule{align-self:stretch;border-left:1px dashed #dcd3bf}
+.fr .num{color:#23211c;font-variant-numeric:tabular-nums}
+.fr .t{color:#665f4f;font-size:13px}
+.fold{display:flex;align-items:center;gap:8px;column-gap:8px;min-height:40px;padding:0 14px;border-top:1px solid #e8e1d0;font-size:14px;color:#665f4f}
+
+html{background:#e9e4d6}
+body{padding:32px;font-family:Inter,-apple-system,"Segoe UI",sans-serif}
+.board{margin:0 0 56px}
+.bt{margin:0 0 12px;font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#665f4f}
+.frame{border:1px solid #cfc5ae;border-radius:10px;overflow:hidden;background:#fbf9f3}
+</style>
+</head>
+<body>
+<section class="board"><h2 class="bt">Calm afternoon</h2><div class="frame" style="width: 1440px">
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;color:#23211c;background:#fbf9f3}
+a{color:#1b7366;text-decoration:none}a:hover{color:#135248;text-decoration:underline}
+button{font:inherit;cursor:pointer}
+.sb{display:flex;align-items:center;gap:10px;height:32px;padding:0 10px;border-radius:8px;font-size:15px;color:#23211c}
+.sb:hover{color:#15130f;text-decoration:none;background:#e4dcc9}
+.sb svg{flex:none;color:#665f4f}
+.sb .n{flex:1}
+.ring{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;box-sizing:border-box;padding:0 4px;border:1.75px solid #a07b3a;border-radius:9px;background:#f6eedb;color:#80622e;font-size:11px;font-weight:650;font-variant-numeric:tabular-nums}
+.fill{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;box-sizing:border-box;padding:0 5px;border-radius:9px;background:#a3321f;color:#ffffff;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
+.clock{font-size:12px;color:#665f4f;font-variant-numeric:tabular-nums}
+.hdr{display:flex;align-items:center;gap:10px;height:44px;padding:0 24px;border-bottom:1px solid #dcd3bf}
+.hdr h1{margin:0;font-size:16px;font-weight:600;color:#15130f}
+.hdr .d{font-size:15px;color:#665f4f}
+.hdr .r{font-size:13px;color:#665f4f;font-variant-numeric:tabular-nums}
+.hdr .gap{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:11px;background:#f3e8cf;color:#6b5126;font-size:13px;font-weight:600}
+.hdr .gap:hover{color:#4a3818}
+.again{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid #dcd3bf;border-radius:6px;background:transparent;color:#665f4f}
+.flow{display:grid;grid-template-columns:minmax(0,1fr) 22px 116px 18px 176px;border:1px solid #dcd3bf;border-radius:10px;background:#fdfcf8}
+.lanes{position:relative;display:flex;flex-direction:column;min-width:0}
+.lane{position:relative;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));padding:4px}
+.lane.dr{border-top:1px dashed #cfc5ae;padding-top:9px}
+.lane.st>*{grid-column:span 4}
+.lane.st{padding-bottom:11px;column-gap:12px}
+.lane.dr>.c,.lane.dr>.cwrap{grid-column:span 3}
+.lane.st>:not(:last-child)::after{content:"\2192";position:absolute;right:-18px;top:50%;transform:translateY(-50%);color:#a99f88;font-size:12px;font-weight:400}
+.lane.st>.cwrap:not(:last-child)::after{right:-13px}
+.cwrap{position:relative;display:flex;flex-direction:column;min-width:0}
+.cwrap>.c{flex:1}
+.nrb{position:absolute;top:4px;right:11px;display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 8px;border:1px solid #dfcb9a;border-radius:11px;background:#fbf3df;color:#6b5126;font-size:12.5px;font-weight:700}
+.nrb:hover{background:#f0e2c2;text-decoration:none;color:#4a3818}
+.flow>.cwrap{justify-content:center}
+.flow>.cwrap>.c{flex:none}
+.flow>.cwrap>.nrb{top:50%;margin-top:-31px}
+.cwrap.pl>.nrb{right:auto;left:calc(22px + var(--l) * 8.1px);top:0;height:20px;padding:0 6px}
+.flow>.cwrap.pl>.nrb{left:calc(20px + var(--l) * 8.1px);top:50%}
+.nr{color:#80622e;font-weight:600}
+.c .v.bad{color:#8f2a1a;font-weight:650}
+.leg{position:absolute;top:-7px;right:10px;padding:0 6px;background:#fdfcf8;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8a8170;line-height:12px}
+.join{display:flex;flex-direction:column}
+.join span,.sep{flex:1;display:flex;align-items:center;justify-content:center;color:#a99f88;font-size:12px}
+.c{position:relative;display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:0;margin:0 5px;padding:6px 9px;border:1.5px solid transparent;border-radius:6px;background:transparent;color:#23211c;text-align:left;white-space:nowrap}
+a.c:hover,button.c:hover{background:#f1ecdf;text-decoration:none;color:#15130f}
+button.c.red:hover{background:#f3d6cc}button.c.amber:hover{background:#eeddb8}
+.c .go{color:#a99f88;font-weight:400}
+.c .nr{color:#80622e;font-weight:600}
+.c.big{margin:4px 0;padding:6px 12px}
+.c .k{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#665f4f}
+.c .v{font-size:15px;font-weight:500}
+.c .v.q{color:#a99f88;font-weight:700;font-size:22px;line-height:18px}
+.c .v .m,.c .s{font-size:13px;font-weight:400;color:#665f4f}
+.c .tick{color:#356c2f;font-weight:700}
+.c.red{background:#f8e4dd;border-color:#e6bdb1}.c.red .v{color:#8f2a1a;font-weight:650}.c.red .k{color:#8f2a1a}
+.c.amber{background:#f3e8cf;border-color:#dfcb9a}.c.amber .v{color:#6b5126;font-weight:650}.c.amber .k{color:#6b5126}
+.c.red .v .m,.c.amber .v .m{color:inherit;font-weight:500}
+.c.on{border-color:#15130f}
+
+.caveat{font-size:13px;color:#665f4f}
+.tabs{display:flex;flex-wrap:wrap;align-items:center;gap:0 22px;border-bottom:1px solid #dcd3bf;font-size:15px}
+.tabs a{padding:6px 2px 9px;color:#665f4f}
+.tabs a.cur{border-bottom:2px solid #1b7366;color:#15130f;font-weight:600}
+.tabs .cnt{margin-left:8px;font-size:13px;font-weight:500}
+.tabs .cb{color:#8f2a1a}.tabs .cw{color:#80622e}
+.scope{margin-left:auto;margin-bottom:5px;font-size:13px;color:#23211c;font-weight:500}
+.scope+.showall{margin-left:0}
+.showall{margin-left:auto;margin-bottom:5px;padding:3px 11px;border:1px solid #cfc5ae;border-radius:6px;background:#fbf9f3;color:#23211c;font-size:13px}
+.ok{color:#356c2f}.bad{color:#8f2a1a}.mut{color:#665f4f}
+.pill{justify-self:start;display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border:1px solid #1b7366;border-radius:12px;color:#1b7366;font-size:13px;font-weight:500;background:#fbf9f3;white-space:nowrap}
+.pill:hover{background:#d9ece7;text-decoration:none}
+.pill.grey{border-color:#cfc5ae;color:#665f4f}.pill.grey:hover{background:#efe9da;color:#23211c}
+.pill.issue{border-color:#2060bc;color:#1a4f9c}.pill.issue:hover{background:#dcebf3}
+.pill.mr{border-color:#a03a80;color:#8a2f6d}.pill.mr:hover{background:#f3dfec}
+.pill.act{border-color:#1b7366;background:#1b7366;color:#ffffff}.pill.act:hover{background:#135248}
+.box{border:1px solid #e8e1d0;border-radius:10px;overflow:hidden}
+.row{position:relative;display:grid;grid-template-columns:150px minmax(0,1fr) 180px 100px;align-items:center;gap:12px;min-height:44px;padding:0 16px;border-top:1px solid #e8e1d0;font-size:15px}
+.row.first{border-top:0}
+.row.two{align-items:start;padding-top:11px;padding-bottom:11px}
+.row .new{position:absolute;left:5px;top:50%;width:7px;height:7px;margin-top:-4px;border-radius:50%;background:#1b7366}
+.row.two .new{top:21px}
+.fork{color:#15130f;font-weight:500}
+.mem .fork{font-weight:400;padding-left:14px}
+
+.hd{padding:0;border:0;background:none;color:#15130f;text-align:left;justify-self:start}
+.hd:hover{text-decoration:underline}
+.what{display:flex;flex-direction:column;gap:5px;min-width:0}
+.what .l1{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.what .l2{font-size:13px;color:#665f4f}
+.what .hd .tw{margin-left:-14px}
+.due{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 7px;border-radius:10px;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.due.r{background:#f4d9d0;color:#8f2a1a}.due.a{background:#f0e2c2;color:#6b5126}
+.age{white-space:nowrap;display:flex;justify-content:flex-end;align-items:center;gap:6px;color:#665f4f;font-variant-numeric:tabular-nums}
+.seg{flex:1;height:7px;border-radius:2px;box-sizing:border-box}
+.sec{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;font-weight:600}
+.sec .x{font-weight:400;color:#665f4f}
+.dot{width:8px;height:8px;border-radius:50%;box-sizing:border-box}
+.tw{display:inline-flex;align-items:center;width:14px;color:#23211c;vertical-align:-1px}
+.when{color:#665f4f;font-variant-numeric:tabular-nums}
+.gapc{display:inline-flex;align-items:center;height:20px;padding:0 7px;margin-right:4px;border-radius:10px;background:#f3e8cf;color:#6b5126;font-size:12.5px;font-weight:600}
+.gapc:hover{color:#4a3818}
+.mem{background:#f8f3e6}
+.lead{margin:2px 0 0;font-size:17px;font-weight:500;color:#15130f}
+.lead .asof{margin-left:8px;font-size:13px;color:#665f4f}
+.narrow .flow{grid-template-columns:minmax(0,1fr) 18px minmax(0,1fr)}
+.narrow .flow>.c.big,.narrow .flow>.cwrap,.narrow .flow>.sep{grid-row:3}
+.narrow .lanes{grid-column:1 / -1}
+.narrow .join{grid-column:1 / -1;position:relative;height:20px}
+.narrow .join span{display:none}
+.narrow .join::before{content:"";position:absolute;left:30px;right:9px;top:0;height:9px;border:solid #a99f88;border-width:0 1.5px 1.5px 1.5px;border-radius:0 0 7px 7px;border-left-color:transparent;border-bottom-left-radius:0}
+.narrow .join::after{content:"\2193";position:absolute;left:24px;top:5px;color:#8a8170;font-size:13px;line-height:16px}
+.narrow .lanes{padding-right:20px}
+.narrow .lanes::after{content:"";position:absolute;right:9px;top:22px;bottom:0;border-right:1.5px solid #a99f88}
+.narrow .lane>:last-child::after{content:"\2192";position:absolute;right:-13px;top:50%;transform:translateY(-50%);color:#a99f88;font-size:11px}
+.narrow .md{display:none}
+.narrow .lane.st{padding-bottom:4px;column-gap:12px}
+.narrow .lane.st>:not(:last-child)::after{right:-14px;font-size:11px}
+.narrow .lane.st>.cwrap:not(:last-child)::after{right:-12px}
+.narrow .lane.dr{padding-top:4px}
+.narrow .leg{position:static;grid-column:1 / -1;padding:0 8px 2px;background:none}
+.narrow .c{margin:0 2px;padding:6px 6px;white-space:normal}
+.narrow .c .k{font-size:9.5px;letter-spacing:.04em}
+.narrow .c .v{font-size:14px}
+.narrow .c .v .m{display:block;font-size:12.5px}
+.narrow .nrb{top:2px;right:4px;height:20px;padding:0 6px}
+.narrow .cwrap.pl>.nrb{left:calc(14px + var(--l) * 7.1px)}
+.narrow .row{grid-template-columns:118px minmax(0,1fr) auto;row-gap:6px;padding-top:10px;padding-bottom:10px;align-items:start}
+.narrow .row>:nth-last-child(4){grid-column:1;grid-row:1;white-space:nowrap}
+.narrow .row>:nth-last-child(3){grid-column:2 / 4;grid-row:1}
+.narrow .row>:nth-last-child(2){grid-column:2;grid-row:2;align-self:center}
+.narrow .row>:nth-last-child(1){grid-column:3;grid-row:2;align-self:center}
+.narrow .row .new{top:19px}
+.name{margin:0;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#665f4f}
+.note{font-size:13px;color:#665f4f}
+</style>
+
+<div style="display: flex; flex-wrap: wrap; min-height: 900px; background: #fbf9f3">
+
+<nav aria-label="Places" style="flex: 1 0 232px; max-width: 232px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 12px 8px; background: #ece6d7; border-right: 1px solid #dcd3bf">
+  <div style="display: flex; align-items: center; gap: 8px; height: 36px; margin-bottom: 8px; padding: 0 10px; border: 1px solid #dcd3bf; border-radius: 8px; background: #fbf9f3; color: #665f4f; font-size: 14px"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><span style="flex: 1">Find or ask</span><span style="padding: 1px 5px; border: 1px solid #dcd3bf; border-radius: 4px; font-size: 11px">⌘K</span></div>
+  <a href="#" class="sb" aria-current="page" style="background: #fbf9f3; box-shadow: 0 0 0 1px #dcd3bf; font-weight: 600"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M13 3l-1.4 1.4M4.4 11.6 3 13"/></svg><span class="n">Today</span><span class="ring" aria-label="3 waiting on you, none blocked">3</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="3" width="12" height="4" rx="1"/><rect x="2" y="9" width="12" height="4" rx="1"/></svg><span class="n">Environment</span><span class="ok" aria-label="Ready" style="font-size: 13px; font-weight: 700">✓</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2 2 5l6 3 6-3-6-3ZM2 8l6 3 6-3M2 11l6 3 6-3"/></svg><span class="n">Template</span><span class="ring" aria-label="3 template PRs to review">3</span></a>
+  <div style="margin: 14px 10px 4px; font-size: 13px; color: #665f4f">Pinned</div>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 2h5.5l6.5 6.5L8.5 14 2 7.5V2Z"/><circle cx="5" cy="5" r="1"/></svg><span class="n">Releases</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13 3.5v4c0 3.2-2.1 5.8-5 7-2.9-1.2-5-3.8-5-7v-4l5-2Z"/></svg><span class="n">Security</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13.5h10"/></svg><span class="n">Upstream</span><span class="clock" aria-label="Next sync 18:00">18:00</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">storage</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">search</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">indexer</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">partition</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">entitlements</span><span class="ring" aria-label="1 waiting on you">1</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">legal</span><span class="ring" aria-label="1 waiting on you">1</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">schema</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">workflow</span></a>
+  <div style="flex: 1"></div>
+  <a href="#" class="sb" style="color: #665f4f; font-size: 14px"><span class="n">Settled 8 ›</span></a>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0">
+<header class="hdr"><h1>Today</h1><span class="d">Friday 27 Nov</span><span style="flex: 1"></span><span class="r">Read 15:21 · 13 forks</span><button class="again" aria-label="Read again"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2v3h-3"/></svg></button></header>
+<div style="box-sizing: border-box; max-width: 1048px; padding: 20px 24px 40px; display: flex; flex-direction: column; gap: 18px">
+<section aria-label="Fleet flow" class="flow">
+  <div class="lanes">
+    <div class="lane st"><a href="#" class="c" title="partition, entitlements, legal, file"><span class="k">Upstream</span><span class="v">4 forks behind <span class="m"><span class="md">· </span>18:00</span> <span class="go" aria-hidden="true">›</span></span></a><span class="c"><span class="k">Sync PR</span><span class="v q" aria-label="None">·</span></span><span class="c"><span class="k">Integration</span><span class="v q" aria-label="None">·</span></span></div>
+    <div class="lane dr"><span class="leg">Straight into main</span><button class="c amber" aria-pressed="false" title="entitlements, legal, file"><span class="k">Template</span><span class="v">3 to review</span></button><a href="#" class="c" title="Shows the Release PRs row in Can wait"><span class="k">Release</span><span class="v">13 open <span class="go" aria-hidden="true">›</span></span></a><span class="c"><span class="k">Dependabot</span><span class="v q" aria-label="None">·</span></span><span class="c"><span class="k">Other PRs</span><span class="v q" aria-label="None">·</span></span></div>
+  </div>
+  <div class="join" aria-hidden="true"><span>→</span><span>→</span></div>
+  <span class="c big"><span class="k">Main</span><span class="v"><span class="tick" aria-hidden="true">✓</span> Green</span><span class="s">13 forks</span></span>
+  <span class="sep" aria-hidden="true">→</span>
+  <a href="#" class="c big" title="Opens Environment"><span class="k">Environment</span><span class="v"><span class="tick" aria-hidden="true">✓</span> Ready <span class="go" aria-hidden="true">›</span></span><span class="s">v0.35.10</span></a>
+</section>
+<nav aria-label="Today tabs" class="tabs"><a href="#" class="cur" aria-current="page">Yours<span class="cnt cw">3 waiting</span></a><a href="#" class="">Forks</a></nav>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<h2 class="sec" style="color: #23211c"><span class="dot" aria-hidden="true" style="background: #a07b3a"></span>Waiting on you</h2>
+<div class="box" style="border-color: #d5c79f; background: #fdfcf8">
+<div class="row first two"><span class="new" role="img" aria-label="New since 14:40" title="New since 14:40"></span><span class="fork">3 forks</span><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Template sync to review</button></div><div role="img" aria-label="Rollout across 13 forks: 1 merged, 3 to review, 1 with checks running, 8 not opened" style="display: flex; gap: 3px; max-width: 420px"><span class="seg" style="background: #3a7633"></span><span class="seg" style="background: #c69a4a"></span><span class="seg" style="background: #c69a4a"></span><span class="seg" style="background: #c69a4a"></span><span class="seg" style="background: #b9ae95"></span><span class="seg" style="border: 1px solid #c4b99f"></span><span class="seg" style="border: 1px solid #c4b99f"></span><span class="seg" style="border: 1px solid #c4b99f"></span><span class="seg" style="border: 1px solid #c4b99f"></span><span class="seg" style="border: 1px solid #c4b99f"></span><span class="seg" style="border: 1px solid #c4b99f"></span><span class="seg" style="border: 1px solid #c4b99f"></span><span class="seg" style="border: 1px solid #c4b99f"></span></div><span class="l2">entitlements, legal, file · 1 merged · 1 checking · 8 not started</span></div><a href="#" class="pill grey">Template 732d061 ↗</a><span class="age">5m</span></div>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<h2 class="sec" style="color: #665f4f"><span class="dot" aria-hidden="true" style="background: #2060bc"></span>Moving without you</h2>
+<div class="box">
+<div class="row first"><span class="when">18:00</span><span>Upstream sync for partition, entitlements, legal and file</span><a href="#" style="justify-self: start">Upstream ›</a><span></span></div>
+<div class="row "><span class="when">Sat 02:00</span><span>Template sync for the 8 forks not yet started</span><a href="#" style="justify-self: start">Template ›</a><span></span></div>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<h2 class="sec" style="color: #665f4f"><span class="dot" aria-hidden="true" style="background: #8a8170"></span>Can wait</h2>
+<div class="box" style="color: #665f4f">
+<div class="row first"><span>Release PRs</span><span>13 open · oldest 42d · none failing</span><a href="#" style="justify-self: start">Releases ›</a><span></span></div>
+<div class="row "><span>Alerts</span><span>121 critical or high in shipped code · 4 new this week</span><a href="#" style="justify-self: start">Security ›</a><span></span></div>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<h2 class="sec" style="color: #665f4f"><span class="dot" aria-hidden="true" style="border: 1.5px solid #8a8170"></span>Since you last looked <span class="x">14:40</span></h2>
+<div class="box" style="border-style: dashed; color: #665f4f">
+<div class="row first"><span>Template</span><span>4 PRs opened · 1 merged</span><a href="#" style="justify-self: start">Template ›</a><span></span></div>
+</div>
+</section>
+</div>
+</main>
+</div>
+</div></section>
+<section class="board"><h2 class="bt">Right now, Yours</h2><div class="frame" style="width: 1440px">
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;color:#23211c;background:#fbf9f3}
+a{color:#1b7366;text-decoration:none}a:hover{color:#135248;text-decoration:underline}
+button{font:inherit;cursor:pointer}
+.sb{display:flex;align-items:center;gap:10px;height:32px;padding:0 10px;border-radius:8px;font-size:15px;color:#23211c}
+.sb:hover{color:#15130f;text-decoration:none;background:#e4dcc9}
+.sb svg{flex:none;color:#665f4f}
+.sb .n{flex:1}
+.ring{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;box-sizing:border-box;padding:0 4px;border:1.75px solid #a07b3a;border-radius:9px;background:#f6eedb;color:#80622e;font-size:11px;font-weight:650;font-variant-numeric:tabular-nums}
+.fill{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;box-sizing:border-box;padding:0 5px;border-radius:9px;background:#a3321f;color:#ffffff;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
+.clock{font-size:12px;color:#665f4f;font-variant-numeric:tabular-nums}
+.hdr{display:flex;align-items:center;gap:10px;height:44px;padding:0 24px;border-bottom:1px solid #dcd3bf}
+.hdr h1{margin:0;font-size:16px;font-weight:600;color:#15130f}
+.hdr .d{font-size:15px;color:#665f4f}
+.hdr .r{font-size:13px;color:#665f4f;font-variant-numeric:tabular-nums}
+.hdr .gap{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:11px;background:#f3e8cf;color:#6b5126;font-size:13px;font-weight:600}
+.hdr .gap:hover{color:#4a3818}
+.again{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid #dcd3bf;border-radius:6px;background:transparent;color:#665f4f}
+.flow{display:grid;grid-template-columns:minmax(0,1fr) 22px 116px 18px 176px;border:1px solid #dcd3bf;border-radius:10px;background:#fdfcf8}
+.lanes{position:relative;display:flex;flex-direction:column;min-width:0}
+.lane{position:relative;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));padding:4px}
+.lane.dr{border-top:1px dashed #cfc5ae;padding-top:9px}
+.lane.st>*{grid-column:span 4}
+.lane.st{padding-bottom:11px;column-gap:12px}
+.lane.dr>.c,.lane.dr>.cwrap{grid-column:span 3}
+.lane.st>:not(:last-child)::after{content:"\2192";position:absolute;right:-18px;top:50%;transform:translateY(-50%);color:#a99f88;font-size:12px;font-weight:400}
+.lane.st>.cwrap:not(:last-child)::after{right:-13px}
+.cwrap{position:relative;display:flex;flex-direction:column;min-width:0}
+.cwrap>.c{flex:1}
+.nrb{position:absolute;top:4px;right:11px;display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 8px;border:1px solid #dfcb9a;border-radius:11px;background:#fbf3df;color:#6b5126;font-size:12.5px;font-weight:700}
+.nrb:hover{background:#f0e2c2;text-decoration:none;color:#4a3818}
+.flow>.cwrap{justify-content:center}
+.flow>.cwrap>.c{flex:none}
+.flow>.cwrap>.nrb{top:50%;margin-top:-31px}
+.cwrap.pl>.nrb{right:auto;left:calc(22px + var(--l) * 8.1px);top:0;height:20px;padding:0 6px}
+.flow>.cwrap.pl>.nrb{left:calc(20px + var(--l) * 8.1px);top:50%}
+.nr{color:#80622e;font-weight:600}
+.c .v.bad{color:#8f2a1a;font-weight:650}
+.leg{position:absolute;top:-7px;right:10px;padding:0 6px;background:#fdfcf8;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8a8170;line-height:12px}
+.join{display:flex;flex-direction:column}
+.join span,.sep{flex:1;display:flex;align-items:center;justify-content:center;color:#a99f88;font-size:12px}
+.c{position:relative;display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:0;margin:0 5px;padding:6px 9px;border:1.5px solid transparent;border-radius:6px;background:transparent;color:#23211c;text-align:left;white-space:nowrap}
+a.c:hover,button.c:hover{background:#f1ecdf;text-decoration:none;color:#15130f}
+button.c.red:hover{background:#f3d6cc}button.c.amber:hover{background:#eeddb8}
+.c .go{color:#a99f88;font-weight:400}
+.c .nr{color:#80622e;font-weight:600}
+.c.big{margin:4px 0;padding:6px 12px}
+.c .k{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#665f4f}
+.c .v{font-size:15px;font-weight:500}
+.c .v.q{color:#a99f88;font-weight:700;font-size:22px;line-height:18px}
+.c .v .m,.c .s{font-size:13px;font-weight:400;color:#665f4f}
+.c .tick{color:#356c2f;font-weight:700}
+.c.red{background:#f8e4dd;border-color:#e6bdb1}.c.red .v{color:#8f2a1a;font-weight:650}.c.red .k{color:#8f2a1a}
+.c.amber{background:#f3e8cf;border-color:#dfcb9a}.c.amber .v{color:#6b5126;font-weight:650}.c.amber .k{color:#6b5126}
+.c.red .v .m,.c.amber .v .m{color:inherit;font-weight:500}
+.c.on{border-color:#15130f}
+
+.caveat{font-size:13px;color:#665f4f}
+.tabs{display:flex;flex-wrap:wrap;align-items:center;gap:0 22px;border-bottom:1px solid #dcd3bf;font-size:15px}
+.tabs a{padding:6px 2px 9px;color:#665f4f}
+.tabs a.cur{border-bottom:2px solid #1b7366;color:#15130f;font-weight:600}
+.tabs .cnt{margin-left:8px;font-size:13px;font-weight:500}
+.tabs .cb{color:#8f2a1a}.tabs .cw{color:#80622e}
+.scope{margin-left:auto;margin-bottom:5px;font-size:13px;color:#23211c;font-weight:500}
+.scope+.showall{margin-left:0}
+.showall{margin-left:auto;margin-bottom:5px;padding:3px 11px;border:1px solid #cfc5ae;border-radius:6px;background:#fbf9f3;color:#23211c;font-size:13px}
+.ok{color:#356c2f}.bad{color:#8f2a1a}.mut{color:#665f4f}
+.pill{justify-self:start;display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border:1px solid #1b7366;border-radius:12px;color:#1b7366;font-size:13px;font-weight:500;background:#fbf9f3;white-space:nowrap}
+.pill:hover{background:#d9ece7;text-decoration:none}
+.pill.grey{border-color:#cfc5ae;color:#665f4f}.pill.grey:hover{background:#efe9da;color:#23211c}
+.pill.issue{border-color:#2060bc;color:#1a4f9c}.pill.issue:hover{background:#dcebf3}
+.pill.mr{border-color:#a03a80;color:#8a2f6d}.pill.mr:hover{background:#f3dfec}
+.pill.act{border-color:#1b7366;background:#1b7366;color:#ffffff}.pill.act:hover{background:#135248}
+.box{border:1px solid #e8e1d0;border-radius:10px;overflow:hidden}
+.row{position:relative;display:grid;grid-template-columns:150px minmax(0,1fr) 180px 100px;align-items:center;gap:12px;min-height:44px;padding:0 16px;border-top:1px solid #e8e1d0;font-size:15px}
+.row.first{border-top:0}
+.row.two{align-items:start;padding-top:11px;padding-bottom:11px}
+.row .new{position:absolute;left:5px;top:50%;width:7px;height:7px;margin-top:-4px;border-radius:50%;background:#1b7366}
+.row.two .new{top:21px}
+.fork{color:#15130f;font-weight:500}
+.mem .fork{font-weight:400;padding-left:14px}
+
+.hd{padding:0;border:0;background:none;color:#15130f;text-align:left;justify-self:start}
+.hd:hover{text-decoration:underline}
+.what{display:flex;flex-direction:column;gap:5px;min-width:0}
+.what .l1{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.what .l2{font-size:13px;color:#665f4f}
+.what .hd .tw{margin-left:-14px}
+.due{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 7px;border-radius:10px;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.due.r{background:#f4d9d0;color:#8f2a1a}.due.a{background:#f0e2c2;color:#6b5126}
+.age{white-space:nowrap;display:flex;justify-content:flex-end;align-items:center;gap:6px;color:#665f4f;font-variant-numeric:tabular-nums}
+.seg{flex:1;height:7px;border-radius:2px;box-sizing:border-box}
+.sec{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;font-weight:600}
+.sec .x{font-weight:400;color:#665f4f}
+.dot{width:8px;height:8px;border-radius:50%;box-sizing:border-box}
+.tw{display:inline-flex;align-items:center;width:14px;color:#23211c;vertical-align:-1px}
+.when{color:#665f4f;font-variant-numeric:tabular-nums}
+.gapc{display:inline-flex;align-items:center;height:20px;padding:0 7px;margin-right:4px;border-radius:10px;background:#f3e8cf;color:#6b5126;font-size:12.5px;font-weight:600}
+.gapc:hover{color:#4a3818}
+.mem{background:#f8f3e6}
+.lead{margin:2px 0 0;font-size:17px;font-weight:500;color:#15130f}
+.lead .asof{margin-left:8px;font-size:13px;color:#665f4f}
+.narrow .flow{grid-template-columns:minmax(0,1fr) 18px minmax(0,1fr)}
+.narrow .flow>.c.big,.narrow .flow>.cwrap,.narrow .flow>.sep{grid-row:3}
+.narrow .lanes{grid-column:1 / -1}
+.narrow .join{grid-column:1 / -1;position:relative;height:20px}
+.narrow .join span{display:none}
+.narrow .join::before{content:"";position:absolute;left:30px;right:9px;top:0;height:9px;border:solid #a99f88;border-width:0 1.5px 1.5px 1.5px;border-radius:0 0 7px 7px;border-left-color:transparent;border-bottom-left-radius:0}
+.narrow .join::after{content:"\2193";position:absolute;left:24px;top:5px;color:#8a8170;font-size:13px;line-height:16px}
+.narrow .lanes{padding-right:20px}
+.narrow .lanes::after{content:"";position:absolute;right:9px;top:22px;bottom:0;border-right:1.5px solid #a99f88}
+.narrow .lane>:last-child::after{content:"\2192";position:absolute;right:-13px;top:50%;transform:translateY(-50%);color:#a99f88;font-size:11px}
+.narrow .md{display:none}
+.narrow .lane.st{padding-bottom:4px;column-gap:12px}
+.narrow .lane.st>:not(:last-child)::after{right:-14px;font-size:11px}
+.narrow .lane.st>.cwrap:not(:last-child)::after{right:-12px}
+.narrow .lane.dr{padding-top:4px}
+.narrow .leg{position:static;grid-column:1 / -1;padding:0 8px 2px;background:none}
+.narrow .c{margin:0 2px;padding:6px 6px;white-space:normal}
+.narrow .c .k{font-size:9.5px;letter-spacing:.04em}
+.narrow .c .v{font-size:14px}
+.narrow .c .v .m{display:block;font-size:12.5px}
+.narrow .nrb{top:2px;right:4px;height:20px;padding:0 6px}
+.narrow .cwrap.pl>.nrb{left:calc(14px + var(--l) * 7.1px)}
+.narrow .row{grid-template-columns:118px minmax(0,1fr) auto;row-gap:6px;padding-top:10px;padding-bottom:10px;align-items:start}
+.narrow .row>:nth-last-child(4){grid-column:1;grid-row:1;white-space:nowrap}
+.narrow .row>:nth-last-child(3){grid-column:2 / 4;grid-row:1}
+.narrow .row>:nth-last-child(2){grid-column:2;grid-row:2;align-self:center}
+.narrow .row>:nth-last-child(1){grid-column:3;grid-row:2;align-self:center}
+.narrow .row .new{top:19px}
+.name{margin:0;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#665f4f}
+.note{font-size:13px;color:#665f4f}
+</style>
+
+<div style="display: flex; flex-wrap: wrap; min-height: 820px; background: #fbf9f3">
+
+<nav aria-label="Places" style="flex: 1 0 232px; max-width: 232px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 12px 8px; background: #ece6d7; border-right: 1px solid #dcd3bf">
+  <div style="display: flex; align-items: center; gap: 8px; height: 36px; margin-bottom: 8px; padding: 0 10px; border: 1px solid #dcd3bf; border-radius: 8px; background: #fbf9f3; color: #665f4f; font-size: 14px"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><span style="flex: 1">Find or ask</span><span style="padding: 1px 5px; border: 1px solid #dcd3bf; border-radius: 4px; font-size: 11px">⌘K</span></div>
+  <a href="#" class="sb" aria-current="page" style="background: #fbf9f3; box-shadow: 0 0 0 1px #dcd3bf; font-weight: 600"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M13 3l-1.4 1.4M4.4 11.6 3 13"/></svg><span class="n">Today</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="3" width="12" height="4" rx="1"/><rect x="2" y="9" width="12" height="4" rx="1"/></svg><span class="n">Environment</span><span class="ok" aria-label="Ready" style="font-size: 13px; font-weight: 700">✓</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2 2 5l6 3 6-3-6-3ZM2 8l6 3 6-3M2 11l6 3 6-3"/></svg><span class="n">Template</span></a>
+  <div style="margin: 14px 10px 4px; font-size: 13px; color: #665f4f">Pinned</div>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 2h5.5l6.5 6.5L8.5 14 2 7.5V2Z"/><circle cx="5" cy="5" r="1"/></svg><span class="n">Releases</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13 3.5v4c0 3.2-2.1 5.8-5 7-2.9-1.2-5-3.8-5-7v-4l5-2Z"/></svg><span class="n">Security</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13.5h10"/></svg><span class="n">Upstream</span><span class="clock" aria-label="Next sync Saturday 18:00">Sat 18:00</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">storage</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">search</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">indexer</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">partition</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">entitlements</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">legal</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">schema</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">workflow</span></a>
+  <div style="flex: 1"></div>
+  <a href="#" class="sb" style="color: #665f4f; font-size: 14px"><span class="n">Settled 8 ›</span></a>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0">
+<header class="hdr"><h1>Today</h1><span class="d">Friday 27 Nov</span><span style="flex: 1"></span><span class="r">Read 18:20 · reading 5 of 13</span><button class="again" aria-label="Read again" disabled style="color: #a99f88; border-color: #e8e1d0; cursor: default"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2v3h-3"/></svg></button></header>
+<div style="box-sizing: border-box; max-width: 1048px; padding: 20px 24px 40px; display: flex; flex-direction: column; gap: 18px">
+<section aria-label="Fleet flow" class="flow">
+  <div class="lanes">
+    <div class="lane st"><a href="#" class="c" title="partition, entitlements, legal, file · opens Upstream"><span class="k">Upstream</span><span class="v">4 forks behind <span class="m"><span class="md">· </span>Sat 18:00</span> <span class="go" aria-hidden="true">›</span></span></a><span class="c"><span class="k">Sync PR</span><span class="v q" aria-label="None">·</span></span><span class="c"><span class="k">Integration</span><span class="v q" aria-label="None">·</span></span></div>
+    <div class="lane dr"><span class="leg">Straight into main</span><span class="c"><span class="k">Template</span><span class="v q" aria-label="None">·</span></span><a href="#" class="c" title="Shows the Release PRs row in Can wait"><span class="k">Release</span><span class="v">13 open <span class="go" aria-hidden="true">›</span></span></a><span class="c"><span class="k">Dependabot</span><span class="v q" aria-label="None">·</span></span><span class="c"><span class="k">Other PRs</span><span class="v q" aria-label="None">·</span></span></div>
+  </div>
+  <div class="join" aria-hidden="true"><span>→</span><span>→</span></div>
+  <span class="c big"><span class="k">Main</span><span class="v"><span class="tick" aria-hidden="true">✓</span> Green</span><span class="s">13 forks</span></span>
+  <span class="sep" aria-hidden="true">→</span>
+  <a href="#" class="c big" title="Opens Environment"><span class="k">Environment</span><span class="v"><span class="tick" aria-hidden="true">✓</span> Ready <span class="go" aria-hidden="true">›</span></span><span class="s">v0.35.10</span></a>
+</section>
+<nav aria-label="Today tabs" class="tabs"><a href="#" class="cur" aria-current="page">Yours</a><a href="#" class="">Forks</a></nav>
+<p class="lead">At 18:20, nothing was yours to move.</p>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<h2 class="sec" style="color: #665f4f"><span class="dot" aria-hidden="true" style="background: #2060bc"></span>Moving without you</h2>
+<div class="box">
+<div class="row first two"><span class="when">Sat 02:00</span><div class="what"><span>Template sync for the 8 forks not yet started</span><div role="img" aria-label="Rollout across 13 forks: 5 merged, 8 not opened" style="display: flex; gap: 3px; max-width: 420px"><span class="seg" style="background: #3a7633"></span><span class="seg" style="background: #3a7633"></span><span class="seg" style="background: #3a7633"></span><span class="seg" style="background: #3a7633"></span><span class="seg" style="background: #3a7633"></span><span class="seg" style="border: 1px solid #c4b99f"></span><span class="seg" style="border: 1px solid #c4b99f"></span><span class="seg" style="border: 1px solid #c4b99f"></span><span class="seg" style="border: 1px solid #c4b99f"></span><span class="seg" style="border: 1px solid #c4b99f"></span><span class="seg" style="border: 1px solid #c4b99f"></span><span class="seg" style="border: 1px solid #c4b99f"></span><span class="seg" style="border: 1px solid #c4b99f"></span></div><span class="l2">Template 732d061 · 5 merged · 8 to open</span></div><a href="#" style="justify-self: start">Template ›</a><span></span></div>
+<div class="row "><span class="when">Sat 18:00</span><span>Upstream sync for partition, entitlements, legal and file</span><a href="#" style="justify-self: start">Upstream ›</a><span></span></div>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<h2 class="sec" style="color: #665f4f"><span class="dot" aria-hidden="true" style="background: #8a8170"></span>Can wait</h2>
+<div class="box" style="color: #665f4f">
+<div class="row first"><span>Release PRs</span><span>13 open · oldest 42d · none failing</span><a href="#" style="justify-self: start">Releases ›</a><span></span></div>
+<div class="row "><span>Alerts</span><span>121 critical or high in shipped code · 4 new this week</span><a href="#" style="justify-self: start">Security ›</a><span></span></div>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<h2 class="sec" style="color: #665f4f"><span class="dot" aria-hidden="true" style="border: 1.5px solid #8a8170"></span>Since you last looked <span class="x">15:21</span></h2>
+<div class="box" style="border-style: dashed; color: #665f4f">
+<div class="row first"><span>Template</span><span>4 PRs merged</span><a href="#" style="justify-self: start">Template ›</a><span></span></div>
+<div class="row "><span>Upstream</span><span>New upstream changes for 4 forks after the 18:00 sync</span><a href="#" style="justify-self: start">Upstream ›</a><span></span></div>
+</div>
+</section>
+</div>
+</main>
+</div>
+</div></section>
+<section class="board"><h2 class="bt">Right now, Forks</h2><div class="frame" style="width: 1440px">
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;color:#23211c;background:#fbf9f3}
+a{color:#1b7366;text-decoration:none}a:hover{color:#135248;text-decoration:underline}
+button{font:inherit;cursor:pointer}
+.sb{display:flex;align-items:center;gap:10px;height:32px;padding:0 10px;border-radius:8px;font-size:15px;color:#23211c}
+.sb:hover{color:#15130f;text-decoration:none;background:#e4dcc9}
+.sb svg{flex:none;color:#665f4f}
+.sb .n{flex:1}
+.ring{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;box-sizing:border-box;padding:0 4px;border:1.75px solid #a07b3a;border-radius:9px;background:#f6eedb;color:#80622e;font-size:11px;font-weight:650;font-variant-numeric:tabular-nums}
+.fill{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;box-sizing:border-box;padding:0 5px;border-radius:9px;background:#a3321f;color:#ffffff;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
+.clock{font-size:12px;color:#665f4f;font-variant-numeric:tabular-nums}
+.hdr{display:flex;align-items:center;gap:10px;height:44px;padding:0 24px;border-bottom:1px solid #dcd3bf}
+.hdr h1{margin:0;font-size:16px;font-weight:600;color:#15130f}
+.hdr .d{font-size:15px;color:#665f4f}
+.hdr .r{font-size:13px;color:#665f4f;font-variant-numeric:tabular-nums}
+.hdr .gap{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:11px;background:#f3e8cf;color:#6b5126;font-size:13px;font-weight:600}
+.hdr .gap:hover{color:#4a3818}
+.again{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid #dcd3bf;border-radius:6px;background:transparent;color:#665f4f}
+.flow{display:grid;grid-template-columns:minmax(0,1fr) 22px 116px 18px 176px;border:1px solid #dcd3bf;border-radius:10px;background:#fdfcf8}
+.lanes{position:relative;display:flex;flex-direction:column;min-width:0}
+.lane{position:relative;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));padding:4px}
+.lane.dr{border-top:1px dashed #cfc5ae;padding-top:9px}
+.lane.st>*{grid-column:span 4}
+.lane.st{padding-bottom:11px;column-gap:12px}
+.lane.dr>.c,.lane.dr>.cwrap{grid-column:span 3}
+.lane.st>:not(:last-child)::after{content:"\2192";position:absolute;right:-18px;top:50%;transform:translateY(-50%);color:#a99f88;font-size:12px;font-weight:400}
+.lane.st>.cwrap:not(:last-child)::after{right:-13px}
+.cwrap{position:relative;display:flex;flex-direction:column;min-width:0}
+.cwrap>.c{flex:1}
+.nrb{position:absolute;top:4px;right:11px;display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 8px;border:1px solid #dfcb9a;border-radius:11px;background:#fbf3df;color:#6b5126;font-size:12.5px;font-weight:700}
+.nrb:hover{background:#f0e2c2;text-decoration:none;color:#4a3818}
+.flow>.cwrap{justify-content:center}
+.flow>.cwrap>.c{flex:none}
+.flow>.cwrap>.nrb{top:50%;margin-top:-31px}
+.cwrap.pl>.nrb{right:auto;left:calc(22px + var(--l) * 8.1px);top:0;height:20px;padding:0 6px}
+.flow>.cwrap.pl>.nrb{left:calc(20px + var(--l) * 8.1px);top:50%}
+.nr{color:#80622e;font-weight:600}
+.c .v.bad{color:#8f2a1a;font-weight:650}
+.leg{position:absolute;top:-7px;right:10px;padding:0 6px;background:#fdfcf8;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8a8170;line-height:12px}
+.join{display:flex;flex-direction:column}
+.join span,.sep{flex:1;display:flex;align-items:center;justify-content:center;color:#a99f88;font-size:12px}
+.c{position:relative;display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:0;margin:0 5px;padding:6px 9px;border:1.5px solid transparent;border-radius:6px;background:transparent;color:#23211c;text-align:left;white-space:nowrap}
+a.c:hover,button.c:hover{background:#f1ecdf;text-decoration:none;color:#15130f}
+button.c.red:hover{background:#f3d6cc}button.c.amber:hover{background:#eeddb8}
+.c .go{color:#a99f88;font-weight:400}
+.c .nr{color:#80622e;font-weight:600}
+.c.big{margin:4px 0;padding:6px 12px}
+.c .k{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#665f4f}
+.c .v{font-size:15px;font-weight:500}
+.c .v.q{color:#a99f88;font-weight:700;font-size:22px;line-height:18px}
+.c .v .m,.c .s{font-size:13px;font-weight:400;color:#665f4f}
+.c .tick{color:#356c2f;font-weight:700}
+.c.red{background:#f8e4dd;border-color:#e6bdb1}.c.red .v{color:#8f2a1a;font-weight:650}.c.red .k{color:#8f2a1a}
+.c.amber{background:#f3e8cf;border-color:#dfcb9a}.c.amber .v{color:#6b5126;font-weight:650}.c.amber .k{color:#6b5126}
+.c.red .v .m,.c.amber .v .m{color:inherit;font-weight:500}
+.c.on{border-color:#15130f}
+
+.caveat{font-size:13px;color:#665f4f}
+.tabs{display:flex;flex-wrap:wrap;align-items:center;gap:0 22px;border-bottom:1px solid #dcd3bf;font-size:15px}
+.tabs a{padding:6px 2px 9px;color:#665f4f}
+.tabs a.cur{border-bottom:2px solid #1b7366;color:#15130f;font-weight:600}
+.tabs .cnt{margin-left:8px;font-size:13px;font-weight:500}
+.tabs .cb{color:#8f2a1a}.tabs .cw{color:#80622e}
+.scope{margin-left:auto;margin-bottom:5px;font-size:13px;color:#23211c;font-weight:500}
+.scope+.showall{margin-left:0}
+.showall{margin-left:auto;margin-bottom:5px;padding:3px 11px;border:1px solid #cfc5ae;border-radius:6px;background:#fbf9f3;color:#23211c;font-size:13px}
+.ok{color:#356c2f}.bad{color:#8f2a1a}.mut{color:#665f4f}
+.pill{justify-self:start;display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border:1px solid #1b7366;border-radius:12px;color:#1b7366;font-size:13px;font-weight:500;background:#fbf9f3;white-space:nowrap}
+.pill:hover{background:#d9ece7;text-decoration:none}
+.pill.grey{border-color:#cfc5ae;color:#665f4f}.pill.grey:hover{background:#efe9da;color:#23211c}
+.pill.issue{border-color:#2060bc;color:#1a4f9c}.pill.issue:hover{background:#dcebf3}
+.pill.mr{border-color:#a03a80;color:#8a2f6d}.pill.mr:hover{background:#f3dfec}
+.pill.act{border-color:#1b7366;background:#1b7366;color:#ffffff}.pill.act:hover{background:#135248}
+.box{border:1px solid #e8e1d0;border-radius:10px;overflow:hidden}
+.row{position:relative;display:grid;grid-template-columns:150px minmax(0,1fr) 180px 100px;align-items:center;gap:12px;min-height:44px;padding:0 16px;border-top:1px solid #e8e1d0;font-size:15px}
+.row.first{border-top:0}
+.row.two{align-items:start;padding-top:11px;padding-bottom:11px}
+.row .new{position:absolute;left:5px;top:50%;width:7px;height:7px;margin-top:-4px;border-radius:50%;background:#1b7366}
+.row.two .new{top:21px}
+.fork{color:#15130f;font-weight:500}
+.mem .fork{font-weight:400;padding-left:14px}
+
+.hd{padding:0;border:0;background:none;color:#15130f;text-align:left;justify-self:start}
+.hd:hover{text-decoration:underline}
+.what{display:flex;flex-direction:column;gap:5px;min-width:0}
+.what .l1{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.what .l2{font-size:13px;color:#665f4f}
+.what .hd .tw{margin-left:-14px}
+.due{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 7px;border-radius:10px;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.due.r{background:#f4d9d0;color:#8f2a1a}.due.a{background:#f0e2c2;color:#6b5126}
+.age{white-space:nowrap;display:flex;justify-content:flex-end;align-items:center;gap:6px;color:#665f4f;font-variant-numeric:tabular-nums}
+.seg{flex:1;height:7px;border-radius:2px;box-sizing:border-box}
+.sec{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;font-weight:600}
+.sec .x{font-weight:400;color:#665f4f}
+.dot{width:8px;height:8px;border-radius:50%;box-sizing:border-box}
+.tw{display:inline-flex;align-items:center;width:14px;color:#23211c;vertical-align:-1px}
+.when{color:#665f4f;font-variant-numeric:tabular-nums}
+.gapc{display:inline-flex;align-items:center;height:20px;padding:0 7px;margin-right:4px;border-radius:10px;background:#f3e8cf;color:#6b5126;font-size:12.5px;font-weight:600}
+.gapc:hover{color:#4a3818}
+.mem{background:#f8f3e6}
+.lead{margin:2px 0 0;font-size:17px;font-weight:500;color:#15130f}
+.lead .asof{margin-left:8px;font-size:13px;color:#665f4f}
+.narrow .flow{grid-template-columns:minmax(0,1fr) 18px minmax(0,1fr)}
+.narrow .flow>.c.big,.narrow .flow>.cwrap,.narrow .flow>.sep{grid-row:3}
+.narrow .lanes{grid-column:1 / -1}
+.narrow .join{grid-column:1 / -1;position:relative;height:20px}
+.narrow .join span{display:none}
+.narrow .join::before{content:"";position:absolute;left:30px;right:9px;top:0;height:9px;border:solid #a99f88;border-width:0 1.5px 1.5px 1.5px;border-radius:0 0 7px 7px;border-left-color:transparent;border-bottom-left-radius:0}
+.narrow .join::after{content:"\2193";position:absolute;left:24px;top:5px;color:#8a8170;font-size:13px;line-height:16px}
+.narrow .lanes{padding-right:20px}
+.narrow .lanes::after{content:"";position:absolute;right:9px;top:22px;bottom:0;border-right:1.5px solid #a99f88}
+.narrow .lane>:last-child::after{content:"\2192";position:absolute;right:-13px;top:50%;transform:translateY(-50%);color:#a99f88;font-size:11px}
+.narrow .md{display:none}
+.narrow .lane.st{padding-bottom:4px;column-gap:12px}
+.narrow .lane.st>:not(:last-child)::after{right:-14px;font-size:11px}
+.narrow .lane.st>.cwrap:not(:last-child)::after{right:-12px}
+.narrow .lane.dr{padding-top:4px}
+.narrow .leg{position:static;grid-column:1 / -1;padding:0 8px 2px;background:none}
+.narrow .c{margin:0 2px;padding:6px 6px;white-space:normal}
+.narrow .c .k{font-size:9.5px;letter-spacing:.04em}
+.narrow .c .v{font-size:14px}
+.narrow .c .v .m{display:block;font-size:12.5px}
+.narrow .nrb{top:2px;right:4px;height:20px;padding:0 6px}
+.narrow .cwrap.pl>.nrb{left:calc(14px + var(--l) * 7.1px)}
+.narrow .row{grid-template-columns:118px minmax(0,1fr) auto;row-gap:6px;padding-top:10px;padding-bottom:10px;align-items:start}
+.narrow .row>:nth-last-child(4){grid-column:1;grid-row:1;white-space:nowrap}
+.narrow .row>:nth-last-child(3){grid-column:2 / 4;grid-row:1}
+.narrow .row>:nth-last-child(2){grid-column:2;grid-row:2;align-self:center}
+.narrow .row>:nth-last-child(1){grid-column:3;grid-row:2;align-self:center}
+.narrow .row .new{top:19px}
+.name{margin:0;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#665f4f}
+.note{font-size:13px;color:#665f4f}
+
+.sheet{min-width:900px}
+.fr{display:grid;grid-template-columns:22px minmax(150px,1.4fr) repeat(4,minmax(0,1fr)) 16px repeat(4,minmax(0,1fr));align-items:center;column-gap:8px;min-height:40px;padding:0 14px;border-top:1px solid #e8e1d0;font-size:15px}
+.fr.head{min-height:36px;border-top:0;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#665f4f;white-space:nowrap}
+.fr .twb{padding:0;border:0;background:none;color:#23211c;text-align:left;display:inline-flex}
+.fr .nm{color:#15130f;font-weight:500}
+.fr .e{color:#b3a98f;font-size:20px;font-weight:700;line-height:1}
+.fr .g{color:#356c2f;font-weight:700;font-size:13px}
+.fr .rule{align-self:stretch;border-left:1px dashed #dcd3bf}
+.fr .num{color:#23211c;font-variant-numeric:tabular-nums}
+.fr .t{color:#665f4f;font-size:13px}
+.fold{display:flex;align-items:center;gap:8px;column-gap:8px;min-height:40px;padding:0 14px;border-top:1px solid #e8e1d0;font-size:14px;color:#665f4f}
+</style>
+
+<div style="display: flex; flex-wrap: wrap; min-height: 820px; background: #fbf9f3">
+
+<nav aria-label="Places" style="flex: 1 0 232px; max-width: 232px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 12px 8px; background: #ece6d7; border-right: 1px solid #dcd3bf">
+  <div style="display: flex; align-items: center; gap: 8px; height: 36px; margin-bottom: 8px; padding: 0 10px; border: 1px solid #dcd3bf; border-radius: 8px; background: #fbf9f3; color: #665f4f; font-size: 14px"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><span style="flex: 1">Find or ask</span><span style="padding: 1px 5px; border: 1px solid #dcd3bf; border-radius: 4px; font-size: 11px">⌘K</span></div>
+  <a href="#" class="sb" aria-current="page" style="background: #fbf9f3; box-shadow: 0 0 0 1px #dcd3bf; font-weight: 600"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M13 3l-1.4 1.4M4.4 11.6 3 13"/></svg><span class="n">Today</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="3" width="12" height="4" rx="1"/><rect x="2" y="9" width="12" height="4" rx="1"/></svg><span class="n">Environment</span><span class="ok" aria-label="Ready" style="font-size: 13px; font-weight: 700">✓</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2 2 5l6 3 6-3-6-3ZM2 8l6 3 6-3M2 11l6 3 6-3"/></svg><span class="n">Template</span></a>
+  <div style="margin: 14px 10px 4px; font-size: 13px; color: #665f4f">Pinned</div>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 2h5.5l6.5 6.5L8.5 14 2 7.5V2Z"/><circle cx="5" cy="5" r="1"/></svg><span class="n">Releases</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13 3.5v4c0 3.2-2.1 5.8-5 7-2.9-1.2-5-3.8-5-7v-4l5-2Z"/></svg><span class="n">Security</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13.5h10"/></svg><span class="n">Upstream</span><span class="clock" aria-label="Next sync Saturday 18:00">Sat 18:00</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">storage</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">search</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">indexer</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">partition</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">entitlements</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">legal</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">schema</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">workflow</span></a>
+  <div style="flex: 1"></div>
+  <a href="#" class="sb" style="color: #665f4f; font-size: 14px"><span class="n">Settled 8 ›</span></a>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0">
+<header class="hdr"><h1>Today</h1><span class="d">Friday 27 Nov</span><span style="flex: 1"></span><span class="r">Read 18:42 · 13 forks</span><button class="again" aria-label="Read again"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2v3h-3"/></svg></button></header>
+<div style="box-sizing: border-box; max-width: none; padding: 20px 24px 40px; display: flex; flex-direction: column; gap: 18px">
+<div style="max-width: 1000px"><section aria-label="Fleet flow" class="flow">
+  <div class="lanes">
+    <div class="lane st"><a href="#" class="c" title="partition, entitlements, legal, file · opens Upstream"><span class="k">Upstream</span><span class="v">4 forks behind <span class="m"><span class="md">· </span>Sat 18:00</span> <span class="go" aria-hidden="true">›</span></span></a><span class="c"><span class="k">Sync PR</span><span class="v q" aria-label="None">·</span></span><span class="c"><span class="k">Integration</span><span class="v q" aria-label="None">·</span></span></div>
+    <div class="lane dr"><span class="leg">Straight into main</span><span class="c"><span class="k">Template</span><span class="v q" aria-label="None">·</span></span><a href="#" class="c" title="Shows the Release PRs row in Can wait"><span class="k">Release</span><span class="v">13 open <span class="go" aria-hidden="true">›</span></span></a><span class="c"><span class="k">Dependabot</span><span class="v q" aria-label="None">·</span></span><span class="c"><span class="k">Other PRs</span><span class="v q" aria-label="None">·</span></span></div>
+  </div>
+  <div class="join" aria-hidden="true"><span>→</span><span>→</span></div>
+  <span class="c big"><span class="k">Main</span><span class="v"><span class="tick" aria-hidden="true">✓</span> Green</span><span class="s">13 forks</span></span>
+  <span class="sep" aria-hidden="true">→</span>
+  <a href="#" class="c big" title="Opens Environment"><span class="k">Environment</span><span class="v"><span class="tick" aria-hidden="true">✓</span> Ready <span class="go" aria-hidden="true">›</span></span><span class="s">v0.35.10</span></a>
+</section>
+</div><nav aria-label="Today tabs" class="tabs"><a href="#" class="">Yours</a><a href="#" class="cur" aria-current="page">Forks</a></nav>
+<div style="overflow-x: auto; border: 1px solid #dcd3bf; border-radius: 10px; background: #fdfcf8"><div class="sheet">
+<div class="fr head"><span></span><span>Fork</span><span>Upstream</span><span>Sync PR</span><span>Integration</span><span>Main</span><span class="rule" aria-hidden="true"></span><span>Template</span><span>Release</span><span>Dependabot</span><span>Other PRs</span></div>
+<div class="fr"><button class="twb" aria-label="Expand file details" aria-expanded="false"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></button><a href="#" class="nm">file</a><span class="num">4 changes</span><span class="e" aria-label="None">·</span><span class="e" aria-label="None">·</span><span class="g" aria-label="Green">✓</span><span class="rule" aria-hidden="true"></span><span class="e" aria-label="None">·</span><a href="#" title="Release PR open 11d · opens Releases">11d <span style="color: #a99f88">›</span></a><span class="e" aria-label="None">·</span><span class="e" aria-label="None">·</span></div>
+<div class="fr"><button class="twb" aria-label="Expand partition details" aria-expanded="false"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></button><a href="#" class="nm">partition</a><span class="num">2 changes</span><span class="e" aria-label="None">·</span><span class="e" aria-label="None">·</span><span class="g" aria-label="Green">✓</span><span class="rule" aria-hidden="true"></span><span class="e" aria-label="None">·</span><a href="#" title="Release PR open 10d · opens Releases">10d <span style="color: #a99f88">›</span></a><span class="e" aria-label="None">·</span><span class="e" aria-label="None">·</span></div>
+<div class="fr"><button class="twb" aria-label="Expand entitlements details" aria-expanded="false"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></button><a href="#" class="nm">entitlements</a><span class="num">2 changes</span><span class="e" aria-label="None">·</span><span class="e" aria-label="None">·</span><span class="g" aria-label="Green">✓</span><span class="rule" aria-hidden="true"></span><span class="e" aria-label="None">·</span><a href="#" title="Release PR open 11d · opens Releases">11d <span style="color: #a99f88">›</span></a><span class="e" aria-label="None">·</span><span class="e" aria-label="None">·</span></div>
+<div class="fr"><button class="twb" aria-label="Expand legal details" aria-expanded="false"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></button><a href="#" class="nm">legal</a><span class="num">2 changes</span><span class="e" aria-label="None">·</span><span class="e" aria-label="None">·</span><span class="g" aria-label="Green">✓</span><span class="rule" aria-hidden="true"></span><span class="e" aria-label="None">·</span><a href="#" title="Release PR open 11d · opens Releases">11d <span style="color: #a99f88">›</span></a><span class="e" aria-label="None">·</span><span class="e" aria-label="None">·</span></div>
+<button class="fold" aria-expanded="false" style="width: 100%; border-left: 0; border-right: 0; border-bottom: 0; background: none; text-align: left"><span style="display: inline-flex; width: 22px; color: #23211c"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span><span><span style="color: #23211c; font-weight: 500">9 release-only forks</span> · oldest 42d on search</span></button>
+</div></div>
+</div>
+</main>
+</div>
+</div></section>
+<section class="board"><h2 class="bt">Blocked day</h2><div class="frame" style="width: 1440px">
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;color:#23211c;background:#fbf9f3}
+a{color:#1b7366;text-decoration:none}a:hover{color:#135248;text-decoration:underline}
+button{font:inherit;cursor:pointer}
+.sb{display:flex;align-items:center;gap:10px;height:32px;padding:0 10px;border-radius:8px;font-size:15px;color:#23211c}
+.sb:hover{color:#15130f;text-decoration:none;background:#e4dcc9}
+.sb svg{flex:none;color:#665f4f}
+.sb .n{flex:1}
+.ring{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;box-sizing:border-box;padding:0 4px;border:1.75px solid #a07b3a;border-radius:9px;background:#f6eedb;color:#80622e;font-size:11px;font-weight:650;font-variant-numeric:tabular-nums}
+.fill{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;box-sizing:border-box;padding:0 5px;border-radius:9px;background:#a3321f;color:#ffffff;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
+.clock{font-size:12px;color:#665f4f;font-variant-numeric:tabular-nums}
+.hdr{display:flex;align-items:center;gap:10px;height:44px;padding:0 24px;border-bottom:1px solid #dcd3bf}
+.hdr h1{margin:0;font-size:16px;font-weight:600;color:#15130f}
+.hdr .d{font-size:15px;color:#665f4f}
+.hdr .r{font-size:13px;color:#665f4f;font-variant-numeric:tabular-nums}
+.hdr .gap{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:11px;background:#f3e8cf;color:#6b5126;font-size:13px;font-weight:600}
+.hdr .gap:hover{color:#4a3818}
+.again{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid #dcd3bf;border-radius:6px;background:transparent;color:#665f4f}
+.flow{display:grid;grid-template-columns:minmax(0,1fr) 22px 116px 18px 176px;border:1px solid #dcd3bf;border-radius:10px;background:#fdfcf8}
+.lanes{position:relative;display:flex;flex-direction:column;min-width:0}
+.lane{position:relative;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));padding:4px}
+.lane.dr{border-top:1px dashed #cfc5ae;padding-top:9px}
+.lane.st>*{grid-column:span 4}
+.lane.st{padding-bottom:11px;column-gap:12px}
+.lane.dr>.c,.lane.dr>.cwrap{grid-column:span 3}
+.lane.st>:not(:last-child)::after{content:"\2192";position:absolute;right:-18px;top:50%;transform:translateY(-50%);color:#a99f88;font-size:12px;font-weight:400}
+.lane.st>.cwrap:not(:last-child)::after{right:-13px}
+.cwrap{position:relative;display:flex;flex-direction:column;min-width:0}
+.cwrap>.c{flex:1}
+.nrb{position:absolute;top:4px;right:11px;display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 8px;border:1px solid #dfcb9a;border-radius:11px;background:#fbf3df;color:#6b5126;font-size:12.5px;font-weight:700}
+.nrb:hover{background:#f0e2c2;text-decoration:none;color:#4a3818}
+.flow>.cwrap{justify-content:center}
+.flow>.cwrap>.c{flex:none}
+.flow>.cwrap>.nrb{top:50%;margin-top:-31px}
+.cwrap.pl>.nrb{right:auto;left:calc(22px + var(--l) * 8.1px);top:0;height:20px;padding:0 6px}
+.flow>.cwrap.pl>.nrb{left:calc(20px + var(--l) * 8.1px);top:50%}
+.nr{color:#80622e;font-weight:600}
+.c .v.bad{color:#8f2a1a;font-weight:650}
+.leg{position:absolute;top:-7px;right:10px;padding:0 6px;background:#fdfcf8;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8a8170;line-height:12px}
+.join{display:flex;flex-direction:column}
+.join span,.sep{flex:1;display:flex;align-items:center;justify-content:center;color:#a99f88;font-size:12px}
+.c{position:relative;display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:0;margin:0 5px;padding:6px 9px;border:1.5px solid transparent;border-radius:6px;background:transparent;color:#23211c;text-align:left;white-space:nowrap}
+a.c:hover,button.c:hover{background:#f1ecdf;text-decoration:none;color:#15130f}
+button.c.red:hover{background:#f3d6cc}button.c.amber:hover{background:#eeddb8}
+.c .go{color:#a99f88;font-weight:400}
+.c .nr{color:#80622e;font-weight:600}
+.c.big{margin:4px 0;padding:6px 12px}
+.c .k{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#665f4f}
+.c .v{font-size:15px;font-weight:500}
+.c .v.q{color:#a99f88;font-weight:700;font-size:22px;line-height:18px}
+.c .v .m,.c .s{font-size:13px;font-weight:400;color:#665f4f}
+.c .tick{color:#356c2f;font-weight:700}
+.c.red{background:#f8e4dd;border-color:#e6bdb1}.c.red .v{color:#8f2a1a;font-weight:650}.c.red .k{color:#8f2a1a}
+.c.amber{background:#f3e8cf;border-color:#dfcb9a}.c.amber .v{color:#6b5126;font-weight:650}.c.amber .k{color:#6b5126}
+.c.red .v .m,.c.amber .v .m{color:inherit;font-weight:500}
+.c.on{border-color:#15130f}
+
+.caveat{font-size:13px;color:#665f4f}
+.tabs{display:flex;flex-wrap:wrap;align-items:center;gap:0 22px;border-bottom:1px solid #dcd3bf;font-size:15px}
+.tabs a{padding:6px 2px 9px;color:#665f4f}
+.tabs a.cur{border-bottom:2px solid #1b7366;color:#15130f;font-weight:600}
+.tabs .cnt{margin-left:8px;font-size:13px;font-weight:500}
+.tabs .cb{color:#8f2a1a}.tabs .cw{color:#80622e}
+.scope{margin-left:auto;margin-bottom:5px;font-size:13px;color:#23211c;font-weight:500}
+.scope+.showall{margin-left:0}
+.showall{margin-left:auto;margin-bottom:5px;padding:3px 11px;border:1px solid #cfc5ae;border-radius:6px;background:#fbf9f3;color:#23211c;font-size:13px}
+.ok{color:#356c2f}.bad{color:#8f2a1a}.mut{color:#665f4f}
+.pill{justify-self:start;display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border:1px solid #1b7366;border-radius:12px;color:#1b7366;font-size:13px;font-weight:500;background:#fbf9f3;white-space:nowrap}
+.pill:hover{background:#d9ece7;text-decoration:none}
+.pill.grey{border-color:#cfc5ae;color:#665f4f}.pill.grey:hover{background:#efe9da;color:#23211c}
+.pill.issue{border-color:#2060bc;color:#1a4f9c}.pill.issue:hover{background:#dcebf3}
+.pill.mr{border-color:#a03a80;color:#8a2f6d}.pill.mr:hover{background:#f3dfec}
+.pill.act{border-color:#1b7366;background:#1b7366;color:#ffffff}.pill.act:hover{background:#135248}
+.box{border:1px solid #e8e1d0;border-radius:10px;overflow:hidden}
+.row{position:relative;display:grid;grid-template-columns:150px minmax(0,1fr) 180px 100px;align-items:center;gap:12px;min-height:44px;padding:0 16px;border-top:1px solid #e8e1d0;font-size:15px}
+.row.first{border-top:0}
+.row.two{align-items:start;padding-top:11px;padding-bottom:11px}
+.row .new{position:absolute;left:5px;top:50%;width:7px;height:7px;margin-top:-4px;border-radius:50%;background:#1b7366}
+.row.two .new{top:21px}
+.fork{color:#15130f;font-weight:500}
+.mem .fork{font-weight:400;padding-left:14px}
+
+.hd{padding:0;border:0;background:none;color:#15130f;text-align:left;justify-self:start}
+.hd:hover{text-decoration:underline}
+.what{display:flex;flex-direction:column;gap:5px;min-width:0}
+.what .l1{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.what .l2{font-size:13px;color:#665f4f}
+.what .hd .tw{margin-left:-14px}
+.due{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 7px;border-radius:10px;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.due.r{background:#f4d9d0;color:#8f2a1a}.due.a{background:#f0e2c2;color:#6b5126}
+.age{white-space:nowrap;display:flex;justify-content:flex-end;align-items:center;gap:6px;color:#665f4f;font-variant-numeric:tabular-nums}
+.seg{flex:1;height:7px;border-radius:2px;box-sizing:border-box}
+.sec{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;font-weight:600}
+.sec .x{font-weight:400;color:#665f4f}
+.dot{width:8px;height:8px;border-radius:50%;box-sizing:border-box}
+.tw{display:inline-flex;align-items:center;width:14px;color:#23211c;vertical-align:-1px}
+.when{color:#665f4f;font-variant-numeric:tabular-nums}
+.gapc{display:inline-flex;align-items:center;height:20px;padding:0 7px;margin-right:4px;border-radius:10px;background:#f3e8cf;color:#6b5126;font-size:12.5px;font-weight:600}
+.gapc:hover{color:#4a3818}
+.mem{background:#f8f3e6}
+.lead{margin:2px 0 0;font-size:17px;font-weight:500;color:#15130f}
+.lead .asof{margin-left:8px;font-size:13px;color:#665f4f}
+.narrow .flow{grid-template-columns:minmax(0,1fr) 18px minmax(0,1fr)}
+.narrow .flow>.c.big,.narrow .flow>.cwrap,.narrow .flow>.sep{grid-row:3}
+.narrow .lanes{grid-column:1 / -1}
+.narrow .join{grid-column:1 / -1;position:relative;height:20px}
+.narrow .join span{display:none}
+.narrow .join::before{content:"";position:absolute;left:30px;right:9px;top:0;height:9px;border:solid #a99f88;border-width:0 1.5px 1.5px 1.5px;border-radius:0 0 7px 7px;border-left-color:transparent;border-bottom-left-radius:0}
+.narrow .join::after{content:"\2193";position:absolute;left:24px;top:5px;color:#8a8170;font-size:13px;line-height:16px}
+.narrow .lanes{padding-right:20px}
+.narrow .lanes::after{content:"";position:absolute;right:9px;top:22px;bottom:0;border-right:1.5px solid #a99f88}
+.narrow .lane>:last-child::after{content:"\2192";position:absolute;right:-13px;top:50%;transform:translateY(-50%);color:#a99f88;font-size:11px}
+.narrow .md{display:none}
+.narrow .lane.st{padding-bottom:4px;column-gap:12px}
+.narrow .lane.st>:not(:last-child)::after{right:-14px;font-size:11px}
+.narrow .lane.st>.cwrap:not(:last-child)::after{right:-12px}
+.narrow .lane.dr{padding-top:4px}
+.narrow .leg{position:static;grid-column:1 / -1;padding:0 8px 2px;background:none}
+.narrow .c{margin:0 2px;padding:6px 6px;white-space:normal}
+.narrow .c .k{font-size:9.5px;letter-spacing:.04em}
+.narrow .c .v{font-size:14px}
+.narrow .c .v .m{display:block;font-size:12.5px}
+.narrow .nrb{top:2px;right:4px;height:20px;padding:0 6px}
+.narrow .cwrap.pl>.nrb{left:calc(14px + var(--l) * 7.1px)}
+.narrow .row{grid-template-columns:118px minmax(0,1fr) auto;row-gap:6px;padding-top:10px;padding-bottom:10px;align-items:start}
+.narrow .row>:nth-last-child(4){grid-column:1;grid-row:1;white-space:nowrap}
+.narrow .row>:nth-last-child(3){grid-column:2 / 4;grid-row:1}
+.narrow .row>:nth-last-child(2){grid-column:2;grid-row:2;align-self:center}
+.narrow .row>:nth-last-child(1){grid-column:3;grid-row:2;align-self:center}
+.narrow .row .new{top:19px}
+.name{margin:0;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#665f4f}
+.note{font-size:13px;color:#665f4f}
+</style>
+
+<div style="display: flex; flex-wrap: wrap; min-height: 1540px; background: #fbf9f3">
+
+<nav aria-label="Places" style="flex: 1 0 232px; max-width: 232px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 12px 8px; background: #ece6d7; border-right: 1px solid #dcd3bf">
+  <div style="display: flex; align-items: center; gap: 8px; height: 36px; margin-bottom: 8px; padding: 0 10px; border: 1px solid #dcd3bf; border-radius: 8px; background: #fbf9f3; color: #665f4f; font-size: 14px"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><span style="flex: 1">Find or ask</span><span style="padding: 1px 5px; border: 1px solid #dcd3bf; border-radius: 4px; font-size: 11px">⌘K</span></div>
+  <a href="#" class="sb" aria-current="page" style="background: #fbf9f3; box-shadow: 0 0 0 1px #dcd3bf; font-weight: 600"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M13 3l-1.4 1.4M4.4 11.6 3 13"/></svg><span class="n">Today</span><span class="fill" aria-label="18 yours, 3 blocked">18</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="3" width="12" height="4" rx="1"/><rect x="2" y="9" width="12" height="4" rx="1"/></svg><span class="n">Environment</span><span class="ok" aria-label="Ready" style="font-size: 13px; font-weight: 700">✓</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2 2 5l6 3 6-3-6-3ZM2 8l6 3 6-3M2 11l6 3 6-3"/></svg><span class="n">Template</span><span class="ring" aria-label="1 waiting on you">1</span></a>
+  <div style="margin: 14px 10px 4px; font-size: 13px; color: #665f4f">Pinned</div>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 2h5.5l6.5 6.5L8.5 14 2 7.5V2Z"/><circle cx="5" cy="5" r="1"/></svg><span class="n">Releases</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13 3.5v4c0 3.2-2.1 5.8-5 7-2.9-1.2-5-3.8-5-7v-4l5-2Z"/></svg><span class="n">Security</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13.5h10"/></svg><span class="n">Upstream</span><span class="ring" aria-label="1 waiting on you">1</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">storage</span><span class="ring" aria-label="2 waiting on you">2</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">search</span><span class="fill" aria-label="2 yours, 1 blocked">2</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">indexer</span><span class="fill" aria-label="2 yours, 1 blocked">2</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">partition</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">entitlements</span><span class="ring" aria-label="1 waiting on you">1</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">legal</span><span class="ring" aria-label="1 waiting on you">1</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">schema</span><span class="ring" aria-label="1 waiting on you">1</span></a>
+  <a href="#" class="sb"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.5 13.5 4.5v7L8 14.5 2.500 11.500v-7L8 1.500ZM2.500 4.500 8 7.500l5.500-3M8 7.500v7"/></svg><span class="n">workflow</span><span class="ring" aria-label="1 waiting on you">1</span></a>
+  <div style="flex: 1"></div>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0">
+<header class="hdr"><h1>Today</h1><span class="d">Monday 16 Nov</span><span style="flex: 1"></span><a href="#" class="gap" aria-label="2 not read, open Evidence" title="2 not read, open Evidence">⌀ 2 ›</a><span class="r">Read 19:06</span><button class="again" aria-label="Read again"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2v3h-3"/></svg></button></header>
+<div style="box-sizing: border-box; max-width: 1048px; padding: 20px 24px 40px; display: flex; flex-direction: column; gap: 18px">
+<section aria-label="Fleet flow" class="flow">
+  <div class="lanes">
+    <div class="lane st"><span class="cwrap"><button class="c red" aria-pressed="false" title="crs-conversion, search, indexer · 23 provider changes to port"><span class="k">Upstream</span><span class="v">3 forks stopped</span></button><a href="#" class="nrb" title="search's sync run not read · opens Evidence" aria-label="search's sync run not read, open Evidence">⌀ <span aria-hidden="true">›</span></a></span><button class="c amber" aria-pressed="false" title="crs-conversion to review; 4 need os-core-common upgraded"><span class="k">Sync PR</span><span class="v">5 open</span></button><button class="c amber" aria-pressed="false" title="6 red, 2 waiting for approval"><span class="k">Integration</span><span class="v">8 PRs <span class="m"><span class="md">· </span>6 red</span></span></button></div>
+    <div class="lane dr"><span class="leg">Straight into main</span><button class="c amber" aria-pressed="false" title="Dispatch before Tue 02:00"><span class="k">Template</span><span class="v">7 to dispatch</span></button><a href="#" class="c" title="Shows the Release PRs row in Can wait"><span class="k">Release</span><span class="v">14 open <span class="go" aria-hidden="true">›</span></span></a><a href="#" class="c" title="Shows the Dependabot row in Can wait"><span class="k">Dependabot</span><span class="v">26 open <span class="go" aria-hidden="true">›</span></span></a><a href="#" class="c" title="Shows the Other PRs cause on the most forks"><span class="k">Other PRs</span><span class="v">7 open <span class="go" aria-hidden="true">›</span></span></a></div>
+  </div>
+  <div class="join" aria-hidden="true"><span>→</span><span>→</span></div>
+  <span class="c big"><span class="k">Main</span><span class="v"><span class="tick" aria-hidden="true">✓</span> Green</span><span class="s">13 forks</span></span>
+  <span class="sep" aria-hidden="true">→</span>
+  <span class="cwrap pl" style="--l: 11"><a href="#" class="c big" title="Opens Environment"><span class="k">Environment</span><span class="v"><span class="tick" aria-hidden="true">✓</span> Ready <span class="go" aria-hidden="true">›</span></span><span class="s">v0.35.5 · 1 lane busy</span></a><a href="#" class="nrb" title="partition's deployment not read · opens Evidence" aria-label="partition's deployment not read, open Evidence">⌀ <span aria-hidden="true">›</span></a></span>
+</section>
+<div class="caveat"><span class="nr">⌀</span> Not read: search's sync run, partition's deployment · <a href="#">Evidence ›</a></div>
+<nav aria-label="Today tabs" class="tabs"><a href="#" class="cur" aria-current="page">Yours<span class="cnt cb">3 blocked</span><span class="cnt cw">15 waiting</span></a><a href="#" class="">Forks<span class="cnt cb">8 stopped</span></a></nav>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<h2 class="sec" style="color: #8f2a1a"><span class="dot" aria-hidden="true" style="background: #a3321f"></span>Blocked</h2>
+<div class="box" style="border-color: #e0b3a7; background: #fcf1ed">
+<div class="row first"><a href="#" class="fork">crs-conversion</a><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Sync halted: no filter rule for schemathesis-tests</button><span class="due r" title="Fix before the next upstream sync, Tue 18:00"><svg role="img" aria-label="Fix before the next upstream sync, Tue 18:00" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#8f2a1a" stroke-width="1.7"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.500"/></svg>Tue 18:00</span></div></div><a href="#" class="pill issue">Issue #44 ↗</a><span class="age">6d</span></div>
+<div class="row " style="border-top-color: #edd0c7"><a href="#" class="fork">search</a><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Sync failed</button></div></div><a href="#" class="pill grey">Sync Upstream run ↗</a><span class="age"><a href="#" aria-label="search's sync run not read, open Evidence" title="search's sync run not read · opens Evidence" class="gapc">⌀ 1 ›</a>58m</span></div>
+<div class="row " style="border-top-color: #edd0c7"><a href="#" class="fork">indexer</a><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Sync failed</button><span class="mut" style="font-size: 14px">merge conflict in pom.xml</span></div></div><a href="#" class="pill issue">Issue #72 ↗</a><span class="age">33m</span></div>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<h2 class="sec" style="color: #23211c"><span class="dot" aria-hidden="true" style="background: #a07b3a"></span>Waiting on you</h2>
+<div class="box" style="border-color: #d5c79f; background: #fdfcf8">
+<div class="row first two"><a href="#" class="fork">Template</a><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Template sync to dispatch</button><span class="due a" title="Dispatch before Tue 02:00, when the scheduled sync opens all 7 PRs at once"><svg role="img" aria-label="Dispatch before Tue 02:00, when the scheduled sync opens all 7 PRs at once" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#6b5126" stroke-width="1.7"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.500"/></svg>Tue 02:00</span></div><div role="img" aria-label="Rollout across 13 forks: 6 merged, 7 to dispatch" style="display: flex; gap: 3px; max-width: 420px"><span class="seg" style="background: #3a7633"></span><span class="seg" style="background: #3a7633"></span><span class="seg" style="background: #3a7633"></span><span class="seg" style="background: #3a7633"></span><span class="seg" style="background: #3a7633"></span><span class="seg" style="background: #3a7633"></span><span class="seg" style="border: 1px solid #b08a45"></span><span class="seg" style="border: 1px solid #b08a45"></span><span class="seg" style="border: 1px solid #b08a45"></span><span class="seg" style="border: 1px solid #b08a45"></span><span class="seg" style="border: 1px solid #b08a45"></span><span class="seg" style="border: 1px solid #b08a45"></span><span class="seg" style="border: 1px solid #b08a45"></span></div><span class="l2">6 merged · 7 to dispatch: partition, legal, schema, file, unit, crs-catalog, crs-conversion</span></div><a href="#" class="pill grey">Template 1a4730d ↗</a><span class="age">4h</span></div>
+<div class="row two"><span class="fork">5 forks</span><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Integration PRs red: deploy lane failed</button></div><span class="l2">indexer-queue, legal, entitlements, schema, indexer · re-run can be queued now</span></div><span></span><span class="age">9d</span></div>
+<div class="row "><a href="#" class="fork">storage</a><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Integration PR fails Validation Summary</button></div></div><a href="#" class="pill">PR #83 ↗</a><span class="age">54m</span></div>
+<div class="row two"><a href="#" class="fork">Upstream</a><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>23 provider changes to port</button></div><span class="l2">12 forks</span></div><a href="#" class="pill mr">MR !968 ↗</a><span class="age">63d</span></div>
+<div class="row two"><span class="fork">4 forks</span><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Sync PR needs os-core-common upgraded on the fork first</button></div><span class="l2">storage, search, file, workflow</span></div><span></span><span class="age">10d</span></div>
+<div class="row "><a href="#" class="fork">crs-conversion</a><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Sync PR to review</button></div></div><a href="#" class="pill">PR #41 ↗</a><span class="age">7d</span></div>
+<div class="row two"><span class="fork">2 forks</span><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Integration PR waits for approval</button></div><span class="l2">unit, crs-catalog</span></div><span></span><span class="age">7d</span></div>
+</div>
+<div class="box" style="border: 1px dashed #b9ae95; color: #665f4f">
+<div class="row first"><span class="fork" style="color: #665f4f">entitlements</span><span>Draft PR from a thread · pending · not yet in a sweep</span><a href="#" style="justify-self: start">Thread ›</a><span></span></div>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<h2 class="sec" style="color: #665f4f"><span class="dot" aria-hidden="true" style="background: #2060bc"></span>Moving without you</h2>
+<div class="box">
+<div class="row first"><span class="when">Now</span><span>partition's lane is re-running after a failed deploy</span><a href="#" class="pill grey">Deployments ↗</a><span class="age"><a href="#" aria-label="partition's deployment not read, open Evidence" title="partition's deployment not read · opens Evidence" class="gapc">⌀ 1 ›</a>20m</span></div>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<h2 class="sec" style="color: #665f4f"><span class="dot" aria-hidden="true" style="background: #8a8170"></span>Can wait</h2>
+<div class="box" style="color: #665f4f">
+<div class="row first"><span>Release PRs</span><span>14 open · 1 ready to merge · none failing</span><a href="#" style="justify-self: start">Releases ›</a><span></span></div>
+<div class="row "><span>Dependabot</span><span>26 open on 8 forks</span><a href="#" style="justify-self: start">Forks ›</a><span></span></div>
+<div class="row "><span>Other PRs</span><span>7 open on 7 forks · chore: declare component governance inputs</span><a href="#" style="justify-self: start">Forks ›</a><span></span></div>
+<div class="row "><span>Alerts</span><span>6 critical or high in shipped code · none new this week</span><a href="#" style="justify-self: start">Security ›</a><span></span></div>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<h2 class="sec" style="color: #665f4f"><span class="dot" aria-hidden="true" style="border: 1.5px solid #8a8170"></span>Last 24 hours</h2>
+<div class="box" style="border-style: dashed; color: #665f4f">
+<div class="row first"><span>Upstream</span><span>1 sync PR opened · <span class="bad">3 syncs failed</span></span><a href="#" style="justify-self: start">Upstream ›</a><span></span></div>
+<div class="row "><span>Template</span><span>6 PRs merged</span><a href="#" style="justify-self: start">Template ›</a><span></span></div>
+</div>
+</section>
+</div>
+</main>
+</div>
+</div></section>
+<section class="board"><h2 class="bt">Blocked day, a group opened in place</h2><div class="frame" style="width: 1160px">
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;color:#23211c;background:#fbf9f3}
+a{color:#1b7366;text-decoration:none}a:hover{color:#135248;text-decoration:underline}
+button{font:inherit;cursor:pointer}
+.sb{display:flex;align-items:center;gap:10px;height:32px;padding:0 10px;border-radius:8px;font-size:15px;color:#23211c}
+.sb:hover{color:#15130f;text-decoration:none;background:#e4dcc9}
+.sb svg{flex:none;color:#665f4f}
+.sb .n{flex:1}
+.ring{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;box-sizing:border-box;padding:0 4px;border:1.75px solid #a07b3a;border-radius:9px;background:#f6eedb;color:#80622e;font-size:11px;font-weight:650;font-variant-numeric:tabular-nums}
+.fill{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;box-sizing:border-box;padding:0 5px;border-radius:9px;background:#a3321f;color:#ffffff;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
+.clock{font-size:12px;color:#665f4f;font-variant-numeric:tabular-nums}
+.hdr{display:flex;align-items:center;gap:10px;height:44px;padding:0 24px;border-bottom:1px solid #dcd3bf}
+.hdr h1{margin:0;font-size:16px;font-weight:600;color:#15130f}
+.hdr .d{font-size:15px;color:#665f4f}
+.hdr .r{font-size:13px;color:#665f4f;font-variant-numeric:tabular-nums}
+.hdr .gap{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:11px;background:#f3e8cf;color:#6b5126;font-size:13px;font-weight:600}
+.hdr .gap:hover{color:#4a3818}
+.again{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid #dcd3bf;border-radius:6px;background:transparent;color:#665f4f}
+.flow{display:grid;grid-template-columns:minmax(0,1fr) 22px 116px 18px 176px;border:1px solid #dcd3bf;border-radius:10px;background:#fdfcf8}
+.lanes{position:relative;display:flex;flex-direction:column;min-width:0}
+.lane{position:relative;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));padding:4px}
+.lane.dr{border-top:1px dashed #cfc5ae;padding-top:9px}
+.lane.st>*{grid-column:span 4}
+.lane.st{padding-bottom:11px;column-gap:12px}
+.lane.dr>.c,.lane.dr>.cwrap{grid-column:span 3}
+.lane.st>:not(:last-child)::after{content:"\2192";position:absolute;right:-18px;top:50%;transform:translateY(-50%);color:#a99f88;font-size:12px;font-weight:400}
+.lane.st>.cwrap:not(:last-child)::after{right:-13px}
+.cwrap{position:relative;display:flex;flex-direction:column;min-width:0}
+.cwrap>.c{flex:1}
+.nrb{position:absolute;top:4px;right:11px;display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 8px;border:1px solid #dfcb9a;border-radius:11px;background:#fbf3df;color:#6b5126;font-size:12.5px;font-weight:700}
+.nrb:hover{background:#f0e2c2;text-decoration:none;color:#4a3818}
+.flow>.cwrap{justify-content:center}
+.flow>.cwrap>.c{flex:none}
+.flow>.cwrap>.nrb{top:50%;margin-top:-31px}
+.cwrap.pl>.nrb{right:auto;left:calc(22px + var(--l) * 8.1px);top:0;height:20px;padding:0 6px}
+.flow>.cwrap.pl>.nrb{left:calc(20px + var(--l) * 8.1px);top:50%}
+.nr{color:#80622e;font-weight:600}
+.c .v.bad{color:#8f2a1a;font-weight:650}
+.leg{position:absolute;top:-7px;right:10px;padding:0 6px;background:#fdfcf8;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8a8170;line-height:12px}
+.join{display:flex;flex-direction:column}
+.join span,.sep{flex:1;display:flex;align-items:center;justify-content:center;color:#a99f88;font-size:12px}
+.c{position:relative;display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:0;margin:0 5px;padding:6px 9px;border:1.5px solid transparent;border-radius:6px;background:transparent;color:#23211c;text-align:left;white-space:nowrap}
+a.c:hover,button.c:hover{background:#f1ecdf;text-decoration:none;color:#15130f}
+button.c.red:hover{background:#f3d6cc}button.c.amber:hover{background:#eeddb8}
+.c .go{color:#a99f88;font-weight:400}
+.c .nr{color:#80622e;font-weight:600}
+.c.big{margin:4px 0;padding:6px 12px}
+.c .k{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#665f4f}
+.c .v{font-size:15px;font-weight:500}
+.c .v.q{color:#a99f88;font-weight:700;font-size:22px;line-height:18px}
+.c .v .m,.c .s{font-size:13px;font-weight:400;color:#665f4f}
+.c .tick{color:#356c2f;font-weight:700}
+.c.red{background:#f8e4dd;border-color:#e6bdb1}.c.red .v{color:#8f2a1a;font-weight:650}.c.red .k{color:#8f2a1a}
+.c.amber{background:#f3e8cf;border-color:#dfcb9a}.c.amber .v{color:#6b5126;font-weight:650}.c.amber .k{color:#6b5126}
+.c.red .v .m,.c.amber .v .m{color:inherit;font-weight:500}
+.c.on{border-color:#15130f}
+
+.caveat{font-size:13px;color:#665f4f}
+.tabs{display:flex;flex-wrap:wrap;align-items:center;gap:0 22px;border-bottom:1px solid #dcd3bf;font-size:15px}
+.tabs a{padding:6px 2px 9px;color:#665f4f}
+.tabs a.cur{border-bottom:2px solid #1b7366;color:#15130f;font-weight:600}
+.tabs .cnt{margin-left:8px;font-size:13px;font-weight:500}
+.tabs .cb{color:#8f2a1a}.tabs .cw{color:#80622e}
+.scope{margin-left:auto;margin-bottom:5px;font-size:13px;color:#23211c;font-weight:500}
+.scope+.showall{margin-left:0}
+.showall{margin-left:auto;margin-bottom:5px;padding:3px 11px;border:1px solid #cfc5ae;border-radius:6px;background:#fbf9f3;color:#23211c;font-size:13px}
+.ok{color:#356c2f}.bad{color:#8f2a1a}.mut{color:#665f4f}
+.pill{justify-self:start;display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border:1px solid #1b7366;border-radius:12px;color:#1b7366;font-size:13px;font-weight:500;background:#fbf9f3;white-space:nowrap}
+.pill:hover{background:#d9ece7;text-decoration:none}
+.pill.grey{border-color:#cfc5ae;color:#665f4f}.pill.grey:hover{background:#efe9da;color:#23211c}
+.pill.issue{border-color:#2060bc;color:#1a4f9c}.pill.issue:hover{background:#dcebf3}
+.pill.mr{border-color:#a03a80;color:#8a2f6d}.pill.mr:hover{background:#f3dfec}
+.pill.act{border-color:#1b7366;background:#1b7366;color:#ffffff}.pill.act:hover{background:#135248}
+.box{border:1px solid #e8e1d0;border-radius:10px;overflow:hidden}
+.row{position:relative;display:grid;grid-template-columns:150px minmax(0,1fr) 180px 100px;align-items:center;gap:12px;min-height:44px;padding:0 16px;border-top:1px solid #e8e1d0;font-size:15px}
+.row.first{border-top:0}
+.row.two{align-items:start;padding-top:11px;padding-bottom:11px}
+.row .new{position:absolute;left:5px;top:50%;width:7px;height:7px;margin-top:-4px;border-radius:50%;background:#1b7366}
+.row.two .new{top:21px}
+.fork{color:#15130f;font-weight:500}
+.mem .fork{font-weight:400;padding-left:14px}
+
+.hd{padding:0;border:0;background:none;color:#15130f;text-align:left;justify-self:start}
+.hd:hover{text-decoration:underline}
+.what{display:flex;flex-direction:column;gap:5px;min-width:0}
+.what .l1{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.what .l2{font-size:13px;color:#665f4f}
+.what .hd .tw{margin-left:-14px}
+.due{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 7px;border-radius:10px;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.due.r{background:#f4d9d0;color:#8f2a1a}.due.a{background:#f0e2c2;color:#6b5126}
+.age{white-space:nowrap;display:flex;justify-content:flex-end;align-items:center;gap:6px;color:#665f4f;font-variant-numeric:tabular-nums}
+.seg{flex:1;height:7px;border-radius:2px;box-sizing:border-box}
+.sec{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;font-weight:600}
+.sec .x{font-weight:400;color:#665f4f}
+.dot{width:8px;height:8px;border-radius:50%;box-sizing:border-box}
+.tw{display:inline-flex;align-items:center;width:14px;color:#23211c;vertical-align:-1px}
+.when{color:#665f4f;font-variant-numeric:tabular-nums}
+.gapc{display:inline-flex;align-items:center;height:20px;padding:0 7px;margin-right:4px;border-radius:10px;background:#f3e8cf;color:#6b5126;font-size:12.5px;font-weight:600}
+.gapc:hover{color:#4a3818}
+.mem{background:#f8f3e6}
+.lead{margin:2px 0 0;font-size:17px;font-weight:500;color:#15130f}
+.lead .asof{margin-left:8px;font-size:13px;color:#665f4f}
+.narrow .flow{grid-template-columns:minmax(0,1fr) 18px minmax(0,1fr)}
+.narrow .flow>.c.big,.narrow .flow>.cwrap,.narrow .flow>.sep{grid-row:3}
+.narrow .lanes{grid-column:1 / -1}
+.narrow .join{grid-column:1 / -1;position:relative;height:20px}
+.narrow .join span{display:none}
+.narrow .join::before{content:"";position:absolute;left:30px;right:9px;top:0;height:9px;border:solid #a99f88;border-width:0 1.5px 1.5px 1.5px;border-radius:0 0 7px 7px;border-left-color:transparent;border-bottom-left-radius:0}
+.narrow .join::after{content:"\2193";position:absolute;left:24px;top:5px;color:#8a8170;font-size:13px;line-height:16px}
+.narrow .lanes{padding-right:20px}
+.narrow .lanes::after{content:"";position:absolute;right:9px;top:22px;bottom:0;border-right:1.5px solid #a99f88}
+.narrow .lane>:last-child::after{content:"\2192";position:absolute;right:-13px;top:50%;transform:translateY(-50%);color:#a99f88;font-size:11px}
+.narrow .md{display:none}
+.narrow .lane.st{padding-bottom:4px;column-gap:12px}
+.narrow .lane.st>:not(:last-child)::after{right:-14px;font-size:11px}
+.narrow .lane.st>.cwrap:not(:last-child)::after{right:-12px}
+.narrow .lane.dr{padding-top:4px}
+.narrow .leg{position:static;grid-column:1 / -1;padding:0 8px 2px;background:none}
+.narrow .c{margin:0 2px;padding:6px 6px;white-space:normal}
+.narrow .c .k{font-size:9.5px;letter-spacing:.04em}
+.narrow .c .v{font-size:14px}
+.narrow .c .v .m{display:block;font-size:12.5px}
+.narrow .nrb{top:2px;right:4px;height:20px;padding:0 6px}
+.narrow .cwrap.pl>.nrb{left:calc(14px + var(--l) * 7.1px)}
+.narrow .row{grid-template-columns:118px minmax(0,1fr) auto;row-gap:6px;padding-top:10px;padding-bottom:10px;align-items:start}
+.narrow .row>:nth-last-child(4){grid-column:1;grid-row:1;white-space:nowrap}
+.narrow .row>:nth-last-child(3){grid-column:2 / 4;grid-row:1}
+.narrow .row>:nth-last-child(2){grid-column:2;grid-row:2;align-self:center}
+.narrow .row>:nth-last-child(1){grid-column:3;grid-row:2;align-self:center}
+.narrow .row .new{top:19px}
+.name{margin:0;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#665f4f}
+.note{font-size:13px;color:#665f4f}
+</style>
+
+<div style="width: 1160px; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 12px; background: #fbf9f3">
+<h2 class="name">Blocked day · a group opened in place</h2>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<h2 class="sec" style="color: #23211c"><span class="dot" aria-hidden="true" style="background: #a07b3a"></span>Waiting on you</h2>
+<div class="box" style="border-color: #d5c79f; background: #fdfcf8">
+<div class="row first two"><a href="#" class="fork">Template</a><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Template sync to dispatch</button><span class="due a" title="Dispatch before Tue 02:00, when the scheduled sync opens all 7 PRs at once"><svg role="img" aria-label="Dispatch before Tue 02:00, when the scheduled sync opens all 7 PRs at once" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#6b5126" stroke-width="1.7"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.500"/></svg>Tue 02:00</span></div><div role="img" aria-label="Rollout across 13 forks: 6 merged, 7 to dispatch" style="display: flex; gap: 3px; max-width: 420px"><span class="seg" style="background: #3a7633"></span><span class="seg" style="background: #3a7633"></span><span class="seg" style="background: #3a7633"></span><span class="seg" style="background: #3a7633"></span><span class="seg" style="background: #3a7633"></span><span class="seg" style="background: #3a7633"></span><span class="seg" style="border: 1px solid #b08a45"></span><span class="seg" style="border: 1px solid #b08a45"></span><span class="seg" style="border: 1px solid #b08a45"></span><span class="seg" style="border: 1px solid #b08a45"></span><span class="seg" style="border: 1px solid #b08a45"></span><span class="seg" style="border: 1px solid #b08a45"></span><span class="seg" style="border: 1px solid #b08a45"></span></div><span class="l2">6 merged · 7 to dispatch: partition, legal, schema, file, unit, crs-catalog, crs-conversion</span></div><a href="#" class="pill grey">Template 1a4730d ↗</a><span class="age">4h</span></div>
+<div class="row " style="background: #f8f3e6"><span class="fork">5 forks</span><div class="what"><div class="l1"><button class="hd" aria-expanded="true" style="font-weight: 600"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3.5 5 6.5 8 3.5"/></svg></span>Integration PRs red: deploy lane failed</button></div></div><span></span><span class="age">9d</span></div>
+<div style="display: grid; grid-template-columns: 150px minmax(0,1fr); gap: 12px; padding: 2px 16px 16px; background: #f8f3e6; font-size: 14px; line-height: 1.5"><span></span><div style="display: flex; flex-direction: column; gap: 8px; max-width: 600px"><p style="margin: 0">The Verify step of Deploy and Test failed on 5 lanes.</p><ol style="margin: 0; padding-left: 20px"><li>Queue the re-run; it starts when partition's lane is free.</li><li>Approve and merge each PR once it is green.</li></ol><div style="display: flex; flex-wrap: wrap; gap: 8px; padding-top: 2px"><button class="pill act">Queue the re-run of all 5 lanes</button><a href="#" class="pill grey">Deployments ↗</a><button class="pill grey">Ask about this</button></div></div></div>
+<div class="row mem"><a href="#" class="fork">indexer-queue</a><span></span><a href="#" class="pill">PR #67 ↗</a><span class="age">9d</span></div>
+<div class="row mem"><a href="#" class="fork">legal</a><span></span><a href="#" class="pill">PR #90 ↗</a><span class="age">57m</span></div>
+<div class="row mem"><a href="#" class="fork">entitlements</a><span></span><a href="#" class="pill">PR #152 ↗</a><span class="age">41m</span></div>
+<div class="row mem"><a href="#" class="fork">schema</a><span></span><a href="#" class="pill">PR #104 ↗</a><span class="age">37m</span></div>
+<div class="row mem"><a href="#" class="fork">indexer</a><span></span><a href="#" class="pill">PR #73 ↗</a><span class="age">32m</span></div>
+<div class="row " style="border-top: 1px solid #d5c79f"><a href="#" class="fork">storage</a><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Integration PR fails Validation Summary</button></div></div><a href="#" class="pill">PR #83 ↗</a><span class="age">54m</span></div>
+<div class="row two"><a href="#" class="fork">Upstream</a><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>23 provider changes to port</button></div><span class="l2">12 forks</span></div><a href="#" class="pill mr">MR !968 ↗</a><span class="age">63d</span></div>
+<div class="row two"><span class="fork">4 forks</span><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Sync PR needs os-core-common upgraded on the fork first</button></div><span class="l2">storage, search, file, workflow</span></div><span></span><span class="age">10d</span></div>
+<div class="row "><a href="#" class="fork">crs-conversion</a><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Sync PR to review</button></div></div><a href="#" class="pill">PR #41 ↗</a><span class="age">7d</span></div>
+<div class="row two"><span class="fork">2 forks</span><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Integration PR waits for approval</button></div><span class="l2">unit, crs-catalog</span></div><span></span><span class="age">7d</span></div>
+</div>
+</section>
+</div>
+</div></section>
+<section class="board"><h2 class="bt">Header and flow bar states</h2><div class="frame" style="width: 1160px">
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;color:#23211c;background:#fbf9f3}
+a{color:#1b7366;text-decoration:none}a:hover{color:#135248;text-decoration:underline}
+button{font:inherit;cursor:pointer}
+.sb{display:flex;align-items:center;gap:10px;height:32px;padding:0 10px;border-radius:8px;font-size:15px;color:#23211c}
+.sb:hover{color:#15130f;text-decoration:none;background:#e4dcc9}
+.sb svg{flex:none;color:#665f4f}
+.sb .n{flex:1}
+.ring{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;box-sizing:border-box;padding:0 4px;border:1.75px solid #a07b3a;border-radius:9px;background:#f6eedb;color:#80622e;font-size:11px;font-weight:650;font-variant-numeric:tabular-nums}
+.fill{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;box-sizing:border-box;padding:0 5px;border-radius:9px;background:#a3321f;color:#ffffff;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
+.clock{font-size:12px;color:#665f4f;font-variant-numeric:tabular-nums}
+.hdr{display:flex;align-items:center;gap:10px;height:44px;padding:0 24px;border-bottom:1px solid #dcd3bf}
+.hdr h1{margin:0;font-size:16px;font-weight:600;color:#15130f}
+.hdr .d{font-size:15px;color:#665f4f}
+.hdr .r{font-size:13px;color:#665f4f;font-variant-numeric:tabular-nums}
+.hdr .gap{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:11px;background:#f3e8cf;color:#6b5126;font-size:13px;font-weight:600}
+.hdr .gap:hover{color:#4a3818}
+.again{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid #dcd3bf;border-radius:6px;background:transparent;color:#665f4f}
+.flow{display:grid;grid-template-columns:minmax(0,1fr) 22px 116px 18px 176px;border:1px solid #dcd3bf;border-radius:10px;background:#fdfcf8}
+.lanes{position:relative;display:flex;flex-direction:column;min-width:0}
+.lane{position:relative;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));padding:4px}
+.lane.dr{border-top:1px dashed #cfc5ae;padding-top:9px}
+.lane.st>*{grid-column:span 4}
+.lane.st{padding-bottom:11px;column-gap:12px}
+.lane.dr>.c,.lane.dr>.cwrap{grid-column:span 3}
+.lane.st>:not(:last-child)::after{content:"\2192";position:absolute;right:-18px;top:50%;transform:translateY(-50%);color:#a99f88;font-size:12px;font-weight:400}
+.lane.st>.cwrap:not(:last-child)::after{right:-13px}
+.cwrap{position:relative;display:flex;flex-direction:column;min-width:0}
+.cwrap>.c{flex:1}
+.nrb{position:absolute;top:4px;right:11px;display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 8px;border:1px solid #dfcb9a;border-radius:11px;background:#fbf3df;color:#6b5126;font-size:12.5px;font-weight:700}
+.nrb:hover{background:#f0e2c2;text-decoration:none;color:#4a3818}
+.flow>.cwrap{justify-content:center}
+.flow>.cwrap>.c{flex:none}
+.flow>.cwrap>.nrb{top:50%;margin-top:-31px}
+.cwrap.pl>.nrb{right:auto;left:calc(22px + var(--l) * 8.1px);top:0;height:20px;padding:0 6px}
+.flow>.cwrap.pl>.nrb{left:calc(20px + var(--l) * 8.1px);top:50%}
+.nr{color:#80622e;font-weight:600}
+.c .v.bad{color:#8f2a1a;font-weight:650}
+.leg{position:absolute;top:-7px;right:10px;padding:0 6px;background:#fdfcf8;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8a8170;line-height:12px}
+.join{display:flex;flex-direction:column}
+.join span,.sep{flex:1;display:flex;align-items:center;justify-content:center;color:#a99f88;font-size:12px}
+.c{position:relative;display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:0;margin:0 5px;padding:6px 9px;border:1.5px solid transparent;border-radius:6px;background:transparent;color:#23211c;text-align:left;white-space:nowrap}
+a.c:hover,button.c:hover{background:#f1ecdf;text-decoration:none;color:#15130f}
+button.c.red:hover{background:#f3d6cc}button.c.amber:hover{background:#eeddb8}
+.c .go{color:#a99f88;font-weight:400}
+.c .nr{color:#80622e;font-weight:600}
+.c.big{margin:4px 0;padding:6px 12px}
+.c .k{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#665f4f}
+.c .v{font-size:15px;font-weight:500}
+.c .v.q{color:#a99f88;font-weight:700;font-size:22px;line-height:18px}
+.c .v .m,.c .s{font-size:13px;font-weight:400;color:#665f4f}
+.c .tick{color:#356c2f;font-weight:700}
+.c.red{background:#f8e4dd;border-color:#e6bdb1}.c.red .v{color:#8f2a1a;font-weight:650}.c.red .k{color:#8f2a1a}
+.c.amber{background:#f3e8cf;border-color:#dfcb9a}.c.amber .v{color:#6b5126;font-weight:650}.c.amber .k{color:#6b5126}
+.c.red .v .m,.c.amber .v .m{color:inherit;font-weight:500}
+.c.on{border-color:#15130f}
+
+.caveat{font-size:13px;color:#665f4f}
+.tabs{display:flex;flex-wrap:wrap;align-items:center;gap:0 22px;border-bottom:1px solid #dcd3bf;font-size:15px}
+.tabs a{padding:6px 2px 9px;color:#665f4f}
+.tabs a.cur{border-bottom:2px solid #1b7366;color:#15130f;font-weight:600}
+.tabs .cnt{margin-left:8px;font-size:13px;font-weight:500}
+.tabs .cb{color:#8f2a1a}.tabs .cw{color:#80622e}
+.scope{margin-left:auto;margin-bottom:5px;font-size:13px;color:#23211c;font-weight:500}
+.scope+.showall{margin-left:0}
+.showall{margin-left:auto;margin-bottom:5px;padding:3px 11px;border:1px solid #cfc5ae;border-radius:6px;background:#fbf9f3;color:#23211c;font-size:13px}
+.ok{color:#356c2f}.bad{color:#8f2a1a}.mut{color:#665f4f}
+.pill{justify-self:start;display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border:1px solid #1b7366;border-radius:12px;color:#1b7366;font-size:13px;font-weight:500;background:#fbf9f3;white-space:nowrap}
+.pill:hover{background:#d9ece7;text-decoration:none}
+.pill.grey{border-color:#cfc5ae;color:#665f4f}.pill.grey:hover{background:#efe9da;color:#23211c}
+.pill.issue{border-color:#2060bc;color:#1a4f9c}.pill.issue:hover{background:#dcebf3}
+.pill.mr{border-color:#a03a80;color:#8a2f6d}.pill.mr:hover{background:#f3dfec}
+.pill.act{border-color:#1b7366;background:#1b7366;color:#ffffff}.pill.act:hover{background:#135248}
+.box{border:1px solid #e8e1d0;border-radius:10px;overflow:hidden}
+.row{position:relative;display:grid;grid-template-columns:150px minmax(0,1fr) 180px 100px;align-items:center;gap:12px;min-height:44px;padding:0 16px;border-top:1px solid #e8e1d0;font-size:15px}
+.row.first{border-top:0}
+.row.two{align-items:start;padding-top:11px;padding-bottom:11px}
+.row .new{position:absolute;left:5px;top:50%;width:7px;height:7px;margin-top:-4px;border-radius:50%;background:#1b7366}
+.row.two .new{top:21px}
+.fork{color:#15130f;font-weight:500}
+.mem .fork{font-weight:400;padding-left:14px}
+
+.hd{padding:0;border:0;background:none;color:#15130f;text-align:left;justify-self:start}
+.hd:hover{text-decoration:underline}
+.what{display:flex;flex-direction:column;gap:5px;min-width:0}
+.what .l1{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.what .l2{font-size:13px;color:#665f4f}
+.what .hd .tw{margin-left:-14px}
+.due{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 7px;border-radius:10px;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.due.r{background:#f4d9d0;color:#8f2a1a}.due.a{background:#f0e2c2;color:#6b5126}
+.age{white-space:nowrap;display:flex;justify-content:flex-end;align-items:center;gap:6px;color:#665f4f;font-variant-numeric:tabular-nums}
+.seg{flex:1;height:7px;border-radius:2px;box-sizing:border-box}
+.sec{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;font-weight:600}
+.sec .x{font-weight:400;color:#665f4f}
+.dot{width:8px;height:8px;border-radius:50%;box-sizing:border-box}
+.tw{display:inline-flex;align-items:center;width:14px;color:#23211c;vertical-align:-1px}
+.when{color:#665f4f;font-variant-numeric:tabular-nums}
+.gapc{display:inline-flex;align-items:center;height:20px;padding:0 7px;margin-right:4px;border-radius:10px;background:#f3e8cf;color:#6b5126;font-size:12.5px;font-weight:600}
+.gapc:hover{color:#4a3818}
+.mem{background:#f8f3e6}
+.lead{margin:2px 0 0;font-size:17px;font-weight:500;color:#15130f}
+.lead .asof{margin-left:8px;font-size:13px;color:#665f4f}
+.narrow .flow{grid-template-columns:minmax(0,1fr) 18px minmax(0,1fr)}
+.narrow .flow>.c.big,.narrow .flow>.cwrap,.narrow .flow>.sep{grid-row:3}
+.narrow .lanes{grid-column:1 / -1}
+.narrow .join{grid-column:1 / -1;position:relative;height:20px}
+.narrow .join span{display:none}
+.narrow .join::before{content:"";position:absolute;left:30px;right:9px;top:0;height:9px;border:solid #a99f88;border-width:0 1.5px 1.5px 1.5px;border-radius:0 0 7px 7px;border-left-color:transparent;border-bottom-left-radius:0}
+.narrow .join::after{content:"\2193";position:absolute;left:24px;top:5px;color:#8a8170;font-size:13px;line-height:16px}
+.narrow .lanes{padding-right:20px}
+.narrow .lanes::after{content:"";position:absolute;right:9px;top:22px;bottom:0;border-right:1.5px solid #a99f88}
+.narrow .lane>:last-child::after{content:"\2192";position:absolute;right:-13px;top:50%;transform:translateY(-50%);color:#a99f88;font-size:11px}
+.narrow .md{display:none}
+.narrow .lane.st{padding-bottom:4px;column-gap:12px}
+.narrow .lane.st>:not(:last-child)::after{right:-14px;font-size:11px}
+.narrow .lane.st>.cwrap:not(:last-child)::after{right:-12px}
+.narrow .lane.dr{padding-top:4px}
+.narrow .leg{position:static;grid-column:1 / -1;padding:0 8px 2px;background:none}
+.narrow .c{margin:0 2px;padding:6px 6px;white-space:normal}
+.narrow .c .k{font-size:9.5px;letter-spacing:.04em}
+.narrow .c .v{font-size:14px}
+.narrow .c .v .m{display:block;font-size:12.5px}
+.narrow .nrb{top:2px;right:4px;height:20px;padding:0 6px}
+.narrow .cwrap.pl>.nrb{left:calc(14px + var(--l) * 7.1px)}
+.narrow .row{grid-template-columns:118px minmax(0,1fr) auto;row-gap:6px;padding-top:10px;padding-bottom:10px;align-items:start}
+.narrow .row>:nth-last-child(4){grid-column:1;grid-row:1;white-space:nowrap}
+.narrow .row>:nth-last-child(3){grid-column:2 / 4;grid-row:1}
+.narrow .row>:nth-last-child(2){grid-column:2;grid-row:2;align-self:center}
+.narrow .row>:nth-last-child(1){grid-column:3;grid-row:2;align-self:center}
+.narrow .row .new{top:19px}
+.name{margin:0;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#665f4f}
+.note{font-size:13px;color:#665f4f}
+</style>
+
+<div style="width: 1160px; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 20px; background: #fbf9f3">
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px"><section style="display: flex; flex-direction: column; gap: 8px"><h2 class="name">Read complete</h2><div style="border: 1px solid #dcd3bf; border-radius: 8px; background: #fbf9f3"><header class="hdr" style="border-bottom: 0"><h1>Today</h1><span class="d">Friday 27 Nov</span><span style="flex: 1"></span><span class="r">Read 15:21 · 13 forks</span><button class="again" aria-label="Read again"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2v3h-3"/></svg></button></header>
+</div><p class="lead">Nothing is yours to move.</p></section>
+<section style="display: flex; flex-direction: column; gap: 8px"><h2 class="name">Reading again</h2><div style="border: 1px solid #dcd3bf; border-radius: 8px; background: #fbf9f3"><header class="hdr" style="border-bottom: 0"><h1>Today</h1><span class="d">Friday 27 Nov</span><span style="flex: 1"></span><span class="r">Read 15:21 · reading 5 of 13</span><button class="again" aria-label="Read again" disabled style="color: #a99f88; border-color: #e8e1d0; cursor: default"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2v3h-3"/></svg></button></header>
+</div><p class="lead">At 15:21, nothing was yours to move.</p></section>
+<section style="display: flex; flex-direction: column; gap: 8px"><h2 class="name">Partly read</h2><div style="border: 1px solid #dcd3bf; border-radius: 8px; background: #fbf9f3"><header class="hdr" style="border-bottom: 0"><h1>Today</h1><span class="d">Friday 27 Nov</span><span style="flex: 1"></span><a href="#" class="gap" aria-label="2 not read, open Evidence" title="2 not read, open Evidence">⌀ 2 ›</a><span class="r">Read 15:21</span><button class="again" aria-label="Read again"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2v3h-3"/></svg></button></header>
+</div><p class="lead">Nothing is yours in what was read.</p></section>
+<section style="display: flex; flex-direction: column; gap: 8px"><h2 class="name">First read, nothing to show yet</h2><div style="border: 1px solid #dcd3bf; border-radius: 8px; background: #fbf9f3"><header class="hdr" style="border-bottom: 0"><h1>Today</h1><span class="d">Friday 27 Nov</span><span style="flex: 1"></span><span class="r">Reading 5 of 13</span><button class="again" aria-label="Read again" disabled style="color: #a99f88; border-color: #e8e1d0; cursor: default"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2v3h-3"/></svg></button></header>
+</div><p class="lead" style="color: #665f4f">Reading the fleet.</p></section>
+</div>
+<section style="display: flex; flex-direction: column; gap: 8px"><h2 class="name">Quiet</h2><section aria-label="Fleet flow" class="flow">
+  <div class="lanes">
+    <div class="lane st"><span class="c"><span class="k">Upstream</span><span class="v q" aria-label="None">·</span></span><span class="c"><span class="k">Sync PR</span><span class="v q" aria-label="None">·</span></span><span class="c"><span class="k">Integration</span><span class="v q" aria-label="None">·</span></span></div>
+    <div class="lane dr"><span class="leg">Straight into main</span><span class="c"><span class="k">Template</span><span class="v q" aria-label="None">·</span></span><a href="#" class="c" title="Shows the Release PRs row in Can wait"><span class="k">Release</span><span class="v">13 open <span class="go" aria-hidden="true">›</span></span></a><span class="c"><span class="k">Dependabot</span><span class="v q" aria-label="None">·</span></span><span class="c"><span class="k">Other PRs</span><span class="v q" aria-label="None">·</span></span></div>
+  </div>
+  <div class="join" aria-hidden="true"><span>→</span><span>→</span></div>
+  <span class="c big"><span class="k">Main</span><span class="v"><span class="tick" aria-hidden="true">✓</span> Green</span><span class="s">13 forks</span></span>
+  <span class="sep" aria-hidden="true">→</span>
+  <a href="#" class="c big" title="Opens Environment"><span class="k">Environment</span><span class="v"><span class="tick" aria-hidden="true">✓</span> Ready <span class="go" aria-hidden="true">›</span></span><span class="s">v0.35.10</span></a>
+</section>
+</section>
+<section style="display: flex; flex-direction: column; gap: 8px"><h2 class="name">Waiting</h2><section aria-label="Fleet flow" class="flow">
+  <div class="lanes">
+    <div class="lane st"><a href="#" class="c" title="Opens Upstream"><span class="k">Upstream</span><span class="v">4 forks behind <span class="m"><span class="md">· </span>18:00</span> <span class="go" aria-hidden="true">›</span></span></a><span class="c"><span class="k">Sync PR</span><span class="v q" aria-label="None">·</span></span><span class="c"><span class="k">Integration</span><span class="v q" aria-label="None">·</span></span></div>
+    <div class="lane dr"><span class="leg">Straight into main</span><button class="c amber" aria-pressed="false"><span class="k">Template</span><span class="v">3 to review</span></button><a href="#" class="c" title="Shows the Release PRs row in Can wait"><span class="k">Release</span><span class="v">13 open <span class="go" aria-hidden="true">›</span></span></a><span class="c"><span class="k">Dependabot</span><span class="v q" aria-label="None">·</span></span><span class="c"><span class="k">Other PRs</span><span class="v q" aria-label="None">·</span></span></div>
+  </div>
+  <div class="join" aria-hidden="true"><span>→</span><span>→</span></div>
+  <span class="c big"><span class="k">Main</span><span class="v"><span class="tick" aria-hidden="true">✓</span> Green</span><span class="s">13 forks</span></span>
+  <span class="sep" aria-hidden="true">→</span>
+  <a href="#" class="c big" title="Opens Environment"><span class="k">Environment</span><span class="v"><span class="tick" aria-hidden="true">✓</span> Ready <span class="go" aria-hidden="true">›</span></span><span class="s">v0.35.10</span></a>
+</section>
+</section>
+<section style="display: flex; flex-direction: column; gap: 8px"><h2 class="name">Blocked</h2><section aria-label="Fleet flow" class="flow">
+  <div class="lanes">
+    <div class="lane st"><span class="cwrap"><button class="c red" aria-pressed="false" title="crs-conversion, search, indexer · 23 provider changes to port"><span class="k">Upstream</span><span class="v">3 forks stopped</span></button><a href="#" class="nrb" title="search's sync run not read · opens Evidence" aria-label="search's sync run not read, open Evidence">⌀ <span aria-hidden="true">›</span></a></span><button class="c amber" aria-pressed="false" title="crs-conversion to review; 4 need os-core-common upgraded"><span class="k">Sync PR</span><span class="v">5 open</span></button><button class="c amber" aria-pressed="false" title="6 red, 2 waiting for approval"><span class="k">Integration</span><span class="v">8 PRs <span class="m"><span class="md">· </span>6 red</span></span></button></div>
+    <div class="lane dr"><span class="leg">Straight into main</span><button class="c amber" aria-pressed="false" title="Dispatch before Tue 02:00"><span class="k">Template</span><span class="v">7 to dispatch</span></button><a href="#" class="c" title="Shows the Release PRs row in Can wait"><span class="k">Release</span><span class="v">14 open <span class="go" aria-hidden="true">›</span></span></a><a href="#" class="c" title="Shows the Dependabot row in Can wait"><span class="k">Dependabot</span><span class="v">26 open <span class="go" aria-hidden="true">›</span></span></a><a href="#" class="c" title="Shows the Other PRs cause on the most forks"><span class="k">Other PRs</span><span class="v">7 open <span class="go" aria-hidden="true">›</span></span></a></div>
+  </div>
+  <div class="join" aria-hidden="true"><span>→</span><span>→</span></div>
+  <span class="c big"><span class="k">Main</span><span class="v"><span class="tick" aria-hidden="true">✓</span> Green</span><span class="s">13 forks</span></span>
+  <span class="sep" aria-hidden="true">→</span>
+  <span class="cwrap pl" style="--l: 11"><a href="#" class="c big" title="Opens Environment"><span class="k">Environment</span><span class="v"><span class="tick" aria-hidden="true">✓</span> Ready <span class="go" aria-hidden="true">›</span></span><span class="s">v0.35.5 · 1 lane busy</span></a><a href="#" class="nrb" title="partition's deployment not read · opens Evidence" aria-label="partition's deployment not read, open Evidence">⌀ <span aria-hidden="true">›</span></a></span>
+</section>
+</section>
+<section style="display: flex; flex-direction: column; gap: 8px"><h2 class="name">Filtered to Integration</h2><section aria-label="Fleet flow" class="flow">
+  <div class="lanes">
+    <div class="lane st"><span class="cwrap"><button class="c red" aria-pressed="false" title="crs-conversion, search, indexer · 23 provider changes to port"><span class="k">Upstream</span><span class="v">3 forks stopped</span></button><a href="#" class="nrb" title="search's sync run not read · opens Evidence" aria-label="search's sync run not read, open Evidence">⌀ <span aria-hidden="true">›</span></a></span><button class="c amber" aria-pressed="false" title="crs-conversion to review; 4 need os-core-common upgraded"><span class="k">Sync PR</span><span class="v">5 open</span></button><button class="c amber on" aria-pressed="true" title="Press again to show all"><span class="k">Integration</span><span class="v">8 PRs <span class="m"><span class="md">· </span>6 red</span></span></button></div>
+    <div class="lane dr"><span class="leg">Straight into main</span><button class="c amber" aria-pressed="false" title="Dispatch before Tue 02:00"><span class="k">Template</span><span class="v">7 to dispatch</span></button><a href="#" class="c" title="Shows the Release PRs row in Can wait"><span class="k">Release</span><span class="v">14 open <span class="go" aria-hidden="true">›</span></span></a><a href="#" class="c" title="Shows the Dependabot row in Can wait"><span class="k">Dependabot</span><span class="v">26 open <span class="go" aria-hidden="true">›</span></span></a><a href="#" class="c" title="Shows the Other PRs cause on the most forks"><span class="k">Other PRs</span><span class="v">7 open <span class="go" aria-hidden="true">›</span></span></a></div>
+  </div>
+  <div class="join" aria-hidden="true"><span>→</span><span>→</span></div>
+  <span class="c big"><span class="k">Main</span><span class="v"><span class="tick" aria-hidden="true">✓</span> Green</span><span class="s">13 forks</span></span>
+  <span class="sep" aria-hidden="true">→</span>
+  <span class="cwrap pl" style="--l: 11"><a href="#" class="c big" title="Opens Environment"><span class="k">Environment</span><span class="v"><span class="tick" aria-hidden="true">✓</span> Ready <span class="go" aria-hidden="true">›</span></span><span class="s">v0.35.5 · 1 lane busy</span></a><a href="#" class="nrb" title="partition's deployment not read · opens Evidence" aria-label="partition's deployment not read, open Evidence">⌀ <span aria-hidden="true">›</span></a></span>
+</section>
+<div class="caveat"><span class="nr">⌀</span> Not read: search's sync run, partition's deployment · <a href="#">Evidence ›</a></div><nav aria-label="Today tabs" class="tabs"><a href="#" class="cur" aria-current="page">Yours<span class="cnt cb">3 blocked</span><span class="cnt cw">15 waiting</span></a><a href="#" class="">Forks<span class="cnt cb">8 stopped</span></a><span class="scope">Integration · 8 waiting</span><button class="showall">Show all</button></nav>
+</section>
+<section style="display: flex; flex-direction: column; gap: 8px"><h2 class="name">Main red</h2><section aria-label="Fleet flow" class="flow">
+  <div class="lanes">
+    <div class="lane st"><span class="c"><span class="k">Upstream</span><span class="v q" aria-label="None">·</span></span><a href="#" class="c" title="Opens Forks"><span class="k">Sync PR</span><span class="v">2 open <span class="go" aria-hidden="true">›</span></span></a><span class="c"><span class="k">Integration</span><span class="v q" aria-label="None">·</span></span></div>
+    <div class="lane dr"><span class="leg">Straight into main</span><span class="c"><span class="k">Template</span><span class="v q" aria-label="None">·</span></span><a href="#" class="c" title="Shows the Release PRs row in Can wait"><span class="k">Release</span><span class="v">13 open <span class="go" aria-hidden="true">›</span></span></a><span class="c"><span class="k">Dependabot</span><span class="v q" aria-label="None">·</span></span><span class="c"><span class="k">Other PRs</span><span class="v q" aria-label="None">·</span></span></div>
+  </div>
+  <div class="join" aria-hidden="true"><span>→</span><span>→</span></div>
+  <span class="c big" title="storage, search"><span class="k">Main</span><span class="v bad">2 red</span><span class="s">11 green</span></span>
+  <span class="sep" aria-hidden="true">→</span>
+  <a href="#" class="c big" title="Opens Environment"><span class="k">Environment</span><span class="v"><span class="tick" aria-hidden="true">✓</span> Ready <span class="go" aria-hidden="true">›</span></span><span class="s">v0.35.10</span></a>
+</section>
+</section>
+<section style="display: flex; flex-direction: column; gap: 8px"><h2 class="name">Partly read</h2><section aria-label="Fleet flow" class="flow">
+  <div class="lanes">
+    <div class="lane st"><span class="c"><span class="k">Upstream</span><span class="v q" aria-label="None">·</span></span><span class="cwrap pl" style="--l: 7"><a href="#" class="c" title="Opens Forks"><span class="k">Sync PR</span><span class="v">2 open <span class="go" aria-hidden="true">›</span></span></a><a href="#" class="nrb" title="Sync PRs not read on indexer and search · opens Evidence" aria-label="Sync PRs not read on indexer and search, open Evidence">⌀ <span aria-hidden="true">›</span></a></span><a href="#" class="c" title="Not read on indexer and search · opens Evidence"><span class="k">Integration</span><span class="v nr" aria-label="Not read">⌀ <span class="go" aria-hidden="true">›</span></span></a></div>
+    <div class="lane dr"><span class="leg">Straight into main</span><a href="#" class="c" title="Not read on indexer and search · opens Evidence"><span class="k">Template</span><span class="v nr" aria-label="Not read">⌀ <span class="go" aria-hidden="true">›</span></span></a><span class="cwrap pl" style="--l: 7"><a href="#" class="c" title="Shows the Release PRs row in Can wait"><span class="k">Release</span><span class="v">10 open <span class="go" aria-hidden="true">›</span></span></a><a href="#" class="nrb" title="Release PRs not read on indexer and search · opens Evidence" aria-label="Release PRs not read on indexer and search, open Evidence">⌀ <span aria-hidden="true">›</span></a></span><a href="#" class="c" title="Not read on indexer and search · opens Evidence"><span class="k">Dependabot</span><span class="v nr" aria-label="Not read">⌀ <span class="go" aria-hidden="true">›</span></span></a><a href="#" class="c" title="Not read on indexer and search · opens Evidence"><span class="k">Other PRs</span><span class="v nr" aria-label="Not read">⌀ <span class="go" aria-hidden="true">›</span></span></a></div>
+  </div>
+  <div class="join" aria-hidden="true"><span>→</span><span>→</span></div>
+  <span class="c big"><span class="k">Main</span><span class="v"><span class="tick" aria-hidden="true">✓</span> Green</span><span class="s">13 forks</span></span>
+  <span class="sep" aria-hidden="true">→</span>
+  <a href="#" class="c big" title="Opens Environment"><span class="k">Environment</span><span class="v"><span class="tick" aria-hidden="true">✓</span> Ready <span class="go" aria-hidden="true">›</span></span><span class="s">v0.35.10</span></a>
+</section>
+<div class="caveat"><span class="nr">⌀</span> Pull requests not read on indexer and search · <a href="#">Evidence ›</a></div></section>
+</div>
+</div></section>
+<section class="board"><h2 class="bt">Blocked day at the narrowest centre (520 px)</h2><div class="frame" style="width: 520px">
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;color:#23211c;background:#fbf9f3}
+a{color:#1b7366;text-decoration:none}a:hover{color:#135248;text-decoration:underline}
+button{font:inherit;cursor:pointer}
+.sb{display:flex;align-items:center;gap:10px;height:32px;padding:0 10px;border-radius:8px;font-size:15px;color:#23211c}
+.sb:hover{color:#15130f;text-decoration:none;background:#e4dcc9}
+.sb svg{flex:none;color:#665f4f}
+.sb .n{flex:1}
+.ring{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;box-sizing:border-box;padding:0 4px;border:1.75px solid #a07b3a;border-radius:9px;background:#f6eedb;color:#80622e;font-size:11px;font-weight:650;font-variant-numeric:tabular-nums}
+.fill{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:17px;box-sizing:border-box;padding:0 5px;border-radius:9px;background:#a3321f;color:#ffffff;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
+.clock{font-size:12px;color:#665f4f;font-variant-numeric:tabular-nums}
+.hdr{display:flex;align-items:center;gap:10px;height:44px;padding:0 24px;border-bottom:1px solid #dcd3bf}
+.hdr h1{margin:0;font-size:16px;font-weight:600;color:#15130f}
+.hdr .d{font-size:15px;color:#665f4f}
+.hdr .r{font-size:13px;color:#665f4f;font-variant-numeric:tabular-nums}
+.hdr .gap{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:11px;background:#f3e8cf;color:#6b5126;font-size:13px;font-weight:600}
+.hdr .gap:hover{color:#4a3818}
+.again{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:1px solid #dcd3bf;border-radius:6px;background:transparent;color:#665f4f}
+.flow{display:grid;grid-template-columns:minmax(0,1fr) 22px 116px 18px 176px;border:1px solid #dcd3bf;border-radius:10px;background:#fdfcf8}
+.lanes{position:relative;display:flex;flex-direction:column;min-width:0}
+.lane{position:relative;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));padding:4px}
+.lane.dr{border-top:1px dashed #cfc5ae;padding-top:9px}
+.lane.st>*{grid-column:span 4}
+.lane.st{padding-bottom:11px;column-gap:12px}
+.lane.dr>.c,.lane.dr>.cwrap{grid-column:span 3}
+.lane.st>:not(:last-child)::after{content:"\2192";position:absolute;right:-18px;top:50%;transform:translateY(-50%);color:#a99f88;font-size:12px;font-weight:400}
+.lane.st>.cwrap:not(:last-child)::after{right:-13px}
+.cwrap{position:relative;display:flex;flex-direction:column;min-width:0}
+.cwrap>.c{flex:1}
+.nrb{position:absolute;top:4px;right:11px;display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 8px;border:1px solid #dfcb9a;border-radius:11px;background:#fbf3df;color:#6b5126;font-size:12.5px;font-weight:700}
+.nrb:hover{background:#f0e2c2;text-decoration:none;color:#4a3818}
+.flow>.cwrap{justify-content:center}
+.flow>.cwrap>.c{flex:none}
+.flow>.cwrap>.nrb{top:50%;margin-top:-31px}
+.cwrap.pl>.nrb{right:auto;left:calc(22px + var(--l) * 8.1px);top:0;height:20px;padding:0 6px}
+.flow>.cwrap.pl>.nrb{left:calc(20px + var(--l) * 8.1px);top:50%}
+.nr{color:#80622e;font-weight:600}
+.c .v.bad{color:#8f2a1a;font-weight:650}
+.leg{position:absolute;top:-7px;right:10px;padding:0 6px;background:#fdfcf8;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8a8170;line-height:12px}
+.join{display:flex;flex-direction:column}
+.join span,.sep{flex:1;display:flex;align-items:center;justify-content:center;color:#a99f88;font-size:12px}
+.c{position:relative;display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:0;margin:0 5px;padding:6px 9px;border:1.5px solid transparent;border-radius:6px;background:transparent;color:#23211c;text-align:left;white-space:nowrap}
+a.c:hover,button.c:hover{background:#f1ecdf;text-decoration:none;color:#15130f}
+button.c.red:hover{background:#f3d6cc}button.c.amber:hover{background:#eeddb8}
+.c .go{color:#a99f88;font-weight:400}
+.c .nr{color:#80622e;font-weight:600}
+.c.big{margin:4px 0;padding:6px 12px}
+.c .k{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#665f4f}
+.c .v{font-size:15px;font-weight:500}
+.c .v.q{color:#a99f88;font-weight:700;font-size:22px;line-height:18px}
+.c .v .m,.c .s{font-size:13px;font-weight:400;color:#665f4f}
+.c .tick{color:#356c2f;font-weight:700}
+.c.red{background:#f8e4dd;border-color:#e6bdb1}.c.red .v{color:#8f2a1a;font-weight:650}.c.red .k{color:#8f2a1a}
+.c.amber{background:#f3e8cf;border-color:#dfcb9a}.c.amber .v{color:#6b5126;font-weight:650}.c.amber .k{color:#6b5126}
+.c.red .v .m,.c.amber .v .m{color:inherit;font-weight:500}
+.c.on{border-color:#15130f}
+
+.caveat{font-size:13px;color:#665f4f}
+.tabs{display:flex;flex-wrap:wrap;align-items:center;gap:0 22px;border-bottom:1px solid #dcd3bf;font-size:15px}
+.tabs a{padding:6px 2px 9px;color:#665f4f}
+.tabs a.cur{border-bottom:2px solid #1b7366;color:#15130f;font-weight:600}
+.tabs .cnt{margin-left:8px;font-size:13px;font-weight:500}
+.tabs .cb{color:#8f2a1a}.tabs .cw{color:#80622e}
+.scope{margin-left:auto;margin-bottom:5px;font-size:13px;color:#23211c;font-weight:500}
+.scope+.showall{margin-left:0}
+.showall{margin-left:auto;margin-bottom:5px;padding:3px 11px;border:1px solid #cfc5ae;border-radius:6px;background:#fbf9f3;color:#23211c;font-size:13px}
+.ok{color:#356c2f}.bad{color:#8f2a1a}.mut{color:#665f4f}
+.pill{justify-self:start;display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border:1px solid #1b7366;border-radius:12px;color:#1b7366;font-size:13px;font-weight:500;background:#fbf9f3;white-space:nowrap}
+.pill:hover{background:#d9ece7;text-decoration:none}
+.pill.grey{border-color:#cfc5ae;color:#665f4f}.pill.grey:hover{background:#efe9da;color:#23211c}
+.pill.issue{border-color:#2060bc;color:#1a4f9c}.pill.issue:hover{background:#dcebf3}
+.pill.mr{border-color:#a03a80;color:#8a2f6d}.pill.mr:hover{background:#f3dfec}
+.pill.act{border-color:#1b7366;background:#1b7366;color:#ffffff}.pill.act:hover{background:#135248}
+.box{border:1px solid #e8e1d0;border-radius:10px;overflow:hidden}
+.row{position:relative;display:grid;grid-template-columns:150px minmax(0,1fr) 180px 100px;align-items:center;gap:12px;min-height:44px;padding:0 16px;border-top:1px solid #e8e1d0;font-size:15px}
+.row.first{border-top:0}
+.row.two{align-items:start;padding-top:11px;padding-bottom:11px}
+.row .new{position:absolute;left:5px;top:50%;width:7px;height:7px;margin-top:-4px;border-radius:50%;background:#1b7366}
+.row.two .new{top:21px}
+.fork{color:#15130f;font-weight:500}
+.mem .fork{font-weight:400;padding-left:14px}
+
+.hd{padding:0;border:0;background:none;color:#15130f;text-align:left;justify-self:start}
+.hd:hover{text-decoration:underline}
+.what{display:flex;flex-direction:column;gap:5px;min-width:0}
+.what .l1{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.what .l2{font-size:13px;color:#665f4f}
+.what .hd .tw{margin-left:-14px}
+.due{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 7px;border-radius:10px;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.due.r{background:#f4d9d0;color:#8f2a1a}.due.a{background:#f0e2c2;color:#6b5126}
+.age{white-space:nowrap;display:flex;justify-content:flex-end;align-items:center;gap:6px;color:#665f4f;font-variant-numeric:tabular-nums}
+.seg{flex:1;height:7px;border-radius:2px;box-sizing:border-box}
+.sec{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;font-weight:600}
+.sec .x{font-weight:400;color:#665f4f}
+.dot{width:8px;height:8px;border-radius:50%;box-sizing:border-box}
+.tw{display:inline-flex;align-items:center;width:14px;color:#23211c;vertical-align:-1px}
+.when{color:#665f4f;font-variant-numeric:tabular-nums}
+.gapc{display:inline-flex;align-items:center;height:20px;padding:0 7px;margin-right:4px;border-radius:10px;background:#f3e8cf;color:#6b5126;font-size:12.5px;font-weight:600}
+.gapc:hover{color:#4a3818}
+.mem{background:#f8f3e6}
+.lead{margin:2px 0 0;font-size:17px;font-weight:500;color:#15130f}
+.lead .asof{margin-left:8px;font-size:13px;color:#665f4f}
+.narrow .flow{grid-template-columns:minmax(0,1fr) 18px minmax(0,1fr)}
+.narrow .flow>.c.big,.narrow .flow>.cwrap,.narrow .flow>.sep{grid-row:3}
+.narrow .lanes{grid-column:1 / -1}
+.narrow .join{grid-column:1 / -1;position:relative;height:20px}
+.narrow .join span{display:none}
+.narrow .join::before{content:"";position:absolute;left:30px;right:9px;top:0;height:9px;border:solid #a99f88;border-width:0 1.5px 1.5px 1.5px;border-radius:0 0 7px 7px;border-left-color:transparent;border-bottom-left-radius:0}
+.narrow .join::after{content:"\2193";position:absolute;left:24px;top:5px;color:#8a8170;font-size:13px;line-height:16px}
+.narrow .lanes{padding-right:20px}
+.narrow .lanes::after{content:"";position:absolute;right:9px;top:22px;bottom:0;border-right:1.5px solid #a99f88}
+.narrow .lane>:last-child::after{content:"\2192";position:absolute;right:-13px;top:50%;transform:translateY(-50%);color:#a99f88;font-size:11px}
+.narrow .md{display:none}
+.narrow .lane.st{padding-bottom:4px;column-gap:12px}
+.narrow .lane.st>:not(:last-child)::after{right:-14px;font-size:11px}
+.narrow .lane.st>.cwrap:not(:last-child)::after{right:-12px}
+.narrow .lane.dr{padding-top:4px}
+.narrow .leg{position:static;grid-column:1 / -1;padding:0 8px 2px;background:none}
+.narrow .c{margin:0 2px;padding:6px 6px;white-space:normal}
+.narrow .c .k{font-size:9.5px;letter-spacing:.04em}
+.narrow .c .v{font-size:14px}
+.narrow .c .v .m{display:block;font-size:12.5px}
+.narrow .nrb{top:2px;right:4px;height:20px;padding:0 6px}
+.narrow .cwrap.pl>.nrb{left:calc(14px + var(--l) * 7.1px)}
+.narrow .row{grid-template-columns:118px minmax(0,1fr) auto;row-gap:6px;padding-top:10px;padding-bottom:10px;align-items:start}
+.narrow .row>:nth-last-child(4){grid-column:1;grid-row:1;white-space:nowrap}
+.narrow .row>:nth-last-child(3){grid-column:2 / 4;grid-row:1}
+.narrow .row>:nth-last-child(2){grid-column:2;grid-row:2;align-self:center}
+.narrow .row>:nth-last-child(1){grid-column:3;grid-row:2;align-self:center}
+.narrow .row .new{top:19px}
+.name{margin:0;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#665f4f}
+.note{font-size:13px;color:#665f4f}
+</style>
+
+<div class="narrow" style="width: 520px; background: #fbf9f3">
+<header class="hdr"><h1>Today</h1><span class="d">Monday 16 Nov</span><span style="flex: 1"></span><a href="#" class="gap" aria-label="2 not read, open Evidence" title="2 not read, open Evidence">⌀ 2 ›</a><span class="r">Read 19:06</span><button class="again" aria-label="Read again"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2v3h-3"/></svg></button></header>
+<div style="box-sizing: border-box; padding: 16px 16px 32px; display: flex; flex-direction: column; gap: 16px">
+<section aria-label="Fleet flow" class="flow">
+  <div class="lanes">
+    <div class="lane st"><span class="cwrap"><button class="c red" aria-pressed="false" title="crs-conversion, search, indexer · 23 provider changes to port"><span class="k">Upstream</span><span class="v">3 forks stopped</span></button><a href="#" class="nrb" title="search's sync run not read · opens Evidence" aria-label="search's sync run not read, open Evidence">⌀ <span aria-hidden="true">›</span></a></span><button class="c amber" aria-pressed="false" title="crs-conversion to review; 4 need os-core-common upgraded"><span class="k">Sync PR</span><span class="v">5 open</span></button><button class="c amber" aria-pressed="false" title="6 red, 2 waiting for approval"><span class="k">Integration</span><span class="v">8 PRs <span class="m"><span class="md">· </span>6 red</span></span></button></div>
+    <div class="lane dr"><span class="leg">Straight into main</span><button class="c amber" aria-pressed="false" title="Dispatch before Tue 02:00"><span class="k">Template</span><span class="v">7 to dispatch</span></button><a href="#" class="c" title="Shows the Release PRs row in Can wait"><span class="k">Release</span><span class="v">14 open <span class="go" aria-hidden="true">›</span></span></a><a href="#" class="c" title="Shows the Dependabot row in Can wait"><span class="k">Dependabot</span><span class="v">26 open <span class="go" aria-hidden="true">›</span></span></a><a href="#" class="c" title="Shows the Other PRs cause on the most forks"><span class="k">Other PRs</span><span class="v">7 open <span class="go" aria-hidden="true">›</span></span></a></div>
+  </div>
+  <div class="join" aria-hidden="true"><span>→</span><span>→</span></div>
+  <span class="c big"><span class="k">Main</span><span class="v"><span class="tick" aria-hidden="true">✓</span> Green</span><span class="s">13 forks</span></span>
+  <span class="sep" aria-hidden="true">→</span>
+  <span class="cwrap pl" style="--l: 11"><a href="#" class="c big" title="Opens Environment"><span class="k">Environment</span><span class="v"><span class="tick" aria-hidden="true">✓</span> Ready <span class="go" aria-hidden="true">›</span></span><span class="s">v0.35.5 · 1 lane busy</span></a><a href="#" class="nrb" title="partition's deployment not read · opens Evidence" aria-label="partition's deployment not read, open Evidence">⌀ <span aria-hidden="true">›</span></a></span>
+</section>
+<div class="caveat"><span class="nr">⌀</span> Not read: search's sync run, partition's deployment · <a href="#">Evidence ›</a></div>
+<nav aria-label="Today tabs" class="tabs"><a href="#" class="cur" aria-current="page">Yours<span class="cnt cb">3 blocked</span><span class="cnt cw">15 waiting</span></a><a href="#" class="">Forks<span class="cnt cb">8 stopped</span></a></nav>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<h2 class="sec" style="color: #8f2a1a"><span class="dot" aria-hidden="true" style="background: #a3321f"></span>Blocked</h2>
+<div class="box" style="border-color: #e0b3a7; background: #fcf1ed">
+<div class="row first"><a href="#" class="fork">crs-conversion</a><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Sync halted: no filter rule for schemathesis-tests</button><span class="due r" title="Fix before the next upstream sync, Tue 18:00"><svg role="img" aria-label="Fix before the next upstream sync, Tue 18:00" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#8f2a1a" stroke-width="1.7"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.500"/></svg>Tue 18:00</span></div></div><a href="#" class="pill issue">Issue #44 ↗</a><span class="age">6d</span></div>
+<div class="row " style="border-top-color: #edd0c7"><a href="#" class="fork">search</a><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Sync failed</button></div></div><a href="#" class="pill grey">Sync Upstream run ↗</a><span class="age"><a href="#" aria-label="search's sync run not read, open Evidence" title="search's sync run not read · opens Evidence" class="gapc">⌀ 1 ›</a>58m</span></div>
+<div class="row " style="border-top-color: #edd0c7"><a href="#" class="fork">indexer</a><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Sync failed</button><span class="mut" style="font-size: 14px">merge conflict in pom.xml</span></div></div><a href="#" class="pill issue">Issue #72 ↗</a><span class="age">33m</span></div>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<h2 class="sec" style="color: #23211c"><span class="dot" aria-hidden="true" style="background: #a07b3a"></span>Waiting on you</h2>
+<div class="box" style="border-color: #d5c79f; background: #fdfcf8">
+<div class="row first two"><a href="#" class="fork">Template</a><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Template sync to dispatch</button><span class="due a" title="Dispatch before Tue 02:00, when the scheduled sync opens all 7 PRs at once"><svg role="img" aria-label="Dispatch before Tue 02:00, when the scheduled sync opens all 7 PRs at once" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#6b5126" stroke-width="1.7"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.500"/></svg>Tue 02:00</span></div><div role="img" aria-label="Rollout across 13 forks: 6 merged, 7 to dispatch" style="display: flex; gap: 3px; max-width: 420px"><span class="seg" style="background: #3a7633"></span><span class="seg" style="background: #3a7633"></span><span class="seg" style="background: #3a7633"></span><span class="seg" style="background: #3a7633"></span><span class="seg" style="background: #3a7633"></span><span class="seg" style="background: #3a7633"></span><span class="seg" style="border: 1px solid #b08a45"></span><span class="seg" style="border: 1px solid #b08a45"></span><span class="seg" style="border: 1px solid #b08a45"></span><span class="seg" style="border: 1px solid #b08a45"></span><span class="seg" style="border: 1px solid #b08a45"></span><span class="seg" style="border: 1px solid #b08a45"></span><span class="seg" style="border: 1px solid #b08a45"></span></div><span class="l2">6 merged · 7 to dispatch: partition, legal, schema, file, unit, crs-catalog, crs-conversion</span></div><a href="#" class="pill grey">Template 1a4730d ↗</a><span class="age">4h</span></div>
+<div class="row two"><span class="fork">5 forks</span><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Integration PRs red: deploy lane failed</button></div><span class="l2">indexer-queue, legal, entitlements, schema, indexer · re-run can be queued now</span></div><span></span><span class="age">9d</span></div>
+<div class="row "><a href="#" class="fork">storage</a><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Integration PR fails Validation Summary</button></div></div><a href="#" class="pill">PR #83 ↗</a><span class="age">54m</span></div>
+<div class="row two"><a href="#" class="fork">Upstream</a><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>23 provider changes to port</button></div><span class="l2">12 forks</span></div><a href="#" class="pill mr">MR !968 ↗</a><span class="age">63d</span></div>
+<div class="row two"><span class="fork">4 forks</span><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Sync PR needs os-core-common upgraded on the fork first</button></div><span class="l2">storage, search, file, workflow</span></div><span></span><span class="age">10d</span></div>
+<div class="row "><a href="#" class="fork">crs-conversion</a><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Sync PR to review</button></div></div><a href="#" class="pill">PR #41 ↗</a><span class="age">7d</span></div>
+<div class="row two"><span class="fork">2 forks</span><div class="what"><div class="l1"><button class="hd" aria-expanded="false"><span class="tw" aria-hidden="true"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2 6.5 5 3.5 8"/></svg></span>Integration PR waits for approval</button></div><span class="l2">unit, crs-catalog</span></div><span></span><span class="age">7d</span></div>
+</div>
+<div class="box" style="border: 1px dashed #b9ae95; color: #665f4f">
+<div class="row first"><span class="fork" style="color: #665f4f">entitlements</span><span>Draft PR from a thread · pending · not yet in a sweep</span><a href="#" style="justify-self: start">Thread ›</a><span></span></div>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<h2 class="sec" style="color: #665f4f"><span class="dot" aria-hidden="true" style="background: #2060bc"></span>Moving without you</h2>
+<div class="box">
+<div class="row first"><span class="when">Now</span><span>partition's lane is re-running after a failed deploy</span><a href="#" class="pill grey">Deployments ↗</a><span class="age"><a href="#" aria-label="partition's deployment not read, open Evidence" title="partition's deployment not read · opens Evidence" class="gapc">⌀ 1 ›</a>20m</span></div>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<h2 class="sec" style="color: #665f4f"><span class="dot" aria-hidden="true" style="background: #8a8170"></span>Can wait</h2>
+<div class="box" style="color: #665f4f">
+<div class="row first"><span>Release PRs</span><span>14 open · 1 ready to merge · none failing</span><a href="#" style="justify-self: start">Releases ›</a><span></span></div>
+<div class="row "><span>Dependabot</span><span>26 open on 8 forks</span><a href="#" style="justify-self: start">Forks ›</a><span></span></div>
+<div class="row "><span>Other PRs</span><span>7 open on 7 forks · chore: declare component governance inputs</span><a href="#" style="justify-self: start">Forks ›</a><span></span></div>
+<div class="row "><span>Alerts</span><span>6 critical or high in shipped code · none new this week</span><a href="#" style="justify-self: start">Security ›</a><span></span></div>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px">
+<h2 class="sec" style="color: #665f4f"><span class="dot" aria-hidden="true" style="border: 1.5px solid #8a8170"></span>Last 24 hours</h2>
+<div class="box" style="border-style: dashed; color: #665f4f">
+<div class="row first"><span>Upstream</span><span>1 sync PR opened · <span class="bad">3 syncs failed</span></span><a href="#" style="justify-self: start">Upstream ›</a><span></span></div>
+<div class="row "><span>Template</span><span>6 PRs merged</span><a href="#" style="justify-self: start">Template ›</a><span></span></div>
+</div>
+</section>
+</div>
+</div>
+</div></section>
+</body>
+</html>
