@@ -21,6 +21,9 @@ type State = {
 function quiet(calm: ViewSnapshot) {
   const snapshot = structuredClone(calm);
   snapshot.briefing.lines = [];
+  snapshot.provenance = snapshot.provenance.filter(
+    ({ path }) => !path.startsWith("/briefing/lines/"),
+  );
   return snapshot;
 }
 
@@ -78,7 +81,7 @@ function pendingThread(snapshot: ViewSnapshot) {
       },
       status: "Open",
       sequence: 1,
-      updatedAt: 1,
+      updatedAt: Date.parse(snapshot.sweptAt) - 600_000,
       settledAt: null,
       done: false,
     },
