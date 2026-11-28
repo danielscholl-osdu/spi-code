@@ -133,10 +133,15 @@ function holdsWork(home: ServiceHome) {
   );
 }
 
-function ageInHours(age: string | undefined) {
-  const parts = age?.match(/^(?:(\d+)d)? ?(?:(\d+)h)?$/);
-  if (!age || !parts || (parts[1] === undefined && parts[2] === undefined)) return undefined;
-  return Number(parts[1] ?? 0) * 24 + Number(parts[2] ?? 0);
+const AGE_UNIT_SECONDS: Record<string, number> = { d: 86400, h: 3600, m: 60, s: 1 };
+
+/** Core's ages ("40s", "25m", "21h", "4d", "4d 12h") in seconds; anything else is unknown. */
+function ageInSeconds(age: string | undefined) {
+  if (!age || !/^(?:\d+d(?: \d+h)?|\d+[hms])$/.test(age)) return undefined;
+  let seconds = 0;
+  for (const [, count, unit] of age.matchAll(/(\d+)([dhms])/g))
+    seconds += Number(count) * (AGE_UNIT_SECONDS[unit ?? ""] ?? 0);
+  return seconds;
 }
 
 /**
@@ -173,8 +178,8 @@ export function sortForks(
 
 function foldHeadline({ folded, releaseOnly }: ReturnType<typeof sortForks>) {
   if (!folded.length || releaseOnly.length !== folded.length) return undefined;
-  const ages = releaseOnly.map(({ age }) => ageInHours(age));
-  const known = ages.every((hours) => hours !== undefined);
+  const ages = releaseOnly.map(({ age }) => ageInSeconds(age));
+  const known = ages.every((seconds) => seconds !== undefined);
   const oldest = known ? releaseOnly[ages.indexOf(Math.max(...(ages as number[])))] : undefined;
   return (
     <>
