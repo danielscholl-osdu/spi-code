@@ -495,9 +495,10 @@ test("cadence-skipped evidence excludes removed forks and services overrides", a
   expect(result.reads.find((r) => r.object === "actions/variables")).toEqual(
     good.reads.find((r) => r.source === "Azure/osdu-spi-legal" && r.object === "actions/variables"),
   );
-  expect(result.reads.find((r) => r.object.endsWith("SYNC_LAST_EVALUATED_SHA"))).toMatchObject(
-    { source: "Azure/osdu-spi-legal", observedAt: next.toISOString() },
-  );
+  expect(result.reads.find((r) => r.object.endsWith("SYNC_LAST_EVALUATED_SHA"))).toMatchObject({
+    source: "Azure/osdu-spi-legal",
+    observedAt: next.toISOString(),
+  });
   const pinned = await readFleet(fleetGh().gh, good, next, { services: "/services" });
   expect(pinned.forks).toBeUndefined();
   expect(pinned.reads.filter((r) => r.object.startsWith("actions/variables"))).toEqual([]);
