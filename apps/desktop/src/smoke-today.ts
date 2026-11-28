@@ -198,7 +198,7 @@ async function showToday(
 
 /**
  * Today on the calm, busy and bad mornings at each width and appearance, with its first row opened
- * in place, and busy with Sync PR pressed and on Activity, each captured as the whole frame so blocks
+ * in place, and busy with Sync PR pressed, each captured as the whole frame so blocks
  * below the window's fold are in the image.
  */
 export async function captureMornings(
@@ -234,7 +234,7 @@ export async function captureMornings(
           );
         }
         await assertLabelsInside(window, `Today ${surface.id} at ${viewportWidth}`);
-        if (surface.id === "today-busy-centre") {
+        if (viewportWidth === 752) {
           const centre: number = await window.webContents.executeJavaScript(
             'Math.round(document.querySelector(".centre-body").getBoundingClientRect().width)',
           );

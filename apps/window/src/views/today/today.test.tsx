@@ -70,11 +70,11 @@ describe.each(NAMES)("on the %s morning", (name) => {
     const fleet = body.briefing.today?.fleet;
     expect(
       [...(frame?.children ?? [])].map((child) => child.className || child.getAttribute("role")),
-    ).toEqual([...(fleet ? ["fleet"] : []), "today-tabs", "tabpanel"]);
+    ).toEqual([...(fleet ? ["fleet"] : []), "today-tabrow", "tabpanel"]);
     expect(frame?.querySelector(".fleet > .today-not-read") !== null).toBe(
       (fleet?.notRead?.length ?? 0) > 0,
     );
-    const order = ["blocked", "waiting", "can-wait"];
+    const order = ["blocked", "waiting", "moving", "can-wait", "history"];
     const sections = [...(frame?.querySelectorAll<HTMLElement>(".today-section") ?? [])].map(
       ({ dataset }) => dataset.section ?? "",
     );

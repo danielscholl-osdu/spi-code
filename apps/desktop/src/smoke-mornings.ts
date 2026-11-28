@@ -61,39 +61,34 @@ export const TODAY_BLOCKS = [
   "calm",
   "blocked",
   "waiting",
-  "can-wait",
   "moving",
+  "can-wait",
   "history",
 ] as const;
 export type TodayBlock = (typeof TODAY_BLOCKS)[number];
 
-/** What a capture shows under the flow: Yours, Yours with the Sync PR station pressed, or Activity. */
-export type TodayView = "yours" | "sync" | "activity";
+/** What a capture shows under the flow: Yours, or Yours with the Sync PR station pressed. */
+export type TodayView = "yours" | "sync";
 export const TODAY_HASHES: Readonly<Record<TodayView, string>> = {
   yours: "#today",
   sync: "#today/yours/sync",
-  activity: "#today/activity",
 };
 
-const ACTIVITY = ["moving", "history"] as const;
+const LOWER = ["moving", "history"] as const;
 const required: Readonly<Record<Morning, readonly TodayBlock[]>> = {
-  calm: ["flow", "waiting"],
-  busy: ["flow", "blocked", "waiting", "can-wait"],
-  bad: ["flow", "blocked", "waiting", "can-wait"],
+  calm: ["flow", "waiting", ...LOWER],
+  busy: ["flow", "blocked", "waiting", "can-wait", ...LOWER],
+  bad: ["flow", "blocked", "waiting", "can-wait", ...LOWER],
 };
 const absent: Readonly<Record<Morning, readonly TodayBlock[]>> = {
-  calm: ["calm", "blocked", "can-wait", ...ACTIVITY],
-  busy: ["calm", ...ACTIVITY],
-  bad: ["calm", ...ACTIVITY],
+  calm: ["calm", "blocked", "can-wait"],
+  busy: ["calm"],
+  bad: ["calm"],
 };
 const viewBlocks: Readonly<
   Record<Exclude<TodayView, "yours">, { required: TodayBlock[]; absent: TodayBlock[] }>
 > = {
-  sync: { required: ["flow"], absent: ["calm", "can-wait", ...ACTIVITY] },
-  activity: {
-    required: ["flow", ...ACTIVITY],
-    absent: ["calm", "blocked", "waiting", "can-wait"],
-  },
+  sync: { required: ["flow"], absent: ["calm", "can-wait", ...LOWER] },
 };
 
 export const MORNING_SURFACES = [
@@ -114,8 +109,7 @@ export const MORNING_SURFACES = [
     },
   ]),
   { id: "today-busy-centre", morning: "busy", view: "yours", open: false, widths: [752] },
-  { id: "today-busy-sync", morning: "busy", view: "sync", open: false, widths: [1440] },
-  { id: "today-busy-activity", morning: "busy", view: "activity", open: false, widths: [1440] },
+  { id: "today-busy-sync", morning: "busy", view: "sync", open: false, widths: [1440, 752] },
 ] satisfies {
   id: string;
   morning: Morning;
@@ -128,11 +122,10 @@ export type MorningSurface = (typeof MORNING_SURFACES)[number];
 const DESIGN = {
   flow: "Today, Fleet flow and D6: Upstream, Sync PR, Integration and Main with the four doors and Environment",
   yours:
-    "Today, Yours and Can wait: Blocked, Waiting on you, then Can wait by cause; D5: no On Today chip or place link",
+    "Today, Yours: Blocked, Waiting on you, Moving without you, Can wait by cause and Last 24 hours in one grid; D5: no On Today chip or place link",
   rows: "X4: Today is a table (Fork, What, Open, Age)",
   filter:
-    "Today, Filter: Sync PR pressed keeps its rows and group members in Yours and hides Can wait",
-  activity: "Today, Activity: Moving without you and Last 24 hours with their readings",
+    "Today, Filter: Sync PR pressed keeps its rows and group members in Yours, names its scope and count on the tab row, and hides every other section",
   bad: "Z4: what the sweep did not read opens Evidence",
   narrow: "Today's table at a narrow centre",
   open: "Today, Yours: a headline expands its row in place",
@@ -147,7 +140,8 @@ export function morningSections(
 ): string[] {
   return [
     DESIGN.flow,
-    ...(view === "activity" ? [DESIGN.activity] : [DESIGN.yours, DESIGN.rows]),
+    DESIGN.yours,
+    DESIGN.rows,
     ...(view === "sync" ? [DESIGN.filter] : []),
     ...(morning === "bad" ? [DESIGN.bad] : []),
     ...(width < 1440 ? [DESIGN.narrow] : []),
@@ -207,11 +201,7 @@ export function assertMorningEvidence(
   assert.equal(evidence.fixture, MORNING_FIXTURES[surface.morning], `Wrong fixture: ${label}`);
   assert.equal(evidence.open, surface.open, `Wrong opened state: ${label}`);
   assert.equal(evidence.view, surface.view, `Wrong view: ${label}`);
-  assert.equal(
-    evidence.tab,
-    surface.view === "activity" ? "activity" : "yours",
-    `Wrong tab selected: ${label}`,
-  );
+  assert.equal(evidence.tab, "yours", `Wrong tab selected: ${label}`);
   assert.equal(evidence.pressed, surface.view === "sync" ? "sync" : "", `Wrong pressed: ${label}`);
   assert.deepEqual(
     evidence.sections,
@@ -220,10 +210,7 @@ export function assertMorningEvidence(
   );
   assert.equal(evidence.headline, "", `Wrong headline: ${label}`);
   const { members, lineMembers, filtered, todayCount } = evidence;
-  if (surface.view === "activity") {
-    assertDrawnMembers(lineMembers, lineMembers, label);
-    assert.equal(members, membersText({}), `Activity draws Yours rows: ${label}`);
-  } else if (surface.view === "sync") {
+  if (surface.view === "sync") {
     assertDrawnMembers(filtered, filtered, `${label} filtered`);
     assert.notEqual(filtered, lineMembers, `Filter keeps every row: ${label}`);
     assertDrawnMembers(members, filtered, label);

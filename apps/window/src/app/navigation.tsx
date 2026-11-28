@@ -49,7 +49,7 @@ const ENVIRONMENT_RANGE = /^(7-days|\d{4}-\d{2}-\d{2})$/;
 export type ServiceRoute = { kind: "service"; id: string; tab?: string; row?: string };
 
 /** Today's tabs after Yours, which opens when the route names none. */
-export const TODAY_TABS = ["forks", "activity"] as const;
+export const TODAY_TABS = ["forks"] as const;
 export type TodayTab = (typeof TODAY_TABS)[number];
 
 /** Today, on one of its tabs, with an optional station filter. */
@@ -172,7 +172,10 @@ function parseService(parts: readonly string[]): Route | undefined {
   return { kind: "service", id, ...(tab ? { tab } : {}), ...(row ? { row } : {}) };
 }
 
-/** `today[/<tab>[/<station>]]`: a station can filter Yours or highlight a Forks column. */
+/**
+ * `today[/<tab>[/<station>]]`: a station can filter Yours or highlight a Forks column. The retired
+ * Activity tab's hash opens Yours, which now holds its sections.
+ */
 function parseToday(parts: readonly string[]): Route | undefined {
   const [tab, station, ...rest] = parts;
   if (rest.length > 0) return undefined;
@@ -186,7 +189,7 @@ function parseToday(parts: readonly string[]): Route | undefined {
           station: station as TodayMemberStation,
         }
       : undefined;
-  if (tab === "yours") return { kind: "today" };
+  if (tab === "yours" || tab === "activity") return { kind: "today" };
   return (TODAY_TABS as readonly string[]).includes(tab)
     ? { kind: "today", tab: tab as TodayTab }
     : undefined;
