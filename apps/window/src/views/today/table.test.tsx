@@ -18,7 +18,6 @@ import {
   setOpenSelection,
   useOpenSelection,
 } from "../../app/navigation.js";
-import { serviceMark } from "../../components/sidebar/service-mark.js";
 import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import { threadStore } from "../../threads/store.js";
 import { timedText, when } from "../../time.js";
@@ -729,14 +728,14 @@ describe("Forks on the 16 Nov sweep", () => {
     const rest = ordered.filter((name) => !owned.has(name));
     await render(body, "#today/forks");
     expect(rowNames()).toEqual(busy);
-    expect(fold()?.textContent).toMatch(/^▸ 1 fork .*1 release PR/);
+    expect(fold()?.textContent).toBe("▸ 1 release-only fork · oldest 8h on file");
     await click(fold());
     expect(rowNames()).toEqual([...busy, ...rest]);
     await click(fold());
     expect(rowNames()).toEqual(busy);
   });
 
-  it("takes station words from Service Home and uses the shared service mark", async () => {
+  it("takes station words from Service Home", async () => {
     const body = whole();
     await render(body, "#today/forks");
     await click(fold());
@@ -746,15 +745,13 @@ describe("Forks on the 16 Nov sweep", () => {
         expect(row?.querySelector(`[data-column="${id}"] .forks-reading`)?.textContent).toContain(
           word,
         );
-      expect(row?.querySelector(".sidebar-mark")?.getAttribute("aria-label")).toBe(
-        serviceMark(body, service)?.label,
-      );
+      expect(row?.querySelector(".sidebar-mark")).toBeNull();
     }
   });
 
   it("rounds the Release PR age to the nearest day", async () => {
     await render(loadFixture("snapshot-1106.json"), "#today/forks");
-    expect(fork("storage")?.querySelector('[data-column="release"]')?.textContent).toBe("2d");
+    expect(fork("storage")?.querySelector('[data-column="release"]')?.textContent).toBe("2d›");
   });
 
   it("discloses a fork's exact Yours members and Can wait facts, and opens its service from its name", async () => {
@@ -762,7 +759,7 @@ describe("Forks on the 16 Nov sweep", () => {
     const name = "indexer";
     await render(body, "#today/forks");
     const expander = fork(name)?.querySelector<HTMLButtonElement>(
-      `button[aria-label="${name}: show its rows"]`,
+      `button[aria-label="Expand ${name} details"]`,
     );
     const link = fork(name)?.querySelector<HTMLButtonElement>("th button");
     await click(expander);
@@ -833,7 +830,7 @@ describe("Forks on the 16 Nov sweep", () => {
     const openFork = async () =>
       click(
         fork(member.fork)?.querySelector<HTMLButtonElement>(
-          `button[aria-label="${member.fork}: show its rows"]`,
+          `button[aria-label="Expand ${member.fork} details"]`,
         ),
       );
 
@@ -929,7 +926,7 @@ describe("Forks on the 16 Nov sweep", () => {
     await swap(unswept);
     await click(
       fork("search")?.querySelector<HTMLButtonElement>(
-        'button[aria-label="search: show its rows"]',
+        'button[aria-label="Expand search details"]',
       ),
     );
     const sheet = () => fork("search")?.nextElementSibling;
@@ -1001,15 +998,15 @@ describe("Forks on the 16 Nov sweep", () => {
       row?.querySelector('[title="Not read. Showing what the last read held."]'),
     ).not.toBeNull();
     expect(cell(blank)).toBe("");
-    expect(cell("release")).toBe(release);
+    expect(cell("release")).toBe(release && `${release}›`);
     expect(row?.textContent).not.toMatch(/\b0\b/);
     if (gap !== "the home") {
       expect(cell("upstream")).toContain("Sync current");
       expect(cell("sync")).toContain("None open");
     }
     if (blank === "main") expect(row?.textContent).not.toContain("Green");
+    expect(row?.textContent).not.toContain("release-only");
     if (gap === "a door with a known service count") {
-      expect(row?.querySelector(".sidebar-mark")?.textContent).toBe("2");
       expect(cell("other")).toBe("1");
       expect(cell("template")).toBe("PR #67");
     }
@@ -1025,6 +1022,190 @@ describe("Forks on the 16 Nov sweep", () => {
     expect(file?.querySelector('[data-column="other"]')?.textContent).toBe("·");
     await click(file?.querySelector("button[aria-expanded]"));
     expect(file?.nextElementSibling?.textContent).toContain("Nothing waiting on you.");
+  });
+
+  /** A fork outside Yours as read as file: every station quiet, holding one release PR or none. */
+  function addQuiet(body: ViewSnapshot, name: string, age?: string) {
+    const file = body.services?.find(({ service }) => service === "file");
+    const fleet = body.briefing.today?.fleet;
+    if (!file?.home || !fleet) throw new Error("Fixture needs file's home and the fleet");
+    const home = structuredClone(file.home);
+    if (age && home.releasePr) home.releasePr.age = age;
+    else {
+      delete home.releasePr;
+      for (const door of home.doors)
+        if (door.id === "release") Object.assign(door, { count: 0, prs: [] });
+    }
+    body.services?.push({ ...structuredClone(file), service: name, home });
+    fleet.forks.rest.forks.push(name);
+  }
+  const fileHome = (body: ViewSnapshot) => {
+    const home = body.services?.find(({ service }) => service === "file")?.home;
+    if (!home) throw new Error("Fixture needs file's home");
+    return home;
+  };
+  const fileDoor = (body: ViewSnapshot, id: string) => {
+    const door = fileHome(body).doors.find((door) => door.id === id);
+    if (!door) throw new Error(`Fixture needs file's ${id} door`);
+    return door;
+  };
+  const fileStation = (body: ViewSnapshot, id: string) => {
+    const station = fileHome(body).stations.find((station) => station.id === id);
+    if (!station) throw new Error(`Fixture needs file's ${id} station`);
+    return station;
+  };
+
+  it.each<{ case: string; edit: (body: ViewSnapshot) => void; group?: string; fold?: string }>([
+    { case: "a release PR only", edit: () => {}, fold: "1 release-only fork · oldest 8h on file" },
+    {
+      case: "nothing at all",
+      edit: (body) => {
+        delete fileHome(body).releasePr;
+        Object.assign(fileDoor(body, "release"), { count: 0, prs: [] });
+        const figure = body.briefing.today?.fleet?.forks.rest.doors.find(
+          ({ id }) => id === "release",
+        );
+        if (figure) Object.assign(figure, { count: 0, forks: [] });
+      },
+      fold: "1 fork with nothing waiting on you · no open PRs",
+    },
+    {
+      case: "release-only forks, naming the oldest",
+      edit: (body) => addQuiet(body, "alpha", "12d 3h"),
+      fold: "2 release-only forks · oldest 12d on alpha",
+    },
+    {
+      case: "a release-only fork beside an empty one",
+      edit: (body) => addQuiet(body, "alpha"),
+      fold: "2 forks with nothing waiting on you · 1 release PR",
+    },
+    {
+      case: "a Dependabot PR",
+      edit: (body) => Object.assign(fileDoor(body, "dependabot"), { count: 1 }),
+      group: "holding",
+    },
+    {
+      case: "a template sync PR",
+      edit: (body) => {
+        const door = fileDoor(body, "template");
+        Object.assign(door, {
+          count: 1,
+          prs: [{ number: 9, url: "https://github.com/x/y/pull/9" }],
+        });
+      },
+      group: "holding",
+    },
+    {
+      case: "changes to sync",
+      edit: (body) =>
+        Object.assign(fileStation(body, "upstream"), {
+          state: "waiting-on-clock",
+          word: "4 behind",
+        }),
+      group: "holding",
+    },
+    {
+      case: "an open sync PR on a ready station",
+      edit: (body) =>
+        Object.assign(fileStation(body, "sync"), {
+          pr: { number: 3, url: "https://github.com/x/y/pull/3" },
+        }),
+      group: "holding",
+    },
+    {
+      case: "a stopped Main",
+      edit: (body) => Object.assign(fileStation(body, "main"), { state: "stopped", word: "Red" }),
+      group: "holding",
+    },
+    {
+      case: "a row in Yours",
+      edit: (body) => {
+        const forks = body.briefing.today?.fleet?.forks;
+        if (!forks) throw new Error("Fixture needs the fleet");
+        forks.yours.push("file");
+        forks.rest.forks = [];
+      },
+      group: "yours",
+    },
+    {
+      case: "Yours rows core left in the rest",
+      edit: (body) => {
+        const forks = body.briefing.today?.fleet?.forks;
+        if (!forks) throw new Error("Fixture needs the fleet");
+        forks.yours = forks.yours.filter((fork) => fork !== "partition");
+        forks.rest.forks.unshift("partition");
+        addQuiet(body, "alpha", "2d");
+        const partition = body.services?.find(({ service }) => service === "partition");
+        const alpha = body.services?.find(({ service }) => service === "alpha");
+        if (!partition || !alpha?.home) throw new Error("Fixture needs partition");
+        partition.home = structuredClone(alpha.home);
+      },
+      group: "holding",
+    },
+    {
+      case: "no home",
+      edit: (body) => {
+        const file = body.services?.find(({ service }) => service === "file");
+        if (file) delete file.home;
+      },
+      group: "unread",
+    },
+    {
+      case: "an unread door",
+      edit: (body) => Object.assign(fileDoor(body, "dependabot"), { count: null }),
+      group: "unread",
+    },
+    {
+      case: "a station not read",
+      edit: (body) =>
+        body.briefing.today?.fleet?.stations
+          .find(({ id }) => id === "integration")
+          ?.notRead.push("file"),
+      group: "unread",
+    },
+  ])(
+    "a fork holding $case is folded or shown",
+    async ({ case: name, edit, group, fold: words }) => {
+      const body = whole();
+      edit(body);
+      await render(body, "#today/forks");
+      if (name === "Yours rows core left in the rest") {
+        expect(fork("partition")?.closest("tbody")?.dataset.forkGroup).toBe("holding");
+        expect(fold()?.textContent).toBe("▸ 2 release-only forks · oldest 2d on alpha");
+        return;
+      }
+      if (group) {
+        expect(fork("file")?.closest("tbody")?.dataset.forkGroup).toBe(group);
+        expect(fold()).toBeNull();
+        expect(section("forks")?.textContent).not.toContain("release-only");
+        return;
+      }
+      expect(fork("file")).toBeNull();
+      expect(fold()?.textContent).toBe(`▸ ${words}`);
+      await click(fold());
+      expect(fork("file")?.closest("tbody")?.dataset.forkGroup).toBe("quiet");
+    },
+  );
+
+  it("names each chevron for its fork, and only a value ending in › navigates", async () => {
+    await render(whole(), "#today/forks");
+    await click(fold());
+    const rows = [...(section("forks")?.querySelectorAll<HTMLElement>("tr[data-fork]") ?? [])];
+    expect(rows.length).toBe(13);
+    for (const row of rows) {
+      const chevron = row.querySelector(".forks-toggle");
+      expect(chevron?.getAttribute("aria-label")).toBe(`Expand ${row.dataset.fork} details`);
+      expect(chevron?.getAttribute("aria-expanded")).toBe("false");
+    }
+    const cells = [
+      ...(section("forks")?.querySelectorAll<HTMLElement>("tbody [data-column]") ?? []),
+    ];
+    const going = cells.filter((cell) => cell.textContent?.endsWith("›"));
+    expect(going.length).toBeGreaterThan(0);
+    for (const cell of cells)
+      expect(cell.querySelector("button") !== null).toBe(cell.textContent?.endsWith("›"));
+    await click(going[0]?.querySelector("button"));
+    expect(route()).toEqual({ kind: "releases" });
   });
 
   it.each([true, false])("shows the open PR total when one is held (%s)", async (held) => {

@@ -37,7 +37,7 @@ async function captureStickyForks(
     const bounds = scroller.getBoundingClientRect();
     const right = bounds.left + scroller.clientLeft + scroller.clientWidth;
     const rowSurface = getComputedStyle(row.lastElementChild).backgroundColor;
-    const cells = [".forks-toggle-cell", ".forks-name-cell", ".forks-mark-cell"].map(selector => {
+    const cells = [".forks-toggle-cell", ".forks-name-cell"].map(selector => {
       const cell = row.querySelector(selector);
       const { left, right: end, top, height } = cell.getBoundingClientRect();
       const coversEdges = [left + 1, end - 1].every(x =>
@@ -52,11 +52,11 @@ async function captureStickyForks(
       cells,
     };
   })()`;
-  const expected = { atRight: true, opaque: true, cells: [true, true, true] };
+  const expected = { atRight: true, opaque: true, cells: [true, true] };
   assert.deepEqual(await window.webContents.executeJavaScript(geometry), expected, "900px Forks");
   if (unread) {
     const { x, y } = await window.webContents.executeJavaScript(`(() => {
-      const mark = ${target}.querySelector(".forks-mark-cell").getBoundingClientRect();
+      const mark = ${target}.querySelector(".forks-name-cell .forks-unread").getBoundingClientRect();
       return { x: Math.floor(mark.left + mark.width / 2), y: Math.floor(mark.top + mark.height / 2) };
     })()`);
     await window.webContents.debugger.sendCommand("Input.dispatchMouseEvent", {
@@ -120,6 +120,25 @@ export async function captureForks(
     fixture("setup.state", setupState);
     await rendered(`${fold} && !document.querySelector(".today-leaving") &&
       document.documentElement.dataset.theme === "${theme}" && Math.abs(innerWidth - 1440) <= 1`);
+    assert.match(
+      await window.webContents.executeJavaScript(`${fold}.textContent`),
+      /^▸ \d+ release-only forks? · oldest \S+ on \S+$/,
+      "the fold names the release-only forks",
+    );
+    const spans = await window.webContents.executeJavaScript(`(() => {
+      const frame = document.querySelector(".today-frame");
+      const sheet = document.querySelector(".forks-scroll");
+      const box = frame.getBoundingClientRect();
+      const style = getComputedStyle(frame);
+      const left = box.left + parseFloat(style.paddingLeft);
+      const right = box.right - parseFloat(style.paddingRight);
+      const { left: sheetLeft, right: sheetRight } = sheet.getBoundingClientRect();
+      return Math.abs(sheetLeft - left) <= 1 && Math.abs(sheetRight - right) <= 1 &&
+        sheet.scrollWidth <= sheet.clientWidth &&
+        sheet.querySelector("table").getBoundingClientRect().width >= sheet.clientWidth - 1 &&
+        right - left > 1000;
+    })()`);
+    assert.equal(spans, true, "at 1440 the Forks sheet spans the centre");
     for (const [state, expected] of [
       ["folded", initial],
       ["unfolded", all],
