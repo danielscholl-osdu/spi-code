@@ -588,6 +588,37 @@ export function todayMembers(briefing: { lines?: readonly TodayLine[] | undefine
   );
 }
 
+export interface TodayCounts {
+  total: number;
+  blocked: number;
+  waiting: number;
+}
+
+/** The one Today count: fork rows count their members; one operation counts once. */
+export function todayCounts(briefing: { lines?: readonly TodayLine[] | undefined }): TodayCounts {
+  const counts: TodayCounts = { total: 0, blocked: 0, waiting: 0 };
+  const seen = new Set<string>();
+  const lines = briefing.lines ?? [];
+  const operation = (line: TodayLine) => line.subject === "Template" || line.subject === "Upstream";
+  const add = (section: TodayLine["section"], count: number) => {
+    counts[section] += count;
+    counts.total += count;
+  };
+  for (const line of lines.filter(operation)) {
+    for (const member of line.members) seen.add(member.id);
+    add(line.section, 1);
+  }
+  for (const line of lines.filter((line) => !operation(line))) {
+    const count = line.members.filter((member) => {
+      if (seen.has(member.id)) return false;
+      seen.add(member.id);
+      return true;
+    }).length;
+    add(line.section, count);
+  }
+  return counts;
+}
+
 export const TodayCountSchema = z.strictObject({
   kind: IdentifierSchema,
   label: IdentifierSchema,
@@ -632,9 +663,16 @@ export const TodaySummarySchema = z.strictObject({
         at: ObservedAtSchema.optional(),
         count: z.int().nonnegative(),
         names: z.array(z.string()),
+        what: z.string().optional(),
+        fork: z.string().optional(),
+        link: LinkSchema.optional(),
+        age: z.string().optional(),
+        notRead: z.array(z.string()).optional(),
       }),
     )
-    .max(3),
+    .refine((rows) => rows.filter(({ at }) => at !== undefined).length <= 3, {
+      message: "Today keeps at most three scheduled moving rows",
+    }),
   history: TodayHistorySchema,
 });
 export type TodaySummary = z.infer<typeof TodaySummarySchema>;

@@ -5,6 +5,39 @@ import type { CoreContext } from "../context.js";
 import type { RolloutFork, RolloutModel } from "../model/rollout.js";
 import { names, plural, short, stamp, whose } from "../util.js";
 
+export type RolloutForkState =
+  | "merged"
+  | "to-review"
+  | "checking"
+  | "to-dispatch"
+  | "not-started"
+  | "not-read";
+
+export interface ClassifiedRolloutFork {
+  fork: RolloutFork;
+  state: RolloutForkState;
+}
+
+/** Classify each fork once from the rollout's proven state. */
+export function classifyRolloutForks(
+  rollout: RolloutModel,
+): ClassifiedRolloutFork[] {
+  const dispatch = new Set(
+    [...rollout.dispatchNext, ...rollout.dispatchWaits].map(({ service }) => service),
+  );
+  return rollout.forks.map((fork) => {
+    if (fork.unread) return { fork, state: "not-read" };
+    if (fork.onTarget) return { fork, state: "merged" };
+    if (fork.pr) {
+      return { fork, state: fork.validation.tone === "run" ? "checking" : "to-review" };
+    }
+    return {
+      fork,
+      state: dispatch.has(fork.service) ? "to-dispatch" : "not-started",
+    };
+  });
+}
+
 export interface RolloutWords {
   title: string;
   sub: string;

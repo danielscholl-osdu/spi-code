@@ -16,6 +16,7 @@ import type { FocusItem, Link } from "./index.js";
 import { sentenceHeadline } from "./headline.js";
 import type { LinkKind } from "./move.js";
 import { pullsComplete } from "./repo-today.js";
+import { classifyRolloutForks } from "./rollout.js";
 
 export interface TodayDeadline {
   at: string;
@@ -315,7 +316,7 @@ function describe(
     case "port":
       return {
         ...base,
-        subject: item.scope,
+        subject: "Upstream",
         headline: `${plural(
           item.ids.reduce(
             (count, id) =>
@@ -354,9 +355,11 @@ function rolloutMembers(
   const rollout = model.rollout;
   const line = lines.find(({ members }) => members.some(({ id }) => id === "rollout"));
   if (!rollout || line?.section !== "waiting") return;
+  const operation = line.members.find(({ id }) => id === "rollout");
   const held = todaySources(model, items, lines.filter((other) => other !== line));
-  const behind = rollout.forks.filter(({ onTarget, unread }) => !onTarget && !unread);
-  const members = behind.flatMap(({ service, pr }): TodayMember[] => {
+  const classified = classifyRolloutForks(rollout);
+  const withPr = classified.filter(({ state }) => state === "to-review" || state === "checking");
+  const members = withPr.flatMap(({ fork: { service, pr } }): TodayMember[] => {
     if (!pr || held.has(pr.url)) return [];
     held.set(pr.url, "waiting");
     const id = `rollout:${service}`;
@@ -371,23 +374,128 @@ function rolloutMembers(
       evidence: itemEvidence(model, ["rollout"]),
     }];
   });
-  if (!members.length) return;
-  line.subject = plural(members.length, "fork");
-  line.rollout = {
-    withoutPr: behind.filter(({ repo, pr }) => !pr && pulls && pullsComplete(repo, pulls.facts, pulls.reads))
-      .map(({ service }) => service),
-  };
-  line.members = members;
+  const withoutPr = classified
+    .filter(({ fork, state }) =>
+      (state === "to-dispatch" || state === "not-started") &&
+      pulls && pullsComplete(fork.repo, pulls.facts, pulls.reads),
+    )
+    .map(({ fork }) => fork.service);
+  const dispatch = classified.some(({ state }) => state === "to-dispatch");
+  if (members.length) {
+    line.subject = plural(members.length, "fork");
+    line.rollout = { withoutPr };
+    line.members = members;
+    if (dispatch) {
+      lines.push({
+        ...line,
+        id: `${line.id}:template`,
+        subject: "Template",
+        rollout: { withoutPr },
+        members: operation ? [operation] : [],
+      });
+    }
+    return;
+  }
+  if (dispatch) {
+    line.subject = "Template";
+    line.rollout = { withoutPr };
+    return;
+  }
+  lines.splice(lines.indexOf(line), 1);
+}
+
+function memberInFlight(model: Model, member: TodayMember): boolean {
+  if (member.id.startsWith("rollout:")) {
+    if (!model.rollout) return false;
+    const service = member.id.slice("rollout:".length);
+    return classifyRolloutForks(model.rollout)
+      .some(({ fork, state }) => fork.service === service && state === "checking");
+  }
+  const queued = model.queue.items.find((item) => item.id === member.id);
+  if (queued?.rerun?.state === "in-flight") return true;
+  const line = model.lines.find(({ fork }) => fork.id === member.fork);
+  if (!line) return false;
+  switch (queued?.kind) {
+    case "gate1":
+      return !!line.syncPr && prVerdict(line.syncPr.pr) === "pending";
+    case "gate2":
+      return !!line.cascadePr && prVerdict(line.cascadePr.pr) === "pending";
+    case "template-pr":
+    case "template-red":
+      return !!line.templatePr && prVerdict(line.templatePr.pr) === "pending";
+    default:
+      return false;
+  }
+}
+
+export interface TodayFlight {
+  line: TodayLine;
+  member: TodayMember;
+}
+
+export function todayLineFailing(model: Model, line: TodayLine): boolean {
+  return line.members.some((member) => {
+    const ids = new Set([member.id, ...member.ids]);
+    return model.queue.items.some((item) => {
+      if (!ids.has(item.id)) return false;
+      switch (item.kind) {
+        case "lanes":
+        case "lane-deploy":
+        case "main":
+        case "sync-run":
+        case "template-run":
+        case "template-red":
+        case "release-red":
+          return true;
+        case "gate1": {
+          const pr = model.lines.find(({ fork }) => fork.id === member.fork)?.syncPr;
+          return !!pr && prVerdict(pr.pr) === "red";
+        }
+        case "gate2": {
+          const pr = model.lines.find(({ fork }) => fork.id === member.fork)?.cascadePr;
+          return !!pr && prVerdict(pr.pr) === "red";
+        }
+        default:
+          return false;
+      }
+    });
+  });
+}
+
+function lineAge(line: TodayLine): number {
+  const times = line.members.flatMap((member) =>
+    member.since && Number.isFinite(Date.parse(member.since)) ? [Date.parse(member.since)] : [],
+  );
+  return times.length ? Math.min(...times) : Infinity;
+}
+
+export function orderTodayLines(model: Model, lines: readonly TodayLine[]): TodayLine[] {
+  return [...lines].sort((a, b) => {
+    const section = Number(a.section === "waiting") - Number(b.section === "waiting");
+    if (section) return section;
+    if (a.deadline || b.deadline) {
+      if (!a.deadline) return 1;
+      if (!b.deadline) return -1;
+      return Date.parse(a.deadline.at) - Date.parse(b.deadline.at) || a.id.localeCompare(b.id);
+    }
+    const failed = Number(todayLineFailing(model, b)) - Number(todayLineFailing(model, a));
+    if (failed) return failed;
+    if (!todayLineFailing(model, a)) {
+      const age = lineAge(a) - lineAge(b);
+      if (age) return age;
+    }
+    return a.id.localeCompare(b.id);
+  });
 }
 
 /** Today's operator-owned objects, grouped by shared situation, with no change to the rib briefing. */
-export function todayLines(
+function projectTodayLines(
   model: Model,
   items: readonly Item[],
   now: Date | undefined,
   context: CoreContext,
   pulls?: PullReads,
-): TodayLine[] {
+): { lines: TodayLine[]; flights: TodayFlight[] } {
   now ??= context.clock.now();
   const byId = new Map(items.map((item) => [item.id, item]));
   const eligible = (item: Item) => item.actor === "operator" && item.attention !== "background";
@@ -451,22 +559,33 @@ export function todayLines(
     };
   });
   rolloutMembers(model, items, lines, now, pulls);
-  const order = (line: TodayLine) =>
-    line.id.includes("blocker:")
-      ? 1
-      : line.id.includes("upgrade:")
-        ? 2
-        : line.id.includes("sync-review")
-          ? 3
-          : line.id.includes("release-approval")
-            ? 4
-            : line.rollout || line.members[0]?.id === "rollout"
-              ? 5
-              : line.members[0]?.id.startsWith("port:")
-                ? 6
-                : 0;
-  return lines.sort(
-    (a, b) =>
-      Number(a.section === "waiting") - Number(b.section === "waiting") || order(a) - order(b),
+  const flights = lines.flatMap((line) =>
+    line.members.filter((member) => memberInFlight(model, member)).map((member) => ({ line, member })),
   );
+  const active = lines.flatMap((line) => {
+    const members = line.members.filter((member) => !memberInFlight(model, member));
+    if (!members.length) return [];
+    if (line.subject.match(/^\d+ forks$/)) line.subject = plural(members.length, "fork");
+    return [{ ...line, members }];
+  });
+  return { lines: orderTodayLines(model, active), flights };
+}
+
+export function todayLines(
+  model: Model,
+  items: readonly Item[],
+  now: Date | undefined,
+  context: CoreContext,
+  pulls?: PullReads,
+): TodayLine[] {
+  return projectTodayLines(model, items, now, context, pulls).lines;
+}
+
+export function todayInFlight(
+  model: Model,
+  items: readonly Item[],
+  now: Date | undefined,
+  context: CoreContext,
+): TodayFlight[] {
+  return projectTodayLines(model, items, now, context).flights;
 }

@@ -3,7 +3,14 @@
 
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { BriefingSchema } from "./briefing.js";
+import {
+  BriefingSchema,
+  fleetLines,
+  type TodayLine,
+  type TodayMember,
+  TodaySummarySchema,
+  todayCounts,
+} from "./briefing.js";
 
 const frozen = JSON.parse(
   readFileSync(
@@ -130,6 +137,139 @@ describe("since observation time", () => {
     expect(
       BriefingSchema.safeParse({ ...briefing, since: { ...since, asOf: briefing.environment.to } })
         .success,
+    ).toBe(false);
+  });
+});
+
+describe("Today count", () => {
+  const member = (id: string, fork: string, station?: TodayMember["station"]): TodayMember => ({
+    id,
+    ids: [id],
+    fork,
+    ...(station ? { station } : {}),
+    cause: "",
+    effect: "",
+    steps: [],
+    evidence: { areas: [], attributed: "item", notRead: [] },
+  });
+  const line = (
+    id: string,
+    subject: string,
+    members: TodayMember[],
+    section: TodayLine["section"] = "waiting",
+  ): TodayLine => ({
+    id,
+    section,
+    subject,
+    headline: subject,
+    cause: "",
+    effect: "",
+    steps: [],
+    members,
+  });
+
+  it.each([
+    [
+      "n forks",
+      line(
+        "group",
+        "3 forks",
+        ["a", "b", "c"].map((id) => member(id, id)),
+      ),
+      3,
+    ],
+    [
+      "review rollout",
+      line(
+        "review",
+        "2 forks",
+        ["one", "two"].map((id) => member(`rollout:${id}`, id)),
+      ),
+      2,
+    ],
+    [
+      "dispatch rollout",
+      line(
+        "dispatch",
+        "Template",
+        ["rollout:a"].map((id) => member(id, id)),
+      ),
+      1,
+    ],
+    ["port", line("port", "Upstream", [member("port", "fleet")]), 1],
+    ["single fork", line("single", "partition", [member("main", "partition")]), 1],
+  ])("counts %s as %i", (_name, row, expected) => {
+    expect(todayCounts({ lines: [row] })).toEqual({
+      total: expected,
+      blocked: 0,
+      waiting: expected,
+    });
+  });
+
+  it("deduplicates a member on two lines and splits the remaining total by section", () => {
+    const a = member("a", "a");
+    const b = member("b", "b");
+    const result = todayCounts({
+      lines: [line("blocked", "1 fork", [a], "blocked"), line("waiting", "2 forks", [a, b])],
+    });
+    expect(result).toEqual({ total: 2, blocked: 1, waiting: 1 });
+    expect(todayCounts({ lines: [] })).toEqual({ total: 0, blocked: 0, waiting: 0 });
+  });
+
+  it("counts an operation once instead of also counting its member on another line", () => {
+    const shared = member("shared", "shared");
+    expect(
+      todayCounts({
+        lines: [
+          line("fork", "1 fork", [shared], "blocked"),
+          line("operation", "Template", [shared]),
+        ],
+      }),
+    ).toEqual({ total: 1, blocked: 0, waiting: 1 });
+  });
+
+  it("counts grouped and operation rows whole and under each station filter", () => {
+    const group = line("group", "2 forks", [
+      member("sync", "sync", "sync"),
+      member("integration", "integration", "integration"),
+    ]);
+    const operation = line("operation", "Template", [
+      member("rollout:one", "one", "template"),
+      member("rollout:two", "two", "sync"),
+    ]);
+    expect(todayCounts({ lines: [group, operation] }).total).toBe(3);
+    expect(todayCounts({ lines: fleetLines([group, operation], "sync") }).total).toBe(2);
+    expect(todayCounts({ lines: fleetLines([group, operation], "integration") }).total).toBe(1);
+    expect(todayCounts({ lines: fleetLines([group, operation], "template") }).total).toBe(1);
+  });
+
+  it("caps scheduled moving rows without cutting proven in-flight rows", () => {
+    const row = (index: number, at?: string) => ({
+      id: `moving-${index}`,
+      label: "Main run",
+      place: "line" as const,
+      time: at ? at : "Now",
+      ...(at ? { at } : {}),
+      count: 1,
+      names: ["partition"],
+    });
+    const summary = {
+      canWait: [],
+      moving: [row(0), row(1), row(2), row(3), row(4)],
+      history: {
+        basis: "fallback",
+        from: "2026-11-16T00:00:00.000Z",
+        rows: [],
+      },
+    };
+    expect(TodaySummarySchema.safeParse(summary).success).toBe(true);
+    expect(
+      TodaySummarySchema.safeParse({
+        ...summary,
+        moving: [0, 1, 2, 3].map((index) =>
+          row(index, `2026-11-${String(17 + index).padStart(2, "0")}T00:00:00.000Z`),
+        ),
+      }).success,
     ).toBe(false);
   });
 });

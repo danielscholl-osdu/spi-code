@@ -57,31 +57,40 @@
         ]
       },
       {
-        "id": "waiting:release-red:Azure/osdu-spi-entitlements#89",
+        "id": "waiting:radar:partition",
         "section": "waiting",
-        "subject": "entitlements",
-        "headline": "Release PR #89 fails 📊 Code Coverage",
-        "cause": "Release PR #89 fails 📊 Code Coverage.",
-        "effect": "Nothing else waits on it.",
+        "subject": "partition",
+        "headline": "Next sync has an entry without a filter rule",
+        "cause": "Queued upstream commits add schemathesis-tests, which the fork's filter has no rule for.",
+        "effect": "8 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
         "steps": [],
-        "age": "16d",
+        "deadline": {
+          "at": "2026-11-07T00:00:00.000Z",
+          "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
+        },
+        "age": "51d",
         "members": [
           {
-            "id": "release-red:Azure/osdu-spi-entitlements#89",
-            "ids": ["release-red:Azure/osdu-spi-entitlements#89"],
-            "fork": "entitlements",
-            "home": "line",
-            "subject": "https://github.com/Azure/osdu-spi-entitlements/pull/89",
+            "id": "radar:partition",
+            "ids": ["radar:partition"],
+            "fork": "partition",
+            "station": "upstream",
+            "home": "upstream",
+            "subject": "https://github.com/Azure/osdu-spi-partition/blob/main/.github/upstream-filter.yml",
             "primary": {
-              "label": "PR #89",
-              "url": "https://github.com/Azure/osdu-spi-entitlements/pull/89",
-              "kind": "pr"
+              "label": "commit 69785fa5",
+              "url": "https://community.opengroup.org/osdu/platform/system/partition/-/commit/69785fa552c905baf34b9c4f7251f7c1c51488df",
+              "kind": "commit"
             },
-            "since": "2026-10-20T18:45:39Z",
-            "age": "16d",
-            "cause": "Release PR #89 fails 📊 Code Coverage.",
-            "effect": "Nothing else waits on it.",
+            "since": "2026-09-16T12:39:01.000+00:00",
+            "age": "51d",
+            "cause": "Queued upstream commits add schemathesis-tests, which the fork's filter has no rule for.",
+            "effect": "8 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "steps": [],
+            "deadline": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
+            },
             "evidence": {
               "areas": [
                 "github",
@@ -376,59 +385,6 @@
         ]
       },
       {
-        "id": "waiting:radar:partition",
-        "section": "waiting",
-        "subject": "partition",
-        "headline": "Next sync has an entry without a filter rule",
-        "cause": "Queued upstream commits add schemathesis-tests, which the fork's filter has no rule for.",
-        "effect": "8 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
-        "steps": [],
-        "deadline": {
-          "at": "2026-11-07T00:00:00.000Z",
-          "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
-        },
-        "age": "51d",
-        "members": [
-          {
-            "id": "radar:partition",
-            "ids": ["radar:partition"],
-            "fork": "partition",
-            "station": "upstream",
-            "home": "upstream",
-            "subject": "https://github.com/Azure/osdu-spi-partition/blob/main/.github/upstream-filter.yml",
-            "primary": {
-              "label": "commit 69785fa5",
-              "url": "https://community.opengroup.org/osdu/platform/system/partition/-/commit/69785fa552c905baf34b9c4f7251f7c1c51488df",
-              "kind": "commit"
-            },
-            "since": "2026-09-16T12:39:01.000+00:00",
-            "age": "51d",
-            "cause": "Queued upstream commits add schemathesis-tests, which the fork's filter has no rule for.",
-            "effect": "8 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
-            "steps": [],
-            "deadline": {
-              "at": "2026-11-07T00:00:00.000Z",
-              "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
-            },
-            "evidence": {
-              "areas": [
-                "github",
-                "runs",
-                "approvals",
-                "lifecycle",
-                "details",
-                "upstream",
-                "radar",
-                "template",
-                "security"
-              ],
-              "attributed": "sweep",
-              "notRead": []
-            }
-          }
-        ]
-      },
-      {
         "id": "waiting:upgrade:os-core-common",
         "section": "waiting",
         "subject": "2 forks",
@@ -502,6 +458,100 @@
               "at": "2026-11-07T00:00:00.000Z",
               "reason": "Before the next upstream sync, 2026-11-07T00:00:00.000Z"
             },
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "waiting:release-red:Azure/osdu-spi-entitlements#89",
+        "section": "waiting",
+        "subject": "entitlements",
+        "headline": "Release PR #89 fails 📊 Code Coverage",
+        "cause": "Release PR #89 fails 📊 Code Coverage.",
+        "effect": "Nothing else waits on it.",
+        "steps": [],
+        "age": "16d",
+        "members": [
+          {
+            "id": "release-red:Azure/osdu-spi-entitlements#89",
+            "ids": ["release-red:Azure/osdu-spi-entitlements#89"],
+            "fork": "entitlements",
+            "home": "line",
+            "subject": "https://github.com/Azure/osdu-spi-entitlements/pull/89",
+            "primary": {
+              "label": "PR #89",
+              "url": "https://github.com/Azure/osdu-spi-entitlements/pull/89",
+              "kind": "pr"
+            },
+            "since": "2026-10-20T18:45:39Z",
+            "age": "16d",
+            "cause": "Release PR #89 fails 📊 Code Coverage.",
+            "effect": "Nothing else waits on it.",
+            "steps": [],
+            "evidence": {
+              "areas": [
+                "github",
+                "runs",
+                "approvals",
+                "lifecycle",
+                "details",
+                "upstream",
+                "radar",
+                "template",
+                "security"
+              ],
+              "attributed": "sweep",
+              "notRead": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "waiting:port:unit",
+        "section": "waiting",
+        "subject": "Upstream",
+        "headline": "12 upstream provider changes to port",
+        "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+        "effect": "Until each MR is ported, unit, indexer, search, workflow, crs-conversion and crs-catalog drift from upstream.",
+        "steps": [],
+        "age": "21d",
+        "members": [
+          {
+            "id": "port:unit",
+            "ids": [
+              "port:unit",
+              "port:indexer",
+              "port:search",
+              "port:workflow",
+              "port:crs-conversion",
+              "port:crs-catalog"
+            ],
+            "fork": "6 forks",
+            "home": "upstream",
+            "primary": {
+              "label": "!503",
+              "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/503",
+              "kind": "mr"
+            },
+            "since": "2026-10-16T09:59:15Z",
+            "age": "21d",
+            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+            "effect": "Until each MR is ported, unit, indexer, search, workflow, crs-conversion and crs-catalog drift from upstream.",
+            "steps": [],
             "evidence": {
               "areas": [
                 "github",
@@ -980,56 +1030,6 @@
             "age": "5h",
             "cause": "Review the template sync PR.",
             "effect": "",
-            "steps": [],
-            "evidence": {
-              "areas": [
-                "github",
-                "runs",
-                "approvals",
-                "lifecycle",
-                "details",
-                "upstream",
-                "radar",
-                "template",
-                "security"
-              ],
-              "attributed": "sweep",
-              "notRead": []
-            }
-          }
-        ]
-      },
-      {
-        "id": "waiting:port:unit",
-        "section": "waiting",
-        "subject": "6 forks",
-        "headline": "12 upstream provider changes to port",
-        "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
-        "effect": "Until each MR is ported, unit, indexer, search, workflow, crs-conversion and crs-catalog drift from upstream.",
-        "steps": [],
-        "age": "21d",
-        "members": [
-          {
-            "id": "port:unit",
-            "ids": [
-              "port:unit",
-              "port:indexer",
-              "port:search",
-              "port:workflow",
-              "port:crs-conversion",
-              "port:crs-catalog"
-            ],
-            "fork": "6 forks",
-            "home": "upstream",
-            "primary": {
-              "label": "!503",
-              "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/503",
-              "kind": "mr"
-            },
-            "since": "2026-10-16T09:59:15Z",
-            "age": "21d",
-            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
-            "effect": "Until each MR is ported, unit, indexer, search, workflow, crs-conversion and crs-catalog drift from upstream.",
             "steps": [],
             "evidence": {
               "areas": [
@@ -33251,6 +33251,21 @@
       "attributed": "sweep"
     },
     {
+      "path": "/briefing/lines/3/members/1",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
       "path": "/briefing/lines/4",
       "areas": [
         "github",
@@ -33281,7 +33296,7 @@
       "attributed": "sweep"
     },
     {
-      "path": "/briefing/lines/4/members/1",
+      "path": "/briefing/lines/5",
       "areas": [
         "github",
         "runs",
@@ -33294,226 +33309,31 @@
         "security"
       ],
       "attributed": "sweep"
-    },
-    {
-      "path": "/briefing/lines/5",
-      "areas": ["github", "upstream"],
-      "attributed": "item"
     },
     {
       "path": "/briefing/lines/5/members/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/6",
       "areas": ["github", "upstream"],
       "attributed": "item"
     },
     {
-      "path": "/briefing/lines/6",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
-    },
-    {
       "path": "/briefing/lines/6/members/0",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
-    },
-    {
-      "path": "/briefing/lines/6/members/1",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
-    },
-    {
-      "path": "/briefing/lines/6/members/2",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
-    },
-    {
-      "path": "/briefing/lines/6/members/3",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
-    },
-    {
-      "path": "/briefing/lines/6/members/4",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
-    },
-    {
-      "path": "/briefing/lines/6/members/5",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
-    },
-    {
-      "path": "/briefing/lines/6/members/6",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
-    },
-    {
-      "path": "/briefing/lines/6/members/7",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
-    },
-    {
-      "path": "/briefing/lines/6/members/8",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
-    },
-    {
-      "path": "/briefing/lines/6/members/9",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
-    },
-    {
-      "path": "/briefing/lines/6/members/10",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
-    },
-    {
-      "path": "/briefing/lines/6/members/11",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
-    },
-    {
-      "path": "/briefing/lines/6/members/12",
-      "areas": [
-        "github",
-        "runs",
-        "approvals",
-        "lifecycle",
-        "details",
-        "upstream",
-        "radar",
-        "template",
-        "security"
-      ],
-      "attributed": "sweep"
+      "areas": ["github", "upstream"],
+      "attributed": "item"
     },
     {
       "path": "/briefing/lines/7",
@@ -33532,6 +33352,186 @@
     },
     {
       "path": "/briefing/lines/7/members/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/7/members/1",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/7/members/2",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/7/members/3",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/7/members/4",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/7/members/5",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/7/members/6",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/7/members/7",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/7/members/8",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/7/members/9",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/7/members/10",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/7/members/11",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ],
+      "attributed": "sweep"
+    },
+    {
+      "path": "/briefing/lines/7/members/12",
       "areas": [
         "github",
         "runs",

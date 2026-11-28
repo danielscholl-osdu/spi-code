@@ -173,8 +173,8 @@ it("lists Go to, Services and Today's rows from the routes and the snapshot, wit
   ]);
   expect(rows("waiting")).toEqual([
     "legal · Sync PR has a failed check",
+    "Upstream · 3 upstream provider changes to port",
     "osdu-spi-stack · 1 outside PR waits for workflow approval",
-    "2 forks · 3 upstream provider changes to port",
   ]);
   expect(rows("can-wait")).toEqual([
     "osdu-spi · Release PRs",

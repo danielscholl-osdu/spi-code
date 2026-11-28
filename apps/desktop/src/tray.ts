@@ -6,7 +6,7 @@ import {
   type Message,
   PROTOCOL_VERSION,
   parseMessage,
-  todayMembers,
+  todayCounts,
   type WatchBriefing,
 } from "@spi-code/contracts";
 import { Menu, Notification, nativeImage, nativeTheme, Tray } from "electron";
@@ -185,7 +185,7 @@ export function createSweepTray(
   };
   /** The Today count, or null where core sent no Today lines and so proved no zero. */
   const today = () =>
-    latest?.briefing.lines === undefined ? null : todayMembers(latest.briefing).length;
+    latest?.briefing.lines === undefined ? null : todayCounts(latest.briefing).total;
   const tooltip = (): [Dot, string] => {
     if (halt) return [halt.dot, halt.text];
     const [dot, text] = state();

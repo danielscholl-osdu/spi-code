@@ -15,7 +15,7 @@ import type { SweepReads } from "../sweep/index.js";
 import { stamp } from "../util.js";
 import type { FocusItem, Tone } from "./index.js";
 import { canWaitCauses, type CauseObject } from "./can-wait-causes.js";
-import { type TodayLine, todaySources } from "./lines.js";
+import { type TodayLine, type TodayMember, todayInFlight, todaySources } from "./lines.js";
 import { pullsComplete, syncCompanions } from "./repo-today.js";
 import { doorsOf } from "./service-home.js";
 import type { Since } from "./since.js";
@@ -43,6 +43,11 @@ export interface TodayMoving {
   at?: string;
   count: number;
   names: string[];
+  what?: string;
+  fork?: string;
+  link?: TodayMember["primary"];
+  age?: string;
+  notRead?: string[];
 }
 export interface TodayHistory {
   basis: Since["basis"];
@@ -210,7 +215,21 @@ function canWait(input: Input) {
 
 function moving(input: Input): TodayMoving[] {
   const { model, facts, now, context } = input;
-  const rows: TodayMoving[] = [];
+  const rows: TodayMoving[] = todayInFlight(model, input.items, now, context).map(
+    ({ line, member }) => ({
+      id: member.id,
+      label: member.fork,
+      place: member.home === "engineering" ? "engineering" : "line",
+      time: "Now",
+      count: 1,
+      names: [member.fork],
+      what: line.headline,
+      fork: member.fork,
+      ...(member.primary ? { link: member.primary } : {}),
+      ...(member.age ? { age: member.age } : {}),
+      notRead: member.evidence.notRead,
+    }),
+  );
   const lanes = model.lines.filter((line) => line.stations.some((station) => station.id === "lane" &&
     stationSubstateOf(station, line, facts) === "in-progress"));
   if (lanes.length) rows.push({ id: "lanes", label: "Lanes", place: "line", time: "Now", count: lanes.length,
@@ -225,7 +244,11 @@ function moving(input: Input): TodayMoving[] {
   if (next && Date.parse(next) > now.getTime()) rows.push({ id: "sync", label: "Upstream sync", place: "upstream",
     time: stamp(next, now, context) ?? next, at: next, count: model.upstream.schedule.opens.length,
     names: [...model.upstream.schedule.opens] });
-  return rows.sort((a, b) => (a.at ? Date.parse(a.at) : 0) - (b.at ? Date.parse(b.at) : 0)).slice(0, 3);
+  const inFlight = rows.filter((row) => !row.at);
+  const scheduled = rows.filter((row) => row.at)
+    .sort((a, b) => Date.parse(a.at as string) - Date.parse(b.at as string))
+    .slice(0, 3);
+  return [...inFlight, ...scheduled];
 }
 
 const OUTCOMES = Object.freeze([

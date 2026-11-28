@@ -5,13 +5,21 @@ import { readFileSync } from "node:fs";
 import {
   fleetLines,
   type TodayMemberStation,
+  todayCounts,
   todayMembers,
   ViewSnapshotSchema,
 } from "@spi-code/contracts";
 import { describe, expect, test } from "vitest";
 import { watchFixtures } from "../../../scripts/watch-generated.mjs";
 import { buildBriefing } from "../src/brief/index";
-import { todayLines } from "../src/brief/lines";
+import {
+  orderTodayLines,
+  type TodayLine,
+  todayInFlight,
+  todayLineFailing,
+  todayLines,
+} from "../src/brief/lines";
+import { classifyRolloutForks } from "../src/brief/rollout";
 import { emptyFacts, type Facts } from "../src/facts";
 import { itemEvidence } from "../src/inspect/item-evidence";
 import { CLASS_VERB } from "../src/model/next";
@@ -60,13 +68,13 @@ function snapshotAt(path: string) {
 describe("Today's situation lines", () => {
   test("16 Nov has 10 lines and 18 members, and all mornings put the same members in fork homes", () => {
     expect(lines).toHaveLength(10);
-    expect(lines.flatMap((line) => line.members)).toHaveLength(18);
+    expect(lines.flatMap((line) => line.members)).toHaveLength(17);
     expect(
       lines.filter((line) => line.section === "blocked").flatMap((l) => l.members),
     ).toHaveLength(3);
     expect(
       lines.filter((line) => line.section === "waiting").flatMap((l) => l.members),
-    ).toHaveLength(15);
+    ).toHaveLength(14);
     expect(
       lines
         .flatMap(({ members }) => members)
@@ -441,9 +449,13 @@ describe("Today's situation lines", () => {
   });
 
   test("approval members do not claim green while a member's checks are running", () => {
-    const group = lineWith("gate2:partition");
-    expect(group?.members.map((m) => m.id)).toEqual(["gate2:search", "gate2:partition"]);
+    const group = lineWith("gate2:search");
+    expect(group?.members.map((m) => m.id)).toEqual(["gate2:search"]);
+    expect(group?.subject).toBe("1 fork");
     expect(group?.headline).toBe("Integration PR waits for approval");
+    expect(todayInFlight(model, items, now, context)).toContainEqual(
+      expect.objectContaining({ member: expect.objectContaining({ id: "gate2:partition" }) }),
+    );
   });
 
   test("no line headline leaks a core verb name or error code", () => {
@@ -473,6 +485,197 @@ describe("Today's situation lines", () => {
     expect(
       undated.every((l) => l.age === undefined && l.members.every((m) => m.age === undefined)),
     ).toBe(true);
+  });
+
+  test("rollout forks have one honest per-fork classification", () => {
+    const rollout = structuredClone(model.rollout);
+    if (!rollout) throw new Error("16 Nov has a rollout");
+    const base = rollout.forks[0];
+    if (!base) throw new Error("The rollout has a fork");
+    const fork = (service: string, overrides: Partial<typeof base> = {}) => ({
+      ...base,
+      service,
+      onTarget: false,
+      unread: false,
+      pr: { number: 1, url: `https://github.com/example/${service}/pull/1`, headSha: "a" },
+      validation: { ...base.validation, text: "green", tone: "ok" as const },
+      ...overrides,
+    });
+    const dispatch: typeof base = fork("dispatch");
+    delete dispatch.pr;
+    const notStarted: typeof base = fork("not-started");
+    delete notStarted.pr;
+    const cases: (typeof base)[] = [
+      fork("merged", { onTarget: true }),
+      fork("review"),
+      fork("checking", { validation: { ...base.validation, text: "running", tone: "run" } }),
+      dispatch,
+      notStarted,
+      fork("unread", { unread: true }),
+    ];
+    const states = classifyRolloutForks({
+      ...rollout,
+      forks: cases,
+      dispatchNext: [dispatch],
+      dispatchWaits: [],
+    });
+    expect(states.map(({ fork, state }) => [fork.service, state])).toEqual([
+      ["merged", "merged"],
+      ["review", "to-review"],
+      ["checking", "checking"],
+      ["dispatch", "to-dispatch"],
+      ["not-started", "not-started"],
+      ["unread", "not-read"],
+    ]);
+    const notRead = cases.find(({ service }) => service === "unread");
+    if (!notRead) throw new Error("unread fork is in the table");
+    delete notRead.pr;
+    expect(classifyRolloutForks({ ...rollout, forks: [notRead] })[0]?.state).toBe("not-read");
+  });
+
+  test("a rollout can owe review and dispatch at once, while checking forks leave Yours", () => {
+    const changed = structuredClone(model);
+    const rollout = changed.rollout;
+    const focus = items.find(({ id }) => id === "rollout");
+    if (!rollout || !focus || rollout.forks.length < 3)
+      throw new Error("The sweep has a three-fork rollout focus");
+    const review = rollout.forks[0];
+    const checking = rollout.forks[1];
+    const dispatch = rollout.forks[2];
+    if (!review || !checking || !dispatch) throw new Error("The rollout has its first three forks");
+    for (const fork of rollout.forks) fork.onTarget = true;
+    review.onTarget = false;
+    review.unread = false;
+    review.pr = { number: 1, url: "https://github.com/example/review/pull/1", headSha: "a" };
+    review.validation = { ...review.validation, text: "green", tone: "ok" };
+    checking.onTarget = false;
+    checking.unread = false;
+    checking.pr = { number: 2, url: "https://github.com/example/checking/pull/2", headSha: "b" };
+    checking.validation = { ...checking.validation, text: "running", tone: "run" };
+    dispatch.onTarget = false;
+    dispatch.unread = false;
+    delete dispatch.pr;
+    rollout.dispatchNext = [dispatch];
+    rollout.dispatchWaits = [];
+    const projected = todayLines(changed, [focus], now, context);
+    const counted = todayCounts({ lines: projected });
+    expect(projected.find(({ subject }) => subject === "Template")).toMatchObject({
+      subject: "Template",
+      rollout: { withoutPr: [] },
+    });
+    expect(
+      projected.find(({ members }) => members.some((m) => m.id === `rollout:${review.service}`)),
+    ).toMatchObject({ subject: "1 fork" });
+    expect(projected.flatMap(({ members }) => members.map(({ id }) => id))).not.toContain(
+      `rollout:${checking.service}`,
+    );
+    expect(counted).toEqual({ total: 2, blocked: 0, waiting: 2 });
+    expect(todayInFlight(changed, [focus], now, context)).toEqual([
+      expect.objectContaining({
+        member: expect.objectContaining({ id: `rollout:${checking.service}` }),
+      }),
+    ]);
+  });
+
+  test.each([
+    ["lanes", true],
+    ["lane-deploy", true],
+    ["main", true],
+    ["sync-run", true],
+    ["template-run", true],
+    ["template-red", true],
+    ["release-red", true],
+    ["labels", false],
+  ] as const)("classifies %s as failing=%s", (kind, expected) => {
+    const changed = structuredClone(model);
+    const member = structuredClone(lines[0]?.members[0]);
+    const queued = structuredClone(changed.queue.items[0]);
+    if (!member || !queued) throw new Error("The sweep has a line and a queue item");
+    member.id = queued.id;
+    member.ids = [queued.id];
+    queued.kind = kind;
+    changed.queue.items = [queued];
+    expect(todayLineFailing(changed, { ...lines[0], members: [member] } as TodayLine)).toBe(
+      expected,
+    );
+  });
+
+  test("a gate fails only when its own PR verdict is red", () => {
+    const red = lineWith("gate2:legal");
+    if (!red) throw new Error("legal has a red integration PR");
+    expect(todayLineFailing(model, red)).toBe(true);
+    const pending = todayInFlight(model, items, now, context).find(
+      ({ member }) => member.id === "gate2:partition",
+    );
+    if (!pending) throw new Error("partition has checks running");
+    expect(todayLineFailing(model, { ...pending.line, members: [pending.member] })).toBe(false);
+  });
+
+  test("orders deadlines, failing, oldest and undated lines independent of input order", () => {
+    const row = (
+      id: string,
+      member: TodayLine["members"][number],
+      options: Partial<TodayLine> = {},
+    ): TodayLine => ({
+      id,
+      section: "waiting",
+      subject: "subject",
+      headline: "headline",
+      cause: "",
+      effect: "",
+      steps: [],
+      members: [member],
+      ...options,
+    });
+    const member = (id: string, since?: string) => ({
+      id,
+      ids: [id],
+      fork: id,
+      ...(since ? { since, age: "1d" } : {}),
+      cause: "",
+      effect: "",
+      steps: [],
+      evidence: { areas: [] as [], attributed: "item" as const, notRead: [] },
+    });
+    const deadline = (at: string) => ({ at, reason: "due" });
+    const input = [
+      row("undated", member("undated")),
+      row("new", member("new", "2026-11-16T12:00:00.000Z")),
+      row("late", member("late"), { deadline: deadline("2026-11-19T00:00:00.000Z") }),
+      row("old", member("old", "2026-11-01T00:00:00.000Z")),
+      row("failed", { ...member("gate2:legal", "2026-11-15T00:00:00.000Z"), fork: "legal" }),
+      row("soon", member("soon"), { deadline: deadline("2026-11-18T00:00:00.000Z") }),
+    ];
+    const ids = (rows: TodayLine[]) => rows.map(({ id }) => id);
+    expect(ids(orderTodayLines(model, input))).toEqual([
+      "soon",
+      "late",
+      "failed",
+      "old",
+      "new",
+      "undated",
+    ]);
+    expect(ids(orderTodayLines(model, [...input].reverse()))).toEqual(
+      ids(orderTodayLines(model, input)),
+    );
+  });
+
+  test("a member moves only for its own proven rerun, never an unrelated running result", () => {
+    const ownItem = items.find(({ id }) => id === "gate1:unit");
+    if (!ownItem) throw new Error("unit is in the sweep");
+    const own = structuredClone(model);
+    const ownQueue = own.queue.items.find(({ id }) => id === ownItem.id);
+    if (!ownQueue) throw new Error("unit has a queue item");
+    ownQueue.rerun = { state: "in-flight", verdict: "Environment", attempt: 1, later: 2 };
+    expect(todayLines(own, [ownItem], now, context)).toEqual([]);
+    expect(todayInFlight(own, [ownItem], now, context)).toHaveLength(1);
+
+    const unrelated = structuredClone(model);
+    const other = unrelated.queue.items.find(({ id }) => id !== ownItem.id);
+    if (!other) throw new Error("The sweep has an unrelated queue item");
+    other.rerun = { state: "in-flight", verdict: "Environment", attempt: 1, later: 2 };
+    expect(todayLines(unrelated, [ownItem], now, context)).toHaveLength(1);
+    expect(todayInFlight(unrelated, [ownItem], now, context)).toEqual([]);
   });
 
   test("the next actor decides inclusion, Can wait stays out, unknown blockers claim no move", () => {
@@ -507,7 +710,7 @@ describe("Today's situation lines", () => {
       reason: expect.stringContaining("Before the next upstream sync"),
     });
     expect(lineWith("rollout")).toMatchObject({
-      subject: "7 forks",
+      subject: "Template",
       headline: "Template 1a4730d not synced yet",
       deadline: {
         at: "2026-11-17T08:00:00.000Z",

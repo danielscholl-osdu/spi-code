@@ -7,6 +7,11 @@ export { serviceWork } from "./service-work.js";
 export { serviceUpstream } from "./service-upstream.js";
 export { todayFleet } from "./fleet.js";
 export { todaySummary, todayHistory } from "./today-summary.js";
+export {
+  classifyRolloutForks,
+  type ClassifiedRolloutFork,
+  type RolloutForkState,
+} from "./rollout.js";
 export { repositoryToday, syncCompanions, type RepoToday } from "./repo-today.js";
 
 export { todayLines, type TodayLine, type TodayMember, type TodayDeadline } from "./lines.js";
